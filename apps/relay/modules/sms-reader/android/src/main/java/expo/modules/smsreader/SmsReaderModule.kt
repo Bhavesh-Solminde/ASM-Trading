@@ -27,49 +27,50 @@ class SmsReaderModule : Module() {
     Events("onSmsReceived")
 
     AsyncFunction("startListening") {
-      if (receiver != null) return@AsyncFunction
+      if (receiver == null) {
+        val context = appContext.reactContext
+          ?: throw IllegalStateException("No Android context available")
 
-      val context = appContext.reactContext
-        ?: throw IllegalStateException("No Android context available")
+        val created = object : BroadcastReceiver() {
+          override fun onReceive(ctx: Context?, intent: Intent?) {
+            if (intent?.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
 
-      val created = object : BroadcastReceiver() {
-        override fun onReceive(ctx: Context?, intent: Intent?) {
-          if (intent?.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
+            val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
+            if (messages.isEmpty()) return
 
-          val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
-          if (messages.isEmpty()) return
+            val sender = messages[0].displayOriginatingAddress ?: "unknown"
+            val body = messages.joinToString("") { it.displayMessageBody ?: "" }
+            if (body.isBlank()) return
 
-          val sender = messages[0].displayOriginatingAddress ?: "unknown"
-          val body = messages.joinToString("") { it.displayMessageBody ?: "" }
-          if (body.isBlank()) return
-
-          sendEvent(
-            "onSmsReceived",
-            mapOf(
-              "sender" to sender,
-              "body" to body,
-              "receivedAt" to System.currentTimeMillis()
+            sendEvent(
+              "onSmsReceived",
+              mapOf(
+                "sender" to sender,
+                "body" to body,
+                "receivedAt" to System.currentTimeMillis()
+              )
             )
-          )
+          }
         }
+
+        val filter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          context.registerReceiver(created, filter, Context.RECEIVER_EXPORTED)
+        } else {
+          @Suppress("UnspecifiedRegisterReceiverFlag")
+          context.registerReceiver(created, filter)
+        }
+
+        receiver = created
       }
-
-      val filter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
-
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        context.registerReceiver(created, filter, Context.RECEIVER_EXPORTED)
-      } else {
-        @Suppress("UnspecifiedRegisterReceiverFlag")
-        context.registerReceiver(created, filter)
-      }
-
-      receiver = created
     }
 
     AsyncFunction("stopListening") {
-      val current = receiver ?: return@AsyncFunction
-      appContext.reactContext?.unregisterReceiver(current)
-      receiver = null
+      receiver?.let { current ->
+        appContext.reactContext?.unregisterReceiver(current)
+        receiver = null
+      }
     }
 
     AsyncFunction("isListening") {

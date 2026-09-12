@@ -11,6 +11,7 @@ def expoModulesCorePlugin = new File(
 )
 apply from: expoModulesCorePlugin
 applyKotlinExpoModulesCorePlugin()
+useDefaultAndroidSdkVersions()
 
 android {
   namespace "expo.modules.smsreader"
