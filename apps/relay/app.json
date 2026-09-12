@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "ASM Relay",
+    "slug": "asm-relay",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "asmrelay",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "android": {
+      "package": "local.asmtrade.relay",
+      "permissions": ["android.permission.RECEIVE_SMS", "android.permission.INTERNET"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24
+          }
+        }
+      ]
+    ],
+    "experiments": { "typedRoutes": true }
+  }
+}
