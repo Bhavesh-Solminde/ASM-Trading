@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main
@@ -45,6 +47,10 @@ export default function Home() {
           <li>Grant the SMS permission when the app asks, then tap Start listening.</li>
         </ol>
       </div>
+
+      <Link href="/messages" style={{ color: "#3d8bfd", fontSize: 13, textAlign: "center" }}>
+        View received messages →
+      </Link>
     </main>
   );
 }

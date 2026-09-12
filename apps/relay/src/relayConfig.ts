@@ -9,4 +9,5 @@ export const RELAY_CONFIG: RelayConfig = {
   serverUrl: "http://192.168.0.101:3000",
   secret: "test123",
   senders: ["SBI"],
+  deviceLabel: "Bhavesh's phone",
 };

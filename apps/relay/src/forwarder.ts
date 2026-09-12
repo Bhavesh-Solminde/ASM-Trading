@@ -1,5 +1,8 @@
+import * as Device from "expo-device";
 import { dueMessages, markFailed, markSent } from "./queue";
 import type { RelayConfig } from "./types";
+
+const deviceModel = Device.modelName ?? Device.deviceName ?? "unknown-device";
 
 const DRAIN_INTERVAL_MS = 4_000;
 const BATCH_SIZE = 10;
@@ -20,6 +23,8 @@ async function postOne(
         sender: message.sender,
         body: message.body,
         receivedAt: new Date(message.receivedAt).toISOString(),
+        deviceLabel: config.deviceLabel,
+        deviceModel,
       }),
     });
 

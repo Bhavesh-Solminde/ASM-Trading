@@ -5,6 +5,12 @@ export interface RelayConfig {
   secret: string;
   /** Sender fragments to forward. Empty means forward nothing. */
   senders: string[];
+  /**
+   * Human-chosen label for this build, e.g. "Bhavesh's phone" — set by us
+   * per build so messages from different test phones are distinguishable
+   * on the harness dashboard even before the device model is known.
+   */
+  deviceLabel: string;
 }
 
 export interface QueuedMessage {
