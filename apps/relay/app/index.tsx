@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   PermissionsAndroid,
   Platform,
@@ -7,41 +7,27 @@ import {
   Text,
   View,
 } from "react-native";
-import { Link, useFocusEffect } from "expo-router";
 import {
   addSmsListener,
   startListening,
   stopListening,
 } from "../modules/sms-reader";
-import { isConfigComplete, loadConfig } from "@/config";
+import { RELAY_CONFIG } from "@/relayConfig";
 import { enqueue, queueStats } from "@/queue";
 import { startForwarder } from "@/forwarder";
 import { isAllowedSender } from "@/senders";
-import type { RelayConfig } from "@/types";
-
-const EMPTY_CONFIG: RelayConfig = { serverUrl: "", secret: "", senders: [] };
 
 export default function Home() {
-  const [config, setConfig] = useState<RelayConfig>(EMPTY_CONFIG);
   const [listening, setListening] = useState(false);
   const [granted, setGranted] = useState(false);
   const [stats, setStats] = useState({ pending: 0, sent: 0 });
   const [lastSeen, setLastSeen] = useState<string | null>(null);
 
-  const configRef = useRef<RelayConfig>(EMPTY_CONFIG);
-  configRef.current = config;
-
   const subscriptionRef = useRef<{ remove(): void } | null>(null);
   const forwarderRef = useRef<{ stop(): void } | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadConfig().then(setConfig);
-    }, []),
-  );
-
   useEffect(() => {
-    forwarderRef.current = startForwarder(() => configRef.current);
+    forwarderRef.current = startForwarder(() => RELAY_CONFIG);
     const interval = setInterval(() => {
       void queueStats().then(setStats);
     }, 3_000);
@@ -81,7 +67,7 @@ export default function Home() {
     if (!(await requestPermission())) return;
 
     subscriptionRef.current = addSmsListener((event) => {
-      if (!isAllowedSender(event.sender, configRef.current.senders)) return;
+      if (!isAllowedSender(event.sender, RELAY_CONFIG.senders)) return;
 
       setLastSeen(`${event.sender} · ${event.body.slice(0, 48)}…`);
       void enqueue(event.sender, event.body, event.receivedAt);
@@ -90,8 +76,6 @@ export default function Home() {
     await startListening();
     setListening(true);
   }
-
-  const ready = isConfigComplete(config);
 
   return (
     <View style={styles.screen}>
@@ -106,9 +90,7 @@ export default function Home() {
           {listening ? "Listening" : "Stopped"}
         </Text>
         <Text style={styles.meta}>
-          {config.senders.length === 0
-            ? "No senders configured — nothing will be forwarded."
-            : `Forwarding from ${config.senders.join(", ")}`}
+          {`Forwarding from ${RELAY_CONFIG.senders.join(", ")}`}
         </Text>
       </View>
 
@@ -132,13 +114,9 @@ export default function Home() {
 
       <Pressable
         onPress={() => void toggle()}
-        disabled={!ready && !listening}
         style={[
           styles.button,
-          {
-            backgroundColor: listening ? "#e0526a" : "#2fbd85",
-            opacity: !ready && !listening ? 0.4 : 1,
-          },
+          { backgroundColor: listening ? "#e0526a" : "#2fbd85" },
         ]}
       >
         <Text
@@ -151,19 +129,9 @@ export default function Home() {
         </Text>
       </Pressable>
 
-      {!ready ? (
-        <Text style={styles.warning}>
-          Set the server URL, relay secret and sender list before starting.
-        </Text>
-      ) : null}
-
       {!granted && listening ? (
         <Text style={styles.warning}>SMS permission was not granted.</Text>
       ) : null}
-
-      <Link href="/settings" style={styles.link}>
-        Settings
-      </Link>
 
       <Text style={styles.footer}>
         Reads only this device&apos;s messages, only from the senders above, and
@@ -211,13 +179,6 @@ const styles = StyleSheet.create({
   button: { borderRadius: 10, paddingVertical: 15, alignItems: "center" },
   buttonText: { fontSize: 15, fontWeight: "700" },
   warning: { color: "#e0ac50", fontSize: 12, textAlign: "center" },
-  link: {
-    color: "#3d8bfd",
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-    marginTop: 4,
-  },
   footer: {
     color: "#6b7a8d",
     fontSize: 11,

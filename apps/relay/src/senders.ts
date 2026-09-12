@@ -1,12 +1,3 @@
-export function parseSenderList(raw: string): string[] {
-  const seen = new Set<string>();
-  for (const part of raw.split(",")) {
-    const trimmed = part.trim().toUpperCase();
-    if (trimmed.length > 0) seen.add(trimmed);
-  }
-  return [...seen];
-}
-
 /**
  * Pre-filter only. The server parses authoritatively; this exists so the phone
  * does not ship every OTP and delivery notification over the network.
