@@ -107,7 +107,7 @@ Create `packages/pricing/src/rng.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { createRng } from "./rng.js";
+import { createRng } from "./rng";
 
 describe("createRng", () => {
   it("is deterministic for a given seed", () => {
@@ -227,8 +227,8 @@ Create `packages/pricing/src/garch.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { initGarch, stepGarch, type GarchParams } from "./garch.js";
-import { createRng } from "./rng.js";
+import { initGarch, stepGarch, type GarchParams } from "./garch";
+import { createRng } from "./rng";
 
 const params: GarchParams = { omega: 0.000001, alpha: 0.08, beta: 0.9 };
 
@@ -383,8 +383,8 @@ Create `packages/pricing/src/step.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { initPriceState, stepPrice, type PriceParams } from "./step.js";
-import { createRng } from "./rng.js";
+import { initPriceState, stepPrice, type PriceParams } from "./step";
+import { createRng } from "./rng";
 
 const params: PriceParams = {
   garch: { omega: 0.000001, alpha: 0.08, beta: 0.9 },
@@ -502,7 +502,7 @@ Expected: FAIL — cannot resolve `./step.js`.
 - [ ] **Step 3: Write `packages/pricing/src/step.ts`**
 
 ```ts
-import { initGarch, stepGarch, type GarchParams, type GarchState } from "./garch.js";
+import { initGarch, stepGarch, type GarchParams, type GarchState } from "./garch";
 
 /**
  * The four-layer tick composer.
@@ -629,7 +629,7 @@ Create `packages/pricing/src/candles.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { CandleAggregator, bucketStart } from "./candles.js";
+import { CandleAggregator, bucketStart } from "./candles";
 
 describe("bucketStart", () => {
   it("floors to the wall-clock minute", () => {
@@ -781,13 +781,13 @@ export class CandleAggregator {
 - [ ] **Step 4: Write `packages/pricing/src/index.ts`**
 
 ```ts
-export { createRng, type Rng } from "./rng.js";
+export { createRng, type Rng } from "./rng";
 export {
   initGarch,
   stepGarch,
   type GarchParams,
   type GarchState,
-} from "./garch.js";
+} from "./garch";
 export {
   initPriceState,
   stepPrice,
@@ -795,8 +795,8 @@ export {
   type PriceState,
   type StepPriceInput,
   type StepPriceOutput,
-} from "./step.js";
-export { CandleAggregator, bucketStart, type Candle } from "./candles.js";
+} from "./step";
+export { CandleAggregator, bucketStart, type Candle } from "./candles";
 ```
 
 - [ ] **Step 5: Run the test to verify it passes**
@@ -839,7 +839,7 @@ Create `packages/contracts/src/ws.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { ClientMessageSchema } from "./ws.js";
+import { ClientMessageSchema } from "./ws";
 
 describe("ClientMessageSchema", () => {
   it("accepts an auth message", () => {
@@ -1011,7 +1011,7 @@ export {
   LoginSchema,
   type RegisterInput,
   type LoginInput,
-} from "./auth.js";
+} from "./auth";
 export {
   SymbolSchema,
   TimeframeSchema,
@@ -1030,7 +1030,7 @@ export {
   type PayoutUpdateMessage,
   type ReadyMessage,
   type ErrorMessage,
-} from "./ws.js";
+} from "./ws";
 ```
 
 - [ ] **Step 5: Run the test to verify it passes**
@@ -1139,8 +1139,8 @@ Create `apps/engine/src/feeds/replay.test.ts`:
 
 ```ts
 import { describe, expect, it, vi } from "vitest";
-import { createReplayFeed } from "./replay.js";
-import type { Quote } from "./types.js";
+import { createReplayFeed } from "./replay";
+import type { Quote } from "./types";
 
 describe("createReplayFeed", () => {
   it("emits quotes for every requested symbol", async () => {
@@ -1213,7 +1213,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { logger } from "@asm/logger";
-import type { PriceFeed, Quote } from "./types.js";
+import type { PriceFeed, Quote } from "./types";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = join(here, "../../data/seed-quotes.json");
@@ -1281,7 +1281,7 @@ Expected: PASS — 4 tests.
 
 ```ts
 import { logger } from "@asm/logger";
-import type { PriceFeed, Quote } from "./types.js";
+import type { PriceFeed, Quote } from "./types";
 
 /**
  * Twelve Data REST poller.
@@ -1376,7 +1376,7 @@ export function createPriceFeed(symbols: string[]): PriceFeed {
     // Lazy import avoids a cycle between the two feed modules.
     return {
       async start(onQuote) {
-        const { createReplayFeed } = await import("./replay.js");
+        const { createReplayFeed } = await import("./replay");
         const inner = createReplayFeed({ symbols, intervalMs: 5000 });
         (this as { inner?: PriceFeed }).inner = inner;
         await inner.start(onQuote);
@@ -1440,7 +1440,7 @@ Create `apps/engine/src/assets/registry.test.ts`:
 
 ```ts
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { AssetRegistry } from "./registry.js";
+import { AssetRegistry } from "./registry";
 import { prisma } from "@asm/db";
 
 const registry = new AssetRegistry(1234);
@@ -1660,7 +1660,7 @@ import {
 } from "@asm/contracts";
 import { prisma } from "@asm/db";
 import { childLogger, newCorrelationId, logger } from "@asm/logger";
-import type { AssetRegistry } from "./assets/registry.js";
+import type { AssetRegistry } from "./assets/registry";
 
 interface Client {
   socket: WebSocket;
@@ -1836,8 +1836,8 @@ export class EngineServer {
 ```ts
 import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
-import type { AssetRegistry } from "./assets/registry.js";
-import type { EngineServer } from "./server.js";
+import type { AssetRegistry } from "./assets/registry";
+import type { EngineServer } from "./server";
 
 const TICK_MS = 100;
 
@@ -1954,10 +1954,10 @@ export function startTickLoop(
 ```ts
 import { logger } from "@asm/logger";
 import { prisma } from "@asm/db";
-import { AssetRegistry } from "./assets/registry.js";
-import { EngineServer } from "./server.js";
-import { startTickLoop } from "./loop.js";
-import { createPriceFeed } from "./feeds/twelve-data.js";
+import { AssetRegistry } from "./assets/registry";
+import { EngineServer } from "./server";
+import { startTickLoop } from "./loop";
+import { createPriceFeed } from "./feeds/twelve-data";
 
 const WS_PORT = Number(process.env.ENGINE_WS_PORT ?? 4001);
 
@@ -2504,7 +2504,7 @@ import {
   stepPrice,
   type Candle,
   type PriceParams,
-} from "./index.js";
+} from "./index";
 
 const params: PriceParams = {
   garch: { omega: 0.000001, alpha: 0.08, beta: 0.9 },

@@ -102,8 +102,8 @@ Create `packages/trading/src/outcome.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { didWin, settlementCredit, settlementPnl } from "./outcome.js";
-import { DURATIONS_SEC, isValidDuration } from "./durations.js";
+import { didWin, settlementCredit, settlementPnl } from "./outcome";
+import { DURATIONS_SEC, isValidDuration } from "./durations";
 
 describe("didWin", () => {
   it("wins an UP trade when the price rose", () => {
@@ -313,7 +313,7 @@ Create `packages/trading/src/buckets.test.ts`:
 
 ```ts
 import { beforeEach, describe, expect, it } from "vitest";
-import { BucketRegistry, type Position } from "./buckets.js";
+import { BucketRegistry, type Position } from "./buckets";
 
 let seq = 0;
 
@@ -425,7 +425,7 @@ Expected: FAIL — cannot resolve `./buckets.js`.
 - [ ] **Step 3: Write `packages/trading/src/buckets.ts`**
 
 ```ts
-import type { Direction } from "./outcome.js";
+import type { Direction } from "./outcome";
 
 export interface Position {
   readonly tradeId: string;
@@ -542,13 +542,13 @@ export {
   settlementPnl,
   type Direction,
   type Outcome,
-} from "./outcome.js";
-export { DURATIONS_SEC, isValidDuration } from "./durations.js";
+} from "./outcome";
+export { DURATIONS_SEC, isValidDuration } from "./durations";
 export {
   BucketRegistry,
   type Position,
   type ExpiryBucket,
-} from "./buckets.js";
+} from "./buckets";
 ```
 
 - [ ] **Step 5: Run the test to verify it passes**
@@ -588,7 +588,7 @@ Create `packages/contracts/src/trade.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { OpenTradeSchema } from "./trade.js";
+import { OpenTradeSchema } from "./trade";
 
 const valid = {
   symbol: "AUDNZD_OTC",
@@ -658,7 +658,7 @@ Expected: FAIL — cannot resolve `./trade.js`.
 
 ```ts
 import { z } from "zod";
-import { SymbolSchema } from "./ws.js";
+import { SymbolSchema } from "./ws";
 
 /** Mirrors DURATIONS_SEC in @asm/trading. Kept literal here so contracts stays dependency-free. */
 const DURATIONS = [
@@ -711,12 +711,12 @@ Add these interfaces after `ErrorMessage`, and extend the union:
 ```ts
 export interface TradeOpenedMessage {
   type: "trade:opened";
-  trade: import("./trade.js").TradeView;
+  trade: import("./trade").TradeView;
 }
 
 export interface TradeSettledMessage {
   type: "trade:settled";
-  trade: import("./trade.js").TradeView;
+  trade: import("./trade").TradeView;
 }
 
 export interface BalanceUpdateMessage {
@@ -751,12 +751,12 @@ export {
   type DirectionDto,
   type OpenTradeInput,
   type TradeView,
-} from "./trade.js";
+} from "./trade";
 export type {
   TradeOpenedMessage,
   TradeSettledMessage,
   BalanceUpdateMessage,
-} from "./ws.js";
+} from "./ws";
 ```
 
 - [ ] **Step 6: Run the test to verify it passes**
@@ -803,8 +803,8 @@ Create `packages/db/src/repositories/trade.test.ts`:
 
 ```ts
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { PrismaClient } from "../../generated/prisma/client.js";
-import { createAccountsForUser } from "./account.js";
+import { PrismaClient } from "../../generated/prisma/client";
+import { createAccountsForUser } from "./account";
 import {
   InsufficientFunds,
   debitAccount,
@@ -812,7 +812,7 @@ import {
   openTradeRecord,
   listTradesForActor,
   settleTrade,
-} from "./trade.js";
+} from "./trade";
 
 const prisma = new PrismaClient();
 
@@ -1031,8 +1031,8 @@ pnpm --filter @asm/db add @asm/trading@workspace:*
 
 ```ts
 import { didWin, settlementCredit, settlementPnl, type Position } from "@asm/trading";
-import { prisma } from "../client.js";
-import type { Direction, Trade, TxKind } from "../../generated/prisma/client.js";
+import { prisma } from "../client";
+import type { Direction, Trade, TxKind } from "../../generated/prisma/client";
 
 export class InsufficientFunds extends Error {
   constructor() {
@@ -1269,7 +1269,7 @@ export {
   settleTrade,
   type OpenTradeRecordInput,
   type SettleTradeInput,
-} from "./repositories/trade.js";
+} from "./repositories/trade";
 ```
 
 - [ ] **Step 6: Run the test to verify it passes**
@@ -1326,8 +1326,8 @@ import { BucketRegistry, type Position } from "@asm/trading";
 import { loadOpenPositions, prisma, settleTrade } from "@asm/db";
 import { logger } from "@asm/logger";
 import type { TradeView } from "@asm/contracts";
-import type { AssetRegistry } from "./assets/registry.js";
-import type { EngineServer } from "./server.js";
+import type { AssetRegistry } from "./assets/registry";
+import type { EngineServer } from "./server";
 
 export class SettlementService {
   private registry = new BucketRegistry();
@@ -1478,7 +1478,7 @@ export function startTickLoop(
 Add the import:
 
 ```ts
-import type { SettlementService } from "./settlement.js";
+import type { SettlementService } from "./settlement";
 ```
 
 Then, immediately after `const nowSec = Math.floor(startedAt / 1000);` and before the asset loop, insert:
@@ -1494,7 +1494,7 @@ Then, immediately after `const nowSec = Math.floor(startedAt / 1000);` and befor
 Add the import:
 
 ```ts
-import { SettlementService } from "./settlement.js";
+import { SettlementService } from "./settlement";
 ```
 
 Then replace the three lines that create the server and loop with:
@@ -1511,7 +1511,7 @@ And expose the settlement service so the HTTP layer can register new trades. Add
 ```ts
   // The web app opens trades over HTTP; the engine owns expiry. A tiny internal
   // HTTP endpoint is how the two processes meet. Bound to loopback only.
-  const { createInternalApi } = await import("./internal-api.js");
+  const { createInternalApi } = await import("./internal-api");
   const internal = createInternalApi(registry, settlement, server);
   await internal.listen();
 ```
@@ -1523,9 +1523,9 @@ import { createServer, type Server } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import { logger } from "@asm/logger";
 import type { Position } from "@asm/trading";
-import type { AssetRegistry } from "./assets/registry.js";
-import type { SettlementService } from "./settlement.js";
-import type { EngineServer } from "./server.js";
+import type { AssetRegistry } from "./assets/registry";
+import type { SettlementService } from "./settlement";
+import type { EngineServer } from "./server";
 
 const PORT = Number(process.env.ENGINE_HTTP_PORT ?? 4002);
 const SECRET = process.env.ENGINE_INTERNAL_SECRET ?? "";

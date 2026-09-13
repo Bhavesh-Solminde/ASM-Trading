@@ -118,14 +118,14 @@ Create `packages/db/src/repositories/deposit.test.ts`:
 
 ```ts
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { PrismaClient } from "../../generated/prisma/client.js";
+import { PrismaClient } from "../../generated/prisma/client";
 import {
   DEPOSIT_TTL_MINUTES,
   USD_TO_INR_RATE,
   createDepositIntent,
   getDepositByToken,
   listDepositsForActor,
-} from "./deposit.js";
+} from "./deposit";
 
 const prisma = new PrismaClient();
 
@@ -239,8 +239,8 @@ Expected: FAIL — cannot resolve `./deposit.js`.
 
 ```ts
 import { randomBytes } from "node:crypto";
-import { prisma } from "../client.js";
-import type { Deposit } from "../../generated/prisma/client.js";
+import { prisma } from "../client";
+import type { Deposit } from "../../generated/prisma/client";
 
 /**
  * The PSP-style conversion rate. Deliberately above interbank — that spread is
@@ -371,7 +371,7 @@ export {
   createDepositIntent,
   getDepositByToken,
   listDepositsForActor,
-} from "./repositories/deposit.js";
+} from "./repositories/deposit";
 ```
 
 - [ ] **Step 7: Run the test to verify it passes**
@@ -417,15 +417,15 @@ Create `packages/db/src/repositories/matcher.test.ts`:
 
 ```ts
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { PrismaClient } from "../../generated/prisma/client.js";
-import { createAccountsForUser } from "./account.js";
+import { PrismaClient } from "../../generated/prisma/client";
+import { createAccountsForUser } from "./account";
 import {
   approveDeposit,
   claimUtr,
   createDepositIntent,
   rejectDeposit,
   runMatcher,
-} from "./deposit.js";
+} from "./deposit";
 
 const prisma = new PrismaClient();
 
@@ -663,7 +663,7 @@ Expected: FAIL — `claimUtr` is not exported.
 
 ```ts
 import { logger } from "@asm/logger";
-import type { BankCredit } from "../../generated/prisma/client.js";
+import type { BankCredit } from "../../generated/prisma/client";
 
 export type MatchTier = "EXACT" | "AMOUNT_ONLY" | "NEAR" | "NONE";
 
@@ -955,7 +955,7 @@ export {
   rejectDeposit,
   listPendingDeposits,
   type MatchTier,
-} from "./repositories/deposit.js";
+} from "./repositories/deposit";
 ```
 
 - [ ] **Step 5: Add the logger dependency to the db package**
@@ -1035,7 +1035,7 @@ Create `packages/bankfeed/src/parser/parser.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { parseBankMessage } from "./index.js";
+import { parseBankMessage } from "./index";
 
 describe("parseBankMessage", () => {
   it("parses an HDFC-style credit alert", () => {
@@ -1211,7 +1211,7 @@ export function referenceCandidates(text: string): ReferenceCandidate[] {
 - [ ] **Step 7: Write `packages/bankfeed/src/parser/disambiguate.ts`**
 
 ```ts
-import type { ReferenceCandidate } from "./candidates.js";
+import type { ReferenceCandidate } from "./candidates";
 
 const CREDIT_WORDS = /\b(credited|credit|received|deposited)\b/i;
 const DEBIT_WORDS = /\b(debited|debit|spent|withdrawn|paid|purchase)\b/i;
@@ -1280,8 +1280,8 @@ import {
   MAX_INPUT_LENGTH,
   amountCandidates,
   referenceCandidates,
-} from "./candidates.js";
-import { isCredit, isPromotional, pickReference } from "./disambiguate.js";
+} from "./candidates";
+import { isCredit, isPromotional, pickReference } from "./disambiguate";
 
 export interface ParsedMessage {
   readonly amountInr: number;
@@ -1313,7 +1313,7 @@ export function parseBankMessage(text: string): ParsedMessage | null {
   return { amountInr: amount.minor, utr, isCredit: isCredit(text) };
 }
 
-export { MAX_INPUT_LENGTH } from "./candidates.js";
+export { MAX_INPUT_LENGTH } from "./candidates";
 ```
 
 - [ ] **Step 9: Run the test to verify it passes**
@@ -1360,8 +1360,8 @@ Create `packages/bankfeed/src/simulated.test.ts`:
 ```ts
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@asm/db";
-import { createSimulatedFeed } from "./simulated.js";
-import type { Credit } from "./types.js";
+import { createSimulatedFeed } from "./simulated";
+import type { Credit } from "./types";
 
 beforeEach(async () => {
   await prisma.bankCredit.deleteMany({});
@@ -1464,7 +1464,7 @@ Expected: FAIL — cannot resolve `./simulated.js`.
 ```ts
 import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
-import type { BankFeed, Credit } from "./types.js";
+import type { BankFeed, Credit } from "./types";
 
 /**
  * The simulation boundary.
@@ -1540,8 +1540,8 @@ export function createSimulatedFeed(opts: {
 
 ```ts
 import { logger } from "@asm/logger";
-import { parseBankMessage } from "./parser/index.js";
-import type { BankFeed, Credit } from "./types.js";
+import { parseBankMessage } from "./parser/index";
+import type { BankFeed, Credit } from "./types";
 
 type Listener = (credit: Credit) => void;
 
@@ -1613,7 +1613,7 @@ export function createSmsRelayFeed(): BankFeed {
 
 ```ts
 import { logger } from "@asm/logger";
-import type { BankFeed, Credit } from "./types.js";
+import type { BankFeed, Credit } from "./types";
 
 /**
  * IMAP adapter.
@@ -1656,10 +1656,10 @@ export type { Credit };
 ```ts
 import { config } from "@asm/config";
 import { logger } from "@asm/logger";
-import { createSimulatedFeed } from "./simulated.js";
-import { createSmsRelayFeed } from "./sms-relay.js";
-import { createImapFeed } from "./imap.js";
-import type { BankFeed } from "./types.js";
+import { createSimulatedFeed } from "./simulated";
+import { createSmsRelayFeed } from "./sms-relay";
+import { createImapFeed } from "./imap";
+import type { BankFeed } from "./types";
 
 /**
  * One switch selects the source of BankCredit rows. Everything downstream is
@@ -1696,12 +1696,12 @@ export function createBankFeed(kind = config.bankFeed): BankFeed {
 `packages/bankfeed/src/index.ts`:
 
 ```ts
-export type { BankFeed, Credit } from "./types.js";
-export { parseBankMessage, type ParsedMessage } from "./parser/index.js";
-export { createSimulatedFeed } from "./simulated.js";
-export { createSmsRelayFeed, submitRelayedSms } from "./sms-relay.js";
-export { createImapFeed } from "./imap.js";
-export { createBankFeed } from "./factory.js";
+export type { BankFeed, Credit } from "./types";
+export { parseBankMessage, type ParsedMessage } from "./parser/index";
+export { createSimulatedFeed } from "./simulated";
+export { createSmsRelayFeed, submitRelayedSms } from "./sms-relay";
+export { createImapFeed } from "./imap";
+export { createBankFeed } from "./factory";
 ```
 
 - [ ] **Step 7: Write `apps/engine/src/bank-feed-runner.ts`**
@@ -1784,7 +1784,7 @@ export async function startBankFeedRunner(): Promise<{ stop(): Promise<void> }> 
 Add the import:
 
 ```ts
-import { startBankFeedRunner } from "./bank-feed-runner.js";
+import { startBankFeedRunner } from "./bank-feed-runner";
 ```
 
 After the bot crowd block, add:
@@ -1861,7 +1861,7 @@ Create `packages/contracts/src/deposit.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { ClaimUtrSchema, CreateDepositSchema, RelayedSmsSchema } from "./deposit.js";
+import { ClaimUtrSchema, CreateDepositSchema, RelayedSmsSchema } from "./deposit";
 
 describe("CreateDepositSchema", () => {
   const valid = { method: "PhonePe", amountUsd: 10_000 };
@@ -2027,7 +2027,7 @@ export {
   type ClaimUtrInput,
   type RelayedSmsInput,
   type DepositView,
-} from "./deposit.js";
+} from "./deposit";
 ```
 
 - [ ] **Step 5: Run the test to verify it passes**
@@ -2796,9 +2796,9 @@ Create `packages/db/src/repositories/withdrawal.test.ts`:
 
 ```ts
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { PrismaClient } from "../../generated/prisma/client.js";
-import { createAccountsForUser } from "./account.js";
-import { requestWithdrawal, withdrawableBalance } from "./withdrawal.js";
+import { PrismaClient } from "../../generated/prisma/client";
+import { createAccountsForUser } from "./account";
+import { requestWithdrawal, withdrawableBalance } from "./withdrawal";
 
 const prisma = new PrismaClient();
 
@@ -2943,9 +2943,9 @@ Expected: FAIL — cannot resolve `./withdrawal.js`.
 - [ ] **Step 3: Write `packages/db/src/repositories/withdrawal.ts`**
 
 ```ts
-import { prisma } from "../client.js";
-import { debitAccount } from "./trade.js";
-import type { Withdrawal } from "../../generated/prisma/client.js";
+import { prisma } from "../client";
+import { debitAccount } from "./trade";
+import type { Withdrawal } from "../../generated/prisma/client";
 
 export class WithdrawalRefused extends Error {
   constructor(message: string) {
@@ -3099,7 +3099,7 @@ export {
   requestWithdrawal,
   approveWithdrawal,
   listWithdrawalsForActor,
-} from "./repositories/withdrawal.js";
+} from "./repositories/withdrawal";
 ```
 
 - [ ] **Step 5: Run the test to verify it passes**
