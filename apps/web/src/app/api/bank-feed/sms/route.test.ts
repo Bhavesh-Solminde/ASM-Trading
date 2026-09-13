@@ -11,6 +11,12 @@ const TEST_SECRET = process.env["SMS_RELAY_SECRET"] ?? "test-only-sms-relay-secr
 
 const DEVICE_LABEL = `route-test-${randomUUID()}`;
 
+// A unique IP per test run, not the "local" fallback `requestContext` would
+// otherwise use for every request — without this, repeated runs within the
+// rate limiter's 5-minute window share one Redis bucket and eventually start
+// failing on 429 instead of testing the endpoint's actual logic.
+const TEST_IP = randomUUID();
+
 /**
  * Mirrors `syntheticUtr` in `./route.ts` exactly (not imported — Next.js
  * route files only export HTTP-method handlers, so this is intentionally
@@ -32,7 +38,10 @@ function relayRequest(input: {
   body?: Record<string, unknown> | null;
   authorization?: string | null;
 }): NextRequest {
-  const headers: Record<string, string> = { "content-type": "application/json" };
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "x-forwarded-for": TEST_IP,
+  };
   if (input.authorization !== null) {
     headers["authorization"] = input.authorization ?? `Bearer ${TEST_SECRET}`;
   }
@@ -69,7 +78,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.relayMessage.deleteMany({ where: { deviceLabel: DEVICE_LABEL } });
+  // Every test suffixes DEVICE_LABEL (e.g. `${DEVICE_LABEL}-unauth`) rather
+  // than using it bare, so an exact match here would delete nothing.
+  await prisma.relayMessage.deleteMany({ where: { deviceLabel: { startsWith: DEVICE_LABEL } } });
   await prisma.bankCredit.deleteMany({ where: { id: { in: createdBankCreditIds } } });
   await prisma.transaction.deleteMany({ where: { account: { userId } } });
   await prisma.bonusGrant.deleteMany({ where: { account: { userId } } });

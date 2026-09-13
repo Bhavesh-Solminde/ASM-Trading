@@ -128,6 +128,30 @@ describe("matchCreditToDeposit", () => {
     expect(outcome).toEqual({ kind: "auto_approved", depositId: deposit.id });
   });
 
+  it("Case 4b: deposit has a claimed reference but the credit has none -> still auto-approve, never the deposit's claimedUtr leaking as a false mismatch", async () => {
+    // Regression guard for the ingestion endpoint's synthetic-UTR path: if a
+    // caller ever passed a non-null synthetic value here instead of the real
+    // (possibly null) reference, this deposit's claimedUtr would fail to
+    // match it and wrongly fall into manual_review/reference_mismatch. A
+    // genuinely absent reference on the credit side must still auto-approve
+    // regardless of what the deposit claims, per the "referenceMissing on
+    // either side" rule.
+    const deposit = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountUsdMinor: 13_500,
+      correlationId: randomUUID(),
+    });
+    await prisma.deposit.update({
+      where: { id: deposit.id },
+      data: { claimedUtr: "case4b-claimed-utr", status: "PENDING_CONFIRMATION" },
+    });
+    const creditId = await makeCredit(deposit.amountInr, null);
+
+    const outcome = await matchCreditToDeposit({ creditId, amountInr: deposit.amountInr, utr: null });
+    expect(outcome).toEqual({ kind: "auto_approved", depositId: deposit.id });
+  });
+
   it("Case 5: VPA is irrelevant to matching (implicit — matchCreditToDeposit never receives a vpa argument at all)", () => {
     // No runtime assertion needed: the function signature itself has no vpa
     // parameter, so there is no code path where VPA could block a match.
