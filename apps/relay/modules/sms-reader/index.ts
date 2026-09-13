@@ -5,6 +5,8 @@ declare class SmsReaderModule extends NativeModule<SmsReaderEvents> {
   startListening(): Promise<void>;
   stopListening(): Promise<void>;
   isListening(): Promise<boolean>;
+  startForegroundService(): Promise<void>;
+  stopForegroundService(): Promise<void>;
 }
 
 const SmsReader = requireNativeModule<SmsReaderModule>("SmsReader");
@@ -19,6 +21,14 @@ export function stopListening(): Promise<void> {
 
 export function isListening(): Promise<boolean> {
   return SmsReader.isListening();
+}
+
+export function startForegroundService(): Promise<void> {
+  return SmsReader.startForegroundService();
+}
+
+export function stopForegroundService(): Promise<void> {
+  return SmsReader.stopForegroundService();
 }
 
 export function addSmsListener(

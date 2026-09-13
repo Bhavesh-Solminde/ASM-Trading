@@ -77,6 +77,28 @@ class SmsReaderModule : Module() {
       receiver != null
     }
 
+    AsyncFunction("startForegroundService") {
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      val intent = Intent(context, RelayForegroundService::class.java)
+      // Both branches return ComponentName?, a type expo-modules-kotlin's
+      // bridge can't serialize back to JS — discard it explicitly so the
+      // block's return type is Unit, not ComponentName?.
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        context.startForegroundService(intent)
+      } else {
+        context.startService(intent)
+      }
+      Unit
+    }
+
+    AsyncFunction("stopForegroundService") {
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      context.stopService(Intent(context, RelayForegroundService::class.java))
+      Unit
+    }
+
     OnDestroy {
       receiver?.let { current ->
         runCatching { appContext.reactContext?.unregisterReceiver(current) }

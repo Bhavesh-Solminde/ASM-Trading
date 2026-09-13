@@ -10,14 +10,16 @@ import {
 } from "react-native";
 import {
   addSmsListener,
+  startForegroundService,
   startListening,
+  stopForegroundService,
   stopListening,
 } from "../modules/sms-reader";
 import { RELAY_CONFIG } from "@/relayConfig";
 import { enqueue, queueStats } from "@/queue";
 import { startForwarder } from "@/forwarder";
 import { isAllowedSender } from "@/senders";
-import { getActivity, type ActivityEntry } from "@/activityLog";
+import { getActivity, logActivity, type ActivityEntry } from "@/activityLog";
 
 export default function Home() {
   const [listening, setListening] = useState(false);
@@ -56,29 +58,46 @@ export default function Home() {
     );
     const ok = result === PermissionsAndroid.RESULTS.GRANTED;
     setGranted(ok);
+
+    // Best-effort: without this the "listening" notification just won't show,
+    // but the foreground service (and background execution) still works.
+    if (PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS) {
+      await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      ).catch(() => {});
+    }
+
     return ok;
   }
 
   async function toggle() {
-    if (listening) {
-      subscriptionRef.current?.remove();
-      subscriptionRef.current = null;
-      await stopListening();
-      setListening(false);
-      return;
+    try {
+      if (listening) {
+        subscriptionRef.current?.remove();
+        subscriptionRef.current = null;
+        await stopListening();
+        await stopForegroundService();
+        setListening(false);
+        return;
+      }
+
+      if (!(await requestPermission())) return;
+
+      subscriptionRef.current = addSmsListener((event) => {
+        if (!isAllowedSender(event.sender, RELAY_CONFIG.senders)) return;
+
+        setLastSeen(`${event.sender} · ${event.body.slice(0, 48)}…`);
+        void enqueue(event.sender, event.body, event.receivedAt);
+      });
+
+      await startForegroundService();
+      await startListening();
+      setListening(true);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      logActivity("system", false, `Start/stop failed: ${detail}`);
+      setActivity(getActivity());
     }
-
-    if (!(await requestPermission())) return;
-
-    subscriptionRef.current = addSmsListener((event) => {
-      if (!isAllowedSender(event.sender, RELAY_CONFIG.senders)) return;
-
-      setLastSeen(`${event.sender} · ${event.body.slice(0, 48)}…`);
-      void enqueue(event.sender, event.body, event.receivedAt);
-    });
-
-    await startListening();
-    setListening(true);
   }
 
   return (
@@ -139,7 +158,9 @@ export default function Home() {
 
       <Text style={styles.footer}>
         Reads only this device&apos;s messages, only from the senders above, and
-        sends them only to your own server. Demonstration use.
+        sends them only to your own server. Demonstration use. Shows a
+        persistent notification while listening so Android doesn&apos;t stop
+        it in the background.
       </Text>
 
       {activity.length > 0 ? (
