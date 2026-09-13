@@ -1,7 +1,4 @@
-import Redis from "ioredis";
-import { config } from "@asm/config";
-
-const redis = new Redis(config.redisUrl, { maxRetriesPerRequest: 2 });
+import { redis } from "./redis";
 
 /**
  * Fixed-window counter. Returns true when the request is allowed.
