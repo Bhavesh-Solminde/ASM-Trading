@@ -1,4 +1,5 @@
 import * as Device from "expo-device";
+import { logActivity } from "./activityLog";
 import { dueMessages, markFailed, markSent } from "./queue";
 import type { RelayConfig } from "./types";
 
@@ -8,10 +9,15 @@ const DRAIN_INTERVAL_MS = 4_000;
 const BATCH_SIZE = 10;
 const MAX_ATTEMPTS = 12;
 
+interface PostResult {
+  ok: boolean;
+  detail: string;
+}
+
 async function postOne(
   config: RelayConfig,
   message: { sender: string; body: string; receivedAt: number },
-): Promise<boolean> {
+): Promise<PostResult> {
   try {
     const response = await fetch(`${config.serverUrl}/api/bank-feed/sms`, {
       method: "POST",
@@ -28,9 +34,17 @@ async function postOne(
       }),
     });
 
-    return response.status === 202 || response.status === 400;
-  } catch {
-    return false;
+    if (response.status === 202 || response.status === 400) {
+      return { ok: true, detail: `HTTP ${response.status}` };
+    }
+
+    const bodyText = await response.text().catch(() => "");
+    return {
+      ok: false,
+      detail: `HTTP ${response.status}${bodyText ? `: ${bodyText.slice(0, 120)}` : ""}`,
+    };
+  } catch (error) {
+    return { ok: false, detail: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -50,12 +64,15 @@ export function startForwarder(getConfig: () => RelayConfig): { stop(): void } {
 
       for (const message of batch) {
         if (message.attempts >= MAX_ATTEMPTS) {
+          logActivity(message.sender, false, "Gave up after 12 attempts");
           await markFailed(message.id, message.attempts).catch(() => {});
           continue;
         }
 
-        const ok = await postOne(config, message);
-        if (ok) {
+        const result = await postOne(config, message);
+        logActivity(message.sender, result.ok, result.detail);
+
+        if (result.ok) {
           await markSent(message.id).catch(() => {});
         } else {
           await markFailed(message.id, message.attempts).catch(() => {});

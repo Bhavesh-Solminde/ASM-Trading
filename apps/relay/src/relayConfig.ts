@@ -6,7 +6,7 @@ import type { RelayConfig } from "./types";
  * server or sender list.
  */
 export const RELAY_CONFIG: RelayConfig = {
-  serverUrl: "http://192.168.0.101:3000",
+  serverUrl: "https://asm-trading-sms-test.vercel.app",
   secret: "test123",
   senders: ["SBI"],
   deviceLabel: "Bhavesh's phone",

@@ -3,6 +3,7 @@ import {
   PermissionsAndroid,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -16,12 +17,14 @@ import { RELAY_CONFIG } from "@/relayConfig";
 import { enqueue, queueStats } from "@/queue";
 import { startForwarder } from "@/forwarder";
 import { isAllowedSender } from "@/senders";
+import { getActivity, type ActivityEntry } from "@/activityLog";
 
 export default function Home() {
   const [listening, setListening] = useState(false);
   const [granted, setGranted] = useState(false);
   const [stats, setStats] = useState({ pending: 0, sent: 0 });
   const [lastSeen, setLastSeen] = useState<string | null>(null);
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
 
   const subscriptionRef = useRef<{ remove(): void } | null>(null);
   const forwarderRef = useRef<{ stop(): void } | null>(null);
@@ -30,7 +33,8 @@ export default function Home() {
     forwarderRef.current = startForwarder(() => RELAY_CONFIG);
     const interval = setInterval(() => {
       void queueStats().then(setStats);
-    }, 3_000);
+      setActivity(getActivity());
+    }, 2_000);
 
     return () => {
       forwarderRef.current?.stop();
@@ -78,7 +82,7 @@ export default function Home() {
   }
 
   return (
-    <View style={styles.screen}>
+    <ScrollView contentContainerStyle={styles.screen}>
       <View style={styles.card}>
         <Text style={styles.cardLabel}>Status</Text>
         <Text
@@ -137,12 +141,36 @@ export default function Home() {
         Reads only this device&apos;s messages, only from the senders above, and
         sends them only to your own server. Demonstration use.
       </Text>
-    </View>
+
+      {activity.length > 0 ? (
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>Send log</Text>
+          {activity.map((entry) => (
+            <View key={entry.id} style={styles.logRow}>
+              <Text
+                style={[
+                  styles.logStatus,
+                  { color: entry.ok ? "#2fbd85" : "#e0526a" },
+                ]}
+              >
+                {entry.ok ? "✓" : "✗"}
+              </Text>
+              <View style={styles.logBody}>
+                <Text style={styles.logSender}>
+                  {entry.sender} · {new Date(entry.at).toLocaleTimeString()}
+                </Text>
+                <Text style={styles.logDetail}>{entry.detail}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 24, gap: 14, justifyContent: "center" },
+  screen: { flexGrow: 1, padding: 24, gap: 14, justifyContent: "center" },
   card: {
     backgroundColor: "#16202c",
     borderColor: "#253243",
@@ -186,4 +214,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
   },
+  logRow: { flexDirection: "row", gap: 8, paddingTop: 6 },
+  logStatus: { fontSize: 13, fontWeight: "700", width: 14 },
+  logBody: { flex: 1, gap: 1 },
+  logSender: { color: "#93a2b4", fontSize: 11, fontWeight: "600" },
+  logDetail: { color: "#6b7a8d", fontSize: 11, lineHeight: 15 },
 });
