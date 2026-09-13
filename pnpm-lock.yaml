@@ -110,6 +110,12 @@ importers:
         specifier: 4.6.1
         version: 4.6.1
 
+  packages/contracts:
+    dependencies:
+      zod:
+        specifier: 4.6.1
+        version: 4.6.1
+
   packages/db:
     dependencies:
       '@asm/config':
