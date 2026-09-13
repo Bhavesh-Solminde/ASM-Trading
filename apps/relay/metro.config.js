@@ -1,3 +1,4 @@
+/* eslint-disable no-undef, @typescript-eslint/no-require-imports -- Metro config loaded by Node in CommonJS mode; require/module/__dirname are ambient Node globals and CommonJS require is the format Metro expects here. */
 const { getDefaultConfig } = require("expo/metro-config");
 const path = require("node:path");
 

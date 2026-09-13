@@ -87,7 +87,7 @@ function getRealLogger(): Logger {
 }
 
 export const logger: Logger = new Proxy({} as Logger, {
-  get(_target, prop, _receiver) {
+  get(_target, prop) {
     const real = getRealLogger();
     const value = Reflect.get(real, prop, real);
     return typeof value === "function" ? value.bind(real) : value;

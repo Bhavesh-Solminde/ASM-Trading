@@ -13,7 +13,7 @@ const AMOUNT_RE =
   /(?:(?:rs\.?|inr|₹)\s?([0-9][0-9,]*(?:\.[0-9]{1,2})?))|\b([0-9]+\.[0-9]{2})\b/gi;
 
 const REF_LABEL_RE =
-  /(?:ref(?:erence)?\s*(?:no\.?|number)?|utr|txn\s*id)\s*[:\-]?\s*([a-z0-9]{6,22})/i;
+  /(?:ref(?:erence)?\s*(?:no\.?|number)?|utr|txn\s*id)\s*[:-]?\s*([a-z0-9]{6,22})/i;
 const BARE_REF_RE = /\b([0-9]{9,22})\b/;
 
 const CREDIT_RE = /\b(credited|credit|received|deposited)\b/i;

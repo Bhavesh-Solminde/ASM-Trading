@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * Security headers set centrally so no route can omit them. Asserted by an
  * integration test in Task 13 rather than by inspection.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature required by the Next.js middleware/NextMiddleware contract and by the direct call in headers.test.ts, even though the headers set below don't depend on the request.
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
 

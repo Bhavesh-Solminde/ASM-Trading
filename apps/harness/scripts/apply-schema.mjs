@@ -1,3 +1,4 @@
+/* eslint-disable no-undef -- Node.js script executed directly with `node`; process/console are ambient Node globals, not undeclared. */
 import postgres from "postgres";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

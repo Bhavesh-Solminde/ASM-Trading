@@ -29,6 +29,7 @@ describe("parseConfig", () => {
   });
 
   it("defaults bank feed to simulated when absent", () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to omit BANK_FEED from rest.
     const { BANK_FEED: _omit, ...rest } = valid;
     expect(parseConfig(rest).bankFeed).toBe("simulated");
   });
