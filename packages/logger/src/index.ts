@@ -92,6 +92,15 @@ export const logger: Logger = new Proxy({} as Logger, {
     const value = Reflect.get(real, prop, real);
     return typeof value === "function" ? value.bind(real) : value;
   },
+  // Without this, `logger.level = "debug"` (a documented pino idiom for
+  // changing verbosity at runtime) would silently write onto the empty
+  // proxy target instead of the real instance, and the `get` trap above
+  // would keep reading the real instance's unchanged value — a silent
+  // no-op with no error.
+  set(_target, prop, value) {
+    Reflect.set(getRealLogger(), prop, value);
+    return true;
+  },
 });
 
 /** A logger that stamps a correlation id on every line it writes. */
