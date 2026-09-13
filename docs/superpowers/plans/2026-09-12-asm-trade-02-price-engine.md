@@ -1504,7 +1504,7 @@ describe("AssetRegistry", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-cd apps/engine && DATABASE_URL="postgresql://asm_app:asm_dev_password@localhost:5432/asm_trade?schema=public" pnpm exec vitest run src/assets; cd ../..
+cd apps/engine && DATABASE_URL="postgresql://asm_app:asm_dev_password@localhost:5433/asm_trade?schema=public" pnpm exec vitest run src/assets; cd ../..
 ```
 
 Expected: FAIL — cannot resolve `./registry.js`.
@@ -1643,7 +1643,7 @@ export class AssetRegistry {
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-cd apps/engine && DATABASE_URL="postgresql://asm_app:asm_dev_password@localhost:5432/asm_trade?schema=public" pnpm exec vitest run src/assets; cd ../..
+cd apps/engine && DATABASE_URL="postgresql://asm_app:asm_dev_password@localhost:5433/asm_trade?schema=public" pnpm exec vitest run src/assets; cd ../..
 ```
 
 Expected: PASS — 6 tests. If `AssetRegistry` finds no assets, re-run the Plan 01 seed.

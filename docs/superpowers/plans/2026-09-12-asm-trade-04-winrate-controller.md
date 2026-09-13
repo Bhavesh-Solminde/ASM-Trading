@@ -2096,7 +2096,7 @@ describe("recordSettledTrade", () => {
 - [ ] **Step 3: Run the test to verify it fails**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/account-stats.test.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/account-stats.test.ts; cd ../..
 ```
 
 Expected: FAIL — cannot resolve `./account-stats.js`.
@@ -2270,7 +2270,7 @@ export {
 - [ ] **Step 6: Run the test to verify it passes**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/account-stats.test.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/account-stats.test.ts; cd ../..
 ```
 
 Expected: PASS — 10 tests.
@@ -2434,7 +2434,7 @@ describe("shadow ledger", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/shadow.test.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/shadow.test.ts; cd ../..
 ```
 
 Expected: FAIL — `loadTradeShadow` is not exported.
@@ -2532,7 +2532,7 @@ export { loadTradeShadow, type ShadowInput } from "./repositories/trade.js";
 - [ ] **Step 5: Run the test to verify it passes**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/shadow.test.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/shadow.test.ts; cd ../..
 ```
 
 Expected: PASS — 5 tests.
@@ -3495,7 +3495,7 @@ Expected: all clean.
 
 ```bash
 cd packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run
 cd ../..
 ```
 

@@ -127,9 +127,9 @@ Add the back-relations to `User`:
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade?schema=public" \
   pnpm exec prisma migrate dev --name support_tickets
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec prisma migrate deploy
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading
 psql -d asm_trade -f packages/db/sql/restrict-role.sql
@@ -1027,7 +1027,7 @@ describe("two-factor codes", () => {
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run src/repositories/twofa.test.ts
 ```
 
@@ -1555,7 +1555,7 @@ export { issueTwoFactorCode, verifyTwoFactorCode } from "./repositories/twofa.js
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run src/repositories/twofa.test.ts
 ```
 
@@ -2503,7 +2503,7 @@ Expected: all clean.
 
 ```bash
 cd packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run
 cd ../..
 ```
 

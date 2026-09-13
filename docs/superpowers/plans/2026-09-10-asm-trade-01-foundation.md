@@ -20,6 +20,30 @@
 - **Every user-owned query takes `actorId`.** Ownership lives in the query predicate, never in an `if` after the fetch.
 - **Demo build only.** No deployment steps, no production secrets, no real payment integration.
 
+## Revision note — 2026-09-13
+
+Before this plan was executed, Plan 06 (companion app) was built out of order as a spike —
+`apps/relay` (Expo + native Kotlin SMS forwarder) and `apps/harness` (a standalone Next.js
+receiver deployed to Vercel/Supabase, unrelated to this plan's schema) already exist and are
+committed. Environment reality has shifted from what Task 1/2 originally assumed:
+
+- **Git repo already exists**, initialized during the spike, with 11 commits. Task 1 Step 2
+  ("Initialise git") is already satisfied — treat it as a verification step, not fresh init.
+- **Node 22.23.2 is already the active version.** Task 1 Step 1 is already satisfied.
+- **`.nvmrc`, `pnpm-workspace.yaml`, `tsconfig.base.json`, and `.gitignore` already exist**
+  and already match (or safely extend) what this plan specifies. Verify, don't overwrite.
+- **Root `package.json` already exists** (created for the relay spike) but is missing this
+  plan's scripts/devDependencies — merge into it, don't replace it; the existing
+  `relay:*` scripts must survive.
+- **Local Postgres port is 5433, not 5432.** This machine already runs an unrelated system
+  Postgres 18 install (`/Library/PostgreSQL/18`) bound to the default port 5432. Homebrew's
+  `postgresql@16` was already configured (in `postgresql.conf`) to listen on **5433** to avoid
+  that conflict. Every `DATABASE_URL` and `pg_isready` call in this entire plan series has been
+  updated to port 5433 accordingly. Do not "fix" this back to 5432.
+- **Redis is already running** via `brew services` on 6379.
+- **`apps/web` is a new addition alongside `apps/relay` and `apps/harness`**, not the only
+  thing under `apps/`. Nothing in this plan should modify those two.
+
 ---
 
 ## File Structure
@@ -65,6 +89,8 @@ asmtrading/
 │           │   └── user.ts         user lookup by email/id
 │           └── index.ts            barrel
 └── apps/
+    ├── relay/                      pre-existing — Plan 06 spike, do not touch here
+    ├── harness/                    pre-existing — Plan 06 spike, do not touch here
     └── web/
         ├── package.json
         ├── next.config.ts
@@ -109,33 +135,30 @@ Responsibilities are split so that later phases extend rather than restructure: 
 - Consumes: nothing (first task)
 - Produces: a pnpm workspace where `pnpm -r <script>` runs across `packages/*` and `apps/*`; Node 22 active in the shell
 
-- [ ] **Step 1: Upgrade Node to 22 and verify**
-
-The active Node is 18.20.8. Next.js 16 requires `>=20.9.0`.
+- [x] **Step 1: Verify Node 22 is active** *(already satisfied — Node was upgraded during the Plan 06 spike)*
 
 ```bash
-brew install node@22
-brew link --overwrite --force node@22
-hash -r
 node -v
 ```
 
-Expected: `v22.23.1` or later 22.x. If `node -v` still shows v18, a version manager (nvm/fnm) is shadowing brew — run `nvm install 22 && nvm use 22` or `fnm use 22` instead, then re-check.
+Expected: `v22.23.1` or later 22.x — confirmed `v22.23.2` on 2026-09-13. If this ever regresses, a version manager (nvm/fnm) is shadowing brew — run `nvm use 22` or `fnm use 22`.
 
-- [ ] **Step 2: Initialise git and tidy the working directory**
+- [x] **Step 2: Verify git state and tidy the working directory** *(repo already initialized during the Plan 06 spike — do not `git init` again)*
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading
-git init
-mkdir -p reference
-mv Screenshot*.png reference/
-rm -f .DS_Store
-ls reference | wc -l
+git log --oneline | tail -1   # expect the first relay-spike commit, not empty
+ls reference | wc -l          # expect the screenshot set, already moved
+rm -f .DS_Store apps/.DS_Store
+git status --short
 ```
 
-Expected: `16`
+`reference/` already holds the screenshot set (15 files as of 2026-09-13, not 16 — one may have
+been consumed during earlier design work; don't chase this, just confirm it's non-empty).
 
-- [ ] **Step 3: Write `.gitignore`**
+- [x] **Step 3: Verify `.gitignore`** *(already exists, already extended for `apps/relay`'s Android/Expo build output — do not overwrite)*
+
+Confirm it already contains at least:
 
 ```gitignore
 node_modules/
@@ -150,13 +173,12 @@ coverage/
 .turbo/
 ```
 
-- [ ] **Step 4: Write `.nvmrc`**
+(It will also contain `apps/relay/android/`, `apps/relay/ios/`, `apps/relay/.expo/`, and
+`apps/relay/modules/*/android/build/` from the spike — leave those in place.)
 
-```
-22
-```
+- [x] **Step 4: Verify `.nvmrc`** *(already exists, already contains `22`)*
 
-- [ ] **Step 5: Write `pnpm-workspace.yaml`**
+- [x] **Step 5: Verify `pnpm-workspace.yaml`** *(already exists, already matches)*
 
 ```yaml
 packages:
@@ -164,21 +186,19 @@ packages:
   - "packages/*"
 ```
 
-- [ ] **Step 6: Write root `package.json`**
+- [ ] **Step 6: Merge this plan's scripts and devDependencies into the existing root `package.json`**
+
+The root `package.json` already exists (created for the relay spike) with `name`, `private`,
+`type`, `engines`, `packageManager`, and the `relay:*`/`lint`/`typecheck` scripts already
+correct. **Merge in** the fields below — do not replace the file, and do not drop the existing
+`relay:*` scripts:
 
 ```json
 {
-  "name": "asm-trade",
-  "private": true,
-  "type": "module",
-  "engines": { "node": ">=22.0.0" },
-  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "pnpm --filter @asm/web dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "lint": "eslint .",
-    "typecheck": "pnpm -r exec tsc --noEmit",
     "db:generate": "pnpm --filter @asm/db generate",
     "db:migrate": "pnpm --filter @asm/db migrate",
     "db:seed": "pnpm --filter @asm/db seed",
@@ -194,7 +214,7 @@ packages:
 }
 ```
 
-- [ ] **Step 7: Write `tsconfig.base.json`**
+- [x] **Step 7: Verify `tsconfig.base.json`** *(already exists, already matches exactly)*
 
 ```json
 {
@@ -216,12 +236,12 @@ packages:
 }
 ```
 
-- [ ] **Step 8: Write `.env.example`**
+- [ ] **Step 8: Write `.env.example`** *(new — root-level, does not exist yet; distinct in scope from `apps/harness/.env.example`, which is the spike's own Supabase-backed config and stays untouched)*
 
 ```bash
 # Postgres — local Homebrew service
-DATABASE_URL="postgresql://asm_app:asm_dev_password@localhost:5432/asm_trade?schema=public"
-DATABASE_MIGRATE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade?schema=public"
+DATABASE_URL="postgresql://asm_app:asm_dev_password@localhost:5433/asm_trade?schema=public"
+DATABASE_MIGRATE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade?schema=public"
 
 # Redis — local Homebrew service
 REDIS_URL="redis://localhost:6379"
@@ -242,10 +262,12 @@ LOG_LEVEL="info"
 cp .env.example .env
 pnpm install
 git add -A
-git commit -m "chore: initialise pnpm workspace and toolchain"
+git commit -m "chore: add toolchain scripts and env template for the web app"
 ```
 
-Expected: install completes; `git log --oneline` shows one commit.
+Expected: install completes. `git add -A` will also pick up the untracked `scripts/` directory
+(a relay dev helper from the spike) — that's fine, it belongs in the repo too. This is not the
+first commit (the repo already has spike history), so don't expect `git log` to show only one.
 
 ---
 
@@ -258,23 +280,35 @@ Expected: install completes; `git log --oneline` shows one commit.
 - Consumes: `.env` from Task 1
 - Produces: a running Postgres 16 with database `asm_trade` and two roles — `asm_owner` (migrations, owns schema) and `asm_app` (runtime, DML only, no DDL); a running Redis on 6379
 
-- [ ] **Step 1: Start the services**
+- [x] **Step 1: Start the services** *(already running as of 2026-09-13 — verify, don't restart blindly)*
 
-Both are already installed via Homebrew (`postgresql@16` 16.15, `redis` 8.8.0).
+Both are already installed via Homebrew (`postgresql@16` 16.15, `redis` 8.8.0). **This machine
+also runs an unrelated system Postgres 18** (`/Library/PostgreSQL/18`, launchd-managed, OS user
+`postgres`) bound to the default port 5432 — that's a pre-existing, unrelated install and must
+not be touched. Homebrew's `postgresql@16` is already configured in its own `postgresql.conf`
+to listen on **port 5433** instead, specifically to avoid that conflict.
 
 ```bash
-brew services start postgresql@16
-brew services start redis
-sleep 3
-pg_isready -h localhost -p 5432
+brew services start postgresql@16   # already started; safe to re-run, no-ops if running
+brew services start redis           # already started; safe to re-run, no-ops if running
+sleep 2
+pg_isready -h localhost -p 5433
 redis-cli ping
+export PGHOST=localhost PGPORT=5433   # every psql/createdb call below relies on this
 ```
 
-Expected: `localhost:5432 - accepting connections` and `PONG`.
+Expected: `localhost:5433 - accepting connections` and `PONG`.
 
-If `pg_isready` fails, `postgresql@16` may not be on PATH — run `export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"` and retry.
+If `pg_isready -p 5433` fails, `postgresql@16` may not be on PATH — run
+`export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"` and retry. If you instead see
+`localhost:5432 - accepting connections`, you're talking to the unrelated system Postgres 18 —
+that is not this project's database; re-check the `-p 5433` flag.
 
 - [ ] **Step 2: Create the database and roles**
+
+As of 2026-09-13 the Homebrew instance has only the default `solminde` superuser role — no
+`asm_owner`, `asm_app`, or `asm_trade` database exist yet, so this step still needs to run in
+full (with `PGHOST`/`PGPORT` exported from Step 1, no `-h`/`-p` flags are needed below):
 
 ```bash
 createdb asm_trade 2>/dev/null || echo "database already exists"
@@ -378,7 +412,7 @@ import { describe, expect, it } from "vitest";
 import { parseConfig } from "./index.js";
 
 const valid = {
-  DATABASE_URL: "postgresql://u:p@localhost:5432/db",
+  DATABASE_URL: "postgresql://u:p@localhost:5433/db",
   REDIS_URL: "redis://localhost:6379",
   SESSION_SECRET: "0123456789abcdef0123456789abcdef",
   BANK_FEED: "simulated",
@@ -1196,7 +1230,7 @@ export * from "../generated/prisma/client.js";
 ```bash
 pnpm install
 cd packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade?schema=public" \
   pnpm exec prisma migrate dev --name init
 cd ../..
 psql -d asm_trade -c "\dt" | grep -c .
@@ -1348,7 +1382,7 @@ pnpm --filter @asm/db add argon2@0.45.1
 
 ```bash
 cd packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade?schema=public" \
   pnpm exec tsx prisma/seed.ts
 cd ../..
 ```
@@ -1358,7 +1392,7 @@ Expected: `Seeded. Assets: 3` plus a printed admin password. **Save that passwor
 - [ ] **Step 4: Verify idempotency**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade?schema=public" pnpm exec tsx prisma/seed.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade?schema=public" pnpm exec tsx prisma/seed.ts; cd ../..
 ```
 
 Expected: `Admin already exists — password unchanged.` and still `Assets: 3`.
@@ -1620,7 +1654,7 @@ describe("account repository", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories; cd ../..
 ```
 
 Expected: FAIL — cannot resolve `./account.js`.
@@ -1629,7 +1663,7 @@ Expected: FAIL — cannot resolve `./account.js`.
 
 ```bash
 cd packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec prisma migrate deploy
 cd ../..
 ```
@@ -1718,7 +1752,7 @@ export * from "../generated/prisma/client.js";
 - [ ] **Step 7: Run the test to verify it passes**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories; cd ../..
 ```
 
 Expected: PASS — 5 tests. The fourth ("returns null when another user requests it by id") is the IDOR guard.

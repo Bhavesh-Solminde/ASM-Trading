@@ -104,7 +104,7 @@ CREATE INDEX "Deposit_vpa_amount_idx" ON "Deposit" ("vpa", "amountInr");
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
 for DB in asm_trade asm_trade_test; do
-  DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/$DB?schema=public" \
+  DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/$DB?schema=public" \
     pnpm exec prisma migrate deploy
 done
 psql -d asm_trade -c "\di Deposit_live_amount_unique"
@@ -229,7 +229,7 @@ describe("getDepositByToken and listDepositsForActor", () => {
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run src/repositories/deposit.test.ts
 ```
 
@@ -378,7 +378,7 @@ export {
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run src/repositories/deposit.test.ts
 ```
 
@@ -653,7 +653,7 @@ describe("approveDeposit and rejectDeposit", () => {
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run src/repositories/matcher.test.ts
 ```
 
@@ -969,7 +969,7 @@ pnpm --filter @asm/db add @asm/logger@workspace:*
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run src/repositories/matcher.test.ts
 ```
 
@@ -1822,7 +1822,7 @@ SMS_RELAY_SECRET="local-dev-relay-secret-change-me"
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/bankfeed
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run
 ```
 
@@ -2934,7 +2934,7 @@ describe("requestWithdrawal", () => {
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run src/repositories/withdrawal.test.ts
 ```
 
@@ -3106,7 +3106,7 @@ export {
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run src/repositories/withdrawal.test.ts
 ```
 
@@ -3396,9 +3396,9 @@ Expected: all clean.
 
 ```bash
 cd packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run
 cd ../bankfeed
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run
 cd ../..
 ```
 

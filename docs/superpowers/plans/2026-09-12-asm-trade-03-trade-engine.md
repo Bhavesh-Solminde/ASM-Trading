@@ -1010,7 +1010,7 @@ describe("settleTrade", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/trade.test.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/trade.test.ts; cd ../..
 ```
 
 Expected: FAIL — cannot resolve `./trade.js`.
@@ -1018,7 +1018,7 @@ Expected: FAIL — cannot resolve `./trade.js`.
 Seed the test database with assets first if `AUDNZD_OTC` is missing:
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec tsx prisma/seed.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec tsx prisma/seed.ts; cd ../..
 ```
 
 - [ ] **Step 3: Add the trading dependency to the db package**
@@ -1275,7 +1275,7 @@ export {
 - [ ] **Step 6: Run the test to verify it passes**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/trade.test.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/trade.test.ts; cd ../..
 ```
 
 Expected: PASS — 13 tests. The concurrency test is the one that matters: if `succeeded` ever exceeds 5, the optimistic guard is broken and the double-spend is live.
@@ -2459,7 +2459,7 @@ Workspace `pnpm test` uses the default `DATABASE_URL`. Run the repository suites
 
 ```bash
 cd packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run
 cd ../..
 ```
 
