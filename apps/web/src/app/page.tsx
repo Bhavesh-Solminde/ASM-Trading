@@ -1,6 +1,12 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { SESSION_COOKIE, readSession } from "@/lib/session";
 
-export default function Home() {
+export default async function Home() {
+  const store = await cookies();
+  if (await readSession(store.get(SESSION_COOKIE)?.value)) redirect("/trade");
+
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-8 px-6">
       <div>
