@@ -27,5 +27,9 @@ export {
   linkRelayMessageToCredit,
   listRelayMessages,
 } from "./repositories/relay-message";
-export { createBankCreditIfNew, listOrphanBankCredits } from "./repositories/bank-credit";
+export {
+  createBankCreditIfNew,
+  findBankCreditByUtr,
+  listOrphanBankCredits,
+} from "./repositories/bank-credit";
 export * from "../generated/prisma/client";

@@ -256,12 +256,22 @@ model Deposit {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // NOTE: the amount-reservation guarantee needs a PARTIAL unique index —
-  // unique on (vpa, amountInr) only WHERE status IN ('AWAITING_PAYMENT',
-  // 'PENDING_CONFIRMATION'). Prisma cannot express that declaratively, so
-  // Plan 05 adds it via a hand-written migration. A plain @@unique here would
-  // be wrong: it would block two legitimate COMPLETED deposits that happened to
-  // share an amount months apart.
+  // NOTE: the amount-reservation guarantee is enforced by a PARTIAL unique
+  // index — unique on (amountInr) ALONE, WHERE status IN ('AWAITING_PAYMENT',
+  // 'PENDING_CONFIRMATION'). Prisma cannot express that declaratively, so a
+  // hand-written migration adds it (see
+  // 20260913172607_add_relay_message_and_amount_reservation/migration.sql).
+  // A plain @@unique here would be wrong: it would block two legitimate
+  // COMPLETED deposits that happened to share an amount months apart.
+  //
+  // VPA plays no role in this guarantee, or in credit matching at all (see
+  // matchCreditToDeposit) — every deposit shares one fixed demo VPA
+  // (DEMO_VPA); it's used only to build the QR/UPI deep link, never as a
+  // matching key. The @@index below predates that design correction and is
+  // now mostly redundant: its leading column, vpa, is never used as a query
+  // predicate anywhere in the codebase, so it can't serve the queries that
+  // matter either. Left in place — dropping it is a real schema change
+  // (its own migration) and out of scope here.
   @@index([vpa, amountInr, status])
   @@index([userId, createdAt])
   @@index([status])
