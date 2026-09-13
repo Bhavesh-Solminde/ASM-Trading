@@ -1,0 +1,23 @@
+{
+  "name": "@asm/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@asm/config": "workspace:*",
+    "@asm/contracts": "workspace:*",
+    "@asm/db": "workspace:*",
+    "@asm/logger": "workspace:*",
+    "@asm/pricing": "workspace:*",
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "@types/ws": "8.18.1",
+    "tsx": "4.20.6"
+  }
+}
