@@ -9,7 +9,7 @@ describe("buildUpiDeepLink", () => {
       amountInr: 99101, // ₹991.01
     });
     expect(link).toBe(
-      "upi://pay?pa=asmtrade.demo1%40okaxis&pn=ASM+Trade&am=991.01&cu=INR",
+      "upi://pay?pa=asmtrade.demo1%40okaxis&pn=ASM%20Trade&am=991.01&cu=INR",
     );
   });
 
@@ -29,6 +29,6 @@ describe("buildUpiDeepLink", () => {
       amountInr: 100,
     });
     expect(link).toContain("pa=user.name%40some-bank");
-    expect(link).toContain("pn=ASM+Trade+%26+Co");
+    expect(link).toContain("pn=ASM%20Trade%20%26%20Co");
   });
 });

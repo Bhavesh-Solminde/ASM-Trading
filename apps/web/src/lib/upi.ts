@@ -11,11 +11,19 @@ export function buildUpiDeepLink(input: {
   amountInr: number;
 }): string {
   const rupees = (input.amountInr / 100).toFixed(2);
-  const params = new URLSearchParams({
-    pa: input.vpa,
-    pn: input.payeeName,
-    am: rupees,
-    cu: "INR",
-  });
-  return `upi://pay?${params.toString()}`;
+  // `encodeURIComponent`, not `URLSearchParams` — `upi://` is a custom
+  // scheme parsed by banking apps, not an HTML form submission, so a space
+  // must be percent-encoded as `%20` (standard RFC 3986 URI encoding).
+  // `URLSearchParams` encodes spaces as `+` (the `application/
+  // x-www-form-urlencoded` convention), which some UPI apps' deep-link
+  // parsers may not decode back to a space, garbling the payee name.
+  const params = [
+    ["pa", input.vpa],
+    ["pn", input.payeeName],
+    ["am", rupees],
+    ["cu", "INR"],
+  ]
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join("&");
+  return `upi://pay?${params}`;
 }
