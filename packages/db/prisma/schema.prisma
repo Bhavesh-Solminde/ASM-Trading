@@ -278,7 +278,32 @@ model BankCredit {
   consumed   Boolean  @default(false)
   createdAt  DateTime @default(now())
 
+  relayMessages RelayMessage[]
+
   @@index([vpa, amountInr, consumed])
+}
+
+/// Raw log of every incoming message from any companion app/device, whether
+/// or not it turned out to be a usable credit. BankCredit is reserved for
+/// messages that parsed as an actual credit; this table is the full record.
+model RelayMessage {
+  id              String   @id @default(uuid())
+  source          String
+  deviceLabel     String?
+  deviceModel     String?
+  sender          String?
+  body            String
+  receivedAt      DateTime
+  parsedAmountInr Int?
+  parsedUtr       String?
+  isCredit        Boolean?
+  bankCreditId    String?
+  createdAt       DateTime @default(now())
+
+  bankCredit BankCredit? @relation(fields: [bankCreditId], references: [id], onDelete: SetNull)
+
+  @@index([source, deviceLabel])
+  @@index([createdAt])
 }
 
 model Withdrawal {
