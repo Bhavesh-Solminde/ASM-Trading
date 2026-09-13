@@ -91,16 +91,20 @@ export function createPriceFeed(symbols: string[]): PriceFeed {
       { evt: "engine.feed_selected", feed: "replay", reason: "no_api_key" },
       "TWELVE_DATA_API_KEY not set — using the bundled replay dataset",
     );
-    // Lazy import avoids a cycle between the two feed modules.
+    // Lazy import avoids a cycle between the two feed modules. `inner` is
+    // captured in this closure rather than stashed on `this` — a caller that
+    // destructures `{ start, stop }` instead of calling `feed.start()` would
+    // silently break a `this`-based version (ESM is strict mode, so a
+    // detached method call gets `this === undefined`).
+    let inner: PriceFeed | null = null;
     return {
       async start(onQuote) {
         const { createReplayFeed } = await import("./replay");
-        const inner = createReplayFeed({ symbols, intervalMs: 5000 });
-        (this as { inner?: PriceFeed }).inner = inner;
+        inner = createReplayFeed({ symbols, intervalMs: 5000 });
         await inner.start(onQuote);
       },
       async stop() {
-        await (this as { inner?: PriceFeed }).inner?.stop();
+        await inner?.stop();
       },
     };
   }
