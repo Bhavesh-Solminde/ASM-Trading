@@ -6,4 +6,20 @@ export {
   createAccountsForUser,
 } from "./repositories/account";
 export { findUserByEmail, findUserById } from "./repositories/user";
+export {
+  AmountSpaceExhausted,
+  DepositNotFound,
+  DepositAlreadyResolved,
+  USD_TO_INR_RATE,
+  OFFSET_LOW,
+  OFFSET_SPACE,
+  DEPOSIT_TTL_MINUTES,
+  MIN_DEPOSIT_USD_MINOR,
+  MAX_DEPOSIT_USD_MINOR,
+  DEMO_VPA,
+  createDepositIntent,
+  findLiveDepositByAmount,
+  findLiveDepositByClaimedUtr,
+  creditDepositToAccount,
+} from "./repositories/deposit";
 export * from "../generated/prisma/client";
