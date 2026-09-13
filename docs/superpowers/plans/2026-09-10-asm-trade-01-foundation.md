@@ -207,7 +207,7 @@ correct. **Merge in** the fields below — do not replace the file, and do not d
   },
   "devDependencies": {
     "@types/node": "22.20.2",
-    "eslint": "9.42.0",
+    "eslint": "9.39.5",
     "typescript": "5.9.3",
     "vitest": "5.0.0"
   }
@@ -2892,7 +2892,7 @@ export default tseslint.config(
 - [ ] **Step 2: Install lint dependencies**
 
 ```bash
-pnpm add -Dw @eslint/js@9.42.0 typescript-eslint@8.48.1
+pnpm add -Dw @eslint/js@9.39.5 typescript-eslint@8.48.1
 ```
 
 - [ ] **Step 3: Write the failing security-header test**
