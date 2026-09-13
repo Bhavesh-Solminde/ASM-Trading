@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-disable no-undef -- Node.js script executed directly with `node`; process/console are ambient Node globals, not undeclared. */
 /**
  * Throwaway relay echo server — NOT part of the monorepo, NOT the real
  * /api/bank-feed/sms endpoint. It exists only to prove the companion app's

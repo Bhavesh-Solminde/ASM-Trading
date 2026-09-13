@@ -10,6 +10,13 @@ export default tseslint.config(
       "**/.next/**",
       "**/generated/**",
       "**/dist/**",
+      // Plan 01's Global Constraints: "apps/web is a new addition alongside
+      // apps/relay and apps/harness ... Nothing in this plan should modify
+      // those two." They predate this plan (a companion-app spike) and are
+      // out of scope for this lint gate.
+      "apps/relay/**",
+      "apps/harness/**",
+      "scripts/echo-relay-server.mjs",
     ],
   },
   {
