@@ -240,3 +240,14 @@ instead of VPA+amount).
   chose a separate shared secret instead).
 - Any change to `apps/harness` or `apps/relay`'s Kotlin/native SMS-reading
   logic beyond the one config-value change described above.
+
+## Manual end-to-end test walkthrough (once this plan is implemented)
+
+1. Start a tunnel: `ngrok http 3000` (or your preferred tunnel tool), note the https URL it prints.
+2. Update `apps/relay/src/relayConfig.ts`'s `serverUrl` to that URL, rebuild and reinstall the relay app on your phone (`cd apps/relay && pnpm android`, or your usual build command).
+3. Set `SMS_RELAY_SECRET` and `ADMIN_PANEL_SECRET` in `.env` to match what you put in `relayConfig.ts`'s `secret`.
+4. Run `pnpm dev` (starts `apps/web`).
+5. Log into `/admin/login` with your `ADMIN_PANEL_SECRET`.
+6. Use the admin panel (or a direct `fetch`/curl to `/api/admin/deposits`) to create a test deposit for a real seeded user, noting the reserved amount it returns.
+7. Pay that exact amount via UPI on your phone (or send yourself a test SMS that mimics your bank's real format with that amount) so the relay forwards it.
+8. Check `/admin/messages` — the message should appear. Check `/admin/deposits` — the deposit should show `COMPLETED` if the amount and (if present) reference matched, or the credit should appear in the orphan list if not, ready for a manual match.
