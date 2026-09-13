@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-shell: #0e1621;
+  --color-panel: #16202c;
+  --color-panel-2: #1c2836;
+  --color-edge: #253243;
+  --color-ink: #e8edf3;
+  --color-ink-2: #93a2b4;
+  --color-up: #2fbd85;
+  --color-down: #e0526a;
+  --color-brand: #3d8bfd;
+}
+
+html,
+body {
+  background: var(--color-shell);
+  color: var(--color-ink);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
