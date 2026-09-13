@@ -30,6 +30,12 @@ class SmsReaderModule : Module() {
     AsyncFunction("setEnabled") { enabled: Boolean ->
       val context = appContext.reactContext
         ?: throw IllegalStateException("No Android context available")
+      if (enabled) {
+        // First-ever enable only: without this, catch-up would walk the
+        // device's entire SMS history for matching senders, not just what
+        // arrived since we went offline.
+        RelayStore.initializeCheckpointIfNeeded(context)
+      }
       RelayStore.setEnabled(context, enabled)
     }
 

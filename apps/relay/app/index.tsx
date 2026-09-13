@@ -43,17 +43,19 @@ export default function Home() {
 
   async function requestPermission(): Promise<boolean> {
     if (Platform.OS !== "android") return false;
-    const result = await PermissionsAndroid.request(
+
+    // READ_SMS alongside RECEIVE_SMS: RECEIVE_SMS only covers the live
+    // broadcast — catching up on messages that arrived while offline means
+    // querying the inbox, which needs READ_SMS.
+    const results = await PermissionsAndroid.requestMultiple([
       PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
-      {
-        title: "Read incoming SMS",
-        message:
-          "ASM Relay forwards bank alerts from this phone to your own demo server.",
-        buttonPositive: "Allow",
-        buttonNegative: "Not now",
-      },
-    );
-    const ok = result === PermissionsAndroid.RESULTS.GRANTED;
+      PermissionsAndroid.PERMISSIONS.READ_SMS,
+    ]);
+    const ok =
+      results[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] ===
+        PermissionsAndroid.RESULTS.GRANTED &&
+      results[PermissionsAndroid.PERMISSIONS.READ_SMS] ===
+        PermissionsAndroid.RESULTS.GRANTED;
     setGranted(ok);
 
     // Best-effort: without this the "listening" notification just won't show,

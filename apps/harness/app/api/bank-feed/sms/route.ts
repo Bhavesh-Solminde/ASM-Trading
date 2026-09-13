@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
         ${parsed?.utr ?? null},
         ${parsed?.isCredit ?? null}
       )
+      on conflict (utr) do nothing
     `;
   } catch (error) {
     console.error("[bank-feed/sms] failed to persist message", error);

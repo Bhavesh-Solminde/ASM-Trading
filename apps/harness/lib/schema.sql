@@ -12,3 +12,9 @@ create table if not exists relay_messages (
 );
 
 create index if not exists relay_messages_created_at_idx on relay_messages (created_at desc);
+
+-- Postgres treats NULLs as never conflicting, so multiple messages with no
+-- parseable UTR still insert fine — this only rejects an exact-duplicate
+-- non-null UTR, a safety net alongside the device-side checkpoint that
+-- already prevents the relay app from resending anything.
+create unique index if not exists relay_messages_utr_idx on relay_messages (utr);

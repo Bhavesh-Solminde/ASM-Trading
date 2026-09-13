@@ -20,6 +20,9 @@ object RelayStore {
   private const val KEY_SENT_COUNT = "sentCount"
   private const val KEY_FAILED_COUNT = "failedCount"
   private const val KEY_LOG = "activityLog"
+  private const val KEY_CHECKPOINT_AT = "checkpointAt"
+  private const val KEY_CHECKPOINT_AMOUNT = "checkpointAmountInr"
+  private const val KEY_CHECKPOINT_UTR = "checkpointUtr"
   private const val MAX_LOG_ENTRIES = 20
 
   data class Config(
@@ -108,4 +111,33 @@ object RelayStore {
   }
 
   fun getLogJson(context: Context): String = prefs(context).getString(KEY_LOG, "[]") ?: "[]"
+
+  /**
+   * Marks "everything up to here is already handled." Only ever moves
+   * forward, and only on a confirmed successful send — the single source of
+   * truth the catch-up scan, the live receiver, and connectivity-restored
+   * trigger all share, so none of them can resend what another already sent.
+   */
+  fun setCheckpoint(context: Context, atMillis: Long, amountInr: Int?, utr: String?) {
+    prefs(context).edit()
+      .putLong(KEY_CHECKPOINT_AT, atMillis)
+      .putInt(KEY_CHECKPOINT_AMOUNT, amountInr ?: -1)
+      .putString(KEY_CHECKPOINT_UTR, utr)
+      .apply()
+  }
+
+  fun getCheckpointAt(context: Context): Long = prefs(context).getLong(KEY_CHECKPOINT_AT, 0L)
+
+  /**
+   * Called when listening turns on. Without this, a first-ever enable would
+   * have no checkpoint and the catch-up scan would walk the device's entire
+   * SMS history for matching senders — not "since we went offline," but
+   * "since the beginning of time." Only takes effect if no checkpoint has
+   * ever been set.
+   */
+  fun initializeCheckpointIfNeeded(context: Context) {
+    if (getCheckpointAt(context) == 0L) {
+      setCheckpoint(context, System.currentTimeMillis(), null, null)
+    }
+  }
 }

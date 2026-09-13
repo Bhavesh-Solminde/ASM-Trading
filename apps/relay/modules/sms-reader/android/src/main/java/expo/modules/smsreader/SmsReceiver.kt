@@ -3,15 +3,8 @@ package expo.modules.smsreader
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.provider.Telephony
-import java.net.HttpURLConnection
-import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
-import org.json.JSONObject
+import android.util.Log
 
 /**
  * Manifest-declared (static) receiver — unlike a dynamically registered one,
@@ -27,18 +20,31 @@ import org.json.JSONObject
  */
 class SmsReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
+    Log.d(TAG, "onReceive action=${intent.action}")
     if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
-    if (!RelayStore.isEnabled(context)) return
+
+    if (!RelayStore.isEnabled(context)) {
+      Log.d(TAG, "ignored: not enabled")
+      return
+    }
 
     val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
     if (messages.isEmpty()) return
 
     val sender = messages[0].displayOriginatingAddress ?: "unknown"
     val body = messages.joinToString("") { it.displayMessageBody ?: "" }
+    Log.d(TAG, "sms from $sender: ${body.take(60)}")
     if (body.isBlank()) return
 
-    val config = RelayStore.getConfig(context) ?: return
-    if (!RelayStore.isAllowedSender(sender, config.senders)) return
+    val config = RelayStore.getConfig(context)
+    if (config == null) {
+      Log.d(TAG, "ignored: no config saved")
+      return
+    }
+    if (!RelayStore.isAllowedSender(sender, config.senders)) {
+      Log.d(TAG, "ignored: sender not in allowlist ${config.senders}")
+      return
+    }
 
     val bodyPreview = body.take(60)
     val receivedAt = System.currentTimeMillis()
@@ -48,57 +54,27 @@ class SmsReceiver : BroadcastReceiver() {
     val pendingResult = goAsync()
     Thread {
       try {
-        val (ok, detail) = post(config, sender, body, receivedAt)
+        val (ok, detail) = SmsForwarder.postWithRetry(config, sender, body, receivedAt)
+        Log.d(TAG, "post result ok=$ok detail=$detail")
         RelayStore.recordAttempt(context, sender, bodyPreview, ok, detail)
+        if (ok) {
+          val amountInr = SmsParser.parseAmountInr(body)
+          val utr = SmsParser.parseUtr(body)
+          RelayStore.setCheckpoint(context, receivedAt, amountInr, utr)
+        }
+
+        // Every live message is also a chance to check for backlog — e.g.
+        // messages that arrived while offline are now sitting in the inbox
+        // waiting, and this SMS being delivered means we have connectivity
+        // (or at least a working radio) right now.
+        SmsCatchUp.run(context)
       } finally {
         pendingResult.finish()
       }
     }.start()
   }
 
-  private fun post(
-    config: RelayStore.Config,
-    sender: String,
-    body: String,
-    receivedAt: Long,
-  ): Pair<Boolean, String> {
-    return try {
-      val url = URL("${config.serverUrl}/api/bank-feed/sms")
-      val connection = url.openConnection() as HttpURLConnection
-      connection.requestMethod = "POST"
-      connection.setRequestProperty("Content-Type", "application/json")
-      connection.setRequestProperty("Authorization", "Bearer ${config.secret}")
-      connection.doOutput = true
-      connection.connectTimeout = 15_000
-      connection.readTimeout = 15_000
-
-      val payload = JSONObject().apply {
-        put("sender", sender)
-        put("body", body)
-        put("receivedAt", isoTimestamp(receivedAt))
-        put("deviceLabel", config.deviceLabel)
-        put("deviceModel", Build.MODEL ?: "unknown-device")
-      }
-
-      connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
-
-      val status = connection.responseCode
-      if (status == 202 || status == 400) {
-        true to "HTTP $status"
-      } else {
-        val errorText = runCatching {
-          connection.errorStream?.bufferedReader()?.readText()
-        }.getOrNull() ?: ""
-        false to "HTTP $status" + if (errorText.isNotEmpty()) ": ${errorText.take(120)}" else ""
-      }
-    } catch (error: Exception) {
-      false to (error.message ?: error.toString())
-    }
-  }
-
-  private fun isoTimestamp(millis: Long): String {
-    val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-    formatter.timeZone = TimeZone.getTimeZone("UTC")
-    return formatter.format(Date(millis))
+  companion object {
+    private const val TAG = "SmsReceiver"
   }
 }
