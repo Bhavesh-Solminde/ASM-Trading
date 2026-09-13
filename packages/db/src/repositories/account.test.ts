@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { prisma } from "../client.js";
+import { prisma } from "../client";
 import {
   createAccountsForUser,
   getAccountForActor,
   listAccountsForActor,
-} from "./account.js";
+} from "./account";
 
 let alice = "";
 let bob = "";

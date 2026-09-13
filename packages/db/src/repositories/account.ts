@@ -1,5 +1,5 @@
-import { prisma } from "../client.js";
-import type { Account } from "../../generated/prisma/client.js";
+import { prisma } from "../client";
+import type { Account } from "../../generated/prisma/client";
 
 /**
  * Ownership is expressed in the query predicate, never as a check after the

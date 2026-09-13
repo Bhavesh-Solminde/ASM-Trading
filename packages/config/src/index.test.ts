@@ -1,6 +1,6 @@
 import { inspect } from "node:util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { config, parseConfig } from "./index.js";
+import { config, parseConfig } from "./index";
 
 const valid = {
   DATABASE_URL: "postgresql://u:p@localhost:5433/db",

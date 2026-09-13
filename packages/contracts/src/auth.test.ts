@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LoginSchema, RegisterSchema } from "./auth.js";
+import { LoginSchema, RegisterSchema } from "./auth";
 
 describe("RegisterSchema", () => {
   const valid = { email: "a@b.com", password: "correct-horse-battery" };

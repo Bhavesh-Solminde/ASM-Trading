@@ -3,4 +3,4 @@ export {
   LoginSchema,
   type RegisterInput,
   type LoginInput,
-} from "./auth.js";
+} from "./auth";

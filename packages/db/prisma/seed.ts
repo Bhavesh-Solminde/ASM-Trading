@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import argon2 from "argon2";
-import { prisma } from "../src/client.js";
+import { prisma } from "../src/client";
 
 async function main() {
   await prisma.asset.upsert({

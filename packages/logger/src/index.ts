@@ -1,7 +1,7 @@
 import pino, { type Logger, type LoggerOptions } from "pino";
 import { config } from "@asm/config";
 
-export { newCorrelationId } from "./correlation.js";
+export { newCorrelationId } from "./correlation";
 export type { Logger } from "pino";
 
 /**

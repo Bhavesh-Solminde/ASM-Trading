@@ -1,9 +1,9 @@
-export { prisma } from "./client.js";
-export { toMinor, toMajor, formatMoney } from "./money.js";
+export { prisma } from "./client";
+export { toMinor, toMajor, formatMoney } from "./money";
 export {
   listAccountsForActor,
   getAccountForActor,
   createAccountsForUser,
-} from "./repositories/account.js";
-export { findUserByEmail, findUserById } from "./repositories/user.js";
-export * from "../generated/prisma/client.js";
+} from "./repositories/account";
+export { findUserByEmail, findUserById } from "./repositories/user";
+export * from "../generated/prisma/client";

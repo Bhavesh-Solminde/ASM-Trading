@@ -1,5 +1,5 @@
-import { prisma } from "../client.js";
-import type { User } from "../../generated/prisma/client.js";
+import { prisma } from "../client";
+import type { User } from "../../generated/prisma/client";
 
 /**
  * Users are not user-owned rows in the same sense — a person looks up only

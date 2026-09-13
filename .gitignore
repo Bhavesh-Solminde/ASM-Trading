@@ -13,3 +13,4 @@ apps/relay/ios/
 apps/relay/.expo/
 apps/relay/modules/*/android/build/
 apps/web/.env
+*.tsbuildinfo

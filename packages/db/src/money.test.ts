@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney, toMajor, toMinor } from "./money.js";
+import { formatMoney, toMajor, toMinor } from "./money";
 
 describe("money", () => {
   it("converts major units to integer minor units", () => {

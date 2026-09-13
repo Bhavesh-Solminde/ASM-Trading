@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Writable } from "node:stream";
-import { buildLogger, logger, newCorrelationId } from "./index.js";
+import { buildLogger, logger, newCorrelationId } from "./index";
 
 function capture() {
   const lines: Record<string, unknown>[] = [];
