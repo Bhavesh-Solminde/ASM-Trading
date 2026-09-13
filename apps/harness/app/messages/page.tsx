@@ -20,7 +20,7 @@ async function loadMessages(): Promise<{ rows: MessageRow[]; error: string | nul
     const rows = await sql<MessageRow[]>`
       select id, device_label, device_model, sender, body, received_at,
              amount_inr, utr, is_credit
-        from messages
+        from relay_messages
        order by created_at desc
        limit 200
     `;

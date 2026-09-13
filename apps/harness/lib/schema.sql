@@ -1,4 +1,4 @@
-create table if not exists messages (
+create table if not exists relay_messages (
   id bigint generated always as identity primary key,
   device_label text,
   device_model text,
@@ -11,4 +11,4 @@ create table if not exists messages (
   created_at timestamptz not null default now()
 );
 
-create index if not exists messages_created_at_idx on messages (created_at desc);
+create index if not exists relay_messages_created_at_idx on relay_messages (created_at desc);

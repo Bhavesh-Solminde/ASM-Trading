@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   try {
     const sql = getSql();
     await sql`
-      insert into messages
+      insert into relay_messages
         (device_label, device_model, sender, body, received_at, amount_inr, utr, is_credit)
       values (
         ${payload.deviceLabel ?? null},
