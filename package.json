@@ -27,6 +27,6 @@
     "vitest": "5.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/engines", "esbuild", "prisma"]
+    "onlyBuiltDependencies": ["@prisma/engines", "argon2", "esbuild", "prisma"]
   }
 }

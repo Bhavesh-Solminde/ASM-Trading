@@ -14,7 +14,8 @@
   "dependencies": {
     "@asm/config": "workspace:*",
     "@prisma/adapter-pg": "7.10.0",
-    "@prisma/client": "7.10.0"
+    "@prisma/client": "7.10.0",
+    "argon2": "0.45.1"
   },
   "devDependencies": {
     "dotenv": "17.4.2",
