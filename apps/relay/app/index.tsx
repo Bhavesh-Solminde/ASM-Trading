@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import {
   addSmsListener,
+  requestIgnoreBatteryOptimizations,
   startForegroundService,
   startListening,
   stopForegroundService,
@@ -82,6 +83,8 @@ export default function Home() {
       }
 
       if (!(await requestPermission())) return;
+
+      await requestIgnoreBatteryOptimizations().catch(() => {});
 
       subscriptionRef.current = addSmsListener((event) => {
         if (!isAllowedSender(event.sender, RELAY_CONFIG.senders)) return;

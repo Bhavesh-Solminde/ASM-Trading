@@ -4,7 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import android.provider.Telephony
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -96,6 +99,25 @@ class SmsReaderModule : Module() {
       val context = appContext.reactContext
         ?: throw IllegalStateException("No Android context available")
       context.stopService(Intent(context, RelayForegroundService::class.java))
+      Unit
+    }
+
+    // One system dialog ("Allow this app to ignore battery optimizations?"),
+    // the standard Android mechanism — not OEM-specific battery managers
+    // like Samsung's own sleeping-apps list, which no public API can
+    // request exemption from.
+    AsyncFunction("requestIgnoreBatteryOptimizations") {
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+
+      if (!powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+          data = Uri.parse("package:${context.packageName}")
+          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+      }
       Unit
     }
 
