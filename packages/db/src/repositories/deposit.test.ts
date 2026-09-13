@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../client";
 import {
-  AmountSpaceExhausted,
   MAX_DEPOSIT_USD_MINOR,
   MIN_DEPOSIT_USD_MINOR,
   USD_TO_INR_RATE,
