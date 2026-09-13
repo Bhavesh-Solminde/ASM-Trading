@@ -18,12 +18,10 @@ export function buildUpiDeepLink(input: {
   // x-www-form-urlencoded` convention), which some UPI apps' deep-link
   // parsers may not decode back to a space, garbling the payee name.
   const params = [
-    ["pa", input.vpa],
-    ["pn", input.payeeName],
-    ["am", rupees],
-    ["cu", "INR"],
-  ]
-    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-    .join("&");
+    `pa=${encodeURIComponent(input.vpa)}`,
+    `pn=${encodeURIComponent(input.payeeName)}`,
+    `am=${encodeURIComponent(rupees)}`,
+    `cu=${encodeURIComponent("INR")}`,
+  ].join("&");
   return `upi://pay?${params}`;
 }

@@ -29,9 +29,10 @@ export function parseBankSms(body: string): ParsedBankSms | null {
     .map((match) => match[1] ?? match[2])
     .filter((value): value is string => value != null);
 
-  if (amounts.length === 0) return null;
+  const [firstAmount] = amounts;
+  if (firstAmount === undefined) return null;
 
-  const amountInr = Math.round(Number(amounts[0].replace(/,/g, "")) * 100);
+  const amountInr = Math.round(Number(firstAmount.replace(/,/g, "")) * 100);
 
   const labeled = REF_LABEL_RE.exec(body);
   const bare = BARE_REF_RE.exec(body);
