@@ -8,6 +8,7 @@ import {
   SESSION_COOKIE_OPTIONS,
   createSession,
 } from "@/lib/session";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
 
 const DEMO_START_BALANCE = 1_000_000; // $10,000.00 in cents
@@ -15,6 +16,19 @@ const DEMO_START_BALANCE = 1_000_000; // $10,000.00 in cents
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
+
+  // Per-IP only — there's no "account" yet at this point in the flow.
+  const okIp = await checkRateLimit(`rl:register:ip:${ctx.ip}`, 5, 3600);
+  if (!okIp) {
+    log.warn(
+      { evt: "security.rate_limited", route: "register" },
+      "register throttled",
+    );
+    return NextResponse.json(
+      { error: "Too many attempts. Wait an hour and try again." },
+      { status: 429 },
+    );
+  }
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = RegisterSchema.safeParse(body);

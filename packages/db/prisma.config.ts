@@ -15,6 +15,11 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Migrations need DDL privileges (CREATE, etc.) that the restricted
+    // runtime role (asm_app, see sql/restrict-role.sql) deliberately lacks.
+    // Prefer the owner-scoped DATABASE_MIGRATE_URL for the CLI; fall back to
+    // DATABASE_URL so this still works in environments that haven't set the
+    // migrate URL (e.g. a single-role local setup).
+    url: process.env["DATABASE_MIGRATE_URL"] ?? process.env["DATABASE_URL"],
   },
 });

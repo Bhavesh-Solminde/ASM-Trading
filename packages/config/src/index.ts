@@ -43,6 +43,7 @@ export type BankFeedKind = "simulated" | "sms" | "email";
 
 export interface Config {
   readonly databaseUrl: string;
+  readonly databaseMigrateUrl: string | undefined;
   readonly redisUrl: string;
   readonly sessionSecret: string;
   readonly bankFeed: BankFeedKind;
@@ -61,6 +62,7 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
   const e = parsed.data;
   return Object.freeze({
     databaseUrl: e.DATABASE_URL,
+    databaseMigrateUrl: e.DATABASE_MIGRATE_URL,
     redisUrl: e.REDIS_URL,
     sessionSecret: e.SESSION_SECRET,
     bankFeed: e.BANK_FEED,
@@ -112,6 +114,7 @@ function lazyField<K extends keyof Config>(key: K): PropertyDescriptor {
 
 export const config: Config = Object.defineProperties({} as Config, {
   databaseUrl: lazyField("databaseUrl"),
+  databaseMigrateUrl: lazyField("databaseMigrateUrl"),
   redisUrl: lazyField("redisUrl"),
   sessionSecret: lazyField("sessionSecret"),
   bankFeed: lazyField("bankFeed"),

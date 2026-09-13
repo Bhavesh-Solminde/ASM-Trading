@@ -89,7 +89,15 @@ describe("config", () => {
       keys = Object.keys(config);
     }).not.toThrow();
     expect(keys.sort()).toEqual(
-      ["databaseUrl", "redisUrl", "sessionSecret", "bankFeed", "nodeEnv", "logLevel"].sort(),
+      [
+        "databaseUrl",
+        "databaseMigrateUrl",
+        "redisUrl",
+        "sessionSecret",
+        "bankFeed",
+        "nodeEnv",
+        "logLevel",
+      ].sort(),
     );
   });
 
@@ -131,7 +139,15 @@ describe("config", () => {
       }
     }).not.toThrow();
     expect(seen.sort()).toEqual(
-      ["databaseUrl", "redisUrl", "sessionSecret", "bankFeed", "nodeEnv", "logLevel"].sort(),
+      [
+        "databaseUrl",
+        "databaseMigrateUrl",
+        "redisUrl",
+        "sessionSecret",
+        "bankFeed",
+        "nodeEnv",
+        "logLevel",
+      ].sort(),
     );
   });
 
