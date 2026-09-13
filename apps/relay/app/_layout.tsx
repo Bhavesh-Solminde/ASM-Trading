@@ -13,7 +13,6 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ title: "ASM Relay" }} />
-        <Stack.Screen name="settings" options={{ title: "Settings" }} />
       </Stack>
     </>
   );

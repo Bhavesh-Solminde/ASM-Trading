@@ -6,8 +6,7 @@
   "scripts": {
     "start": "expo start --dev-client",
     "android": "expo run:android",
-    "prebuild": "expo prebuild --platform android --clean",
-    "test": "vitest run"
+    "prebuild": "expo prebuild --platform android --clean"
   },
   "dependencies": {
     "@expo/log-box": "^57.0.4",
@@ -16,10 +15,8 @@
     "expo": "57.0.22",
     "expo-constants": "57.0.18",
     "expo-dev-client": "57.0.19",
-    "expo-device": "~57.0.2",
     "expo-linking": "57.0.10",
     "expo-router": "57.0.21",
-    "expo-sqlite": "57.0.3",
     "expo-status-bar": "57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -30,7 +27,6 @@
   "devDependencies": {
     "@types/react": "19.2.18",
     "expo-build-properties": "57.0.17",
-    "typescript": "6.0.3",
-    "vitest": "5.0.0"
+    "typescript": "6.0.3"
   }
 }

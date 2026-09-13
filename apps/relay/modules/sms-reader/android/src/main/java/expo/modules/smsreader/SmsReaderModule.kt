@@ -1,83 +1,71 @@
 package expo.modules.smsreader
 
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import android.provider.Telephony
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import org.json.JSONArray
 
 /**
- * Reads THIS device's incoming SMS and emits each one to JavaScript.
- *
- * The receiver is registered dynamically while JS is listening rather than
- * declared statically, so it exists only while the app is running. That is a
- * deliberate limitation: a manifest receiver would survive an app kill but
- * needs a static bridge to reach JS and fights Android's background limits.
+ * JS-facing side of the relay: writes config the static SmsReceiver reads,
+ * toggles the enabled flag it checks, and reads back the activity
+ * log/counters it writes — all via RelayStore (SharedPreferences), since
+ * there is no direct JS<->receiver channel when the app isn't running.
  */
 class SmsReaderModule : Module() {
-
-  private var receiver: BroadcastReceiver? = null
 
   override fun definition() = ModuleDefinition {
     Name("SmsReader")
 
-    Events("onSmsReceived")
+    AsyncFunction("configure") { serverUrl: String, secret: String, senders: List<String>, deviceLabel: String ->
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      RelayStore.setConfig(context, RelayStore.Config(serverUrl, secret, senders, deviceLabel))
+    }
 
-    AsyncFunction("startListening") {
-      if (receiver == null) {
-        val context = appContext.reactContext
-          ?: throw IllegalStateException("No Android context available")
+    AsyncFunction("setEnabled") { enabled: Boolean ->
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      RelayStore.setEnabled(context, enabled)
+    }
 
-        val created = object : BroadcastReceiver() {
-          override fun onReceive(ctx: Context?, intent: Intent?) {
-            if (intent?.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
+    AsyncFunction("isEnabled") {
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      RelayStore.isEnabled(context)
+    }
 
-            val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
-            if (messages.isEmpty()) return
+    AsyncFunction("getStats") {
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      val (sent, failed) = RelayStore.getStats(context)
+      mapOf("sent" to sent, "failed" to failed)
+    }
 
-            val sender = messages[0].displayOriginatingAddress ?: "unknown"
-            val body = messages.joinToString("") { it.displayMessageBody ?: "" }
-            if (body.isBlank()) return
-
-            sendEvent(
-              "onSmsReceived",
-              mapOf(
-                "sender" to sender,
-                "body" to body,
-                "receivedAt" to System.currentTimeMillis()
-              )
-            )
-          }
-        }
-
-        val filter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-          context.registerReceiver(created, filter, Context.RECEIVER_EXPORTED)
-        } else {
-          @Suppress("UnspecifiedRegisterReceiverFlag")
-          context.registerReceiver(created, filter)
-        }
-
-        receiver = created
+    AsyncFunction("getActivityLog") {
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      val array = JSONArray(RelayStore.getLogJson(context))
+      (0 until array.length()).map { i ->
+        val entry = array.getJSONObject(i)
+        mapOf(
+          "at" to entry.getLong("at"),
+          "sender" to entry.getString("sender"),
+          "bodyPreview" to entry.getString("bodyPreview"),
+          "ok" to entry.getBoolean("ok"),
+          "detail" to entry.getString("detail"),
+        )
       }
     }
 
-    AsyncFunction("stopListening") {
-      receiver?.let { current ->
-        appContext.reactContext?.unregisterReceiver(current)
-        receiver = null
-      }
-    }
-
-    AsyncFunction("isListening") {
-      receiver != null
+    AsyncFunction("recordActivity") { sender: String, ok: Boolean, detail: String ->
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      RelayStore.recordAttempt(context, sender, "", ok, detail)
     }
 
     AsyncFunction("startForegroundService") {
@@ -119,13 +107,6 @@ class SmsReaderModule : Module() {
         context.startActivity(intent)
       }
       Unit
-    }
-
-    OnDestroy {
-      receiver?.let { current ->
-        runCatching { appContext.reactContext?.unregisterReceiver(current) }
-        receiver = null
-      }
     }
   }
 }

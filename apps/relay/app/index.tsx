@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   PermissionsAndroid,
   Platform,
@@ -9,40 +9,36 @@ import {
   View,
 } from "react-native";
 import {
-  addSmsListener,
+  configure,
+  getActivityLog,
+  getStats,
+  isEnabled,
+  recordActivity,
   requestIgnoreBatteryOptimizations,
+  setEnabled,
   startForegroundService,
-  startListening,
   stopForegroundService,
-  stopListening,
+  type ActivityEntry,
 } from "../modules/sms-reader";
 import { RELAY_CONFIG } from "@/relayConfig";
-import { enqueue, queueStats } from "@/queue";
-import { startForwarder } from "@/forwarder";
-import { isAllowedSender } from "@/senders";
-import { getActivity, logActivity, type ActivityEntry } from "@/activityLog";
 
 export default function Home() {
   const [listening, setListening] = useState(false);
-  const [granted, setGranted] = useState(false);
-  const [stats, setStats] = useState({ pending: 0, sent: 0 });
-  const [lastSeen, setLastSeen] = useState<string | null>(null);
+  const [granted, setGranted] = useState(true);
+  const [stats, setStats] = useState({ sent: 0, failed: 0 });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
 
-  const subscriptionRef = useRef<{ remove(): void } | null>(null);
-  const forwarderRef = useRef<{ stop(): void } | null>(null);
-
   useEffect(() => {
-    forwarderRef.current = startForwarder(() => RELAY_CONFIG);
+    // The enabled flag lives natively and survives an app restart (or kill),
+    // so reflect its real state on mount rather than assuming "stopped".
+    void isEnabled().then(setListening);
+
     const interval = setInterval(() => {
-      void queueStats().then(setStats);
-      setActivity(getActivity());
+      void getStats().then(setStats);
+      void getActivityLog().then(setActivity);
     }, 2_000);
 
-    return () => {
-      forwarderRef.current?.stop();
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   async function requestPermission(): Promise<boolean> {
@@ -74,9 +70,7 @@ export default function Home() {
   async function toggle() {
     try {
       if (listening) {
-        subscriptionRef.current?.remove();
-        subscriptionRef.current = null;
-        await stopListening();
+        await setEnabled(false);
         await stopForegroundService();
         setListening(false);
         return;
@@ -86,22 +80,25 @@ export default function Home() {
 
       await requestIgnoreBatteryOptimizations().catch(() => {});
 
-      subscriptionRef.current = addSmsListener((event) => {
-        if (!isAllowedSender(event.sender, RELAY_CONFIG.senders)) return;
-
-        setLastSeen(`${event.sender} · ${event.body.slice(0, 48)}…`);
-        void enqueue(event.sender, event.body, event.receivedAt);
-      });
-
+      await configure(
+        RELAY_CONFIG.serverUrl,
+        RELAY_CONFIG.secret,
+        RELAY_CONFIG.senders,
+        RELAY_CONFIG.deviceLabel,
+      );
+      await setEnabled(true);
       await startForegroundService();
-      await startListening();
       setListening(true);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      logActivity("system", false, `Start/stop failed: ${detail}`);
-      setActivity(getActivity());
+      await recordActivity("system", false, `Start/stop failed: ${detail}`).catch(
+        () => {},
+      );
+      void getActivityLog().then(setActivity);
     }
   }
+
+  const lastMatch = activity.find((entry) => entry.sender !== "system");
 
   return (
     <ScrollView contentContainerStyle={styles.screen}>
@@ -122,19 +119,21 @@ export default function Home() {
 
       <View style={styles.row}>
         <View style={styles.stat}>
-          <Text style={styles.cardLabel}>Queued</Text>
-          <Text style={styles.statValue}>{stats.pending}</Text>
-        </View>
-        <View style={styles.stat}>
           <Text style={styles.cardLabel}>Sent</Text>
           <Text style={styles.statValue}>{stats.sent}</Text>
         </View>
+        <View style={styles.stat}>
+          <Text style={styles.cardLabel}>Failed</Text>
+          <Text style={styles.statValue}>{stats.failed}</Text>
+        </View>
       </View>
 
-      {lastSeen ? (
+      {lastMatch ? (
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Last matched message</Text>
-          <Text style={styles.meta}>{lastSeen}</Text>
+          <Text style={styles.meta}>
+            {lastMatch.sender} · {lastMatch.bodyPreview}…
+          </Text>
         </View>
       ) : null}
 
@@ -161,16 +160,17 @@ export default function Home() {
 
       <Text style={styles.footer}>
         Reads only this device&apos;s messages, only from the senders above, and
-        sends them only to your own server. Demonstration use. Shows a
-        persistent notification while listening so Android doesn&apos;t stop
-        it in the background.
+        sends them only to your own server. Demonstration use. Forwards
+        directly from a background-safe native receiver, so it keeps working
+        even if the app is backgrounded or killed — only a force-stop or
+        toggling Stop turns it off.
       </Text>
 
       {activity.length > 0 ? (
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Send log</Text>
           {activity.map((entry) => (
-            <View key={entry.id} style={styles.logRow}>
+            <View key={entry.at} style={styles.logRow}>
               <Text
                 style={[
                   styles.logStatus,

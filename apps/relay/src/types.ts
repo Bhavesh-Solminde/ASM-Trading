@@ -12,12 +12,3 @@ export interface RelayConfig {
    */
   deviceLabel: string;
 }
-
-export interface QueuedMessage {
-  id: number;
-  sender: string;
-  body: string;
-  receivedAt: number;
-  attempts: number;
-  nextAttemptAt: number;
-}
