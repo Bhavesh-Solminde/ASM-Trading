@@ -22,4 +22,10 @@ export {
   findLiveDepositByClaimedUtr,
   creditDepositToAccount,
 } from "./repositories/deposit";
+export {
+  createRelayMessage,
+  linkRelayMessageToCredit,
+  listRelayMessages,
+} from "./repositories/relay-message";
+export { createBankCreditIfNew, listOrphanBankCredits } from "./repositories/bank-credit";
 export * from "../generated/prisma/client";
