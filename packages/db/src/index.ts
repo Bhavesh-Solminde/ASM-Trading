@@ -24,6 +24,8 @@ export {
   creditDepositToAccount,
   getDepositByToken,
   listDepositsForActor,
+  listPendingDeposits,
+  rejectDeposit,
   claimUtr,
 } from "./repositories/deposit";
 export {

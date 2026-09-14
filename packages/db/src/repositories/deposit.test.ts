@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../client";
 import {
+  DepositAlreadyResolved,
   DepositNotFound,
   MAX_DEPOSIT_USD_MINOR,
   MIN_DEPOSIT_USD_MINOR,
@@ -14,6 +15,8 @@ import {
   findLiveDepositByClaimedUtr,
   getDepositByToken,
   listDepositsForActor,
+  listPendingDeposits,
+  rejectDeposit,
 } from "./deposit";
 import { createAccountsForUser } from "./account";
 
@@ -286,5 +289,67 @@ describe("claimUtr", () => {
       DepositNotFound,
     );
     await prisma.user.delete({ where: { id: other.id } });
+  });
+});
+
+describe("listPendingDeposits", () => {
+  it("returns only PENDING_CONFIRMATION deposits", async () => {
+    const awaiting = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountUsdMinor: 18_000,
+      correlationId: randomUUID(),
+    });
+    const pending = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountUsdMinor: 19_000,
+      correlationId: randomUUID(),
+    });
+    await claimUtr(userId, pending.id, "444444444444");
+
+    const list = await listPendingDeposits(50);
+    const ids = list.map((d) => d.id);
+    expect(ids).toContain(pending.id);
+    expect(ids).not.toContain(awaiting.id);
+    expect(list.every((d) => d.status === "PENDING_CONFIRMATION")).toBe(true);
+  });
+});
+
+describe("rejectDeposit", () => {
+  it("marks a pending deposit REJECTED and writes an audit row", async () => {
+    const deposit = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountUsdMinor: 21_000,
+      correlationId: randomUUID(),
+    });
+    await claimUtr(userId, deposit.id, "555555555555");
+
+    await rejectDeposit({ depositId: deposit.id, adminId: "admin-panel", reason: "no credit" });
+
+    const updated = await prisma.deposit.findUniqueOrThrow({ where: { id: deposit.id } });
+    expect(updated.status).toBe("REJECTED");
+
+    const audit = await prisma.auditLog.findFirst({
+      where: { targetType: "Deposit", targetId: deposit.id, action: "deposit.rejected" },
+    });
+    expect(audit).not.toBeNull();
+    await prisma.auditLog.deleteMany({ where: { targetId: deposit.id } });
+  });
+
+  it("refuses to reject an already-resolved deposit", async () => {
+    const deposit = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountUsdMinor: 22_000,
+      correlationId: randomUUID(),
+    });
+    await claimUtr(userId, deposit.id, "666666666666");
+    await rejectDeposit({ depositId: deposit.id, adminId: "admin-panel", reason: "x" });
+    await expect(
+      rejectDeposit({ depositId: deposit.id, adminId: "admin-panel", reason: "y" }),
+    ).rejects.toBeInstanceOf(DepositAlreadyResolved);
+    await prisma.auditLog.deleteMany({ where: { targetId: deposit.id } });
   });
 });

@@ -150,6 +150,48 @@ export async function getDepositByToken(token: string): Promise<Deposit | null> 
   return prisma.deposit.findUnique({ where: { checkoutToken: token } });
 }
 
+/**
+ * Deposits a human confirmed (a UTR was entered) that the feed never credited —
+ * the residue the admin queue exists for. Exact and amount-only matches are
+ * approved automatically and never reach here.
+ */
+export async function listPendingDeposits(limit: number): Promise<Deposit[]> {
+  return prisma.deposit.findMany({
+    where: { status: "PENDING_CONFIRMATION" },
+    orderBy: { createdAt: "asc" },
+    take: Math.min(Math.max(limit, 1), 100),
+  });
+}
+
+/**
+ * Rejects a live deposit. The Deposit model carries no reason column, so the
+ * reason is recorded on the audit log only. Idempotent via the status guard.
+ */
+export async function rejectDeposit(input: {
+  depositId: string;
+  adminId: string;
+  reason: string;
+}): Promise<void> {
+  const claimed = await prisma.deposit.updateMany({
+    where: {
+      id: input.depositId,
+      status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
+    },
+    data: { status: "REJECTED" },
+  });
+  if (claimed.count !== 1) throw new DepositAlreadyResolved();
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: input.adminId,
+      action: "deposit.rejected",
+      targetType: "Deposit",
+      targetId: input.depositId,
+      after: { status: "REJECTED", reason: input.reason },
+    },
+  });
+}
+
 /** A user's own deposits, newest first. Ownership is in the predicate. */
 export async function listDepositsForActor(actorId: string, limit: number): Promise<Deposit[]> {
   return prisma.deposit.findMany({

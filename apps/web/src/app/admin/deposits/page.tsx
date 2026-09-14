@@ -1,16 +1,20 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { listOrphanBankCredits, prisma } from "@asm/db";
+import { listOrphanBankCredits, listPendingDeposits, prisma } from "@asm/db";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
+import { approveDepositAction, rejectDepositAction } from "./actions";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminDepositsPage() {
   const store = await cookies();
   const authed = await readAdminSession(store.get(ADMIN_SESSION_COOKIE)?.value);
   if (!authed) redirect("/admin/login");
 
-  const [deposits, orphans] = await Promise.all([
+  const [deposits, orphans, pending] = await Promise.all([
     prisma.deposit.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
     listOrphanBankCredits(100),
+    listPendingDeposits(50),
   ]);
 
   return (
@@ -63,6 +67,61 @@ export default async function AdminDepositsPage() {
           &quot;Content-Type&quot;: &quot;application/json&quot; {'}'}, body: JSON.stringify({'{'}
           userId, amountUsdMinor {'}'}) {'}'})</code>.
         </p>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]">
+          Pending claims awaiting review ({pending.length})
+        </h2>
+        <p className="text-xs text-[var(--color-ink-2)]">
+          Only the residue reaches here — exact and amount-only matches approve
+          automatically. Approving credits the balance with no bank credit on
+          record (an out-of-band vouch); the money split and 50% bonus are the
+          same as an automatic match.
+        </p>
+        {pending.length === 0 ? (
+          <p className="text-sm text-[var(--color-ink-2)]">Nothing awaiting review.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {pending.map((d) => (
+              <li
+                key={d.id}
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel)] p-3 text-sm"
+              >
+                <span className="font-semibold">{d.method}</span>
+                <span className="tabular-nums">₹{(d.amountInr / 100).toFixed(2)}</span>
+                <span className="tabular-nums text-[var(--color-ink-2)]">
+                  ${(d.amountUsd / 100).toFixed(2)}
+                </span>
+                <span className="font-mono text-xs text-[var(--color-ink-2)]">
+                  {d.claimedUtr ?? "no reference"}
+                </span>
+                <span className="font-mono text-[10px] text-[var(--color-ink-2)]">{d.id}</span>
+                <div className="ml-auto flex gap-2">
+                  <form action={approveDepositAction}>
+                    <input type="hidden" name="depositId" value={d.id} />
+                    <button
+                      type="submit"
+                      className="rounded-md bg-[var(--color-up)] px-3 py-1.5 text-xs font-bold text-[#06231a]"
+                    >
+                      Approve
+                    </button>
+                  </form>
+                  <form action={rejectDepositAction}>
+                    <input type="hidden" name="depositId" value={d.id} />
+                    <input type="hidden" name="reason" value="no matching credit found" />
+                    <button
+                      type="submit"
+                      className="rounded-md border border-[var(--color-down)] px-3 py-1.5 text-xs font-bold text-[var(--color-down)]"
+                    >
+                      Reject
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="flex flex-col gap-3">
