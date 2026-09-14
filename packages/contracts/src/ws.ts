@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { TradeView } from "./trade";
 
 /** Asset symbols are uppercase alphanumerics and underscores only. */
 export const SymbolSchema = z
@@ -91,6 +92,23 @@ export interface AuthedMessage {
   type: "authed";
 }
 
+export interface TradeOpenedMessage {
+  type: "trade:opened";
+  trade: TradeView;
+}
+
+export interface TradeSettledMessage {
+  type: "trade:settled";
+  trade: TradeView;
+}
+
+export interface BalanceUpdateMessage {
+  type: "balance:update";
+  accountId: string;
+  realBalance: number;
+  bonusBalance: number;
+}
+
 export type ServerMessage =
   | TickMessage
   | CandleHistoryMessage
@@ -98,4 +116,7 @@ export type ServerMessage =
   | PayoutUpdateMessage
   | ReadyMessage
   | ErrorMessage
-  | AuthedMessage;
+  | AuthedMessage
+  | TradeOpenedMessage
+  | TradeSettledMessage
+  | BalanceUpdateMessage;

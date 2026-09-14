@@ -23,4 +23,22 @@ export {
   type ReadyMessage,
   type ErrorMessage,
   type AuthedMessage,
+  type TradeOpenedMessage,
+  type TradeSettledMessage,
+  type BalanceUpdateMessage,
 } from "./ws";
+export {
+  TRADE_DURATIONS_SEC,
+  DirectionSchema,
+  OpenTradeSchema,
+  EngineOpenTradeSchema,
+  tradeViewFrom,
+  type DirectionDto,
+  type OpenTradeInput,
+  type EngineOpenTradeInput,
+  type TradeStatusDto,
+  type TradeView,
+  type TradeRowLike,
+  type BalancesDto,
+  type OpenTradeResult,
+} from "./trade";
