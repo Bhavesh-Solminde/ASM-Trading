@@ -36,7 +36,13 @@ async function pendingDeposit(): Promise<{ amountInr: number; vpa: string; claim
 }
 
 beforeEach(async () => {
-  await prisma.deposit.deleteMany({ where: { status: "PENDING_CONFIRMATION" } });
+  // Scope the pre-clean to THIS test's own users (the `sf-` email prefix), not
+  // every PENDING_CONFIRMATION deposit in the shared DB — a global delete would
+  // wipe a concurrent test's data and is only safe today because the suite runs
+  // serially. This clears residue a crashed prior run of this file left behind.
+  await prisma.deposit.deleteMany({
+    where: { status: "PENDING_CONFIRMATION", user: { email: { startsWith: "sf-" } } },
+  });
 });
 
 afterEach(async () => {

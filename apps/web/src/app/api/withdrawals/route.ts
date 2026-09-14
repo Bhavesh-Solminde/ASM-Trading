@@ -8,7 +8,10 @@ import {
   requestWithdrawal,
   withdrawableBalance,
 } from "@asm/db";
+import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { requestContext } from "@/lib/request-context";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const WithdrawSchema = z.strictObject({
   accountId: z.string().uuid(),
@@ -17,9 +20,22 @@ const WithdrawSchema = z.strictObject({
 });
 
 export async function POST(req: NextRequest) {
+  const ctx = requestContext(req);
+  const log = childLogger(ctx.cid);
+
   const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  // Parity with the deposit route — a money-moving request a human never fires
+  // in bursts. Keeps a bot from flooding the admin payout queue.
+  if (!(await checkRateLimit(`rl:withdraw:${session.userId}`, 10, 300))) {
+    log.warn({ evt: "security.rate_limited", route: "withdrawals" }, "withdrawal throttled");
+    return NextResponse.json(
+      { error: "Too many withdrawal attempts. Wait a few minutes." },
+      { status: 429 },
+    );
   }
 
   const parsed = WithdrawSchema.safeParse(await req.json().catch(() => null));
