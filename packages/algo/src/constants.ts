@@ -48,7 +48,7 @@ export const WEIGHT_REFERENCE_FLOOR = 1_000;
  */
 export const MAX_LOSS_STREAK = 9;
 export const MAX_WIN_STREAK = 8;
-export const STREAK_NUDGE = 0.08;
+export const STREAK_NUDGE = 0.12;
 
 /** Absolute bounds — no account can ever be certain to win or lose. */
 export const P_MIN = 0.05;
