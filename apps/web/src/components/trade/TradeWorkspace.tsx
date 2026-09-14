@@ -3,10 +3,19 @@
 import { useCallback, useEffect, useReducer, useState } from "react";
 import type { BalancesDto, OpenTradeResult, ServerMessage, TradeView } from "@asm/contracts";
 import { PriceChart } from "@/components/chart/PriceChart";
+import { SentimentBar } from "@/components/chart/SentimentBar";
 import { useEngineSocket } from "@/components/chart/useEngineSocket";
 import { AccountSwitcher, type AccountView } from "@/components/AccountSwitcher";
+import { AssetTabs } from "./AssetTabs";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
+
+export interface WorkspaceAsset {
+  symbol: string;
+  displayName: string;
+  payoutPct: number;
+  precision: number;
+}
 import {
   applyTradeMessage,
   initialTradeState,
@@ -33,15 +42,15 @@ function reducer(state: TradeState, action: Action): TradeState {
 
 export function TradeWorkspace({
   symbol,
-  displayName,
   precision,
+  assets,
   accounts,
   initialBalances,
   initialTrades,
 }: {
   symbol: string;
-  displayName: string;
   precision: number;
+  assets: WorkspaceAsset[];
   accounts: AccountView[];
   initialBalances: Record<string, BalancesDto>;
   initialTrades: TradeView[];
@@ -49,6 +58,11 @@ export function TradeWorkspace({
   const [activeAccountId, setActiveAccountId] = useState(
     accounts.find((a) => a.type === "DEMO")?.id ?? accounts[0]?.id ?? "",
   );
+  const [activeSymbol, setActiveSymbol] = useState(symbol);
+  const activeAsset = assets.find((a) => a.symbol === activeSymbol);
+  const displayName = activeAsset?.displayName ?? activeSymbol;
+  const activePrecision = activeAsset?.precision ?? precision;
+
   const [state, dispatch] = useReducer(
     reducer,
     { initialTrades, initialBalances },
@@ -56,7 +70,7 @@ export function TradeWorkspace({
   );
 
   const onMessage = useCallback((message: ServerMessage) => dispatch({ kind: "message", message }), []);
-  const { status, chart } = useEngineSocket({ symbol, timeframe: "1m", onMessage });
+  const { status, chart } = useEngineSocket({ symbol: activeSymbol, timeframe: "1m", onMessage });
 
   // The page rendered history for the default account only; fetch on switch.
   useEffect(() => {
@@ -89,7 +103,9 @@ export function TradeWorkspace({
           </div>
           <div className="flex items-center gap-3">
             {chart.lastPrice !== null ? (
-              <span className="text-sm font-semibold tabular-nums">{chart.lastPrice.toFixed(precision)}</span>
+              <span className="text-sm font-semibold tabular-nums">
+                {chart.lastPrice.toFixed(activePrecision)}
+              </span>
             ) : null}
             <span
               className="text-[10px] font-semibold uppercase tracking-[0.12em]"
@@ -99,10 +115,19 @@ export function TradeWorkspace({
             </span>
           </div>
         </div>
+        <AssetTabs assets={assets} active={activeSymbol} onSelect={setActiveSymbol} />
         {status === "unauthorised" ? (
           <p className="text-xs text-[var(--color-down)]">Your session has ended. Log in again.</p>
         ) : null}
-        <PriceChart candles={chart.candles} forming={chart.forming} precision={precision} />
+        <div className="flex gap-2">
+          <SentimentBar
+            upPct={chart.sentiment?.upPct ?? 50}
+            downPct={chart.sentiment?.downPct ?? 50}
+          />
+          <div className="min-w-0 flex-1">
+            <PriceChart candles={chart.candles} forming={chart.forming} precision={activePrecision} />
+          </div>
+        </div>
       </section>
 
       <aside className="flex flex-col gap-4">
@@ -113,7 +138,7 @@ export function TradeWorkspace({
           onChange={setActiveAccountId}
         />
         <TradeTicket
-          symbol={symbol}
+          symbol={activeSymbol}
           accountId={activeAccountId}
           currency={currency}
           payoutPct={chart.payoutPct}

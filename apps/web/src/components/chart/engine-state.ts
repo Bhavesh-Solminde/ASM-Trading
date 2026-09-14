@@ -12,10 +12,20 @@ export interface ChartState {
   readonly forming: CandleDto | null;
   readonly lastPrice: number | null;
   readonly payoutPct: number | null;
+  /** Stake-weighted up/down split for this symbol, or null until the first tick. */
+  readonly sentiment: { upPct: number; downPct: number } | null;
 }
 
 export function initialChartState(symbol: string, timeframe: Timeframe): ChartState {
-  return { symbol, timeframe, candles: [], forming: null, lastPrice: null, payoutPct: null };
+  return {
+    symbol,
+    timeframe,
+    candles: [],
+    forming: null,
+    lastPrice: null,
+    payoutPct: null,
+    sentiment: null,
+  };
 }
 
 /**
@@ -76,6 +86,11 @@ export function applyChartMessage(state: ChartState, message: ServerMessage): Ch
 
     case "payout:update":
       return message.symbol === state.symbol ? { ...state, payoutPct: message.payoutPct } : state;
+
+    case "sentiment":
+      return message.symbol === state.symbol
+        ? { ...state, sentiment: { upPct: message.upPct, downPct: message.downPct } }
+        : state;
 
     default:
       return state;

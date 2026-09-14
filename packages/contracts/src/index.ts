@@ -26,6 +26,7 @@ export {
   type TradeOpenedMessage,
   type TradeSettledMessage,
   type BalanceUpdateMessage,
+  type SentimentMessage,
 } from "./ws";
 export {
   TRADE_DURATIONS_SEC,

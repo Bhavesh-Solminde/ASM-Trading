@@ -3,6 +3,7 @@ import { logger } from "@asm/logger";
 import type { AssetRegistry } from "./assets/registry";
 import type { EngineServer } from "./server";
 import type { TradeDesk } from "./trading/trade-desk";
+import { computeSentiment } from "./sentiment";
 
 const TICK_MS = 100;
 
@@ -13,11 +14,12 @@ const TICK_MS = 100;
 export function startTickLoop(
   registry: AssetRegistry,
   server: EngineServer,
-  desk: Pick<TradeDesk, "collectDue">,
+  desk: Pick<TradeDesk, "collectDue" | "openFor">,
 ): { stop(): void } {
   let running = true;
   let timer: NodeJS.Timeout | null = null;
   let lastLagWarn = 0;
+  let lastSentimentSec = 0;
 
   const run = async (): Promise<void> => {
     const startedAt = Date.now();
@@ -49,6 +51,16 @@ export function startTickLoop(
         price: result.price,
         ts: nowSec,
       });
+
+      // Once per second is plenty — the bar is a mood indicator, not a feed.
+      if (nowSec !== lastSentimentSec) {
+        const sentiment = computeSentiment(desk.openFor(asset.id));
+        server.broadcast(asset.symbol, {
+          type: "sentiment",
+          symbol: asset.symbol,
+          ...sentiment,
+        });
+      }
 
       if (result.closed) {
         const candle = result.closed;
@@ -93,6 +105,8 @@ export function startTickLoop(
           });
       }
     }
+
+    lastSentimentSec = nowSec;
 
     const elapsed = Date.now() - startedAt;
     if (elapsed > TICK_MS * 3 && Date.now() - lastLagWarn > 30_000) {

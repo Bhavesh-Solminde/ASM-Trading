@@ -12,10 +12,14 @@ export default async function TradePage() {
 
   const [accounts, assets] = await Promise.all([
     listAccountsForActor(session.userId),
-    prisma.asset.findMany({ select: { id: true, symbol: true, displayName: true, precision: true } }),
+    prisma.asset.findMany({
+      where: { isOpen: true },
+      orderBy: { symbol: "asc" },
+      select: { id: true, symbol: true, displayName: true, precision: true, payoutPct: true },
+    }),
   ]);
 
-  const asset = assets.find((a) => a.symbol === "AUDNZD_OTC");
+  const asset = assets.find((a) => a.symbol === "AUDNZD_OTC") ?? assets[0];
   if (!asset) {
     return (
       <main className="mx-auto max-w-md px-6 py-16">
@@ -50,8 +54,13 @@ export default async function TradePage() {
 
       <TradeWorkspace
         symbol={asset.symbol}
-        displayName={asset.displayName}
         precision={asset.precision}
+        assets={assets.map((a) => ({
+          symbol: a.symbol,
+          displayName: a.displayName,
+          payoutPct: a.payoutPct,
+          precision: a.precision,
+        }))}
         accounts={accounts.map((a) => ({ id: a.id, type: a.type, currency: a.currency }))}
         initialBalances={Object.fromEntries(
           accounts.map((a) => [a.id, { realBalance: a.realBalance, bonusBalance: a.bonusBalance }]),
