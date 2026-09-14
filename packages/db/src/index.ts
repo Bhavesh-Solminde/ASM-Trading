@@ -46,6 +46,7 @@ export {
   type ProfileView,
 } from "./repositories/profile";
 export { issueTwoFactorCode, verifyTwoFactorCode } from "./repositories/twofa";
+export { createTicket, listTicketsForActor } from "./repositories/support";
 export {
   createRelayMessage,
   linkRelayMessageToCredit,

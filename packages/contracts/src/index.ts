@@ -59,3 +59,4 @@ export {
   type TwoFaToggleInput,
   type TwoFaVerifyInput,
 } from "./account";
+export { CreateTicketSchema, FAQ, type CreateTicketInput } from "./support";
