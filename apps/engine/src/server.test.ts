@@ -17,10 +17,14 @@ let url = "";
 beforeAll(async () => {
   await registry.load();
   // Port 0 = any free port. The authenticator is injected, so this test needs
-  // no Redis: one known ticket maps to one user id.
-  server = new EngineServer(registry, 0, async (ticket) =>
-    ticket === "good-ticket" ? "user-under-test" : null,
-  );
+  // no Redis. It answers after 50ms, like a real Redis round trip: without the
+  // per-socket queue, a subscribe sent right behind auth would then always be
+  // handled first, so the race test below fails deterministically.
+  server = new EngineServer(registry, 0, async (ticket) => {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    if (ticket === "explode") throw new Error("redis unavailable");
+    return ticket === "good-ticket" ? "user-under-test" : null;
+  });
   await server.ready();
   url = `ws://127.0.0.1:${server.port()}`;
 });
@@ -32,17 +36,19 @@ afterAll(async () => {
 
 /**
  * Opens a socket, sends every message back-to-back the instant it opens, and
- * collects replies until `count` arrive, the socket closes, or 3s pass.
+ * returns the first `count` replies once the socket has closed (or 3s pass),
+ * together with the close code and reason.
  */
 function exchange(
   messages: unknown[],
   count: number,
-): Promise<{ replies: Reply[]; closeCode: number | null }> {
+): Promise<{ replies: Reply[]; closeCode: number | null; closeReason: string }> {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(url);
     const replies: Reply[] = [];
     let closeCode: number | null = null;
-    const finish = () => resolve({ replies, closeCode });
+    let closeReason = "";
+    const finish = () => resolve({ replies: replies.slice(0, count), closeCode, closeReason });
     const timer = setTimeout(() => {
       socket.terminate();
       finish();
@@ -63,8 +69,9 @@ function exchange(
         socket.close();
       }
     });
-    socket.on("close", (code: number) => {
+    socket.on("close", (code: number, reason: Buffer) => {
       closeCode = code;
+      closeReason = reason.toString();
       clearTimeout(timer);
       finish();
     });
@@ -97,10 +104,20 @@ describe("EngineServer", () => {
     expect(replies[1]).toEqual({ type: "error", message: "Authenticate first." });
   });
 
-  it("closes the socket with 1008 on an unknown ticket", async () => {
-    const { replies, closeCode } = await exchange([{ type: "auth", token: "forged" }], 2);
+  it("closes the socket with 1008 and reason Unauthorised on an unknown ticket", async () => {
+    const { replies, closeCode, closeReason } = await exchange([{ type: "auth", token: "forged" }], 2);
     expect(replies[1]).toEqual({ type: "error", message: "Session expired." });
     expect(closeCode).toBe(1008);
+    // The browser hook stops reconnecting only on this exact reason.
+    expect(closeReason).toBe("Unauthorised");
+  });
+
+  it("closes with 1011 when authentication itself fails, so the client backs off and retries", async () => {
+    // count 2: the "ready" greeting is reply 1, so the server's own close must end the exchange.
+    const { replies, closeCode, closeReason } = await exchange([{ type: "auth", token: "explode" }], 2);
+    expect(replies).toHaveLength(1);
+    expect(closeCode).toBe(1011);
+    expect(closeReason).not.toBe("Unauthorised");
   });
 
   it("rejects a message with an unknown type", async () => {

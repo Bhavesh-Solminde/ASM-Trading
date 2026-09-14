@@ -87,6 +87,10 @@ export class EngineServer {
             { evt: "engine.ws_handler_failed", reason: err instanceof Error ? err.message : "unknown" },
             "ws message handler failed",
           );
+          // Without a close the client would wait on an open socket forever
+          // (e.g. Redis down during auth). 1011 is not "Unauthorised", so the
+          // browser backs off and retries with a fresh ticket.
+          client.socket.close(1011, "Internal error");
         });
     });
     socket.on("close", () => this.clients.delete(client));

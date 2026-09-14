@@ -35,7 +35,7 @@ describe("POST /api/auth/ws-ticket", () => {
     expect((await POST(request(null))).status).toBe(401);
   });
 
-  it("issues a single-use ticket bound to the caller, without exposing the session token", async () => {
+  it("issues a short-lived ticket bound to the caller, without exposing the session token", async () => {
     const res = await POST(request(sessionToken));
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -43,6 +43,9 @@ describe("POST /api/auth/ws-ticket", () => {
     const { ticket } = (await res.json()) as { ticket: string };
     expect(ticket).not.toBe(sessionToken);
     expect(await redis.get(wsTicketKey(ticket))).toBe(userId);
-    expect(await redis.ttl(wsTicketKey(ticket))).toBeLessThanOrEqual(30);
+    // ttl is -1 for a key with no expiry, so bound it on both sides.
+    const ttl = await redis.ttl(wsTicketKey(ticket));
+    expect(ttl).toBeGreaterThan(0);
+    expect(ttl).toBeLessThanOrEqual(30);
   });
 });

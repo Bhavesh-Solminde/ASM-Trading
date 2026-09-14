@@ -76,6 +76,15 @@ describe("applyChartMessage", () => {
     expect(state.lastPrice).toBe(1.3);
   });
 
+  it("ignores a tick older than the forming candle's bucket", () => {
+    const state = fold([
+      { type: "tick", symbol: "AUDNZD_OTC", price: 1.18, ts: MIN + 60 },
+      { type: "tick", symbol: "AUDNZD_OTC", price: 1.1, ts: MIN + 30 },
+    ]);
+    expect(state.forming).toEqual({ openTs: MIN + 60, o: 1.18, h: 1.18, l: 1.18, c: 1.18 });
+    expect(state.lastPrice).toBe(1.18);
+  });
+
   it("records the payout for its own symbol", () => {
     expect(fold([{ type: "payout:update", symbol: "AUDNZD_OTC", payoutPct: 92 }]).payoutPct).toBe(92);
   });

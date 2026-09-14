@@ -57,6 +57,10 @@ export function applyChartMessage(state: ChartState, message: ServerMessage): Ch
       // The bucket has already closed; drawing it again would reopen history.
       if (last && openTs <= last.openTs) return { ...state, lastPrice: message.price };
 
+      // Older than the candle already forming: replacing it would hand the
+      // chart a bar older than its newest, which lightweight-charts rejects.
+      if (state.forming && openTs < state.forming.openTs) return state;
+
       const forming =
         state.forming && state.forming.openTs === openTs
           ? {

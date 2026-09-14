@@ -19,13 +19,23 @@ function reducer(state: ChartState, action: Action): ChartState {
   return initialChartState(action.symbol, action.timeframe);
 }
 
-async function fetchTicket(): Promise<string | null> {
+type TicketResult =
+  | { kind: "ticket"; ticket: string }
+  | { kind: "unauthorised" }
+  | { kind: "unavailable" };
+
+/**
+ * Only a 401 means the session is gone. A network error, a 429 or a 5xx is
+ * transient, and the caller retries it with backoff rather than giving up.
+ */
+async function fetchTicket(): Promise<TicketResult> {
   const res = await fetch("/api/auth/ws-ticket", { method: "POST", cache: "no-store" }).catch(
     () => null,
   );
-  if (!res || !res.ok) return null;
+  if (res?.status === 401) return { kind: "unauthorised" };
+  if (!res || !res.ok) return { kind: "unavailable" };
   const body = (await res.json().catch(() => ({}))) as { ticket?: string };
-  return body.ticket ?? null;
+  return body.ticket ? { kind: "ticket", ticket: body.ticket } : { kind: "unavailable" };
 }
 
 /**
@@ -67,12 +77,18 @@ export function useEngineSocket(opts: {
 
     const connect = async (): Promise<void> => {
       setStatus("connecting");
-      const ticket = await fetchTicket();
+      const result = await fetchTicket();
       if (closedByUs) return;
-      if (!ticket) {
+      if (result.kind === "unauthorised") {
         setStatus("unauthorised");
         return;
       }
+      if (result.kind === "unavailable") {
+        setStatus("closed");
+        scheduleReconnect();
+        return;
+      }
+      const { ticket } = result;
 
       const socket = new WebSocket(WS_URL);
       socketRef.current = socket;
