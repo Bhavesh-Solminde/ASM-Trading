@@ -21,12 +21,20 @@ export default async function AdminDepositsPage() {
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-8 px-6 py-10">
       <div className="flex items-baseline justify-between">
         <h1 className="text-xl font-semibold tracking-tight">Deposits</h1>
-        <a
-          href="/admin/messages"
-          className="text-xs font-semibold text-[var(--color-ink-2)] underline underline-offset-4"
-        >
-          ← Messages
-        </a>
+        <div className="flex gap-4">
+          <a
+            href="/admin/winrate"
+            className="text-xs font-semibold text-[var(--color-ink-2)] underline underline-offset-4"
+          >
+            Win-Rate
+          </a>
+          <a
+            href="/admin/messages"
+            className="text-xs font-semibold text-[var(--color-ink-2)] underline underline-offset-4"
+          >
+            ← Messages
+          </a>
+        </div>
       </div>
 
       <section className="flex flex-col gap-3">
