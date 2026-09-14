@@ -44,6 +44,9 @@ importers:
       '@asm/pricing':
         specifier: workspace:*
         version: link:../../packages/pricing
+      '@asm/trading':
+        specifier: workspace:*
+        version: link:../../packages/trading
       ioredis:
         specifier: 5.9.0
         version: 5.9.0
