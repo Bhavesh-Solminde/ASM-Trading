@@ -6,10 +6,10 @@ import {
   createRelayMessage,
   findBankCreditByUtr,
   linkRelayMessageToCredit,
+  matchCreditToDeposit,
   type BankCredit,
 } from "@asm/db";
 import { childLogger } from "@asm/logger";
-import { matchCreditToDeposit } from "@/lib/deposit-matcher";
 import { parseBankSms } from "@/lib/parse-bank-sms";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";

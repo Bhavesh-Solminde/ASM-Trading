@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { prisma, createAccountsForUser, createDepositIntent } from "@asm/db";
+import { prisma } from "../client";
+import { createAccountsForUser } from "./account";
+import { createDepositIntent } from "./deposit";
 import { matchCreditToDeposit } from "./deposit-matcher";
 
 let userId = "";
