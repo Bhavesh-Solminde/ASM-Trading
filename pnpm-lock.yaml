@@ -161,6 +161,9 @@ importers:
       '@asm/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@asm/trading':
+        specifier: workspace:*
+        version: link:../../packages/trading
       argon2:
         specifier: 0.45.1
         version: 0.45.1
