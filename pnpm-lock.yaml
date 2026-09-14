@@ -241,6 +241,8 @@ importers:
 
   packages/pricing: {}
 
+  packages/trading: {}
+
 packages:
 
   '@alloc/quick-lru@5.3.0':
