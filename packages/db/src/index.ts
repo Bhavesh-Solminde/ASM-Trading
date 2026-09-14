@@ -63,12 +63,21 @@ export {
   AlreadySettled,
   TradeNotFound,
   openTrade,
+  openTradeRecord,
   settleTrade,
   voidTrade,
+  loadTradeShadow,
   listTradesForActor,
   loadOpenPositions,
   type OpenTradeInput,
   type OpenedTrade,
   type SettledTrade,
+  type ShadowInput,
+  type SettleTradeInput,
 } from "./repositories/trade";
+export {
+  loadAccountStats,
+  recordOutcomeInTx,
+  setLifecycleOverride,
+} from "./repositories/account-stats";
 export * from "../generated/prisma/client";

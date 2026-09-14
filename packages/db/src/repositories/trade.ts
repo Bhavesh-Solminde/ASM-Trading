@@ -8,7 +8,8 @@ import {
   type Position,
 } from "@asm/trading";
 import { prisma } from "../client";
-import type { Direction, Prisma, Trade } from "../../generated/prisma/client";
+import type { Direction, Prisma, Trade, TradeShadow } from "../../generated/prisma/client";
+import { recordOutcomeInTx } from "./account-stats";
 
 export class InsufficientFunds extends Error {
   constructor() {
@@ -149,6 +150,28 @@ export async function openTrade(input: OpenTradeInput): Promise<OpenedTrade> {
   throw new ConcurrentModification();
 }
 
+/**
+ * Creates a trade record without debiting balance. Used by bots (whose balance
+ * is managed separately via top-up) and by tests that need a trade row without
+ * the full accounting machinery.
+ */
+export async function openTradeRecord(input: OpenTradeInput): Promise<Trade> {
+  return prisma.trade.create({
+    data: {
+      accountId: input.accountId,
+      assetId: input.assetId,
+      direction: input.direction,
+      stake: input.stake,
+      stakeFromBonus: 0,
+      payoutPct: input.payoutPct,
+      entryPrice: input.entryPrice,
+      entryTs: input.entryTs,
+      expiryTs: input.expiryTs,
+      status: "OPEN",
+    },
+  });
+}
+
 type TradeWithOwner = Trade & { account: { userId: string } };
 
 /**
@@ -161,6 +184,7 @@ async function applySettlement(
   trade: TradeWithOwner,
   outcome: Outcome,
   exitPrice: number | null,
+  shadow?: ShadowInput,
 ): Promise<SettledTrade> {
   const credit = settlementCredit(trade.stake, trade.payoutPct, outcome);
   const pnl = settlementPnl(trade.stake, trade.payoutPct, outcome);
@@ -170,6 +194,38 @@ async function applySettlement(
     data: { status: outcome, exitPrice, pnl },
   });
   if (claimed.count !== 1) throw new AlreadySettled(trade.id);
+
+  // Record outcome stats inside the same transaction — outcome and stats
+  // are always consistent, even if the process crashes immediately after.
+  await recordOutcomeInTx(tx, {
+    accountId: trade.accountId,
+    stake: trade.stake,
+    outcome,
+  });
+
+  // Write the honest counterfactual when the engine supplies one.
+  if (shadow && exitPrice !== null) {
+    const honestOutcome = didWin(trade.direction, trade.entryPrice, shadow.honestExitPrice);
+    const deltaPips = (exitPrice - shadow.honestExitPrice) / shadow.pipSize;
+    await tx.tradeShadow.create({
+      data: {
+        tradeId: trade.id,
+        shownExitPrice: exitPrice,
+        honestExitPrice: shadow.honestExitPrice,
+        shownResult: outcome,
+        honestResult: honestOutcome,
+        deltaPips,
+        biasApplied: shadow.biasApplied,
+        magnetApplied: shadow.magnetApplied,
+        imbalanceAtEntry: shadow.imbalanceAtEntry,
+        exposureUp: shadow.exposureUp,
+        exposureDown: shadow.exposureDown,
+        lifecycleStage: shadow.lifecycleStage,
+        wantedWin: shadow.wantedWin ?? null,
+        winProbability: shadow.winProbability ?? null,
+      },
+    });
+  }
 
   let realBalance: number;
   let bonusBalance: number;
@@ -220,16 +276,42 @@ async function loadOpenTrade(tx: Tx, tradeId: string): Promise<TradeWithOwner> {
   return trade;
 }
 
-/** Settles one trade against a captured exit price, in one transaction. */
-export async function settleTrade(input: {
+export interface ShadowInput {
+  honestExitPrice: number;
+  biasApplied: number;
+  magnetApplied: number;
+  imbalanceAtEntry: number;
+  exposureUp: number;
+  exposureDown: number;
+  lifecycleStage: string;
+  /** pip size for the asset (e.g. 0.00001 for 5dp FX). */
+  pipSize: number;
+  wantedWin?: boolean;
+  winProbability?: number;
+}
+
+export interface SettleTradeInput {
   tradeId: string;
   exitPrice: number;
-}): Promise<SettledTrade> {
+  /** When present, the honest counterfactual is recorded alongside the settlement. */
+  shadow?: ShadowInput;
+}
+
+/** Settles one trade against a captured exit price, in one transaction. */
+export async function settleTrade(input: SettleTradeInput): Promise<SettledTrade> {
   return prisma.$transaction(async (tx) => {
     const trade = await loadOpenTrade(tx, input.tradeId);
     const outcome = didWin(trade.direction, trade.entryPrice, input.exitPrice);
-    return applySettlement(tx, trade, outcome, input.exitPrice);
+    return applySettlement(tx, trade, outcome, input.exitPrice, input.shadow);
   });
+}
+
+/**
+ * Admin-only. There is deliberately no actor-scoped variant: no trading client
+ * may ever read this, so no ownership-scoped accessor exists to be misused.
+ */
+export async function loadTradeShadow(tradeId: string): Promise<TradeShadow | null> {
+  return prisma.tradeShadow.findUnique({ where: { tradeId } });
 }
 
 /**

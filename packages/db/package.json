@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@asm/algo": "workspace:*",
     "@asm/config": "workspace:*",
     "@asm/logger": "workspace:*",
     "@asm/trading": "workspace:*",
