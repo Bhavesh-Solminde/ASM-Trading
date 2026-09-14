@@ -22,4 +22,5 @@ export {
   type PayoutUpdateMessage,
   type ReadyMessage,
   type ErrorMessage,
+  type AuthedMessage,
 } from "./ws";

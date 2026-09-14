@@ -85,10 +85,16 @@ export interface ErrorMessage {
   message: string;
 }
 
+/** Sent once, after a ticket is accepted. Clients subscribe only after receiving it. */
+export interface AuthedMessage {
+  type: "authed";
+}
+
 export type ServerMessage =
   | TickMessage
   | CandleHistoryMessage
   | CandleCloseMessage
   | PayoutUpdateMessage
   | ReadyMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | AuthedMessage;

@@ -1,9 +1,12 @@
+import Redis from "ioredis";
+import { config } from "@asm/config";
 import { logger } from "@asm/logger";
 import { prisma } from "@asm/db";
 import { AssetRegistry } from "./assets/registry";
 import { EngineServer } from "./server";
 import { startTickLoop } from "./loop";
 import { createPriceFeed } from "./feeds/twelve-data";
+import { createTicketAuthenticator } from "./auth/ws-ticket";
 
 const WS_PORT = Number(process.env.ENGINE_WS_PORT ?? 4001);
 
@@ -17,7 +20,9 @@ async function main(): Promise<void> {
     );
   }
 
-  const server = new EngineServer(registry, WS_PORT);
+  const redis = new Redis(config.redisUrl, { maxRetriesPerRequest: 2 });
+  const server = new EngineServer(registry, WS_PORT, createTicketAuthenticator(redis));
+  await server.ready();
   const loop = startTickLoop(registry, server);
 
   const feed = createPriceFeed(registry.symbols());
@@ -32,6 +37,7 @@ async function main(): Promise<void> {
     loop.stop();
     await feed.stop();
     await server.stop();
+    await redis.quit();
     await prisma.$disconnect();
     process.exit(0);
   };

@@ -1,5 +1,4 @@
 import { WebSocketServer, type WebSocket } from "ws";
-import { createHash } from "node:crypto";
 import {
   ClientMessageSchema,
   type ServerMessage,
@@ -9,32 +8,36 @@ import { prisma } from "@asm/db";
 import { childLogger, newCorrelationId, logger } from "@asm/logger";
 import type { AssetRegistry } from "./assets/registry";
 
+/** Resolves a one-time ticket to a user id, or null. Injected so tests need no Redis. */
+export type Authenticate = (ticket: string) => Promise<string | null>;
+
 interface Client {
   socket: WebSocket;
   userId: string | null;
   subscriptions: Map<string, Timeframe>;
   cid: string;
   messageBudget: number;
+  /** Messages from one socket are handled strictly in arrival order. */
+  queue: Promise<void>;
 }
 
 const MESSAGE_BUDGET_PER_WINDOW = 60;
 const BUDGET_WINDOW_MS = 10_000;
 const HISTORY_CANDLES = 120;
 
-function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
 export class EngineServer {
   private wss: WebSocketServer;
   private clients = new Set<Client>();
   private budgetTimer: NodeJS.Timeout;
+  private readonly listening: Promise<void>;
 
   constructor(
     private readonly registry: AssetRegistry,
     port: number,
+    private readonly authenticate: Authenticate,
   ) {
     this.wss = new WebSocketServer({ port });
+    this.listening = new Promise((resolve) => this.wss.once("listening", () => resolve()));
     this.wss.on("connection", (socket) => this.onConnection(socket));
 
     this.budgetTimer = setInterval(() => {
@@ -43,7 +46,18 @@ export class EngineServer {
       }
     }, BUDGET_WINDOW_MS);
 
-    logger.info({ evt: "engine.ws_listening", port }, "websocket server listening");
+    void this.listening.then(() =>
+      logger.info({ evt: "engine.ws_listening", port: this.port() }, "websocket server listening"),
+    );
+  }
+
+  ready(): Promise<void> {
+    return this.listening;
+  }
+
+  port(): number {
+    const address = this.wss.address();
+    return typeof address === "object" && address !== null ? address.port : 0;
   }
 
   private onConnection(socket: WebSocket): void {
@@ -53,10 +67,28 @@ export class EngineServer {
       subscriptions: new Map(),
       cid: newCorrelationId(),
       messageBudget: MESSAGE_BUDGET_PER_WINDOW,
+      queue: Promise.resolve(),
     };
     this.clients.add(client);
 
-    socket.on("message", (raw) => void this.onMessage(client, raw.toString()));
+    socket.on("message", (raw) => {
+      if (client.messageBudget-- <= 0) {
+        childLogger(client.cid).warn(
+          { evt: "security.rate_limited", channel: "ws" },
+          "message budget exceeded",
+        );
+        client.socket.close(1008, "Too many messages");
+        return;
+      }
+      client.queue = client.queue
+        .then(() => this.onMessage(client, raw.toString()))
+        .catch((err: unknown) => {
+          childLogger(client.cid).error(
+            { evt: "engine.ws_handler_failed", reason: err instanceof Error ? err.message : "unknown" },
+            "ws message handler failed",
+          );
+        });
+    });
     socket.on("close", () => this.clients.delete(client));
     socket.on("error", () => this.clients.delete(client));
 
@@ -65,13 +97,6 @@ export class EngineServer {
 
   private async onMessage(client: Client, raw: string): Promise<void> {
     const log = childLogger(client.cid);
-
-    // Per-connection budget — an authenticated socket is still a rate-limited one.
-    if (client.messageBudget-- <= 0) {
-      log.warn({ evt: "security.rate_limited", channel: "ws" }, "message budget exceeded");
-      client.socket.close(1008, "Too many messages");
-      return;
-    }
 
     let parsedJson: unknown;
     try {
@@ -94,19 +119,21 @@ export class EngineServer {
     const message = parsed.data;
 
     if (message.type === "auth") {
-      const session = await prisma.session.findUnique({
-        where: { tokenHash: hashToken(message.token) },
-        select: { userId: true, expiresAt: true },
-      });
+      if (client.userId) {
+        this.send(client, { type: "error", message: "Already authenticated." });
+        return;
+      }
 
-      if (!session || session.expiresAt.getTime() < Date.now()) {
+      const userId = await this.authenticate(message.token);
+      if (!userId) {
         this.send(client, { type: "error", message: "Session expired." });
         client.socket.close(1008, "Unauthorised");
         return;
       }
 
-      client.userId = session.userId;
-      log.info({ evt: "engine.ws_authed", userId: session.userId }, "socket authed");
+      client.userId = userId;
+      log.info({ evt: "engine.ws_authed", userId }, "socket authed");
+      this.send(client, { type: "authed" });
       return;
     }
 
@@ -134,6 +161,7 @@ export class EngineServer {
       where: { assetId: asset.id, timeframe: message.timeframe },
       orderBy: { openTs: "desc" },
       take: HISTORY_CANDLES,
+      select: { openTs: true, o: true, h: true, l: true, c: true },
     });
 
     this.send(client, {
