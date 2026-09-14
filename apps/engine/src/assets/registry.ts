@@ -50,6 +50,15 @@ export class AssetRegistry {
     const rows = await prisma.asset.findMany({ where: { isOpen: true } });
 
     for (const row of rows) {
+      // Resume from the last published close, not the seed price. Positions
+      // that rejoin after a restart settle on this path, so a reset to
+      // basePrice would decide them by the restart rather than the market.
+      const last = await prisma.candle.findFirst({
+        where: { assetId: row.id, timeframe: "1m" },
+        orderBy: { openTs: "desc" },
+        select: { c: true },
+      });
+
       const params: PriceParams = {
         garch: { omega: row.garchOmega, alpha: row.garchAlpha, beta: row.garchBeta },
         driftPerSec: 0,
@@ -64,7 +73,7 @@ export class AssetRegistry {
         payoutPct: row.payoutPct,
         precision: row.precision,
         params,
-        state: initPriceState(row.basePrice, params),
+        state: initPriceState(last?.c ?? row.basePrice, params),
         anchor: null,
         aggregator: new CandleAggregator(60),
       });

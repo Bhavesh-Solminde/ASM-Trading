@@ -10,15 +10,14 @@ import { TradesPanel } from "./TradesPanel";
 import {
   applyTradeMessage,
   initialTradeState,
-  withBalances,
   withFetchedTrades,
-  withTrade,
+  withOpenResult,
   type TradeState,
 } from "./trade-state";
 
 type Action =
   | { kind: "message"; message: ServerMessage }
-  | { kind: "opened"; result: OpenTradeResult }
+  | { kind: "opened"; result: OpenTradeResult; socketLive: boolean }
   | { kind: "fetched"; accountId: string; trades: TradeView[] };
 
 function reducer(state: TradeState, action: Action): TradeState {
@@ -26,11 +25,7 @@ function reducer(state: TradeState, action: Action): TradeState {
     case "message":
       return applyTradeMessage(state, action.message);
     case "opened":
-      return withBalances(
-        withTrade(state, action.result.trade),
-        action.result.trade.accountId,
-        action.result.balances,
-      );
+      return withOpenResult(state, action.result, action.socketLive);
     case "fetched":
       return withFetchedTrades(state, action.accountId, action.trades);
   }
@@ -122,7 +117,7 @@ export function TradeWorkspace({
           accountId={activeAccountId}
           currency={currency}
           payoutPct={chart.payoutPct}
-          onOpened={(result) => dispatch({ kind: "opened", result })}
+          onOpened={(result) => dispatch({ kind: "opened", result, socketLive: status === "open" })}
         />
         <TradesPanel
           trades={state.tradesByAccount[activeAccountId] ?? []}

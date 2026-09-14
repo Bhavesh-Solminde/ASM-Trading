@@ -1,4 +1,4 @@
-import type { BalancesDto, ServerMessage, TradeView } from "@asm/contracts";
+import type { BalancesDto, OpenTradeResult, ServerMessage, TradeView } from "@asm/contracts";
 
 const MAX_TRADES_PER_ACCOUNT = 50;
 
@@ -42,6 +42,19 @@ export function withTrade(state: TradeState, trade: TradeView): TradeState {
 
 export function withBalances(state: TradeState, accountId: string, balances: BalancesDto): TradeState {
   return { ...state, balances: { ...state.balances, [accountId]: balances } };
+}
+
+/**
+ * Applies the HTTP response to "open".
+ *
+ * The engine pushes balance:update before it answers, so while the socket is
+ * live the response's balances are never newer than the socket's, and a
+ * settlement landing mid-round-trip would make them older. Only when the
+ * socket is down are they the best figure available.
+ */
+export function withOpenResult(state: TradeState, result: OpenTradeResult, socketLive: boolean): TradeState {
+  const next = withTrade(state, result.trade);
+  return socketLive ? next : withBalances(next, result.trade.accountId, result.balances);
 }
 
 /**

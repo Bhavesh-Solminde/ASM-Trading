@@ -5,6 +5,7 @@ import {
   initialTradeState,
   upsertTrade,
   withFetchedTrades,
+  withOpenResult,
 } from "./trade-state";
 
 let seq = 0;
@@ -75,6 +76,29 @@ describe("applyTradeMessage", () => {
   it("ignores unrelated messages", () => {
     const before = initialTradeState([], {});
     expect(applyTradeMessage(before, { type: "ready", serverTs: 0 })).toBe(before);
+  });
+});
+
+describe("withOpenResult", () => {
+  // The socket delivered a settlement (10,000) after the open's own balance
+  // update (9,980) but before the HTTP response carrying 9,980 arrived.
+  const settledFirst = applyTradeMessage(initialTradeState([], {}), {
+    type: "balance:update",
+    accountId: "acct-demo",
+    realBalance: 1_000_000,
+    bonusBalance: 0,
+  });
+  const staleResult = { trade: trade(), balances: { realBalance: 998_000, bonusBalance: 0 } };
+
+  it("never lets the HTTP balance overwrite the socket's while the socket is live", () => {
+    const next = withOpenResult(settledFirst, staleResult, true);
+    expect(next.balances["acct-demo"]).toEqual({ realBalance: 1_000_000, bonusBalance: 0 });
+    expect(next.tradesByAccount["acct-demo"]).toEqual([staleResult.trade]);
+  });
+
+  it("falls back to the HTTP balance when the socket is down", () => {
+    const next = withOpenResult(settledFirst, staleResult, false);
+    expect(next.balances["acct-demo"]).toEqual({ realBalance: 998_000, bonusBalance: 0 });
   });
 });
 
