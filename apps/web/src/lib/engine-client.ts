@@ -43,8 +43,11 @@ export async function engineOpenTrade(input: EngineOpenTradeInput): Promise<Open
   if (res.status === 201) return (await res.json()) as OpenTradeResult;
 
   const body = (await res.json().catch(() => ({}))) as { error?: string };
-  if (res.status >= 400 && res.status < 500) {
-    throw new EngineRejected(res.status, body.error ?? "rejected");
+  // Only 404/409 are refusals the trader can act on. A 401 (secret mismatch),
+  // 400 (schema drift) or 413 is our misconfiguration, so it must not reach the
+  // browser as "signed out" or "bad input".
+  if ((res.status === 404 || res.status === 409) && body.error) {
+    throw new EngineRejected(res.status, body.error);
   }
   throw new EngineUnavailable(`engine responded ${res.status}`);
 }
