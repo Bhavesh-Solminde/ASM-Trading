@@ -112,12 +112,27 @@ export function createInternalApi(deps: {
   }
 
   const server: Server = createServer((req, res) => {
-    void handle(req, res);
+    // A caller that disconnects mid-body rejects readBody. Left unhandled, that
+    // reaches main's unhandledRejection handler and exits the whole engine.
+    handle(req, res).catch((err: unknown) => {
+      logger.error(
+        { evt: "engine.internal_api_error", reason: err instanceof Error ? err.message : "unknown" },
+        "internal api request failed",
+      );
+      if (res.headersSent || res.destroyed) res.destroy();
+      else reply(res, 500, { error: "internal" });
+    });
   });
 
   return {
     async listen() {
-      await new Promise<void>((resolve) => server.listen(deps.port, "127.0.0.1", resolve));
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(deps.port, "127.0.0.1", () => {
+          server.off("error", reject);
+          resolve();
+        });
+      });
       const address = server.address();
       const port = typeof address === "object" && address !== null ? address.port : deps.port;
       logger.info({ evt: "engine.internal_api_listening", port }, "internal api listening");

@@ -2,6 +2,7 @@ import { BucketRegistry, expirySecFor, type Position } from "@asm/trading";
 import {
   AlreadySettled,
   InsufficientFunds,
+  TradeNotFound,
   getAccountForActor,
   loadOpenPositions,
   openTrade,
@@ -21,8 +22,6 @@ import { logger } from "@asm/logger";
 import type { AssetRegistry } from "../assets/registry";
 import { DeskRejection } from "./errors";
 
-/** A position whose expiry passed more than this long before a restart is voided, not settled. */
-export const OUTAGE_GRACE_SEC = 2;
 const MAX_SETTLE_ATTEMPTS = 10;
 const RETRY_BASE_MS = 500;
 const STOP_TIMEOUT_MS = 5_000;
@@ -58,6 +57,7 @@ export class TradeDesk {
   constructor(
     private readonly assets: AssetRegistry,
     private readonly notifier: Notifier,
+    private readonly now: () => number = Date.now,
   ) {
     for (const asset of assets.all()) this.symbolByAssetId.set(asset.id, asset.symbol);
   }
@@ -71,7 +71,7 @@ export class TradeDesk {
     if (!account) throw new DeskRejection("account_not_found");
 
     // Price, entry time and expiry are captured together, here.
-    const entryTs = new Date();
+    const entryTs = new Date(this.now());
     const expiryTs = new Date(entryTs.getTime() + input.durationSec * 1000);
     const entryPrice = Number(asset.state.price.toFixed(asset.precision));
 
@@ -92,6 +92,23 @@ export class TradeDesk {
       throw err;
     }
 
+    // No await between this check and book.add, so no tick can collect the
+    // bucket in between. A write that outlasted the trade has no price from its
+    // expiry second to settle against, so it is voided like an outage.
+    const expirySec = expirySecFor(expiryTs.getTime());
+    if (expirySec <= Math.floor(this.now() / 1000)) {
+      const voided = await voidTrade(opened.trade.id);
+      logger.warn(
+        { evt: "trade.open_expired_in_flight", tradeId: opened.trade.id, symbol: asset.symbol },
+        "trade expired before its write completed — voided",
+      );
+      this.announce(voided, asset.symbol);
+      return {
+        trade: tradeViewFrom(voided.trade, asset.symbol),
+        balances: { realBalance: voided.realBalance, bonusBalance: voided.bonusBalance },
+      };
+    }
+
     this.book.add({
       tradeId: opened.trade.id,
       accountId: opened.trade.accountId,
@@ -100,7 +117,7 @@ export class TradeDesk {
       stake: opened.trade.stake,
       payoutPct: opened.trade.payoutPct,
       entryPrice,
-      expirySec: expirySecFor(expiryTs.getTime()),
+      expirySec,
     });
 
     const result: OpenTradeResult = {
@@ -117,16 +134,16 @@ export class TradeDesk {
   }
 
   /**
-   * Reloads open positions after a restart. Positions still due in the future
-   * rejoin the book; those whose expiry passed while the engine was down are
-   * voided — there is no recorded price for that moment.
+   * Reloads open positions after a restart. Positions expiring after `nowSec`
+   * rejoin the book; the rest are voided. A restart resets every asset's price,
+   * so there is no recorded price for an expiry at or before the restart second.
    */
   async hydrate(nowSec: number): Promise<void> {
     const positions = await loadOpenPositions();
     let voided = 0;
 
     for (const position of positions) {
-      if (position.expirySec >= nowSec - OUTAGE_GRACE_SEC) {
+      if (position.expirySec > nowSec) {
         this.book.add(position);
         continue;
       }
@@ -187,15 +204,15 @@ export class TradeDesk {
   private async drain(): Promise<void> {
     while (this.pending.length > 0) {
       const item = this.pending[0]!;
+      let settled: SettledTrade;
       try {
-        const settled = await settleTrade({
+        settled = await settleTrade({
           tradeId: item.position.tradeId,
           exitPrice: item.exitPrice,
         });
-        this.pending.shift();
-        this.announce(settled, item.symbol);
       } catch (err) {
-        if (err instanceof AlreadySettled) {
+        // Nothing left to settle: retrying either would only stall the queue.
+        if (err instanceof AlreadySettled || err instanceof TradeNotFound) {
           this.pending.shift();
           continue;
         }
@@ -218,7 +235,10 @@ export class TradeDesk {
           continue;
         }
         await sleep(RETRY_BASE_MS * item.attempts);
+        continue;
       }
+      this.pending.shift();
+      this.announce(settled, item.symbol);
     }
   }
 
@@ -240,10 +260,18 @@ export class TradeDesk {
     trade: TradeView,
     balances: BalancesDto,
   ): void {
-    this.notifier.sendToUser(
-      userId,
-      type === "trade:opened" ? { type: "trade:opened", trade } : { type: "trade:settled", trade },
-    );
-    this.notifier.sendToUser(userId, { type: "balance:update", accountId: trade.accountId, ...balances });
+    // The money has already moved; a failed push must never undo or retry that.
+    try {
+      this.notifier.sendToUser(
+        userId,
+        type === "trade:opened" ? { type: "trade:opened", trade } : { type: "trade:settled", trade },
+      );
+      this.notifier.sendToUser(userId, { type: "balance:update", accountId: trade.accountId, ...balances });
+    } catch (err) {
+      logger.error(
+        { evt: "trade.notify_failed", tradeId: trade.id, reason: err instanceof Error ? err.message : "unknown" },
+        "trade notification failed",
+      );
+    }
   }
 }

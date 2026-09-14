@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAccountsForUser, openTrade, prisma } from "@asm/db";
+import { expirySecFor } from "@asm/trading";
 import type { ServerMessage } from "@asm/contracts";
 import { AssetRegistry } from "../assets/registry";
 import { TradeDesk } from "./trade-desk";
@@ -90,6 +91,27 @@ describe("TradeDesk.open", () => {
   });
 });
 
+describe("TradeDesk.open when the write outlasts the trade", () => {
+  it("voids a trade whose expiry second passed before it could join the book", async () => {
+    const t = await trader();
+    setPrice(1.175);
+    // Each clock read jumps 10s: entry is stamped at the first read, and by the
+    // post-commit check a 5s trade's expiry second has already gone by.
+    let clock = Date.now();
+    const slow = new TradeDesk(registry, notifier, () => (clock += 10_000));
+
+    const result = await slow.open(request(t, { durationSec: 5 }));
+
+    expect(result.trade.status).toBe("REFUNDED");
+    expect(result.trade.exitPrice).toBeNull();
+    expect(result.balances.realBalance).toBe(1_000_000);
+    const assetId = registry.get("AUDNZD_OTC")!.id;
+    expect(slow.openFor(assetId).some((p) => p.tradeId === result.trade.id)).toBe(false);
+    const row = await prisma.trade.findUniqueOrThrow({ where: { id: result.trade.id } });
+    expect(row.status).toBe("REFUNDED");
+  });
+});
+
 describe("TradeDesk settlement", () => {
   it("settles at the price captured when the bucket came due, not when the write happens", async () => {
     const t = await trader();
@@ -151,5 +173,35 @@ describe("TradeDesk.hydrate", () => {
     const fresh = new TradeDesk(registry, notifier);
     await fresh.hydrate(nowSec());
     expect(fresh.openFor(assetId).some((p) => p.tradeId === trade.id)).toBe(true);
+  });
+
+  it("voids a position expiring in the restart second, and keeps one expiring the second after", async () => {
+    const t = await trader();
+    const assetId = registry.get("AUDNZD_OTC")!.id;
+    const expiryTs = new Date(Date.now() + 60_000);
+    const open = (id: string) =>
+      openTrade({
+        accountId: t.accountId,
+        assetId,
+        direction: "UP",
+        stake: 1_000,
+        payoutPct: 100,
+        entryPrice: 1.175,
+        entryTs: new Date(),
+        expiryTs,
+      }).then((o) => ({ id, tradeId: o.trade.id }));
+    const [due, next] = await Promise.all([open("due"), open("next")]);
+    const expirySec = expirySecFor(expiryTs.getTime());
+
+    // "next" is judged against the second before its expiry.
+    const later = new TradeDesk(registry, notifier);
+    await later.hydrate(expirySec - 1);
+    expect(later.openFor(assetId).some((p) => p.tradeId === next.tradeId)).toBe(true);
+
+    // At its own expiry second the engine has no price from before the restart.
+    await new TradeDesk(registry, notifier).hydrate(expirySec);
+    const row = await prisma.trade.findUniqueOrThrow({ where: { id: due.tradeId } });
+    expect(row.status).toBe("REFUNDED");
+    expect(row.exitPrice).toBeNull();
   });
 });

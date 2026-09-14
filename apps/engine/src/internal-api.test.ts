@@ -1,3 +1,4 @@
+import { connect } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { EngineOpenTradeInput, OpenTradeResult } from "@asm/contracts";
 import { createInternalApi, type TradeOpener } from "./internal-api";
@@ -103,6 +104,25 @@ describe("engine internal api", () => {
     const res = await post(body);
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "internal" });
+  });
+
+  it("survives a caller that disconnects mid-body, and keeps serving", async () => {
+    const port = Number(new URL(base).port);
+    await new Promise<void>((resolve, reject) => {
+      const socket = connect(port, "127.0.0.1", () => {
+        socket.write(
+          `POST /trades HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer ${SECRET}\r\n` +
+            "Content-Type: application/json\r\nContent-Length: 500\r\n\r\n{\"symbol\":",
+        );
+        setTimeout(() => {
+          socket.destroy();
+          resolve();
+        }, 50);
+      });
+      socket.on("error", reject);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect((await post(body)).status).toBe(201);
   });
 
   it("404s any other route", async () => {
