@@ -40,6 +40,13 @@ export {
   listWithdrawalsForActor,
 } from "./repositories/withdrawal";
 export {
+  loadProfile,
+  updateProfile,
+  setTwoFactorPreferences,
+  type ProfileView,
+} from "./repositories/profile";
+export { issueTwoFactorCode, verifyTwoFactorCode } from "./repositories/twofa";
+export {
   createRelayMessage,
   linkRelayMessageToCredit,
   listRelayMessages,

@@ -51,3 +51,11 @@ export {
   type ClaimUtrInput,
   type DepositView,
 } from "./deposit";
+export {
+  UpdateProfileSchema,
+  TwoFaToggleSchema,
+  TwoFaVerifySchema,
+  type UpdateProfileInput,
+  type TwoFaToggleInput,
+  type TwoFaVerifyInput,
+} from "./account";
