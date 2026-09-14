@@ -91,13 +91,16 @@ model User {
   country             String?
   kycStatus           KycStatus @default(NOT_STARTED)
   cumulativeDeposits  Int       @default(0)
+  isBot               Boolean   @default(false)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  accounts    Account[]
-  sessions    Session[]
-  deposits    Deposit[]
-  withdrawals Withdrawal[]
+  accounts       Account[]
+  sessions       Session[]
+  deposits       Deposit[]
+  withdrawals    Withdrawal[]
+  supportTickets SupportTicket[]
+  twoFactorCodes TwoFactorCode[]
 
   @@index([email])
 }
@@ -132,6 +135,7 @@ model Account {
   medianStake      Int            @default(100)
   lossStreak       Int            @default(0)
   winStreak        Int            @default(0)
+  lifecycleOverride LifecycleStage?
   dailyLimit       Int?
   version          Int            @default(0)
   createdAt        DateTime       @default(now())
@@ -225,6 +229,8 @@ model TradeShadow {
   exposureUp       Int
   exposureDown     Int
   lifecycleStage   String
+  wantedWin        Boolean?
+  winProbability   Float?
   createdAt        DateTime @default(now())
 
   trade Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
@@ -376,4 +382,40 @@ model AuditLog {
 
   @@index([targetType, targetId])
   @@index([createdAt])
+}
+
+enum TicketStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
+model SupportTicket {
+  id        String       @id @default(uuid())
+  userId    String
+  subject   String
+  body      String
+  status    TicketStatus @default(OPEN)
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// Short-lived one-time codes for two-factor login and withdrawal. The code is
+/// delivered to the log (no SMTP/provider in this build); only its hash is
+/// stored, and `usedAt` makes redemption single-use.
+model TwoFactorCode {
+  id        String    @id @default(uuid())
+  userId    String
+  codeHash  String
+  purpose   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
 }

@@ -109,6 +109,14 @@ export interface BalanceUpdateMessage {
   bonusBalance: number;
 }
 
+export interface SentimentMessage {
+  type: "sentiment";
+  symbol: string;
+  /** Whole percentages summing to 100. */
+  upPct: number;
+  downPct: number;
+}
+
 export type ServerMessage =
   | TickMessage
   | CandleHistoryMessage
@@ -119,4 +127,5 @@ export type ServerMessage =
   | AuthedMessage
   | TradeOpenedMessage
   | TradeSettledMessage
-  | BalanceUpdateMessage;
+  | BalanceUpdateMessage
+  | SentimentMessage;

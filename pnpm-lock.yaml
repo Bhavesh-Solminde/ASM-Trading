@@ -29,6 +29,9 @@ importers:
 
   apps/engine:
     dependencies:
+      '@asm/algo':
+        specifier: workspace:*
+        version: link:../../packages/algo
       '@asm/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -205,6 +208,12 @@ importers:
         specifier: 4.3.3
         version: 4.3.3
 
+  packages/algo:
+    dependencies:
+      '@asm/trading':
+        specifier: workspace:*
+        version: link:../trading
+
   packages/config:
     dependencies:
       zod:
@@ -219,9 +228,15 @@ importers:
 
   packages/db:
     dependencies:
+      '@asm/algo':
+        specifier: workspace:*
+        version: link:../algo
       '@asm/config':
         specifier: workspace:*
         version: link:../config
+      '@asm/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@asm/trading':
         specifier: workspace:*
         version: link:../trading

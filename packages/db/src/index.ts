@@ -40,6 +40,14 @@ export {
   listWithdrawalsForActor,
 } from "./repositories/withdrawal";
 export {
+  loadProfile,
+  updateProfile,
+  setTwoFactorPreferences,
+  type ProfileView,
+} from "./repositories/profile";
+export { issueTwoFactorCode, verifyTwoFactorCode } from "./repositories/twofa";
+export { createTicket, listTicketsForActor } from "./repositories/support";
+export {
   createRelayMessage,
   linkRelayMessageToCredit,
   listRelayMessages,
@@ -55,12 +63,22 @@ export {
   AlreadySettled,
   TradeNotFound,
   openTrade,
+  openTradeRecord,
   settleTrade,
   voidTrade,
+  loadTradeShadow,
   listTradesForActor,
   loadOpenPositions,
   type OpenTradeInput,
   type OpenedTrade,
   type SettledTrade,
+  type ShadowInput,
+  type SettleTradeInput,
 } from "./repositories/trade";
+export {
+  loadAccountStats,
+  recordOutcomeInTx,
+  setLifecycleOverride,
+} from "./repositories/account-stats";
+export { provisionBots, resetDemoBalance } from "./repositories/bots";
 export * from "../generated/prisma/client";

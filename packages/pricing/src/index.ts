@@ -8,6 +8,8 @@ export {
 export {
   initPriceState,
   stepPrice,
+  perTickSigma,
+  TICK_DT_SEC,
   type PriceParams,
   type PriceState,
   type StepPriceInput,

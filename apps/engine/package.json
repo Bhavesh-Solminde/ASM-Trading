@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@asm/algo": "workspace:*",
     "@asm/config": "workspace:*",
     "@asm/contracts": "workspace:*",
     "@asm/db": "workspace:*",

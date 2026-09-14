@@ -9,6 +9,7 @@ import {
   settleTrade,
   voidTrade,
   type SettledTrade,
+  type ShadowInput,
 } from "@asm/db";
 import {
   tradeViewFrom,
@@ -34,6 +35,8 @@ interface PendingSettlement {
   position: Position;
   symbol: string;
   exitPrice: number;
+  honestExitPrice: number;
+  shadow: ShadowInput | undefined;
   attempts: number;
 }
 
@@ -58,6 +61,7 @@ export class TradeDesk {
     private readonly assets: AssetRegistry,
     private readonly notifier: Notifier,
     private readonly now: () => number = Date.now,
+    private readonly onSettled?: (accountId: string) => void,
   ) {
     for (const asset of assets.all()) this.symbolByAssetId.set(asset.id, asset.symbol);
   }
@@ -163,7 +167,10 @@ export class TradeDesk {
   }
 
   /** Called from the tick loop. Captures one price per due bucket; never awaits. */
-  collectDue(nowSec: number): void {
+  collectDue(
+    nowSec: number,
+    tickData?: Map<string, { honestPrice: number; sigmaTick: number }>,
+  ): void {
     for (const bucket of this.book.due(nowSec)) {
       const symbol = this.symbolByAssetId.get(bucket.assetId);
       const asset = symbol ? this.assets.get(symbol) : undefined;
@@ -176,8 +183,25 @@ export class TradeDesk {
       }
 
       const exitPrice = Number(asset.state.price.toFixed(asset.precision));
+      const td = tickData?.get(asset.symbol);
+      const honestExitPrice = td
+        ? Number(td.honestPrice)
+        : exitPrice;
+
       for (const position of bucket.positions) {
-        this.pending.push({ position, symbol, exitPrice, attempts: 0 });
+        const shadow: ShadowInput | undefined = td
+          ? {
+              honestExitPrice,
+              biasApplied: exitPrice - honestExitPrice,
+              magnetApplied: 0,
+              imbalanceAtEntry: 0,
+              exposureUp: 0,
+              exposureDown: 0,
+              lifecycleStage: "PRE_DEPOSIT",
+              pipSize: asset.tickSize,
+            }
+          : undefined;
+        this.pending.push({ position, symbol, exitPrice, honestExitPrice, shadow, attempts: 0 });
       }
     }
 
@@ -209,6 +233,7 @@ export class TradeDesk {
         settled = await settleTrade({
           tradeId: item.position.tradeId,
           exitPrice: item.exitPrice,
+          ...(item.shadow !== undefined ? { shadow: item.shadow } : {}),
         });
       } catch (err) {
         // Nothing left to settle: retrying either would only stall the queue.
@@ -238,6 +263,7 @@ export class TradeDesk {
         continue;
       }
       this.pending.shift();
+      this.onSettled?.(item.position.accountId);
       this.announce(settled, item.symbol);
     }
   }
