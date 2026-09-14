@@ -10,6 +10,7 @@ export {
   AmountSpaceExhausted,
   DepositNotFound,
   DepositAlreadyResolved,
+  UtrAlreadyClaimed,
   USD_TO_INR_RATE,
   OFFSET_LOW,
   OFFSET_SPACE,
@@ -21,7 +22,23 @@ export {
   findLiveDepositByAmount,
   findLiveDepositByClaimedUtr,
   creditDepositToAccount,
+  getDepositByToken,
+  listDepositsForActor,
+  listPendingDeposits,
+  rejectDeposit,
+  claimUtr,
 } from "./repositories/deposit";
+export {
+  matchCreditToDeposit,
+  type MatchOutcome,
+} from "./repositories/deposit-matcher";
+export {
+  WithdrawalRefused,
+  withdrawableBalance,
+  requestWithdrawal,
+  approveWithdrawal,
+  listWithdrawalsForActor,
+} from "./repositories/withdrawal";
 export {
   createRelayMessage,
   linkRelayMessageToCredit,

@@ -42,3 +42,11 @@ export {
   type BalancesDto,
   type OpenTradeResult,
 } from "./trade";
+export {
+  DEPOSIT_METHODS,
+  CreateDepositSchema,
+  ClaimUtrSchema,
+  type CreateDepositInput,
+  type ClaimUtrInput,
+  type DepositView,
+} from "./deposit";

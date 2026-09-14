@@ -51,6 +51,13 @@ export class DepositAlreadyResolved extends Error {
   }
 }
 
+export class UtrAlreadyClaimed extends Error {
+  constructor() {
+    super("A reference has already been submitted for this deposit.");
+    this.name = "UtrAlreadyClaimed";
+  }
+}
+
 /**
  * Creates a deposit intent with a RESERVED amount, unique among all
  * currently-live deposits regardless of VPA.
@@ -136,6 +143,92 @@ export async function findLiveDepositByClaimedUtr(utr: string): Promise<Deposit 
       status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
     },
   });
+}
+
+/** One deposit by its opaque checkout token — the hosted checkout page's key. */
+export async function getDepositByToken(token: string): Promise<Deposit | null> {
+  return prisma.deposit.findUnique({ where: { checkoutToken: token } });
+}
+
+/**
+ * Deposits a human confirmed (a UTR was entered) that the feed never credited —
+ * the residue the admin queue exists for. Exact and amount-only matches are
+ * approved automatically and never reach here.
+ */
+export async function listPendingDeposits(limit: number): Promise<Deposit[]> {
+  return prisma.deposit.findMany({
+    where: { status: "PENDING_CONFIRMATION" },
+    orderBy: { createdAt: "asc" },
+    take: Math.min(Math.max(limit, 1), 100),
+  });
+}
+
+/**
+ * Rejects a live deposit. The Deposit model carries no reason column, so the
+ * reason is recorded on the audit log only. Idempotent via the status guard.
+ */
+export async function rejectDeposit(input: {
+  depositId: string;
+  adminId: string;
+  reason: string;
+}): Promise<void> {
+  const claimed = await prisma.deposit.updateMany({
+    where: {
+      id: input.depositId,
+      status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
+    },
+    data: { status: "REJECTED" },
+  });
+  if (claimed.count !== 1) throw new DepositAlreadyResolved();
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: input.adminId,
+      action: "deposit.rejected",
+      targetType: "Deposit",
+      targetId: input.depositId,
+      after: { status: "REJECTED", reason: input.reason },
+    },
+  });
+}
+
+/** A user's own deposits, newest first. Ownership is in the predicate. */
+export async function listDepositsForActor(actorId: string, limit: number): Promise<Deposit[]> {
+  return prisma.deposit.findMany({
+    where: { userId: actorId },
+    orderBy: { createdAt: "desc" },
+    take: Math.min(Math.max(limit, 1), 100),
+  });
+}
+
+/**
+ * Records the user's self-declared reference and moves the deposit to
+ * PENDING_CONFIRMATION, so the matcher's amount check is joined by a reference
+ * tiebreaker. Ownership is enforced in the same UPDATE that claims the row: a
+ * deposit belonging to another user, already resolved, or already claimed is
+ * never touched, and the caller cannot tell an authz failure apart from a
+ * genuinely missing row.
+ */
+export async function claimUtr(actorId: string, depositId: string, utr: string): Promise<Deposit> {
+  const claimed = await prisma.deposit.updateMany({
+    where: {
+      id: depositId,
+      userId: actorId,
+      status: "AWAITING_PAYMENT",
+      claimedUtr: null,
+    },
+    data: { claimedUtr: utr, status: "PENDING_CONFIRMATION" },
+  });
+
+  if (claimed.count !== 1) {
+    // Distinguish "not yours / gone" (404) from "already claimed" (409) so the
+    // checkout page can tell the user which happened.
+    const existing = await prisma.deposit.findFirst({ where: { id: depositId, userId: actorId } });
+    if (!existing) throw new DepositNotFound();
+    throw new UtrAlreadyClaimed();
+  }
+
+  return prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });
 }
 
 const BONUS_PERCENT = 50;

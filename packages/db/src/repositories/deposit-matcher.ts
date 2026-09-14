@@ -1,4 +1,8 @@
-import { creditDepositToAccount, findLiveDepositByAmount, findLiveDepositByClaimedUtr } from "@asm/db";
+import {
+  creditDepositToAccount,
+  findLiveDepositByAmount,
+  findLiveDepositByClaimedUtr,
+} from "./deposit";
 
 export type MatchOutcome =
   | { kind: "auto_approved"; depositId: string }
@@ -10,11 +14,14 @@ export type MatchOutcome =
   | { kind: "orphan" };
 
 /**
- * Priority: Amount -> Reference -> VPA (VPA is never checked here at all —
- * it isn't even a parameter). Amount is an exact match against whichever
- * single value was reserved to a live deposit, never a fuzzy tolerance.
- * Never auto-rejects: every path ends in either an approval or a queue for
- * a human, so a legitimate but slightly-off payment is never lost.
+ * Priority: Amount -> Reference -> VPA (VPA is never checked here at all — it
+ * isn't even a parameter). Amount is an exact match against whichever single
+ * value was reserved to a live deposit, never a fuzzy tolerance. Never
+ * auto-rejects: every path ends in either an approval or a queue for a human,
+ * so a legitimate but slightly-off payment is never lost.
+ *
+ * Lives in @asm/db, not the web app, because both the SMS relay route and the
+ * engine's simulated feed reconcile credits and neither can import the other.
  */
 export async function matchCreditToDeposit(credit: {
   creditId: string;
@@ -42,9 +49,9 @@ export async function matchCreditToDeposit(credit: {
     return { kind: "manual_review", reason: "reference_mismatch", depositId: deposit.id };
   }
 
-  // No live deposit reserved this exact amount. Amount is primary and it
-  // didn't match anything — but check whether the reference at least points
-  // at a specific deposit, so a human reviewing the orphan queue has a lead.
+  // No live deposit reserved this exact amount. Amount is primary and it didn't
+  // match anything — but check whether the reference at least points at a
+  // specific deposit, so a human reviewing the orphan queue has a lead.
   if (credit.utr) {
     const byReference = await findLiveDepositByClaimedUtr(credit.utr);
     if (byReference) {

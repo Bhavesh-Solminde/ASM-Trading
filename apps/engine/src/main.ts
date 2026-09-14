@@ -9,6 +9,7 @@ import { createPriceFeed } from "./feeds/twelve-data";
 import { createTicketAuthenticator } from "./auth/ws-ticket";
 import { createInternalApi } from "./internal-api";
 import { TradeDesk } from "./trading/trade-desk";
+import { startBankFeedRunner } from "./bank-feed/runner";
 
 const WS_PORT = Number(process.env.ENGINE_WS_PORT ?? 4001);
 const HTTP_PORT = Number(process.env.ENGINE_HTTP_PORT ?? 4002);
@@ -53,11 +54,14 @@ async function main(): Promise<void> {
 
   await internal.listen();
 
+  const bankFeed = await startBankFeedRunner();
+
   logger.info({ evt: "engine.started", wsPort: WS_PORT, httpPort: HTTP_PORT }, "engine started");
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ evt: "engine.stopping", signal }, "shutting down");
     await internal.close(); // accept no new trades
+    await bankFeed.stop(); // inject no new credits
     loop.stop(); // collect no new settlements
     await desk?.stop(); // let captured settlements persist (bounded)
     await feed.stop();
