@@ -8,10 +8,28 @@
 
 **Tech Stack:** TypeScript · `ws` 8.21.3 · lightweight-charts 5.2.1 · Twelve Data REST (free tier) · Postgres 16 · Redis 8 · Vitest 5
 
+> **Revision 2026-09-14 — read before executing Tasks 7–8.** Tasks 1–6 are done and merged into
+> this branch as written (see `.superpowers/sdd/progress.md`). Tasks 7 and 8 were re-reviewed
+> against the real Task 1–6 code before execution, and rewritten. In summary:
+>
+> - **Task 7** fixes a WebSocket auth race that would have stopped the chart loading. It
+>   replaces handing the `httpOnly` session token to page JavaScript with single-use Redis
+>   tickets. It fixes live ticks being drawn into the previous minute's candle. And it makes
+>   the chart presentational, with one socket hook later plans extend.
+> - **Task 8** replaces a realism gate that tested parameters production never uses. The
+>   seeded calibration had the per-tick clamp binding on 87% of ticks, giving 36–99 pips per
+>   minute. It adds a derived calibration, a migration for the seeded rows, a gate over the
+>   exact production parameters, and a `pnpm test` that works from a bare shell.
+>
+> The pure-code steps in Task 8 (`calibration.ts`, `realism.test.ts`) were executed and pass
+> exactly as printed. Each task's header explains what changed and why.
+
 ## Global Constraints
 
 - **Everything from Plan 01 applies** — Node `>=22.0.0`, exact pinned versions, `z.strictObject()` at every boundary, money as integer minor units, `actorId` on every user-owned query, no Docker.
-- **New exact versions:** `ws@8.21.3`, `@types/ws@8.18.1`, `lightweight-charts@5.2.1`, `nanoid@6.0.1`.
+- **New exact versions:** `ws@8.21.3`, `@types/ws@8.18.1`, `lightweight-charts@5.2.1`, `ioredis@5.9.0` (engine, already used by web), `dotenv-cli@10.0.0` (engine dev, already used by `@asm/db`).
+- **No session token ever reaches page JavaScript.** Sockets authenticate with a single-use, 30-second ticket (Task 7).
+- **Prisma CLI commands target a database through `DATABASE_MIGRATE_URL`**, never `DATABASE_URL` (`prisma.config.ts` prefers it, and dotenv does not override an already-set variable).
 - **The server is the only source of prices.** The client renders what it is told. No price, timestamp, or outcome is ever accepted from a browser.
 - **Layers 2 and 3 are stubbed to zero in this plan.** `driftBias` and `magnet` parameters exist in the tick composer signature and are always passed `0`. Plan 04 supplies real values. This keeps the engine honest and independently verifiable first.
 - **Pure packages must stay pure.** `packages/pricing` imports nothing from `@asm/db`, `@asm/config`, or `node:fs`. Its only dependency is an injected RNG.
@@ -31,6 +49,8 @@ packages/pricing/
     ├── garch.ts            GARCH(1,1) volatility state machine
     ├── step.ts             four-layer tick composer
     ├── candles.ts          tick -> OHLC aggregation
+    ├── calibration.ts      derived calibration + priceParamsFor (Task 8)
+    ├── realism.test.ts     statistical gate over production params (Task 8)
     └── index.ts            barrel
 
 packages/contracts/src/
@@ -47,14 +67,21 @@ apps/engine/
     │   └── replay.ts       offline fallback, replays a bundled dataset
     ├── assets/
     │   └── registry.ts     loads Asset rows, holds live per-asset state
+    ├── auth/ws-ticket.ts   redeems single-use tickets from Redis (Task 7)
     ├── loop.ts             10 Hz tick loop + candle persistence
     └── server.ts           ws server: auth, subscribe, fan-out
 
 apps/web/src/
+├── lib/ws-ticket.ts                  mints single-use socket tickets (Task 7)
+├── app/api/auth/ws-ticket/route.ts   POST -> { ticket } (Task 7)
 ├── components/chart/
-│   ├── PriceChart.tsx      lightweight-charts wrapper
-│   └── useEngineSocket.ts  WS client hook with reconnect
+│   ├── engine-state.ts     pure reducer: history, closes, forming candle
+│   ├── useEngineSocket.ts  the page's one socket, with onMessage for later plans
+│   ├── PriceChart.tsx      presentational lightweight-charts wrapper
+│   └── LiveChart.tsx       hook + chart + header
 └── app/(platform)/trade/page.tsx    modified — renders the chart
+
+scripts/test-all.sh          pnpm test from a bare shell (Task 8)
 ```
 
 `packages/pricing` has no knowledge of assets, sockets, or the database — that separation is what lets Plan 04's controller be tested against it without standing anything up.
@@ -2055,110 +2082,832 @@ git commit -m "feat(engine): tick loop, candle persistence, websocket server"
 
 ---
 
-## Task 7: Chart in the web app
+## Task 7: Chart in the web app — with WebSocket tickets and the auth race fixed
+
+> **Revised 2026-09-14** (pre-execution review against the real Task 1–6 code). The original
+> Task 7 had four real defects, each fixed below:
+>
+> 1. **Auth race.** The client sent `subscribe` immediately after `auth`. The server handles
+>    each message with an un-awaited async handler, so `subscribe` was processed while the
+>    `auth` DB lookup was still pending — `client.userId` was still null and the reply was
+>    `Authenticate first.` The chart would never load on a fast connection. Fixed on both
+>    sides: the server serialises each socket's messages, sends an explicit `authed`
+>    message, and the client subscribes only after receiving it.
+> 2. **The httpOnly session token was handed to page JavaScript** (both as a prop rendered
+>    into the RSC payload and via a token endpoint), which defeats `httpOnly` entirely.
+>    Replaced with a one-time, 30-second WebSocket ticket stored in Redis and redeemed by
+>    the engine with `GETDEL`.
+> 3. **The live tick painted into the previous minute's candle.** `candles` only ever holds
+>    CLOSED candles, and each tick updated `candles[last]`. A forming candle is now built
+>    from ticks, bucketed by the tick's own timestamp, in a pure reducer with unit tests.
+> 4. **Two sockets per page later.** `PriceChart` opened its own socket, and Plan 03's
+>    workspace would open a second. The chart is now presentational; one hook owns the
+>    socket and exposes every message through `onMessage` so later plans extend it without
+>    a second connection.
 
 **Files:**
-- Create: `apps/web/src/components/chart/useEngineSocket.ts`, `apps/web/src/components/chart/PriceChart.tsx`, `apps/web/src/app/api/auth/ws-token/route.ts`
-- Modify: `apps/web/src/app/(platform)/trade/page.tsx`, `apps/web/package.json`
+- Create: `apps/engine/src/auth/ws-ticket.ts`, `apps/engine/src/auth/ws-ticket.test.ts`, `apps/engine/src/server.test.ts`, `apps/engine/vitest.config.ts`
+- Create: `apps/web/src/lib/ws-ticket.ts`, `apps/web/src/lib/ws-ticket.test.ts`, `apps/web/src/app/api/auth/ws-ticket/route.ts`, `apps/web/src/app/api/auth/ws-ticket/route.test.ts`
+- Create: `apps/web/src/components/chart/engine-state.ts`, `apps/web/src/components/chart/engine-state.test.ts`, `apps/web/src/components/chart/useEngineSocket.ts`, `apps/web/src/components/chart/PriceChart.tsx`, `apps/web/src/components/chart/LiveChart.tsx`
+- Modify: `packages/contracts/src/ws.ts`, `packages/contracts/src/index.ts`, `apps/engine/src/server.ts`, `apps/engine/src/main.ts`, `apps/engine/package.json`, `apps/web/package.json`, `apps/web/src/app/(platform)/trade/page.tsx`
 
 **Interfaces:**
-- Consumes: `ServerMessage` from `@asm/contracts`; the engine WS server from Task 6
+- Consumes: `ServerMessage`, `CandleDto`, `Timeframe` from `@asm/contracts`; `AssetRegistry` and `EngineServer` from Task 6; `redis`, `checkRateLimit`, `readSession`, `requestContext` from Plan 01
 - Produces:
-  - `useEngineSocket(opts: { symbol: string; timeframe: Timeframe; token: string }): EngineSocketState` where `EngineSocketState = { status: "connecting" | "open" | "closed"; candles: CandleDto[]; lastPrice: number | null; payoutPct: number | null }`
-  - `<PriceChart symbol={string} timeframe="1m" token={string} precision={number} />`
-  - `GET /api/auth/ws-token` returning `{ token }` — the session token, readable only by the session owner
+  - `AuthedMessage = { type: "authed" }` in the `ServerMessage` union
+  - `type Authenticate = (ticket: string) => Promise<string | null>` — injected into `new EngineServer(registry, port, authenticate)`
+  - `EngineServer.ready(): Promise<void>` and `EngineServer.port(): number`
+  - `createTicketAuthenticator(redis): Authenticate` (engine) and `issueWsTicket(userId): Promise<string>` (web)
+  - `POST /api/auth/ws-ticket` → `200 { ticket }`
+  - `applyChartMessage(state, message): ChartState`, `initialChartState(symbol, timeframe)`
+  - `useEngineSocket({ symbol, timeframe, onMessage? }): { status: SocketStatus; chart: ChartState }`
+  - `<PriceChart candles forming precision />` (presentational) and `<LiveChart symbol displayName precision />`
 
-**Why a token endpoint.** The session cookie is `httpOnly`, so client JavaScript cannot read it to put in a WS `auth` message, and browsers do not send custom headers on a WebSocket handshake. A short server route hands the token to the page that already holds the session. The cookie stays `httpOnly` for every other purpose.
+**Why a ticket rather than the session token.** Browsers cannot read an `httpOnly` cookie and
+cannot set headers on a WebSocket handshake, so *something* must reach page JavaScript. Handing
+over the session token itself turns any XSS into a 7-day account takeover. A ticket is random,
+single-use, valid for 30 seconds, and authorises nothing except one socket handshake.
 
-- [ ] **Step 1: Add the chart dependency**
+- [ ] **Step 1: Add the `authed` message to `packages/contracts/src/ws.ts`**
+
+Add after `ErrorMessage`:
+
+```ts
+/** Sent once, after a ticket is accepted. Clients subscribe only after receiving it. */
+export interface AuthedMessage {
+  type: "authed";
+}
+```
+
+Add `| AuthedMessage` to the `ServerMessage` union, and `type AuthedMessage,` to the `./ws`
+export block in `packages/contracts/src/index.ts`.
+
+- [ ] **Step 2: Add engine dependencies and `.env` loading**
+
+```bash
+pnpm --filter @asm/engine add ioredis@5.9.0
+pnpm --filter @asm/engine add -D dotenv-cli@10.0.0
+```
+
+In `apps/engine/package.json`, change the two run scripts so a bare `pnpm dev:engine` loads the
+repo `.env` (closes the deferred "engine has no .env auto-loading" gap from Task 6):
+
+```json
+"dev": "dotenv -e ../../.env -- tsx watch src/main.ts",
+"start": "dotenv -e ../../.env -- tsx src/main.ts",
+```
+
+Leave `"test"` unchanged — the root test script (Task 8) supplies the environment.
+
+- [ ] **Step 3: Write `apps/engine/vitest.config.ts`**
+
+```ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "node",
+    include: ["src/**/*.test.ts"],
+    // registry.test.ts and server.test.ts share one real Postgres test DB.
+    fileParallelism: false,
+  },
+});
+```
+
+- [ ] **Step 4: Write the failing ticket-key test**
+
+Create `apps/engine/src/auth/ws-ticket.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { ticketKey } from "./ws-ticket";
+
+describe("ticketKey", () => {
+  it("derives the Redis key from the sha256 of the ticket", () => {
+    // The same literal is pinned in apps/web/src/lib/ws-ticket.test.ts.
+    // If either side changes its derivation, both tests must change together.
+    expect(ticketKey("fixture-ticket")).toBe(
+      "ws:ticket:26152d453a0f9a9c4528463c1ce383dea7b43fbfac71b6f5446228ac05e52d38",
+    );
+  });
+});
+```
+
+- [ ] **Step 5: Write `apps/engine/src/auth/ws-ticket.ts`**
+
+```ts
+import { createHash } from "node:crypto";
+import type Redis from "ioredis";
+
+/**
+ * Must match apps/web/src/lib/ws-ticket.ts. The ticket itself never touches
+ * Redis — only its hash — so a Redis dump yields nothing redeemable.
+ */
+export function ticketKey(ticket: string): string {
+  return `ws:ticket:${createHash("sha256").update(ticket).digest("hex")}`;
+}
+
+/**
+ * Redeems a one-time ticket minted by the web app. GETDEL is atomic, so two
+ * sockets racing to redeem the same ticket cannot both succeed.
+ */
+export function createTicketAuthenticator(
+  redis: Redis,
+): (ticket: string) => Promise<string | null> {
+  return async (ticket) => redis.getdel(ticketKey(ticket));
+}
+```
+
+Run `pnpm --filter @asm/engine exec vitest run src/auth/ws-ticket.test.ts` — expected PASS.
+
+- [ ] **Step 6: Write the failing server test**
+
+Create `apps/engine/src/server.test.ts`:
+
+```ts
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import WebSocket from "ws";
+import { prisma } from "@asm/db";
+import { AssetRegistry } from "./assets/registry";
+import { EngineServer } from "./server";
+
+interface Reply {
+  type: string;
+  message?: string;
+  candles?: Record<string, unknown>[];
+}
+
+const registry = new AssetRegistry(99);
+let server: EngineServer;
+let url = "";
+
+beforeAll(async () => {
+  await registry.load();
+  // Port 0 = any free port. The authenticator is injected, so this test needs
+  // no Redis: one known ticket maps to one user id.
+  server = new EngineServer(registry, 0, async (ticket) =>
+    ticket === "good-ticket" ? "user-under-test" : null,
+  );
+  await server.ready();
+  url = `ws://127.0.0.1:${server.port()}`;
+});
+
+afterAll(async () => {
+  await server.stop();
+  await prisma.$disconnect();
+});
+
+/**
+ * Opens a socket, sends every message back-to-back the instant it opens, and
+ * collects replies until `count` arrive, the socket closes, or 3s pass.
+ */
+function exchange(
+  messages: unknown[],
+  count: number,
+): Promise<{ replies: Reply[]; closeCode: number | null }> {
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(url);
+    const replies: Reply[] = [];
+    let closeCode: number | null = null;
+    const finish = () => resolve({ replies, closeCode });
+    const timer = setTimeout(() => {
+      socket.terminate();
+      finish();
+    }, 3000);
+
+    socket.on("open", () => {
+      for (const message of messages) socket.send(JSON.stringify(message));
+    });
+    socket.on("message", (raw: WebSocket.RawData) => {
+      replies.push(JSON.parse(raw.toString()) as Reply);
+      if (replies.length >= count) {
+        clearTimeout(timer);
+        socket.close();
+        finish();
+      }
+    });
+    socket.on("close", (code: number) => {
+      closeCode = code;
+      clearTimeout(timer);
+      finish();
+    });
+    socket.on("error", reject);
+  });
+}
+
+describe("EngineServer", () => {
+  it("processes a subscribe sent immediately after auth, without waiting for a reply", async () => {
+    const { replies } = await exchange(
+      [
+        { type: "auth", token: "good-ticket" },
+        { type: "subscribe", symbol: "AUDNZD_OTC", timeframe: "1m" },
+      ],
+      4,
+    );
+    expect(replies.map((r) => r.type)).toEqual([
+      "ready",
+      "authed",
+      "candles:history",
+      "payout:update",
+    ]);
+  });
+
+  it("refuses to subscribe before authenticating", async () => {
+    const { replies } = await exchange(
+      [{ type: "subscribe", symbol: "AUDNZD_OTC", timeframe: "1m" }],
+      2,
+    );
+    expect(replies[1]).toEqual({ type: "error", message: "Authenticate first." });
+  });
+
+  it("closes the socket with 1008 on an unknown ticket", async () => {
+    const { replies, closeCode } = await exchange([{ type: "auth", token: "forged" }], 2);
+    expect(replies[1]).toEqual({ type: "error", message: "Session expired." });
+    expect(closeCode).toBe(1008);
+  });
+
+  it("rejects a message with an unknown type", async () => {
+    const { replies } = await exchange([{ type: "hack" }], 2);
+    expect(replies[1]).toEqual({ type: "error", message: "Unrecognised message." });
+  });
+
+  it("sends only OHLC fields in candle history — never shadow columns", async () => {
+    const { replies } = await exchange(
+      [
+        { type: "auth", token: "good-ticket" },
+        { type: "subscribe", symbol: "AUDNZD_OTC", timeframe: "1m" },
+      ],
+      3,
+    );
+    const history = replies.find((r) => r.type === "candles:history");
+    for (const candle of history?.candles ?? []) {
+      expect(Object.keys(candle).sort()).toEqual(["c", "h", "l", "o", "openTs"]);
+    }
+  });
+});
+```
+
+Run it with the test DB:
+
+```bash
+set -a && source .env && set +a && \
+  DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
+  pnpm --filter @asm/engine exec vitest run src/server.test.ts
+```
+
+Expected: FAIL — the constructor does not accept an authenticator and `ready`/`port` do not exist.
+
+- [ ] **Step 7: Modify `apps/engine/src/server.ts`**
+
+Make these changes, keeping everything else from Task 6 as it is:
+
+1. Remove the `createHash` import, the `hashToken` function, and the `prisma.session` lookup.
+   Keep the `prisma` import — candle history still needs it.
+2. Export the authenticator type and add a per-client promise chain:
+
+```ts
+/** Resolves a one-time ticket to a user id, or null. Injected so tests need no Redis. */
+export type Authenticate = (ticket: string) => Promise<string | null>;
+
+interface Client {
+  socket: WebSocket;
+  userId: string | null;
+  subscriptions: Map<string, Timeframe>;
+  cid: string;
+  messageBudget: number;
+  /** Messages from one socket are handled strictly in arrival order. */
+  queue: Promise<void>;
+}
+```
+
+3. Change the constructor to take the authenticator, and add `ready()` / `port()`:
+
+```ts
+  private readonly listening: Promise<void>;
+
+  constructor(
+    private readonly registry: AssetRegistry,
+    port: number,
+    private readonly authenticate: Authenticate,
+  ) {
+    this.wss = new WebSocketServer({ port });
+    this.listening = new Promise((resolve) => this.wss.once("listening", () => resolve()));
+    this.wss.on("connection", (socket) => this.onConnection(socket));
+
+    this.budgetTimer = setInterval(() => {
+      for (const client of this.clients) {
+        client.messageBudget = MESSAGE_BUDGET_PER_WINDOW;
+      }
+    }, BUDGET_WINDOW_MS);
+
+    void this.listening.then(() =>
+      logger.info({ evt: "engine.ws_listening", port: this.port() }, "websocket server listening"),
+    );
+  }
+
+  ready(): Promise<void> {
+    return this.listening;
+  }
+
+  port(): number {
+    const address = this.wss.address();
+    return typeof address === "object" && address !== null ? address.port : 0;
+  }
+```
+
+4. In `onConnection`, initialise `queue: Promise.resolve()`, and replace the `message` handler.
+   The budget is now charged **on arrival**, before queueing — charging it inside the handler
+   would let a flood queue unbounded work before the first check ran:
+
+```ts
+    socket.on("message", (raw) => {
+      if (client.messageBudget-- <= 0) {
+        childLogger(client.cid).warn(
+          { evt: "security.rate_limited", channel: "ws" },
+          "message budget exceeded",
+        );
+        client.socket.close(1008, "Too many messages");
+        return;
+      }
+      client.queue = client.queue
+        .then(() => this.onMessage(client, raw.toString()))
+        .catch((err: unknown) => {
+          childLogger(client.cid).error(
+            { evt: "engine.ws_handler_failed", reason: err instanceof Error ? err.message : "unknown" },
+            "ws message handler failed",
+          );
+        });
+    });
+```
+
+5. In `onMessage`, delete the budget block at the top (it moved), and replace the `auth` branch:
+
+```ts
+    if (message.type === "auth") {
+      if (client.userId) {
+        this.send(client, { type: "error", message: "Already authenticated." });
+        return;
+      }
+
+      const userId = await this.authenticate(message.token);
+      if (!userId) {
+        this.send(client, { type: "error", message: "Session expired." });
+        client.socket.close(1008, "Unauthorised");
+        return;
+      }
+
+      client.userId = userId;
+      log.info({ evt: "engine.ws_authed", userId }, "socket authed");
+      this.send(client, { type: "authed" });
+      return;
+    }
+```
+
+6. Select only OHLC columns for history, so the Plan 04 shadow columns can never be read
+   into memory on this path, let alone serialised:
+
+```ts
+    const history = await prisma.candle.findMany({
+      where: { assetId: asset.id, timeframe: message.timeframe },
+      orderBy: { openTs: "desc" },
+      take: HISTORY_CANDLES,
+      select: { openTs: true, o: true, h: true, l: true, c: true },
+    });
+```
+
+The close reason string `"Unauthorised"` is load-bearing: the browser hook stops reconnecting
+on it, but does reconnect after `"Too many messages"`.
+
+Re-run the Step 6 command. Expected: PASS — 5 tests.
+
+- [ ] **Step 8: Wire Redis into `apps/engine/src/main.ts`**
+
+```ts
+import Redis from "ioredis";
+import { config } from "@asm/config";
+import { createTicketAuthenticator } from "./auth/ws-ticket";
+```
+
+```ts
+  const redis = new Redis(config.redisUrl, { maxRetriesPerRequest: 2 });
+  const server = new EngineServer(registry, WS_PORT, createTicketAuthenticator(redis));
+  await server.ready();
+```
+
+And in `shutdown`, after `await server.stop();`:
+
+```ts
+    await redis.quit();
+```
+
+- [ ] **Step 9: Write the web ticket issuer and its key-derivation test**
+
+Create `apps/web/src/lib/ws-ticket.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { wsTicketKey } from "./ws-ticket";
+
+describe("wsTicketKey", () => {
+  it("matches the engine's derivation exactly", () => {
+    // Same literal as apps/engine/src/auth/ws-ticket.test.ts.
+    expect(wsTicketKey("fixture-ticket")).toBe(
+      "ws:ticket:26152d453a0f9a9c4528463c1ce383dea7b43fbfac71b6f5446228ac05e52d38",
+    );
+  });
+});
+```
+
+Create `apps/web/src/lib/ws-ticket.ts`:
+
+```ts
+import { createHash, randomBytes } from "node:crypto";
+import { redis } from "./redis";
+
+export const WS_TICKET_TTL_SEC = 30;
+
+/** Must match apps/engine/src/auth/ws-ticket.ts — both sides derive the same key. */
+export function wsTicketKey(ticket: string): string {
+  return `ws:ticket:${createHash("sha256").update(ticket).digest("hex")}`;
+}
+
+/** Mints a single-use ticket that lets exactly one socket authenticate as this user. */
+export async function issueWsTicket(userId: string): Promise<string> {
+  const ticket = randomBytes(32).toString("base64url");
+  await redis.set(wsTicketKey(ticket), userId, "EX", WS_TICKET_TTL_SEC);
+  return ticket;
+}
+```
+
+- [ ] **Step 10: Write the ticket route test**
+
+Create `apps/web/src/app/api/auth/ws-ticket/route.test.ts`:
+
+```ts
+import { randomUUID } from "node:crypto";
+import { NextRequest } from "next/server";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { prisma } from "@asm/db";
+import { redis } from "@/lib/redis";
+import { SESSION_COOKIE, createSession } from "@/lib/session";
+import { wsTicketKey } from "@/lib/ws-ticket";
+import { POST } from "./route";
+
+let userId = "";
+let sessionToken = "";
+
+beforeAll(async () => {
+  const user = await prisma.user.create({
+    data: { email: `ws-ticket-${randomUUID()}@test.local`, passwordHash: "x" },
+  });
+  userId = user.id;
+  sessionToken = await createSession(userId, {});
+});
+
+afterAll(async () => {
+  await prisma.user.deleteMany({ where: { id: userId } });
+  await prisma.$disconnect();
+  await redis.quit();
+});
+
+function request(cookie: string | null): NextRequest {
+  const headers: Record<string, string> = { "x-forwarded-for": randomUUID() };
+  if (cookie) headers["cookie"] = `${SESSION_COOKIE}=${cookie}`;
+  return new NextRequest("http://localhost/api/auth/ws-ticket", { method: "POST", headers });
+}
+
+describe("POST /api/auth/ws-ticket", () => {
+  it("refuses a request with no session", async () => {
+    expect((await POST(request(null))).status).toBe(401);
+  });
+
+  it("issues a single-use ticket bound to the caller, without exposing the session token", async () => {
+    const res = await POST(request(sessionToken));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+
+    const { ticket } = (await res.json()) as { ticket: string };
+    expect(ticket).not.toBe(sessionToken);
+    expect(await redis.get(wsTicketKey(ticket))).toBe(userId);
+    expect(await redis.ttl(wsTicketKey(ticket))).toBeLessThanOrEqual(30);
+  });
+});
+```
+
+Deleting the user cascades its sessions, so no separate session cleanup is needed.
+
+- [ ] **Step 11: Write `apps/web/src/app/api/auth/ws-ticket/route.ts`**
+
+```ts
+import { NextResponse, type NextRequest } from "next/server";
+import { childLogger } from "@asm/logger";
+import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { requestContext } from "@/lib/request-context";
+import { issueWsTicket } from "@/lib/ws-ticket";
+
+/**
+ * Mints a one-time WebSocket ticket for the signed-in caller. POST, not GET:
+ * it creates server-side state, and must never be cached or prefetched.
+ */
+export async function POST(req: NextRequest) {
+  const ctx = requestContext(req);
+  const log = childLogger(ctx.cid);
+
+  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  if (!session) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  // Each reconnect mints one ticket; 30 a minute is generous for backoff and
+  // still bounds a script hammering the endpoint.
+  if (!(await checkRateLimit(`rl:ws_ticket:${session.userId}`, 30, 60))) {
+    log.warn({ evt: "security.rate_limited", route: "ws_ticket" }, "ws ticket throttled");
+    return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+  }
+
+  const ticket = await issueWsTicket(session.userId);
+  return NextResponse.json({ ticket }, { headers: { "Cache-Control": "no-store" } });
+}
+```
+
+Run:
+
+```bash
+set -a && source .env && set +a && \
+  DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
+  pnpm --filter @asm/web exec vitest run src/lib/ws-ticket.test.ts src/app/api/auth/ws-ticket
+```
+
+Expected: PASS — 3 tests.
+
+- [ ] **Step 12: Write the failing chart-state test**
+
+Create `apps/web/src/components/chart/engine-state.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import type { CandleDto, ServerMessage } from "@asm/contracts";
+import { applyChartMessage, initialChartState } from "./engine-state";
+
+const MIN = 1_757_534_280; // a minute boundary
+
+function candle(openTs: number, c = 1.1): CandleDto {
+  return { openTs, o: 1.1, h: 1.2, l: 1.0, c };
+}
+
+function fold(messages: ServerMessage[]) {
+  return messages.reduce(applyChartMessage, initialChartState("AUDNZD_OTC", "1m"));
+}
+
+describe("applyChartMessage", () => {
+  it("replaces candles with history and caps them at 500", () => {
+    const candles = Array.from({ length: 600 }, (_, i) => candle(MIN + i * 60));
+    const state = fold([{ type: "candles:history", symbol: "AUDNZD_OTC", timeframe: "1m", candles }]);
+    expect(state.candles).toHaveLength(500);
+    expect(state.candles.at(-1)?.openTs).toBe(MIN + 599 * 60);
+  });
+
+  it("ignores every message for a different symbol", () => {
+    const state = fold([
+      { type: "tick", symbol: "EURUSD_OTC", price: 9, ts: MIN },
+      { type: "payout:update", symbol: "EURUSD_OTC", payoutPct: 10 },
+      { type: "candle:close", symbol: "EURUSD_OTC", timeframe: "1m", candle: candle(MIN) },
+    ]);
+    expect(state.forming).toBeNull();
+    expect(state.payoutPct).toBeNull();
+    expect(state.candles).toEqual([]);
+  });
+
+  it("opens a forming candle in the tick's own minute bucket", () => {
+    const state = fold([{ type: "tick", symbol: "AUDNZD_OTC", price: 1.17, ts: MIN + 17 }]);
+    expect(state.forming).toEqual({ openTs: MIN, o: 1.17, h: 1.17, l: 1.17, c: 1.17 });
+    expect(state.lastPrice).toBe(1.17);
+  });
+
+  it("extends high, low and close for ticks in the same bucket", () => {
+    const state = fold([
+      { type: "tick", symbol: "AUDNZD_OTC", price: 1.17, ts: MIN + 1 },
+      { type: "tick", symbol: "AUDNZD_OTC", price: 1.19, ts: MIN + 2 },
+      { type: "tick", symbol: "AUDNZD_OTC", price: 1.16, ts: MIN + 3 },
+    ]);
+    expect(state.forming).toEqual({ openTs: MIN, o: 1.17, h: 1.19, l: 1.16, c: 1.16 });
+  });
+
+  it("starts a fresh forming candle when a tick crosses into the next bucket", () => {
+    const state = fold([
+      { type: "tick", symbol: "AUDNZD_OTC", price: 1.17, ts: MIN + 59 },
+      { type: "tick", symbol: "AUDNZD_OTC", price: 1.18, ts: MIN + 60 },
+    ]);
+    expect(state.forming?.openTs).toBe(MIN + 60);
+    expect(state.forming?.o).toBe(1.18);
+  });
+
+  it("appends a closed candle, de-duplicates by openTs, and clears the forming candle it closed", () => {
+    const state = fold([
+      { type: "candles:history", symbol: "AUDNZD_OTC", timeframe: "1m", candles: [candle(MIN - 60)] },
+      { type: "tick", symbol: "AUDNZD_OTC", price: 1.17, ts: MIN + 5 },
+      { type: "candle:close", symbol: "AUDNZD_OTC", timeframe: "1m", candle: candle(MIN, 1.1) },
+      { type: "candle:close", symbol: "AUDNZD_OTC", timeframe: "1m", candle: candle(MIN, 1.15) },
+    ]);
+    expect(state.candles.map((c) => c.openTs)).toEqual([MIN - 60, MIN]);
+    expect(state.candles.at(-1)?.c).toBe(1.15);
+    expect(state.forming).toBeNull();
+  });
+
+  it("updates only lastPrice for a late tick in an already-closed bucket", () => {
+    const state = fold([
+      { type: "candle:close", symbol: "AUDNZD_OTC", timeframe: "1m", candle: candle(MIN) },
+      { type: "tick", symbol: "AUDNZD_OTC", price: 1.3, ts: MIN + 30 },
+    ]);
+    expect(state.forming).toBeNull();
+    expect(state.lastPrice).toBe(1.3);
+  });
+
+  it("records the payout for its own symbol", () => {
+    expect(fold([{ type: "payout:update", symbol: "AUDNZD_OTC", payoutPct: 92 }]).payoutPct).toBe(92);
+  });
+});
+```
+
+Run `pnpm --filter @asm/web exec vitest run src/components/chart/engine-state.test.ts` — expected
+FAIL, `./engine-state` does not exist. (This file touches neither Postgres nor Redis.)
+
+- [ ] **Step 13: Write `apps/web/src/components/chart/engine-state.ts`**
+
+```ts
+import type { CandleDto, ServerMessage, Timeframe } from "@asm/contracts";
+
+export const TIMEFRAME_SEC: Record<Timeframe, number> = { "1m": 60, "5m": 300, "15m": 900 };
+const MAX_CANDLES = 500;
+
+export interface ChartState {
+  readonly symbol: string;
+  readonly timeframe: Timeframe;
+  /** Closed candles, oldest first. */
+  readonly candles: CandleDto[];
+  /** The candle for the current bucket, built from ticks. Never part of `candles`. */
+  readonly forming: CandleDto | null;
+  readonly lastPrice: number | null;
+  readonly payoutPct: number | null;
+}
+
+export function initialChartState(symbol: string, timeframe: Timeframe): ChartState {
+  return { symbol, timeframe, candles: [], forming: null, lastPrice: null, payoutPct: null };
+}
+
+/**
+ * Folds one server message into chart state. Pure, so the candle logic is
+ * unit-tested rather than eyeballed on a live chart.
+ *
+ * Messages for another symbol are ignored — after an asset switch, a tick
+ * already in flight for the old asset must not paint onto the new chart.
+ */
+export function applyChartMessage(state: ChartState, message: ServerMessage): ChartState {
+  switch (message.type) {
+    case "candles:history": {
+      if (message.symbol !== state.symbol || message.timeframe !== state.timeframe) return state;
+      const candles = message.candles.slice(-MAX_CANDLES);
+      const last = candles.at(-1);
+      const forming = state.forming && last && state.forming.openTs <= last.openTs ? null : state.forming;
+      return { ...state, candles, forming };
+    }
+
+    case "candle:close": {
+      if (message.symbol !== state.symbol || message.timeframe !== state.timeframe) return state;
+      const candles = [
+        ...state.candles.filter((c) => c.openTs !== message.candle.openTs),
+        message.candle,
+      ]
+        .sort((a, b) => a.openTs - b.openTs)
+        .slice(-MAX_CANDLES);
+      const forming =
+        state.forming && state.forming.openTs <= message.candle.openTs ? null : state.forming;
+      return { ...state, candles, forming };
+    }
+
+    case "tick": {
+      if (message.symbol !== state.symbol) return state;
+      const width = TIMEFRAME_SEC[state.timeframe];
+      const openTs = Math.floor(message.ts / width) * width;
+      const last = state.candles.at(-1);
+
+      // The bucket has already closed; drawing it again would reopen history.
+      if (last && openTs <= last.openTs) return { ...state, lastPrice: message.price };
+
+      const forming =
+        state.forming && state.forming.openTs === openTs
+          ? {
+              ...state.forming,
+              h: Math.max(state.forming.h, message.price),
+              l: Math.min(state.forming.l, message.price),
+              c: message.price,
+            }
+          : { openTs, o: message.price, h: message.price, l: message.price, c: message.price };
+
+      return { ...state, forming, lastPrice: message.price };
+    }
+
+    case "payout:update":
+      return message.symbol === state.symbol ? { ...state, payoutPct: message.payoutPct } : state;
+
+    default:
+      return state;
+  }
+}
+```
+
+Re-run the Step 12 command. Expected: PASS — 8 tests.
+
+- [ ] **Step 14: Add the chart dependency**
 
 ```bash
 pnpm --filter @asm/web add lightweight-charts@5.2.1
 ```
 
-- [ ] **Step 2: Write `apps/web/src/app/api/auth/ws-token/route.ts`**
-
-```ts
-import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
-
-/**
- * Hands the caller their own session token for the WebSocket handshake.
- * Requires a valid session, so it reveals nothing the caller did not already
- * possess.
- */
-export async function GET(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const session = await readSession(token);
-
-  if (!session || !token) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
-
-  return NextResponse.json(
-    { token },
-    { headers: { "Cache-Control": "no-store" } },
-  );
-}
-```
-
-- [ ] **Step 3: Write `apps/web/src/components/chart/useEngineSocket.ts`**
+- [ ] **Step 15: Write `apps/web/src/components/chart/useEngineSocket.ts`**
 
 ```ts
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { CandleDto, ServerMessage, Timeframe } from "@asm/contracts";
+import { useEffect, useReducer, useRef, useState } from "react";
+import type { ServerMessage, Timeframe } from "@asm/contracts";
+import { applyChartMessage, initialChartState, type ChartState } from "./engine-state";
 
-export interface EngineSocketState {
-  status: "connecting" | "open" | "closed";
-  candles: CandleDto[];
-  lastPrice: number | null;
-  payoutPct: number | null;
-}
+export type SocketStatus = "connecting" | "open" | "closed" | "unauthorised";
 
 const WS_URL = process.env.NEXT_PUBLIC_ENGINE_WS_URL ?? "ws://localhost:4001";
 const MAX_BACKOFF_MS = 15_000;
 
+type Action =
+  | { kind: "message"; message: ServerMessage }
+  | { kind: "reset"; symbol: string; timeframe: Timeframe };
+
+function reducer(state: ChartState, action: Action): ChartState {
+  if (action.kind === "message") return applyChartMessage(state, action.message);
+  if (state.symbol === action.symbol && state.timeframe === action.timeframe) return state;
+  return initialChartState(action.symbol, action.timeframe);
+}
+
+async function fetchTicket(): Promise<string | null> {
+  const res = await fetch("/api/auth/ws-ticket", { method: "POST", cache: "no-store" }).catch(
+    () => null,
+  );
+  if (!res || !res.ok) return null;
+  const body = (await res.json().catch(() => ({}))) as { ticket?: string };
+  return body.ticket ?? null;
+}
+
+/**
+ * The page's single connection to the engine.
+ *
+ * The socket's lifetime is independent of the symbol: switching assets sends
+ * unsubscribe/subscribe on the open socket instead of reconnecting. Every
+ * server message is folded into chart state AND handed to `onMessage`, which
+ * is how later plans (trades, balances, sentiment) extend this hook without
+ * opening a second socket.
+ */
 export function useEngineSocket(opts: {
   symbol: string;
   timeframe: Timeframe;
-  token: string | null;
-}): EngineSocketState {
-  const [state, setState] = useState<EngineSocketState>({
-    status: "connecting",
-    candles: [],
-    lastPrice: null,
-    payoutPct: null,
-  });
+  onMessage?: (message: ServerMessage) => void;
+}): { status: SocketStatus; chart: ChartState } {
+  const [status, setStatus] = useState<SocketStatus>("connecting");
+  const [chart, dispatch] = useReducer(reducer, initialChartState(opts.symbol, opts.timeframe));
 
   const socketRef = useRef<WebSocket | null>(null);
-  const attemptRef = useRef(0);
-  const closedByUs = useRef(false);
+  const onMessageRef = useRef(opts.onMessage);
+
+  // Always call the latest callback without reconnecting when it changes.
+  useEffect(() => {
+    onMessageRef.current = opts.onMessage;
+  });
 
   useEffect(() => {
-    if (!opts.token) return;
-
-    closedByUs.current = false;
+    let closedByUs = false;
+    let attempt = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const connect = (): void => {
-      setState((s) => ({ ...s, status: "connecting" }));
+    const scheduleReconnect = () => {
+      attempt += 1;
+      // Jitter from crypto rather than Math.random, which the lint gate bans.
+      const jitter = crypto.getRandomValues(new Uint32Array(1))[0]! % 400;
+      reconnectTimer = setTimeout(() => void connect(), Math.min(MAX_BACKOFF_MS, 500 * 2 ** attempt + jitter));
+    };
+
+    const connect = async (): Promise<void> => {
+      setStatus("connecting");
+      const ticket = await fetchTicket();
+      if (closedByUs) return;
+      if (!ticket) {
+        setStatus("unauthorised");
+        return;
+      }
+
       const socket = new WebSocket(WS_URL);
       socketRef.current = socket;
 
-      socket.onopen = () => {
-        attemptRef.current = 0;
-        socket.send(JSON.stringify({ type: "auth", token: opts.token }));
-        socket.send(
-          JSON.stringify({
-            type: "subscribe",
-            symbol: opts.symbol,
-            timeframe: opts.timeframe,
-          }),
-        );
-        setState((s) => ({ ...s, status: "open" }));
-      };
+      socket.onopen = () => socket.send(JSON.stringify({ type: "auth", token: ticket }));
 
       socket.onmessage = (event: MessageEvent<string>) => {
         let message: ServerMessage;
@@ -2167,75 +2916,63 @@ export function useEngineSocket(opts: {
         } catch {
           return;
         }
-
-        setState((prev) => {
-          switch (message.type) {
-            case "candles:history":
-              return { ...prev, candles: message.candles };
-
-            case "candle:close": {
-              const withoutDuplicate = prev.candles.filter(
-                (c) => c.openTs !== message.candle.openTs,
-              );
-              return {
-                ...prev,
-                candles: [...withoutDuplicate, message.candle].slice(-500),
-              };
-            }
-
-            case "tick":
-              return { ...prev, lastPrice: message.price };
-
-            case "payout:update":
-              return { ...prev, payoutPct: message.payoutPct };
-
-            default:
-              return prev;
-          }
-        });
+        if (message.type === "authed") {
+          attempt = 0;
+          setStatus("open");
+        }
+        dispatch({ kind: "message", message });
+        onMessageRef.current?.(message);
       };
 
-      socket.onclose = () => {
-        setState((s) => ({ ...s, status: "closed" }));
-        if (closedByUs.current) return;
-
-        // Exponential backoff with jitter so a restarted engine is not
-        // hammered by every open tab at once.
-        attemptRef.current += 1;
-        const delay = Math.min(
-          MAX_BACKOFF_MS,
-          500 * 2 ** attemptRef.current + Math.random() * 400,
-        );
-        reconnectTimer = setTimeout(connect, delay);
+      socket.onclose = (event: CloseEvent) => {
+        socketRef.current = null;
+        if (closedByUs) return;
+        if (event.reason === "Unauthorised") {
+          setStatus("unauthorised");
+          return;
+        }
+        setStatus("closed");
+        scheduleReconnect();
       };
     };
 
-    connect();
+    void connect();
 
     return () => {
-      closedByUs.current = true;
+      closedByUs = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       socketRef.current?.close();
+      socketRef.current = null;
     };
-  }, [opts.symbol, opts.timeframe, opts.token]);
+  }, []);
 
-  return state;
+  // Subscription follows the symbol. Re-runs on every (re)authentication, so a
+  // reconnect resubscribes and receives fresh history.
+  useEffect(() => {
+    dispatch({ kind: "reset", symbol: opts.symbol, timeframe: opts.timeframe });
+    const socket = socketRef.current;
+    if (status !== "open" || !socket || socket.readyState !== WebSocket.OPEN) return;
+
+    socket.send(JSON.stringify({ type: "subscribe", symbol: opts.symbol, timeframe: opts.timeframe }));
+    return () => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "unsubscribe", symbol: opts.symbol }));
+      }
+    };
+  }, [opts.symbol, opts.timeframe, status]);
+
+  return { status, chart };
 }
 ```
 
-`Math.random` here is jitter for reconnect timing, not a security value. The Plan 01 ESLint rule fires on it — add a single-line disable with that reason:
+- [ ] **Step 16: Write `apps/web/src/components/chart/PriceChart.tsx`**
 
-```ts
-          // eslint-disable-next-line no-restricted-properties -- reconnect jitter, not security
-          500 * 2 ** attemptRef.current + Math.random() * 400,
-```
-
-- [ ] **Step 4: Write `apps/web/src/components/chart/PriceChart.tsx`**
+Presentational only — it receives data and draws it, and never opens a socket.
 
 ```tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CandlestickSeries,
   ColorType,
@@ -2245,51 +2982,43 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { Timeframe } from "@asm/contracts";
-import { useEngineSocket } from "./useEngineSocket";
+import type { CandleDto } from "@asm/contracts";
+
+function toBar(c: CandleDto): CandlestickData {
+  return { time: c.openTs as UTCTimestamp, open: c.o, high: c.h, low: c.l, close: c.c };
+}
 
 export function PriceChart({
-  symbol,
-  timeframe,
-  token,
+  candles,
+  forming,
   precision,
 }: {
-  symbol: string;
-  timeframe: Timeframe;
-  token: string | null;
+  candles: CandleDto[];
+  forming: CandleDto | null;
   precision: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  // Bumped whenever the chart is (re)created so the data effects re-apply.
+  const [chartVersion, setChartVersion] = useState(0);
 
-  const { status, candles, lastPrice, payoutPct } = useEngineSocket({
-    symbol,
-    timeframe,
-    token,
-  });
-
-  // Create the chart once. Re-creating it on every render would leak canvases.
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const chart = createChart(containerRef.current, {
+    const chart: IChartApi = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "#0e1621" },
         textColor: "#93a2b4",
         attributionLogo: false,
       },
-      grid: {
-        vertLines: { color: "#1c2836" },
-        horzLines: { color: "#1c2836" },
-      },
+      grid: { vertLines: { color: "#1c2836" }, horzLines: { color: "#1c2836" } },
       rightPriceScale: { borderColor: "#253243" },
       timeScale: { borderColor: "#253243", timeVisible: true, secondsVisible: false },
       crosshair: { mode: 0 },
       autoSize: true,
     });
 
-    const series = chart.addSeries(CandlestickSeries, {
+    seriesRef.current = chart.addSeries(CandlestickSeries, {
       upColor: "#2fbd85",
       downColor: "#e0526a",
       wickUpColor: "#2fbd85",
@@ -2297,75 +3026,82 @@ export function PriceChart({
       borderVisible: false,
       priceFormat: { type: "price", precision, minMove: 10 ** -precision },
     });
-
-    chartRef.current = chart;
-    seriesRef.current = series;
+    setChartVersion((v) => v + 1);
 
     return () => {
       chart.remove();
-      chartRef.current = null;
       seriesRef.current = null;
     };
   }, [precision]);
 
-  // Replace the dataset whenever history or a closed candle arrives.
   useEffect(() => {
-    if (!seriesRef.current || candles.length === 0) return;
-    const data: CandlestickData[] = candles.map((c) => ({
-      time: c.openTs as UTCTimestamp,
-      open: c.o,
-      high: c.h,
-      low: c.l,
-      close: c.c,
-    }));
-    seriesRef.current.setData(data);
-  }, [candles]);
+    seriesRef.current?.setData(candles.map(toBar));
+  }, [candles, chartVersion]);
 
-  // Every tick updates only the forming candle.
+  // lightweight-charts throws if update() is given a time older than the last
+  // bar, so the forming candle is drawn only once it is strictly newer.
   useEffect(() => {
-    if (!seriesRef.current || lastPrice === null || candles.length === 0) return;
-    const last = candles[candles.length - 1]!;
-    seriesRef.current.update({
-      time: last.openTs as UTCTimestamp,
-      open: last.o,
-      high: Math.max(last.h, lastPrice),
-      low: Math.min(last.l, lastPrice),
-      close: lastPrice,
-    });
-  }, [lastPrice, candles]);
+    const series = seriesRef.current;
+    if (!series || !forming) return;
+    const last = candles.at(-1);
+    if (last && forming.openTs <= last.openTs) return;
+    series.update(toBar(forming));
+  }, [forming, candles, chartVersion]);
+
+  return <div ref={containerRef} className="h-[420px] w-full" />;
+}
+```
+
+- [ ] **Step 17: Write `apps/web/src/components/chart/LiveChart.tsx`**
+
+```tsx
+"use client";
+
+import { useEngineSocket } from "./useEngineSocket";
+import { PriceChart } from "./PriceChart";
+
+export function LiveChart({
+  symbol,
+  displayName,
+  precision,
+}: {
+  symbol: string;
+  displayName: string;
+  precision: number;
+}) {
+  const { status, chart } = useEngineSocket({ symbol, timeframe: "1m" });
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
         <div className="flex items-baseline gap-3">
-          <span className="text-sm font-semibold">{symbol}</span>
-          {payoutPct !== null ? (
-            <span className="text-xs font-semibold text-[var(--color-up)]">
-              {payoutPct}%
-            </span>
+          <span className="text-sm font-semibold">{displayName}</span>
+          {chart.payoutPct !== null ? (
+            <span className="text-xs font-semibold text-[var(--color-up)]">{chart.payoutPct}%</span>
           ) : null}
         </div>
         <div className="flex items-center gap-3">
-          {lastPrice !== null ? (
-            <span className="text-sm font-semibold tabular-nums">
-              {lastPrice.toFixed(precision)}
-            </span>
+          {chart.lastPrice !== null ? (
+            <span className="text-sm font-semibold tabular-nums">{chart.lastPrice.toFixed(precision)}</span>
           ) : null}
           <span
             className="text-[10px] font-semibold uppercase tracking-[0.12em]"
-            style={{ color: status === "open" ? "#2fbd85" : "#93a2b4" }}
+            style={{ color: status === "open" ? "var(--color-up)" : "var(--color-ink-2)" }}
           >
             {status === "open" ? "Live" : status}
           </span>
         </div>
       </div>
-      <div ref={containerRef} className="h-[420px] w-full" />
+      {status === "unauthorised" ? (
+        <p className="text-xs text-[var(--color-down)]">Your session has ended. Log in again.</p>
+      ) : null}
+      <PriceChart candles={chart.candles} forming={chart.forming} precision={precision} />
     </div>
   );
 }
 ```
 
-- [ ] **Step 5: Replace `apps/web/src/app/(platform)/trade/page.tsx`**
+- [ ] **Step 18: Replace `apps/web/src/app/(platform)/trade/page.tsx`**
 
 ```tsx
 import { cookies } from "next/headers";
@@ -2373,17 +3109,20 @@ import { redirect } from "next/navigation";
 import { formatMoney, listAccountsForActor, prisma } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { AccountSwitcher } from "@/components/AccountSwitcher";
-import { PriceChart } from "@/components/chart/PriceChart";
+import { LiveChart } from "@/components/chart/LiveChart";
 
 export default async function TradePage() {
   const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value ?? null;
-  const session = await readSession(token);
+  const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
 
+  // Scoped by actor — this page cannot render another user's accounts.
   const [accounts, asset] = await Promise.all([
     listAccountsForActor(session.userId),
-    prisma.asset.findUnique({ where: { symbol: "AUDNZD_OTC" } }),
+    prisma.asset.findUnique({
+      where: { symbol: "AUDNZD_OTC" },
+      select: { symbol: true, displayName: true, precision: true },
+    }),
   ]);
 
   return (
@@ -2408,12 +3147,7 @@ export default async function TradePage() {
       <div className="grid gap-6 md:grid-cols-[1fr_240px]">
         <section className="rounded-xl border border-[var(--color-edge)] bg-[var(--color-panel)] p-4">
           {asset ? (
-            <PriceChart
-              symbol={asset.symbol}
-              timeframe="1m"
-              token={token}
-              precision={asset.precision}
-            />
+            <LiveChart symbol={asset.symbol} displayName={asset.displayName} precision={asset.precision} />
           ) : (
             <p className="text-sm text-[var(--color-ink-2)]">
               No assets seeded. Run <code>pnpm db:seed</code>.
@@ -2429,9 +3163,7 @@ export default async function TradePage() {
               balance: formatMoney(a.realBalance + a.bonusBalance, a.currency),
             }))}
           />
-          <p className="text-xs text-[var(--color-ink-2)]">
-            Trade ticket arrives in Plan 03.
-          </p>
+          <p className="text-xs text-[var(--color-ink-2)]">Trade ticket arrives in Plan 03.</p>
         </aside>
       </div>
     </main>
@@ -2439,7 +3171,9 @@ export default async function TradePage() {
 }
 ```
 
-- [ ] **Step 6: Verify the chart end to end**
+No token is read or passed anywhere on this page.
+
+- [ ] **Step 19: Verify the chart end to end**
 
 Two terminals:
 
@@ -2451,47 +3185,158 @@ pnpm dev:engine
 pnpm dev
 ```
 
-Log in and open `http://localhost:3000/trade`. Expected: a dark candlestick chart for **AUD/NZD (OTC)**, a **Live** status pill, a price updating about ten times a second, and a new candle appearing each minute.
+Log in and open `http://localhost:3000/trade`. Expected: a candlestick chart for **AUD/NZD (OTC)**, a
+**Live** pill, the price moving about ten times a second, the right-most candle growing with each
+tick, and a new candle each minute that does not redraw the previous one.
 
-- [ ] **Step 7: Verify the socket rejects an unauthenticated subscribe**
+In the browser devtools Network tab, confirm the page HTML and RSC payload contain no value of
+the `asm_session` cookie, and that `/api/auth/ws-ticket` returns a different ticket on every reload.
+
+- [ ] **Step 20: Verify the socket rejects an unauthenticated subscribe**
 
 ```bash
-node --input-type=module -e '
+pnpm --filter @asm/engine exec node --input-type=module -e '
 import WebSocket from "ws";
 const ws = new WebSocket("ws://localhost:4001");
+const seen = [];
 ws.on("open", () => ws.send(JSON.stringify({type:"subscribe",symbol:"AUDNZD_OTC",timeframe:"1m"})));
-ws.on("message", (m) => { console.log(m.toString()); process.exit(0); });
-' 2>/dev/null || pnpm --filter @asm/engine exec node --input-type=module -e '
-import WebSocket from "ws";
-const ws = new WebSocket("ws://localhost:4001");
-ws.on("open", () => ws.send(JSON.stringify({type:"subscribe",symbol:"AUDNZD_OTC",timeframe:"1m"})));
-ws.on("message", (m) => { console.log(m.toString()); process.exit(0); });
+ws.on("message", (m) => { seen.push(m.toString()); if (seen.length === 2) { console.log(seen.join("\n")); process.exit(0); } });
 '
 ```
 
-Expected: the first message is `{"type":"ready",...}`, and the subscribe reply is `{"type":"error","message":"Authenticate first."}` — never candle data.
+Expected: `{"type":"ready",...}` then `{"type":"error","message":"Authenticate first."}` — never candle data.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 21: Commit**
 
 ```bash
-git add apps/web
-git commit -m "feat(web): live candlestick chart driven by the engine"
+git add packages/contracts apps/engine apps/web pnpm-lock.yaml
+git commit -m "feat: live chart over single-use websocket tickets, auth race fixed"
 ```
 
 ---
 
-## Task 8: Realism gate and full verification
+## Task 8: Calibration, realism gate, and full verification
+
+> **Revised 2026-09-14.** The original gate tested hand-picked parameters that production never
+> uses, and it would have passed while the real engine drew nonsense. Measured on the actual
+> Task 6 code with the seeded asset rows: **the per-tick clamp bound on 87% of ticks** and
+> 1-minute moves were **36–99 pips** (real FX: 2–3). The clamp, not GARCH, was generating the
+> price. The anchor (`0.08` per tick, a sub-second half-life) glued the synthetic price to the
+> replay feed's 8-quote loop. Its own tuning advice ("raise `garchAlpha` in the seed") could
+> not affect the test, which never read the seed.
+>
+> This task now calibrates the process from a derivation, migrates the seeded rows, and gates
+> the exact parameters the engine runs. Both the calibration and the gate below were executed
+> before this plan was revised and pass as written.
+>
+> Measured with exactly the gate's configuration (replay-stepped anchor, 600 minutes):
+>
+> | | seed 2026 (the gate) | range over 30 seeds |
+> |---|---|---|
+> | 1-minute sd | 2.69 pips | 2.47 – 3.26 |
+> | kurtosis | 4.02 | 3.72 – 25.1 (none ≤ 3.3) |
+> | squared-return lag-1 autocorrelation | 0.174 | −0.009 – 0.471 (4 of 30 ≤ 0.05) |
+> | return lag-1 autocorrelation | −0.030 | −0.172 – 0.090 (1 of 30 beyond ±0.15) |
+> | ticks hitting the clamp | 0 | 0 on every seed |
+> | mean distance from the real quote | 6.6 pips | 5.7 – 8.5 |
+>
+> The gate is **seed-pinned to 2026 on purpose**: clustering is a finite-sample statistic, so a
+> few seeds fall under the threshold. Do not change the seed to make a failing run pass. A
+> failure at seed 2026 means the calibration or the tick composer changed.
 
 **Files:**
-- Create: `packages/pricing/src/realism.test.ts`
+- Create: `packages/pricing/src/calibration.ts`, `packages/pricing/src/realism.test.ts`, `packages/db/prisma/migrations/<generated>_recalibrate_asset_price_params/migration.sql`, `scripts/test-all.sh`
+- Modify: `packages/pricing/src/index.ts`, `apps/engine/src/assets/registry.ts`, `apps/engine/src/assets/registry.test.ts`, `packages/db/prisma/schema.prisma`, `package.json`
 
 **Interfaces:**
-- Consumes: everything above
-- Produces: a statistical gate on the synthetic series
+- Produces:
+  - `DEFAULT_CALIBRATION`, `TICK_DT_SEC`, `MAX_TICK_MOVE_IN_TICKS`
+  - `priceParamsFor(asset: AssetCalibration): PriceParams` — the only place an `Asset` row becomes `PriceParams`
+  - `perTickSigma(state: PriceState, dtSec?): number` — Plan 04 scales bias and magnet in this unit
+  - `pnpm test` that actually works from a bare shell
 
-**This is the gate the build spec calls for.** Everything downstream assumes the unbiased engine produces believable candles. Rather than eyeballing the chart, assert the properties that distinguish a real financial series from naive noise: returns are roughly zero-mean, kurtosis is fat-tailed rather than Gaussian, and squared returns are autocorrelated.
+- [ ] **Step 1: Write `packages/pricing/src/calibration.ts`**
 
-- [ ] **Step 1: Write the realism test**
+```ts
+import type { PriceParams, PriceState } from "./step";
+
+/** The engine ticks at 10 Hz. */
+export const TICK_DT_SEC = 0.1;
+
+/** Hard cap on one tick's absolute move, in multiples of the asset's tick size. */
+export const MAX_TICK_MOVE_IN_TICKS = 40;
+
+const TARGET_ONE_MINUTE_LOG_SD = 2.5e-4;
+const ALPHA = 0.02;
+const BETA = 0.9795;
+const ANCHOR_HALF_LIFE_SEC = 600;
+
+/**
+ * Calibration shared by every seeded asset. All four numbers are log-space,
+ * so the same values fit a 1.17 cross and a 157 yen pair.
+ *
+ * - omega is chosen so the unconditional per-second variance gives a
+ *   1-minute log-return sd of 2.5e-4 (~2.5–3 pips on EUR/USD-like prices).
+ * - alpha + beta = 0.9995 per tick: volatility regimes persist for about a
+ *   minute, which is what makes clustering visible in 1-minute candles. At
+ *   0.98 they die within seconds and 1-minute returns look Gaussian.
+ * - the anchor pulls toward the real quote with a 10-minute half-life. A 2-minute
+ *   half-life leaves a visible mean-reversion signature in 1-minute returns
+ *   (lag-1 autocorrelation around −0.16); the original per-tick 0.08 glued the
+ *   synthetic price to whichever quote arrived last.
+ *
+ * The seed's original values (omega 1e-6, alpha 0.08, beta 0.90, anchor 0.08)
+ * produced 36–99 pips per minute with the per-tick clamp binding on 87% of
+ * ticks — a clamped coin flip, not a GARCH process.
+ */
+export const DEFAULT_CALIBRATION = {
+  garchOmega: ((TARGET_ONE_MINUTE_LOG_SD ** 2) / 60) * (1 - ALPHA - BETA),
+  garchAlpha: ALPHA,
+  garchBeta: BETA,
+  anchorAlpha: Math.LN2 / (ANCHOR_HALF_LIFE_SEC / TICK_DT_SEC),
+} as const;
+
+export interface AssetCalibration {
+  readonly garchOmega: number;
+  readonly garchAlpha: number;
+  readonly garchBeta: number;
+  readonly anchorAlpha: number;
+  readonly tickSize: number;
+}
+
+/** The one place an Asset row becomes PriceParams — the engine and the realism gate both call this. */
+export function priceParamsFor(asset: AssetCalibration): PriceParams {
+  return {
+    garch: { omega: asset.garchOmega, alpha: asset.garchAlpha, beta: asset.garchBeta },
+    driftPerSec: 0,
+    anchorAlpha: asset.anchorAlpha,
+    maxTickMove: asset.tickSize * MAX_TICK_MOVE_IN_TICKS,
+  };
+}
+
+/**
+ * Standard deviation of one tick's log shock: sigma·sqrt(dt). This, not the
+ * per-second GARCH sigma, is the unit Plan 04's bias and magnet caps are in.
+ */
+export function perTickSigma(state: PriceState, dtSec: number = TICK_DT_SEC): number {
+  return Math.sqrt(state.garch.sigma2) * Math.sqrt(dtSec);
+}
+```
+
+Append to `packages/pricing/src/index.ts`:
+
+```ts
+export {
+  DEFAULT_CALIBRATION,
+  MAX_TICK_MOVE_IN_TICKS,
+  TICK_DT_SEC,
+  perTickSigma,
+  priceParamsFor,
+  type AssetCalibration,
+} from "./calibration";
+```
+
+- [ ] **Step 2: Write the realism gate**
 
 Create `packages/pricing/src/realism.test.ts`:
 
@@ -2499,113 +3344,266 @@ Create `packages/pricing/src/realism.test.ts`:
 import { describe, expect, it } from "vitest";
 import {
   CandleAggregator,
+  DEFAULT_CALIBRATION,
+  TICK_DT_SEC,
   createRng,
   initPriceState,
+  priceParamsFor,
   stepPrice,
   type Candle,
-  type PriceParams,
 } from "./index";
 
-const params: PriceParams = {
-  garch: { omega: 0.000001, alpha: 0.08, beta: 0.9 },
-  driftPerSec: 0,
-  anchorAlpha: 0,
-  maxTickMove: 0.01,
-};
+/**
+ * The gate runs the calibration the engine ACTUALLY uses — priceParamsFor over
+ * DEFAULT_CALIBRATION, anchored to a stepped quote the way the replay feed
+ * delivers one every five seconds. A gate over hand-picked parameters proves
+ * nothing about production.
+ */
+const TICK_SIZE = 0.00001;
+const PIP = 0.0001;
+const params = priceParamsFor({ ...DEFAULT_CALIBRATION, tickSize: TICK_SIZE });
+const QUOTES = [1.1735, 1.1738, 1.1731, 1.1742, 1.1739, 1.1745, 1.1741, 1.1736];
 
-/** Generates `minutes` of 1m candles at 10 Hz. */
-function generate(minutes: number, seed: number): Candle[] {
+interface Run {
+  candles: Candle[];
+  clampedTicks: number;
+  ticks: number;
+  meanAnchorDistance: number;
+}
+
+function generate(minutes: number, seed: number): Run {
   const rng = createRng(seed);
   const agg = new CandleAggregator(60);
-  let state = initPriceState(1.1735, params);
+  let state = initPriceState(QUOTES[0]!, params);
   let ts = 1_757_534_280;
-  const out: Candle[] = [];
+  let anchor = QUOTES[0]!;
+  const candles: Candle[] = [];
+  let clampedTicks = 0;
+  let distance = 0;
+  const ticks = minutes * 600;
 
-  for (let i = 0; i < minutes * 600; i++) {
+  for (let i = 0; i < ticks; i++) {
+    if (i % 50 === 0) anchor = QUOTES[(i / 50) % QUOTES.length]!;
+    const before = state.price;
     const step = stepPrice({
       state,
       params,
-      dtSec: 0.1,
+      dtSec: TICK_DT_SEC,
       z: rng.normal(),
       driftBias: 0,
       magnet: 0,
-      anchorTarget: null,
+      anchorTarget: anchor,
     });
+    if (Math.abs(Math.abs(step.price - before) - params.maxTickMove) < 1e-12) clampedTicks++;
     state = step.state;
+    distance += Math.abs(step.price - anchor);
     if (i % 10 === 0) ts += 1;
     const closed = agg.addTick(ts, Number(step.price.toFixed(5)));
-    if (closed) out.push(closed);
+    if (closed) candles.push(closed);
   }
-  return out;
+  return { candles, clampedTicks, ticks, meanAnchorDistance: distance / ticks };
 }
 
-describe("synthetic series realism", () => {
-  const candles = generate(600, 2026);
+function logReturns(candles: Candle[]): number[] {
+  return candles.slice(1).map((c, i) => Math.log(c.c / candles[i]!.c));
+}
+
+describe("synthetic series realism (production calibration)", () => {
+  const run = generate(600, 2026);
+  const r = logReturns(run.candles);
+  const mean = r.reduce((s, v) => s + v, 0) / r.length;
+  const m2 = r.reduce((s, v) => s + (v - mean) ** 2, 0) / r.length;
 
   it("produces the expected number of candles", () => {
-    expect(candles.length).toBeGreaterThan(500);
+    expect(run.candles.length).toBeGreaterThan(500);
   });
 
   it("respects OHLC invariants on every candle", () => {
-    for (const c of candles) {
+    for (const c of run.candles) {
       expect(c.h).toBeGreaterThanOrEqual(Math.max(c.o, c.c));
       expect(c.l).toBeLessThanOrEqual(Math.min(c.o, c.c));
-      expect(c.h).toBeGreaterThanOrEqual(c.l);
     }
   });
 
+  it("moves at a believable FX scale — a few pips per minute", () => {
+    const sdPips = (Math.sqrt(m2) * QUOTES[0]!) / PIP;
+    expect(sdPips).toBeGreaterThan(1.5);
+    expect(sdPips).toBeLessThan(4);
+  });
+
+  it("almost never hits the per-tick clamp — the clamp is a guard, not the process", () => {
+    expect(run.clampedTicks / run.ticks).toBeLessThan(0.001);
+  });
+
   it("has approximately zero-mean log returns", () => {
-    const r = candles.slice(1).map((c, i) => Math.log(c.c / candles[i]!.c));
-    const mean = r.reduce((s, v) => s + v, 0) / r.length;
-    const sd = Math.sqrt(
-      r.reduce((s, v) => s + (v - mean) ** 2, 0) / r.length,
-    );
-    // Mean must be small relative to volatility — no hidden drift.
-    expect(Math.abs(mean)).toBeLessThan(sd * 0.5);
+    expect(Math.abs(mean)).toBeLessThan(Math.sqrt(m2) * 0.5);
   });
 
   it("is leptokurtic — fatter tails than a Gaussian", () => {
-    const r = candles.slice(1).map((c, i) => Math.log(c.c / candles[i]!.c));
-    const mean = r.reduce((s, v) => s + v, 0) / r.length;
-    const m2 = r.reduce((s, v) => s + (v - mean) ** 2, 0) / r.length;
     const m4 = r.reduce((s, v) => s + (v - mean) ** 4, 0) / r.length;
-    const kurtosis = m4 / (m2 * m2);
-    // Gaussian is 3. Real financial series exceed it; GARCH reproduces that.
-    expect(kurtosis).toBeGreaterThan(3);
+    expect(m4 / (m2 * m2)).toBeGreaterThan(3.3);
   });
 
   it("shows volatility clustering in candle returns", () => {
-    const r = candles.slice(1).map((c, i) => Math.log(c.c / candles[i]!.c));
     const sq = r.map((v) => v * v);
-    const mean = sq.reduce((s, v) => s + v, 0) / sq.length;
+    const sm = sq.reduce((s, v) => s + v, 0) / sq.length;
     let cov = 0;
     let varr = 0;
     for (let i = 1; i < sq.length; i++) {
-      cov += (sq[i]! - mean) * (sq[i - 1]! - mean);
-      varr += (sq[i]! - mean) ** 2;
+      cov += (sq[i]! - sm) * (sq[i - 1]! - sm);
+      varr += (sq[i]! - sm) ** 2;
     }
     expect(cov / varr).toBeGreaterThan(0.05);
   });
 
-  it("never produces a candle with zero range", () => {
-    const flat = candles.filter((c) => c.h === c.l);
-    // A handful is possible at low volatility; a wall of them means the engine stalled.
-    expect(flat.length / candles.length).toBeLessThan(0.02);
+  it("leaves no visible mean-reversion signature from the anchor", () => {
+    let ac = 0;
+    for (let i = 1; i < r.length; i++) ac += (r[i]! - mean) * (r[i - 1]! - mean);
+    expect(Math.abs(ac / ((r.length - 1) * m2))).toBeLessThan(0.15);
+  });
+
+  it("still tracks the real quote — within a few pips on average", () => {
+    expect(run.meanAnchorDistance / PIP).toBeLessThan(15);
+  });
+
+  it("never produces a wall of zero-range candles", () => {
+    const flat = run.candles.filter((c) => c.h === c.l);
+    expect(flat.length / run.candles.length).toBeLessThan(0.02);
   });
 });
 ```
 
-- [ ] **Step 2: Run the realism test**
+- [ ] **Step 3: Run the pricing suite**
 
 ```bash
 pnpm --filter @asm/pricing test
 ```
 
-Expected: PASS — 29 tests total across the pricing package.
+Expected: PASS, including all 10 realism tests. The suite takes a few seconds; it simulates 360,000 ticks.
 
-If kurtosis comes in at or below 3, the GARCH parameters are too tame: raise `garchAlpha` toward 0.12 in the seed and re-run. Do not weaken the assertion — a Gaussian-tailed series is exactly the tell this gate exists to catch.
+If a realism assertion fails, **do not loosen it** — every threshold has measured headroom. Check
+that `calibration.ts` matches this plan exactly first.
 
-- [ ] **Step 3: Run the full workspace verification**
+- [ ] **Step 4: Use `priceParamsFor` in `apps/engine/src/assets/registry.ts`**
+
+Add `priceParamsFor` to the `@asm/pricing` import and replace the inline `params` object in
+`load()`:
+
+```ts
+      const params: PriceParams = priceParamsFor(row);
+```
+
+(`row` is the Prisma `Asset`, which structurally satisfies `AssetCalibration`.)
+
+Add to `apps/engine/src/assets/registry.test.ts`:
+
+```ts
+  it("derives each asset's price parameters from its row through priceParamsFor", () => {
+    const asset = registry.get("AUDNZD_OTC")!;
+    expect(asset.params.maxTickMove).toBeCloseTo(0.00001 * MAX_TICK_MOVE_IN_TICKS, 12);
+    expect(asset.params.anchorAlpha).toBeCloseTo(DEFAULT_CALIBRATION.anchorAlpha, 12);
+  });
+```
+
+with `import { DEFAULT_CALIBRATION, MAX_TICK_MOVE_IN_TICKS } from "@asm/pricing";`. The second
+assertion fails until Step 6 migrates the rows. That is expected.
+
+- [ ] **Step 5: Update the schema defaults**
+
+In `packages/db/prisma/schema.prisma`, `model Asset`:
+
+```prisma
+  garchOmega  Float     @default(0.000000000000520833333333)
+  garchAlpha  Float     @default(0.02)
+  garchBeta   Float     @default(0.9795)
+  anchorAlpha Float     @default(0.000115524530093)
+```
+
+These are `DEFAULT_CALIBRATION`'s values. `seed.ts` never sets these four fields, so new assets pick them up.
+
+- [ ] **Step 6: Create and apply the migration**
+
+```bash
+cd packages/db
+pnpm exec prisma migrate dev --create-only --name recalibrate_asset_price_params
+```
+
+Open the generated `migration.sql`. It contains the `ALTER COLUMN ... SET DEFAULT` statements.
+Append:
+
+```sql
+-- Existing rows keep their old values unless migrated explicitly. Only rows still carrying the
+-- original seed calibration are updated, so an asset an operator has already tuned is left alone.
+-- See packages/pricing/src/calibration.ts for the derivation.
+UPDATE "Asset"
+SET "garchOmega" = 0.000000000000520833333333,
+    "garchAlpha" = 0.02,
+    "garchBeta" = 0.9795,
+    "anchorAlpha" = 0.000115524530093
+WHERE "garchOmega" = 0.000001
+  AND "garchAlpha" = 0.08
+  AND "garchBeta" = 0.9
+  AND "anchorAlpha" = 0.08;
+```
+
+Apply it to the dev database, then the test database. **Prisma's CLI reads `DATABASE_MIGRATE_URL`**
+(see `prisma.config.ts`) — overriding `DATABASE_URL` would silently migrate the dev database twice:
+
+```bash
+pnpm exec prisma migrate dev
+DATABASE_MIGRATE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
+  pnpm exec prisma migrate deploy
+cd ../..
+```
+
+Confirm:
+
+```bash
+psql "postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade" \
+  -c 'SELECT symbol, "garchAlpha", "garchBeta", "anchorAlpha" FROM "Asset" ORDER BY symbol;'
+```
+
+Expected: all three assets at `0.02 / 0.9795 / 0.000115524530093`.
+
+- [ ] **Step 7: Make `pnpm test` work from a bare shell**
+
+This closes a gap two separate final reviews flagged: bare `pnpm test` loads no `.env`, and the
+DB suites need the owner role on the test database.
+
+Create `scripts/test-all.sh`:
+
+```bash
+#!/usr/bin/env bash
+# Runs every workspace test suite against the TEST database.
+#
+# - Loads the repo .env (REDIS_URL, SESSION_SECRET, relay/admin secrets).
+# - Points DATABASE_URL at asm_trade_test as asm_owner: several suites create and
+#   drop fixtures, and deposit-matcher.test.ts briefly drops a live index, which
+#   the restricted runtime role asm_app cannot do.
+# - --workspace-concurrency=1: packages share that one database.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+set -a
+# shellcheck disable=SC1091
+source .env
+set +a
+
+export DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public"
+exec pnpm -r --workspace-concurrency=1 test "$@"
+```
+
+```bash
+chmod +x scripts/test-all.sh
+```
+
+In the root `package.json`, change the test script:
+
+```json
+"test": "bash scripts/test-all.sh",
+```
+
+- [ ] **Step 8: Run the full workspace verification**
 
 ```bash
 pnpm lint
@@ -2613,36 +3611,63 @@ pnpm typecheck
 pnpm test
 ```
 
-Expected: all three clean.
+Expected: all three clean from a fresh shell with nothing exported. The engine suite now includes
+`server.test.ts` (5) and the new registry assertion. The web suite includes the ticket and
+chart-state tests.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 9: Verify the calibrated engine live**
 
 ```bash
-git add packages/pricing
-git commit -m "test(pricing): statistical realism gate"
+pnpm dev:engine
+```
+
+Let it run at least three minutes, then:
+
+```bash
+psql "postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade" -c "
+SELECT a.symbol,
+       count(*) AS candles,
+       round((avg(c.h - c.l) / power(10, -(a.precision - 1)))::numeric, 2) AS avg_range_pips
+FROM \"Candle\" c JOIN \"Asset\" a ON a.id = c.\"assetId\"
+WHERE c.\"openTs\" > now() - interval '10 minutes'
+GROUP BY a.symbol, a.precision;"
+```
+
+Expected: `avg_range_pips` in single digits for every asset (the original calibration produced ~100).
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add packages/pricing packages/db apps/engine scripts package.json
+git commit -m "feat(pricing): calibrated price process, production realism gate, working pnpm test"
 ```
 
 ---
 
 ## Definition of Done
 
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test` all pass
-- [ ] `pnpm dev:engine` logs `engine.assets_loaded` with `count: 3` and `engine.ws_listening` on 4001
+- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test` all pass from a bare shell
+- [ ] `pnpm dev:engine` from a bare shell logs `engine.assets_loaded` with `count: 3` and `engine.ws_listening` on 4001
 - [ ] With no `TWELVE_DATA_API_KEY`, the engine logs `feed: "replay"` and still ticks
-- [ ] `/trade` shows a live candlestick chart with a price moving ~10×/second
-- [ ] A new candle appears on the chart each minute and lands in the `Candle` table
-- [ ] An unauthenticated `subscribe` over WS returns `error`, never candle data
-- [ ] A WS message with an unknown `type` is rejected and logged as `security.validation_rejected`
-- [ ] Kurtosis of candle log-returns exceeds 3 (fat tails)
-- [ ] Lag-1 autocorrelation of squared returns exceeds 0.05 (volatility clustering)
+- [ ] `/trade` shows a live candlestick chart. The forming candle grows with each tick, and a new candle each minute leaves the previous one unchanged
+- [ ] No session token appears in page HTML, RSC payloads, or any JSON response. The socket authenticates with a single-use ticket
+- [ ] `auth` followed immediately by `subscribe` yields `authed` then `candles:history` (automated in `server.test.ts`)
+- [ ] An unauthenticated `subscribe` returns `error`, never candle data. An unknown ticket closes the socket with 1008
+- [ ] Candle history carries only `openTs/o/h/l/c`
+- [ ] The realism gate runs `priceParamsFor(DEFAULT_CALIBRATION)`: clamp binds on <0.1% of ticks, 1-minute sd 1.5–4 pips, kurtosis > 3.3, squared-return autocorrelation > 0.05
+- [ ] The seeded assets carry the calibrated values in both the dev and test databases
 - [ ] Restarting the engine mid-minute does not error on candle upsert
 
 ## What Plan 03 depends on from here
 
 Plan 03 (Trade engine) imports and must not need to change:
 
-- `AssetRegistry` — specifically `get(symbol)` for the live price at trade entry
-- `EngineServer.broadcast(symbol, message)` for `trade:opened` and `trade:settled`
+- `AssetRegistry` — `get(symbol)` for the live price at trade entry
+- `EngineServer.broadcast(symbol, message)`, and the injected `Authenticate` constructor argument
 - `startTickLoop` — extended there with a settlement pass, not rewritten
 - `stepPrice`'s `driftBias` and `magnet` parameters, still zero until Plan 04
 - The `ServerMessage` union in `packages/contracts/src/ws.ts`, extended with trade messages
+- `useEngineSocket({ symbol, timeframe, onMessage })` — trade and balance messages arrive through `onMessage`. Never open a second socket
+- `PriceChart` as a presentational component taking `candles`, `forming`, `precision`
+- `scripts/test-all.sh` via `pnpm test`
+- `perTickSigma` — Plan 04's bias and magnet caps are in per-tick sigma units
