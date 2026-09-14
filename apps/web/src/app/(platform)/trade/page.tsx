@@ -1,23 +1,36 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { formatMoney, listAccountsForActor, prisma } from "@asm/db";
+import { tradeViewFrom } from "@asm/contracts";
+import { listAccountsForActor, listTradesForActor, prisma } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
-import { AccountSwitcher } from "@/components/AccountSwitcher";
-import { LiveChart } from "@/components/chart/LiveChart";
+import { TradeWorkspace } from "@/components/trade/TradeWorkspace";
 
 export default async function TradePage() {
   const store = await cookies();
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
 
-  // Scoped by actor — this page cannot render another user's accounts.
-  const [accounts, asset] = await Promise.all([
+  const [accounts, assets] = await Promise.all([
     listAccountsForActor(session.userId),
-    prisma.asset.findUnique({
-      where: { symbol: "AUDNZD_OTC" },
-      select: { symbol: true, displayName: true, precision: true },
-    }),
+    prisma.asset.findMany({ select: { id: true, symbol: true, displayName: true, precision: true } }),
   ]);
+
+  const asset = assets.find((a) => a.symbol === "AUDNZD_OTC");
+  if (!asset) {
+    return (
+      <main className="mx-auto max-w-md px-6 py-16">
+        <p className="text-sm text-[var(--color-ink-2)]">
+          No assets seeded. Run <code>pnpm db:seed</code>.
+        </p>
+      </main>
+    );
+  }
+
+  // History is server-rendered for the default (demo) account; the workspace
+  // fetches it for any other account on switch.
+  const defaultAccount = accounts.find((a) => a.type === "DEMO") ?? accounts[0];
+  const recent = defaultAccount ? await listTradesForActor(session.userId, defaultAccount.id, 50) : [];
+  const symbolById = new Map(assets.map((a) => [a.id, a.symbol]));
 
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-8">
@@ -29,37 +42,22 @@ export default async function TradePage() {
           </span>
         </div>
         <form action="/api/auth/logout" method="post">
-          <button
-            type="submit"
-            className="text-xs font-semibold text-[var(--color-ink-2)] underline underline-offset-4"
-          >
+          <button type="submit" className="text-xs font-semibold text-[var(--color-ink-2)] underline underline-offset-4">
             Log out
           </button>
         </form>
       </header>
 
-      <div className="grid gap-6 md:grid-cols-[1fr_240px]">
-        <section className="rounded-xl border border-[var(--color-edge)] bg-[var(--color-panel)] p-4">
-          {asset ? (
-            <LiveChart symbol={asset.symbol} displayName={asset.displayName} precision={asset.precision} />
-          ) : (
-            <p className="text-sm text-[var(--color-ink-2)]">
-              No assets seeded. Run <code>pnpm db:seed</code>.
-            </p>
-          )}
-        </section>
-
-        <aside className="flex flex-col gap-4">
-          <AccountSwitcher
-            accounts={accounts.map((a) => ({
-              id: a.id,
-              type: a.type,
-              balance: formatMoney(a.realBalance + a.bonusBalance, a.currency),
-            }))}
-          />
-          <p className="text-xs text-[var(--color-ink-2)]">Trade ticket arrives in Plan 03.</p>
-        </aside>
-      </div>
+      <TradeWorkspace
+        symbol={asset.symbol}
+        displayName={asset.displayName}
+        precision={asset.precision}
+        accounts={accounts.map((a) => ({ id: a.id, type: a.type, currency: a.currency }))}
+        initialBalances={Object.fromEntries(
+          accounts.map((a) => [a.id, { realBalance: a.realBalance, bonusBalance: a.bonusBalance }]),
+        )}
+        initialTrades={recent.map((t) => tradeViewFrom(t, symbolById.get(t.assetId) ?? "UNKNOWN"))}
+      />
     </main>
   );
 }

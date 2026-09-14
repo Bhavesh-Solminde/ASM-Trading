@@ -32,4 +32,18 @@ export {
   findBankCreditByUtr,
   listOrphanBankCredits,
 } from "./repositories/bank-credit";
+export {
+  InsufficientFunds,
+  ConcurrentModification,
+  AlreadySettled,
+  TradeNotFound,
+  openTrade,
+  settleTrade,
+  voidTrade,
+  listTradesForActor,
+  loadOpenPositions,
+  type OpenTradeInput,
+  type OpenedTrade,
+  type SettledTrade,
+} from "./repositories/trade";
 export * from "../generated/prisma/client";

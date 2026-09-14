@@ -4,11 +4,28 @@ import { prisma } from "@asm/db";
 
 const registry = new AssetRegistry(1234);
 
+// Newer than anything the engine persists, so it is the last close on load.
+const RESUME_OPEN_TS = new Date("2100-01-01T00:00:00Z");
+const RESUME_CLOSE = 1.2345;
+
 beforeAll(async () => {
+  const asset = await prisma.asset.findUniqueOrThrow({ where: { symbol: "AUDNZD_OTC" } });
+  await prisma.candle.create({
+    data: {
+      assetId: asset.id,
+      timeframe: "1m",
+      openTs: RESUME_OPEN_TS,
+      o: RESUME_CLOSE,
+      h: RESUME_CLOSE,
+      l: RESUME_CLOSE,
+      c: RESUME_CLOSE,
+    },
+  });
   await registry.load();
 });
 
 afterAll(async () => {
+  await prisma.candle.deleteMany({ where: { openTs: RESUME_OPEN_TS } });
   await prisma.$disconnect();
 });
 
@@ -18,9 +35,9 @@ describe("AssetRegistry", () => {
     expect(registry.symbols().length).toBeGreaterThanOrEqual(3);
   });
 
-  it("initialises each asset at its base price", () => {
+  it("resumes each asset from its last persisted close rather than its base price", () => {
     const asset = registry.get("AUDNZD_OTC")!;
-    expect(asset.state.price).toBeCloseTo(1.1735, 4);
+    expect(asset.state.price).toBeCloseTo(RESUME_CLOSE, 4);
   });
 
   it("returns undefined for an unknown symbol", () => {

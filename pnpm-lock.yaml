@@ -44,6 +44,9 @@ importers:
       '@asm/pricing':
         specifier: workspace:*
         version: link:../../packages/pricing
+      '@asm/trading':
+        specifier: workspace:*
+        version: link:../../packages/trading
       ioredis:
         specifier: 5.9.0
         version: 5.9.0
@@ -158,6 +161,9 @@ importers:
       '@asm/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@asm/trading':
+        specifier: workspace:*
+        version: link:../../packages/trading
       argon2:
         specifier: 0.45.1
         version: 0.45.1
@@ -207,6 +213,9 @@ importers:
       '@asm/config':
         specifier: workspace:*
         version: link:../config
+      '@asm/trading':
+        specifier: workspace:*
+        version: link:../trading
       '@prisma/adapter-pg':
         specifier: 7.10.0
         version: 7.10.0
@@ -240,6 +249,8 @@ importers:
         version: 10.3.1
 
   packages/pricing: {}
+
+  packages/trading: {}
 
 packages:
 

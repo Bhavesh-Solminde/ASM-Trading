@@ -7,10 +7,27 @@ import { EngineServer } from "./server";
 import { startTickLoop } from "./loop";
 import { createPriceFeed } from "./feeds/twelve-data";
 import { createTicketAuthenticator } from "./auth/ws-ticket";
+import { createInternalApi } from "./internal-api";
+import { TradeDesk } from "./trading/trade-desk";
 
 const WS_PORT = Number(process.env.ENGINE_WS_PORT ?? 4001);
+const HTTP_PORT = Number(process.env.ENGINE_HTTP_PORT ?? 4002);
 
 async function main(): Promise<void> {
+  // Built first: a missing ENGINE_INTERNAL_SECRET must fail before hydrate
+  // voids trades or the tick loop starts settling them.
+  let desk: TradeDesk | null = null;
+  const internal = createInternalApi({
+    desk: {
+      open: (input) => {
+        if (!desk) throw new Error("trade desk not ready");
+        return desk.open(input);
+      },
+    },
+    secret: process.env.ENGINE_INTERNAL_SECRET ?? "",
+    port: HTTP_PORT,
+  });
+
   const registry = new AssetRegistry(Date.now() & 0x7fffffff);
   await registry.load();
 
@@ -23,18 +40,26 @@ async function main(): Promise<void> {
   const redis = new Redis(config.redisUrl, { maxRetriesPerRequest: 2 });
   const server = new EngineServer(registry, WS_PORT, createTicketAuthenticator(redis));
   await server.ready();
-  const loop = startTickLoop(registry, server);
+
+  desk = new TradeDesk(registry, server);
+  await desk.hydrate(Math.floor(Date.now() / 1000));
+
+  const loop = startTickLoop(registry, server, desk);
 
   const feed = createPriceFeed(registry.symbols());
   await feed.start((quote) => {
     registry.setAnchor(quote.symbol, quote.price);
   });
 
-  logger.info({ evt: "engine.started", wsPort: WS_PORT }, "engine started");
+  await internal.listen();
+
+  logger.info({ evt: "engine.started", wsPort: WS_PORT, httpPort: HTTP_PORT }, "engine started");
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ evt: "engine.stopping", signal }, "shutting down");
-    loop.stop();
+    await internal.close(); // accept no new trades
+    loop.stop(); // collect no new settlements
+    await desk?.stop(); // let captured settlements persist (bounded)
     await feed.stop();
     await server.stop();
     await redis.quit();

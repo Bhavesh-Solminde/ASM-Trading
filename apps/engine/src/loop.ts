@@ -2,6 +2,7 @@ import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
 import type { AssetRegistry } from "./assets/registry";
 import type { EngineServer } from "./server";
+import type { TradeDesk } from "./trading/trade-desk";
 
 const TICK_MS = 100;
 
@@ -12,6 +13,7 @@ const TICK_MS = 100;
 export function startTickLoop(
   registry: AssetRegistry,
   server: EngineServer,
+  desk: Pick<TradeDesk, "collectDue">,
 ): { stop(): void } {
   let running = true;
   let timer: NodeJS.Timeout | null = null;
@@ -20,6 +22,10 @@ export function startTickLoop(
   const run = async (): Promise<void> => {
     const startedAt = Date.now();
     const nowSec = Math.floor(startedAt / 1000);
+
+    // Capture exit prices before this tick moves them: a trade expiring this
+    // second settles against the price its owner last saw. No awaiting here.
+    desk.collectDue(nowSec);
 
     for (const asset of registry.all()) {
       let result;

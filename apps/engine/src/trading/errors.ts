@@ -1,0 +1,9 @@
+export type DeskRejectionReason = "unknown_asset" | "account_not_found" | "insufficient_funds";
+
+/** An expected refusal, mapped to a 4xx by the control surface — never a 500. */
+export class DeskRejection extends Error {
+  constructor(readonly reason: DeskRejectionReason) {
+    super(reason);
+    this.name = "DeskRejection";
+  }
+}

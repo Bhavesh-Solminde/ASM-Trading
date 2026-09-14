@@ -202,6 +202,13 @@ export class EngineServer {
     }
   }
 
+  /** Delivers to every socket authenticated as this user, regardless of subscription. */
+  sendToUser(userId: string, message: ServerMessage): void {
+    for (const client of this.clients) {
+      if (client.userId === userId) this.send(client, message);
+    }
+  }
+
   async stop(): Promise<void> {
     clearInterval(this.budgetTimer);
     for (const client of this.clients) client.socket.close(1001, "Server shutting down");
