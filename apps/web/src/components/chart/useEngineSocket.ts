@@ -110,13 +110,12 @@ export function useEngineSocket(opts: {
         onMessageRef.current?.(message);
       };
 
-      socket.onclose = (event: CloseEvent) => {
+      socket.onclose = () => {
         socketRef.current = null;
         if (closedByUs) return;
-        if (event.reason === "Unauthorised") {
-          setStatus("unauthorised");
-          return;
-        }
+        // A 1008 "Unauthorised" close also covers a ticket that merely expired
+        // before redemption. Reconnect with a fresh ticket; the ticket route's
+        // 401 is the only authoritative "session gone" signal.
         setStatus("closed");
         scheduleReconnect();
       };

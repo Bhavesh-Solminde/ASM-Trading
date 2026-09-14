@@ -1,6 +1,6 @@
 import type { CandleDto, ServerMessage, Timeframe } from "@asm/contracts";
 
-export const TIMEFRAME_SEC: Record<Timeframe, number> = { "1m": 60, "5m": 300, "15m": 900 };
+export const TIMEFRAME_SEC: Record<Timeframe, number> = { "1m": 60 };
 const MAX_CANDLES = 500;
 
 export interface ChartState {

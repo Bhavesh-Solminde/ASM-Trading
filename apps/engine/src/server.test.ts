@@ -108,7 +108,6 @@ describe("EngineServer", () => {
     const { replies, closeCode, closeReason } = await exchange([{ type: "auth", token: "forged" }], 2);
     expect(replies[1]).toEqual({ type: "error", message: "Session expired." });
     expect(closeCode).toBe(1008);
-    // The browser hook stops reconnecting only on this exact reason.
     expect(closeReason).toBe("Unauthorised");
   });
 

@@ -16,6 +16,13 @@ describe("ClientMessageSchema", () => {
     expect(parsed.type).toBe("subscribe");
   });
 
+  it("rejects a timeframe the engine does not aggregate", () => {
+    expect(
+      ClientMessageSchema.safeParse({ type: "subscribe", symbol: "AUDNZD_OTC", timeframe: "5m" })
+        .success,
+    ).toBe(false);
+  });
+
   it("rejects an unknown message type", () => {
     expect(
       ClientMessageSchema.safeParse({ type: "settle", tradeId: "x" }).success,

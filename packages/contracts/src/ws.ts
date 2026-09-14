@@ -7,7 +7,8 @@ export const SymbolSchema = z
   .max(32)
   .regex(/^[A-Z0-9_]+$/, "Symbol must be uppercase letters, digits, or underscore");
 
-export const TimeframeSchema = z.enum(["1m", "5m", "15m"]);
+// Only 1m candles are aggregated and persisted; widen when resampling exists.
+export const TimeframeSchema = z.enum(["1m"]);
 export type Timeframe = z.infer<typeof TimeframeSchema>;
 
 export const CandleSchema = z.strictObject({
