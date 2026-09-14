@@ -192,6 +192,8 @@ model Trade {
   assetId    String
   direction  Direction
   stake      Int
+  /// The part of `stake` drawn from bonusBalance. Settlement credits return in this proportion.
+  stakeFromBonus Int         @default(0)
   payoutPct  Int
   entryPrice Float
   entryTs    DateTime
