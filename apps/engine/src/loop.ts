@@ -1,6 +1,8 @@
 import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
+import { driftBias, imbalance, totalExposure } from "@asm/algo";
 import type { AssetRegistry } from "./assets/registry";
+import type { TickBias } from "./assets/registry";
 import type { EngineServer } from "./server";
 import type { TradeDesk } from "./trading/trade-desk";
 import { computeSentiment } from "./sentiment";
@@ -25,14 +27,32 @@ export function startTickLoop(
     const startedAt = Date.now();
     const nowSec = Math.floor(startedAt / 1000);
 
-    // Capture exit prices before this tick moves them: a trade expiring this
-    // second settles against the price its owner last saw. No awaiting here.
-    desk.collectDue(nowSec);
+    // Build per-asset tick data before advancing prices so collectDue sees
+    // the honest price from the SAME tick, not the one before.
+    const tickData = new Map<string, { honestPrice: number; sigmaTick: number }>();
+
+    // Capture exit prices before this tick moves them.
+    desk.collectDue(nowSec, tickData);
 
     for (const asset of registry.all()) {
       let result;
       try {
-        result = registry.tick(asset.symbol, nowSec);
+        // Compute imbalance-based drift bias for this asset.
+        const positions = desk.openFor(asset.id);
+        const exp = totalExposure(positions);
+        const imb = imbalance(positions, nowSec);
+
+        // sigmaTick is not yet known before the tick — use the previous tick's
+        // sigma from the honest state as the cap reference. This is one tick
+        // stale but that is acceptable.
+        const prevSigmaTick = Math.sqrt(asset.honestState.garch.sigma2 * 0.1);
+
+        const bias: TickBias = {
+          driftBias: driftBias({ imbalance: imb, exposure: exp, sigmaTick: prevSigmaTick }),
+          magnet: 0,
+        };
+
+        result = registry.tick(asset.symbol, nowSec, bias);
       } catch (err) {
         logger.error(
           {
@@ -44,6 +64,8 @@ export function startTickLoop(
         );
         continue;
       }
+
+      tickData.set(asset.symbol, { honestPrice: result.honestPrice, sigmaTick: result.sigmaTick });
 
       server.broadcast(asset.symbol, {
         type: "tick",
@@ -89,8 +111,19 @@ export function startTickLoop(
               h: candle.h,
               l: candle.l,
               c: candle.c,
+              shadowO: result.honestClosed?.o ?? null,
+              shadowH: result.honestClosed?.h ?? null,
+              shadowL: result.honestClosed?.l ?? null,
+              shadowC: result.honestClosed?.c ?? null,
             },
-            update: { h: candle.h, l: candle.l, c: candle.c },
+            update: {
+              h: candle.h,
+              l: candle.l,
+              c: candle.c,
+              shadowH: result.honestClosed?.h ?? null,
+              shadowL: result.honestClosed?.l ?? null,
+              shadowC: result.honestClosed?.c ?? null,
+            },
           })
           .catch((err: unknown) => {
             logger.error(

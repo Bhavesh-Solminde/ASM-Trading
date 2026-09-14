@@ -80,4 +80,5 @@ export {
   recordOutcomeInTx,
   setLifecycleOverride,
 } from "./repositories/account-stats";
+export { provisionBots, resetDemoBalance } from "./repositories/bots";
 export * from "../generated/prisma/client";
