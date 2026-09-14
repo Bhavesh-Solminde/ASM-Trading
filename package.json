@@ -8,6 +8,8 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "pnpm --filter @asm/web dev",
+    "dev:engine": "pnpm --filter @asm/engine dev",
+    "dev:all": "pnpm --filter @asm/web dev & pnpm --filter @asm/engine dev",
     "build": "pnpm -r build",
     "test": "pnpm -r --workspace-concurrency=1 test",
     "lint": "eslint .",
