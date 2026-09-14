@@ -18,6 +18,8 @@ export {
   MIN_DEPOSIT_USD_MINOR,
   MAX_DEPOSIT_USD_MINOR,
   DEMO_VPA,
+  BONUS_PERCENT,
+  TURNOVER_MULTIPLE,
   createDepositIntent,
   findLiveDepositByAmount,
   findLiveDepositByClaimedUtr,
@@ -39,6 +41,14 @@ export {
   approveWithdrawal,
   listWithdrawalsForActor,
 } from "./repositories/withdrawal";
+export {
+  loadProfile,
+  updateProfile,
+  setTwoFactorPreferences,
+  type ProfileView,
+} from "./repositories/profile";
+export { issueTwoFactorCode, verifyTwoFactorCode } from "./repositories/twofa";
+export { createTicket, listTicketsForActor } from "./repositories/support";
 export {
   createRelayMessage,
   linkRelayMessageToCredit,

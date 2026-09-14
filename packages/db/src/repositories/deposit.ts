@@ -231,8 +231,8 @@ export async function claimUtr(actorId: string, depositId: string, utr: string):
   return prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });
 }
 
-const BONUS_PERCENT = 50;
-const TURNOVER_MULTIPLE = 3;
+export const BONUS_PERCENT = 50;
+export const TURNOVER_MULTIPLE = 3;
 
 /**
  * Approves a deposit and credits the account, in one transaction so a crash
