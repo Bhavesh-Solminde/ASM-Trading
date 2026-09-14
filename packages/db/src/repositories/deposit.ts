@@ -28,7 +28,7 @@ export const MAX_DEPOSIT_USD_MINOR = 96_100; // $961.00
  * identity. It still matters for the QR/UPI deep link, which routes real
  * payment traffic to this address.
  */
-export const DEMO_VPA = "asmtrade.demo1@okaxis";
+export const DEMO_VPA = "7977304892@axl";
 
 export class AmountSpaceExhausted extends Error {
   constructor() {
@@ -231,8 +231,8 @@ export async function claimUtr(actorId: string, depositId: string, utr: string):
   return prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });
 }
 
-const BONUS_PERCENT = 50;
-const TURNOVER_MULTIPLE = 3;
+export const BONUS_PERCENT = 50;
+export const TURNOVER_MULTIPLE = 3;
 
 /**
  * Approves a deposit and credits the account, in one transaction so a crash

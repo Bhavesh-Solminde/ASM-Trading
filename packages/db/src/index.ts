@@ -18,6 +18,8 @@ export {
   MIN_DEPOSIT_USD_MINOR,
   MAX_DEPOSIT_USD_MINOR,
   DEMO_VPA,
+  BONUS_PERCENT,
+  TURNOVER_MULTIPLE,
   createDepositIntent,
   findLiveDepositByAmount,
   findLiveDepositByClaimedUtr,

@@ -37,21 +37,7 @@ export default async function TradePage() {
   const symbolById = new Map(assets.map((a) => [a.id, a.symbol]));
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-8">
-      <header className="flex items-center justify-between">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-lg font-semibold tracking-tight">ASM Trade</h1>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]">
-            Simulated
-          </span>
-        </div>
-        <form action="/api/auth/logout" method="post">
-          <button type="submit" className="text-xs font-semibold text-[var(--color-ink-2)] underline underline-offset-4">
-            Log out
-          </button>
-        </form>
-      </header>
-
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8">
       <TradeWorkspace
         symbol={asset.symbol}
         precision={asset.precision}
