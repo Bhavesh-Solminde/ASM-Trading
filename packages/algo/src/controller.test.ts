@@ -106,27 +106,28 @@ describe("desiredWinProb", () => {
 
   it("forces a likely win after the maximum loss streak", () => {
     const out = desiredWinProb(
-      stats({ stage: "HIGH_VALUE", lossStreak: 5, shortWindow: runOf(40, false) }),
+      stats({ stage: "HIGH_VALUE", lossStreak: 8, shortWindow: runOf(40, false) }),
     );
-    expect(out.p).toBeGreaterThanOrEqual(0.9);
+    expect(out.p).toBeGreaterThanOrEqual(0.99);
   });
 
   it("forces a likely loss after the maximum win streak", () => {
-    const out = desiredWinProb(stats({ stage: "PRE_DEPOSIT", winStreak: 4 }));
-    expect(out.p).toBeLessThanOrEqual(0.1);
+    const out = desiredWinProb(stats({ stage: "PRE_DEPOSIT", winStreak: 15 }));
+    expect(out.p).toBeLessThanOrEqual(0.35);
   });
 
-  it("prioritises the loss-streak break over the ceiling", () => {
+  it("prioritises the ceiling over the loss-streak guard", () => {
     const out = desiredWinProb(
       stats({
         stage: "PRE_DEPOSIT",
         shortWindow: runOf(80, true),
         lifetimeWonWeight: 80,
         lifetimeTotalWeight: 80,
-        lossStreak: 5,
+        lossStreak: 8,
       }),
     );
-    expect(out.p).toBeGreaterThanOrEqual(0.9);
+    expect(out.ceilingActive).toBe(true);
+    expect(out.p).toBeLessThan(0.2);
   });
 
   it("always clamps p into [P_MIN, P_MAX]", () => {

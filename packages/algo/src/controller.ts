@@ -1,5 +1,6 @@
 import {
   CEILING_CLAMP,
+  CONFIDENCE_THRESHOLD,
   DEPOSIT_THRESHOLD_MINOR,
   ERROR_SCALE,
   HARD_CEILING,
@@ -40,23 +41,32 @@ export function desiredWinProb(stats: AccountStats): ControllerOutput {
     PRIOR_LIFE,
   );
 
+  const windowWeight = stats.shortWindow.reduce((s, e) => s + e.weight, 0);
+  const confidence = Math.min(windowWeight / CONFIDENCE_THRESHOLD, 1.0);
+
   const error = posteriorShort - target;
-  let p = target - MAX_CORRECTION * Math.tanh(error / ERROR_SCALE);
+  let p = target - confidence * MAX_CORRECTION * Math.tanh(error / ERROR_SCALE);
 
   const ceilingPosterior = Math.max(posteriorShort, posteriorLife);
   const ceilingActive = ceilingPosterior > HARD_CEILING;
 
   if (ceilingActive) {
     const excess = ceilingPosterior - HARD_CEILING;
-    p = Math.min(
-      p,
-      target - MAX_CORRECTION * Math.tanh(excess / (ERROR_SCALE / 3)),
-    );
-    p = Math.min(p, CEILING_CLAMP);
+    let ceilingP = target - MAX_CORRECTION * Math.tanh(excess / (ERROR_SCALE / 3));
+    ceilingP = Math.min(ceilingP, CEILING_CLAMP);
+    p = Math.min(p, p + confidence * (ceilingP - p));
   }
 
-  if (stats.lossStreak >= MAX_LOSS_STREAK) p = Math.max(p, 0.9);
-  if (stats.winStreak >= MAX_WIN_STREAK) p = Math.min(p, 0.1);
+  if (stats.lossStreak >= MAX_LOSS_STREAK && !ceilingActive) {
+    const k = stats.lossStreak - MAX_LOSS_STREAK;
+    const floor = 0.98 + 0.01 * (k + 1);
+    p = Math.max(p, Math.min(floor, P_MAX));
+  }
+  if (stats.winStreak >= MAX_WIN_STREAK) {
+    const k = stats.winStreak - MAX_WIN_STREAK;
+    const ceil = 0.50 - 0.15 * (k + 1);
+    p = Math.min(p, Math.max(ceil, P_MIN));
+  }
 
   p = clamp(p, P_MIN, P_MAX);
 
