@@ -73,4 +73,8 @@ export {
   type OpenedTrade,
   type SettledTrade,
 } from "./repositories/trade";
+export {
+  loadAccountStats,
+  recordSettledTrade,
+} from "./repositories/account-stats";
 export * from "../generated/prisma/client";
