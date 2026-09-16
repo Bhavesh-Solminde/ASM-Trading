@@ -16,11 +16,26 @@ export interface LiveAsset {
   symbol: string;
   payoutPct: number;
   precision: number;
+  /** The asset's tick size — resolveBucket() snaps candidate exit prices to entryPrice ± this. */
+  tickSize: number;
   params: PriceParams;
   state: PriceState;
+  /**
+   * The parallel, always-unbiased price path. Advances from the same `z`
+   * draw as `state` on every tick, but with driftBias and magnet hard zero —
+   * this is "what the market would have done" for the shadow ledger.
+   */
+  honestState: PriceState;
   /** Latest real quote, or null until the feed delivers one. */
   anchor: number | null;
   aggregator: CandleAggregator;
+}
+
+export interface TickBias {
+  /** Layer 2. Log-space bias, bounded to ±0.25·sigma by @asm/algo's driftBias(). */
+  driftBias: number;
+  /** Layer 3. Log-space pull toward an expiry target. Zero at tick granularity in Plan 04. */
+  magnet: number;
 }
 
 export interface TickResult {
@@ -67,13 +82,17 @@ export class AssetRegistry {
         maxTickMove: row.tickSize * 40,
       };
 
+      const startPrice = last?.c ?? row.basePrice;
+
       this.assets.set(row.symbol, {
         id: row.id,
         symbol: row.symbol,
         payoutPct: row.payoutPct,
         precision: row.precision,
+        tickSize: row.tickSize,
         params,
-        state: initPriceState(last?.c ?? row.basePrice, params),
+        state: initPriceState(startPrice, params),
+        honestState: initPriceState(startPrice, params),
         anchor: null,
         aggregator: new CandleAggregator(60),
       });
@@ -105,31 +124,57 @@ export class AssetRegistry {
   /**
    * Advances one asset by a single tick.
    *
-   * driftBias and magnet are hard zero in this plan — the engine is
-   * deliberately unbiased until Plan 04 supplies a controller. Leaving the
-   * parameters in place means Plan 04 is a wiring change, not a rewrite.
+   * `bias` steers the SHOWN path (driftBias from book imbalance, magnet from
+   * expiry convergence — both supplied by the caller, since only the tick
+   * loop and trade desk know the current book). The HONEST path advances
+   * from the exact same `z` draw with driftBias and magnet hard zero, so it
+   * always reflects what the market would have done unbiased. Diverging the
+   * two paths only here, from one shared random draw, is what keeps them a
+   * true counterfactual pair rather than two independent simulations.
    */
-  tick(symbol: string, nowSec: number): TickResult {
+  tick(symbol: string, nowSec: number, bias: TickBias): TickResult {
     const asset = this.assets.get(symbol);
     if (!asset) {
       throw new Error(`tick called for unknown symbol "${symbol}"`);
     }
 
+    const z = this.rng.normal();
+
     const out = stepPrice({
       state: asset.state,
       params: asset.params,
       dtSec: DT_SEC,
-      z: this.rng.normal(),
+      z,
+      driftBias: bias.driftBias,
+      magnet: bias.magnet,
+      anchorTarget: asset.anchor,
+    });
+
+    const honestOut = stepPrice({
+      state: asset.honestState,
+      params: asset.params,
+      dtSec: DT_SEC,
+      z,
       driftBias: 0,
       magnet: 0,
       anchorTarget: asset.anchor,
     });
 
     asset.state = out.state;
+    asset.honestState = honestOut.state;
 
     const rounded = Number(out.price.toFixed(asset.precision));
     const closed = asset.aggregator.addTick(nowSec, rounded);
 
     return { price: rounded, sigma: out.sigma, closed };
+  }
+
+  /** The unbiased price for `symbol` — the parallel path the shadow ledger compares against. */
+  honestPrice(symbol: string): number {
+    const asset = this.assets.get(symbol);
+    if (!asset) {
+      throw new Error(`honestPrice called for unknown symbol "${symbol}"`);
+    }
+    return Number(asset.honestState.price.toFixed(asset.precision));
   }
 }

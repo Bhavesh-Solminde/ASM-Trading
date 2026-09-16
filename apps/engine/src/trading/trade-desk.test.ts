@@ -5,17 +5,19 @@ import { expirySecFor } from "@asm/trading";
 import type { ServerMessage } from "@asm/contracts";
 import { AssetRegistry } from "../assets/registry";
 import { TradeDesk } from "./trade-desk";
+import { ControllerBridge } from "../algo/controller-bridge";
 
 const RUN = randomUUID();
 const registry = new AssetRegistry(7);
 const sent: { userId: string; message: ServerMessage }[] = [];
 const notifier = { sendToUser: (userId: string, message: ServerMessage) => sent.push({ userId, message }) };
+const controller = new ControllerBridge(7);
 let desk: TradeDesk;
 let seq = 0;
 
 beforeAll(async () => {
   await registry.load();
-  desk = new TradeDesk(registry, notifier);
+  desk = new TradeDesk(registry, notifier, controller);
 });
 
 afterAll(async () => {
@@ -98,7 +100,7 @@ describe("TradeDesk.open when the write outlasts the trade", () => {
     // Each clock read jumps 10s: entry is stamped at the first read, and by the
     // post-commit check a 5s trade's expiry second has already gone by.
     let clock = Date.now();
-    const slow = new TradeDesk(registry, notifier, () => (clock += 10_000));
+    const slow = new TradeDesk(registry, notifier, controller, () => (clock += 10_000));
 
     const result = await slow.open(request(t, { durationSec: 5 }));
 
@@ -147,7 +149,7 @@ describe("TradeDesk.hydrate", () => {
       expiryTs: new Date(Date.now() - 60_000),
     });
 
-    await new TradeDesk(registry, notifier).hydrate(nowSec());
+    await new TradeDesk(registry, notifier, controller).hydrate(nowSec());
 
     const row = await prisma.trade.findUniqueOrThrow({ where: { id: trade.id } });
     expect(row.status).toBe("REFUNDED");
@@ -170,7 +172,7 @@ describe("TradeDesk.hydrate", () => {
       expiryTs: new Date(Date.now() + 60_000),
     });
 
-    const fresh = new TradeDesk(registry, notifier);
+    const fresh = new TradeDesk(registry, notifier, controller);
     await fresh.hydrate(nowSec());
     expect(fresh.openFor(assetId).some((p) => p.tradeId === trade.id)).toBe(true);
   });
@@ -194,12 +196,12 @@ describe("TradeDesk.hydrate", () => {
     const expirySec = expirySecFor(expiryTs.getTime());
 
     // "next" is judged against the second before its expiry.
-    const later = new TradeDesk(registry, notifier);
+    const later = new TradeDesk(registry, notifier, controller);
     await later.hydrate(expirySec - 1);
     expect(later.openFor(assetId).some((p) => p.tradeId === next.tradeId)).toBe(true);
 
     // At its own expiry second the engine has no price from before the restart.
-    await new TradeDesk(registry, notifier).hydrate(expirySec);
+    await new TradeDesk(registry, notifier, controller).hydrate(expirySec);
     const row = await prisma.trade.findUniqueOrThrow({ where: { id: due.tradeId } });
     expect(row.status).toBe("REFUNDED");
     expect(row.exitPrice).toBeNull();

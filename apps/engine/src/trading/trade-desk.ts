@@ -6,10 +6,13 @@ import {
   getAccountForActor,
   loadOpenPositions,
   openTrade,
+  recordSettledTrade,
   settleTrade,
   voidTrade,
   type SettledTrade,
+  type ShadowInput,
 } from "@asm/db";
+import { imbalance, resolveBucket, TARGETS, type BucketWish } from "@asm/algo";
 import {
   tradeViewFrom,
   type BalancesDto,
@@ -20,7 +23,26 @@ import {
 } from "@asm/contracts";
 import { logger } from "@asm/logger";
 import type { AssetRegistry } from "../assets/registry";
+import type { ControllerBridge } from "../algo/controller-bridge";
 import { DeskRejection } from "./errors";
+
+/** Reverses `desiredWinProb`'s target back to the lifecycle stage that produced
+ *  it — cheaper than a second query, since `target` is copied from TARGETS
+ *  verbatim and never perturbed. */
+const STAGE_BY_TARGET = new Map<number, string>(
+  Object.entries(TARGETS).map(([stage, target]) => [target, stage]),
+);
+
+function splitExposure(positions: readonly Position[]): { up: number; down: number } {
+  let up = 0;
+  let down = 0;
+  for (const position of positions) {
+    const liability = (position.stake * position.payoutPct) / 100;
+    if (position.direction === "UP") up += liability;
+    else down += liability;
+  }
+  return { up, down };
+}
 
 const MAX_SETTLE_ATTEMPTS = 10;
 const RETRY_BASE_MS = 500;
@@ -57,6 +79,7 @@ export class TradeDesk {
   constructor(
     private readonly assets: AssetRegistry,
     private readonly notifier: Notifier,
+    private readonly controller: ControllerBridge,
     private readonly now: () => number = Date.now,
   ) {
     for (const asset of assets.all()) this.symbolByAssetId.set(asset.id, asset.symbol);
@@ -206,9 +229,11 @@ export class TradeDesk {
       const item = this.pending[0]!;
       let settled: SettledTrade;
       try {
+        const { exitPrice, shadow } = await this.resolveOutcome(item);
         settled = await settleTrade({
           tradeId: item.position.tradeId,
-          exitPrice: item.exitPrice,
+          exitPrice,
+          shadow,
         });
       } catch (err) {
         // Nothing left to settle: retrying either would only stall the queue.
@@ -238,8 +263,84 @@ export class TradeDesk {
         continue;
       }
       this.pending.shift();
+
+      // Best-effort: the money has already moved, so a stats-update failure
+      // must never roll the settlement back or retry it.
+      if (settled.trade.status !== "OPEN") {
+        await recordSettledTrade({
+          accountId: item.position.accountId,
+          stake: item.position.stake,
+          outcome: settled.trade.status,
+        }).catch((err: unknown) => {
+          logger.error(
+            {
+              evt: "trade.stats_update_failed",
+              tradeId: item.position.tradeId,
+              reason: err instanceof Error ? err.message : "unknown",
+            },
+            "account stats update failed after settlement",
+          );
+        });
+      }
+      this.controller.invalidate(item.position.accountId);
+
       this.announce(settled, item.symbol);
     }
+  }
+
+  /**
+   * Asks the controller what this account wants, then finds the
+   * nearest plausible exit price (within one tick's worth of movement from
+   * the price captured in `collectDue`) that satisfies it — the same
+   * mechanism a real settlement uses whether the wish is honoured or not.
+   * The honest path never sees this: it is read fresh here purely to record
+   * what would have happened, for the shadow ledger.
+   */
+  private async resolveOutcome(
+    item: PendingSettlement,
+  ): Promise<{ exitPrice: number; shadow: ShadowInput }> {
+    const asset = this.assets.get(item.symbol);
+    if (!asset) {
+      throw new Error(`resolveOutcome called for unknown symbol "${item.symbol}"`);
+    }
+
+    const { wantWin, urgency, output } = await this.controller.wishFor(
+      item.position.accountId,
+    );
+    const honestExitPrice = this.assets.honestPrice(item.symbol);
+
+    const wish: BucketWish = {
+      entryPrice: item.position.entryPrice,
+      direction: item.position.direction,
+      wantWin,
+      urgency,
+      stake: item.position.stake,
+      payoutPct: item.position.payoutPct,
+    };
+
+    const exitPrice = resolveBucket({
+      wishes: [wish],
+      currentPrice: item.exitPrice,
+      maxMove: asset.params.maxTickMove,
+      tickSize: asset.tickSize,
+    });
+
+    const nowSec = Math.floor(this.now() / 1000);
+    const openPositions = this.book.openFor(item.position.assetId);
+    const imbalanceNow = imbalance(openPositions, nowSec);
+    const { up, down } = splitExposure(openPositions);
+
+    const shadow: ShadowInput = {
+      honestExitPrice,
+      biasApplied: exitPrice - item.exitPrice,
+      magnetApplied: 0,
+      imbalanceAtEntry: imbalanceNow,
+      exposureUp: up,
+      exposureDown: down,
+      lifecycleStage: STAGE_BY_TARGET.get(output.target) ?? "UNKNOWN",
+    };
+
+    return { exitPrice, shadow };
   }
 
   private announce(settled: SettledTrade, symbol: string): void {

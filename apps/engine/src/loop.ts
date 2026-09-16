@@ -1,5 +1,6 @@
 import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
+import { driftBias, imbalance, totalExposure } from "@asm/algo";
 import type { AssetRegistry } from "./assets/registry";
 import type { EngineServer } from "./server";
 import type { TradeDesk } from "./trading/trade-desk";
@@ -32,7 +33,18 @@ export function startTickLoop(
     for (const asset of registry.all()) {
       let result;
       try {
-        result = registry.tick(asset.symbol, nowSec);
+        // Sigma read from the pre-tick GARCH state — the same conditional
+        // volatility stepPrice is about to use for this tick's z draw, so the
+        // bias is scaled to the move that's actually about to happen.
+        const sigma = Math.sqrt(asset.state.garch.sigma2);
+        const openPositions = desk.openFor(asset.id);
+        const bias = driftBias({
+          imbalance: imbalance(openPositions, nowSec),
+          exposure: totalExposure(openPositions),
+          sigma,
+        });
+
+        result = registry.tick(asset.symbol, nowSec, { driftBias: bias, magnet: 0 });
       } catch (err) {
         logger.error(
           {

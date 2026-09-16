@@ -29,6 +29,9 @@ importers:
 
   apps/engine:
     dependencies:
+      '@asm/algo':
+        specifier: workspace:*
+        version: link:../../packages/algo
       '@asm/config':
         specifier: workspace:*
         version: link:../../packages/config
