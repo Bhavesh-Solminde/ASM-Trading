@@ -225,6 +225,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@asm/algo':
+        specifier: workspace:*
+        version: link:../algo
       '@asm/config':
         specifier: workspace:*
         version: link:../config
