@@ -69,9 +69,11 @@ export {
   voidTrade,
   listTradesForActor,
   loadOpenPositions,
+  loadTradeShadow,
   type OpenTradeInput,
   type OpenedTrade,
   type SettledTrade,
+  type ShadowInput,
 } from "./repositories/trade";
 export {
   loadAccountStats,

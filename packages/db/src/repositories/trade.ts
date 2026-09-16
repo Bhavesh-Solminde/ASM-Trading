@@ -8,7 +8,7 @@ import {
   type Position,
 } from "@asm/trading";
 import { prisma } from "../client";
-import type { Direction, Prisma, Trade } from "../../generated/prisma/client";
+import type { Direction, Prisma, Trade, TradeShadow } from "../../generated/prisma/client";
 
 export class InsufficientFunds extends Error {
   constructor() {
@@ -36,6 +36,16 @@ export class TradeNotFound extends Error {
     super(`Trade ${tradeId} not found.`);
     this.name = "TradeNotFound";
   }
+}
+
+export interface ShadowInput {
+  honestExitPrice: number;
+  biasApplied: number;
+  magnetApplied: number;
+  imbalanceAtEntry: number;
+  exposureUp: number;
+  exposureDown: number;
+  lifecycleStage: string;
 }
 
 /** Thrown inside a transaction to roll it back for a retry. Never escapes this module. */
@@ -161,6 +171,7 @@ async function applySettlement(
   trade: TradeWithOwner,
   outcome: Outcome,
   exitPrice: number | null,
+  shadow?: ShadowInput,
 ): Promise<SettledTrade> {
   const credit = settlementCredit(trade.stake, trade.payoutPct, outcome);
   const pnl = settlementPnl(trade.stake, trade.payoutPct, outcome);
@@ -170,6 +181,28 @@ async function applySettlement(
     data: { status: outcome, exitPrice, pnl },
   });
   if (claimed.count !== 1) throw new AlreadySettled(trade.id);
+
+  if (shadow && exitPrice !== null) {
+    const honestWon = didWin(trade.direction, trade.entryPrice, shadow.honestExitPrice);
+    const deltaPips = (exitPrice - shadow.honestExitPrice) / 0.0001;
+
+    await tx.tradeShadow.create({
+      data: {
+        tradeId: trade.id,
+        shownExitPrice: exitPrice,
+        honestExitPrice: shadow.honestExitPrice,
+        shownResult: outcome,
+        honestResult: honestWon,
+        deltaPips,
+        biasApplied: shadow.biasApplied,
+        magnetApplied: shadow.magnetApplied,
+        imbalanceAtEntry: shadow.imbalanceAtEntry,
+        exposureUp: shadow.exposureUp,
+        exposureDown: shadow.exposureDown,
+        lifecycleStage: shadow.lifecycleStage,
+      },
+    });
+  }
 
   let realBalance: number;
   let bonusBalance: number;
@@ -224,11 +257,12 @@ async function loadOpenTrade(tx: Tx, tradeId: string): Promise<TradeWithOwner> {
 export async function settleTrade(input: {
   tradeId: string;
   exitPrice: number;
+  shadow?: ShadowInput;
 }): Promise<SettledTrade> {
   return prisma.$transaction(async (tx) => {
     const trade = await loadOpenTrade(tx, input.tradeId);
     const outcome = didWin(trade.direction, trade.entryPrice, input.exitPrice);
-    return applySettlement(tx, trade, outcome, input.exitPrice);
+    return applySettlement(tx, trade, outcome, input.exitPrice, input.shadow);
   });
 }
 
@@ -270,4 +304,8 @@ export async function loadOpenPositions(): Promise<Position[]> {
     entryPrice: row.entryPrice,
     expirySec: expirySecFor(row.expiryTs.getTime()),
   }));
+}
+
+export async function loadTradeShadow(tradeId: string): Promise<TradeShadow | null> {
+  return prisma.tradeShadow.findUnique({ where: { tradeId } });
 }
