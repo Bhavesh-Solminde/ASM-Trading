@@ -1,21 +1,17 @@
 export function SentimentBar({ upPct, downPct }: { upPct: number; downPct: number }) {
   return (
     <div
-      className="flex w-10 shrink-0 flex-col items-center gap-1 py-1"
+      className="grid grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center gap-1.5 pb-9"
       aria-label={`Trader sentiment: ${upPct}% up, ${downPct}% down`}
     >
-      <span className="text-[10px] font-bold tabular-nums text-[var(--color-up)]">{upPct}%</span>
-      <div className="flex w-2 flex-1 flex-col overflow-hidden rounded-full bg-[var(--color-panel-2)]">
+      <span className="text-[11px] font-bold text-up">{upPct}%</span>
+      <div className="relative w-1 overflow-hidden rounded-sm bg-down">
         <div
-          className="w-full bg-[var(--color-up)] transition-[flex-grow] duration-500"
-          style={{ flexGrow: upPct }}
-        />
-        <div
-          className="w-full bg-[var(--color-down)] transition-[flex-grow] duration-500"
-          style={{ flexGrow: downPct }}
+          className="absolute inset-x-0 bottom-0 bg-up transition-[height] duration-[600ms] ease-[cubic-bezier(.2,.8,.2,1)]"
+          style={{ height: `${upPct}%` }}
         />
       </div>
-      <span className="text-[10px] font-bold tabular-nums text-[var(--color-down)]">{downPct}%</span>
+      <span className="text-[11px] font-bold text-down">{downPct}%</span>
     </div>
   );
 }

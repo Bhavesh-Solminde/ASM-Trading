@@ -27,10 +27,10 @@ export default async function WithdrawalPage() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 py-8">
       <PlatformTabs />
-      <h1 className="text-lg font-semibold tracking-tight">Withdrawal</h1>
+      <h1 className="text-lg font-bold tracking-tight">Withdrawal</h1>
 
       <div className="grid gap-5 md:grid-cols-2">
-        <section className="flex flex-col gap-4 rounded-xl border border-[var(--color-edge)] bg-[var(--color-panel)] p-4">
+        <section className="flex flex-col gap-4 rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
           <h2 className="text-sm font-semibold">Account</h2>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]">
@@ -50,7 +50,7 @@ export default async function WithdrawalPage() {
           </div>
 
           {balance.lockedBonus > 0 ? (
-            <div className="rounded-lg bg-[var(--color-panel-2)] p-3">
+            <div className="rounded bg-[var(--color-tile)] p-3">
               <p className="text-xs font-semibold">
                 {formatMoney(balance.lockedBonus, live.currency)} bonus locked
               </p>
@@ -63,7 +63,7 @@ export default async function WithdrawalPage() {
           ) : null}
         </section>
 
-        <section className="rounded-xl border border-[var(--color-edge)] bg-[var(--color-panel)] p-4">
+        <section className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
           <h2 className="mb-3 text-sm font-semibold">Withdraw</h2>
           <WithdrawForm accountId={live.id} withdrawableMinor={balance.withdrawable} />
         </section>

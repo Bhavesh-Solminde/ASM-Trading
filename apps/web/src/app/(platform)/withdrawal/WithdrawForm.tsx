@@ -35,7 +35,7 @@ export function WithdrawForm({
 
   if (done) {
     return (
-      <p className="rounded-lg border border-[var(--color-up)] bg-[#14301f] p-3 text-sm text-[#4fc08d]">
+      <p className="rounded border border-[var(--color-up)] bg-[var(--color-up)]/10 p-3 text-sm text-[var(--color-up)]">
         Withdrawal requested. Requests are processed in 3 business days.
       </p>
     );
@@ -43,8 +43,8 @@ export function WithdrawForm({
 
   if (withdrawableMinor <= 0) {
     return (
-      <div className="rounded-lg border border-[var(--color-down)] bg-[#2a1418] p-4">
-        <p className="text-sm text-[#e8798c]">
+      <div className="rounded border border-[var(--color-down)] bg-[var(--color-warn-bg)] p-4">
+        <p className="text-sm text-[var(--color-down)]">
           You can withdraw money from your balance to the method you used for depositing. Requests
           are processed in 3 business days.
         </p>
@@ -74,7 +74,7 @@ export function WithdrawForm({
           max={Math.floor(withdrawableMinor / 100)}
           value={amountMajor}
           onChange={(e) => setAmountMajor(Number(e.target.value))}
-          className="mt-1 w-full rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel-2)] px-3 py-2 text-sm tabular-nums outline-none focus:border-[var(--color-brand)]"
+          className="mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-3 py-2 text-sm tabular-nums outline-none focus:border-[var(--color-brand)]"
         />
       </div>
 
@@ -89,7 +89,7 @@ export function WithdrawForm({
           id="wmethod"
           value={method}
           onChange={(e) => setMethod(e.target.value as (typeof DEPOSIT_METHODS)[number])}
-          className="mt-1 w-full rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel-2)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+          className="mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
         >
           {DEPOSIT_METHODS.map((m) => (
             <option key={m} value={m}>
@@ -106,7 +106,7 @@ export function WithdrawForm({
 
       <button
         type="submit"
-        className="rounded-lg bg-[var(--color-brand)] px-4 py-2.5 text-sm font-semibold text-white"
+        className="rounded bg-[var(--color-brand)] px-4 py-2.5 text-sm font-bold text-[var(--color-brand-ink)]"
       >
         Request withdrawal
       </button>

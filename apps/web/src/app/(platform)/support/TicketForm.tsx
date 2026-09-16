@@ -35,7 +35,7 @@ export function TicketForm() {
         onChange={(e) => setSubject(e.target.value)}
         placeholder="Subject"
         required
-        className="rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel-2)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+        className="rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
       />
       <textarea
         value={body}
@@ -43,7 +43,7 @@ export function TicketForm() {
         placeholder="Describe the problem"
         required
         rows={5}
-        className="rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel-2)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+        className="rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
       />
       {error ? <p className="text-xs text-[var(--color-down)]">{error}</p> : null}
       {done ? (
@@ -53,7 +53,7 @@ export function TicketForm() {
       ) : null}
       <button
         type="submit"
-        className="self-start rounded-lg bg-[var(--color-brand)] px-4 py-2.5 text-sm font-semibold text-white"
+        className="self-start rounded bg-[var(--color-brand)] px-4 py-2.5 text-sm font-semibold text-[var(--color-brand-ink)]"
       >
         Create request
       </button>

@@ -21,8 +21,6 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
 
     if (res.ok) {
       const data = (await res.json()) as { checkoutToken: string };
-      // Full navigation, not a router push — the handoff to the "provider" page
-      // is deliberately a page change, as it is on the original.
       window.location.href = `/checkout/${data.checkoutToken}`;
       return;
     }
@@ -42,7 +40,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
         &lsaquo; Change method
       </button>
 
-      <div className="rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel)] p-4">
+      <div className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
         <p className="text-sm font-semibold">{method}</p>
         <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--color-ink-2)]">
           <div>
@@ -74,7 +72,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
           max={961}
           value={amountMajor}
           onChange={(e) => setAmountMajor(Number(e.target.value))}
-          className="mt-1 w-full rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel-2)] px-4 py-2.5 text-sm tabular-nums outline-none focus:border-[var(--color-brand)]"
+          className="mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 text-sm tabular-nums outline-none focus:border-[var(--color-brand)]"
         />
         <div className="mt-2 flex gap-2">
           {QUICK.map((q) => (
@@ -82,7 +80,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
               key={q}
               type="button"
               onClick={() => setAmountMajor(q)}
-              className="flex-1 rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel)] px-2 py-1.5 text-xs font-semibold"
+              className="flex-1 rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-2 py-1.5 text-xs font-semibold"
             >
               ${q}
             </button>
@@ -90,12 +88,12 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#8A5A02] bg-[#2a2213] p-3 text-xs leading-relaxed text-[#e0ac50]">
+      <div className="rounded border border-[var(--color-brand)]/30 bg-[var(--color-brand)]/10 p-3 text-xs leading-relaxed text-[var(--color-brand)]">
         Payments with this method can take up to 48 hours to process. The status
         may appear as &ldquo;Failed&rdquo; until the funds are received on our side.
       </div>
 
-      <div className="flex items-baseline justify-between border-t border-dashed border-[var(--color-edge)] pt-3 text-sm">
+      <div className="flex items-baseline justify-between border-t border-dashed border-[var(--color-rule)] pt-3 text-sm">
         <span className="text-[var(--color-ink-2)]">You will receive</span>
         <span className="font-semibold tabular-nums">${amountMajor.toFixed(2)}</span>
       </div>
@@ -113,7 +111,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
         type="button"
         disabled={busy}
         onClick={() => void proceed()}
-        className="rounded-lg bg-[var(--color-brand)] px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+        className="rounded bg-[var(--color-brand)] px-4 py-3 text-sm font-bold text-[var(--color-brand-ink)] disabled:opacity-50"
       >
         {busy ? "Starting…" : "Proceed to Pay"}
       </button>

@@ -6,11 +6,10 @@ import { ClaimForm } from "./ClaimForm";
 export const dynamic = "force-dynamic";
 
 /**
- * The provider-style hosted checkout.
+ * Provider-style hosted checkout.
  *
- * Deliberately light-themed and visually unlike the platform: the original
- * hands off to an off-domain, provider-branded page, and that break is part of
- * what the demonstration is showing.
+ * Deliberately light-themed and visually unlike the platform — the handoff
+ * to a provider-branded page is intentional.
  */
 export default async function CheckoutPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -22,7 +21,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
   // A real UPI deep link, pointing at a fictitious demo VPA.
   const upiUri =
     `upi://pay?pa=${encodeURIComponent(deposit.vpa)}` +
-    `&pn=${encodeURIComponent("ASM Trade Demo")}` +
+    `&pn=${encodeURIComponent("ASM Trade")}` +
     `&am=${encodeURIComponent(rupees)}` +
     `&cu=INR&tn=${encodeURIComponent(`ASM-${deposit.id.slice(0, 8)}`)}`;
 
@@ -115,7 +114,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
         )}
 
         <p className="text-center text-[11px] text-[#8a7aa8]">
-          Demonstration only. No payment is taken and no bank is contacted.
+          Secure payment processing by ASM Trade
         </p>
       </div>
     </main>

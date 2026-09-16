@@ -54,7 +54,7 @@ export default async function BalancePage() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-6 py-8">
       <PlatformTabs />
-      <h1 className="text-lg font-semibold tracking-tight">Payments</h1>
+      <h1 className="text-lg font-bold tracking-tight">Payments</h1>
 
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--color-ink-2)]">No transactions yet.</p>
@@ -73,7 +73,7 @@ export default async function BalancePage() {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id} className="border-t border-[var(--color-edge)] align-top">
+                <tr key={row.id} className="border-t border-[var(--color-rule)] align-top">
                   <td className="py-3 font-mono text-xs">{row.id.slice(0, 8).toUpperCase()}</td>
                   <td className="py-3 tabular-nums text-[var(--color-ink-2)]">
                     {row.at.toISOString().slice(0, 16).replace("T", " ")}
@@ -84,7 +84,7 @@ export default async function BalancePage() {
                       {STATUS_LABEL[row.status] ?? row.status}
                     </span>
                     {row.note ? (
-                      <p className="mt-2 max-w-sm rounded-lg bg-[var(--color-panel-2)] p-2 text-[11px] leading-relaxed text-[var(--color-ink-2)]">
+                      <p className="mt-2 max-w-sm rounded bg-[var(--color-tile)] p-2 text-[11px] leading-relaxed text-[var(--color-ink-2)]">
                         {row.note}
                       </p>
                     ) : null}

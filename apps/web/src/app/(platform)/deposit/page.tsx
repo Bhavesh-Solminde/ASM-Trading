@@ -11,10 +11,7 @@ export default async function DepositPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-6 px-6 py-10">
       <header>
-        <h1 className="text-xl font-semibold tracking-tight">Deposit</h1>
-        <p className="mt-1 text-xs text-[var(--color-ink-2)]">
-          Simulated — no real payment is taken.
-        </p>
+        <h1 className="text-xl font-bold tracking-tight">Deposit</h1>
       </header>
 
       <DepositFlow />

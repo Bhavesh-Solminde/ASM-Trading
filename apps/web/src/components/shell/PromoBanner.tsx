@@ -1,11 +1,15 @@
+import Link from "next/link";
+
 export function PromoBanner() {
   return (
-    <div className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#1a7f52] to-[#2fbd85] px-4 py-1.5">
-      <span aria-hidden>🚀</span>
-      <p className="text-xs font-semibold text-white">
-        Get a <span className="font-bold">50% bonus</span> on your deposit!
-      </p>
-      <span className="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold text-white">50%</span>
-    </div>
+    <Link
+      href="/deposit"
+      className="flex h-8 items-center gap-2.5 rounded border border-brand/35 bg-brand/5 px-3 text-xs text-ink-2 transition-colors hover:border-brand"
+    >
+      <span className="led led-lit text-[15px] text-brand">+50%</span>
+      <span>
+        <span className="font-semibold text-ink">Deposit bonus</span> on your first top-up
+      </span>
+    </Link>
   );
 }

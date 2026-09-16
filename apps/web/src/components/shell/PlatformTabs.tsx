@@ -14,7 +14,7 @@ export function PlatformTabs() {
   const pathname = usePathname();
 
   return (
-    <div className="flex gap-1 overflow-x-auto rounded-xl border border-[var(--color-edge)] bg-[var(--color-panel)] p-1">
+    <div className="flex gap-1 overflow-x-auto rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-1">
       {TABS.map((tab) => {
         const active = pathname === tab.href;
         return (
@@ -22,9 +22,9 @@ export function PlatformTabs() {
             key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold ${
+            className={`shrink-0 rounded px-4 py-2 text-sm font-semibold ${
               active
-                ? "bg-[var(--color-panel-2)] text-[var(--color-ink)]"
+                ? "bg-[var(--color-tile)] text-[var(--color-ink)]"
                 : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]"
             }`}
           >
