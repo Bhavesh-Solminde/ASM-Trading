@@ -3,7 +3,6 @@ import {
   stageFor,
   tradeWeight,
   type AccountStats,
-  type LifecycleStage,
   type WindowEntry,
 } from "@asm/algo";
 import { prisma } from "../client";
@@ -87,32 +86,6 @@ export async function recordSettledTrade(input: {
   });
 
   const won = input.outcome === "WON";
-
-  // The controller's stats (short window, lifetime weights) are derived by
-  // querying the Trade table directly, so a settlement must be reflected
-  // there — not just on the Account's denormalized counters — for
-  // loadAccountStats to see it. Production settlement (settleTrade /
-  // voidTrade in ./trade) already creates and transitions a real Trade row
-  // before this is called; this insert is the equivalent record for
-  // whatever settlement path invoked recordSettledTrade, using any open
-  // asset as a placeholder since this call site only carries accountId,
-  // stake and outcome.
-  const asset = await prisma.asset.findFirstOrThrow();
-  const now = new Date();
-  await prisma.trade.create({
-    data: {
-      accountId: input.accountId,
-      assetId: asset.id,
-      direction: "UP",
-      stake: input.stake,
-      payoutPct: 100,
-      entryPrice: 1,
-      entryTs: now,
-      expiryTs: now,
-      exitPrice: 1,
-      status: input.outcome,
-    },
-  });
 
   const stakes = await prisma.trade.findMany({
     where: { accountId: input.accountId, status: { in: ["WON", "LOST"] } },
