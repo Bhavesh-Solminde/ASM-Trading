@@ -130,6 +130,19 @@ describe("desiredWinProb", () => {
     expect(out.p).toBeLessThan(0.2);
   });
 
+  it("applies the ceiling correction even with low window weight but high lifetime breach", () => {
+    const out = desiredWinProb(
+      stats({
+        stage: "DEPOSITED",
+        shortWindow: runOf(3, false),
+        lifetimeWonWeight: 900,
+        lifetimeTotalWeight: 1000,
+      }),
+    );
+    expect(out.ceilingActive).toBe(true);
+    expect(out.p).toBeLessThan(TARGETS.DEPOSITED);
+  });
+
   it("always clamps p into [P_MIN, P_MAX]", () => {
     const cases: AccountStats[] = [
       stats({ shortWindow: runOf(500, true), lifetimeWonWeight: 500, lifetimeTotalWeight: 500 }),

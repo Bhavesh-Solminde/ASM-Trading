@@ -4,6 +4,8 @@ import {
   DEPOSIT_THRESHOLD_MINOR,
   ERROR_SCALE,
   HARD_CEILING,
+  LOSS_GUARD_BASE,
+  LOSS_GUARD_STEP,
   MAX_CORRECTION,
   MAX_LOSS_STREAK,
   MAX_WIN_STREAK,
@@ -12,6 +14,8 @@ import {
   P_MAX,
   P_MIN,
   TARGETS,
+  WIN_GUARD_BASE,
+  WIN_GUARD_STEP,
   type LifecycleStage,
 } from "./constants";
 import { posterior, posteriorFromTotals } from "./estimator";
@@ -59,12 +63,12 @@ export function desiredWinProb(stats: AccountStats): ControllerOutput {
 
   if (stats.lossStreak >= MAX_LOSS_STREAK && !ceilingActive) {
     const k = stats.lossStreak - MAX_LOSS_STREAK;
-    const floor = 0.98 + 0.01 * (k + 1);
+    const floor = LOSS_GUARD_BASE + LOSS_GUARD_STEP * (k + 1);
     p = Math.max(p, Math.min(floor, P_MAX));
   }
   if (stats.winStreak >= MAX_WIN_STREAK) {
     const k = stats.winStreak - MAX_WIN_STREAK;
-    const ceil = 0.50 - 0.15 * (k + 1);
+    const ceil = (1 - WIN_GUARD_BASE) - WIN_GUARD_STEP * (k + 1);
     p = Math.min(p, Math.max(ceil, P_MIN));
   }
 

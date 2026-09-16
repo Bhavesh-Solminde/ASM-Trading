@@ -22,6 +22,11 @@ export const WEIGHT_CAP = 5.0;
 export const MAX_LOSS_STREAK = 8;
 export const MAX_WIN_STREAK = 15;
 
+export const LOSS_GUARD_BASE = 0.98;
+export const LOSS_GUARD_STEP = 0.01;
+export const WIN_GUARD_BASE = 0.50;
+export const WIN_GUARD_STEP = 0.15;
+
 export const P_MIN = 0.01;
 export const P_MAX = 0.99;
 
