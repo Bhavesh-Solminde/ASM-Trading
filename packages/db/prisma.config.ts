@@ -13,6 +13,7 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    seed: "npx tsx prisma/seed.ts",
   },
   datasource: {
     // Migrations need DDL privileges (CREATE, etc.) that the restricted
@@ -20,6 +21,6 @@ export default defineConfig({
     // Prefer the owner-scoped DATABASE_MIGRATE_URL for the CLI; fall back to
     // DATABASE_URL so this still works in environments that haven't set the
     // migrate URL (e.g. a single-role local setup).
-    url: process.env["DATABASE_MIGRATE_URL"] ?? process.env["DATABASE_URL"],
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_MIGRATE_URL"] ?? process.env["DATABASE_URL"],
   },
 });

@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "engine",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@asm/engine", "dev"],
+      "port": 4001
+    },
+    {
       "name": "web",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@asm/web", "dev"],

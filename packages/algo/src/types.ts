@@ -22,4 +22,5 @@ export interface ControllerOutput {
   readonly posteriorShort: number;
   readonly posteriorLife: number;
   readonly target: number;
+  readonly stage: LifecycleStage;
 }
