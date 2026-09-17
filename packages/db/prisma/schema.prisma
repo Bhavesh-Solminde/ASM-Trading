@@ -92,6 +92,7 @@ model User {
   country             String?
   kycStatus           KycStatus @default(NOT_STARTED)
   cumulativeDeposits  Int       @default(0)
+  isBot               Boolean   @default(false)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -135,6 +136,7 @@ model Account {
   medianStake      Int            @default(100)
   lossStreak       Int            @default(0)
   winStreak        Int            @default(0)
+  lifecycleOverride LifecycleStage?
   dailyLimit       Int?
   version          Int            @default(0)
   createdAt        DateTime       @default(now())
@@ -228,6 +230,8 @@ model TradeShadow {
   exposureUp       Int
   exposureDown     Int
   lifecycleStage   String
+  wantedWin        Boolean?
+  winProbability   Float?
   createdAt        DateTime @default(now())
 
   trade Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)

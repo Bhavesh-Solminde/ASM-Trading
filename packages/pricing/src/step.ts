@@ -48,6 +48,17 @@ export interface StepPriceOutput {
   readonly sigma: number;
 }
 
+/** The engine tick interval — 10 Hz. All bias caps are expressed in these units. */
+export const TICK_DT_SEC = 0.1;
+
+/**
+ * Per-tick standard deviation in log-price space.
+ * Use this whenever you need sigmaTick for bias/magnet capping.
+ */
+export function perTickSigma(sigma: number, dtSec: number = TICK_DT_SEC): number {
+  return sigma * Math.sqrt(dtSec);
+}
+
 export function initPriceState(
   basePrice: number,
   params: PriceParams,
