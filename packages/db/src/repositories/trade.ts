@@ -91,6 +91,24 @@ export interface SettledTrade {
  * Real balance is consumed before bonus, and the bonus part is recorded on the
  * trade so settlement can return it where it came from.
  */
+export async function openTradeRecord(input: OpenTradeInput): Promise<Trade> {
+  const trade = await prisma.trade.create({
+    data: {
+      accountId: input.accountId,
+      assetId: input.assetId,
+      direction: input.direction,
+      stake: input.stake,
+      payoutPct: input.payoutPct,
+      entryPrice: input.entryPrice,
+      entryTs: input.entryTs,
+      expiryTs: input.expiryTs,
+      status: "OPEN",
+      stakeFromBonus: 0,
+    },
+  });
+  return trade;
+}
+
 export async function openTrade(input: OpenTradeInput): Promise<OpenedTrade> {
   if (!Number.isInteger(input.stake) || input.stake <= 0) {
     throw new Error(`stake must be a positive integer, received ${input.stake}`);

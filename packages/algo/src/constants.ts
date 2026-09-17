@@ -43,3 +43,7 @@ export const IMBALANCE_TAU_SEC = 45;
 export const CONFIDENCE_THRESHOLD = 30;
 
 export const DEPOSIT_THRESHOLD_MINOR = 50_000;
+
+export const MAGNET_WINDOW_SEC = 10;
+export const MAGNET_CAP = 1.5;
+export const TARGET_MARGIN_SIGMA = 3;

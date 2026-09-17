@@ -56,6 +56,9 @@ interface PendingSettlement {
   position: Position;
   symbol: string;
   exitPrice: number;
+  honestExitPrice: number;
+  resolvedExitPrice?: number;
+  controllerTarget?: number;
   attempts: number;
 }
 
@@ -199,8 +202,9 @@ export class TradeDesk {
       }
 
       const exitPrice = Number(asset.state.price.toFixed(asset.precision));
+      const honestExitPrice = this.assets.honestPrice(symbol);
       for (const position of bucket.positions) {
-        this.pending.push({ position, symbol, exitPrice, attempts: 0 });
+        this.pending.push({ position, symbol, exitPrice, honestExitPrice, attempts: 0 });
       }
     }
 
@@ -226,13 +230,18 @@ export class TradeDesk {
 
   private async drain(): Promise<void> {
     while (this.pending.length > 0) {
+      // Resolve bucket exit prices for any unresolved items before settling.
+      // Items sharing the same bucket (symbol + captured exitPrice) get ONE
+      // shared resolved price so that co-expiring positions are consistent.
+      await this.resolveUnresolvedBuckets();
+
       const item = this.pending[0]!;
       let settled: SettledTrade;
       try {
-        const { exitPrice, shadow } = await this.resolveOutcome(item);
+        const shadow = this.buildShadow(item);
         settled = await settleTrade({
           tradeId: item.position.tradeId,
-          exitPrice,
+          exitPrice: item.resolvedExitPrice!,
           shadow,
         });
       } catch (err) {
@@ -289,58 +298,80 @@ export class TradeDesk {
   }
 
   /**
-   * Asks the controller what this account wants, then finds the
-   * nearest plausible exit price (within one tick's worth of movement from
-   * the price captured in `collectDue`) that satisfies it — the same
-   * mechanism a real settlement uses whether the wish is honoured or not.
-   * The honest path never sees this: it is read fresh here purely to record
-   * what would have happened, for the shadow ledger.
+   * Groups unresolved pending items by bucket (same symbol + captured exit
+   * price), gathers per-account controller wishes, then calls `resolveBucket`
+   * once per group so co-expiring positions share a single resolved exit price.
    */
-  private async resolveOutcome(
-    item: PendingSettlement,
-  ): Promise<{ exitPrice: number; shadow: ShadowInput }> {
-    const asset = this.assets.get(item.symbol);
-    if (!asset) {
-      throw new Error(`resolveOutcome called for unknown symbol "${item.symbol}"`);
+  private async resolveUnresolvedBuckets(): Promise<void> {
+    const groups = new Map<string, PendingSettlement[]>();
+    for (const item of this.pending) {
+      if (item.resolvedExitPrice !== undefined) continue;
+      const key = `${item.symbol}:${item.exitPrice}`;
+      let group = groups.get(key);
+      if (!group) {
+        group = [];
+        groups.set(key, group);
+      }
+      group.push(item);
     }
 
-    const { wantWin, urgency, output } = await this.controller.wishFor(
-      item.position.accountId,
-    );
-    const honestExitPrice = this.assets.honestPrice(item.symbol);
+    for (const [, group] of groups) {
+      const first = group[0]!;
+      const asset = this.assets.get(first.symbol);
+      if (!asset) {
+        throw new Error(`resolveUnresolvedBuckets: unknown symbol "${first.symbol}"`);
+      }
 
-    const wish: BucketWish = {
-      entryPrice: item.position.entryPrice,
-      direction: item.position.direction,
-      wantWin,
-      urgency,
-      stake: item.position.stake,
-      payoutPct: item.position.payoutPct,
-    };
+      const wishes: BucketWish[] = [];
+      for (const item of group) {
+        const { wantWin, urgency, output } = await this.controller.wishFor(
+          item.position.accountId,
+        );
+        wishes.push({
+          entryPrice: item.position.entryPrice,
+          direction: item.position.direction,
+          wantWin,
+          urgency,
+          stake: item.position.stake,
+          payoutPct: item.position.payoutPct,
+        });
+        item.controllerTarget = output.target;
+      }
 
-    const exitPrice = resolveBucket({
-      wishes: [wish],
-      currentPrice: item.exitPrice,
-      maxMove: asset.params.maxTickMove,
-      tickSize: asset.tickSize,
-    });
+      const resolvedPrice = resolveBucket({
+        wishes,
+        currentPrice: first.exitPrice,
+        maxMove: asset.params.maxTickMove,
+        tickSize: asset.tickSize,
+      });
 
+      for (const item of group) {
+        item.resolvedExitPrice = resolvedPrice;
+      }
+    }
+  }
+
+  /** Builds the shadow-ledger record for a single position after its bucket
+   *  has been resolved. Both exit prices were captured synchronously in
+   *  `collectDue`, so the counterfactual comparison is tick-matched. */
+  private buildShadow(item: PendingSettlement): ShadowInput {
     const nowSec = Math.floor(this.now() / 1000);
     const openPositions = this.book.openFor(item.position.assetId);
     const imbalanceNow = imbalance(openPositions, nowSec);
     const { up, down } = splitExposure(openPositions);
+    const target = item.controllerTarget;
 
-    const shadow: ShadowInput = {
-      honestExitPrice,
-      biasApplied: exitPrice - item.exitPrice,
+    return {
+      honestExitPrice: item.honestExitPrice,
+      biasApplied: item.resolvedExitPrice! - item.exitPrice,
       magnetApplied: 0,
       imbalanceAtEntry: imbalanceNow,
       exposureUp: up,
       exposureDown: down,
-      lifecycleStage: STAGE_BY_TARGET.get(output.target) ?? "UNKNOWN",
+      lifecycleStage: target !== undefined
+        ? (STAGE_BY_TARGET.get(target) ?? "UNKNOWN")
+        : "UNKNOWN",
     };
-
-    return { exitPrice, shadow };
   }
 
   private announce(settled: SettledTrade, symbol: string): void {

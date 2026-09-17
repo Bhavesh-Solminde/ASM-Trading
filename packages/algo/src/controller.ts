@@ -76,7 +76,7 @@ export function desiredWinProb(stats: AccountStats): ControllerOutput {
 
   const urgency = Math.abs(p - 0.5) * 2 + (ceilingActive ? 1 : 0);
 
-  return { p, ceilingActive, urgency, posteriorShort, posteriorLife, target };
+  return { p, ceilingActive, urgency, posteriorShort, posteriorLife, target, stage: stats.stage };
 }
 
 export function drawOutcome(p: number, rng: { next(): number }): boolean {

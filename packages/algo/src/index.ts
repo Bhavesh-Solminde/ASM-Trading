@@ -10,3 +10,4 @@ export {
   expiryMagnet,
 } from "./exposure";
 export { resolveBucket, type BucketWish } from "./resolve";
+export { reachableMove, targetMargin } from "./magnet";
