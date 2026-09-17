@@ -8,7 +8,6 @@ import {
   type WindowEntry,
 } from "../src/index";
 
-/** Small deterministic PRNG — reproducible without importing the engine's RNG. */
 export function seededRng(seed: number): { next(): number } {
   let a = seed >>> 0;
   return {
@@ -43,10 +42,6 @@ export interface SimulateResult {
   finalStats: AccountStats;
 }
 
-/**
- * Runs an account through the controller for N trades, feeding each realised
- * outcome back into the window exactly as the engine does.
- */
 export function simulate(opts: SimulateOpts): SimulateResult {
   const rng = seededRng(opts.seed);
 
@@ -94,7 +89,7 @@ export function simulate(opts: SimulateOpts): SimulateResult {
       continue;
     }
 
-    const won = opts.forceWin !== undefined ? opts.forceWin : drawOutcome(out.p, rng);
+    const won = opts.forceWin ?? drawOutcome(out.p, rng);
     outcomes.push(won ? "WON" : "LOST");
 
     const weight = tradeWeight(stake, medianStake);

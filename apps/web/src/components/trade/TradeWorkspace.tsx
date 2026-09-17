@@ -1,155 +1,139 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useState } from "react";
-import type { BalancesDto, OpenTradeResult, ServerMessage, TradeView } from "@asm/contracts";
+import { useMemo } from "react";
+import type { TradeView } from "@asm/contracts";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { SentimentBar } from "@/components/chart/SentimentBar";
-import { useEngineSocket } from "@/components/chart/useEngineSocket";
-import { AccountSwitcher, type AccountView } from "@/components/AccountSwitcher";
+import { Icon } from "@/components/shell/Icon";
+import { useMarket } from "@/components/shell/market-store";
+import { usePlatform, useQuote } from "@/components/shell/PlatformProvider";
+import { tickDirection } from "@/components/shell/quotes";
+import { splitAssetName } from "@/lib/asset-name";
 import { AssetTabs } from "./AssetTabs";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
 
-export interface WorkspaceAsset {
-  symbol: string;
-  displayName: string;
-  payoutPct: number;
-  precision: number;
-}
-import {
-  applyTradeMessage,
-  initialTradeState,
-  withFetchedTrades,
-  withOpenResult,
-  type TradeState,
-} from "./trade-state";
+const NO_TRADES: TradeView[] = [];
 
-type Action =
-  | { kind: "message"; message: ServerMessage }
-  | { kind: "opened"; result: OpenTradeResult; socketLive: boolean }
-  | { kind: "fetched"; accountId: string; trades: TradeView[] };
-
-function reducer(state: TradeState, action: Action): TradeState {
-  switch (action.kind) {
-    case "message":
-      return applyTradeMessage(state, action.message);
-    case "opened":
-      return withOpenResult(state, action.result, action.socketLive);
-    case "fetched":
-      return withFetchedTrades(state, action.accountId, action.trades);
-  }
-}
-
-export function TradeWorkspace({
-  symbol,
-  precision,
-  assets,
-  accounts,
-  initialBalances,
-  initialTrades,
-}: {
-  symbol: string;
-  precision: number;
-  assets: WorkspaceAsset[];
-  accounts: AccountView[];
-  initialBalances: Record<string, BalancesDto>;
-  initialTrades: TradeView[];
-}) {
-  const [activeAccountId, setActiveAccountId] = useState(
-    accounts.find((a) => a.type === "DEMO")?.id ?? accounts[0]?.id ?? "",
+/** The big price readout; the only part of the stage that renders on a tick. */
+function ChartReadout({ symbol, displayName, precision }: { symbol: string; displayName: string; precision: number }) {
+  const { market } = usePlatform();
+  const lastPrice = useMarket(
+    market,
+    (s) => (s.chart.symbol === symbol ? s.chart.lastPrice : null) ?? s.quotes[symbol]?.price ?? null,
   );
-  const [activeSymbol, setActiveSymbol] = useState(symbol);
-  const activeAsset = assets.find((a) => a.symbol === activeSymbol);
-  const displayName = activeAsset?.displayName ?? activeSymbol;
-  const activePrecision = activeAsset?.precision ?? precision;
-
-  const [state, dispatch] = useReducer(
-    reducer,
-    { initialTrades, initialBalances },
-    (init) => initialTradeState(init.initialTrades, init.initialBalances),
-  );
-
-  const onMessage = useCallback((message: ServerMessage) => dispatch({ kind: "message", message }), []);
-  const { status, chart } = useEngineSocket({ symbol: activeSymbol, timeframe: "1m", onMessage });
-
-  // The page rendered history for the default account only; fetch on switch.
-  useEffect(() => {
-    if (!activeAccountId) return;
-    const controller = new AbortController();
-    void fetch(`/api/trades?accountId=${encodeURIComponent(activeAccountId)}`, {
-      signal: controller.signal,
-      cache: "no-store",
-    })
-      .then((res) => (res.ok ? (res.json() as Promise<{ trades: TradeView[] }>) : null))
-      .then((body) => {
-        if (body) dispatch({ kind: "fetched", accountId: activeAccountId, trades: body.trades });
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, [activeAccountId]);
-
-  const active = accounts.find((a) => a.id === activeAccountId);
-  const currency = active?.currency ?? "USD";
+  const quote = useQuote(symbol);
+  const direction = quote ? tickDirection(quote) : null;
+  const { pair, market: qualifier } = splitAssetName(displayName);
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_260px]">
-      <section className="flex flex-col gap-2 rounded-xl border border-[var(--color-edge)] bg-[var(--color-panel)] p-4">
-        <div className="flex items-baseline justify-between">
-          <div className="flex items-baseline gap-3">
-            <span className="text-sm font-semibold">{displayName}</span>
-            {chart.payoutPct !== null ? (
-              <span className="text-xs font-semibold text-[var(--color-up)]">{chart.payoutPct}%</span>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-3">
-            {chart.lastPrice !== null ? (
-              <span className="text-sm font-semibold tabular-nums">
-                {chart.lastPrice.toFixed(activePrecision)}
-              </span>
-            ) : null}
-            <span
-              className="text-[10px] font-semibold uppercase tracking-[0.12em]"
-              style={{ color: status === "open" ? "var(--color-up)" : "var(--color-ink-2)" }}
-            >
-              {status === "open" ? "Live" : status}
-            </span>
-          </div>
-        </div>
-        <AssetTabs assets={assets} active={activeSymbol} onSelect={setActiveSymbol} />
-        {status === "unauthorised" ? (
-          <p className="text-xs text-[var(--color-down)]">Your session has ended. Log in again.</p>
-        ) : null}
-        <div className="flex gap-2">
-          <SentimentBar
-            upPct={chart.sentiment?.upPct ?? 50}
-            downPct={chart.sentiment?.downPct ?? 50}
-          />
-          <div className="min-w-0 flex-1">
-            <PriceChart candles={chart.candles} forming={chart.forming} precision={activePrecision} />
-          </div>
-        </div>
-      </section>
-
-      <aside className="flex flex-col gap-4">
-        <AccountSwitcher
-          accounts={accounts}
-          balances={state.balances}
-          activeId={activeAccountId}
-          onChange={setActiveAccountId}
+    <div className="pointer-events-none absolute left-2 top-2 grid gap-1.5">
+      <div className="flex items-center gap-2.5">
+        <span className="text-[15px] font-bold tracking-[0.03em]">{pair}</span>
+        {qualifier ? <span className="legend">{qualifier}</span> : null}
+      </div>
+      <div className="flex items-center gap-2.5">
+        <span
+          key={lastPrice ?? "none"}
+          className={`led led-lit text-[28px] leading-none text-brand max-md:text-[22px] ${
+            direction ? `tick-${direction}` : ""
+          }`}
+        >
+          {lastPrice === null ? "—" : lastPrice.toFixed(precision)}
+        </span>
+        <Icon
+          name="arrow"
+          className={`size-[18px] transition-[transform,color] duration-200 ${
+            direction === "down" ? "rotate-180 text-down" : direction === "up" ? "text-up" : "text-ink-3"
+          }`}
         />
-        <TradeTicket
-          symbol={activeSymbol}
-          accountId={activeAccountId}
-          currency={currency}
-          payoutPct={chart.payoutPct}
-          onOpened={(result) => dispatch({ kind: "opened", result, socketLive: status === "open" })}
-        />
-        <TradesPanel
-          trades={state.tradesByAccount[activeAccountId] ?? []}
-          currency={currency}
-          precision={precision}
-        />
-      </aside>
+      </div>
     </div>
+  );
+}
+
+function LiveSentiment() {
+  const { market } = usePlatform();
+  const sentiment = useMarket(market, (s) => s.chart.sentiment);
+  return <SentimentBar upPct={sentiment?.upPct ?? 50} downPct={sentiment?.downPct ?? 50} />;
+}
+
+export function TradeWorkspace() {
+  const {
+    assets,
+    market,
+    chartSymbol,
+    selectChartSymbol,
+    status,
+    activeAccount,
+    tradesByAccount,
+    recordOpened,
+  } = usePlatform();
+
+  const payoutPct = useMarket(
+    market,
+    (s) => (s.chart.symbol === chartSymbol ? s.chart.payoutPct : null) ?? s.quotes[chartSymbol]?.payoutPct ?? null,
+  );
+  const trades = (activeAccount && tradesByAccount[activeAccount.id]) || NO_TRADES;
+  const openOnChart = useMemo(
+    () => trades.filter((t) => t.status === "OPEN" && t.symbol === chartSymbol),
+    [trades, chartSymbol],
+  );
+
+  const asset = assets.find((a) => a.symbol === chartSymbol);
+  if (!asset || !activeAccount) {
+    return (
+      <p className="px-6 py-16 text-sm text-ink-2">
+        No assets seeded. Run <code>pnpm db:seed</code>.
+      </p>
+    );
+  }
+
+  return (
+    <section
+      aria-label="Trade"
+      className="grid h-full grid-cols-[minmax(0,1fr)_312px] max-md:h-auto max-md:grid-cols-[minmax(0,1fr)]"
+    >
+      <div className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 max-md:grid-rows-[auto_52vh] max-md:p-2.5">
+        <AssetTabs assets={assets} active={asset.symbol} onSelect={selectChartSymbol} />
+
+        <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5">
+          <LiveSentiment />
+
+          <div className="relative min-h-0">
+            <PriceChart
+              market={market}
+              precision={asset.precision}
+              watermark={activeAccount.type === "DEMO" ? "DEMO" : ""}
+              openTrades={openOnChart}
+              currency={activeAccount.currency}
+            />
+            <ChartReadout symbol={asset.symbol} displayName={asset.displayName} precision={asset.precision} />
+            {status === "unauthorised" ? (
+              <p className="absolute left-2 top-[78px] text-xs text-down">Your session has ended. Log in again.</p>
+            ) : null}
+            <div className="legend pointer-events-none absolute right-[92px] top-2.5 text-ink-3! max-md:hidden">
+              1m candles
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside
+        aria-label="Trade ticket and trades"
+        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule max-md:border-l-0"
+      >
+        <TradeTicket
+          symbol={asset.symbol}
+          pair={splitAssetName(asset.displayName).pair}
+          payoutPct={payoutPct}
+          accountId={activeAccount.id}
+          currency={activeAccount.currency}
+          live={activeAccount.type === "LIVE"}
+          onOpened={recordOpened}
+        />
+        <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} />
+      </aside>
+    </section>
   );
 }

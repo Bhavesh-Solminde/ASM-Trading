@@ -1,5 +1,9 @@
 const SYMBOLS: Record<string, string> = { USD: "$", INR: "₹", EUR: "€" };
 
+export function currencySymbol(currency: string): string {
+  return SYMBOLS[currency] ?? "";
+}
+
 /**
  * Client-safe twin of `formatMoney` in @asm/db. A client component cannot
  * import @asm/db — its barrel constructs the Prisma client — so these few

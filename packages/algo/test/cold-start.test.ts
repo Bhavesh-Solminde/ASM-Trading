@@ -27,7 +27,7 @@ describe("cold start", () => {
   it("stays close to target through the first few trades", () => {
     for (let n = 0; n <= 3; n++) {
       const out = desiredWinProb(statsWith(n, true));
-      expect(Math.abs(out.p - TARGETS.DEPOSITED)).toBeLessThan(0.25);
+      expect(Math.abs(out.p - TARGETS.DEPOSITED)).toBeLessThan(0.12);
     }
   });
 
@@ -35,12 +35,11 @@ describe("cold start", () => {
     expect(desiredWinProb(statsWith(0, true)).ceilingActive).toBe(false);
   });
 
-  it("grows the correction smoothly rather than stepping", () => {
+  it("grows the correction smoothly", () => {
     const deltas: number[] = [];
     for (let n = 0; n <= 20; n++) {
       deltas.push(Math.abs(desiredWinProb(statsWith(n, true)).p - TARGETS.DEPOSITED));
     }
-    // No jump > 0.25 between consecutive trades.
     for (let i = 1; i < deltas.length; i++) {
       expect(deltas[i]! - deltas[i - 1]!).toBeLessThan(0.25);
     }

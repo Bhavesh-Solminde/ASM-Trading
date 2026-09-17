@@ -22,26 +22,24 @@ function position(stake: number, direction: "UP" | "DOWN" = "UP"): Position {
   };
 }
 
-const sigmaTick = 0.0003;
-
 describe("thin book guard", () => {
   it("applies zero bias for a single small trade", () => {
     const book = [position(100)];
     const bias = driftBias({
       imbalance: imbalance(book, 1_000_000),
       exposure: totalExposure(book),
-      sigmaTick,
+      sigma: 0.001,
     });
     expect(bias).toBe(0);
   });
 
   it("applies zero bias for an empty book", () => {
     expect(
-      driftBias({ imbalance: imbalance([], 1_000_000), exposure: 0, sigmaTick }),
+      driftBias({ imbalance: imbalance([], 1_000_000), exposure: 0, sigma: 0.001 }),
     ).toBe(0);
   });
 
-  it("still reports full imbalance for one trade — direction is known, strength is not", () => {
+  it("still reports full imbalance for one trade", () => {
     expect(imbalance([position(100)], 1_000_000)).toBeCloseTo(1, 6);
     expect(exposureScale(100)).toBe(0);
   });
@@ -54,7 +52,7 @@ describe("thin book guard", () => {
       driftBias({
         imbalance: imbalance(below, 1_000_000),
         exposure: totalExposure(below),
-        sigmaTick,
+        sigma: 0.001,
       }),
     ).toBe(0);
 
@@ -63,7 +61,7 @@ describe("thin book guard", () => {
         driftBias({
           imbalance: imbalance(above, 1_000_000),
           exposure: totalExposure(above),
-          sigmaTick,
+          sigma: 0.001,
         }),
       ),
     ).toBeGreaterThan(0);

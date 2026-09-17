@@ -11,7 +11,7 @@ export function MethodPicker({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel-2)] px-4 py-2.5 text-sm">
+      <div className="flex items-center gap-2 rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 text-sm">
         <span aria-hidden>🌐</span>
         <span>India</span>
       </div>
@@ -26,7 +26,7 @@ export function MethodPicker({
               <button
                 type="button"
                 onClick={() => onPick(method)}
-                className="flex w-full items-center justify-between rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel)] px-4 py-3 text-left hover:border-[var(--color-brand)]"
+                className="flex w-full items-center justify-between rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3 text-left hover:border-[var(--color-brand)]"
               >
                 <span className="flex flex-col">
                   <span className="text-sm font-semibold">{method}</span>

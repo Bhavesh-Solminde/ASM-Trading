@@ -22,7 +22,7 @@ export default async function SupportPage() {
           {FAQ.map((entry) => (
             <details
               key={entry.q}
-              className="rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel)] px-4 py-3"
+              className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3"
             >
               <summary className="cursor-pointer text-sm font-semibold">{entry.q}</summary>
               <p className="mt-2 text-sm text-[var(--color-ink-2)]">{entry.a}</p>
@@ -43,7 +43,7 @@ export default async function SupportPage() {
             {tickets.map((t) => (
               <li
                 key={t.id}
-                className="flex items-center justify-between rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel)] px-4 py-3 text-sm"
+                className="flex items-center justify-between rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3 text-sm"
               >
                 <span className="font-semibold">{t.subject}</span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-2)]">

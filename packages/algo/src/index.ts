@@ -1,12 +1,12 @@
 export * from "./constants";
 export type { WindowEntry, AccountStats, ControllerOutput } from "./types";
 export { tradeWeight, posterior, posteriorFromTotals } from "./estimator";
-export { stageFor, desiredWinProb, drawOutcome } from "./controller";
+export { desiredWinProb, drawOutcome, stageFor } from "./controller";
 export {
-  totalExposure,
   imbalance,
+  totalExposure,
   exposureScale,
   driftBias,
+  expiryMagnet,
 } from "./exposure";
-export { expiryMagnet, reachableMove, targetMargin } from "./magnet";
 export { resolveBucket, type BucketWish } from "./resolve";

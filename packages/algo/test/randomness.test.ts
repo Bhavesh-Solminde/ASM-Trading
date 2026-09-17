@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { simulate } from "./harness";
 
-/**
- * Wald-Wolfowitz runs test.
- *
- * Convergence proves the numbers land where we want; the runs test proves the
- * SEQUENCE is indistinguishable from chance. A controller can hit 27% exactly
- * and still be obvious if it delivers that 27% in a detectable pattern.
- */
 function runsZScore(sequence: boolean[]): number {
   const n1 = sequence.filter((v) => v).length;
   const n2 = sequence.length - n1;
@@ -34,8 +27,6 @@ describe("sequence randomness", () => {
         .map((o) => o === "WON");
 
       const z = Math.abs(runsZScore(sequence));
-      // |z| < 1.96 is the 5% two-tailed threshold. Soft streak guard nudges
-      // slightly, so allow headroom up to 4.
       expect(z).toBeLessThan(4);
     });
   }

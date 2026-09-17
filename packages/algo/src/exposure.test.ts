@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  driftBias,
-  exposureScale,
-  imbalance,
-  totalExposure,
-} from "./exposure";
-import { BIAS_SIGMA_CAP, EXPOSURE_FLOOR, EXPOSURE_FULL } from "./constants";
 import type { Position } from "@asm/trading";
+import { driftBias, exposureScale, imbalance, totalExposure } from "./exposure";
+import { BIAS_SIGMA_CAP, EXPOSURE_FLOOR, EXPOSURE_FULL } from "./constants";
 
 let seq = 0;
 function p(overrides: Partial<Position> = {}): Position {
@@ -15,7 +10,7 @@ function p(overrides: Partial<Position> = {}): Position {
     accountId: "a",
     assetId: "asset-1",
     direction: "UP",
-    stake: 10_000,
+    stake: 100_000,
     payoutPct: 100,
     entryPrice: 1.175,
     expirySec: 1_000_060,
@@ -26,13 +21,13 @@ function p(overrides: Partial<Position> = {}): Position {
 const NOW = 1_000_000;
 
 describe("totalExposure", () => {
-  it("is zero for an empty book", () => {
-    expect(totalExposure([])).toBe(0);
+  it("sums stake times payout", () => {
+    expect(totalExposure([p({ stake: 100, payoutPct: 100 })])).toBe(100);
+    expect(totalExposure([p({ stake: 100, payoutPct: 50 })])).toBe(50);
   });
 
-  it("sums stake × payoutPct / 100", () => {
-    expect(totalExposure([p({ stake: 10_000, payoutPct: 100 })])).toBe(10_000);
-    expect(totalExposure([p({ stake: 10_000, payoutPct: 80 })])).toBe(8_000);
+  it("is zero for an empty book", () => {
+    expect(totalExposure([])).toBe(0);
   });
 });
 
@@ -41,16 +36,19 @@ describe("imbalance", () => {
     expect(imbalance([], NOW)).toBe(0);
   });
 
-  it("is positive for a net-long book (house profits from price falling)", () => {
+  it("is positive when the book is long — the house wants the price down", () => {
     expect(imbalance([p({ direction: "UP" })], NOW)).toBeGreaterThan(0);
   });
 
-  it("is negative for a net-short book", () => {
+  it("is negative when the book is short", () => {
     expect(imbalance([p({ direction: "DOWN" })], NOW)).toBeLessThan(0);
   });
 
-  it("is zero for a perfectly balanced book", () => {
-    const book = [p({ direction: "UP", stake: 10_000 }), p({ direction: "DOWN", stake: 10_000 })];
+  it("is near zero when the book is balanced by stake", () => {
+    const book = [
+      p({ direction: "UP", stake: 100_000 }),
+      p({ direction: "DOWN", stake: 100_000 }),
+    ];
     expect(Math.abs(imbalance(book, NOW))).toBeLessThan(1e-9);
   });
 
@@ -98,36 +96,34 @@ describe("exposureScale", () => {
 });
 
 describe("driftBias", () => {
-  const sigmaTick = 0.0003;
-
   it("is zero when exposure is below the floor", () => {
-    expect(driftBias({ imbalance: 1, exposure: 0, sigmaTick })).toBe(0);
-    expect(driftBias({ imbalance: 1, exposure: EXPOSURE_FLOOR - 1, sigmaTick })).toBe(0);
+    expect(driftBias({ imbalance: 1, exposure: 0, sigma: 0.001 })).toBe(0);
   });
 
-  it("is negative for a positive imbalance (pushes price down)", () => {
-    const bias = driftBias({ imbalance: 0.5, exposure: EXPOSURE_FULL, sigmaTick });
+  it("is negative for a positive imbalance", () => {
+    const bias = driftBias({ imbalance: 0.5, exposure: EXPOSURE_FULL, sigma: 0.001 });
     expect(bias).toBeLessThan(0);
   });
 
   it("is positive for a negative imbalance", () => {
-    const bias = driftBias({ imbalance: -0.5, exposure: EXPOSURE_FULL, sigmaTick });
+    const bias = driftBias({ imbalance: -0.5, exposure: EXPOSURE_FULL, sigma: 0.001 });
     expect(bias).toBeGreaterThan(0);
   });
 
-  it("never exceeds BIAS_SIGMA_CAP × sigmaTick", () => {
+  it("never exceeds BIAS_SIGMA_CAP multiples of sigma", () => {
+    const sigma = 0.002;
     for (const imb of [-1, -0.7, 0, 0.7, 1]) {
-      const bias = driftBias({ imbalance: imb, exposure: EXPOSURE_FULL * 100, sigmaTick });
-      expect(Math.abs(bias)).toBeLessThanOrEqual(BIAS_SIGMA_CAP * sigmaTick + 1e-15);
+      const bias = driftBias({ imbalance: imb, exposure: EXPOSURE_FULL * 100, sigma });
+      expect(Math.abs(bias)).toBeLessThanOrEqual(BIAS_SIGMA_CAP * sigma + 1e-15);
     }
   });
 
-  it("scales with exposure between floor and full", () => {
+  it("scales with exposure", () => {
     const low = Math.abs(
-      driftBias({ imbalance: 1, exposure: EXPOSURE_FLOOR + 1_000, sigmaTick }),
+      driftBias({ imbalance: 1, exposure: EXPOSURE_FLOOR + 1_000, sigma: 0.001 }),
     );
     const high = Math.abs(
-      driftBias({ imbalance: 1, exposure: EXPOSURE_FULL, sigmaTick }),
+      driftBias({ imbalance: 1, exposure: EXPOSURE_FULL, sigma: 0.001 }),
     );
     expect(high).toBeGreaterThan(low);
   });

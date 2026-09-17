@@ -40,7 +40,7 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
-          className="rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
+          className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
         />
         <input
           type="password"
@@ -48,13 +48,13 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          className="rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
+          className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
         />
         {error ? <p className="text-sm text-[var(--color-down)]">{error}</p> : null}
         <button
           type="submit"
           disabled={busy}
-          className="rounded-lg bg-[var(--color-brand)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded bg-[var(--color-brand)] px-4 py-2.5 text-sm font-bold text-[var(--color-brand-ink)] disabled:opacity-50"
         >
           {busy ? "Signing in…" : "Log in"}
         </button>

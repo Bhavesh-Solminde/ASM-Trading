@@ -18,7 +18,7 @@ describe("convergence", () => {
     expect(Math.abs(r.realisedRate - TARGETS.HIGH_VALUE)).toBeLessThan(0.02);
   });
 
-  it("converges across independent seeds, not just one lucky run", () => {
+  it("converges across independent seeds", () => {
     for (const seed of [1, 2, 3, 4, 5]) {
       const r = simulate({ stage: "HIGH_VALUE", trades: 5_000, seed });
       expect(Math.abs(r.realisedRate - TARGETS.HIGH_VALUE)).toBeLessThan(0.03);

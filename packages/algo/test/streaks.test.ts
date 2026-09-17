@@ -5,17 +5,17 @@ import { simulate } from "./harness";
 describe("streak bounds", () => {
   it("keeps loss runs within a small margin of the configured maximum", () => {
     const r = simulate({ stage: "HIGH_VALUE", trades: 100_000, seed: 555 });
-    expect(r.longestLossRun).toBeLessThanOrEqual(MAX_LOSS_STREAK + 5);
+    expect(r.longestLossRun).toBeLessThanOrEqual(MAX_LOSS_STREAK + 3);
   });
 
   it("keeps win runs within a small margin of the configured maximum", () => {
     const r = simulate({ stage: "PRE_DEPOSIT", trades: 100_000, seed: 666 });
-    expect(r.longestWinRun).toBeLessThanOrEqual(MAX_WIN_STREAK + 5);
+    expect(r.longestWinRun).toBeLessThanOrEqual(MAX_WIN_STREAK + 3);
   });
 
-  it("bounds streaks at the punitive target too, where losses cluster naturally", () => {
+  it("bounds streaks at the punitive target too", () => {
     const r = simulate({ stage: "HIGH_VALUE", trades: 50_000, seed: 777 });
-    expect(r.longestLossRun).toBeLessThanOrEqual(MAX_LOSS_STREAK + 5);
+    expect(r.longestLossRun).toBeLessThanOrEqual(MAX_LOSS_STREAK + 3);
   });
 
   it("does not produce a perfectly alternating sequence", () => {

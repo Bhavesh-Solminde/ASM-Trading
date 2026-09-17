@@ -1,23 +1,12 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ServerMessage, Timeframe } from "@asm/contracts";
-import { applyChartMessage, initialChartState, type ChartState } from "./engine-state";
 
 export type SocketStatus = "connecting" | "open" | "closed" | "unauthorised";
 
 const WS_URL = process.env.NEXT_PUBLIC_ENGINE_WS_URL ?? "ws://localhost:4001";
 const MAX_BACKOFF_MS = 15_000;
-
-type Action =
-  | { kind: "message"; message: ServerMessage }
-  | { kind: "reset"; symbol: string; timeframe: Timeframe };
-
-function reducer(state: ChartState, action: Action): ChartState {
-  if (action.kind === "message") return applyChartMessage(state, action.message);
-  if (state.symbol === action.symbol && state.timeframe === action.timeframe) return state;
-  return initialChartState(action.symbol, action.timeframe);
-}
 
 type TicketResult =
   | { kind: "ticket"; ticket: string }
@@ -43,24 +32,29 @@ async function fetchTicket(): Promise<TicketResult> {
  *
  * The socket's lifetime is independent of the symbol: switching assets sends
  * unsubscribe/subscribe on the open socket instead of reconnecting. Every
- * server message is folded into chart state AND handed to `onMessage`, which
- * is how later plans (trades, balances, sentiment) extend this hook without
- * opening a second socket.
+ * server message is handed to `onMessage`; the hook holds no market data
+ * itself, so a tick never re-renders the component that owns the socket.
  */
 export function useEngineSocket(opts: {
   symbol: string;
   timeframe: Timeframe;
+  /** Symbols kept subscribed for as long as the socket is open (the ticker tape). */
+  watch?: readonly string[];
   onMessage?: (message: ServerMessage) => void;
-}): { status: SocketStatus; chart: ChartState } {
+}): { status: SocketStatus } {
   const [status, setStatus] = useState<SocketStatus>("connecting");
-  const [chart, dispatch] = useReducer(reducer, initialChartState(opts.symbol, opts.timeframe));
 
   const socketRef = useRef<WebSocket | null>(null);
   const onMessageRef = useRef(opts.onMessage);
+  const symbolRef = useRef(opts.symbol);
+  const watchKey = (opts.watch ?? []).join(",");
+  const watchRef = useRef<readonly string[]>(opts.watch ?? []);
 
   // Always call the latest callback without reconnecting when it changes.
   useEffect(() => {
     onMessageRef.current = opts.onMessage;
+    symbolRef.current = opts.symbol;
+    watchRef.current = opts.watch ?? [];
   });
 
   useEffect(() => {
@@ -106,7 +100,6 @@ export function useEngineSocket(opts: {
           attempt = 0;
           setStatus("open");
         }
-        dispatch({ kind: "message", message });
         onMessageRef.current?.(message);
       };
 
@@ -134,17 +127,34 @@ export function useEngineSocket(opts: {
   // Subscription follows the symbol. Re-runs on every (re)authentication, so a
   // reconnect resubscribes and receives fresh history.
   useEffect(() => {
-    dispatch({ kind: "reset", symbol: opts.symbol, timeframe: opts.timeframe });
     const socket = socketRef.current;
     if (status !== "open" || !socket || socket.readyState !== WebSocket.OPEN) return;
 
     socket.send(JSON.stringify({ type: "subscribe", symbol: opts.symbol, timeframe: opts.timeframe }));
     return () => {
-      if (socket.readyState === WebSocket.OPEN) {
+      // A watched symbol stays subscribed after the chart moves off it.
+      if (socket.readyState === WebSocket.OPEN && !watchRef.current.includes(opts.symbol)) {
         socket.send(JSON.stringify({ type: "unsubscribe", symbol: opts.symbol }));
       }
     };
   }, [opts.symbol, opts.timeframe, status]);
 
-  return { status, chart };
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!watchKey || status !== "open" || !socket || socket.readyState !== WebSocket.OPEN) return;
+
+    const symbols = watchKey.split(",");
+    for (const symbol of symbols) {
+      socket.send(JSON.stringify({ type: "subscribe", symbol, timeframe: opts.timeframe }));
+    }
+    return () => {
+      if (socket.readyState !== WebSocket.OPEN) return;
+      for (const symbol of symbols) {
+        if (symbol === symbolRef.current) continue;
+        socket.send(JSON.stringify({ type: "unsubscribe", symbol }));
+      }
+    };
+  }, [watchKey, opts.timeframe, status]);
+
+  return { status };
 }

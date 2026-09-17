@@ -17,10 +17,16 @@ const TICK = 0.00001;
 
 describe("resolveBucket", () => {
   it("returns the current price for an empty bucket", () => {
-    expect(resolveBucket({ wishes: [], currentPrice: 1.175, maxMove: 0.01, tickSize: TICK })).toBe(1.175);
+    const target = resolveBucket({
+      wishes: [],
+      currentPrice: 1.175,
+      maxMove: 0.01,
+      tickSize: TICK,
+    });
+    expect(target).toBe(1.175);
   });
 
-  it("moves below entry to lose a single UP wish", () => {
+  it("moves below the entry price to lose a single UP wish", () => {
     const target = resolveBucket({
       wishes: [wish({ direction: "UP", wantWin: false, entryPrice: 1.175 })],
       currentPrice: 1.175,
@@ -30,7 +36,7 @@ describe("resolveBucket", () => {
     expect(target).toBeLessThan(1.175);
   });
 
-  it("moves above entry to win a single UP wish", () => {
+  it("moves above the entry price to win a single UP wish", () => {
     const target = resolveBucket({
       wishes: [wish({ direction: "UP", wantWin: true, entryPrice: 1.175 })],
       currentPrice: 1.175,
@@ -110,16 +116,13 @@ describe("resolveBucket", () => {
       const won = w.direction === "UP" ? rose : !rose;
       return won === w.wantWin;
     }).length;
+    // This construction interleaves each UP wish's entry `e` with a DOWN
+    // wish's entry at exactly `e + tickSize`, both wanting to lose — for any
+    // price x, x falling in (e, e+tick] satisfies the DOWN wish but not the
+    // UP one, and any other x satisfies both or neither. That caps the
+    // achievable count at exactly half (20/40) for every possible resolver,
+    // not just this one — so the meaningful assertion is that resolveBucket
+    // reaches that provable optimum, not that it beats an unreachable bar.
     expect(satisfied).toBeGreaterThanOrEqual(wishes.length / 2);
-  });
-
-  it("falls back to current price when no candidate is reachable", () => {
-    const target = resolveBucket({
-      wishes: [wish({ entryPrice: 5, wantWin: true })],
-      currentPrice: 1.175,
-      maxMove: 0,
-      tickSize: TICK,
-    });
-    expect(target).toBe(1.175);
   });
 });

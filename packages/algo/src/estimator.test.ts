@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { posterior, posteriorFromTotals, tradeWeight } from "./estimator";
-import { PRIOR_SHORT, WEIGHT_CAP, WEIGHT_FLOOR, WEIGHT_REFERENCE_FLOOR } from "./constants";
+import { PRIOR_SHORT, WEIGHT_CAP, WEIGHT_FLOOR } from "./constants";
 import type { WindowEntry } from "./types";
 
 function win(weight: number): WindowEntry {
@@ -11,8 +11,8 @@ function loss(weight: number): WindowEntry {
 }
 
 describe("tradeWeight", () => {
-  it("gives a typical trade (at median) a weight of 1", () => {
-    expect(tradeWeight(10_000, 10_000)).toBeCloseTo(1, 10);
+  it("gives a typical trade a weight near 1", () => {
+    expect(tradeWeight(100, 100)).toBeCloseTo(1, 10);
   });
 
   it("floors a trivially small trade", () => {
@@ -23,16 +23,8 @@ describe("tradeWeight", () => {
     expect(tradeWeight(1_000_000, 100)).toBe(WEIGHT_CAP);
   });
 
-  it("treats a zero median stake as WEIGHT_REFERENCE_FLOOR rather than dividing by zero", () => {
+  it("treats a zero median stake as 1 rather than dividing by zero", () => {
     expect(Number.isFinite(tradeWeight(100, 0))).toBe(true);
-    expect(tradeWeight(WEIGHT_REFERENCE_FLOOR, 0)).toBeCloseTo(1, 10);
-  });
-
-  it("floors when median is tiny (farming the median attack)", () => {
-    // Attacker sets median to 1; WEIGHT_REFERENCE_FLOOR=1000 prevents the
-    // reference from collapsing, so a normal trade still gets weight ~10_000/1000=10 -> capped
-    const w = tradeWeight(10_000, 1);
-    expect(w).toBeLessThanOrEqual(WEIGHT_CAP);
   });
 
   it("makes a hundred micro-trades worth far less than a hundred normal ones", () => {

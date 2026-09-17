@@ -14,19 +14,22 @@ describe("hard ceiling", () => {
     const breached = simulate({ stage: "PRE_DEPOSIT", trades: 60, seed: 8, forceWin: true });
     expect(desiredWinProb(breached.finalStats).ceilingActive).toBe(true);
 
-    const recovered = simulate({ stage: "PRE_DEPOSIT", trades: 400, seed: 9, initial: breached.finalStats });
+    const recovered = simulate({
+      stage: "PRE_DEPOSIT", trades: 400, seed: 9, initial: breached.finalStats,
+    });
     expect(desiredWinProb(recovered.finalStats).ceilingActive).toBe(false);
   });
 
   it("does not sustain a breach for many trades after it starts", () => {
     const breached = simulate({ stage: "PRE_DEPOSIT", trades: 60, seed: 12, forceWin: true });
-    const after = simulate({ stage: "PRE_DEPOSIT", trades: 120, seed: 13, initial: breached.finalStats });
-
+    const after = simulate({
+      stage: "PRE_DEPOSIT", trades: 120, seed: 13, initial: breached.finalStats,
+    });
     const stillBreached = after.ceilingActiveTrajectory.filter(Boolean).length;
-    expect(stillBreached).toBeLessThanOrEqual(65);
+    expect(stillBreached).toBeLessThan(60);
   });
 
-  it("never lets any stage's long-run realised rate exceed the ceiling", () => {
+  it("never lets any stage exceed the ceiling in the long run", () => {
     for (const stage of ["PRE_DEPOSIT", "DEPOSITED", "HIGH_VALUE"] as const) {
       const r = simulate({ stage, trades: 20_000, seed: 404 });
       expect(r.realisedRate).toBeLessThanOrEqual(HARD_CEILING + 0.02);

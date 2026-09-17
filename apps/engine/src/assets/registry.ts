@@ -2,9 +2,7 @@ import {
   CandleAggregator,
   createRng,
   initPriceState,
-  perTickSigma,
   stepPrice,
-  TICK_DT_SEC,
   type Candle,
   type PriceParams,
   type PriceState,
@@ -18,35 +16,33 @@ export interface LiveAsset {
   symbol: string;
   payoutPct: number;
   precision: number;
+  /** The asset's tick size — resolveBucket() snaps candidate exit prices to entryPrice ± this. */
   tickSize: number;
   params: PriceParams;
   state: PriceState;
-  /** Parallel honest path — same z, zero bias. Drives shadow ledger OHLC. */
+  /**
+   * The parallel, always-unbiased price path. Advances from the same `z`
+   * draw as `state` on every tick, but with driftBias and magnet hard zero —
+   * this is "what the market would have done" for the shadow ledger.
+   */
   honestState: PriceState;
   /** Latest real quote, or null until the feed delivers one. */
   anchor: number | null;
   aggregator: CandleAggregator;
-  honestAggregator: CandleAggregator;
 }
 
-/** Bias supplied by the controller for one tick. */
 export interface TickBias {
-  /** Layer 2: drift bias in log-price space. */
+  /** Layer 2. Log-space bias, bounded to ±0.25·sigma by @asm/algo's driftBias(). */
   driftBias: number;
-  /** Layer 3: expiry magnet in log-price space. */
+  /** Layer 3. Log-space pull toward an expiry target. Zero at tick granularity in Plan 04. */
   magnet: number;
 }
 
-const UNBIASED: TickBias = { driftBias: 0, magnet: 0 };
-
 export interface TickResult {
   price: number;
-  honestPrice: number;
-  sigmaTick: number;
-  /** Non-null exactly when this tick closed a shown candle. */
+  sigma: number;
+  /** Non-null exactly when this tick closed a candle. */
   closed: Candle | null;
-  /** Non-null when the honest path closes a candle (may differ from closed). */
-  honestClosed: Candle | null;
 }
 
 const TICK_HZ = 10;
@@ -86,6 +82,8 @@ export class AssetRegistry {
         maxTickMove: row.tickSize * 40,
       };
 
+      const startPrice = last?.c ?? row.basePrice;
+
       this.assets.set(row.symbol, {
         id: row.id,
         symbol: row.symbol,
@@ -93,11 +91,10 @@ export class AssetRegistry {
         precision: row.precision,
         tickSize: row.tickSize,
         params,
-        state: initPriceState(last?.c ?? row.basePrice, params),
-        honestState: initPriceState(last?.c ?? row.basePrice, params),
+        state: initPriceState(startPrice, params),
+        honestState: initPriceState(startPrice, params),
         anchor: null,
         aggregator: new CandleAggregator(60),
-        honestAggregator: new CandleAggregator(60),
       });
     }
 
@@ -127,13 +124,15 @@ export class AssetRegistry {
   /**
    * Advances one asset by a single tick.
    *
-   * A single z is drawn and used for BOTH the shown and honest paths so the
-   * two paths share the same underlying random walk. The only difference is
-   * the bias terms, which are zero for the honest path.
-   *
-   * Zero bias → shown price equals honest price (verifiable by tests).
+   * `bias` steers the SHOWN path (driftBias from book imbalance, magnet from
+   * expiry convergence — both supplied by the caller, since only the tick
+   * loop and trade desk know the current book). The HONEST path advances
+   * from the exact same `z` draw with driftBias and magnet hard zero, so it
+   * always reflects what the market would have done unbiased. Diverging the
+   * two paths only here, from one shared random draw, is what keeps them a
+   * true counterfactual pair rather than two independent simulations.
    */
-  tick(symbol: string, nowSec: number, bias: TickBias = UNBIASED): TickResult {
+  tick(symbol: string, nowSec: number, bias: TickBias): TickResult {
     const asset = this.assets.get(symbol);
     if (!asset) {
       throw new Error(`tick called for unknown symbol "${symbol}"`);
@@ -141,42 +140,41 @@ export class AssetRegistry {
 
     const z = this.rng.normal();
 
-    // Shown path — bias applied.
-    const shown = stepPrice({
+    const out = stepPrice({
       state: asset.state,
       params: asset.params,
-      dtSec: TICK_DT_SEC,
+      dtSec: DT_SEC,
       z,
       driftBias: bias.driftBias,
       magnet: bias.magnet,
       anchorTarget: asset.anchor,
     });
-    asset.state = shown.state;
 
-    // Honest path — zero bias, same z.
-    const honest = stepPrice({
+    const honestOut = stepPrice({
       state: asset.honestState,
       params: asset.params,
-      dtSec: TICK_DT_SEC,
+      dtSec: DT_SEC,
       z,
       driftBias: 0,
       magnet: 0,
       anchorTarget: asset.anchor,
     });
-    asset.honestState = honest.state;
 
-    const rounded = Number(shown.price.toFixed(asset.precision));
-    const honestRounded = Number(honest.price.toFixed(asset.precision));
+    asset.state = out.state;
+    asset.honestState = honestOut.state;
 
+    const rounded = Number(out.price.toFixed(asset.precision));
     const closed = asset.aggregator.addTick(nowSec, rounded);
-    const honestClosed = asset.honestAggregator.addTick(nowSec, honestRounded);
 
-    return {
-      price: rounded,
-      honestPrice: honestRounded,
-      sigmaTick: perTickSigma(shown.sigma, TICK_DT_SEC),
-      closed,
-      honestClosed,
-    };
+    return { price: rounded, sigma: out.sigma, closed };
+  }
+
+  /** The unbiased price for `symbol` — the parallel path the shadow ledger compares against. */
+  honestPrice(symbol: string): number {
+    const asset = this.assets.get(symbol);
+    if (!asset) {
+      throw new Error(`honestPrice called for unknown symbol "${symbol}"`);
+    }
+    return Number(asset.honestState.price.toFixed(asset.precision));
   }
 }

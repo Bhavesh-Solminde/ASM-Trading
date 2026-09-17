@@ -1,4 +1,9 @@
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import {
   EngineOpenTradeSchema,
@@ -53,14 +58,18 @@ function readBody(req: IncomingMessage): Promise<string | null> {
  *
  *   POST /trades   EngineOpenTradeInput -> 201 OpenTradeResult
  *
- * Bound to 127.0.0.1 and gated by a shared secret. The payload is parsed with
- * the same strict schema discipline as any public boundary: being internal is
- * not a reason to trust it.
+ * When `sharedServer` is provided (production / Render) the handler is
+ * attached to that server instead of creating its own; listen() becomes a
+ * no-op in that case because the caller is responsible for starting the
+ * server.  When `sharedServer` is absent the original behaviour is
+ * preserved — a standalone server bound to 127.0.0.1:`port`.
  */
 export function createInternalApi(deps: {
   desk: TradeOpener;
   secret: string;
   port: number;
+  /** Provide to share a single port with the WebSocket server. */
+  sharedServer?: Server;
 }): { listen(): Promise<number>; close(): Promise<void> } {
   if (!deps.secret) {
     throw new Error(
@@ -111,9 +120,9 @@ export function createInternalApi(deps: {
     }
   }
 
-  const server: Server = createServer((req, res) => {
-    // A caller that disconnects mid-body rejects readBody. Left unhandled, that
-    // reaches main's unhandledRejection handler and exits the whole engine.
+  function requestHandler(req: IncomingMessage, res: ServerResponse): void {
+    // A caller that disconnects mid-body rejects readBody. Left unhandled,
+    // that reaches main's unhandledRejection handler and exits the whole engine.
     handle(req, res).catch((err: unknown) => {
       logger.error(
         { evt: "engine.internal_api_error", reason: err instanceof Error ? err.message : "unknown" },
@@ -122,7 +131,29 @@ export function createInternalApi(deps: {
       if (res.headersSent || res.destroyed) res.destroy();
       else reply(res, 500, { error: "internal" });
     });
-  });
+  }
+
+  // Shared-server mode: attach our handler to the caller-owned server.
+  if (deps.sharedServer) {
+    const sharedServer = deps.sharedServer;
+    sharedServer.on("request", requestHandler);
+
+    return {
+      async listen() {
+        // The caller is responsible for calling server.listen(); nothing to do here.
+        const address = sharedServer.address();
+        const port = typeof address === "object" && address !== null ? address.port : deps.port;
+        logger.info({ evt: "engine.internal_api_listening", port, mode: "shared" }, "internal api attached to shared server");
+        return port;
+      },
+      async close() {
+        sharedServer.off("request", requestHandler);
+      },
+    };
+  }
+
+  // Standalone mode (local dev): own server bound to loopback only.
+  const server: Server = createServer(requestHandler);
 
   return {
     async listen() {
@@ -135,7 +166,7 @@ export function createInternalApi(deps: {
       });
       const address = server.address();
       const port = typeof address === "object" && address !== null ? address.port : deps.port;
-      logger.info({ evt: "engine.internal_api_listening", port }, "internal api listening");
+      logger.info({ evt: "engine.internal_api_listening", port, mode: "standalone" }, "internal api listening");
       return port;
     },
     async close() {

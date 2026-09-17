@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Icon } from "../_lib/icons";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -21,7 +22,8 @@ export default function AdminLoginPage() {
     });
 
     if (res.ok) {
-      router.push("/admin/messages");
+      router.push("/admin");
+      router.refresh();
       return;
     }
     const data = (await res.json()) as { error?: string };
@@ -30,26 +32,80 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Admin access</h1>
-      <form onSubmit={onSubmit} className="flex flex-col gap-3">
-        <input
-          type="password"
-          required
-          value={secret}
-          onChange={(e) => setSecret(e.target.value)}
-          placeholder="Admin secret"
-          className="rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
-        />
-        {error ? <p className="text-sm text-[var(--color-down)]">{error}</p> : null}
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-lg bg-[var(--color-brand)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {busy ? "Checking…" : "Enter"}
-        </button>
-      </form>
-    </main>
+    <div className="admin-login">
+      <aside className="admin-login__aside">
+        <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative", zIndex: 1 }}>
+          <div className="admin-logo">A</div>
+          <div>
+            <div className="admin-brand-name" style={{ color: "#F6EFDF" }}>
+              ASM Trading
+            </div>
+            <div className="admin-brand-sub" style={{ color: "#A99C82" }}>
+              Operations Console
+            </div>
+          </div>
+        </div>
+
+        <div className="admin-login__pitch">
+          <h1>The control room behind the exchange.</h1>
+          <p>
+            Approve settlements, manage listings, and monitor liquidity across every ASM market —
+            in one operator console.
+          </p>
+        </div>
+
+        <div className="admin-login__stats">
+          <div className="admin-login__stat">
+            <div className="k">Secured</div>
+            <div className="l">Shared-secret gate</div>
+          </div>
+          <div className="admin-login__stat">
+            <div className="k">Audited</div>
+            <div className="l">Every action logged</div>
+          </div>
+          <div className="admin-login__stat">
+            <div className="k">Live</div>
+            <div className="l">Real-time data</div>
+          </div>
+        </div>
+      </aside>
+
+      <main className="admin-login__main">
+        <form className="admin-login__card" onSubmit={onSubmit} noValidate>
+          <h2>Sign in to the console</h2>
+          <p className="sub">Operator access is restricted and fully audited.</p>
+
+          {error ? (
+            <div className="admin-form-error">
+              <Icon name="ban" size={16} />
+              <span>{error}</span>
+            </div>
+          ) : null}
+
+          <div className="admin-field">
+            <label htmlFor="admin-secret">Admin secret</label>
+            <input
+              id="admin-secret"
+              className="admin-input"
+              type="password"
+              required
+              autoFocus
+              value={secret}
+              onChange={(e) => setSecret(e.target.value)}
+              placeholder="••••••••••••"
+            />
+          </div>
+
+          <button type="submit" className="admin-btn admin-btn--primary admin-btn--block" disabled={busy}>
+            {busy ? "Checking…" : "Enter console"}
+          </button>
+
+          <div className="admin-demo-hint">
+            Access is gated by a single shared secret (<code>ADMIN_PANEL_SECRET</code>), independent
+            of any user account. Sessions last 24 hours.
+          </div>
+        </form>
+      </main>
+    </div>
   );
 }

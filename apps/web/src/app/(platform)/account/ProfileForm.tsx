@@ -116,7 +116,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
                 type={field.type}
                 value={profile[field.key] ?? ""}
                 onChange={(e) => setProfile({ ...profile, [field.key]: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-[var(--color-edge)] bg-[var(--color-panel-2)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+                className="mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
               />
             </div>
           ))}
@@ -128,7 +128,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         <button
           type="button"
           onClick={() => void save()}
-          className="self-start rounded-lg bg-[var(--color-brand)] px-5 py-2.5 text-sm font-semibold text-white"
+          className="self-start rounded bg-[var(--color-brand)] px-5 py-2.5 text-sm font-semibold text-[var(--color-brand-ink)]"
         >
           Save
         </button>
@@ -139,7 +139,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         </p>
       </section>
 
-      <section className="flex flex-col gap-3 border-t border-[var(--color-edge)] pt-5">
+      <section className="flex flex-col gap-3 border-t border-[var(--color-rule)] pt-5">
         <h2 className="text-sm font-semibold">Security</h2>
 
         {(

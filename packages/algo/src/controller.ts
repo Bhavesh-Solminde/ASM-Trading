@@ -1,9 +1,11 @@
 import {
   CEILING_CLAMP,
-  CEILING_MARGIN,
+  CONFIDENCE_THRESHOLD,
   DEPOSIT_THRESHOLD_MINOR,
   ERROR_SCALE,
   HARD_CEILING,
+  LOSS_GUARD_BASE,
+  LOSS_GUARD_STEP,
   MAX_CORRECTION,
   MAX_LOSS_STREAK,
   MAX_WIN_STREAK,
@@ -11,8 +13,9 @@ import {
   PRIOR_SHORT,
   P_MAX,
   P_MIN,
-  STREAK_NUDGE,
   TARGETS,
+  WIN_GUARD_BASE,
+  WIN_GUARD_STEP,
   type LifecycleStage,
 } from "./constants";
 import { posterior, posteriorFromTotals } from "./estimator";
@@ -31,26 +34,7 @@ function clamp(value: number, min: number, max: number): number {
   return value < min ? min : value > max ? max : value;
 }
 
-/**
- * The controller.
- *
- * Bounded proportional control on the Beta-Binomial posterior. tanh saturates
- * gracefully — a wildly off-target account gets a strong but finite correction,
- * never a runaway one.
- *
- * Streak guard is SOFT: once a streak reaches the threshold, p is nudged by
- * STREAK_NUDGE per extra trade until it resolves. This keeps the sequence
- * from failing a Wald-Wolfowitz runs test (which a hard 0.9/0.1 override fails).
- *
- * Ceiling is evaluated against MAX(posteriorShort, posteriorLife) so neither
- * a lucky recent window nor a lucky lifetime record can hide behind the other.
- * It is judged with a CEILING_MARGIN buffer to prevent oscillation at the boundary.
- */
-export function desiredWinProb(
-  stats: AccountStats,
-  opts?: { stake?: number },
-): ControllerOutput {
-  void opts; // stake reserved for future per-trade weighting
+export function desiredWinProb(stats: AccountStats): ControllerOutput {
   const target = TARGETS[stats.stage];
 
   const posteriorShort = posterior(stats.shortWindow, target, PRIOR_SHORT);
@@ -61,55 +45,40 @@ export function desiredWinProb(
     PRIOR_LIFE,
   );
 
-  const error = posteriorShort - target;
-  let p = target - MAX_CORRECTION * Math.tanh(error / ERROR_SCALE);
+  const windowWeight = stats.shortWindow.reduce((s, e) => s + e.weight, 0);
+  const confidence = Math.min(windowWeight / CONFIDENCE_THRESHOLD, 1.0);
 
-  // Ceiling: steeper gain because this is a constraint, not a target.
+  const error = posteriorShort - target;
+  let p = target - confidence * MAX_CORRECTION * Math.tanh(error / ERROR_SCALE);
+
   const ceilingPosterior = Math.max(posteriorShort, posteriorLife);
-  const ceilingActive = ceilingPosterior > HARD_CEILING + CEILING_MARGIN;
+  const ceilingActive = ceilingPosterior > HARD_CEILING;
 
   if (ceilingActive) {
     const excess = ceilingPosterior - HARD_CEILING;
-    p = Math.min(
-      p,
-      target - MAX_CORRECTION * Math.tanh(excess / (ERROR_SCALE / 3)),
-    );
-    p = Math.min(p, CEILING_CLAMP);
+    let ceilingP = target - MAX_CORRECTION * Math.tanh(excess / (ERROR_SCALE / 3));
+    ceilingP = Math.min(ceilingP, CEILING_CLAMP);
+    p = Math.min(p, p + confidence * (ceilingP - p));
   }
 
-  // Soft streak guard. Streak overrides sit AFTER the ceiling deliberately:
-  // breaking a long loss streak matters more than one extra win above an
-  // aggregate bound, because a visible streak is what makes someone suspect
-  // the platform.
-  if (stats.lossStreak >= MAX_LOSS_STREAK) {
-    const extra = stats.lossStreak - MAX_LOSS_STREAK;
-    p = Math.max(p, 0.5 + STREAK_NUDGE * (1 + extra));
+  if (stats.lossStreak >= MAX_LOSS_STREAK && !ceilingActive) {
+    const k = stats.lossStreak - MAX_LOSS_STREAK;
+    const floor = LOSS_GUARD_BASE + LOSS_GUARD_STEP * (k + 1);
+    p = Math.max(p, Math.min(floor, P_MAX));
   }
   if (stats.winStreak >= MAX_WIN_STREAK) {
-    const extra = stats.winStreak - MAX_WIN_STREAK;
-    p = Math.min(p, 0.5 - STREAK_NUDGE * (1 + extra));
+    const k = stats.winStreak - MAX_WIN_STREAK;
+    const ceil = (1 - WIN_GUARD_BASE) - WIN_GUARD_STEP * (k + 1);
+    p = Math.min(p, Math.max(ceil, P_MIN));
   }
 
   p = clamp(p, P_MIN, P_MAX);
 
   const urgency = Math.abs(p - 0.5) * 2 + (ceilingActive ? 1 : 0);
 
-  return {
-    p,
-    ceilingActive,
-    urgency,
-    posteriorShort,
-    posteriorLife,
-    target,
-    stage: stats.stage,
-  };
+  return { p, ceilingActive, urgency, posteriorShort, posteriorLife, target };
 }
 
-/**
- * Stochastic draw. Deciding "this account loses" produces sequences that fail
- * a runs test; drawing with probability p is literally a biased coin, which
- * cannot be distinguished from one.
- */
 export function drawOutcome(p: number, rng: { next(): number }): boolean {
   return rng.next() < p;
 }

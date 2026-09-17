@@ -79,7 +79,7 @@ describe("desiredWinProb", () => {
     expect(out.p).toBeLessThanOrEqual(TARGETS.HIGH_VALUE + MAX_CORRECTION + 1e-9);
   });
 
-  it("engages the ceiling when the posterior exceeds HARD_CEILING + CEILING_MARGIN", () => {
+  it("engages the ceiling when the posterior exceeds it", () => {
     const out = desiredWinProb(
       stats({
         stage: "PRE_DEPOSIT",
@@ -92,7 +92,7 @@ describe("desiredWinProb", () => {
     expect(out.p).toBeLessThan(0.2);
   });
 
-  it("engages the ceiling from lifetime history even when the recent window is modest", () => {
+  it("engages the ceiling from lifetime history even when the recent window is clean", () => {
     const out = desiredWinProb(
       stats({
         stage: "DEPOSITED",
@@ -104,38 +104,43 @@ describe("desiredWinProb", () => {
     expect(out.ceilingActive).toBe(true);
   });
 
-  it("soft-nudges p up after the maximum loss streak (not a hard jump to 0.9)", () => {
+  it("forces a likely win after the maximum loss streak", () => {
     const out = desiredWinProb(
-      stats({ stage: "HIGH_VALUE", lossStreak: 9, shortWindow: runOf(40, false) }),
+      stats({ stage: "HIGH_VALUE", lossStreak: 8, shortWindow: runOf(40, false) }),
     );
-    expect(out.p).toBeGreaterThan(0.5);
-    // Soft guard: should be noticeably above 0.5 but not necessarily at 0.9
-    expect(out.p).toBeLessThanOrEqual(P_MAX);
+    expect(out.p).toBeGreaterThanOrEqual(0.99);
   });
 
-  it("soft-nudges p down after the maximum win streak", () => {
-    const out = desiredWinProb(stats({ stage: "PRE_DEPOSIT", winStreak: 8 }));
-    expect(out.p).toBeLessThan(0.5);
-    expect(out.p).toBeGreaterThanOrEqual(P_MIN);
+  it("forces a likely loss after the maximum win streak", () => {
+    const out = desiredWinProb(stats({ stage: "PRE_DEPOSIT", winStreak: 15 }));
+    expect(out.p).toBeLessThanOrEqual(0.35);
   });
 
-  it("nudges harder the longer the streak extends past the threshold", () => {
-    const atThreshold = desiredWinProb(stats({ stage: "HIGH_VALUE", lossStreak: 9, shortWindow: runOf(40, false) }));
-    const extended = desiredWinProb(stats({ stage: "HIGH_VALUE", lossStreak: 15, shortWindow: runOf(40, false) }));
-    expect(extended.p).toBeGreaterThan(atThreshold.p);
-  });
-
-  it("loss-streak nudge overrides the ceiling (streak visibility beats aggregate)", () => {
+  it("prioritises the ceiling over the loss-streak guard", () => {
     const out = desiredWinProb(
       stats({
         stage: "PRE_DEPOSIT",
         shortWindow: runOf(80, true),
         lifetimeWonWeight: 80,
         lifetimeTotalWeight: 80,
-        lossStreak: 9,
+        lossStreak: 8,
       }),
     );
-    expect(out.p).toBeGreaterThan(0.5);
+    expect(out.ceilingActive).toBe(true);
+    expect(out.p).toBeLessThan(0.2);
+  });
+
+  it("applies the ceiling correction even with low window weight but high lifetime breach", () => {
+    const out = desiredWinProb(
+      stats({
+        stage: "DEPOSITED",
+        shortWindow: runOf(3, false),
+        lifetimeWonWeight: 900,
+        lifetimeTotalWeight: 1000,
+      }),
+    );
+    expect(out.ceilingActive).toBe(true);
+    expect(out.p).toBeLessThan(TARGETS.DEPOSITED);
   });
 
   it("always clamps p into [P_MIN, P_MAX]", () => {
@@ -160,15 +165,14 @@ describe("desiredWinProb", () => {
     expect(extreme.urgency).toBeGreaterThan(nearFlip.urgency);
   });
 
-  it("exposes diagnostics and stage for the shadow ledger", () => {
+  it("exposes diagnostics for the shadow ledger", () => {
     const out = desiredWinProb(stats({ stage: "HIGH_VALUE" }));
     expect(out.target).toBeCloseTo(0.27, 6);
     expect(out.posteriorShort).toBeCloseTo(0.27, 6);
     expect(out.posteriorLife).toBeCloseTo(0.27, 6);
-    expect(out.stage).toBe("HIGH_VALUE");
   });
 
-  it("holds a pre-deposit account near the target rather than oscillating", () => {
+  it("holds a pre-deposit account at the ceiling rather than overshooting", () => {
     const w: WindowEntry[] = Array.from({ length: 100 }, (_, i) => ({
       weight: 1,
       won: i % 100 < 65,

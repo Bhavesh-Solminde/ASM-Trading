@@ -6,8 +6,6 @@ import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
 
-// The panel is gated by a shared secret, not a user role. Each server action is
-// its own POST entrypoint, so it re-checks the admin session itself.
 const ADMIN_ACTOR = "admin-panel";
 
 async function requirePanel(): Promise<void> {
@@ -60,7 +58,7 @@ export async function setAssetPayoutAction(formData: FormData): Promise<void> {
     "asset payout changed",
   );
 
-  revalidatePath("/admin/assets");
+  revalidatePath("/admin/markets");
 }
 
 export async function toggleAssetOpenAction(formData: FormData): Promise<void> {
@@ -87,5 +85,10 @@ export async function toggleAssetOpenAction(formData: FormData): Promise<void> {
     },
   });
 
-  revalidatePath("/admin/assets");
+  logger.info(
+    { evt: "admin.action", action: "asset.open_toggled", symbol: asset.symbol, isOpen: !asset.isOpen },
+    "asset open toggled",
+  );
+
+  revalidatePath("/admin/markets");
 }
