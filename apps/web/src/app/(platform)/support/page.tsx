@@ -15,7 +15,7 @@ export default async function SupportPage() {
   const tickets = await listTicketsForActor(session.userId, 20);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-8">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-8 phone:px-4 phone:py-5">
       <section>
         <h1 className="mb-4 text-lg font-semibold tracking-tight">Frequently asked questions</h1>
         <div className="flex flex-col gap-1">

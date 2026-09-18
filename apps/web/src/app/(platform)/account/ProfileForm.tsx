@@ -128,7 +128,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         <button
           type="button"
           onClick={() => void save()}
-          className="self-start rounded bg-[var(--color-brand)] px-5 py-2.5 text-sm font-semibold text-[var(--color-brand-ink)]"
+          className="self-start rounded bg-[var(--color-brand)] px-5 py-2.5 text-sm font-semibold text-[var(--color-brand-ink)] phone:self-stretch phone:py-3"
         >
           Save
         </button>
@@ -148,7 +148,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
             ["twoFaForWithdrawal", "To withdraw funds"],
           ] as const
         ).map(([key, label]) => (
-          <label key={key} className="flex items-center gap-3 text-sm">
+          <label key={key} className="flex items-center gap-3 text-sm phone:min-h-11">
             <input
               type="checkbox"
               checked={profile[key]}
@@ -162,7 +162,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         <button
           type="button"
           onClick={() => void sendTestCode()}
-          className="self-start text-xs font-semibold text-[var(--color-brand)] underline underline-offset-4"
+          className="self-start text-xs font-semibold text-[var(--color-brand)] underline underline-offset-4 phone:py-3"
         >
           Send a test code
         </button>

@@ -50,7 +50,7 @@ export function WithdrawForm({
         </p>
         <a
           href="/deposit"
-          className="mt-2 inline-block text-xs font-bold text-[var(--color-up)] underline underline-offset-4"
+          className="mt-2 inline-block text-xs font-bold text-[var(--color-up)] underline underline-offset-4 phone:py-3"
         >
           Make a deposit
         </a>

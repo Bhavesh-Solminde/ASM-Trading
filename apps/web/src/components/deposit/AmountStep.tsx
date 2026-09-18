@@ -80,7 +80,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
               key={q}
               type="button"
               onClick={() => setAmountMajor(q)}
-              className="flex-1 rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-2 py-1.5 text-xs font-semibold"
+              className="flex-1 rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-2 py-1.5 text-xs font-semibold phone:py-2.5 phone:text-sm"
             >
               ${q}
             </button>
