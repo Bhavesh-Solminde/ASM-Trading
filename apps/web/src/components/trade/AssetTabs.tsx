@@ -91,7 +91,7 @@ export function AssetTabs({
                 role="tab"
                 aria-selected={selected}
                 onClick={() => onSelect(symbol)}
-                className={`grid min-w-[150px] grid-cols-[auto_auto] items-baseline justify-between gap-x-3 rounded border px-3.5 py-2 text-left max-md:min-w-[118px] ${
+                className={`grid min-w-[150px] grid-cols-[auto_auto] items-baseline justify-between gap-x-3 rounded border px-3.5 py-2 text-left phone:min-w-[118px] phone:py-2.5 pointer-coarse:pr-8 ${
                   selected
                     ? "border-ink-3 bg-tile shadow-[inset_0_-2px_0_var(--color-brand)]"
                     : "border-rule bg-panel hover:border-tile-hi"
@@ -110,7 +110,7 @@ export function AssetTabs({
                   type="button"
                   aria-label={`Close ${asset.displayName}`}
                   onClick={() => closeTab(symbol)}
-                  className="absolute right-1 top-1 hidden size-4 place-items-center rounded-[2px] bg-tile-hi text-ink-2 hover:text-ink group-focus-within:grid group-hover:grid"
+                  className="absolute right-1 top-1 hidden size-4 place-items-center rounded-[2px] bg-tile-hi text-ink-2 hover:text-ink group-focus-within:grid group-hover:grid pointer-coarse:grid pointer-coarse:size-7 pointer-coarse:-right-1 pointer-coarse:-top-1 pointer-coarse:rounded-full"
                 >
                   <Icon name="close" className="size-3" />
                 </button>

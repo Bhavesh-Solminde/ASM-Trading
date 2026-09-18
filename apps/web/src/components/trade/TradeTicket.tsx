@@ -17,8 +17,8 @@ function formatDuration(seconds: number): string {
 }
 
 const STEP =
-  "grid h-12 place-items-center rounded border border-rule text-ink-2 hover:border-tile-hi hover:bg-panel hover:text-ink";
-const DISPLAY = "grid h-12 place-items-center rounded border border-rule bg-panel";
+  "grid h-12 place-items-center rounded border border-rule text-ink-2 hover:border-tile-hi hover:bg-panel hover:text-ink phone:h-11";
+const DISPLAY = "grid h-12 place-items-center rounded border border-rule bg-panel phone:h-11";
 
 /** Ticks every second on its own, so the rest of the ticket does not re-render. */
 function ExpiresAt({ durationSec }: { durationSec: number }) {
@@ -94,103 +94,110 @@ export function TradeTicket({
   }
 
   const slab =
-    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] hover:brightness-110 active:translate-y-px disabled:cursor-wait";
-  const slabNote = "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75";
+    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] hover:brightness-110 active:translate-y-px disabled:cursor-wait phone:h-14 phone:pl-3.5 phone:pr-3 phone:text-[16px]";
+  const slabNote = "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 max-[359px]:hidden";
 
   return (
-    <div className="grid gap-3 border-b border-rule px-4 pb-4 pt-3.5">
-      <div className="flex items-baseline justify-between">
+    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:gap-2.5 phone:border-b-0 phone:px-3 phone:pb-2 phone:pt-3">
+      <div className="flex items-baseline justify-between phone:hidden">
         <span className="text-[17px] font-bold tracking-[0.03em]">{pair}</span>
         <span className="text-[17px] font-extrabold text-brand">{payoutPct === null ? "—" : `${payoutPct}%`}</span>
       </div>
 
-      <div className="grid gap-1.5">
-        <span className="legend" id="ticket-time">
-          Time
-        </span>
-        <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5">
-          <button type="button" aria-label="Shorter" onClick={() => stepDuration(-1)} className={STEP}>
-            <Icon name="minus" />
-          </button>
-          <button
-            type="button"
-            aria-labelledby="ticket-time"
-            aria-expanded={gridOpen}
-            aria-controls="ticket-durations"
-            onClick={() => setGridOpen((o) => !o)}
-            className={`${DISPLAY} hover:border-tile-hi`}
-          >
-            <span className="led led-lit text-[22px]">{hms(durationSec)}</span>
-          </button>
-          <button type="button" aria-label="Longer" onClick={() => stepDuration(1)} className={STEP}>
-            <Icon name="plus" />
-          </button>
-        </div>
-        {gridOpen ? (
-          <div id="ticket-durations" className="grid grid-cols-4 gap-1">
-            {DURATIONS_SEC.map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => {
-                  setDurationSec(d);
-                  setGridOpen(false);
-                }}
-                className={`h-[30px] rounded-[2px] text-xs font-semibold ${
-                  d === durationSec ? "bg-brand text-brand-ink" : "bg-tile text-ink-2 hover:bg-tile-hi hover:text-ink"
-                }`}
-              >
-                {formatDuration(d)}
-              </button>
-            ))}
+      <div className="grid gap-3 phone:grid-cols-2 phone:gap-2">
+        <div className="grid gap-1.5">
+          <span className="legend" id="ticket-time">
+            Time
+          </span>
+          <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5 phone:grid-cols-[40px_minmax(0,1fr)_40px] phone:gap-1">
+            <button type="button" aria-label="Shorter" onClick={() => stepDuration(-1)} className={STEP}>
+              <Icon name="minus" />
+            </button>
+            <button
+              type="button"
+              aria-labelledby="ticket-time"
+              aria-expanded={gridOpen}
+              aria-controls="ticket-durations"
+              onClick={() => setGridOpen((o) => !o)}
+              className={`${DISPLAY} hover:border-tile-hi`}
+            >
+              <span className="led led-lit text-[22px] phone:hidden">{hms(durationSec)}</span>
+              <span className="led led-lit hidden text-[18px] phone:inline">{formatDuration(durationSec)}</span>
+            </button>
+            <button type="button" aria-label="Longer" onClick={() => stepDuration(1)} className={STEP}>
+              <Icon name="plus" />
+            </button>
           </div>
-        ) : null}
-        <div className="flex justify-between text-xs text-ink-3">
-          <span>Expires at</span>
-          <ExpiresAt durationSec={durationSec} />
+          {gridOpen ? (
+            <div
+              id="ticket-durations"
+              className="grid grid-cols-4 gap-1 phone:absolute phone:inset-x-3 phone:z-20 phone:mt-1 phone:gap-1.5 phone:rounded phone:border phone:border-rule phone:bg-[#0f0f10] phone:p-2 phone:shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]"
+            >
+              {DURATIONS_SEC.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => {
+                    setDurationSec(d);
+                    setGridOpen(false);
+                  }}
+                  className={`h-[30px] rounded-[2px] text-xs font-semibold phone:h-10 phone:text-sm ${
+                    d === durationSec ? "bg-brand text-brand-ink" : "bg-tile text-ink-2 hover:bg-tile-hi hover:text-ink"
+                  }`}
+                >
+                  {formatDuration(d)}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="flex justify-between text-xs text-ink-3">
+            <span>Expires at</span>
+            <ExpiresAt durationSec={durationSec} />
+          </div>
+        </div>
+
+        <div className="grid gap-1.5">
+          <label htmlFor="stake" className="legend">
+            Investment
+          </label>
+          <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5 phone:grid-cols-[40px_minmax(0,1fr)_40px] phone:gap-1">
+            <button type="button" aria-label="Decrease investment" onClick={() => nudge(-1)} className={STEP}>
+              <Icon name="minus" />
+            </button>
+            <div className={`${DISPLAY} focus-within:border-brand`}>
+              <span className="flex items-center justify-center gap-0.5 text-[22px] font-bold phone:text-[18px]">
+                {currencySymbol(currency)}
+                <input
+                  id="stake"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={stakeInput}
+                  onChange={(e) => setStakeInput(e.target.value.replace(/[^0-9.]/g, ""))}
+                  className="w-[5ch] bg-transparent font-bold outline-none"
+                />
+              </span>
+            </div>
+            <button type="button" aria-label="Increase investment" onClick={() => nudge(1)} className={STEP}>
+              <Icon name="plus" />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-1.5">
-        <label htmlFor="stake" className="legend">
-          Investment
-        </label>
-        <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5">
-          <button type="button" aria-label="Decrease investment" onClick={() => nudge(-1)} className={STEP}>
-            <Icon name="minus" />
+      <div className="grid grid-cols-5 gap-1">
+        {STAKE_PRESETS.map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setStakeInput(String(value))}
+            className={`h-7 rounded-[2px] border bg-panel text-xs font-semibold phone:h-10 phone:text-sm ${
+              stakeMajor === value ? "border-brand text-brand" : "border-rule text-ink-2 hover:text-ink"
+            }`}
+          >
+            {currencySymbol(currency)}
+            {value}
           </button>
-          <div className={`${DISPLAY} focus-within:border-brand`}>
-            <span className="flex items-center justify-center gap-0.5 text-[22px] font-bold">
-              {currencySymbol(currency)}
-              <input
-                id="stake"
-                inputMode="decimal"
-                autoComplete="off"
-                value={stakeInput}
-                onChange={(e) => setStakeInput(e.target.value.replace(/[^0-9.]/g, ""))}
-                className="w-[5ch] bg-transparent font-bold outline-none"
-              />
-            </span>
-          </div>
-          <button type="button" aria-label="Increase investment" onClick={() => nudge(1)} className={STEP}>
-            <Icon name="plus" />
-          </button>
-        </div>
-        <div className="grid grid-cols-5 gap-1">
-          {STAKE_PRESETS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setStakeInput(String(value))}
-              className={`h-7 rounded-[2px] border bg-panel text-xs font-semibold ${
-                stakeMajor === value ? "border-brand text-brand" : "border-rule text-ink-2 hover:text-ink"
-              }`}
-            >
-              {currencySymbol(currency)}
-              {value}
-            </button>
-          ))}
-        </div>
+        ))}
       </div>
 
       <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 border-t border-dashed border-rule pb-0.5 pt-2.5">
@@ -221,7 +228,7 @@ export function TradeTicket({
         </div>
       ) : null}
 
-      <div className="grid gap-2">
+      <div className="grid gap-2 phone:fixed phone:inset-x-0 phone:bottom-[calc(var(--phone-nav-h)+env(safe-area-inset-bottom))] phone:z-20 phone:h-[76px] phone:grid-cols-2 phone:border-t phone:border-rule phone:bg-ground/95 phone:px-3 phone:py-2.5 phone:backdrop-blur">
         <button
           type="button"
           disabled={busy}
