@@ -11,8 +11,7 @@ export default async function Home() {
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-8 px-6">
       <div>
         <h1
-          className="text-5xl font-black tracking-wide text-[var(--color-brand)]"
-          style={{ fontFamily: "var(--font-led)" }}
+          className="font-brand text-5xl font-black tracking-wide text-[var(--color-brand)]"
         >
           ASM
         </h1>

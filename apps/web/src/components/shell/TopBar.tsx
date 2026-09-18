@@ -63,7 +63,7 @@ export function TopBar() {
       }`}
     >
       <Link href="/trade" aria-label="ASM Trade" className="flex flex-none items-center gap-2.5">
-        <span aria-hidden className="led text-[22px] font-black tracking-[0.02em] text-brand [text-shadow:0_0_10px_rgba(255,176,0,.35)]">
+        <span aria-hidden className="font-brand text-[22px] font-black tracking-[0.02em] text-brand [text-shadow:0_0_10px_rgba(255,176,0,.35)]">
           ASM
         </span>
         <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-ink-2 max-md:hidden">Trade</span>
