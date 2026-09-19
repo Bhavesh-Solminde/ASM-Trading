@@ -11,6 +11,10 @@ import { Icon } from "./Icon";
 import { PromoBanner } from "./PromoBanner";
 import { usePlatform, type AccountView } from "./PlatformProvider";
 
+// Gate the live account behind an env flag. Flip
+// NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED=true when we're ready to expose it.
+const LIVE_ACCOUNT_ENABLED = process.env.NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED === "true";
+
 const FEED_LABEL = {
   open: { text: "Live feed", dot: "bg-up shadow-[0_0_0_3px_rgba(59,229,132,.12)]" },
   connecting: { text: "Connecting", dot: "bg-brand blink" },
@@ -49,12 +53,28 @@ function FeedClock() {
 export function TopBar() {
   const { status, accounts, activeAccount, balances, setActiveAccountId } = usePlatform();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [liveComingSoon, setLiveComingSoon] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const live = activeAccount?.type === "LIVE";
   const feed = FEED_LABEL[status];
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   useDismiss(menuRef, menuOpen, closeMenu);
+
+  const handleSelectAccount = useCallback(
+    (account: AccountView) => {
+      if (account.type === "LIVE" && !LIVE_ACCOUNT_ENABLED) {
+        setLiveComingSoon(true);
+        setMenuOpen(false);
+        const demo = accounts.find((a) => a.type === "DEMO");
+        if (demo && demo.id !== activeAccount?.id) setActiveAccountId(demo.id);
+        return;
+      }
+      setActiveAccountId(account.id);
+      setMenuOpen(false);
+    },
+    [accounts, activeAccount, setActiveAccountId],
+  );
 
   return (
     <header
@@ -111,6 +131,39 @@ export function TopBar() {
           Withdraw
         </Link>
 
+        {liveComingSoon ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="live-coming-soon-title"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            onClick={() => setLiveComingSoon(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-[380px] rounded border border-rule bg-[#0f0f10] p-5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]"
+            >
+              <h2 id="live-coming-soon-title" className="text-base font-bold tracking-tight text-ink">
+                Live account — coming soon
+              </h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
+                The live account isn&apos;t available yet. You&apos;re still on the demo account —
+                keep exploring with virtual funds, and we&apos;ll let you know as soon as live
+                trading opens up.
+              </p>
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setLiveComingSoon(false)}
+                  className="inline-flex h-9 items-center rounded border border-brand bg-brand px-4 text-xs font-bold uppercase tracking-[0.06em] text-brand-ink hover:bg-brand/90"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {menuOpen ? (
           <>
             <div aria-hidden onClick={closeMenu} className="fixed inset-0 z-30 hidden bg-black/60 phone:block" />
@@ -128,10 +181,7 @@ export function TopBar() {
                     type="button"
                     role="menuitemradio"
                     aria-checked={active}
-                    onClick={() => {
-                      setActiveAccountId(account.id);
-                      setMenuOpen(false);
-                    }}
+                    onClick={() => handleSelectAccount(account)}
                     className={`grid w-full grid-cols-[58px_1fr_auto] items-center gap-3 rounded-[2px] px-2.5 py-3 text-left hover:bg-tile ${
                       active ? "bg-tile shadow-[inset_0_0_0_1px_var(--color-tile-hi)]" : ""
                     }`}

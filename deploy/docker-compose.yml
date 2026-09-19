@@ -59,6 +59,7 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         NEXT_PUBLIC_ENGINE_WS_URL: ${NEXT_PUBLIC_ENGINE_WS_URL}
+        NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED: ${NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED}
     image: asmtrader-app:latest
     restart: "no"
     env_file: ../.env.production

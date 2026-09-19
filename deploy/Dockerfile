@@ -37,6 +37,8 @@ COPY apps/engine ./apps/engine
 # Baked into the client bundle. Overridable at build time via compose.
 ARG NEXT_PUBLIC_ENGINE_WS_URL="wss://asmtrader.com/ws"
 ENV NEXT_PUBLIC_ENGINE_WS_URL=$NEXT_PUBLIC_ENGINE_WS_URL
+ARG NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED="false"
+ENV NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED=$NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED
 # `next build` collects page data by evaluating API-route modules, which
 # import @asm/config. That factory zod-validates env at import time, so
 # even a build without traffic needs these set. The values here are only
