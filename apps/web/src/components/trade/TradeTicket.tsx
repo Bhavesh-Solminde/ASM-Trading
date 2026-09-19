@@ -98,13 +98,13 @@ export function TradeTicket({
   const slabNote = "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 max-[359px]:hidden";
 
   return (
-    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:gap-2.5 phone:border-b-0 phone:px-3 phone:pb-2 phone:pt-3">
+    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:gap-1.5 phone:border-b-0 phone:px-2.5 phone:pb-1.5 phone:pt-2">
       <div className="flex items-baseline justify-between phone:hidden">
         <span className="text-[17px] font-bold tracking-[0.03em]">{pair}</span>
         <span className="text-[17px] font-extrabold text-brand">{payoutPct === null ? "—" : `${payoutPct}%`}</span>
       </div>
 
-      <div className="grid gap-3 phone:grid-cols-2 phone:gap-2">
+      <div className="grid gap-3 phone:grid-cols-2 phone:gap-1.5">
         <div className="grid gap-1.5">
           <span className="legend" id="ticket-time">
             Time
@@ -150,7 +150,7 @@ export function TradeTicket({
               ))}
             </div>
           ) : null}
-          <div className="flex justify-between text-xs text-ink-3">
+          <div className="flex justify-between text-xs text-ink-3 phone:hidden">
             <span>Expires at</span>
             <ExpiresAt durationSec={durationSec} />
           </div>
@@ -184,7 +184,7 @@ export function TradeTicket({
         </div>
       </div>
 
-      <div className="grid grid-cols-5 gap-1">
+      <div className="grid grid-cols-5 gap-1 phone:hidden">
         {STAKE_PRESETS.map((value) => (
           <button
             key={value}
@@ -200,7 +200,7 @@ export function TradeTicket({
         ))}
       </div>
 
-      <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 border-t border-dashed border-rule pb-0.5 pt-2.5">
+      <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 border-t border-dashed border-rule pb-0.5 pt-2.5 phone:hidden">
         <span className="legend self-center">If correct</span>
         <span className="led led-lit text-[20px] text-up">
           {profitMinor === null ? "—" : `+${formatMinor(profitMinor, currency)}`}
@@ -208,6 +208,13 @@ export function TradeTicket({
         <span className="text-xs text-ink-3">You get back</span>
         <span className="text-right text-xs text-ink-3">
           {profitMinor === null ? "—" : formatMinor(stakeMinor + profitMinor, currency)}
+        </span>
+      </div>
+
+      <div className="hidden phone:flex phone:items-baseline phone:justify-between phone:gap-2 phone:border-t phone:border-dashed phone:border-rule phone:pt-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3">Payout</span>
+        <span className="led led-lit text-[17px] text-up">
+          {profitMinor === null ? "—" : `+${formatMinor(profitMinor, currency)}`}
         </span>
       </div>
 
