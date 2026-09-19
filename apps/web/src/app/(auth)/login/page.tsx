@@ -1,7 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { EmailInput } from "@/components/auth/EmailInput";
+import { PasswordInput } from "@/components/auth/PasswordInput";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,6 +16,7 @@ export default function LoginPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError(null);
 
@@ -25,40 +30,81 @@ export default function LoginPage() {
       router.push("/trade");
       return;
     }
-    const data = (await res.json()) as { error?: string };
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
     setError(data.error ?? "Something went wrong. Try again.");
     setBusy(false);
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Log in</h1>
-      <form onSubmit={onSubmit} className="flex flex-col gap-3">
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
-        />
-        <input
-          type="password"
-          required
+    <AuthShell
+      eyebrow="Welcome back"
+      title="Log in to ASM."
+      subtitle="The markets don't stop. Neither should you."
+      imageCaption="Every tick settles on a real ledger."
+      footer={
+        <>
+          New here?{" "}
+          <Link href="/register" className="font-semibold text-brand hover:underline">
+            Create an account
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
+        <EmailInput value={email} onChange={setEmail} autoFocus />
+        <PasswordInput
+          label="Password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
+          onChange={setPassword}
+          required
+          autoComplete="current-password"
+          placeholder="Your password"
+          showForgot
         />
-        {error ? <p className="text-sm text-[var(--color-down)]">{error}</p> : null}
+
+        {error ? (
+          <div
+            role="alert"
+            className="rounded-lg border border-down/40 bg-down/10 px-3 py-2.5 text-sm text-down"
+          >
+            {error}
+          </div>
+        ) : null}
+
         <button
           type="submit"
-          disabled={busy}
-          className="rounded bg-[var(--color-brand)] px-4 py-2.5 text-sm font-bold text-[var(--color-brand-ink)] disabled:opacity-50"
+          disabled={busy || !email || !password}
+          className="mt-1 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-brand text-sm font-black text-brand-ink shadow-[0_20px_50px_-20px_color-mix(in_srgb,var(--color-brand)_60%,transparent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100"
         >
-          {busy ? "Signing in…" : "Log in"}
+          {busy ? (
+            <>
+              <Spinner /> Signing in…
+            </>
+          ) : (
+            <>
+              Log in <span aria-hidden>→</span>
+            </>
+          )}
         </button>
       </form>
-    </main>
+    </AuthShell>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      className="animate-spin"
+      aria-hidden
+    >
+      <path d="M12 3a9 9 0 1 0 9 9" />
+    </svg>
   );
 }
