@@ -58,18 +58,18 @@ export function TopBar() {
 
   return (
     <header
-      className={`col-span-full row-start-1 flex min-w-0 items-center gap-5 border-b border-rule bg-ground pl-3.5 pr-4 max-md:gap-2 max-md:px-2.5 ${
+      className={`col-span-full row-start-1 flex min-w-0 items-center gap-5 border-b border-rule bg-ground pl-3.5 pr-4 phone:gap-2 phone:px-2.5 ${
         live ? "shadow-[inset_0_-2px_0_0_var(--color-brand)]" : ""
       }`}
     >
-      <Link href="/trade" aria-label="ASM Trade" className="flex flex-none items-center gap-2.5">
-        <span aria-hidden className="led text-[22px] font-black tracking-[0.02em] text-brand [text-shadow:0_0_10px_rgba(255,176,0,.35)]">
+      <Link href="/trade" aria-label="ASM Trade" className="flex h-11 flex-none items-center gap-2.5">
+        <span aria-hidden className="font-brand text-[22px] font-black tracking-[0.02em] text-brand [text-shadow:0_0_10px_rgba(255,176,0,.35)]">
           ASM
         </span>
-        <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-ink-2 max-md:hidden">Trade</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-ink-2 phone:hidden">Trade</span>
       </Link>
 
-      <div className="ml-1 flex flex-none items-center gap-2.5 text-ink-3 max-md:hidden">
+      <div className="ml-1 flex flex-none items-center gap-2.5 text-ink-3 phone:hidden">
         <span aria-hidden className={`size-1.5 rounded-full ${feed.dot}`} />
         <span className="legend">{feed.text}</span>
         <FeedClock />
@@ -79,43 +79,45 @@ export function TopBar() {
         <PromoBanner />
       </div>
 
-      <div ref={menuRef} className="relative ml-auto flex min-w-0 items-center gap-2.5 max-md:gap-1.5">
+      <div ref={menuRef} className="relative ml-auto flex min-w-0 items-center gap-2.5 phone:gap-1.5">
         <button
           type="button"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((o) => !o)}
-          className={`grid h-11 grid-cols-[auto_auto_18px] items-center gap-2.5 rounded border bg-panel pl-1.5 pr-2.5 text-left ${
+          className={`grid h-11 min-w-0 grid-cols-[auto_minmax(0,1fr)_18px] items-center gap-2.5 rounded border bg-panel pl-1.5 pr-2.5 text-left phone:gap-1.5 phone:pr-1.5 ${
             live ? "border-brand" : "border-rule hover:border-tile-hi"
           }`}
         >
           {activeAccount ? <AccountPlate type={activeAccount.type} /> : null}
           <span className="grid min-w-0 gap-0.5">
-            <span className="legend text-[10px]! max-md:hidden">{live ? "Live account" : "Demo account"}</span>
-            <span className="led led-lit text-[20px] leading-none">{totalBalance(activeAccount, balances)}</span>
+            <span className="legend text-[10px]! phone:hidden">{live ? "Live account" : "Demo account"}</span>
+            <span className="led led-lit truncate text-[20px] leading-none phone:text-[17px]">{totalBalance(activeAccount, balances)}</span>
           </span>
           <Icon name="caret" />
         </button>
 
         <Link
           href="/deposit"
-          className="inline-flex h-11 flex-none items-center gap-2 rounded border border-brand px-4 text-xs font-bold uppercase tracking-[0.06em] text-brand transition-colors hover:bg-brand/10 max-md:w-11 max-md:justify-center max-md:px-0"
+          className="inline-flex h-11 flex-none items-center gap-2 rounded border border-brand px-4 text-xs font-bold uppercase tracking-[0.06em] text-brand transition-colors hover:bg-brand/10 phone:w-11 phone:justify-center phone:px-0"
         >
           <Icon name="plus" />
-          <span className="max-md:sr-only">Deposit</span>
+          <span className="phone:sr-only">Deposit</span>
         </Link>
         <Link
           href="/withdrawal"
-          className="inline-flex h-11 flex-none items-center rounded border border-rule px-4 text-xs font-bold uppercase tracking-[0.06em] text-ink-2 transition-colors hover:border-tile-hi hover:text-ink max-md:hidden"
+          className="inline-flex h-11 flex-none items-center rounded border border-rule px-4 text-xs font-bold uppercase tracking-[0.06em] text-ink-2 transition-colors hover:border-tile-hi hover:text-ink phone:hidden"
         >
           Withdraw
         </Link>
 
         {menuOpen ? (
-          <div
-            role="menu"
-            className="absolute right-0 top-[54px] z-20 w-[340px] max-w-[calc(100vw-20px)] rounded border border-rule bg-[#0f0f10] p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]"
-          >
+          <>
+            <div aria-hidden onClick={closeMenu} className="fixed inset-0 z-30 hidden bg-black/60 phone:block" />
+            <div
+              role="menu"
+              className="absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-rule bg-[#0f0f10] p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0 phone:pb-[max(12px,env(safe-area-inset-bottom))]"
+            >
             {[...accounts]
               .sort((a, b) => (a.type === b.type ? 0 : a.type === "LIVE" ? -1 : 1))
               .map((account) => {
@@ -148,17 +150,25 @@ export function TopBar() {
                   </button>
                 );
               })}
-            <div className="mt-1.5 flex items-center justify-between border-t border-rule px-2.5 pb-1 pt-2.5">
-              <Link href="/account" className="text-[13px] font-semibold text-brand hover:underline">
+            <div className="mt-1.5 flex items-center justify-between gap-4 border-t border-rule px-2.5 pb-1 pt-2.5">
+              <Link href="/account" onClick={closeMenu} className="py-2 text-[13px] font-semibold text-brand hover:underline">
                 My account
               </Link>
+              <Link
+                href="/withdrawal"
+                onClick={closeMenu}
+                className="hidden py-2 text-[13px] font-semibold text-ink-2 hover:text-ink phone:inline"
+              >
+                Withdraw
+              </Link>
               <form action="/api/auth/logout" method="post">
-                <button type="submit" className="text-[13px] font-semibold text-ink-3 hover:text-ink">
+                <button type="submit" className="py-2 text-[13px] font-semibold text-ink-3 hover:text-ink">
                   Log out
                 </button>
               </form>
             </div>
-          </div>
+            </div>
+          </>
         ) : null}
       </div>
     </header>

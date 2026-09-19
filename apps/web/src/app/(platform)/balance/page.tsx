@@ -52,14 +52,41 @@ export default async function BalancePage() {
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-6 py-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-6 py-8 phone:px-4 phone:py-5">
       <PlatformTabs />
       <h1 className="text-lg font-bold tracking-tight">Payments</h1>
 
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--color-ink-2)]">No transactions yet.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+          <ul className="hidden flex-col phone:flex">
+            {rows.map((row) => (
+              <li key={row.id} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 border-t border-[var(--color-rule)] py-3 text-sm">
+                <span className="font-semibold">
+                  {row.kind} · {row.method}
+                </span>
+                <span
+                  className="text-right font-semibold tabular-nums"
+                  style={{ color: row.amount >= 0 ? "var(--color-up)" : "var(--color-down)" }}
+                >
+                  {row.amount >= 0 ? "+" : "−"}
+                  {formatMoney(Math.abs(row.amount), "USD")}
+                </span>
+                <span className="text-xs tabular-nums text-[var(--color-ink-2)]">
+                  {row.at.toISOString().slice(0, 16).replace("T", " ")}
+                </span>
+                <span className="text-right text-xs">{STATUS_LABEL[row.status] ?? row.status}</span>
+                <span className="col-span-2 font-mono text-[11px] text-[var(--color-ink-3)]">{row.id.slice(0, 8).toUpperCase()}</span>
+                {row.note ? (
+                  <p className="col-span-2 mt-1 rounded bg-[var(--color-tile)] p-2 text-[11px] leading-relaxed text-[var(--color-ink-2)]">
+                    {row.note}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        <div className="overflow-x-auto phone:hidden">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="text-left text-[10px] uppercase tracking-[0.1em] text-[var(--color-ink-2)]">
@@ -103,6 +130,7 @@ export default async function BalancePage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </main>
   );

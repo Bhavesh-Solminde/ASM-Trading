@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Doto, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -10,6 +10,13 @@ const doto = Doto({ subsets: ["latin"], variable: "--font-doto" });
 export const metadata: Metadata = {
   title: "ASM Trade",
   description: "Binary options trading platform",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#050505",
 };
 
 export default function RootLayout({

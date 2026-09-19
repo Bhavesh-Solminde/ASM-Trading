@@ -61,7 +61,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
           </div>
         ) : (
           <>
-            <section className="rounded-xl bg-white p-6 text-center shadow-sm">
+            <section className="rounded-xl bg-white p-6 text-center shadow-sm phone:p-5">
               <span className="inline-block rounded-full bg-[#5b2d9e] px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
                 Step 1
               </span>
@@ -72,7 +72,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
               <img
                 src={qrDataUri}
                 alt={`UPI payment QR code for ₹${rupees}`}
-                className="mx-auto mt-4 h-[260px] w-[260px]"
+                className="mx-auto mt-4 aspect-square h-auto w-full max-w-[260px]"
               />
             </section>
 

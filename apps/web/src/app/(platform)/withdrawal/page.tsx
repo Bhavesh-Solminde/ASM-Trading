@@ -25,7 +25,7 @@ export default async function WithdrawalPage() {
   const balance = await withdrawableBalance(live.id);
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 py-8">
+    <main className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 py-8 phone:px-4 phone:py-5">
       <PlatformTabs />
       <h1 className="text-lg font-bold tracking-tight">Withdrawal</h1>
 

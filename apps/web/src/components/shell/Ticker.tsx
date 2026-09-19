@@ -43,7 +43,8 @@ const TickerItem = memo(function TickerItem({ asset, hidden }: { asset: Platform
 
 export function Ticker() {
   const { assets } = usePlatform();
-  if (assets.length === 0) return <div className="col-span-full row-start-2 border-b border-rule bg-panel" />;
+  if (assets.length === 0)
+    return <div className="col-span-full row-start-2 border-b border-rule bg-panel [@media(height<30rem)]:hidden" />;
 
   const repeats = Math.ceil(MIN_ITEMS_PER_HALF / assets.length);
   const half = Array.from({ length: repeats }, () => assets).flat();
@@ -52,7 +53,7 @@ export function Ticker() {
   return (
     <div
       aria-label="Live prices"
-      className="ticker col-span-full row-start-2 min-w-0 overflow-hidden border-b border-rule bg-panel"
+      className="ticker col-span-full row-start-2 min-w-0 overflow-hidden border-b border-rule bg-panel [@media(height<30rem)]:hidden"
     >
       <div className="ticker-track flex h-full w-max items-stretch">
         {items.map((asset, i) => (

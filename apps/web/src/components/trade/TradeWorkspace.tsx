@@ -35,7 +35,7 @@ function ChartReadout({ symbol, displayName, precision }: { symbol: string; disp
       <div className="flex items-center gap-2.5">
         <span
           key={lastPrice ?? "none"}
-          className={`led led-lit text-[28px] leading-none text-brand max-md:text-[22px] ${
+          className={`led led-lit text-[28px] leading-none text-brand phone:text-[22px] ${
             direction ? `tick-${direction}` : ""
           }`}
         >
@@ -92,12 +92,12 @@ export function TradeWorkspace() {
   return (
     <section
       aria-label="Trade"
-      className="grid h-full grid-cols-[minmax(0,1fr)_312px] max-md:h-auto max-md:grid-cols-[minmax(0,1fr)]"
+      className="grid h-full grid-cols-[minmax(0,1fr)_312px] phone:h-auto phone:grid-cols-[minmax(0,1fr)] phone:pb-[76px]"
     >
-      <div className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 max-md:grid-rows-[auto_52vh] max-md:p-2.5">
+      <div className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[auto_clamp(240px,46dvh,460px)] phone:gap-2 phone:p-2.5">
         <AssetTabs assets={assets} active={asset.symbol} onSelect={selectChartSymbol} />
 
-        <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5">
+        <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[18px_minmax(0,1fr)] phone:gap-1.5 phone:pl-1.5">
           <LiveSentiment />
 
           <div className="relative min-h-0">
@@ -112,7 +112,7 @@ export function TradeWorkspace() {
             {status === "unauthorised" ? (
               <p className="absolute left-2 top-[78px] text-xs text-down">Your session has ended. Log in again.</p>
             ) : null}
-            <div className="legend pointer-events-none absolute right-[92px] top-2.5 text-ink-3! max-md:hidden">
+            <div className="legend pointer-events-none absolute right-[92px] top-2.5 text-ink-3! phone:hidden">
               1m candles
             </div>
           </div>
@@ -121,7 +121,7 @@ export function TradeWorkspace() {
 
       <aside
         aria-label="Trade ticket and trades"
-        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule max-md:border-l-0"
+        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:border-l-0"
       >
         <TradeTicket
           symbol={asset.symbol}

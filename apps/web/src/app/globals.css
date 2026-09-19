@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Phone layout: narrow portrait OR short landscape. One variant keeps both orientations consistent. */
+@custom-variant phone (@media (width < 48rem) or (height < 30rem));
+
 @theme {
   --color-ground: #050505;
   --color-panel: #0d0d0d;
@@ -17,11 +20,16 @@
   --color-down-ink: #fff4f3;
   --color-warn-bg: #2a1210;
   --font-ui: var(--font-hanken), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-led: var(--font-doto), var(--font-ui);
+  /* Glanceable numerals use the UI face with tabular digits; the dot-matrix
+     face is kept for the wordmark only. */
+  --font-led: var(--font-ui);
+  --font-brand: var(--font-doto), var(--font-ui);
 }
 
 :root {
   color-scheme: dark;
+  /* Height of the phone bottom nav; the shell grid and the trade action bar both offset by it. */
+  --phone-nav-h: 64px;
 }
 
 html,
@@ -42,6 +50,22 @@ body {
   outline-offset: 2px;
 }
 
+/* Stops double-tap zoom on rapid taps (e.g. repeated Up presses). */
+a,
+button,
+[role="tab"] {
+  touch-action: manipulation;
+}
+
+/* iOS Safari zooms any focused control under 16px. Unlayered, so it beats Tailwind's text-* utilities. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-rule) transparent;
@@ -57,15 +81,15 @@ body {
   color: var(--color-ink-2);
 }
 
-/* Dot-matrix numerals for anything read at a glance. */
+/* Numerals read at a glance: fixed-width digits so prices don't jitter on a tick. */
 .led {
   font-family: var(--font-led);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
 }
 .led-lit {
-  text-shadow: 0 0 10px color-mix(in srgb, currentColor 35%, transparent);
+  text-shadow: 0 0 14px color-mix(in srgb, currentColor 22%, transparent);
 }
 
 /* Tick flash: a brief phosphor tint on the number's own background. */

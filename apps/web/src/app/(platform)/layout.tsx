@@ -44,11 +44,11 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       initialTrades={recent.map((t) => tradeViewFrom(t, symbolById.get(t.assetId) ?? "UNKNOWN"))}
       defaultSymbol={defaultSymbol}
     >
-      <div className="grid h-dvh min-h-[640px] grid-cols-[76px_minmax(0,1fr)] grid-rows-[60px_32px_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[56px_28px_minmax(0,1fr)_64px]">
+      <div className="grid h-dvh min-h-[640px] grid-cols-[76px_minmax(0,1fr)] grid-rows-[60px_32px_minmax(0,1fr)] phone:min-h-0 phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[56px_28px_minmax(0,1fr)_calc(var(--phone-nav-h)+env(safe-area-inset-bottom))] [@media(height<30rem)]:grid-rows-[48px_0px_minmax(0,1fr)_calc(var(--phone-nav-h)+env(safe-area-inset-bottom))]">
         <TopBar />
         <Ticker />
         <IconRail />
-        <div className="col-start-2 row-start-3 min-h-0 min-w-0 overflow-auto max-md:col-start-1">{children}</div>
+        <div className="col-start-2 row-start-3 min-h-0 min-w-0 overflow-auto overscroll-contain phone:col-start-1">{children}</div>
       </div>
     </PlatformProvider>
   );

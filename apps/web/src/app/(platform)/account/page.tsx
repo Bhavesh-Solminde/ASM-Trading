@@ -14,7 +14,7 @@ export default async function AccountPage() {
   const profile = await loadProfile(session.userId);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-8">
+    <main className="mx-auto w-full max-w-3xl px-6 py-8 phone:px-4 phone:py-5">
       <h1 className="mb-6 text-xl font-semibold tracking-tight">My account</h1>
       <ProfileForm initial={profile} />
     </main>
