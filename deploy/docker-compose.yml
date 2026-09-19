@@ -1,0 +1,103 @@
+# asmtrader.com production stack.
+# Lives at /opt/asmtrader on the VPS. Runs alongside amscoins with no overlap:
+# - own docker network (default, project-scoped)
+# - own volumes (postgres_data, redis_data)
+# - own loopback ports (see `ports:` — amscoins holds 4000/6379/27017)
+
+name: asmtrader
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      # `postgres` superuser stays inside the container.
+      POSTGRES_PASSWORD: ${POSTGRES_OWNER_PASSWORD}
+      # init.sql runs on first boot only, seeds asm_owner + asm_app roles.
+      POSTGRES_OWNER_PASSWORD: ${POSTGRES_OWNER_PASSWORD}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      # Loopback only. Reach with an SSH tunnel for pg tools.
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --appendonly
+      - "yes"
+    volumes:
+      - redis_data:/data
+    ports:
+      # 6380 — amscoins already holds 6379.
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: applies Prisma migrations against the containerised Postgres.
+  # Compose treats this as complete when it exits 0; downstream services wait.
+  migrate:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        NEXT_PUBLIC_ENGINE_WS_URL: ${NEXT_PUBLIC_ENGINE_WS_URL}
+    image: asmtrader-app:latest
+    restart: "no"
+    env_file: ../.env.production
+    environment:
+      # Prisma requires DATABASE_URL — override with the migrate role for DDL.
+      DATABASE_URL: ${DATABASE_MIGRATE_URL}
+    command: ["pnpm", "--filter", "@asm/db", "exec", "prisma", "migrate", "deploy"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: asmtrader-app:latest
+    restart: unless-stopped
+    env_file: ../.env.production
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    command: ["pnpm", "--filter", "@asm/web", "start"]
+
+  engine:
+    image: asmtrader-app:latest
+    restart: unless-stopped
+    env_file: ../.env.production
+    ports:
+      # Only WS is proxied publicly (as /ws). Internal HTTP (4002) is
+      # not exposed — web reaches it as http://engine:4002 on the compose net.
+      - "127.0.0.1:4001:4001"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    command: ["pnpm", "--filter", "@asm/engine", "start"]
+
+volumes:
+  postgres_data:
+  redis_data:
