@@ -37,6 +37,21 @@ COPY apps/engine ./apps/engine
 # Baked into the client bundle. Overridable at build time via compose.
 ARG NEXT_PUBLIC_ENGINE_WS_URL="wss://asmtrader.com/ws"
 ENV NEXT_PUBLIC_ENGINE_WS_URL=$NEXT_PUBLIC_ENGINE_WS_URL
+# `next build` collects page data by evaluating API-route modules, which
+# import @asm/config. That factory zod-validates env at import time, so
+# even a build without traffic needs these set. The values here are only
+# read during compile; real secrets come from compose env_file at runtime.
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build?schema=public" \
+    DATABASE_MIGRATE_URL="postgresql://build:build@localhost:5432/build?schema=public" \
+    REDIS_URL="redis://localhost:6379" \
+    SESSION_SECRET="build-only-placeholder-not-used-at-runtime-xxxxxxxx" \
+    ADMIN_PANEL_SECRET="build-only-placeholder" \
+    SMS_RELAY_SECRET="build-only-placeholder" \
+    ENGINE_INTERNAL_SECRET="build-only-placeholder" \
+    ENGINE_HTTP_PORT=4002 \
+    ENGINE_HTTP_URL="http://engine:4002" \
+    ENGINE_WS_PORT=4001 \
+    BANK_FEED=simulated
 RUN pnpm --filter @asm/web build
 
 # ---- runtime: everything built, non-root user, dumb-init as PID 1

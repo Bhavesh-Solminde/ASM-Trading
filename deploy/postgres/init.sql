@@ -6,16 +6,8 @@
 \set owner_password `echo "$POSTGRES_OWNER_PASSWORD"`
 \set app_password   `echo "$POSTGRES_APP_PASSWORD"`
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'asm_owner') THEN
-    EXECUTE format('CREATE ROLE asm_owner LOGIN PASSWORD %L', :'owner_password');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'asm_app') THEN
-    EXECUTE format('CREATE ROLE asm_app LOGIN PASSWORD %L', :'app_password');
-  END IF;
-END
-$$;
+CREATE ROLE asm_owner LOGIN PASSWORD :'owner_password';
+CREATE ROLE asm_app   LOGIN PASSWORD :'app_password';
 
 -- Ownership of the app database goes to asm_owner so migrations can DDL.
 ALTER DATABASE asm_trade OWNER TO asm_owner;
