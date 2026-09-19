@@ -1,0 +1,93 @@
+# Deploys asmtrader.com on every push to main.
+# Mirrors the asmcoins pipeline: a validation gate, then an ssh-driven
+# deploy. All work on the VPS runs as the `deploy` user; docker compose
+# rebuilds only the app image (postgres/redis keep their volumes).
+
+name: deploy asmtrader.com
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # A second push while a deploy is running cancels the queued one, so
+  # only the newest main ever ships.
+  group: deploy-asmtrader
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace deps (skip mobile app)
+        # `--filter !@asm/relay` avoids installing Expo/React Native
+        # toolchain that this workflow does not deploy.
+        run: pnpm install --frozen-lockfile --filter '!@asm/relay...'
+
+      - name: Typecheck the deployed packages
+        run: |
+          pnpm --filter @asm/web --filter @asm/engine \
+               --filter @asm/db --filter @asm/config \
+               --filter @asm/contracts --filter @asm/logger \
+               --filter @asm/algo --filter @asm/pricing \
+               --filter @asm/trading \
+               exec tsc --noEmit
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history is not needed; a shallow clone speeds up rsync input.
+          fetch-depth: 1
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Rsync source to VPS
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes" \
+            --exclude .git --exclude node_modules --exclude .next \
+            --exclude apps/harness --exclude apps/relay \
+            --exclude '.env' --exclude '.env.local' --exclude '.env.production' \
+            --exclude reference --exclude skill-observations --exclude 'demo.html' \
+            --exclude 'docs' --exclude '.claude' --exclude 'graphify-out' \
+            --exclude '*.log' --exclude '.DS_Store' \
+            ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/asmtrader/
+
+      - name: Rebuild and restart containers
+        run: |
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            'cd /opt/asmtrader/deploy && docker compose --env-file ../.env.production up -d --build 2>&1 | tail -40'
+
+      # Nginx changes are rare and involve the host config, which the deploy
+      # user is not sudoered to `cp` into — those go through the manual
+      # runbook in deploy/DEPLOY.md.
+
+      - name: Smoke test
+        run: |
+          # Two-second grace for containers to answer after restart.
+          sleep 5
+          code=$(curl -s -o /dev/null -w "%{http_code}" https://asmtrader.com)
+          echo "HTTPS status: $code"
+          if [ "$code" != "200" ]; then exit 1; fi
