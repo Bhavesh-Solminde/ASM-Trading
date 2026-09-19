@@ -81,4 +81,5 @@ export {
   recordSettledTrade,
 } from "./repositories/account-stats";
 export { provisionBots, resetDemoBalance } from "./repositories/bots";
+export { setLifecycleOverride } from "./repositories/lifecycle";
 export * from "../generated/prisma/client";
