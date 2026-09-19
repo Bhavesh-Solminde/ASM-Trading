@@ -152,14 +152,19 @@ export function createInternalApi(deps: {
     };
   }
 
-  // Standalone mode (local dev): own server bound to loopback only.
+  // Standalone mode: own server. Binds to loopback by default so a dev
+  // machine cannot serve this control surface to the LAN. In production it
+  // must reach the web container over the docker network, so ENGINE_HTTP_HOST
+  // is set to 0.0.0.0 there — safe because the port is not published to the
+  // host and every request still needs the shared bearer secret.
+  const host = process.env.ENGINE_HTTP_HOST ?? "127.0.0.1";
   const server: Server = createServer(requestHandler);
 
   return {
     async listen() {
       await new Promise<void>((resolve, reject) => {
         server.once("error", reject);
-        server.listen(deps.port, "127.0.0.1", () => {
+        server.listen(deps.port, host, () => {
           server.off("error", reject);
           resolve();
         });
