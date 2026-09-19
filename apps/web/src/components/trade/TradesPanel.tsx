@@ -41,7 +41,7 @@ function RowShell({
   return (
     <li className="relative grid grid-cols-[18px_minmax(0,1fr)_auto] gap-x-2.5 gap-y-0.5 border-b border-[#101010] px-3.5 py-2.5">
       <span
-        aria-label={up ? "Up" : "Down"}
+        aria-label={up ? "Buy" : "Sell"}
         className={`dir-mark row-span-3 mt-[3px] ${up ? "text-up" : "text-down"}`}
         data-dir={up ? "up" : "down"}
       />

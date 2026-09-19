@@ -237,7 +237,7 @@ export function TradeTicket({
           className={`${slab} bg-up text-up-ink ${fired === "UP" ? "slab-fired" : ""}`}
         >
           <span>
-            Up<small className={slabNote}>Price ends higher</small>
+            Buy<small className={slabNote}>Price ends higher</small>
           </span>
           <Icon name="up" className="size-[26px]" strokeWidth={2.4} />
         </button>
@@ -249,7 +249,7 @@ export function TradeTicket({
           className={`${slab} bg-down text-down-ink ${fired === "DOWN" ? "slab-fired" : ""}`}
         >
           <span>
-            Down<small className={slabNote}>Price ends lower</small>
+            Sell<small className={slabNote}>Price ends lower</small>
           </span>
           <Icon name="down" className="size-[26px]" strokeWidth={2.4} />
         </button>
