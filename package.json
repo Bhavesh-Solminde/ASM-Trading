@@ -2,14 +2,42 @@
   "name": "asm-trade",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.0.0" },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "packageManager": "pnpm@10.33.0",
   "scripts": {
+    "dev": "pnpm --filter @asm/web dev",
+    "dev:engine": "pnpm --filter @asm/engine dev",
+    "dev:all": "pnpm --filter @asm/web dev & pnpm --filter @asm/engine dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r --workspace-concurrency=1 test",
     "lint": "eslint .",
     "typecheck": "pnpm -r exec tsc --noEmit",
+    "db:generate": "pnpm --filter @asm/db generate",
+    "db:migrate": "pnpm --filter @asm/db migrate",
+    "db:seed": "pnpm --filter @asm/db seed",
+    "services:up": "brew services start postgresql@16 && brew services start redis",
+    "services:down": "brew services stop postgresql@16 && brew services stop redis",
     "relay:prebuild": "pnpm --filter @asm/relay prebuild",
     "relay:android": "pnpm --filter @asm/relay android",
     "relay:start": "pnpm --filter @asm/relay start",
     "relay:test": "pnpm --filter @asm/relay test"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "22.20.2",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.48.1",
+    "vitest": "5.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "argon2",
+      "esbuild",
+      "prisma"
+    ]
   }
 }

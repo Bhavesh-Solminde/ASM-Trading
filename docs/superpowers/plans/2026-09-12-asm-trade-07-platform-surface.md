@@ -127,9 +127,9 @@ Add the back-relations to `User`:
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade?schema=public" \
   pnpm exec prisma migrate dev --name support_tickets
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec prisma migrate deploy
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading
 psql -d asm_trade -f packages/db/sql/restrict-role.sql
@@ -691,7 +691,7 @@ export function computeSentiment(positions: readonly Position[]): {
 In `apps/engine/src/loop.ts`, add the import:
 
 ```ts
-import { computeSentiment } from "./sentiment.js";
+import { computeSentiment } from "./sentiment";
 ```
 
 Add a throttle above `run`:
@@ -942,8 +942,8 @@ Create `packages/db/src/repositories/twofa.test.ts`:
 
 ```ts
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { PrismaClient } from "../../generated/prisma/client.js";
-import { issueTwoFactorCode, verifyTwoFactorCode } from "./twofa.js";
+import { PrismaClient } from "../../generated/prisma/client";
+import { issueTwoFactorCode, verifyTwoFactorCode } from "./twofa";
 
 const prisma = new PrismaClient();
 let userId = "";
@@ -1027,7 +1027,7 @@ describe("two-factor codes", () => {
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run src/repositories/twofa.test.ts
 ```
 
@@ -1038,7 +1038,7 @@ Expected: FAIL — cannot resolve `./twofa.js`.
 ```ts
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { logger } from "@asm/logger";
-import { prisma } from "../client.js";
+import { prisma } from "../client";
 
 const CODE_TTL_MS = 10 * 60_000;
 
@@ -1129,7 +1129,7 @@ export async function verifyTwoFactorCode(
 - [ ] **Step 5: Write `packages/db/src/repositories/profile.ts`**
 
 ```ts
-import { prisma } from "../client.js";
+import { prisma } from "../client";
 
 export interface ProfileView {
   email: string;
@@ -1538,7 +1538,7 @@ export {
   TwoFaVerifySchema,
   type UpdateProfileInput,
   type TwoFaToggleInput,
-} from "./account.js";
+} from "./account";
 ```
 
 Append to `packages/db/src/index.ts`:
@@ -1549,13 +1549,13 @@ export {
   updateProfile,
   setTwoFactorPreferences,
   type ProfileView,
-} from "./repositories/profile.js";
-export { issueTwoFactorCode, verifyTwoFactorCode } from "./repositories/twofa.js";
+} from "./repositories/profile";
+export { issueTwoFactorCode, verifyTwoFactorCode } from "./repositories/twofa";
 ```
 
 ```bash
 cd /Users/solminde/Developer/Personal/AMScoins/asmtrading/packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" \
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" \
   pnpm exec vitest run src/repositories/twofa.test.ts
 ```
 
@@ -2057,8 +2057,8 @@ export const FAQ = [
 - [ ] **Step 2: Write `packages/db/src/repositories/support.ts`**
 
 ```ts
-import { prisma } from "../client.js";
-import type { SupportTicket } from "../../generated/prisma/client.js";
+import { prisma } from "../client";
+import type { SupportTicket } from "../../generated/prisma/client";
 
 export async function createTicket(
   actorId: string,
@@ -2447,13 +2447,13 @@ export {
   CreateTicketSchema,
   FAQ,
   type CreateTicketInput,
-} from "./support.js";
+} from "./support";
 ```
 
 Append to `packages/db/src/index.ts`:
 
 ```ts
-export { createTicket, listTicketsForActor } from "./repositories/support.js";
+export { createTicket, listTicketsForActor } from "./repositories/support";
 ```
 
 - [ ] **Step 9: Verify the payout control**
@@ -2503,7 +2503,7 @@ Expected: all clean.
 
 ```bash
 cd packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run
 cd ../..
 ```
 

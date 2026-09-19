@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="en" data-account="demo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASM — Demo B · Dalal Street Ticker Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@700..900&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============ tokens ============ */
+:root {
+  --ground: #050505;
+  --panel: #0d0d0d;
+  --tile: #151515;
+  --tile-hi: #1c1c1c;
+  --rule: #222222;
+  --ink: #e8e6e1;
+  --ink-2: #9e9b95;
+  --ink-3: #66635e;
+  --brand: #ffb000;
+  --brand-ink: #1a1000;
+  --up: #3be584;
+  --up-ink: #03170b;
+  --down: #e5413b;
+  --down-ink: #fff4f3;
+  --warn-bg: #2a1210;
+
+  --font-ui: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-num: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-led: "Doto", var(--font-ui);
+
+  --chart-bg: #070707;
+  --chart-grid: rgba(255, 176, 0, 0.06);
+  --chart-text: #7d7a72;
+  --chart-price-line: #ffb000;
+  --chart-price-label-bg: #ffb000;
+  --chart-price-label-text: #1a1000;
+  --chart-entry: #e8e6e1;
+  --chart-watermark: rgba(255, 176, 0, 0.035);
+  --chart-crosshair: rgba(255, 176, 0, 0.28);
+  --candle-up-hollow: 0;
+  --qr-dark: #050505;
+  --qr-light: #e8e6e1;
+
+  --arrow-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 1 13 11H1z'/%3E%3C/svg%3E");
+  --arrow-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 13 1 3h12z'/%3E%3C/svg%3E");
+
+  --r-tile: 2px;
+  --r-panel: 4px;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums lining-nums;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+::selection { background: var(--brand); color: var(--brand-ink); }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+input { font: inherit; color: inherit; caret-color: var(--brand); }
+input::placeholder { color: var(--ink-3); }
+[hidden] { display: none !important; }
+* { scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+svg.i { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+.legend {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+/* ============ LED numerals ============ */
+.led {
+  font-family: var(--font-led);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.led-lit { text-shadow: 0 0 10px color-mix(in srgb, currentColor 35%, transparent); }
+
+/* ============ tick flash (signature 2) ============ */
+.tick-up, .tick-down, .tick-amber { border-radius: 2px; }
+.tick-up { animation: tickFlashUp 350ms ease-out; }
+.tick-down { animation: tickFlashDown 350ms ease-out; }
+.tick-amber { animation: tickFlashAmber 350ms ease-out; }
+@keyframes tickFlashUp { from { background-color: color-mix(in srgb, var(--up) 30%, transparent); } to { background-color: transparent; } }
+@keyframes tickFlashDown { from { background-color: color-mix(in srgb, var(--down) 30%, transparent); } to { background-color: transparent; } }
+@keyframes tickFlashAmber { from { background-color: color-mix(in srgb, var(--brand) 28%, transparent); } to { background-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .tick-up, .tick-down, .tick-amber { animation: none !important; } }
+
+/* ============ direction mask arrows ============ */
+.trade-row__dir, .tick__dir, .readout__mask-arrow {
+  font-size: 0; display: inline-block; width: 12px; height: 12px; background: currentColor;
+  -webkit-mask: var(--arrow-up) center/contain no-repeat; mask: var(--arrow-up) center/contain no-repeat;
+}
+.trade-row[data-dir="down"] .trade-row__dir, .tick__dir[data-dir="down"] {
+  -webkit-mask-image: var(--arrow-down); mask-image: var(--arrow-down);
+}
+.trade-row[data-dir="up"] .trade-row__dir { color: var(--up); }
+.trade-row[data-dir="down"] .trade-row__dir { color: var(--down); }
+.tick__dir[data-dir="up"] { color: var(--up); }
+.tick__dir[data-dir="down"] { color: var(--down); }
+
+/* ============ shell ============ */
+.app { display: grid; grid-template-columns: 76px minmax(0, 1fr); grid-template-rows: 60px 32px 1fr; height: 100vh; min-height: 640px; }
+
+.topbar {
+  grid-column: 1 / -1; grid-row: 1;
+  position: relative;
+  display: flex; align-items: center; gap: 20px;
+  padding: 0 16px 0 14px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--ground);
+  min-width: 0;
+}
+[data-account="live"] .topbar { box-shadow: inset 0 -2px 0 0 var(--brand); }
+
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; flex: none; }
+.brand__mark { font-family: var(--font-led); font-weight: 900; font-size: 22px; color: var(--brand); letter-spacing: .02em; text-shadow: 0 0 10px rgba(255,176,0,.35); }
+.brand__word { font-weight: 700; letter-spacing: 0.22em; font-size: 11px; color: var(--ink-2); text-transform: uppercase; }
+
+.feed-status { display: flex; align-items: center; gap: 10px; margin-left: 4px; color: var(--ink-3); flex: none; }
+.feed-status__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--up); box-shadow: 0 0 0 3px rgba(59,229,132,.12); }
+.feed-status .led { font-size: 13px; }
+
+.topbar__right { margin-left: auto; display: flex; align-items: center; gap: 10px; position: relative; min-width: 0; }
+
+.acct {
+  display: grid; grid-template-columns: auto auto 18px; align-items: center; gap: 10px;
+  height: 44px; padding: 0 10px 0 6px;
+  border: 1px solid var(--rule); border-radius: var(--r-panel);
+  background: var(--panel);
+}
+.acct:hover { border-color: var(--tile-hi); }
+.acct__plate {
+  display: grid; grid-auto-flow: column; align-items: center; gap: 5px; place-content: center;
+  height: 30px; padding: 0 9px;
+  border-radius: var(--r-tile);
+  font-weight: 800; letter-spacing: 0.12em; font-size: 11px;
+}
+.acct__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); }
+[data-account="live"] .acct__plate { background: var(--brand); color: var(--brand-ink); }
+[data-account="live"] .acct__plate .acct__dot { background: var(--up); box-shadow: 0 0 5px var(--up); }
+[data-account="demo"] .acct__plate { color: var(--ink-2); background: transparent; border: 1px dotted #555; }
+.acct__text { display: grid; gap: 2px; text-align: left; min-width: 0; }
+.acct__text .legend { font-size: 10px; }
+.acct__bal { font-size: 20px; }
+[data-account="live"] .acct { border-color: var(--brand); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding: 0 16px;
+  border-radius: var(--r-panel);
+  font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 12px;
+  text-decoration: none; color: var(--ink);
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  flex: none;
+}
+.btn--outline { border: 1px solid var(--brand); color: var(--brand); }
+.btn--outline:hover { background: rgba(255,176,0,.1); }
+.btn--ghost { border: 1px solid var(--rule); color: var(--ink-2); }
+.btn--ghost:hover { color: var(--ink); border-color: var(--tile-hi); }
+.btn--solid { background: var(--brand); color: var(--brand-ink); }
+.btn--solid:hover { background: #ffc233; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.menu {
+  position: absolute; top: 54px; right: 0; z-index: 20;
+  width: 340px;
+  background: #0f0f10; border: 1px solid var(--rule); border-radius: var(--r-panel);
+  box-shadow: 0 24px 48px -12px rgba(0,0,0,.8);
+  padding: 8px;
+}
+.menu__opt {
+  width: 100%; display: grid; grid-template-columns: 58px 1fr auto; align-items: center; gap: 12px;
+  padding: 12px 10px; border-radius: var(--r-tile); text-align: left;
+}
+.menu__opt:hover { background: var(--tile); }
+.menu__opt.is-active { background: var(--tile); box-shadow: inset 0 0 0 1px var(--tile-hi); }
+.menu__opt .acct__plate { height: 26px; font-size: 10px; }
+.menu__opt[data-account="live"] .acct__plate { background: var(--brand); color: var(--brand-ink); }
+.menu__opt[data-account="live"] .acct__plate .acct__dot { background: var(--up); box-shadow: 0 0 5px var(--up); }
+.menu__opt[data-account="demo"] .acct__plate { color: var(--ink-2); background: transparent; border: 1px dotted #555; }
+.menu__opt strong { display: block; font-weight: 600; }
+.menu__opt small { color: var(--ink-3); }
+.menu__check { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #4a4f55; }
+.menu__opt.is-active .menu__check { border: 5px solid var(--brand); }
+.menu__foot { display: flex; justify-content: space-between; align-items: center; padding: 10px 10px 4px; border-top: 1px solid var(--rule); margin-top: 6px; }
+.link { color: var(--brand); font-weight: 600; font-size: 13px; }
+.link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ============ ticker tape (signature 1) ============ */
+.ticker {
+  grid-column: 1 / -1; grid-row: 2;
+  overflow: hidden;
+  background: var(--panel);
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.ticker__track { display: flex; align-items: stretch; height: 32px; width: max-content; animation: tickerScroll 42s linear infinite; will-change: transform; }
+.ticker:hover .ticker__track { animation-play-state: paused; }
+@keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .ticker__track { animation: none; } }
+.tick { display: inline-flex; align-items: center; gap: 9px; padding: 0 18px; border-right: 1px solid var(--rule); white-space: nowrap; font-size: 12px; }
+.tick__sym { font-weight: 700; letter-spacing: .03em; color: var(--ink); }
+.tick__price { font-weight: 700; color: var(--ink); border-radius: 2px; padding: 1px 3px; }
+.tick.is-up .tick__chg { color: var(--up); }
+.tick.is-down .tick__chg { color: var(--down); }
+.tick__chg { font-weight: 700; }
+.tick__pay { color: var(--brand); font-weight: 700; }
+
+/* rail */
+.rail { grid-row: 3; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0; border-right: 1px solid var(--rule); }
+.rail__item {
+  width: 60px; padding: 10px 0 8px; border-radius: var(--r-panel);
+  display: grid; justify-items: center; gap: 6px;
+  color: var(--ink-2); text-decoration: none;
+  font-weight: 650; font-size: 9px; letter-spacing: .08em; text-transform: uppercase;
+  position: relative;
+}
+.rail__item svg.i { width: 22px; height: 22px; }
+.rail__item:hover { color: var(--ink); background: var(--panel); }
+.rail__item.is-active { color: var(--ink); background: var(--tile); }
+.rail__item.is-active::before { content: ""; position: absolute; left: -8px; top: 12px; bottom: 12px; width: 3px; border-radius: 0 2px 2px 0; background: var(--brand); }
+.rail__item[aria-disabled="true"] { opacity: .38; cursor: not-allowed; }
+.rail__item[aria-disabled="true"]:hover { background: none; color: var(--ink-2); }
+.rail__soon { font-size: 8px; letter-spacing: .1em; color: var(--ink-3); }
+.rail__gap { flex: 1; }
+
+main { grid-row: 3; min-width: 0; min-height: 0; overflow: hidden; }
+
+/* ============ trade view ============ */
+.trade { display: grid; grid-template-columns: minmax(0, 1fr) 312px; height: 100%; }
+.stage { display: grid; grid-template-rows: auto 1fr; min-width: 0; padding: 12px 12px 12px 16px; gap: 10px; }
+
+.tabs-row { display: flex; align-items: stretch; gap: 6px; min-width: 0; }
+.add-tab { width: 44px; flex: none; border-radius: var(--r-panel); border: 1px dashed var(--tile-hi); color: var(--ink-2); display: grid; place-items: center; }
+.add-tab:hover { color: var(--brand); border-color: var(--brand); }
+#assetTabs { display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+#assetTabs::-webkit-scrollbar { display: none; }
+.asset-tab {
+  display: grid; grid-template-columns: auto auto; align-items: baseline; gap: 4px 12px;
+  padding: 8px 14px; min-width: 150px; flex: none;
+  border-radius: var(--r-panel); background: var(--panel); border: 1px solid var(--rule);
+  text-align: left;
+}
+.asset-tab:hover { border-color: var(--tile-hi); }
+.asset-tab__sym { font-weight: 700; letter-spacing: .03em; font-size: 14px; }
+.asset-tab__pay { font-weight: 700; color: var(--brand); font-size: 12px; justify-self: end; }
+.asset-tab.is-active { background: var(--tile); border-color: var(--ink-3); box-shadow: inset 0 -2px 0 var(--brand); }
+
+.chartbox {
+  position: relative; display: grid; grid-template-columns: 30px 1fr; gap: 10px; min-height: 0;
+  background:
+    radial-gradient(circle, rgba(255,176,0,.035) 1px, transparent 1.3px) 0 0/5px 5px,
+    var(--chart-bg);
+  border: 1px solid var(--rule); border-radius: var(--r-panel); padding: 10px 0 0 10px;
+}
+.sentiment { display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 6px; padding-bottom: 36px; }
+.sentiment__bar { width: 4px; border-radius: 2px; background: var(--down); position: relative; overflow: hidden; }
+.sentiment__bar::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--sent-up, .5) * 100%); background: var(--up); transition: height .6s cubic-bezier(.2,.8,.2,1); }
+.sentiment span { font-weight: 700; font-size: 11px; }
+.sentiment span:first-child { color: var(--up); }
+.sentiment span:last-child { color: var(--down); }
+.chart-wrap { position: relative; min-height: 0; }
+#chart { position: absolute; inset: 0; display: block; cursor: crosshair; }
+
+.readout { position: absolute; top: 8px; left: 8px; display: grid; gap: 6px; pointer-events: none; }
+.readout__head { display: flex; align-items: center; gap: 10px; }
+.readout__name { font-weight: 700; font-size: 15px; letter-spacing: .03em; }
+.readout__price { font-size: 28px; color: var(--brand); }
+[data-bind-dir][data-dir="up"] .readout__arrow { color: var(--up); transform: none; }
+[data-bind-dir][data-dir="down"] .readout__arrow { color: var(--down); transform: rotate(180deg); }
+.readout__arrow { transition: transform .2s ease, color .2s ease; }
+.ohlc { position: absolute; left: 8px; bottom: 34px; font-size: 11px; color: var(--ink-2); letter-spacing: .02em; pointer-events: none; white-space: pre; }
+.feed-note { position: absolute; right: 92px; top: 10px; color: var(--ink-3); pointer-events: none; }
+
+/* ticket */
+.side { display: grid; grid-template-rows: auto minmax(0, 1fr); border-left: 1px solid var(--rule); min-height: 0; }
+.ticket { padding: 14px 16px 16px; display: grid; gap: 12px; border-bottom: 1px solid var(--rule); }
+.ticket__head { display: flex; align-items: baseline; justify-content: space-between; }
+.ticket__asset { font-weight: 700; font-size: 17px; letter-spacing: .03em; }
+.ticket__pay { font-weight: 800; color: var(--brand); font-size: 17px; }
+.field { display: grid; gap: 6px; }
+.field__row { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; gap: 6px; }
+.field__display {
+  display: grid; justify-items: center; align-items: center;
+  height: 48px; border-radius: var(--r-panel); background: var(--panel); border: 1px solid var(--rule);
+  font-size: 22px;
+}
+button.field__display:hover { border-color: var(--tile-hi); }
+.step { height: 48px; border-radius: var(--r-panel); border: 1px solid var(--rule); display: grid; place-items: center; color: var(--ink-2); }
+.step:hover { color: var(--ink); border-color: var(--tile-hi); background: var(--panel); }
+.field__sub { display: flex; justify-content: space-between; color: var(--ink-3); font-size: 12px; }
+.field__sub b { color: var(--ink-2); font-weight: 600; }
+.stake-input { display: flex; align-items: center; justify-content: center; gap: 2px; font-size: 22px; font-weight: 700; }
+.stake-input input { width: 5ch; background: none; border: 0; outline: 0; text-align: left; font-weight: 700; font-size: 22px; }
+.field__display:focus-within { border-color: var(--brand); }
+.presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.preset { height: 28px; border-radius: var(--r-tile); background: var(--panel); border: 1px solid var(--rule); font-weight: 650; font-size: 12px; color: var(--ink-2); }
+.preset:hover { color: var(--ink); }
+.preset.is-active { color: var(--brand); border-color: var(--brand); }
+#durationGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.dur-chip { height: 30px; border-radius: var(--r-tile); background: var(--tile); font-weight: 650; font-size: 12px; color: var(--ink-2); }
+.dur-chip:hover { color: var(--ink); background: var(--tile-hi); }
+.dur-chip.is-active { background: var(--brand); color: var(--brand-ink); }
+
+.payout { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 10px 0 2px; border-top: 1px dashed var(--rule); }
+.payout__profit { font-size: 20px; font-weight: 800; color: var(--up); }
+.payout__return { color: var(--ink-3); font-size: 12px; }
+
+.live-strip { display: none; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r-tile); background: rgba(255,176,0,.1); color: var(--brand); font-size: 12px; font-weight: 600; }
+[data-account="live"] .live-strip { display: flex; }
+
+.slabs { display: grid; gap: 8px; }
+.slab {
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  height: 58px; padding: 0 16px 0 18px; border-radius: 4px;
+  font-weight: 850; letter-spacing: .08em; font-size: 17px; text-transform: uppercase; text-align: left;
+  position: relative; overflow: hidden;
+  transition: filter .15s ease, transform .08s ease;
+}
+.slab svg.i { width: 26px; height: 26px; stroke-width: 2.4; }
+.slab--up { background: var(--up); color: var(--up-ink); }
+.slab--down { background: var(--down); color: var(--down-ink); }
+.slab:hover { filter: brightness(1.08); }
+.slab:active { transform: translateY(1px); }
+.slab small { display: block; font-size: 10px; letter-spacing: .1em; opacity: .75; font-weight: 700; margin-top: 2px; text-transform: none; }
+.slab.is-fired::after { content: ""; position: absolute; inset: 0; background: #fff; animation: fire .45s cubic-bezier(.2,.8,.2,1) forwards; }
+@keyframes fire { from { opacity: .5; } to { opacity: 0; } }
+
+.slip { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; padding: 8px 10px; border-radius: var(--r-tile); background: var(--warn-bg); color: #ffb3a8; font-size: 12px; box-shadow: inset 0 0 0 1px rgba(229,65,59,.5); }
+
+/* trades board */
+.board { display: grid; grid-template-rows: auto minmax(0,1fr); min-height: 0; }
+.board__tabs { display: flex; padding: 0 12px; border-bottom: 1px solid var(--rule); }
+.board__tab { padding: 12px 8px 10px; margin-right: 8px; display: flex; gap: 8px; align-items: center; color: var(--ink-3); border-bottom: 2px solid transparent; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 11px; }
+.board__tab.is-active { color: var(--ink); border-color: var(--brand); }
+.count { min-width: 20px; height: 18px; padding: 0 5px; border-radius: 2px; background: var(--tile); display: inline-grid; place-items: center; font-size: 11px; color: var(--ink-2); }
+#tradeList { list-style: none; margin: 0; padding: 4px 0; overflow: auto; }
+.trade-row {
+  position: relative;
+  display: grid; grid-template-columns: 18px 1fr auto; grid-template-areas: "dir sym time" "dir stake pnl" "dir meta status";
+  gap: 2px 10px; padding: 10px 14px; border-bottom: 1px solid #101010;
+}
+.trade-row__dir { grid-area: dir; align-self: start; margin-top: 3px; }
+.trade-row__sym { grid-area: sym; font-weight: 700; letter-spacing: .03em; }
+.trade-row__stake { grid-area: stake; color: var(--ink-2); font-size: 12px; }
+.trade-row__time { grid-area: time; justify-self: end; font-size: 13px; color: var(--ink-2); border-radius: 2px; }
+.trade-row[data-state="open"] .trade-row__time { color: var(--ink); }
+.trade-row__pnl { grid-area: pnl; justify-self: end; font-weight: 700; }
+.trade-row__meta { grid-area: meta; color: var(--ink-3); font-size: 11px; }
+.trade-row__status { grid-area: status; justify-self: end; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: 10px; padding: 2px 6px; border-radius: 2px; }
+.trade-row[data-state="open"] .trade-row__status { background: var(--tile); color: var(--ink); }
+.trade-row[data-state="won"] .trade-row__status { background: var(--up); color: var(--up-ink); }
+.trade-row[data-state="lost"] .trade-row__status { background: transparent; color: var(--down); box-shadow: inset 0 0 0 1px var(--down); }
+.trade-row[data-state="refund"] .trade-row__status { background: var(--tile); color: var(--ink-2); }
+.trade-row[data-state="won"] .trade-row__pnl { color: var(--up); }
+.trade-row[data-state="lost"] .trade-row__pnl { color: var(--ink-3); }
+.trade-row[data-leaning="win"] .trade-row__pnl { color: var(--up); }
+.trade-row[data-leaning="lose"] .trade-row__pnl { color: var(--down); }
+.trade-row__progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: calc(var(--p, 0) * 100%); background: var(--brand); }
+.trade-row.is-settling { animation: settle 1.2s cubic-bezier(.2,.8,.2,1); }
+@keyframes settle { from { background: rgba(255,176,0,.12); } to { background: transparent; } }
+.empty { padding: 28px 18px; color: var(--ink-3); display: grid; gap: 6px; text-align: center; }
+.empty strong { color: var(--ink-2); font-weight: 600; }
+
+/* ============ payments view ============ */
+.money { height: 100%; overflow: auto; padding: 16px 20px 40px; }
+.money__top { display: flex; align-items: center; gap: 24px; border-bottom: 1px solid var(--rule); padding-bottom: 14px; }
+.ptabs { display: flex; gap: 2px; }
+.ptab { padding: 10px 14px; border-radius: var(--r-tile); color: var(--ink-3); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 11px; }
+.ptab.is-active { background: var(--tile); color: var(--ink); }
+.ptab[aria-disabled="true"] { cursor: default; }
+.sums { margin-left: auto; display: flex; gap: 28px; }
+.sum { display: grid; gap: 4px; justify-items: end; }
+.sum .led { font-size: 18px; }
+
+.money__grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 28px; padding-top: 22px; max-width: 1280px; }
+.flow { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 28px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: 0; }
+.steps li { display: grid; grid-template-columns: 38px 1fr; gap: 10px; padding: 10px 0; color: var(--ink-3); position: relative; }
+.steps li + li::before { content: ""; position: absolute; left: 18px; top: -10px; height: 20px; width: 1px; background: var(--rule); }
+.steps__n { display: grid; place-items: center; height: 30px; width: 34px; border-radius: 3px; background: var(--tile); font-size: 15px; }
+.steps li[data-status="current"] { color: var(--ink); }
+.steps li[data-status="current"] .steps__n { background: var(--brand); color: var(--brand-ink); }
+.steps li[data-status="done"] .steps__n { color: var(--up); }
+.steps b { display: block; font-weight: 650; font-size: 13px; }
+.steps small { font-size: 11px; }
+
+.panel-title { margin: 0 0 4px; font-size: 22px; font-weight: 750; letter-spacing: -0.01em; }
+.panel-lede { margin: 0 0 20px; color: var(--ink-2); max-width: 56ch; }
+.methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+.method { display: grid; gap: 4px; padding: 14px; border-radius: var(--r-panel); background: var(--panel); border: 1px solid var(--rule); text-align: left; }
+.method:hover { border-color: var(--tile-hi); }
+.method.is-active { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+.method b { font-weight: 700; font-size: 15px; }
+.method small { color: var(--ink-3); }
+.amount { display: grid; gap: 8px; margin-bottom: 18px; max-width: 520px; }
+.amount__input { display: flex; align-items: center; height: 64px; padding: 0 18px; border-radius: var(--r-panel); background: var(--panel); border: 1px solid var(--rule); font-size: 30px; font-weight: 750; }
+.amount__input:focus-within { border-color: var(--brand); }
+.amount__input input { flex: 1; background: none; border: 0; outline: 0; font-weight: 750; font-size: 30px; min-width: 0; }
+.amount__presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.amount__presets .preset { height: 34px; font-size: 13px; }
+.convert { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0; border-top: 1px dashed var(--rule); max-width: 520px; margin-bottom: 18px; }
+.convert strong { font-size: 20px; font-weight: 750; }
+.note { display: grid; grid-template-columns: auto 1fr; gap: 10px; color: var(--ink-2); font-size: 13px; max-width: 520px; margin: 0 0 20px; }
+.note svg.i { color: var(--brand); margin-top: 1px; }
+
+.pay { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: start; }
+.qr { padding: 14px; background: var(--qr-light); border-radius: var(--r-panel); display: grid; gap: 10px; justify-items: center; }
+.qr small { color: #6b6860; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.exact { display: grid; gap: 6px; margin-bottom: 18px; }
+.exact .led { font-size: 34px; color: var(--brand); }
+.exact__why { color: var(--ink-2); font-size: 13px; max-width: 46ch; }
+.copyrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: var(--r-panel); background: var(--panel); border: 1px solid var(--rule); margin-bottom: 8px; }
+.copyrow code { font-family: var(--font-num); font-weight: 650; font-size: 15px; }
+.copy { display: inline-flex; align-items: center; gap: 6px; color: var(--brand); font-weight: 650; font-size: 12px; }
+.copy.is-copied::after { content: "Copied"; color: var(--up); }
+.copy.is-copied span { display: none; }
+.utr { display: grid; gap: 6px; margin: 18px 0 14px; max-width: 420px; }
+.utr input { height: 52px; padding: 0 14px; border-radius: var(--r-panel); background: var(--panel); border: 1px solid var(--rule); outline: 0; font-size: 20px; font-weight: 700; letter-spacing: .1em; }
+.utr input:focus { border-color: var(--brand); }
+.actions { display: flex; gap: 10px; align-items: center; }
+
+.wait { display: grid; gap: 18px; max-width: 620px; }
+.wait__row { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; padding: 16px 18px; border-radius: var(--r-panel); background: var(--panel); border: 1px solid var(--rule); }
+.wait__status { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; color: var(--brand); }
+.wait__status i { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); animation: blink 1.4s steps(2, jump-none) infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+.wait__row .led { font-size: 22px; }
+.wait ol { margin: 0; padding-left: 18px; color: var(--ink-2); display: grid; gap: 6px; }
+
+.history h3 { margin: 0 0 10px; }
+#paymentList { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.pay-row { display: grid; grid-template-columns: 22px 1fr auto; grid-template-areas: "g kind amount" "g id status" "g when when" "g note note"; gap: 2px 10px; padding: 12px 2px; border-bottom: 1px solid var(--rule); }
+.pay-row__glyph { grid-area: g; font-size: 0; width: 14px; height: 14px; align-self: start; margin-top: 3px; }
+.pay-row__glyph::before { content: ""; display: block; width: 100%; height: 100%; border-radius: 50%; background: currentColor; }
+.pay-row__kind { grid-area: kind; font-weight: 650; }
+.pay-row__id { grid-area: id; color: var(--ink-3); font-size: 12px; }
+.pay-row__amount { grid-area: amount; justify-self: end; font-weight: 750; font-size: 15px; }
+.pay-row__status { grid-area: status; justify-self: end; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: 10px; padding: 2px 6px; border-radius: 2px; }
+.pay-row__when { grid-area: when; color: var(--ink-3); font-size: 12px; }
+.pay-row__note { grid-area: note; color: #ffb3a8; font-size: 12px; }
+.pay-row[data-state="processing"] .pay-row__status { background: rgba(255,176,0,.14); color: var(--brand); }
+.pay-row[data-state="processing"] .pay-row__glyph { color: var(--brand); }
+.pay-row[data-state="approved"] .pay-row__status { background: var(--up); color: var(--up-ink); }
+.pay-row[data-state="approved"] .pay-row__glyph { color: var(--up); }
+.pay-row[data-state="rejected"] .pay-row__status { color: var(--down); box-shadow: inset 0 0 0 1px var(--down); }
+.pay-row[data-state="rejected"] .pay-row__glyph { color: var(--down); }
+
+/* ============ responsive (adapted after desktop) ============ */
+@media (max-width: 1100px) {
+  .money__grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 860px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px 28px 1fr 64px; }
+  .ticker { grid-row: 2; }
+  .rail { grid-row: 4; flex-direction: row; justify-content: space-around; border-right: 0; border-top: 1px solid var(--rule); padding: 4px 8px; }
+  .rail__gap, .rail__item[aria-disabled="true"] { display: none; }
+  .rail__item.is-active::before { left: 12px; right: 12px; top: -5px; bottom: auto; width: auto; height: 3px; }
+  .brand__word, .btn--ghost, .acct__text .legend, .feed-status { display: none; }
+  .topbar { gap: 8px; padding: 0 10px; }
+  .topbar__right { gap: 6px; }
+  .btn { padding: 0 12px; }
+  .btn--outline { font-size: 0; width: 44px; padding: 0; }
+  .btn--outline svg.i { margin: 0; }
+  main { grid-row: 3; overflow: auto; }
+  .trade { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .stage { grid-template-rows: auto 52vh; padding: 10px; }
+  .side { border-left: 0; }
+  .asset-tab { min-width: 118px; }
+  .flow { grid-template-columns: 1fr; }
+  .steps { grid-auto-flow: column; }
+  .steps li + li::before { display: none; }
+  .steps small { display: none; }
+  .pay { grid-template-columns: 1fr; }
+  .methods { grid-template-columns: 1fr 1fr 1fr; }
+  .sums { display: none; }
+  .money { padding: 12px 16px 32px; }
+  .readout__price { font-size: 22px; }
+  .feed-note { display: none; }
+}
+</style>
+</head>
+<body>
+<!--
+THESIS: Every number a trader watches is a dot-matrix LED tile on a true-black exchange façade; refuses the navy-card broker default.
+OWN-WORLD: anodised black panels, phosphor-amber brand, green/red tape at different lightness, a live ticker tape bolted under the top bar, Doto dot-matrix numerals for anything you read at a glance.
+STORY: trader sees which account is live, sets time and stake, fires Up/Down, watches it settle on a scrolling trades board; deposits wait visibly, checked by hand.
+FIRST VIEWPORT: Quotex layout — rail, ticker tape, tabs, chart, 312px ticket, board of trades.
+FORM: Dalal Street ticker wall, grounded list #1, seed c5f083cd.
+-->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-trade" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M8 15v-4M12 15V8M16 15v-6"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z"/><path d="M4 7l11-3v3"/><path d="M16 13.5h.5"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.5a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2 1-1.2 1.8"/><path d="M12 16.5h.01"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/></symbol>
+  <symbol id="i-cup" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a3 3 0 0 0 3 3M17 6h3a3 3 0 0 1-3 3M12 14v3M8 20h8"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 2.5 14.4 0 17M12 3.5c-2.5 2.6-2.5 14.4 0 17"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5H12V3.5z"/><path d="M15 3.9A8.5 8.5 0 0 1 20.1 9H15V3.9z"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><path d="M6 12h.01M12 12h.01M18 12h.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M12 18V6M7 11l5-5 5 5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6a1 1 0 0 1 1-1h9"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 21 19H3z"/><path d="M12 10v4M12 16.5h.01"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4 4v4h4"/></symbol>
+</svg>
+
+<div class="app">
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="ASM Trade">
+      <span class="brand__mark" aria-hidden="true">ASM</span>
+      <span class="brand__word">Trade</span>
+    </a>
+    <div class="feed-status" title="Prices in this demo are simulated">
+      <span class="feed-status__dot" aria-hidden="true"></span>
+      <span class="legend">Simulated feed · Local</span>
+      <span class="led" data-bind="utc" data-flap></span>
+    </div>
+
+    <div class="topbar__right">
+      <button class="acct" type="button" data-action="account-menu" aria-haspopup="true" aria-expanded="false" aria-controls="accountMenu">
+        <span class="acct__plate" data-bind="account-short"><span class="acct__dot" aria-hidden="true"></span>DEMO</span>
+        <span class="acct__text">
+          <span class="legend" data-bind="account-label">Demo account</span>
+          <span class="led led-lit acct__bal" data-bind="balance" data-flap></span>
+        </span>
+        <svg class="i" aria-hidden="true"><use href="#i-caret"/></svg>
+      </button>
+      <a class="btn btn--outline" href="#deposit" data-view-link="deposit"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>Deposit</a>
+      <a class="btn btn--ghost" href="#" data-view-link="deposit">Withdraw</a>
+
+      <div class="menu" id="accountMenu" role="menu" hidden>
+        <button class="menu__opt" type="button" role="menuitemradio" data-action="switch-account" data-account="live">
+          <span class="acct__plate"><span class="acct__dot" aria-hidden="true"></span>LIVE</span>
+          <span><strong>Live account</strong><small data-bind="balance-live"></small></span>
+          <span class="menu__check" aria-hidden="true"></span>
+        </button>
+        <button class="menu__opt" type="button" role="menuitemradio" data-action="switch-account" data-account="demo">
+          <span class="acct__plate"><span class="acct__dot" aria-hidden="true"></span>DEMO</span>
+          <span><strong>Demo account</strong><small data-bind="balance-demo"></small></span>
+          <span class="menu__check" aria-hidden="true"></span>
+        </button>
+        <div class="menu__foot">
+          <button class="link" type="button" data-action="reset-demo">Reset demo to $10,000</button>
+          <button class="link" type="button" style="color:var(--ink-3)">Log out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="ticker" aria-label="Live price ticker" title="Prices in this demo are simulated">
+    <div class="ticker__track" id="tickerTrack"></div>
+  </div>
+
+  <nav class="rail" aria-label="Platform sections">
+    <a class="rail__item" href="#" data-view-link="trade"><svg class="i" aria-hidden="true"><use href="#i-trade"/></svg>Trade</a>
+    <a class="rail__item" href="#deposit" data-view-link="deposit"><svg class="i" aria-hidden="true"><use href="#i-wallet"/></svg>Payments</a>
+    <a class="rail__item" href="#" data-view-link="support" aria-disabled="true" title="Not in this demo"><svg class="i" aria-hidden="true"><use href="#i-help"/></svg>Support</a>
+    <a class="rail__item" href="#" data-view-link="account" aria-disabled="true" title="Not in this demo"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>Account</a>
+    <span class="rail__item" aria-disabled="true"><svg class="i" aria-hidden="true"><use href="#i-cup"/></svg>Tourney<span class="rail__soon">Soon</span></span>
+    <span class="rail__item" aria-disabled="true"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>Market<span class="rail__soon">Soon</span></span>
+    <span class="rail__gap"></span>
+    <span class="rail__item" aria-disabled="true"><svg class="i" aria-hidden="true"><use href="#i-more"/></svg>More</span>
+  </nav>
+
+  <main>
+    <!-- ================= TRADE ================= -->
+    <section class="trade" data-view="trade" aria-label="Trade">
+      <div class="stage">
+        <div class="tabs-row">
+          <button class="add-tab" type="button" data-action="add-tab" aria-label="Open another asset"><svg class="i"><use href="#i-plus"/></svg></button>
+          <div id="assetTabs" role="tablist" aria-label="Open assets"></div>
+        </div>
+
+        <div class="chartbox">
+          <div class="sentiment" data-sentiment title="Share of traders choosing Up vs Down (simulated)">
+            <span data-bind="sent-up"></span>
+            <div class="sentiment__bar"></div>
+            <span data-bind="sent-down"></span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart" aria-label="Price chart"></canvas>
+            <div class="readout" data-bind-dir="price">
+              <div class="readout__head">
+                <span class="readout__name" data-bind="asset"></span>
+                <span class="legend" data-bind="asset-name"></span>
+              </div>
+              <div class="readout__head">
+                <span class="led led-lit readout__price" data-bind="price" data-flap></span>
+                <svg class="i readout__arrow" aria-hidden="true"><use href="#i-arrow"/></svg>
+              </div>
+            </div>
+            <div class="legend feed-note">5s candles</div>
+            <div class="ohlc" data-bind="ohlc"></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side" aria-label="Trade ticket and trades">
+        <div class="ticket">
+          <div class="ticket__head">
+            <span class="ticket__asset" data-bind="asset"></span>
+            <span class="ticket__pay" data-bind="payout-pct"></span>
+          </div>
+
+          <div class="field">
+            <span class="legend" id="lblTime">Time</span>
+            <div class="field__row">
+              <button class="step" type="button" data-action="dur-minus" aria-label="Shorter"><svg class="i"><use href="#i-minus"/></svg></button>
+              <button class="field__display" type="button" data-action="dur-toggle" aria-expanded="false" aria-controls="durationGrid" aria-labelledby="lblTime">
+                <span class="led led-lit" data-bind="duration" data-flap></span>
+              </button>
+              <button class="step" type="button" data-action="dur-plus" aria-label="Longer"><svg class="i"><use href="#i-plus"/></svg></button>
+            </div>
+            <div id="durationGrid" hidden></div>
+            <div class="field__sub"><span>Expires at</span><b data-bind="expires-at"></b></div>
+          </div>
+
+          <div class="field">
+            <label class="legend" for="stakeInput">Investment</label>
+            <div class="field__row">
+              <button class="step" type="button" data-action="stake-minus" aria-label="Decrease investment"><svg class="i"><use href="#i-minus"/></svg></button>
+              <div class="field__display"><span class="stake-input">$<input id="stakeInput" inputmode="decimal" value="10" autocomplete="off"></span></div>
+              <button class="step" type="button" data-action="stake-plus" aria-label="Increase investment"><svg class="i"><use href="#i-plus"/></svg></button>
+            </div>
+            <div class="presets">
+              <button class="preset" type="button" data-action="stake-preset" data-value="5">$5</button>
+              <button class="preset" type="button" data-action="stake-preset" data-value="10">$10</button>
+              <button class="preset" type="button" data-action="stake-preset" data-value="25">$25</button>
+              <button class="preset" type="button" data-action="stake-preset" data-value="50">$50</button>
+              <button class="preset" type="button" data-action="stake-preset" data-value="100">$100</button>
+            </div>
+          </div>
+
+          <div class="payout">
+            <span class="legend">If correct</span>
+            <span class="led led-lit payout__profit" data-bind="profit" data-flap></span>
+            <span class="payout__return">You get back</span>
+            <span class="payout__return" data-bind="return"></span>
+          </div>
+
+          <div class="live-strip"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg>Live account — this uses real balance</div>
+          <div class="slip" id="ticketError" role="alert" hidden></div>
+
+          <div class="slabs">
+            <button class="slab slab--up" type="button" data-action="up"><span>Up<small>Price ends higher</small></span><svg class="i" aria-hidden="true"><use href="#i-up"/></svg></button>
+            <button class="slab slab--down" type="button" data-action="down"><span>Down<small>Price ends lower</small></span><svg class="i" aria-hidden="true"><use href="#i-down"/></svg></button>
+          </div>
+        </div>
+
+        <div class="board">
+          <div class="board__tabs" role="tablist">
+            <button class="board__tab" type="button" role="tab" data-action="trades-tab" data-tab="open">Open <span class="count" data-bind="count-open">0</span></button>
+            <button class="board__tab" type="button" role="tab" data-action="trades-tab" data-tab="closed">Closed <span class="count" data-bind="count-closed">0</span></button>
+          </div>
+          <ul id="tradeList" aria-live="polite"></ul>
+          <template id="tradesEmpty">
+            <li class="empty"><strong>No <span data-bind="empty-tab">open</span> trades on this account</strong><span>Set a time and investment above, then choose Up or Down.</span></li>
+          </template>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ================= PAYMENTS ================= -->
+    <section class="money" data-view="deposit" aria-label="Payments" hidden>
+      <div class="money__top">
+        <div class="ptabs" role="tablist">
+          <button class="ptab is-active" type="button" role="tab" aria-selected="true">Deposit</button>
+          <button class="ptab" type="button" role="tab" aria-disabled="true" title="Not in this demo">Withdrawal</button>
+          <button class="ptab" type="button" role="tab" aria-disabled="true" title="Not in this demo">History</button>
+          <button class="ptab" type="button" role="tab" aria-disabled="true" title="Not in this demo">My account</button>
+        </div>
+        <div class="sums">
+          <div class="sum"><span class="legend">Live balance</span><span class="led led-lit" data-bind="balance-live" data-flap></span></div>
+          <div class="sum"><span class="legend">Available to withdraw</span><span class="led" data-flap>$1,240.50</span></div>
+        </div>
+      </div>
+
+      <div class="money__grid">
+        <div class="flow" id="depositFlow">
+          <ol class="steps" aria-label="Deposit steps">
+            <li data-step="1"><span class="steps__n led led-lit">01</span><span><b>Amount</b><small>Method and sum</small></span></li>
+            <li data-step="2"><span class="steps__n led led-lit">02</span><span><b>Pay by UPI</b><small>Scan, then send UTR</small></span></li>
+            <li data-step="3"><span class="steps__n led led-lit">03</span><span><b>Checking</b><small>Approved by hand</small></span></li>
+          </ol>
+
+          <div>
+            <!-- step 1 -->
+            <div data-step-panel="1">
+              <h2 class="panel-title">Add money to your Live account</h2>
+              <p class="panel-lede">Pay from any UPI app. We match your payment by its exact rupee amount and the UTR you send us.</p>
+              <div class="methods" role="radiogroup" aria-label="Payment method">
+                <button class="method" type="button" role="radio" data-action="dep-method" data-method="upi"><b>UPI</b><small>Any UPI app · QR</small></button>
+                <button class="method" type="button" role="radio" data-action="dep-method" data-method="phonepe"><b>PhonePe</b><small>Opens PhonePe</small></button>
+                <button class="method" type="button" role="radio" data-action="dep-method" data-method="paytm"><b>Paytm</b><small>Opens Paytm</small></button>
+              </div>
+              <div class="amount">
+                <label class="legend" for="depAmount">Amount in US dollars</label>
+                <div class="amount__input">$<input id="depAmount" inputmode="decimal" value="50" autocomplete="off"></div>
+                <div class="amount__presets">
+                  <button class="preset" type="button" data-action="dep-amount" data-amount="25">$25</button>
+                  <button class="preset" type="button" data-action="dep-amount" data-amount="50">$50</button>
+                  <button class="preset" type="button" data-action="dep-amount" data-amount="100">$100</button>
+                  <button class="preset" type="button" data-action="dep-amount" data-amount="250">$250</button>
+                </div>
+                <div class="slip" id="depError" role="alert" hidden></div>
+              </div>
+              <div class="convert"><span><span class="legend">You will pay about</span><br><small style="color:var(--ink-3)" data-bind="dep-rate"></small></span><strong data-bind="dep-inr"></strong></div>
+              <p class="note"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span>Deposits are checked by a person before they reach your balance. You'll see the status here the whole time.</span></p>
+              <div class="actions"><button class="btn btn--solid" type="button" data-action="dep-continue">Continue to payment</button></div>
+            </div>
+
+            <!-- step 2 -->
+            <div data-step-panel="2" hidden>
+              <h2 class="panel-title">Pay by UPI</h2>
+              <p class="panel-lede">Scan with <span data-bind="dep-method">UPI</span>, or pay the UPI ID below. Send the exact amount — the paise identify your deposit.</p>
+              <div class="pay">
+                <div class="qr"><canvas id="qr" aria-label="UPI QR code"></canvas><small>Demo QR — not payable</small></div>
+                <div>
+                  <div class="exact">
+                    <span class="legend">Pay exactly</span>
+                    <span class="led led-lit" data-bind="dep-inr" data-flap></span>
+                    <span class="exact__why">For <span data-bind="dep-usd"></span>. Don't round it — a different amount can't be matched to you.</span>
+                  </div>
+                  <div class="copyrow"><span><span class="legend">UPI ID</span><br><code>asmtrade.demo@upi</code></span><button class="copy" type="button" data-action="dep-copy" data-copy="asmtrade.demo@upi"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+                  <div class="utr">
+                    <label class="legend" for="utr">UTR / UPI reference number</label>
+                    <input id="utr" inputmode="numeric" placeholder="12 digits" autocomplete="off">
+                    <div class="slip" id="utrError" role="alert" hidden></div>
+                  </div>
+                  <div class="actions">
+                    <button class="btn btn--solid" type="button" data-action="dep-claim">I've paid — send for checking</button>
+                    <button class="btn btn--ghost" type="button" data-action="dep-back">Back</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- step 3 -->
+            <div data-step-panel="3" hidden>
+              <h2 class="panel-title">We're checking your payment</h2>
+              <p class="panel-lede">Your balance doesn't change until this is approved. You can keep trading on Demo meanwhile.</p>
+              <div class="wait">
+                <div class="wait__row">
+                  <span class="wait__status"><i aria-hidden="true"></i>Processing</span>
+                  <span class="led led-lit" data-bind="dep-elapsed" data-flap></span>
+                  <span><strong data-bind="dep-inr"></strong> <span style="color:var(--ink-3)">→ <span data-bind="dep-usd"></span> Live</span></span>
+                  <span class="legend">Waiting</span>
+                </div>
+                <ol>
+                  <li>We match the rupee amount and your UTR against the bank record.</li>
+                  <li>When it matches, the dollars are added to your Live balance.</li>
+                  <li>If it can't be matched, it shows as Rejected with the reason.</li>
+                </ol>
+                <div class="actions"><button class="btn btn--outline" type="button" data-action="goto" data-target="trade">Back to trading</button><button class="btn btn--ghost" type="button" data-action="dep-restart">New deposit</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="history">
+          <h3 class="legend">Recent payments</h3>
+          <ul id="paymentList"></ul>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* LED renderer: text updates in place; a numeric change (or a non-numeric
+   one) flashes a brief phosphor-tint on the element's own background. */
+window.ASMTheme = {
+  setText: function (el, text) {
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var old = el.textContent;
+    text = String(text);
+    if (old === text) return;
+    el.textContent = text;
+    el.setAttribute("aria-label", text);
+    if (reduce || el.dataset.bind === "utc" || el.dataset.bind === "dep-elapsed" || el.dataset.bind === "duration" || el.classList.contains("trade-row__time")) return;
+    var on = parseFloat(String(old).replace(/[^0-9.\-]/g, ""));
+    var nn = parseFloat(String(text).replace(/[^0-9.\-]/g, ""));
+    var cls = "tick-amber";
+    if (!isNaN(on) && !isNaN(nn) && on !== nn) cls = nn > on ? "tick-up" : "tick-down";
+    el.classList.remove("tick-up", "tick-down", "tick-amber");
+    void el.offsetWidth;
+    el.classList.add(cls);
+    clearTimeout(el.__tickTimer);
+    el.__tickTimer = setTimeout(function () { el.classList.remove(cls); }, 380);
+  }
+};
+
+/* Ticker tape: built from window.ASMDemo.assets, refreshed in place every
+   500ms via window.ASMDemo.quote — never rebuilt, so the scroll never jumps. */
+(function () {
+  "use strict";
+  function buildTicker() {
+    var track = document.getElementById("tickerTrack");
+    if (!track || !window.ASMDemo) return;
+    var assets = window.ASMDemo.assets;
+    var html = "";
+    for (var rep = 0; rep < 2; rep++) {
+      for (var i = 0; i < assets.length; i++) {
+        html +=
+          '<span class="tick" data-sym="' + assets[i].sym + '">' +
+          '<span class="tick__sym"></span>' +
+          '<span class="tick__price led"></span>' +
+          '<span class="tick__dir" aria-hidden="true"></span>' +
+          '<span class="tick__chg"></span>' +
+          '<span class="tick__pay"></span>' +
+          "</span>";
+      }
+    }
+    track.innerHTML = html;
+    updateTicker();
+  }
+  function updateTicker() {
+    if (!window.ASMDemo) return;
+    var items = document.querySelectorAll("#tickerTrack .tick");
+    for (var i = 0; i < items.length; i++) {
+      var el = items[i];
+      var q = window.ASMDemo.quote(el.getAttribute("data-sym"));
+      if (!q) continue;
+      var symEl = el.querySelector(".tick__sym");
+      var priceEl = el.querySelector(".tick__price");
+      var dirEl = el.querySelector(".tick__dir");
+      var chgEl = el.querySelector(".tick__chg");
+      var payEl = el.querySelector(".tick__pay");
+      symEl.textContent = q.sym;
+      window.ASMTheme.setText(priceEl, q.price.toFixed(q.prec));
+      var up = q.changePct >= 0;
+      el.classList.toggle("is-up", up);
+      el.classList.toggle("is-down", !up);
+      dirEl.setAttribute("data-dir", up ? "up" : "down");
+      chgEl.textContent = (up ? "+" : "−") + Math.abs(q.changePct).toFixed(2) + "%";
+      payEl.textContent = q.payout + "%";
+    }
+  }
+  function waitForEngine() {
+    if (window.ASMDemo) { buildTicker(); setInterval(updateTicker, 500); }
+    else setTimeout(waitForEngine, 50);
+  }
+  waitForEngine();
+})();
+</script>
+<script src="shared/engine.js"></script>
+</body>
+</html>

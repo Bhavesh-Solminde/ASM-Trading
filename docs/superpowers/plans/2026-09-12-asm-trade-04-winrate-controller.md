@@ -177,7 +177,7 @@ export const DEPOSIT_THRESHOLD_MINOR = 50_000;
 - [ ] **Step 4: Write `packages/algo/src/types.ts`**
 
 ```ts
-import type { LifecycleStage } from "./constants.js";
+import type { LifecycleStage } from "./constants";
 
 export interface WindowEntry {
   readonly weight: number;
@@ -214,9 +214,9 @@ Create `packages/algo/src/estimator.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { posterior, posteriorFromTotals, tradeWeight } from "./estimator.js";
-import { PRIOR_SHORT, WEIGHT_CAP, WEIGHT_FLOOR } from "./constants.js";
-import type { WindowEntry } from "./types.js";
+import { posterior, posteriorFromTotals, tradeWeight } from "./estimator";
+import { PRIOR_SHORT, WEIGHT_CAP, WEIGHT_FLOOR } from "./constants";
+import type { WindowEntry } from "./types";
 
 function win(weight: number): WindowEntry {
   return { weight, won: true };
@@ -310,8 +310,8 @@ Expected: FAIL — cannot resolve `./estimator.js`.
 - [ ] **Step 7: Write `packages/algo/src/estimator.ts`**
 
 ```ts
-import { WEIGHT_CAP, WEIGHT_FLOOR } from "./constants.js";
-import type { WindowEntry } from "./types.js";
+import { WEIGHT_CAP, WEIGHT_FLOOR } from "./constants";
+import type { WindowEntry } from "./types";
 
 /**
  * A trade's influence on the posterior, normalised against the account's own
@@ -399,15 +399,15 @@ Create `packages/algo/src/controller.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { desiredWinProb, drawOutcome, stageFor } from "./controller.js";
+import { desiredWinProb, drawOutcome, stageFor } from "./controller";
 import {
   HARD_CEILING,
   MAX_CORRECTION,
   P_MAX,
   P_MIN,
   TARGETS,
-} from "./constants.js";
-import type { AccountStats, WindowEntry } from "./types.js";
+} from "./constants";
+import type { AccountStats, WindowEntry } from "./types";
 
 function stats(overrides: Partial<AccountStats> = {}): AccountStats {
   return {
@@ -630,9 +630,9 @@ import {
   P_MIN,
   TARGETS,
   type LifecycleStage,
-} from "./constants.js";
-import { posterior, posteriorFromTotals } from "./estimator.js";
-import type { AccountStats, ControllerOutput } from "./types.js";
+} from "./constants";
+import { posterior, posteriorFromTotals } from "./estimator";
+import type { AccountStats, ControllerOutput } from "./types";
 
 export function stageFor(
   cumulativeDepositsMinor: number,
@@ -748,8 +748,8 @@ Create `packages/algo/src/exposure.test.ts`:
 ```ts
 import { describe, expect, it } from "vitest";
 import type { Position } from "@asm/trading";
-import { driftBias, exposureScale, imbalance, totalExposure } from "./exposure.js";
-import { BIAS_SIGMA_CAP, EXPOSURE_FLOOR, EXPOSURE_FULL } from "./constants.js";
+import { driftBias, exposureScale, imbalance, totalExposure } from "./exposure";
+import { BIAS_SIGMA_CAP, EXPOSURE_FLOOR, EXPOSURE_FULL } from "./constants";
 
 let seq = 0;
 function p(overrides: Partial<Position> = {}): Position {
@@ -897,7 +897,7 @@ import {
   EXPOSURE_FLOOR,
   EXPOSURE_FULL,
   IMBALANCE_TAU_SEC,
-} from "./constants.js";
+} from "./constants";
 
 /** What the house stands to pay out if every position wins. */
 export function totalExposure(positions: readonly Position[]): number {
@@ -1008,7 +1008,7 @@ Create `packages/algo/src/resolve.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { resolveBucket, type BucketWish } from "./resolve.js";
+import { resolveBucket, type BucketWish } from "./resolve";
 
 function wish(overrides: Partial<BucketWish> = {}): BucketWish {
   return {
@@ -1146,7 +1146,7 @@ Expected: FAIL — cannot resolve `./resolve.js`.
 
 ```ts
 import type { Direction } from "@asm/trading";
-import { BOOK_WEIGHT } from "./constants.js";
+import { BOOK_WEIGHT } from "./constants";
 
 export interface BucketWish {
   readonly entryPrice: number;
@@ -1229,18 +1229,18 @@ export function resolveBucket(input: {
 - [ ] **Step 7: Write `packages/algo/src/index.ts`**
 
 ```ts
-export * from "./constants.js";
-export type { WindowEntry, AccountStats, ControllerOutput } from "./types.js";
-export { tradeWeight, posterior, posteriorFromTotals } from "./estimator.js";
-export { desiredWinProb, drawOutcome, stageFor } from "./controller.js";
+export * from "./constants";
+export type { WindowEntry, AccountStats, ControllerOutput } from "./types";
+export { tradeWeight, posterior, posteriorFromTotals } from "./estimator";
+export { desiredWinProb, drawOutcome, stageFor } from "./controller";
 export {
   imbalance,
   totalExposure,
   exposureScale,
   driftBias,
   expiryMagnet,
-} from "./exposure.js";
-export { resolveBucket, type BucketWish } from "./resolve.js";
+} from "./exposure";
+export { resolveBucket, type BucketWish } from "./resolve";
 ```
 
 - [ ] **Step 8: Run the tests to verify they pass**
@@ -1282,7 +1282,7 @@ import {
   type AccountStats,
   type LifecycleStage,
   type WindowEntry,
-} from "../src/index.js";
+} from "../src/index";
 
 /** Small deterministic PRNG so the suite is reproducible without importing the engine's. */
 export function seededRng(seed: number): { next(): number } {
@@ -1424,8 +1424,8 @@ export function simulate(opts: SimulateOpts): SimulateResult {
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { TARGETS } from "../src/index.js";
-import { simulate } from "./harness.js";
+import { TARGETS } from "../src/index";
+import { simulate } from "./harness";
 
 describe("convergence", () => {
   it("hits the PRE_DEPOSIT target within 2 points", () => {
@@ -1456,8 +1456,8 @@ describe("convergence", () => {
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { HARD_CEILING, desiredWinProb } from "../src/index.js";
-import { simulate } from "./harness.js";
+import { HARD_CEILING, desiredWinProb } from "../src/index";
+import { simulate } from "./harness";
 
 describe("hard ceiling", () => {
   it("drives p down hard once forced wins push the posterior over the ceiling", () => {
@@ -1527,8 +1527,8 @@ describe("hard ceiling", () => {
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { TARGETS, desiredWinProb, tradeWeight, WINDOW_SIZE } from "../src/index.js";
-import type { AccountStats, WindowEntry } from "../src/index.js";
+import { TARGETS, desiredWinProb, tradeWeight, WINDOW_SIZE } from "../src/index";
+import type { AccountStats, WindowEntry } from "../src/index";
 
 function statsWith(n: number, won: boolean): AccountStats {
   const window: WindowEntry[] = Array.from({ length: n }, () => ({
@@ -1581,8 +1581,8 @@ describe("cold start", () => {
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { desiredWinProb, posterior, tradeWeight, PRIOR_SHORT } from "../src/index.js";
-import type { WindowEntry } from "../src/index.js";
+import { desiredWinProb, posterior, tradeWeight, PRIOR_SHORT } from "../src/index";
+import type { WindowEntry } from "../src/index";
 
 describe("micro-stake farming", () => {
   const MEDIAN = 10_000; // ₹100 typical
@@ -1641,8 +1641,8 @@ describe("micro-stake farming", () => {
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { MAX_LOSS_STREAK, MAX_WIN_STREAK } from "../src/index.js";
-import { simulate } from "./harness.js";
+import { MAX_LOSS_STREAK, MAX_WIN_STREAK } from "../src/index";
+import { simulate } from "./harness";
 
 describe("streak bounds", () => {
   it("keeps loss runs within a small margin of the configured maximum", () => {
@@ -1679,7 +1679,7 @@ describe("streak bounds", () => {
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { simulate } from "./harness.js";
+import { simulate } from "./harness";
 
 /**
  * Wald-Wolfowitz runs test.
@@ -1742,7 +1742,7 @@ import {
   exposureScale,
   imbalance,
   totalExposure,
-} from "../src/index.js";
+} from "../src/index";
 
 let seq = 0;
 function position(stake: number, direction: "UP" | "DOWN" = "UP"): Position {
@@ -1810,7 +1810,7 @@ describe("thin book guard", () => {
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { resolveBucket, type BucketWish } from "../src/index.js";
+import { resolveBucket, type BucketWish } from "../src/index";
 
 const TICK = 0.00001;
 
@@ -1898,7 +1898,7 @@ describe("bucket conflict resolution", () => {
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { simulate } from "./harness.js";
+import { simulate } from "./harness";
 
 describe("tie handling", () => {
   it("excludes refunds from the realised rate", () => {
@@ -1986,9 +1986,9 @@ Create `packages/db/src/repositories/account-stats.test.ts`:
 
 ```ts
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { PrismaClient } from "../../generated/prisma/client.js";
-import { createAccountsForUser } from "./account.js";
-import { loadAccountStats, recordSettledTrade } from "./account-stats.js";
+import { PrismaClient } from "../../generated/prisma/client";
+import { createAccountsForUser } from "./account";
+import { loadAccountStats, recordSettledTrade } from "./account-stats";
 
 const prisma = new PrismaClient();
 
@@ -2096,7 +2096,7 @@ describe("recordSettledTrade", () => {
 - [ ] **Step 3: Run the test to verify it fails**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/account-stats.test.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/account-stats.test.ts; cd ../..
 ```
 
 Expected: FAIL — cannot resolve `./account-stats.js`.
@@ -2112,7 +2112,7 @@ import {
   type LifecycleStage,
   type WindowEntry,
 } from "@asm/algo";
-import { prisma } from "../client.js";
+import { prisma } from "../client";
 
 /**
  * Reads everything the controller needs for one account.
@@ -2264,13 +2264,13 @@ export {
   loadAccountStats,
   recordSettledTrade,
   setLifecycleOverride,
-} from "./repositories/account-stats.js";
+} from "./repositories/account-stats";
 ```
 
 - [ ] **Step 6: Run the test to verify it passes**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/account-stats.test.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/account-stats.test.ts; cd ../..
 ```
 
 Expected: PASS — 10 tests.
@@ -2304,9 +2304,9 @@ Create `packages/db/src/repositories/shadow.test.ts`:
 
 ```ts
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { PrismaClient } from "../../generated/prisma/client.js";
-import { createAccountsForUser } from "./account.js";
-import { openTradeRecord, settleTrade, loadTradeShadow } from "./trade.js";
+import { PrismaClient } from "../../generated/prisma/client";
+import { createAccountsForUser } from "./account";
+import { openTradeRecord, settleTrade, loadTradeShadow } from "./trade";
 
 const prisma = new PrismaClient();
 
@@ -2434,7 +2434,7 @@ describe("shadow ledger", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/shadow.test.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/shadow.test.ts; cd ../..
 ```
 
 Expected: FAIL — `loadTradeShadow` is not exported.
@@ -2520,19 +2520,19 @@ import type {
   Trade,
   TradeShadow,
   TxKind,
-} from "../../generated/prisma/client.js";
+} from "../../generated/prisma/client";
 ```
 
 - [ ] **Step 4: Append to `packages/db/src/index.ts`**
 
 ```ts
-export { loadTradeShadow, type ShadowInput } from "./repositories/trade.js";
+export { loadTradeShadow, type ShadowInput } from "./repositories/trade";
 ```
 
 - [ ] **Step 5: Run the test to verify it passes**
 
 ```bash
-cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/shadow.test.ts; cd ../..
+cd packages/db && DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run src/repositories/shadow.test.ts; cd ../..
 ```
 
 Expected: PASS — 5 tests.
@@ -2803,14 +2803,14 @@ import { createRng, type Rng } from "@asm/pricing";
 import { DURATIONS_SEC } from "@asm/trading";
 import { prisma, openTradeRecord } from "@asm/db";
 import { logger } from "@asm/logger";
-import type { AssetRegistry } from "../assets/registry.js";
-import type { SettlementService } from "../settlement.js";
+import type { AssetRegistry } from "../assets/registry";
+import type { SettlementService } from "../settlement";
 import {
   chooseDirection,
   chooseStake,
   pickProfile,
   type BotProfile,
-} from "./profiles.js";
+} from "./profiles";
 
 const BOT_COUNT = Number(process.env.BOT_COUNT ?? 40);
 const ARRIVALS_PER_MINUTE = Number(process.env.BOT_ARRIVALS_PER_MINUTE ?? 90);
@@ -2961,7 +2961,7 @@ import {
   type BucketWish,
 } from "@asm/algo";
 import { recordSettledTrade } from "@asm/db";
-import type { ControllerBridge } from "./controller-bridge.js";
+import type { ControllerBridge } from "./controller-bridge";
 ```
 
 Add the bridge to the constructor:
@@ -3113,8 +3113,8 @@ Replace the `registry.tick(asset.symbol, nowSec)` call with:
 Add imports:
 
 ```ts
-import { ControllerBridge } from "./controller-bridge.js";
-import { BotCrowd } from "./bots/crowd.js";
+import { ControllerBridge } from "./controller-bridge";
+import { BotCrowd } from "./bots/crowd";
 ```
 
 Replace the server/settlement/loop block:
@@ -3495,7 +3495,7 @@ Expected: all clean.
 
 ```bash
 cd packages/db
-DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5432/asm_trade_test?schema=public" pnpm exec vitest run
+DATABASE_URL="postgresql://asm_owner:asm_dev_password@localhost:5433/asm_trade_test?schema=public" pnpm exec vitest run
 cd ../..
 ```
 

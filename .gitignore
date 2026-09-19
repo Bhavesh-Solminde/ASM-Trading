@@ -4,6 +4,7 @@ dist/
 generated/
 .env
 .env.local
+.env.production
 *.log
 .DS_Store
 coverage/
@@ -12,3 +13,6 @@ apps/relay/android/
 apps/relay/ios/
 apps/relay/.expo/
 apps/relay/modules/*/android/build/
+apps/web/.env
+*.tsbuildinfo
+AgentContext.md

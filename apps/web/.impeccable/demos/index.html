@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASM Identity Demos</title>
+<style>
+:root { --bg:#0c0d0e; --panel:#141618; --rule:#26292d; --ink:#ecebe7; --ink2:#a3a19c; --ink3:#6d6b66; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; padding: 40px 24px 80px; }
+.wrap { max-width: 1180px; margin: 0 auto; }
+h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.02em; }
+.lede { color: var(--ink2); max-width: 70ch; margin: 0 0 28px; }
+.demos { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-bottom: 44px; }
+.demo { display: grid; grid-template-rows: 150px auto; border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; background: var(--panel); transition: border-color .15s; }
+.demo:hover { border-color: #4a4e53; }
+.swatch { display: grid; grid-template-columns: 3fr 1fr 1fr 1fr; }
+.swatch span { display: block; }
+.demo__body { padding: 16px 18px 18px; display: grid; gap: 6px; }
+.demo__body b { font-size: 17px; }
+.demo__body p { margin: 0; color: var(--ink2); font-size: 14px; }
+.demo__body em { font-style: normal; color: var(--ink3); font-size: 13px; }
+.open { margin-top: 6px; font-weight: 600; font-size: 14px; }
+h2 { font-size: 20px; margin: 0 0 14px; letter-spacing: -0.01em; }
+.findings { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0 32px; margin-bottom: 36px; }
+.finding { padding: 14px 0; border-top: 1px solid var(--rule); }
+.finding b { display: block; margin-bottom: 4px; }
+.finding p { margin: 0; color: var(--ink2); font-size: 14px; }
+.shared { color: var(--ink2); max-width: 75ch; }
+.shared li { margin-bottom: 6px; }
+.src { font-size: 13px; color: var(--ink3); }
+.src a { color: var(--ink2); }
+@media (max-width: 860px) { .demos, .findings { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ASM: three identities, same trading layout</h1>
+  <p class="lede">Each demo is a working mock of the two screens that matter most, Trade and Deposit → UPI checkout → processing. They share one simulated engine, so the only difference is the design. Try placing an Up/Down trade, switching Demo ↔ Live from the balance button, and running a deposit (any 12-digit UTR works).</p>
+
+  <div class="demos">
+    <a class="demo" href="a-split-flap.html">
+      <div class="swatch"><span style="background:#0a0b0c"></span><span style="background:#f5c518"></span><span style="background:#3ddc97"></span><span style="background:#f0503f"></span></div>
+      <div class="demo__body">
+        <b>A · Exchange Split-Flap Board</b>
+        <p>Balance, price, countdown and payout flip like an old exchange board. Live is a solid yellow plate and Demo is a striped one. Trades and deposits read like a departures board.</p>
+        <em>Warm, mechanical, distinctive. Risk: too much flipping if overused.</em>
+        <span class="open">Open demo →</span>
+      </div>
+    </a>
+    <a class="demo" href="b-ticker-wall.html">
+      <div class="swatch"><span style="background:#050505"></span><span style="background:#ffb000"></span><span style="background:#3be584"></span><span style="background:#e5413b"></span></div>
+      <div class="demo__body">
+        <b>B · Dalal Street Ticker Wall</b>
+        <p>LED dot-matrix numbers on true black with an amber brand colour, a scrolling price strip under the top bar, and quick flashes when prices tick.</p>
+        <em>Reads "trading" instantly. Risk: closest to what other brokers look like.</em>
+        <span class="open">Open demo →</span>
+      </div>
+    </a>
+    <a class="demo" href="c-security-print.html">
+      <div class="swatch"><span style="background:#0b1411"></span><span style="background:#d9b35b"></span><span style="background:#45dba4"></span><span style="background:#ef6450"></span></div>
+      <div class="demo__body">
+        <b>C · Rupee Security Print</b>
+        <p>Banknote printing craft: guilloche line patterns, engraved numerals and a gold security thread on the Live account. Demo balances are stamped SPECIMEN.</p>
+        <em>Built to feel trustworthy with money. Risk: a gold-on-dark "premium" look if the details are too faint.</em>
+        <span class="open">Open demo →</span>
+      </div>
+    </a>
+  </div>
+
+  <h2>What the research says this kind of platform needs</h2>
+  <div class="findings">
+    <div class="finding"><b>Dark-first is a usability call, not a style</b><p>Traders keep the screen open for hours, often at night. Dark surfaces cut glare, but they need stronger contrast discipline: slightly heavier text and chart gridlines at around 6–8% opacity.</p></div>
+    <div class="finding"><b>Keep green = up and red = down</b><p>Changing that convention breaks trust. About 1 in 12 men can't tell red from green, though, so every demo also uses ▲/▼ shapes, +/− signs, status words, a lightness difference between the two colours, and (A, C) hollow up-candles against filled down-candles.</p></div>
+    <div class="finding"><b>Numbers must not jump</b><p>Live prices and countdowns use tabular figures so digits keep the same width. Only values the trader actually watches animate on change.</p></div>
+    <div class="finding"><b>Order placement is the highest-risk moment</b><p>The ticket shows asset, payout, time, stake and "if correct" profit before the button. On Live, a strip says real balance is at stake, and each trade shows its entry line and expiry on the chart.</p></div>
+    <div class="finding"><b>Retail wants focus, not a terminal</b><p>Zerodha Kite, India's reference broker, won on a minimal, fast interface and only later added optional multi-panel layouts. Retail platforms do best with a clear hierarchy: price big, everything else quieter.</p></div>
+    <div class="finding"><b>Payment trust comes from the waiting state</b><p>On a UPI payment, silence is what scares people. Because ASM approves deposits by hand, each demo turns the wait into numbered steps, an "exact amount" warning, a live Processing timer, and plain words for Approved and Rejected.</p></div>
+    <div class="finding"><b>No dark patterns</b><p>Regulators treat binary options as high-risk and target bonus-style incentives. The Quotex "50% bonus" promo banner is removed in all three demos, and nothing claims speed, payouts or regulation.</p></div>
+    <div class="finding"><b>Live vs Demo must be impossible to miss</b><p>Quotex only shows it in small text. Each demo gives Live a distinct plate and styling, and puts a DEMO watermark on the chart.</p></div>
+  </div>
+
+  <h2>Kept identical across A, B and C</h2>
+  <ul class="shared">
+    <li>Quotex structure: icon rail, asset tabs, centre chart with sentiment bar, right-hand ticket, open/closed trades, tabbed payments page.</li>
+    <li>Four unavailable destinations stay visible but disabled, as the product requires.</li>
+    <li>The real deposit rules from the codebase: $10–$961, the ₹107.64 rate, a unique paise amount per deposit, a 12-digit UTR, and manual approval.</li>
+    <li>Desktop-first at 1440px, adapted to phone width with a bottom tab bar.</li>
+  </ul>
+  <p class="src">Sources: <a href="https://lollypop.design/blog/2026/june/trading-app-design/">Lollypop, trading app design guide 2026</a> · <a href="https://www.aniq-ui.com/en/blog/dark-mode-dashboard-designs-2026">Aniq-UI, dark dashboards 2026</a> · <a href="https://zerodha.com/z-connect/business-updates/introducing-kite-terminal-mode">Zerodha, Kite Terminal Mode</a> · <a href="https://tradingqna.com/t/why-is-kite-built-with-such-a-minimal-interface/6373">Why Kite is minimal</a> · <a href="https://rondesignlab.com/cases/tradingview-platform-for-traders">TradingView UI case study</a> · <a href="https://www.datawrapper.de/blog/colorblindness-part2">Datawrapper, colour-blind charts</a> · <a href="https://dev.to/alanwest/tabular-numbers-in-css-font-variant-numeric-vs-monospace-hacks-25cn">Tabular numbers in CSS</a> · <a href="https://www.aufaitux.com/blog/payment-experience-design/">Payment experience design</a> · <a href="https://www.esma.europa.eu/press-news/esma-news/esma-agrees-prohibit-binary-options-and-restrict-cfds-protect-retail-investors">ESMA on binary options</a></p>
+</div>
+</body>
+</html>

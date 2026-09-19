@@ -1,0 +1,124 @@
+{
+  "title": "Choose ASM's trading identity",
+  "question": "Same Quotex layout, new identity. The roll assigned the Exchange Split-Flap Board. Keep it, take an alternate, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Exchange Split-Flap Board",
+      "kicker": "THE ROLL",
+      "lineage": "Solari quotation boards on trading floors and station concourses",
+      "thesis": "Every number that matters — price, balance, countdown, payout — is a flap that clacks over when it changes; trades and deposits read like departures with an honest status.",
+      "palette": ["#0b0c0d", "#17191c", "#efe9dc", "#f5c518", "#2fd08a", "#ff5a47"],
+      "materials": ["black lacquered board", "matte flap tiles with a centre hinge line", "signal-yellow header plates"],
+      "viewport": "Icon rail and top bar in board-black; the balance flaps top-right under a solid yellow LIVE plate (DEMO is a hatched plate); chart centre on a faint board grid; right ticket shows expiry as a live 00:01:27 flap countdown above two full-width UP ▲ / DOWN ▼ slabs; open trades listed as a departures board with status flaps.",
+      "risk": "Flap motion on every tick becomes noise if it isn't reserved for values the trader watches; it can drift toward a railway costume if the flaps leak into buttons and chrome.",
+      "raised": [
+        { "from": "challenger-jackfield", "raise": "Rank by inversion: exactly one solid knocked-out plate per screen — UP/DOWN on Trade, Deposit on money screens — everything else stays outlined." },
+        { "from": "challenger-tensegrity", "raise": "State is never hue alone: ▲/▼ glyphs, +/− signs and status words carry up/down, won/lost and approved/rejected for colour-blind traders." },
+        { "from": "challenger-orizuru", "raise": "Money flows (deposit, checkout, withdrawal) run as numbered steps 01·02·03 in a strict margin column, so the trader always knows where they are in the wait." },
+        { "from": "challenger-acetate", "raise": "One error form only: an inserted red status slip in the row where the problem is, never toasts or scattered red text." },
+        { "from": "challenger-console", "raise": "Only one thing is lit at a time: the active account plate and the live price carry the single warm glow; nothing else glows." }
+      ]
+    },
+    {
+      "id": "model-pick",
+      "label": "Dalal Street Ticker Wall",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "The BSE building's LED ticker façade and exchange scroll boards",
+      "thesis": "The platform is the ticker wall on Dalal Street: dot-matrix LED numerals on true black, amber for the brand, green and red for the tape.",
+      "palette": ["#050505", "#121212", "#ffb000", "#29e37a", "#ff3b3b", "#d9d9d9"],
+      "materials": ["dot-matrix LED glyphs", "black anodised panels", "scrolling tape strip"],
+      "viewport": "A thin scrolling asset tape under the top bar; balance and price in dot-matrix amber; chart on pure black; UP/DOWN as lit green and red LED slabs.",
+      "risk": "The most familiar trading look — close to what many brokers already ship; dot-matrix numerals lose legibility at small sizes and red/green LED everywhere gets loud."
+    },
+    {
+      "id": "challenger-oscilloscope",
+      "label": "Signal Bench Oscilloscope",
+      "verdict": "competitive",
+      "lineage": "CRT oscilloscopes on a lab bench",
+      "thesis": "The chart is a phosphor trace on an etched graticule; duration and stake are detented knobs; readouts are seven-segment.",
+      "palette": ["#070a08", "#1a1f1c", "#7dff9a", "#ffb547", "#5d6b63"],
+      "materials": ["phosphor glass", "etched graticule", "knob skirts with condensed caps"],
+      "viewport": "Chart fills a square-gridded glass; ticket as a knob strip with amber seven-segment time and stake; trades as channel readouts.",
+      "case": "Fuses cleanly on clarity — a price chart already is a trace on a grid, and detented knobs map to duration/stake — but traders don't identify with lab gear, and phosphor green collides with UP green.",
+      "risk": "Reads as an engineering tool, not a trading brand; green-on-black dilutes up/down meaning."
+    },
+    {
+      "id": "challenger-jackfield",
+      "label": "Normalled Jackfield",
+      "verdict": "declined",
+      "lineage": "Machine-room patch-bay schedules",
+      "thesis": "Amber link lines on black glass whose stroke pattern, not colour, carries state.",
+      "palette": ["#060606", "#ffae1a", "#2a2a2a"],
+      "materials": ["black glass", "amber hairlines"],
+      "viewport": "Numbered lanes with a link rail per row.",
+      "case": "Single-amber palette can't carry up/down, and traders don't recognise patch bays.",
+      "kept": "Rank by inversion — one solid plate per screen.",
+      "risk": "Unreadable as a trading product."
+    },
+    {
+      "id": "challenger-tensegrity",
+      "label": "Tensegrity Column",
+      "verdict": "declined",
+      "lineage": "Kinetic sculpture",
+      "thesis": "Forces made visible; slack, balanced, stressed and failed are distinct shapes.",
+      "palette": ["#d8d4cc", "#141414", "#d6322b"],
+      "materials": ["carbon rods", "red cord"],
+      "viewport": "A force diagram instead of a page.",
+      "case": "Pale concrete ground and sculptural layout break the binding broker layout.",
+      "kept": "State is never hue alone.",
+      "risk": "Art object, not a tool."
+    },
+    {
+      "id": "challenger-orizuru",
+      "label": "Orizuru Fold Sequence",
+      "verdict": "declined",
+      "lineage": "Origami crane diagrams",
+      "thesis": "One sheet, thirty-two numbered folds.",
+      "palette": ["#c8331f", "#f4efe6", "#1a1a1a", "#c9a227"],
+      "materials": ["washi fibre", "crease lines"],
+      "viewport": "A folding diagram with a numbered margin column.",
+      "case": "No trading resonance; vermilion ground fights red DOWN.",
+      "kept": "Numbered steps in a strict margin column for money flows.",
+      "risk": "Decorative, off-category."
+    },
+    {
+      "id": "challenger-acetate",
+      "label": "Acetate Tab Manual",
+      "verdict": "declined",
+      "lineage": "Boxed-software reference manuals",
+      "thesis": "Punched acetate leaves over coloured divider boards.",
+      "palette": ["#e8e4da", "#e0a100", "#1f5fbf", "#d23a1e"],
+      "materials": ["milk acetate", "divider board"],
+      "viewport": "A tabbed manual page.",
+      "case": "Light paper world and serif reading measure suit docs, not a chart screen open for hours.",
+      "kept": "One error form: a red errata slip in place.",
+      "risk": "Reads as documentation."
+    },
+    {
+      "id": "challenger-console",
+      "label": "Console Void Menu",
+      "verdict": "declined",
+      "lineage": "Sixth-gen console dashboards",
+      "thesis": "Objects floating in a particle-lit void.",
+      "palette": ["#05070d", "#cfd8e8", "#ffb347"],
+      "materials": ["fog", "particles", "translucent cubes"],
+      "viewport": "Rooms of floating objects.",
+      "case": "Depth and drift destroy density and numeric scanability.",
+      "kept": "Only the selected thing is lit.",
+      "risk": "Gamified, slow."
+    }
+  ],
+  "reroll": { "registers": ["safer", "bolder"] },
+  "buildPath": { "value": "code", "toggle": false },
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A Quotex / IQ Option / Olymp Trade peer played straight: navy panels, blue brand, green Up and red Down, at full craft.",
+    "palette": ["#0e1621", "#16202c", "#3d8bfd", "#2fbd85", "#e0526a", "#e8edf3"],
+    "materials": ["rounded navy cards", "soft borders", "promo banner"],
+    "viewport": "Exactly the reference screens, rebuilt cleanly with a proper component kit.",
+    "risk": "Indistinguishable from the broker it copies — the opposite of 'own identity'."
+  },
+  "steer": true
+}

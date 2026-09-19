@@ -1,0 +1,421 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AccountType {
+  LIVE
+  DEMO
+}
+
+enum LifecycleStage {
+  PRE_DEPOSIT
+  DEPOSITED
+  HIGH_VALUE
+}
+
+enum KycStatus {
+  NOT_STARTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum AssetKind {
+  REAL
+  OTC
+}
+
+enum Direction {
+  UP
+  DOWN
+}
+
+enum TradeStatus {
+  OPEN
+  WON
+  LOST
+  REFUNDED
+}
+
+enum DepositStatus {
+  AWAITING_PAYMENT
+  PENDING_CONFIRMATION
+  COMPLETED
+  REJECTED
+  EXPIRED
+}
+
+enum WithdrawalStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum TxKind {
+  DEPOSIT
+  WITHDRAWAL
+  TRADE_STAKE
+  TRADE_PAYOUT
+  TRADE_REFUND
+  BONUS_GRANT
+  BONUS_CONVERT
+  DEMO_RESET
+}
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String
+  role                Role      @default(USER)
+  emailVerified       Boolean   @default(false)
+  twoFaEnabled        Boolean   @default(false)
+  twoFaForLogin       Boolean   @default(false)
+  twoFaForWithdrawal  Boolean   @default(false)
+  nickname            String?
+  firstName           String?
+  lastName            String?
+  dateOfBirth         DateTime?
+  aadhaar             String?
+  address             String?
+  country             String?
+  kycStatus           KycStatus @default(NOT_STARTED)
+  cumulativeDeposits  Int       @default(0)
+  isBot               Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  accounts       Account[]
+  sessions       Session[]
+  deposits       Deposit[]
+  withdrawals    Withdrawal[]
+  supportTickets SupportTicket[]
+  twoFactorCodes TwoFactorCode[]
+
+  @@index([email])
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Account {
+  id               String         @id @default(uuid())
+  userId           String
+  type             AccountType
+  currency         String         @default("USD")
+  realBalance      Int            @default(0)
+  bonusBalance     Int            @default(0)
+  turnoverProgress Int            @default(0)
+  lifecycleStage   LifecycleStage @default(PRE_DEPOSIT)
+  rollingWinRate   Float          @default(0)
+  tradesCount      Int            @default(0)
+  medianStake      Int            @default(100)
+  lossStreak       Int            @default(0)
+  winStreak        Int            @default(0)
+  lifecycleOverride LifecycleStage?
+  dailyLimit       Int?
+  version          Int            @default(0)
+  createdAt        DateTime       @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades       Trade[]
+  transactions Transaction[]
+  bonusGrants  BonusGrant[]
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+model Asset {
+  id          String    @id @default(uuid())
+  symbol      String    @unique
+  displayName String
+  kind        AssetKind
+  payoutPct   Int       @default(100)
+  payoutMin   Int       @default(100)
+  payoutMax   Int       @default(100)
+  isOpen      Boolean   @default(true)
+  tickSize    Float     @default(0.00001)
+  precision   Int       @default(5)
+  basePrice   Float     @default(1.0)
+  garchOmega  Float     @default(0.000001)
+  garchAlpha  Float     @default(0.08)
+  garchBeta   Float     @default(0.90)
+  anchorAlpha Float     @default(0.08)
+  createdAt   DateTime  @default(now())
+
+  candles Candle[]
+  trades  Trade[]
+}
+
+model Candle {
+  assetId   String
+  timeframe String
+  openTs    DateTime
+  o         Float
+  h         Float
+  l         Float
+  c         Float
+  shadowO   Float?
+  shadowH   Float?
+  shadowL   Float?
+  shadowC   Float?
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([assetId, timeframe, openTs])
+  @@index([assetId, timeframe, openTs])
+}
+
+model Trade {
+  id         String      @id @default(uuid())
+  accountId  String
+  assetId    String
+  direction  Direction
+  stake      Int
+  /// The part of `stake` drawn from bonusBalance. Settlement credits return in this proportion.
+  stakeFromBonus Int         @default(0)
+  payoutPct  Int
+  entryPrice Float
+  entryTs    DateTime
+  expiryTs   DateTime
+  exitPrice  Float?
+  status     TradeStatus @default(OPEN)
+  pnl        Int         @default(0)
+  createdAt  DateTime    @default(now())
+
+  account Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  asset   Asset        @relation(fields: [assetId], references: [id])
+  shadow  TradeShadow?
+
+  @@index([accountId, createdAt])
+  @@index([expiryTs, status])
+}
+
+/// Recorded for every settled trade, never exposed to a trading client.
+model TradeShadow {
+  tradeId          String   @id
+  shownExitPrice   Float
+  honestExitPrice  Float
+  shownResult      String
+  honestResult     String
+  deltaPips        Float
+  biasApplied      Float
+  magnetApplied    Float
+  imbalanceAtEntry Float
+  exposureUp       Int
+  exposureDown     Int
+  lifecycleStage   String
+  wantedWin        Boolean?
+  winProbability   Float?
+  createdAt        DateTime @default(now())
+
+  trade Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model ShadowTick {
+  id          BigInt   @id @default(autoincrement())
+  assetId     String
+  ts          DateTime
+  shownPrice  Float
+  honestPrice Float
+
+  @@index([assetId, ts])
+}
+
+model Deposit {
+  id              String        @id @default(uuid())
+  userId          String
+  method          String
+  amountUsd       Int
+  amountInr       Int
+  vpa             String
+  checkoutToken   String        @unique
+  claimedUtr      String?
+  status          DepositStatus @default(AWAITING_PAYMENT)
+  matchedCreditId String?
+  correlationId   String
+  expiresAt       DateTime
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // NOTE: the amount-reservation guarantee is enforced by a PARTIAL unique
+  // index — unique on (amountInr) ALONE, WHERE status IN ('AWAITING_PAYMENT',
+  // 'PENDING_CONFIRMATION'). Prisma cannot express that declaratively, so a
+  // hand-written migration adds it (see
+  // 20260913172607_add_relay_message_and_amount_reservation/migration.sql).
+  // A plain @@unique here would be wrong: it would block two legitimate
+  // COMPLETED deposits that happened to share an amount months apart.
+  //
+  // VPA plays no role in this guarantee, or in credit matching at all (see
+  // matchCreditToDeposit) — every deposit shares one fixed demo VPA
+  // (DEMO_VPA); it's used only to build the QR/UPI deep link, never as a
+  // matching key. The @@index below predates that design correction and is
+  // now mostly redundant: its leading column, vpa, is never used as a query
+  // predicate anywhere in the codebase, so it can't serve the queries that
+  // matter either. Left in place — dropping it is a real schema change
+  // (its own migration) and out of scope here.
+  @@index([vpa, amountInr, status])
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+/// Stands in for a bank statement. Populated by whichever BankFeed is configured.
+model BankCredit {
+  id         String   @id @default(uuid())
+  vpa        String
+  amountInr  Int
+  utr        String   @unique
+  receivedAt DateTime
+  raw        String?
+  consumed   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  relayMessages RelayMessage[]
+
+  @@index([vpa, amountInr, consumed])
+}
+
+/// Raw log of every incoming message from any companion app/device, whether
+/// or not it turned out to be a usable credit. BankCredit is reserved for
+/// messages that parsed as an actual credit; this table is the full record.
+model RelayMessage {
+  id              String   @id @default(uuid())
+  source          String
+  deviceLabel     String?
+  deviceModel     String?
+  sender          String?
+  body            String
+  receivedAt      DateTime
+  parsedAmountInr Int?
+  parsedUtr       String?
+  isCredit        Boolean?
+  bankCreditId    String?
+  createdAt       DateTime @default(now())
+
+  bankCredit BankCredit? @relation(fields: [bankCreditId], references: [id], onDelete: SetNull)
+
+  @@index([source, deviceLabel])
+  @@index([createdAt])
+}
+
+model Withdrawal {
+  id         String           @id @default(uuid())
+  userId     String
+  amount     Int
+  method     String
+  status     WithdrawalStatus @default(REQUESTED)
+  reviewedBy String?
+  reason     String?
+  createdAt  DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// Append-only ledger. Every balance change writes exactly one row.
+model Transaction {
+  id           String   @id @default(uuid())
+  accountId    String
+  kind         TxKind
+  amount       Int
+  balanceAfter Int
+  refType      String?
+  refId        String?
+  createdAt    DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+}
+
+model BonusGrant {
+  id               String   @id @default(uuid())
+  accountId        String
+  amount           Int
+  turnoverRequired Int
+  turnoverDone     Int      @default(0)
+  status           String   @default("ACTIVE")
+  createdAt        DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+/// Append-only. UPDATE and DELETE are revoked from the runtime role.
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  action     String
+  targetType String
+  targetId   String
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+enum TicketStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
+model SupportTicket {
+  id        String       @id @default(uuid())
+  userId    String
+  subject   String
+  body      String
+  status    TicketStatus @default(OPEN)
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// Short-lived one-time codes for two-factor login and withdrawal. The code is
+/// delivered to the log (no SMTP/provider in this build); only its hash is
+/// stored, and `usedAt` makes redemption single-use.
+model TwoFactorCode {
+  id        String    @id @default(uuid())
+  userId    String
+  codeHash  String
+  purpose   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+}

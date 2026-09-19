@@ -1,5 +1,12 @@
 # ASM Trade — Plan 06: Companion App Implementation Plan
 
+> **Status (2026-09-13): already built as an out-of-order spike, and diverged from this
+> document.** `apps/relay` and `apps/harness` exist and work, but the actual implementation —
+> all-native Kotlin forwarding, no Settings screen, config baked in at build time, receiver is
+> a separate deployed harness rather than the main app's `BankCredit` table — does not match
+> the plan below. See the "Plan 06 status" section in [README.md](README.md) for the full diff
+> before treating any unchecked step here as still-needed work.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** An Android app that reads the operator's *own* bank SMS, filters to configured senders, and forwards each one to the demo server's relay endpoint — so a live demonstration uses a real message travelling a real path instead of a hand-typed sample.

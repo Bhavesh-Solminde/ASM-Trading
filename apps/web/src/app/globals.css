@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+/* Phone layout: narrow portrait OR short landscape. One variant keeps both orientations consistent. */
+@custom-variant phone (@media (width < 48rem) or (height < 30rem));
+
+@theme {
+  --color-ground: #050505;
+  --color-panel: #0d0d0d;
+  --color-tile: #151515;
+  --color-tile-hi: #1c1c1c;
+  --color-rule: #222222;
+  --color-ink: #e8e6e1;
+  --color-ink-2: #9e9b95;
+  --color-ink-3: #66635e;
+  --color-brand: #ffb000;
+  --color-brand-ink: #1a1000;
+  --color-up: #3be584;
+  --color-up-ink: #03170b;
+  --color-down: #e5413b;
+  --color-down-ink: #fff4f3;
+  --color-warn-bg: #2a1210;
+  --font-ui: var(--font-hanken), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Glanceable numerals use the UI face with tabular digits; the dot-matrix
+     face is kept for the wordmark only. */
+  --font-led: var(--font-ui);
+  --font-brand: var(--font-doto), var(--font-ui);
+}
+
+:root {
+  color-scheme: dark;
+  /* Height of the phone bottom nav; the shell grid and the trade action bar both offset by it. */
+  --phone-nav-h: 64px;
+}
+
+html,
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+::selection {
+  background: var(--color-brand);
+  color: var(--color-brand-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Stops double-tap zoom on rapid taps (e.g. repeated Up presses). */
+a,
+button,
+[role="tab"] {
+  touch-action: manipulation;
+}
+
+/* iOS Safari zooms any focused control under 16px. Unlayered, so it beats Tailwind's text-* utilities. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-rule) transparent;
+}
+
+/* ---------- Ticker Wall primitives ---------- */
+
+.legend {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: var(--color-ink-2);
+}
+
+/* Numerals read at a glance: fixed-width digits so prices don't jitter on a tick. */
+.led {
+  font-family: var(--font-led);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+}
+.led-lit {
+  text-shadow: 0 0 14px color-mix(in srgb, currentColor 22%, transparent);
+}
+
+/* Tick flash: a brief phosphor tint on the number's own background. */
+.tick-up,
+.tick-down {
+  border-radius: 2px;
+}
+.tick-up {
+  animation: tick-flash-up 350ms ease-out;
+}
+.tick-down {
+  animation: tick-flash-down 350ms ease-out;
+}
+@keyframes tick-flash-up {
+  from { background-color: color-mix(in srgb, var(--color-up) 30%, transparent); }
+  to { background-color: transparent; }
+}
+@keyframes tick-flash-down {
+  from { background-color: color-mix(in srgb, var(--color-down) 30%, transparent); }
+  to { background-color: transparent; }
+}
+
+/* Solid triangle direction marks. */
+.dir-mark {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 1 13 11H1z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.dir-mark[data-dir="down"] {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 13 1 3h12z'/%3E%3C/svg%3E");
+}
+
+/* Ticker tape: the track holds two copies and scrolls by half its width. */
+.ticker-track {
+  animation: ticker-scroll 42s linear infinite;
+  will-change: transform;
+}
+.ticker:hover .ticker-track {
+  animation-play-state: paused;
+}
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.chartbox-bg {
+  background:
+    radial-gradient(circle, rgba(255, 176, 0, 0.035) 1px, transparent 1.3px) 0 0 / 5px 5px,
+    #070707;
+}
+
+.slab-fired::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  animation: slab-fire 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes slab-fire {
+  from { opacity: 0.5; }
+  to { opacity: 0; }
+}
+
+.settling {
+  animation: settle 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes settle {
+  from { background: rgba(255, 176, 0, 0.12); }
+  to { background: transparent; }
+}
+
+.blink {
+  animation: blink 1.4s steps(2, jump-none) infinite;
+}
+@keyframes blink {
+  50% { opacity: 0.2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tick-up,
+  .tick-down,
+  .ticker-track,
+  .slab-fired::after,
+  .settling,
+  .blink {
+    animation: none !important;
+  }
+}

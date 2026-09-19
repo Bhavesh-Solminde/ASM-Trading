@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASM Trade — Demo</title>
+<meta name="description" content="ASM Trade demo — a simulated binary-options trading platform. All data is generated in-browser, nothing is real.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lightweight-charts@5.0.0/dist/lightweight-charts.standalone.production.mjs" type="module"></script>
+<style>
+/* ===== Design Tokens ===== */
+:root {
+  --color-ground: #050505;
+  --color-panel: #0d0d0d;
+  --color-tile: #151515;
+  --color-tile-hi: #1c1c1c;
+  --color-rule: #222222;
+  --color-ink: #e8e6e1;
+  --color-ink-2: #9e9b95;
+  --color-ink-3: #66635e;
+  --color-brand: #ffb000;
+  --color-brand-ink: #1a1000;
+  --color-up: #3be584;
+  --color-up-ink: #03170b;
+  --color-down: #e5413b;
+  --color-down-ink: #fff4f3;
+  --color-warn-bg: #2a1210;
+  --font-ui: 'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-led: var(--font-ui);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums lining-nums;
+  height: 100%; overflow: hidden;
+}
+::selection { background: var(--color-brand); color: var(--color-brand-ink); }
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+* { scrollbar-width: thin; scrollbar-color: var(--color-rule) transparent; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, select, textarea { font: inherit; color: inherit; }
+ul, ol { list-style: none; }
+
+/* ===== Legend / LED / Dir ===== */
+.legend { font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; color: var(--color-ink-2); }
+.led { font-family: var(--font-ui); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.led-lit { text-shadow: 0 0 10px color-mix(in srgb, currentColor 35%, transparent); }
+.dir-mark { display: inline-block; width: 12px; height: 12px; flex: none; background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 1 13 11H1z'/%3E%3C/svg%3E") center / contain no-repeat; }
+.dir-mark[data-dir="down"] {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 13 1 3h12z'/%3E%3C/svg%3E"); }
+
+/* ===== Animations ===== */
+.tick-up { animation: tick-flash-up 350ms ease-out; border-radius: 2px; }
+.tick-down { animation: tick-flash-down 350ms ease-out; border-radius: 2px; }
+@keyframes tick-flash-up { from { background-color: color-mix(in srgb, var(--color-up) 30%, transparent); } to { background-color: transparent; } }
+@keyframes tick-flash-down { from { background-color: color-mix(in srgb, var(--color-down) 30%, transparent); } to { background-color: transparent; } }
+.ticker-track { animation: ticker-scroll 42s linear infinite; will-change: transform; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+@keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.chartbox-bg { background: radial-gradient(circle, rgba(255,176,0,0.035) 1px, transparent 1.3px) 0 0 / 5px 5px, #070707; }
+.slab-fired::after { content: ""; position: absolute; inset: 0; background: #fff; animation: slab-fire 0.45s cubic-bezier(.2,.8,.2,1) forwards; }
+@keyframes slab-fire { from { opacity: 0.5; } to { opacity: 0; } }
+.settling { animation: settle 1.2s cubic-bezier(.2,.8,.2,1); }
+@keyframes settle { from { background: rgba(255,176,0,.12); } to { background: transparent; } }
+.blink { animation: blink 1.4s steps(2, jump-none) infinite; }
+@keyframes blink { 50% { opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) { .tick-up,.tick-down,.ticker-track,.slab-fired::after,.settling,.blink { animation: none !important; } }
+
+/* ===== Platform Shell ===== */
+#app { height: 100%; overflow: hidden; }
+.shell { display: grid; height: 100dvh; min-height: 640px;
+  grid-template-columns: 76px minmax(0,1fr);
+  grid-template-rows: 60px 32px minmax(0,1fr); }
+@media (max-width: 767px) {
+  .shell { grid-template-columns: minmax(0,1fr); grid-template-rows: 56px 28px minmax(0,1fr) 64px; }
+}
+
+/* Top Bar */
+.topbar { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; gap: 20px;
+  border-bottom: 1px solid var(--color-rule); background: var(--color-ground); padding: 0 16px 0 14px; min-width: 0; }
+.topbar.live { box-shadow: inset 0 -2px 0 0 var(--color-brand); }
+.topbar__logo { display: flex; align-items: center; gap: 10px; flex: none; }
+.topbar__logo-text { font-family: var(--font-led); font-size: 22px; font-weight: 900; letter-spacing: 0.02em;
+  color: var(--color-brand); text-shadow: 0 0 10px rgba(255,176,0,.35); }
+.topbar__feed { display: flex; align-items: center; gap: 10px; color: var(--color-ink-3); margin-left: 4px; }
+.topbar__dot { width: 6px; height: 6px; border-radius: 50%; }
+.topbar__right { margin-left: auto; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.topbar__account-btn { display: grid; grid-template-columns: auto auto 18px; align-items: center; gap: 10px;
+  height: 44px; border-radius: 4px; border: 1px solid var(--color-rule); background: var(--color-panel);
+  padding: 0 10px 0 6px; text-align: left; }
+.topbar__account-btn.live { border-color: var(--color-brand); }
+.account-plate { display: grid; grid-auto-flow: column; grid-auto-columns: max-content; place-content: center;
+  align-items: center; gap: 5px; border-radius: 2px; padding: 0 9px; font-weight: 800; letter-spacing: 0.12em; height: 30px; font-size: 11px; }
+.account-plate.live { background: var(--color-brand); color: var(--color-brand-ink); }
+.account-plate.demo { border: 1px dotted #555; color: var(--color-ink-2); }
+.account-plate__dot { width: 5px; height: 5px; border-radius: 50%; }
+.topbar__deposit { display: inline-flex; height: 44px; align-items: center; gap: 8px; border-radius: 4px;
+  border: 1px solid var(--color-brand); padding: 0 16px; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-brand); transition: background .15s; }
+.topbar__deposit:hover { background: rgba(255,176,0,.1); }
+.topbar__withdraw { display: inline-flex; height: 44px; align-items: center; border-radius: 4px;
+  border: 1px solid var(--color-rule); padding: 0 16px; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-ink-2); transition: all .15s; }
+.topbar__withdraw:hover { border-color: var(--color-tile-hi); color: var(--color-ink); }
+
+/* Account Menu */
+.account-menu { position: absolute; right: 0; top: 54px; z-index: 20; width: 340px; max-width: calc(100vw - 20px);
+  border-radius: 4px; border: 1px solid var(--color-rule); background: #0f0f10; padding: 8px;
+  box-shadow: 0 24px 48px -12px rgba(0,0,0,.8); }
+.account-menu__item { display: grid; grid-template-columns: 58px 1fr auto; align-items: center; gap: 12px;
+  width: 100%; border-radius: 2px; padding: 12px 10px; text-align: left; }
+.account-menu__item:hover { background: var(--color-tile); }
+.account-menu__item.active { background: var(--color-tile); box-shadow: inset 0 0 0 1px var(--color-tile-hi); }
+.account-menu__radio { width: 18px; height: 18px; border-radius: 50%; }
+.account-menu__radio.checked { border: 5px solid var(--color-brand); }
+.account-menu__radio:not(.checked) { border: 1.5px solid #4a4f55; }
+.account-menu__footer { display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid var(--color-rule); padding: 10px 10px 4px; margin-top: 6px; }
+
+/* Promo Banner */
+.promo { display: flex; height: 32px; align-items: center; gap: 10px; border-radius: 4px;
+  border: 1px solid rgba(255,176,0,.35); background: rgba(255,176,0,.05); padding: 0 12px;
+  font-size: 12px; color: var(--color-ink-2); transition: border .15s; cursor: pointer; }
+.promo:hover { border-color: var(--color-brand); }
+
+/* Ticker */
+.ticker-bar { grid-column: 1 / -1; grid-row: 2; min-width: 0; overflow: hidden;
+  border-bottom: 1px solid var(--color-rule); background: var(--color-panel); }
+.ticker-track-inner { display: flex; height: 100%; width: max-content; align-items: stretch; }
+.ticker-item { display: flex; align-items: center; gap: 9px; white-space: nowrap;
+  border-right: 1px solid var(--color-rule); padding: 0 18px; font-size: 12px; }
+.ticker-item__name { font-weight: 700; letter-spacing: 0.03em; }
+.ticker-item__price { border-radius: 2px; padding: 1px 3px; font-weight: 700; }
+.ticker-item__payout { font-weight: 700; color: var(--color-brand); }
+
+/* Icon Rail */
+.rail { grid-column: 1; grid-row: 3; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  border-right: 1px solid var(--color-rule); padding: 12px 0; overflow-y: auto; }
+@media (max-width: 767px) {
+  .rail { grid-row: 4; flex-direction: row; justify-content: space-around; border-right: none;
+    border-top: 1px solid var(--color-rule); padding: 4px 8px; }
+}
+.rail__item { position: relative; display: grid; width: 60px; justify-items: center; gap: 6px; border-radius: 4px;
+  padding: 10px 0 8px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--color-ink-2); }
+.rail__item:hover { background: var(--color-panel); color: var(--color-ink); }
+.rail__item.active { background: var(--color-tile); color: var(--color-ink); }
+.rail__item.active::before { content: ""; position: absolute; left: -8px; top: 12px; bottom: 12px; width: 3px;
+  border-radius: 0 2px 2px 0; background: var(--color-brand); }
+.rail__item.disabled { cursor: not-allowed; opacity: .4; }
+.rail__spacer { flex: 1; }
+.rail__icon { width: 22px; height: 22px; }
+
+/* Content Area */
+.content { grid-column: 2; grid-row: 3; min-height: 0; min-width: 0; overflow: auto; }
+@media (max-width: 767px) { .content { grid-column: 1; } }
+
+/* ===== Trade Page ===== */
+.trade-layout { display: grid; height: 100%; grid-template-columns: minmax(0,1fr) 312px; }
+@media (max-width: 767px) { .trade-layout { grid-template-columns: minmax(0,1fr); height: auto; } }
+.trade-chart-area { display: grid; min-width: 0; grid-template-rows: auto minmax(0,1fr); gap: 10px; padding: 12px 12px 12px 16px; }
+@media (max-width: 767px) { .trade-chart-area { grid-template-rows: auto 52vh; padding: 10px; } }
+.chartbox { position: relative; display: grid; min-height: 0; grid-template-columns: 30px minmax(0,1fr);
+  gap: 10px; border-radius: 4px; border: 1px solid var(--color-rule); padding: 10px 0 0 10px; }
+.chart-container { position: relative; min-height: 0; }
+.chart-el { position: absolute; inset: 0; cursor: crosshair; }
+.chart-readout { pointer-events: none; position: absolute; left: 8px; top: 8px; display: grid; gap: 6px; }
+.chart-readout__pair { font-size: 15px; font-weight: 700; letter-spacing: 0.03em; }
+.chart-readout__price { font-size: 28px; line-height: 1; color: var(--color-brand); }
+@media (max-width: 767px) { .chart-readout__price { font-size: 22px; } }
+.chart-ohlc { pointer-events: none; position: absolute; bottom: 34px; left: 8px; white-space: pre;
+  font-size: 11px; letter-spacing: 0.02em; color: var(--color-ink-2); }
+
+/* Sentiment Bar */
+.sentiment { display: grid; grid-template-rows: auto minmax(0,1fr) auto; justify-items: center; gap: 6px; padding-bottom: 36px; }
+.sentiment__pct { font-size: 11px; font-weight: 700; }
+.sentiment__bar { position: relative; width: 4px; overflow: hidden; border-radius: 2px; background: var(--color-down); }
+.sentiment__fill { position: absolute; inset: 0 0 auto 0; background: var(--color-up);
+  transition: height 600ms cubic-bezier(.2,.8,.2,1); }
+
+/* Asset Tabs */
+.asset-tabs { display: flex; min-width: 0; align-items: stretch; gap: 6px; }
+.asset-tabs__list { display: flex; min-width: 0; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.asset-tab { display: grid; grid-template-columns: auto auto; align-items: baseline; justify-content: space-between;
+  gap: 12px; min-width: 150px; border-radius: 4px; border: 1px solid var(--color-rule); background: var(--color-panel);
+  padding: 8px 14px; text-align: left; flex: none; }
+.asset-tab:hover { border-color: var(--color-tile-hi); }
+.asset-tab.active { border-color: var(--color-ink-3); background: var(--color-tile);
+  box-shadow: inset 0 -2px 0 var(--color-brand); }
+.asset-tab__name { font-size: 14px; font-weight: 700; letter-spacing: 0.03em; }
+.asset-tab__qual { font-size: 9px; font-weight: 600; letter-spacing: 0.08em; color: var(--color-ink-3); margin-left: 6px; }
+.asset-tab__payout { font-size: 12px; font-weight: 700; color: var(--color-brand); }
+
+/* Trade Ticket */
+.ticket { display: grid; gap: 12px; border-bottom: 1px solid var(--color-rule); padding: 14px 16px 16px; }
+.ticket__header { display: flex; align-items: baseline; justify-content: space-between; }
+.ticket__pair { font-size: 17px; font-weight: 700; letter-spacing: 0.03em; }
+.ticket__payout-val { font-size: 17px; font-weight: 800; color: var(--color-brand); }
+.ticket__stepper { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; gap: 6px; }
+.step-btn { display: grid; height: 48px; place-items: center; border-radius: 4px; border: 1px solid var(--color-rule);
+  color: var(--color-ink-2); }
+.step-btn:hover { border-color: var(--color-tile-hi); background: var(--color-panel); color: var(--color-ink); }
+.step-display { display: grid; height: 48px; place-items: center; border-radius: 4px; border: 1px solid var(--color-rule);
+  background: var(--color-panel); }
+.ticket__durations { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.dur-btn { height: 30px; border-radius: 2px; font-size: 12px; font-weight: 600; }
+.dur-btn.active { background: var(--color-brand); color: var(--color-brand-ink); }
+.dur-btn:not(.active) { background: var(--color-tile); color: var(--color-ink-2); }
+.dur-btn:not(.active):hover { background: var(--color-tile-hi); color: var(--color-ink); }
+.ticket__presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.preset-btn { height: 28px; border-radius: 2px; border: 1px solid var(--color-rule); background: var(--color-panel);
+  font-size: 12px; font-weight: 600; color: var(--color-ink-2); }
+.preset-btn:hover { color: var(--color-ink); }
+.preset-btn.active { border-color: var(--color-brand); color: var(--color-brand); }
+.ticket__profit { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; border-top: 1px dashed var(--color-rule);
+  padding-top: 10px; padding-bottom: 2px; }
+.ticket__live-warn { display: flex; align-items: center; gap: 8px; border-radius: 2px; background: rgba(255,176,0,.1);
+  padding: 8px 10px; font-size: 12px; font-weight: 600; color: var(--color-brand); }
+.ticket__error { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 8px; border-radius: 2px;
+  background: var(--color-warn-bg); padding: 8px 10px; font-size: 12px; color: #ffb3a8;
+  box-shadow: inset 0 0 0 1px rgba(229,65,59,.5); }
+
+/* Trade Slab Buttons */
+.trade-slab { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center;
+  height: 58px; overflow: hidden; border-radius: 4px; padding: 0 16px 0 18px; text-align: left;
+  font-size: 17px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em;
+  transition: filter .15s, transform .05s; }
+.trade-slab:hover { filter: brightness(1.1); }
+.trade-slab:active { transform: translateY(1px); }
+.trade-slab:disabled { cursor: wait; }
+.trade-slab.up { background: var(--color-up); color: var(--color-up-ink); }
+.trade-slab.down { background: var(--color-down); color: var(--color-down-ink); }
+.trade-slab__note { display: block; font-size: 10px; font-weight: 700; text-transform: none; letter-spacing: 0.1em; opacity: .75; margin-top: 2px; }
+.trade-slab__icon { width: 26px; height: 26px; }
+
+/* Trades Panel */
+.trades-panel { display: grid; min-height: 0; grid-template-rows: auto minmax(0,1fr); }
+.trades-tablist { display: flex; border-bottom: 1px solid var(--color-rule); padding: 0 12px; }
+.trades-tab { display: flex; align-items: center; gap: 8px; border-bottom: 2px solid transparent; padding: 12px 8px 10px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-ink-3); margin-right: 8px; }
+.trades-tab.active { border-bottom-color: var(--color-brand); color: var(--color-ink); }
+.trades-tab__count { display: inline-grid; height: 18px; min-width: 20px; place-items: center; border-radius: 2px;
+  background: var(--color-tile); padding: 0 5px; font-size: 11px; color: var(--color-ink-2); }
+.trades-list { overflow: auto; padding: 4px 0; }
+.trade-row { position: relative; display: grid; grid-template-columns: 18px minmax(0,1fr) auto; gap: 2px 10px;
+  border-bottom: 1px solid #101010; padding: 10px 14px; }
+.trade-row__pair { font-weight: 700; letter-spacing: 0.03em; }
+.trade-row__time { justify-self: end; font-size: 13px; }
+.trade-row__stake { font-size: 12px; color: var(--color-ink-2); }
+.trade-row__pnl { justify-self: end; font-weight: 700; }
+.trade-row__prices { font-size: 11px; color: var(--color-ink-3); }
+.trade-row__chip { justify-self: end; border-radius: 2px; padding: 2px 6px; font-size: 10px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.1em; }
+.trade-row__progress { position: absolute; bottom: -1px; left: 0; height: 2px; background: var(--color-brand); }
+.trades-empty { display: grid; gap: 6px; padding: 28px 18px; text-align: center; color: var(--color-ink-3); }
+.trade-sidebar { display: grid; min-height: 0; grid-template-rows: auto minmax(0,1fr);
+  border-left: 1px solid var(--color-rule); }
+@media (max-width: 767px) { .trade-sidebar { border-left: none; } }
+
+/* ===== Auth Pages ===== */
+.auth-page { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; padding: 24px; }
+.auth-card { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 24px; }
+.auth-card h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+.auth-card form { display: flex; flex-direction: column; gap: 12px; }
+.auth-input { border-radius: 4px; border: 1px solid var(--color-rule); background: var(--color-panel);
+  padding: 10px 16px; font-size: 14px; outline: none; }
+.auth-input:focus { border-color: var(--color-brand); }
+.auth-btn { border-radius: 4px; padding: 10px 16px; font-size: 14px; font-weight: 700; }
+.auth-btn.primary { background: var(--color-brand); color: var(--color-brand-ink); }
+.auth-btn.green { background: var(--color-up); color: var(--color-up-ink); }
+.auth-btn:disabled { opacity: .5; cursor: wait; }
+.auth-error { font-size: 14px; color: var(--color-down); }
+.auth-success { font-size: 14px; color: var(--color-up); }
+
+/* ===== Landing Page ===== */
+.landing { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; max-width: 640px; margin: 0 auto; padding: 24px; gap: 32px; }
+.landing__title { font-family: var(--font-led); font-size: 50px; font-weight: 900; letter-spacing: 0.04em; color: var(--color-brand); }
+.landing__sub { font-size: 18px; font-weight: 600; color: var(--color-ink-2); margin-top: 4px; }
+.landing__btns { display: flex; gap: 12px; }
+.landing__btn { border-radius: 4px; padding: 10px 20px; font-size: 14px; font-weight: 700; }
+.landing__btn.green { background: var(--color-up); color: var(--color-up-ink); }
+.landing__btn.outline { border: 1px solid var(--color-rule); background: var(--color-panel); }
+
+/* ===== Inner Pages (deposit, withdrawal, account, etc.) ===== */
+.inner-page { max-width: 640px; margin: 0 auto; padding: 40px 24px; display: flex; flex-direction: column; gap: 24px; }
+.inner-page h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.inner-page h2 { font-size: 14px; font-weight: 600; }
+.inner-wide { max-width: 1024px; margin: 0 auto; padding: 32px 24px; display: flex; flex-direction: column; gap: 20px; }
+.inner-wide h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+
+/* Form Elements */
+.form-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: var(--color-ink-2); }
+.form-input { width: 100%; border-radius: 4px; border: 1px solid var(--color-rule); background: var(--color-tile);
+  padding: 8px 12px; font-size: 14px; outline: none; margin-top: 4px; }
+.form-input:focus { border-color: var(--color-brand); }
+.form-select { width: 100%; border-radius: 4px; border: 1px solid var(--color-rule); background: var(--color-tile);
+  padding: 8px 12px; font-size: 14px; outline: none; margin-top: 4px; appearance: none; }
+.form-select:focus { border-color: var(--color-brand); }
+.form-btn { border-radius: 4px; background: var(--color-brand); color: var(--color-brand-ink); padding: 10px 20px;
+  font-size: 14px; font-weight: 700; align-self: flex-start; }
+.form-btn:disabled { opacity: .5; }
+
+/* Card Panels */
+.panel { border-radius: 4px; border: 1px solid var(--color-rule); background: var(--color-panel); padding: 16px; }
+.panel-grid { display: grid; gap: 20px; }
+@media (min-width: 768px) { .panel-grid.cols-2 { grid-template-columns: 1fr 1fr; } }
+
+/* Tabs Row */
+.tab-row { display: flex; gap: 4px; overflow-x: auto; border-radius: 4px; border: 1px solid var(--color-rule);
+  background: var(--color-panel); padding: 4px; }
+.tab-row__item { flex: none; border-radius: 4px; padding: 8px 16px; font-size: 14px; font-weight: 600; color: var(--color-ink-2); }
+.tab-row__item:hover { color: var(--color-ink); }
+.tab-row__item.active { background: var(--color-tile); color: var(--color-ink); }
+
+/* Table */
+.data-table { width: 100%; min-width: 680px; font-size: 14px; border-collapse: collapse; }
+.data-table thead th { text-align: left; padding-bottom: 8px; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-ink-2); }
+.data-table tbody tr { border-top: 1px solid var(--color-rule); }
+.data-table tbody td { padding: 12px 0; vertical-align: top; }
+
+/* FAQ */
+.faq details { border-radius: 4px; border: 1px solid var(--color-rule); background: var(--color-panel); padding: 12px 16px; }
+.faq details + details { margin-top: 4px; }
+.faq summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+.faq details p { margin-top: 8px; font-size: 14px; color: var(--color-ink-2); }
+
+/* Deposit Method Picker */
+.method-grid { display: grid; gap: 8px; }
+@media (min-width: 640px) { .method-grid { grid-template-columns: 1fr 1fr; } }
+.method-card { display: flex; align-items: center; justify-content: space-between; border-radius: 4px;
+  border: 1px solid var(--color-rule); background: var(--color-panel); padding: 12px 16px; text-align: left; width: 100%; }
+.method-card:hover { border-color: var(--color-brand); }
+.method-card__name { font-size: 14px; font-weight: 600; }
+.method-card__min { font-size: 12px; color: var(--color-ink-2); }
+
+/* Checkout Page */
+.checkout-page { display: flex; justify-content: center; min-height: 100vh; padding: 40px 16px; background: #f6f4fb; color: #241436; }
+.checkout-card { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 20px; }
+.checkout-section { border-radius: 12px; background: #fff; padding: 24px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.checkout-step { display: inline-block; border-radius: 999px; background: #5b2d9e; padding: 2px 12px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #fff; }
+.checkout-title { color: #5b2d9e; font-size: 14px; font-weight: 700; margin-top: 12px; }
+.checkout-amount { font-size: 30px; font-weight: 700; margin-top: 8px; }
+.checkout-qr { width: 200px; height: 200px; margin: 16px auto 0; background: #eee; border-radius: 8px;
+  display: grid; place-items: center; font-size: 11px; color: #888; }
+.checkout-or { text-align: center; font-size: 12px; font-weight: 600; color: #6b5a8a; }
+.checkout-detail { border-radius: 12px; background: #fff; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.checkout-detail dt { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #6b5a8a; }
+.checkout-detail dd { margin-top: 2px; font-size: 14px; }
+.checkout-claim { border-radius: 12px; background: #fff; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.checkout-input { width: 100%; border-radius: 4px; border: 1px solid #ddd; padding: 8px 12px; font-size: 14px;
+  color: #241436; outline: none; margin-top: 8px; }
+.checkout-input:focus { border-color: #5b2d9e; }
+.checkout-btn { width: 100%; border-radius: 4px; background: #5b2d9e; color: #fff; padding: 10px; font-size: 14px;
+  font-weight: 700; margin-top: 12px; }
+.checkout-footer { text-align: center; font-size: 11px; color: #8a7aa8; }
+
+/* Admin */
+.admin-login { display: grid; min-height: 100vh; }
+@media (min-width: 768px) { .admin-login { grid-template-columns: 1fr 1fr; } }
+.admin-login__aside { background: linear-gradient(135deg, #0a0a0a 0%, #1a1200 100%); padding: 48px 40px;
+  display: flex; flex-direction: column; gap: 48px; }
+.admin-logo { width: 40px; height: 40px; border-radius: 8px; background: var(--color-brand);
+  display: grid; place-items: center; font-family: var(--font-led); font-weight: 900; font-size: 20px;
+  color: var(--color-brand-ink); }
+.admin-brand-name { font-size: 18px; font-weight: 700; }
+.admin-brand-sub { font-size: 12px; font-weight: 500; }
+.admin-login__pitch { margin-top: auto; }
+.admin-login__pitch h1 { font-size: 28px; font-weight: 700; color: #F6EFDF; line-height: 1.3; }
+.admin-login__pitch p { margin-top: 12px; font-size: 14px; color: #A99C82; line-height: 1.6; }
+.admin-login__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.admin-login__stat .k { font-size: 14px; font-weight: 700; color: var(--color-brand); }
+.admin-login__stat .l { font-size: 11px; color: #A99C82; margin-top: 2px; }
+.admin-login__main { display: flex; align-items: center; justify-content: center; padding: 48px 40px; background: #050505; }
+.admin-login__card { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 20px; }
+.admin-login__card h2 { font-size: 22px; font-weight: 700; }
+.admin-login__card .sub { font-size: 13px; color: var(--color-ink-2); margin-top: -12px; }
+.admin-field label { display: block; font-size: 12px; font-weight: 600; color: var(--color-ink-2); margin-bottom: 6px; }
+.admin-input { width: 100%; border-radius: 4px; border: 1px solid var(--color-rule); background: var(--color-panel);
+  padding: 10px 14px; font-size: 14px; color: var(--color-ink); outline: none; }
+.admin-input:focus { border-color: var(--color-brand); }
+.admin-btn { border-radius: 4px; padding: 10px 16px; font-size: 14px; font-weight: 700; text-align: center; }
+.admin-btn--primary { background: var(--color-brand); color: var(--color-brand-ink); }
+.admin-btn--block { width: 100%; }
+.admin-btn:disabled { opacity: .5; }
+.admin-demo-hint { font-size: 11px; color: var(--color-ink-3); line-height: 1.6; }
+.admin-demo-hint code { background: var(--color-tile); padding: 1px 5px; border-radius: 2px; font-size: 11px; }
+.admin-form-error { display: flex; align-items: center; gap: 8px; border-radius: 4px; background: var(--color-warn-bg);
+  padding: 8px 12px; font-size: 13px; color: #ffb3a8; }
+
+/* Admin Console */
+.admin-console { display: grid; grid-template-columns: 220px minmax(0,1fr); min-height: 100vh; }
+@media (max-width: 767px) { .admin-console { grid-template-columns: 1fr; } }
+.admin-sidebar { background: #0a0a0a; border-right: 1px solid var(--color-rule); padding: 20px 0; }
+.admin-sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 16px 20px; }
+.admin-sidebar__brand .admin-logo { width: 32px; height: 32px; font-size: 16px; border-radius: 6px; }
+.admin-nav__item { display: block; padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--color-ink-2); }
+.admin-nav__item:hover { background: var(--color-tile); color: var(--color-ink); }
+.admin-nav__item.active { background: var(--color-tile); color: var(--color-ink);
+  box-shadow: inset 3px 0 0 var(--color-brand); font-weight: 600; }
+.admin-main { padding: 32px; overflow: auto; }
+.admin-main h1 { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+.admin-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.admin-stat-card { border-radius: 6px; border: 1px solid var(--color-rule); background: var(--color-panel); padding: 16px; }
+.admin-stat-card__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-ink-2); }
+.admin-stat-card__value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+.admin-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+.admin-table thead th { text-align: left; padding: 8px 12px; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-ink-2); border-bottom: 1px solid var(--color-rule); }
+.admin-table tbody td { padding: 10px 12px; border-bottom: 1px solid #111; }
+.admin-chip { display: inline-block; border-radius: 2px; padding: 2px 8px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; }
+.admin-chip.green { background: rgba(59,229,132,.15); color: var(--color-up); }
+.admin-chip.amber { background: rgba(255,176,0,.15); color: var(--color-brand); }
+.admin-chip.red { background: rgba(229,65,59,.15); color: var(--color-down); }
+
+/* SVG Icons */
+.icon { display: inline-block; width: 18px; height: 18px; vertical-align: middle; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="module">
+// ===== lightweight-charts import =====
+import { createChart, CandlestickSeries, ColorType, CrosshairMode, LineStyle } from 'https://unpkg.com/lightweight-charts@5.0.0/dist/lightweight-charts.standalone.production.mjs';
+
+// ===== SVG Icon Paths =====
+const ICON_PATHS = {
+  trade: '<path d="M4 19V5M4 19h16"/><path d="M8 15v-4M12 15V8M16 15v-6"/>',
+  wallet: '<path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z"/><path d="M4 7l11-3v3"/><path d="M16 13.5h.5"/>',
+  help: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.5a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2 1-1.2 1.8"/><path d="M12 16.5h.01"/>',
+  user: '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>',
+  cup: '<path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a3 3 0 0 0 3 3M17 6h3a3 3 0 0 1-3 3M12 14v3M8 20h8"/>',
+  globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 2.5 14.4 0 17M12 3.5c-2.5 2.6-2.5 14.4 0 17"/>',
+  more: '<path d="M6 12h.01M12 12h.01M18 12h.01"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
+  caret: '<path d="M7 10l5 5 5-5"/>',
+  up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+  down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+  arrow: '<path d="M12 18V6M7 11l5-5 5 5"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  alert: '<path d="M12 4 21 19H3z"/><path d="M12 10v4M12 16.5h.01"/>',
+};
+
+function icon(name, cls = 'icon', sw = 1.75) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" class="${cls}" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
+}
+
+// ===== Utility Functions =====
+function $(sel, root = document) { return root.querySelector(sel); }
+function $$(sel, root = document) { return [...root.querySelectorAll(sel)]; }
+function uuid() { return crypto.randomUUID(); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function formatMoney(minor, cur = 'USD') { const sign = minor < 0 ? '−' : ''; return sign + '$' + (Math.abs(minor) / 100).toFixed(2); }
+function clockTime(epochSec) { const d = new Date(epochSec * 1000); return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
+function countdown(sec) { if (sec <= 0) return '0:00'; const m = Math.floor(sec / 60); const s = sec % 60; return `${m}:${String(s).padStart(2, '0')}`; }
+function hms(sec) { if (sec < 60) return `0:${String(sec).padStart(2, '0')}`; if (sec < 3600) return `${sec / 60}:00`; return `${sec / 3600}:00:00`; }
+function formatDuration(sec) { if (sec < 60) return sec + 's'; if (sec < 3600) return sec / 60 + 'm'; return sec / 3600 + 'h'; }
+function splitAsset(name) { const m = name.match(/^(.+?)\s+(OTC|Real)$/i); return m ? { pair: m[1], market: m[2] } : { pair: name, market: '' }; }
+
+// ===== Assets =====
+const ASSETS = [
+  { symbol: 'AUDNZD_OTC', displayName: 'AUD/NZD OTC', precision: 5, payoutPct: 92, basePrice: 1.09500, kind: 'OTC' },
+  { symbol: 'EURUSD_OTC', displayName: 'EUR/USD OTC', precision: 5, payoutPct: 87, basePrice: 1.08200, kind: 'OTC' },
+  { symbol: 'USDJPY', displayName: 'USD/JPY Real', precision: 3, payoutPct: 85, basePrice: 149.500, kind: 'Real' },
+];
+
+const DURATIONS = [5, 10, 15, 30, 60, 120, 300, 900, 1800, 3600, 7200, 14400];
+const DEPOSIT_METHODS = ['PhonePe', 'Google Pay', 'Paytm', 'BHIM UPI'];
+const FAQ = [
+  { q: 'What is binary options trading?', a: 'You predict whether an asset\'s price will go up or down within a set time. If correct, you earn a profit based on the payout percentage.' },
+  { q: 'How do I deposit funds?', a: 'Go to the Deposit page, choose a payment method, enter an amount, and complete the payment via UPI.' },
+  { q: 'How long do withdrawals take?', a: 'Withdrawal requests are processed within 3 business days to the payment method you deposited with.' },
+  { q: 'What is the demo account?', a: 'The demo account uses virtual funds so you can practice trading without risking real money. It starts with $10,000.' },
+  { q: 'What is the deposit bonus?', a: 'First deposits receive a 50% bonus. Bonus funds require 3× turnover before withdrawal.' },
+];
+
+// ===== Store =====
+const STORE_KEY = 'asm_demo_store';
+
+const STORE_VERSION = 2;
+
+function defaultStore() {
+  return { _v: STORE_VERSION, user: null, accounts: [], trades: [], deposits: [], withdrawals: [], tickets: [], adminAuthed: false };
+}
+
+let store = defaultStore();
+try {
+  const saved = localStorage.getItem(STORE_KEY);
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (parsed._v === STORE_VERSION) { store = { ...defaultStore(), ...parsed }; }
+    else { localStorage.removeItem(STORE_KEY); } // clear stale data
+  }
+} catch { localStorage.removeItem(STORE_KEY); }
+
+function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch {} }
+
+function createUser(email) {
+  store.user = { email, nickname: '', firstName: '', lastName: '', dateOfBirth: '', aadhaar: '', address: '', country: '', kycStatus: 'NOT_STARTED', twoFaForLogin: false, twoFaForWithdrawal: false };
+  store.accounts = [
+    { id: uuid(), type: 'DEMO', currency: 'USD', realBalance: 1000000, bonusBalance: 0 },
+    { id: uuid(), type: 'LIVE', currency: 'USD', realBalance: 0, bonusBalance: 0 },
+  ];
+  store.trades = []; store.deposits = []; store.withdrawals = []; store.tickets = [];
+  saveStore();
+}
+
+function getAccount(type) { return store.accounts.find(a => a.type === type); }
+function activeAccountId() { return store._activeAccountId || store.accounts[0]?.id; }
+function activeAccount() { return store.accounts.find(a => a.id === activeAccountId()) || store.accounts[0]; }
+function setActiveAccountId(id) { store._activeAccountId = id; saveStore(); }
+
+// ===== Price Engine =====
+const priceState = {};
+const tickListeners = [];
+
+function initPriceEngine() {
+  for (const asset of ASSETS) {
+    const candles = generateHistory(asset);
+    const lastClose = candles.length > 0 ? candles[candles.length - 1].c : asset.basePrice;
+    priceState[asset.symbol] = {
+      price: lastClose,
+      prevPrice: lastClose,
+      openPrice: lastClose,
+      sigma2: 0.0000001,
+      candles: candles,
+      forming: null,
+      sentiment: { upPct: 50 + Math.floor(Math.random() * 20 - 10), downPct: 0 },
+    };
+    priceState[asset.symbol].sentiment.downPct = 100 - priceState[asset.symbol].sentiment.upPct;
+  }
+}
+
+function generateHistory(asset) {
+  const candles = [];
+  const now = Math.floor(Date.now() / 1000);
+  const candleSec = 60;
+  const mean = asset.basePrice;
+  let price = mean;
+  const revert = 0.008;       // gentle mean-reversion per candle
+  const vol = 0.0004;          // per-step volatility (visible candle bodies)
+  for (let i = 120; i > 0; i--) {
+    const openTs = now - i * candleSec;
+    const o = price;
+    let h = o, l = o, c = o;
+    for (let t = 0; t < 30; t++) {
+      const drift = revert * (mean - c) / mean;
+      c += c * (drift * 0.03 + (Math.random() - 0.5) * vol);
+      h = Math.max(h, c); l = Math.min(l, c);
+    }
+    price = c;
+    candles.push({ openTs, o, h, l, c });
+  }
+  return candles;
+}
+
+function tickPrices() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const candleSec = 60;
+  for (const asset of ASSETS) {
+    const s = priceState[asset.symbol];
+    // Mean-reverting tick with visible movement
+    const mean = asset.basePrice;
+    const revert = 0.0008;     // gentle pull toward mean
+    const vol = 0.00025;       // per-tick noise — creates visible candle bodies
+    const drift = revert * (mean - s.price) / mean;
+    const noise = (Math.random() - 0.5) * vol;
+    const ret = drift + noise;
+    s.prevPrice = s.price;
+    s.price = s.price * (1 + ret);
+    // Candle
+    const candleOpen = nowSec - (nowSec % candleSec);
+    if (!s.forming || s.forming.openTs < candleOpen) {
+      if (s.forming) {
+        s.candles.push(s.forming);
+        if (s.candles.length > 200) s.candles.shift();
+      }
+      s.forming = { openTs: candleOpen, o: s.price, h: s.price, l: s.price, c: s.price };
+    } else {
+      s.forming.c = s.price;
+      s.forming.h = Math.max(s.forming.h, s.price);
+      s.forming.l = Math.min(s.forming.l, s.price);
+    }
+    // Sentiment drift
+    s.sentiment.upPct = clamp(s.sentiment.upPct + Math.floor(Math.random() * 3 - 1), 15, 85);
+    s.sentiment.downPct = 100 - s.sentiment.upPct;
+  }
+  for (const fn of tickListeners) fn();
+}
+
+function onTick(fn) { tickListeners.push(fn); return () => { const i = tickListeners.indexOf(fn); if (i >= 0) tickListeners.splice(i, 1); }; }
+
+// ===== Trade Settler =====
+function settleTrades() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  let changed = false;
+  for (const trade of store.trades) {
+    if (trade.status !== 'OPEN') continue;
+    if (nowSec < trade.expiryTs) continue;
+    const s = priceState[trade.symbol];
+    if (!s) continue;
+    trade.exitPrice = s.price;
+    const won = trade.direction === 'UP' ? s.price > trade.entryPrice : s.price < trade.entryPrice;
+    trade.status = won ? 'WON' : 'LOST';
+    trade.pnl = won ? Math.floor(trade.stake * trade.payoutPct / 100) : -trade.stake;
+    // Update balance
+    const acc = store.accounts.find(a => a.id === trade.accountId);
+    if (acc && won) { acc.realBalance += trade.stake + Math.floor(trade.stake * trade.payoutPct / 100); }
+    changed = true;
+  }
+  if (changed) saveStore();
+}
+
+// ===== Router =====
+let currentPage = '';
+let chartInstance = null;
+let chartSeries = null;
+let tradePriceLines = [];
+let tickUnsub = null;
+let tickerInterval = null;
+let settleInterval = null;
+
+function navigate(hash) { window.location.hash = hash; }
+
+function getRoute() { return window.location.hash.replace(/^#/, '') || '/'; }
+
+function render() {
+  // Cleanup
+  if (chartInstance) { chartInstance.remove(); chartInstance = null; chartSeries = null; tradePriceLines = []; }
+  if (tickUnsub) { tickUnsub(); tickUnsub = null; }
+
+  const route = getRoute();
+  const app = document.getElementById('app');
+
+  if (route === '/') return renderLanding(app);
+  if (route === '/login') return renderLogin(app);
+  if (route === '/register') return renderRegister(app);
+  if (route === '/admin/login') return renderAdminLogin(app);
+  if (route.startsWith('/admin') && route !== '/admin/login') return renderAdminConsole(app, route);
+  if (route === '/checkout') return renderCheckout(app);
+
+  // Auth guard
+  if (!store.user) { navigate('/login'); return; }
+
+  // Platform shell
+  renderShell(app, route);
+}
+
+window.addEventListener('hashchange', render);
+
+// ===== Landing =====
+function renderLanding(app) {
+  app.innerHTML = `
+    <div class="landing">
+      <div>
+        <h1 class="landing__title led led-lit">ASM</h1>
+        <p class="landing__sub">Trade</p>
+      </div>
+      <div class="landing__btns">
+        <button class="landing__btn green" onclick="location.hash='/register'">Create account</button>
+        <button class="landing__btn outline" onclick="location.hash='/login'">Log in</button>
+      </div>
+    </div>`;
+}
+
+// ===== Login =====
+function renderLogin(app) {
+  app.innerHTML = `
+    <main class="auth-page">
+      <div class="auth-card">
+        <h1>Log in</h1>
+        <form id="login-form">
+          <input class="auth-input" type="email" placeholder="Email" required id="login-email">
+          <input class="auth-input" type="password" placeholder="Password" required id="login-pass">
+          <div id="login-error"></div>
+          <button class="auth-btn primary" type="submit">Log in</button>
+        </form>
+      </div>
+    </main>`;
+  $('#login-form').onsubmit = e => {
+    e.preventDefault();
+    const email = $('#login-email').value;
+    if (!store.user) { createUser(email); }
+    navigate('/trade');
+  };
+}
+
+// ===== Register =====
+function renderRegister(app) {
+  app.innerHTML = `
+    <main class="auth-page">
+      <div class="auth-card">
+        <h1>Create account</h1>
+        <form id="reg-form">
+          <input class="auth-input" type="email" placeholder="Email" required id="reg-email">
+          <input class="auth-input" type="password" placeholder="Password — at least 12 characters" required minlength="12" id="reg-pass">
+          <div id="reg-error"></div>
+          <button class="auth-btn green" type="submit">Create account</button>
+        </form>
+      </div>
+    </main>`;
+  $('#reg-form').onsubmit = e => {
+    e.preventDefault();
+    createUser($('#reg-email').value);
+    navigate('/trade');
+  };
+}
+
+// ===== Platform Shell =====
+function renderShell(app, route) {
+  const acc = activeAccount();
+  const isLive = acc?.type === 'LIVE';
+  const bal = acc ? formatMoney(acc.realBalance + acc.bonusBalance) : '—';
+
+  app.innerHTML = `
+    <div class="shell">
+      <header class="topbar ${isLive ? 'live' : ''}">
+        <a class="topbar__logo" onclick="location.hash='/trade'">
+          <span class="topbar__logo-text led led-lit">ASM</span>
+          <span class="legend" style="font-size:11px">TRADE</span>
+        </a>
+        <div class="topbar__feed">
+          <span class="topbar__dot" style="background:var(--color-up);box-shadow:0 0 0 3px rgba(59,229,132,.12)"></span>
+          <span class="legend">Live feed</span>
+          <span class="led" id="feed-clock" style="font-size:13px"></span>
+        </div>
+        <div style="margin:0 auto;display:none" class="promo-area"></div>
+        <div class="topbar__right" style="position:relative">
+          <button class="topbar__account-btn ${isLive ? 'live' : ''}" id="account-toggle">
+            <span class="account-plate ${isLive ? 'live' : 'demo'}">
+              <span class="account-plate__dot" style="background:${isLive ? 'var(--color-up)' : 'var(--color-ink-3)'}"></span>
+              ${isLive ? 'LIVE' : 'DEMO'}
+            </span>
+            <span style="display:grid;gap:2px;min-width:0">
+              <span class="legend" style="font-size:10px">${isLive ? 'Live account' : 'Demo account'}</span>
+              <span class="led led-lit" style="font-size:20px;line-height:1" id="topbar-balance">${bal}</span>
+            </span>
+            ${icon('caret')}
+          </button>
+          <button class="topbar__deposit" onclick="location.hash='/deposit'">${icon('plus')} Deposit</button>
+          <button class="topbar__withdraw" onclick="location.hash='/withdrawal'">Withdraw</button>
+          <div id="account-menu" style="display:none"></div>
+        </div>
+      </header>
+
+      <div class="ticker-bar ticker">
+        <div class="ticker-track ticker-track-inner" id="ticker-track"></div>
+      </div>
+
+      <nav class="rail" id="nav-rail"></nav>
+      <div class="content" id="page-content"></div>
+    </div>`;
+
+  // Account menu toggle
+  let menuOpen = false;
+  $('#account-toggle').onclick = () => {
+    menuOpen = !menuOpen;
+    renderAccountMenu(menuOpen);
+  };
+  document.addEventListener('click', e => {
+    if (menuOpen && !e.target.closest('#account-toggle') && !e.target.closest('#account-menu')) {
+      menuOpen = false; renderAccountMenu(false);
+    }
+  }, { once: false });
+
+  renderRail(route);
+  renderTicker();
+  renderPage(route);
+
+  // Clock
+  const clockEl = $('#feed-clock');
+  if (clockEl) {
+    const updateClock = () => { clockEl.textContent = clockTime(Math.floor(Date.now() / 1000)); };
+    updateClock();
+    setInterval(updateClock, 1000);
+  }
+}
+
+function renderAccountMenu(show) {
+  const el = $('#account-menu');
+  if (!el) return;
+  if (!show) { el.style.display = 'none'; return; }
+  const currentId = activeAccountId();
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="account-menu">
+      ${store.accounts.sort((a, b) => a.type === 'LIVE' ? -1 : 1).map(acc => `
+        <button class="account-menu__item ${acc.id === currentId ? 'active' : ''}" data-aid="${acc.id}">
+          <span class="account-plate ${acc.type === 'LIVE' ? 'live' : 'demo'}" style="height:26px;font-size:10px">
+            <span class="account-plate__dot" style="background:${acc.type === 'LIVE' ? 'var(--color-up)' : 'var(--color-ink-3)'}"></span>
+            ${acc.type === 'LIVE' ? 'LIVE' : 'DEMO'}
+          </span>
+          <span><strong style="display:block;font-weight:600">${acc.type === 'LIVE' ? 'Live account' : 'Demo account'}</strong>
+            <small style="color:var(--color-ink-3)">${formatMoney(acc.realBalance + acc.bonusBalance)}</small></span>
+          <span class="account-menu__radio ${acc.id === currentId ? 'checked' : ''}"></span>
+        </button>`).join('')}
+      <div class="account-menu__footer">
+        <a style="font-size:13px;font-weight:600;color:var(--color-brand)" onclick="location.hash='/account'">My account</a>
+        <button style="font-size:13px;font-weight:600;color:var(--color-ink-3)" onclick="store.user=null;saveStore();location.hash='/'">Log out</button>
+      </div>
+    </div>`;
+  $$('[data-aid]', el).forEach(btn => {
+    btn.onclick = () => {
+      setActiveAccountId(btn.dataset.aid);
+      render();
+    };
+  });
+}
+
+function renderRail(route) {
+  const items = [
+    { id: 'trade', label: 'Trade', href: '/trade', icon: 'trade', available: true },
+    { id: 'payments', label: 'Payments', href: '/balance', icon: 'wallet', available: true, matches: ['/deposit', '/withdrawal'] },
+    { id: 'support', label: 'Support', href: '/support', icon: 'help', available: true },
+    { id: 'account', label: 'Account', href: '/account', icon: 'user', available: true },
+    { id: 'tournaments', label: 'Tourney', href: '/tournaments', icon: 'cup', available: false },
+    { id: 'market', label: 'Market', href: '/market', icon: 'globe', available: false },
+    { id: 'more', label: 'More', href: '/more', icon: 'more', available: false, pinBottom: true },
+  ];
+  const rail = $('#nav-rail');
+  if (!rail) return;
+  rail.innerHTML = items.map(item => {
+    const paths = [item.href, ...(item.matches || [])];
+    const active = paths.some(p => route.startsWith(p));
+    if (item.pinBottom) return `<span class="rail__spacer"></span>`;
+    if (!item.available) return `<span class="rail__item disabled" title="Coming soon">${icon(item.icon, 'rail__icon')}<span>${item.label}</span><span style="font-size:8px;letter-spacing:.1em;color:var(--color-ink-3);margin-top:-4px">Soon</span></span>`;
+    return `<a class="rail__item ${active ? 'active' : ''}" onclick="location.hash='${item.href}'">${icon(item.icon, 'rail__icon')}<span>${item.label}</span></a>`;
+  }).join('');
+}
+
+function renderTicker() {
+  const track = $('#ticker-track');
+  if (!track) return;
+  const renderItems = () => {
+    const items = ASSETS.map(asset => {
+      const s = priceState[asset.symbol];
+      const change = s ? ((s.price - s.openPrice) / s.openPrice * 100) : 0;
+      const up = change >= 0;
+      const color = up ? 'var(--color-up)' : 'var(--color-down)';
+      const priceStr = s ? s.price.toFixed(asset.precision) : '—';
+      return `<span class="ticker-item">
+        <span class="ticker-item__name">${asset.displayName}</span>
+        <span class="ticker-item__price led">${priceStr}</span>
+        <span class="dir-mark" data-dir="${up ? 'up' : 'down'}" style="color:${color}"></span>
+        <span style="font-weight:700;color:${color}">${up ? '+' : '−'}${Math.abs(change).toFixed(2)}%</span>
+        <span class="ticker-item__payout">${asset.payoutPct}%</span>
+      </span>`;
+    }).join('');
+    // Duplicate for infinite scroll
+    return items + items;
+  };
+  track.innerHTML = renderItems();
+  // Update every 2 seconds
+  if (tickerInterval) clearInterval(tickerInterval);
+  tickerInterval = setInterval(() => { if ($('#ticker-track')) { track.innerHTML = renderItems(); } }, 2000);
+}
+
+// ===== Page Router =====
+function renderPage(route) {
+  const content = $('#page-content');
+  if (!content) return;
+  if (route === '/trade') return renderTradePage(content);
+  if (route === '/deposit') return renderDepositPage(content);
+  if (route === '/checkout') return renderCheckout(document.getElementById('app'));
+  if (route === '/withdrawal') return renderWithdrawalPage(content);
+  if (route === '/balance') return renderBalancePage(content);
+  if (route === '/account') return renderAccountPage(content);
+  if (route === '/support') return renderSupportPage(content);
+  content.innerHTML = `<div class="inner-page"><h1>Page not found</h1><p style="color:var(--color-ink-2)">Navigate using the rail on the left.</p></div>`;
+}
+
+// ===== Trade Page =====
+let selectedSymbol = ASSETS[0].symbol;
+
+function renderTradePage(el) {
+  const asset = ASSETS.find(a => a.symbol === selectedSymbol) || ASSETS[0];
+  const acc = activeAccount();
+  const { pair, market } = splitAsset(asset.displayName);
+  const s = priceState[asset.symbol];
+
+  el.innerHTML = `
+    <section class="trade-layout">
+      <div class="trade-chart-area">
+        <div class="asset-tabs">
+          <div class="asset-tabs__list" id="asset-tab-list"></div>
+        </div>
+        <div class="chartbox chartbox-bg">
+          <div class="sentiment" id="sentiment-bar">
+            <span class="sentiment__pct" style="color:var(--color-up)" id="sent-up">${s.sentiment.upPct}%</span>
+            <div class="sentiment__bar"><div class="sentiment__fill" id="sent-fill" style="height:${100 - s.sentiment.upPct}%;bottom:0;top:auto"></div></div>
+            <span class="sentiment__pct" style="color:var(--color-down)" id="sent-down">${s.sentiment.downPct}%</span>
+          </div>
+          <div class="chart-container">
+            <div class="chart-el" id="chart-mount"></div>
+            <div class="chart-readout" id="chart-readout">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="chart-readout__pair">${pair}</span>
+                ${market ? `<span class="legend">${market}</span>` : ''}
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="chart-readout__price led led-lit" id="chart-price">${s.price.toFixed(asset.precision)}</span>
+                <span id="chart-arrow">${icon('arrow', 'icon', 2)}</span>
+              </div>
+            </div>
+            <div class="legend" style="pointer-events:none;position:absolute;right:92px;top:10px;color:var(--color-ink-3)!important">1m candles</div>
+            <div class="chart-ohlc" id="chart-ohlc"></div>
+          </div>
+        </div>
+      </div>
+      <aside class="trade-sidebar">
+        <div id="trade-ticket"></div>
+        <div id="trades-panel"></div>
+      </aside>
+    </section>`;
+
+  renderAssetTabs();
+  renderTradeTicket();
+  renderTradesPanel();
+  mountChart(asset);
+
+  // Live updates
+  tickUnsub = onTick(() => {
+    const a = ASSETS.find(x => x.symbol === selectedSymbol);
+    const st = priceState[selectedSymbol];
+    if (!a || !st) return;
+    // Price readout
+    const priceEl = $('#chart-price');
+    if (priceEl) priceEl.textContent = st.price.toFixed(a.precision);
+    // Sentiment
+    const sentUp = $('#sent-up'), sentDown = $('#sent-down'), sentFill = $('#sent-fill');
+    if (sentUp) sentUp.textContent = st.sentiment.upPct + '%';
+    if (sentDown) sentDown.textContent = st.sentiment.downPct + '%';
+    if (sentFill) sentFill.style.height = (100 - st.sentiment.upPct) + '%';
+    // Balance
+    const balEl = $('#topbar-balance');
+    const ac = activeAccount();
+    if (balEl && ac) balEl.textContent = formatMoney(ac.realBalance + ac.bonusBalance);
+    // Trades panel countdown
+    updateTradeCountdowns();
+  });
+}
+
+function renderAssetTabs() {
+  const list = $('#asset-tab-list');
+  if (!list) return;
+  list.innerHTML = ASSETS.map(asset => {
+    const { pair, market } = splitAsset(asset.displayName);
+    return `<button class="asset-tab ${asset.symbol === selectedSymbol ? 'active' : ''}" data-sym="${asset.symbol}">
+      <span class="asset-tab__name">${pair}${market ? `<span class="asset-tab__qual">${market}</span>` : ''}</span>
+      <span class="asset-tab__payout">${asset.payoutPct}%</span>
+    </button>`;
+  }).join('');
+  $$('[data-sym]', list).forEach(btn => {
+    btn.onclick = () => { selectedSymbol = btn.dataset.sym; renderPage('/trade'); };
+  });
+}
+
+let ticketDuration = 30;
+let ticketStake = '10';
+
+function renderTradeTicket() {
+  const el = $('#trade-ticket');
+  if (!el) return;
+  const asset = ASSETS.find(a => a.symbol === selectedSymbol);
+  const acc = activeAccount();
+  const { pair } = splitAsset(asset.displayName);
+  const stakeMajor = Number(ticketStake);
+  const stakeMinor = Number.isFinite(stakeMajor) && stakeMajor > 0 ? Math.round(stakeMajor * 100) : 0;
+  const profit = stakeMinor > 0 ? Math.floor(stakeMinor * asset.payoutPct / 100) : 0;
+  const isLive = acc?.type === 'LIVE';
+
+  el.innerHTML = `
+    <div class="ticket">
+      <div class="ticket__header">
+        <span class="ticket__pair">${pair}</span>
+        <span class="ticket__payout-val">${asset.payoutPct}%</span>
+      </div>
+      <div>
+        <span class="legend">Time</span>
+        <div class="ticket__stepper">
+          <button class="step-btn" id="dur-minus">${icon('minus')}</button>
+          <button class="step-display" id="dur-toggle"><span class="led led-lit" style="font-size:22px">${hms(ticketDuration)}</span></button>
+          <button class="step-btn" id="dur-plus">${icon('plus')}</button>
+        </div>
+        <div class="ticket__durations" id="dur-grid" style="display:none;margin-top:6px">
+          ${DURATIONS.map(d => `<button class="dur-btn ${d === ticketDuration ? 'active' : ''}" data-dur="${d}">${formatDuration(d)}</button>`).join('')}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-ink-3);margin-top:6px">
+          <span>Expires at</span>
+          <b style="color:var(--color-ink-2)" id="expires-at"></b>
+        </div>
+      </div>
+      <div>
+        <label class="legend" for="stake-input">Investment</label>
+        <div class="ticket__stepper">
+          <button class="step-btn" id="stake-minus">${icon('minus')}</button>
+          <div class="step-display" style="cursor:text"><span style="display:flex;align-items:center;gap:2px;font-size:22px;font-weight:700">$<input id="stake-input" inputmode="decimal" value="${ticketStake}" style="width:5ch;background:transparent;border:none;outline:none;font:inherit;font-weight:700;color:inherit"></span></div>
+          <button class="step-btn" id="stake-plus">${icon('plus')}</button>
+        </div>
+        <div class="ticket__presets">
+          ${[5, 10, 25, 50, 100].map(v => `<button class="preset-btn ${stakeMajor === v ? 'active' : ''}" data-stake="${v}">$${v}</button>`).join('')}
+        </div>
+      </div>
+      <div class="ticket__profit">
+        <span class="legend" style="align-self:center">If correct</span>
+        <span class="led led-lit" style="font-size:20px;color:var(--color-up);text-align:right">+${formatMoney(profit)}</span>
+        <span style="font-size:12px;color:var(--color-ink-3)">You get back</span>
+        <span style="font-size:12px;color:var(--color-ink-3);text-align:right">${formatMoney(stakeMinor + profit)}</span>
+      </div>
+      ${isLive ? `<div class="ticket__live-warn">${icon('alert')} Live account — this uses real balance</div>` : ''}
+      <div id="ticket-error"></div>
+      <div style="display:grid;gap:8px">
+        <button class="trade-slab up" id="btn-up"><span>Up<small class="trade-slab__note">Price ends higher</small></span>${icon('up', 'trade-slab__icon', 2.4)}</button>
+        <button class="trade-slab down" id="btn-down"><span>Down<small class="trade-slab__note">Price ends lower</small></span>${icon('down', 'trade-slab__icon', 2.4)}</button>
+      </div>
+    </div>`;
+
+  // Duration controls
+  let durGridOpen = false;
+  $('#dur-toggle').onclick = () => { durGridOpen = !durGridOpen; $('#dur-grid').style.display = durGridOpen ? 'grid' : 'none'; };
+  $('#dur-minus').onclick = () => { const i = DURATIONS.indexOf(ticketDuration); if (i > 0) { ticketDuration = DURATIONS[i - 1]; renderTradeTicket(); } };
+  $('#dur-plus').onclick = () => { const i = DURATIONS.indexOf(ticketDuration); if (i < DURATIONS.length - 1) { ticketDuration = DURATIONS[i + 1]; renderTradeTicket(); } };
+  $$('[data-dur]').forEach(btn => { btn.onclick = () => { ticketDuration = Number(btn.dataset.dur); renderTradeTicket(); }; });
+
+  // Stake controls
+  $('#stake-input').oninput = e => { ticketStake = e.target.value.replace(/[^0-9.]/g, ''); renderTradeTicket(); };
+  $('#stake-minus').onclick = () => { ticketStake = String(Math.max(1, Math.floor(Number(ticketStake)) - 1)); renderTradeTicket(); };
+  $('#stake-plus').onclick = () => { ticketStake = String(Math.floor(Number(ticketStake)) + 1); renderTradeTicket(); };
+  $$('[data-stake]').forEach(btn => { btn.onclick = () => { ticketStake = btn.dataset.stake; renderTradeTicket(); }; });
+
+  // Expiry clock
+  const expiresEl = $('#expires-at');
+  const updateExpiry = () => { if (expiresEl) expiresEl.textContent = clockTime(Math.floor(Date.now() / 1000) + ticketDuration); };
+  updateExpiry(); setInterval(updateExpiry, 1000);
+
+  // Place trade
+  const placeTrade = dir => {
+    const s = Number(ticketStake);
+    const minor = Number.isFinite(s) && s > 0 ? Math.round(s * 100) : 0;
+    if (minor <= 0) { $('#ticket-error').innerHTML = `<div class="ticket__error">${icon('alert')} Enter an investment amount.</div>`; return; }
+    const ac = activeAccount();
+    if (!ac || ac.realBalance + ac.bonusBalance < minor) { $('#ticket-error').innerHTML = `<div class="ticket__error">${icon('alert')} Insufficient funds.</div>`; return; }
+    ac.realBalance -= minor;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const ps = priceState[selectedSymbol];
+    const trade = {
+      id: uuid(), accountId: ac.id, symbol: selectedSymbol, direction: dir,
+      stake: minor, payoutPct: asset.payoutPct, entryPrice: ps.price, entryTs: nowSec,
+      expiryTs: nowSec + ticketDuration, exitPrice: null, status: 'OPEN', pnl: 0,
+    };
+    store.trades.unshift(trade);
+    saveStore();
+    // Add price line marker on chart
+    addTradePriceLine(trade);
+    renderTradeTicket();
+    renderTradesPanel();
+    // Update balance display
+    const balEl = $('#topbar-balance');
+    if (balEl) balEl.textContent = formatMoney(ac.realBalance + ac.bonusBalance);
+  };
+  $('#btn-up').onclick = () => placeTrade('UP');
+  $('#btn-down').onclick = () => placeTrade('DOWN');
+}
+
+function renderTradesPanel() {
+  const el = $('#trades-panel');
+  if (!el) return;
+  const acc = activeAccount();
+  if (!acc) return;
+  const trades = store.trades.filter(t => t.accountId === acc.id);
+  const open = trades.filter(t => t.status === 'OPEN');
+  const closed = trades.filter(t => t.status !== 'OPEN');
+
+  el.innerHTML = `
+    <div class="trades-panel">
+      <div class="trades-tablist">
+        <button class="trades-tab active" data-ttab="open">OPEN <span class="trades-tab__count">${open.length}</span></button>
+        <button class="trades-tab" data-ttab="closed">CLOSED <span class="trades-tab__count">${closed.length}</span></button>
+      </div>
+      <ul class="trades-list" id="trades-list"></ul>
+    </div>`;
+
+  let currentTab = 'open';
+  const renderList = () => {
+    const shown = currentTab === 'open' ? open : closed;
+    const listEl = $('#trades-list');
+    if (!listEl) return;
+    if (shown.length === 0) {
+      listEl.innerHTML = `<li class="trades-empty"><strong style="font-weight:600;color:var(--color-ink-2)">No ${currentTab} trades on this account</strong><span>Set a time and investment above, then choose Up or Down.</span></li>`;
+      return;
+    }
+    listEl.innerHTML = shown.map(trade => {
+      const asset = ASSETS.find(a => a.symbol === trade.symbol);
+      const { pair } = splitAsset(asset?.displayName || trade.symbol);
+      const prec = asset?.precision || 5;
+      const up = trade.direction === 'UP';
+      const nowSec = Math.floor(Date.now() / 1000);
+      const isOpen = trade.status === 'OPEN';
+      const ps = priceState[trade.symbol];
+      const curPrice = ps?.price || trade.entryPrice;
+      const winning = up ? curPrice > trade.entryPrice : curPrice < trade.entryPrice;
+      const losing = up ? curPrice < trade.entryPrice : curPrice > trade.entryPrice;
+      const winProfit = Math.floor(trade.stake * trade.payoutPct / 100);
+      const progress = isOpen ? Math.min(1, Math.max(0, (nowSec - trade.entryTs) / (trade.expiryTs - trade.entryTs))) : 0;
+
+      const chipMap = { OPEN: 'background:var(--color-tile);color:var(--color-ink)', WON: 'background:var(--color-up);color:var(--color-up-ink)', LOST: 'color:var(--color-down);box-shadow:inset 0 0 0 1px var(--color-down)', REFUNDED: 'background:var(--color-tile);color:var(--color-ink-2)' };
+      const chipLabel = { OPEN: 'Open', WON: 'Won', LOST: 'Lost', REFUNDED: 'Refund' };
+
+      let pnlStr, pnlClass;
+      if (isOpen) {
+        pnlStr = winning ? `+${formatMoney(winProfit)}` : `−${formatMoney(trade.stake)}`;
+        pnlClass = winning ? 'color:var(--color-up)' : losing ? 'color:var(--color-down)' : 'color:var(--color-ink-2)';
+      } else {
+        pnlStr = trade.status === 'REFUNDED' ? formatMoney(0) : `${trade.pnl >= 0 ? '+' : '−'}${formatMoney(Math.abs(trade.pnl))}`;
+        pnlClass = trade.status === 'WON' ? 'color:var(--color-up)' : 'color:var(--color-ink-3)';
+      }
+
+      const timeStr = isOpen ? `<span class="led" style="font-size:13px" data-countdown="${trade.expiryTs}">${countdown(trade.expiryTs - nowSec)}</span>` : `<span class="led" style="font-size:13px;color:var(--color-ink-2)">${clockTime(trade.expiryTs)}</span>`;
+
+      return `<li class="trade-row${isOpen && trade._justSettled ? ' settling' : ''}">
+        <span class="dir-mark" data-dir="${up ? 'up' : 'down'}" style="color:${up ? 'var(--color-up)' : 'var(--color-down)'};grid-row:span 3;margin-top:3px"></span>
+        <span class="trade-row__pair">${pair}</span>
+        <span class="trade-row__time" style="justify-self:end">${timeStr}</span>
+        <span class="trade-row__stake">${formatMoney(trade.stake)}</span>
+        <span class="trade-row__pnl" style="${pnlClass}">${pnlStr}</span>
+        <span class="trade-row__prices">${trade.entryPrice.toFixed(prec)}${trade.exitPrice !== null ? ' → ' + trade.exitPrice.toFixed(prec) : ''}</span>
+        <span class="trade-row__chip" style="${chipMap[trade.status]}">${chipLabel[trade.status]}</span>
+        ${isOpen ? `<span class="trade-row__progress" style="width:${progress * 100}%"></span>` : ''}
+      </li>`;
+    }).join('');
+  };
+
+  renderList();
+  $$('[data-ttab]').forEach(btn => {
+    btn.onclick = () => {
+      currentTab = btn.dataset.ttab;
+      $$('[data-ttab]').forEach(b => b.classList.toggle('active', b.dataset.ttab === currentTab));
+      renderList();
+    };
+  });
+}
+
+function updateTradeCountdowns() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  $$('[data-countdown]').forEach(el => {
+    const expiry = Number(el.dataset.countdown);
+    el.textContent = countdown(Math.max(0, expiry - nowSec));
+  });
+  // Check settlements
+  settleTrades();
+  // Re-render panel if any trade just settled
+  const justSettled = store.trades.some(t => t.status !== 'OPEN' && !t._rendered);
+  if (justSettled) {
+    store.trades.forEach(t => { if (t.status !== 'OPEN') t._rendered = true; });
+    removeSettledTradeLines();
+    renderTradesPanel();
+    const balEl = $('#topbar-balance');
+    const ac = activeAccount();
+    if (balEl && ac) balEl.textContent = formatMoney(ac.realBalance + ac.bonusBalance);
+  }
+}
+
+// ===== Chart =====
+function mountChart(asset) {
+  const container = $('#chart-mount');
+  if (!container) return;
+  const s = priceState[asset.symbol];
+
+  const chart = createChart(container, {
+    layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#7d7a72',
+      fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 11, attributionLogo: false },
+    grid: { vertLines: { color: 'rgba(255,176,0,0.06)' }, horzLines: { color: 'rgba(255,176,0,0.06)' } },
+    rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.18, bottom: 0.1 } },
+    timeScale: { borderVisible: false, timeVisible: true, secondsVisible: true, rightOffset: 14, barSpacing: 11 },
+    crosshair: { mode: CrosshairMode.Normal,
+      vertLine: { color: 'rgba(255,176,0,0.28)', labelBackgroundColor: '#1c1c1c' },
+      horzLine: { color: 'rgba(255,176,0,0.28)', labelBackgroundColor: '#1c1c1c' } },
+    autoSize: true,
+  });
+
+  const series = chart.addSeries(CandlestickSeries, {
+    upColor: '#3be584', downColor: '#e5413b', wickUpColor: '#3be584', wickDownColor: '#e5413b',
+    borderVisible: false, priceLineVisible: false, lastValueVisible: false,
+    priceFormat: { type: 'price', precision: asset.precision, minMove: 10 ** -asset.precision },
+  });
+
+  const priceLine = series.createPriceLine({
+    price: s.price, color: '#ffb000', lineWidth: 1, lineStyle: LineStyle.Dashed,
+    lineVisible: true, axisLabelVisible: true, axisLabelColor: '#ffb000', axisLabelTextColor: '#1a1000',
+  });
+
+  // Load history
+  const bars = s.candles.map(c => ({ time: c.openTs, open: c.o, high: c.h, low: c.l, close: c.c }));
+  series.setData(bars);
+  if (s.forming) series.update({ time: s.forming.openTs, open: s.forming.o, high: s.forming.h, low: s.forming.l, close: s.forming.c });
+
+  chartInstance = chart;
+  chartSeries = series;
+  tradePriceLines = [];
+
+  // Restore price lines for existing open trades on this symbol
+  const acc = activeAccount();
+  if (acc) {
+    const openOnChart = store.trades.filter(t => t.accountId === acc.id && t.status === 'OPEN' && t.symbol === asset.symbol);
+    for (const t of openOnChart) addTradePriceLine(t);
+  }
+
+  // Live chart updates
+  const chartTick = onTick(() => {
+    const st = priceState[selectedSymbol];
+    if (!st) return;
+    if (st.forming) {
+      series.update({ time: st.forming.openTs, open: st.forming.o, high: st.forming.h, low: st.forming.l, close: st.forming.c });
+    }
+    priceLine.applyOptions({ price: st.price });
+
+    // OHLC readout
+    const ohlcEl = $('#chart-ohlc');
+    const latest = st.forming || st.candles[st.candles.length - 1];
+    if (ohlcEl && latest) {
+      const f = n => n.toFixed(asset.precision);
+      ohlcEl.textContent = `O ${f(latest.o)}  H ${f(latest.h)}  L ${f(latest.l)}  C ${f(latest.c)}`;
+    }
+  });
+
+  // Store cleanup ref
+  if (tickUnsub) { const old = tickUnsub; tickUnsub = () => { old(); chartTick(); }; }
+  else tickUnsub = chartTick;
+}
+
+// ===== Trade Price Lines on Chart =====
+function addTradePriceLine(trade) {
+  try {
+    if (!chartSeries || trade.symbol !== selectedSymbol) return;
+    const isUp = trade.direction === 'UP';
+    const color = isUp ? '#3be584' : '#e5413b';
+    const arrow = isUp ? '▲' : '▼';
+    const line = chartSeries.createPriceLine({
+      price: trade.entryPrice,
+      color: color,
+      lineWidth: 2,
+      lineStyle: 0, /* Solid */
+      axisLabelVisible: true,
+      title: `${arrow} ${formatMoney(trade.stake)}`,
+    });
+    tradePriceLines.push({ tradeId: trade.id, line });
+  } catch (e) { console.warn('Could not add trade price line:', e); }
+}
+
+function removeSettledTradeLines() {
+  if (!chartSeries) return;
+  const settledIds = new Set(store.trades.filter(t => t.status !== 'OPEN').map(t => t.id));
+  tradePriceLines = tradePriceLines.filter(entry => {
+    if (settledIds.has(entry.tradeId)) {
+      try { chartSeries.removePriceLine(entry.line); } catch {}
+      return false;
+    }
+    return true;
+  });
+}
+
+// ===== Deposit Page =====
+function renderDepositPage(el) {
+  let step = 'method'; // 'method' | 'amount'
+  let selectedMethod = '';
+
+  const renderStep = () => {
+    if (step === 'method') {
+      el.innerHTML = `
+        <div class="inner-page"><h1>Deposit</h1>
+          <div style="display:flex;align-items:center;gap:8px;border-radius:4px;border:1px solid var(--color-rule);background:var(--color-tile);padding:10px 16px;font-size:14px">🌐 India</div>
+          <div>
+            <p style="font-size:12px;font-weight:600;color:var(--color-ink-2);margin-bottom:8px">Popular in your region (${DEPOSIT_METHODS.length})</p>
+            <div class="method-grid">${DEPOSIT_METHODS.map(m => `
+              <button class="method-card" data-method="${m}">
+                <span><span class="method-card__name">${m}</span><br><span class="method-card__min">Min. $10.00</span></span>
+                <span style="color:var(--color-ink-2)">›</span>
+              </button>`).join('')}</div>
+          </div>
+        </div>`;
+      $$('[data-method]', el).forEach(btn => { btn.onclick = () => { selectedMethod = btn.dataset.method; step = 'amount'; renderStep(); }; });
+    } else {
+      let amount = 100;
+      const renderAmount = () => {
+        el.innerHTML = `
+          <div class="inner-page"><h1>Deposit</h1>
+            <button style="font-size:12px;font-weight:600;color:var(--color-ink-2);text-decoration:underline;text-underline-offset:4px;align-self:flex-start" id="back-method">‹ Change method</button>
+            <div class="panel"><p style="font-size:14px;font-weight:600">${selectedMethod}</p>
+              <dl style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;color:var(--color-ink-2);margin-top:8px">
+                <div><dt>Min</dt><dd style="color:var(--color-ink)">$10.00</dd></div>
+                <div><dt>Max</dt><dd style="color:var(--color-ink)">$961.00</dd></div>
+                <div><dt>Processing</dt><dd style="color:var(--color-ink)">48 hours</dd></div>
+              </dl></div>
+            <div>
+              <label class="form-label" for="dep-amount">Deposit amount</label>
+              <input class="form-input" type="number" min="10" max="961" value="${amount}" id="dep-amount">
+              <div style="display:flex;gap:8px;margin-top:8px">${[150,200,300,500].map(q => `<button class="preset-btn" style="flex:1;height:32px" data-quick="${q}">$${q}</button>`).join('')}</div>
+            </div>
+            <div style="border-radius:4px;border:1px solid rgba(255,176,0,.3);background:rgba(255,176,0,.1);padding:12px;font-size:12px;line-height:1.6;color:var(--color-brand)">
+              Payments with this method can take up to 48 hours. The status may appear as "Failed" until the funds are received on our side.</div>
+            <div style="display:flex;justify-content:space-between;border-top:1px dashed var(--color-rule);padding-top:12px;font-size:14px">
+              <span style="color:var(--color-ink-2)">You will receive</span>
+              <span style="font-weight:600" id="dep-receive">$${amount.toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-ink-2)">
+              <span>Bonus (50%)</span>
+              <span style="color:var(--color-up)" id="dep-bonus">+$${(amount * 0.5).toFixed(2)}</span>
+            </div>
+            <button class="form-btn" style="width:100%;padding:12px" id="dep-proceed">Proceed to Pay</button>
+          </div>`;
+        $('#back-method').onclick = () => { step = 'method'; renderStep(); };
+        $('#dep-amount').oninput = e => { amount = Number(e.target.value); $('#dep-receive').textContent = '$' + amount.toFixed(2); $('#dep-bonus').textContent = '+$' + (amount * 0.5).toFixed(2); };
+        $$('[data-quick]', el).forEach(btn => { btn.onclick = () => { amount = Number(btn.dataset.quick); renderAmount(); }; });
+        $('#dep-proceed').onclick = () => {
+          // Create deposit and go to checkout
+          const amountMinor = Math.round(amount * 100);
+          const inr = Math.round(amountMinor * 83.5 + Math.floor(Math.random() * 100));
+          const dep = { id: uuid(), method: selectedMethod, amountUsd: amountMinor, amountInr: inr, status: 'AWAITING_PAYMENT', createdAt: new Date().toISOString() };
+          store.deposits.push(dep);
+          store._checkoutDeposit = dep;
+          saveStore();
+          navigate('/checkout');
+        };
+      };
+      renderAmount();
+    }
+  };
+  renderStep();
+}
+
+// ===== Checkout Page =====
+function renderCheckout(app) {
+  const dep = store._checkoutDeposit || store.deposits[store.deposits.length - 1];
+  if (!dep) { navigate('/deposit'); return; }
+  const rupees = (dep.amountInr / 100).toFixed(2);
+  const vpa = 'demo-asm@ybl';
+
+  app.innerHTML = `
+    <div class="checkout-page">
+      <div class="checkout-card">
+        <header style="display:flex;justify-content:space-between;align-items:center">
+          <p style="font-size:18px;font-weight:700;color:#5b2d9e">${dep.method}</p>
+          <span style="font-size:12px;font-weight:600;color:#6b5a8a">EN</span>
+        </header>
+        <section class="checkout-section">
+          <span class="checkout-step">Step 1</span>
+          <h1 class="checkout-title">Scan QR to pay</h1>
+          <p class="checkout-amount">₹ ${rupees}</p>
+          <div class="checkout-qr">[QR Code]<br><small>UPI: ${vpa}</small></div>
+        </section>
+        <p class="checkout-or">OR</p>
+        <div class="checkout-detail" style="text-align:center">
+          <p style="font-size:12px;font-weight:700;color:#5b2d9e">Open any app that allows UPI payments</p>
+          <dl style="display:flex;flex-direction:column;gap:12px;margin-top:12px;font-size:14px">
+            <div><dt style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6b5a8a">Amount</dt><dd>${rupees} INR</dd></div>
+            <div><dt style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6b5a8a">UPI ID</dt><dd style="word-break:break-all">${vpa}</dd></div>
+          </dl>
+          <p style="margin-top:12px;font-size:11px;line-height:1.6;color:#8a7aa8">Pay this exact amount. The paise are what identify your payment.</p>
+        </div>
+        <div class="checkout-claim">
+          <div style="text-align:center;margin-bottom:12px"><span class="checkout-step">Step 2</span></div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#5b2d9e">Enter your UTR / Reference number</label>
+          <input class="checkout-input" placeholder="12-digit reference" id="utr-input">
+          <button class="checkout-btn" id="claim-btn">I have paid</button>
+          <div id="claim-msg" style="margin-top:8px;font-size:13px;text-align:center"></div>
+        </div>
+        <p class="checkout-footer">Secure payment processing by ASM Trade</p>
+      </div>
+    </div>`;
+
+  $('#claim-btn').onclick = () => {
+    const utr = $('#utr-input').value.trim();
+    if (utr.length < 4) { $('#claim-msg').innerHTML = '<span style="color:#e5413b">Enter a valid reference number.</span>'; return; }
+    // Simulate credit
+    dep.status = 'COMPLETED';
+    const live = getAccount('LIVE');
+    if (live) {
+      live.realBalance += dep.amountUsd;
+      live.bonusBalance += Math.floor(dep.amountUsd * 0.5); // 50% bonus
+    }
+    delete store._checkoutDeposit;
+    saveStore();
+    $('#claim-msg').innerHTML = '<span style="color:#3be584">✓ Payment received! Redirecting to trading...</span>';
+    setTimeout(() => navigate('/trade'), 1500);
+  };
+}
+
+// ===== Withdrawal Page =====
+function renderWithdrawalPage(el) {
+  const live = getAccount('LIVE');
+  if (!live) { el.innerHTML = '<div class="inner-page"><p style="color:var(--color-ink-2)">No live account found.</p></div>'; return; }
+  const total = live.realBalance + live.bonusBalance;
+  const locked = live.bonusBalance;
+  const withdrawable = live.realBalance;
+
+  el.innerHTML = `
+    <div class="inner-wide">
+      <div class="tab-row">${['/withdrawal','/balance','/trade','/account'].map(h => {
+        const labels = { '/withdrawal': 'Withdrawal', '/balance': 'Payments', '/trade': 'Trades', '/account': 'My account' };
+        return `<button class="tab-row__item ${h === '/withdrawal' ? 'active' : ''}" onclick="location.hash='${h}'">${labels[h]}</button>`;
+      }).join('')}</div>
+      <h1>Withdrawal</h1>
+      <div class="panel-grid cols-2">
+        <section class="panel" style="display:flex;flex-direction:column;gap:16px">
+          <h2>Account</h2>
+          <div><p class="form-label">In the account</p><p style="font-size:18px;font-weight:600">${formatMoney(total)}</p></div>
+          <div><p class="form-label">Available for withdrawal</p><p style="font-size:18px;font-weight:600">${formatMoney(withdrawable)}</p></div>
+          ${locked > 0 ? `<div style="border-radius:4px;background:var(--color-tile);padding:12px">
+            <p style="font-size:12px;font-weight:600">${formatMoney(locked)} bonus locked</p>
+            <p style="margin-top:4px;font-size:11px;line-height:1.6;color:var(--color-ink-2)">A 50% bonus requires 3× turnover before it can be withdrawn.</p>
+          </div>` : ''}
+        </section>
+        <section class="panel">
+          <h2 style="margin-bottom:12px">Withdraw</h2>
+          ${withdrawable <= 0 ? `
+            <div style="border-radius:4px;border:1px solid var(--color-down);background:var(--color-warn-bg);padding:16px">
+              <p style="font-size:14px;color:var(--color-down)">You can withdraw money from your balance to the method you used for depositing. Requests are processed in 3 business days.</p>
+              <a onclick="location.hash='/deposit'" style="display:inline-block;margin-top:8px;font-size:12px;font-weight:700;color:var(--color-up);text-decoration:underline;text-underline-offset:4px">Make a deposit</a>
+            </div>` : `
+            <form id="withdraw-form" style="display:flex;flex-direction:column;gap:12px">
+              <div><label class="form-label" for="wamt">Amount</label><input class="form-input" type="number" min="1" max="${Math.floor(withdrawable / 100)}" value="${Math.max(1, Math.floor(withdrawable / 100))}" id="wamt"></div>
+              <div><label class="form-label" for="wmethod">Method</label>
+                <select class="form-select" id="wmethod">${DEPOSIT_METHODS.map(m => `<option>${m}</option>`).join('')}</select>
+                <p style="margin-top:4px;font-size:12px;color:var(--color-ink-2)">Only a method you have already deposited with is accepted.</p></div>
+              <div id="w-error"></div>
+              <button class="form-btn" type="submit">Request withdrawal</button>
+            </form>`}
+        </section>
+      </div>
+    </div>`;
+
+  const form = $('#withdraw-form');
+  if (form) {
+    form.onsubmit = e => {
+      e.preventDefault();
+      const amt = Number($('#wamt').value) * 100;
+      if (amt > withdrawable) { $('#w-error').innerHTML = '<p style="font-size:12px;color:var(--color-down)">Amount exceeds withdrawable balance.</p>'; return; }
+      live.realBalance -= amt;
+      store.withdrawals.push({ id: uuid(), amount: amt, method: $('#wmethod').value, status: 'REQUESTED', createdAt: new Date().toISOString() });
+      saveStore();
+      el.innerHTML = `<div class="inner-wide"><div style="border-radius:4px;border:1px solid var(--color-up);background:rgba(59,229,132,.1);padding:16px;font-size:14px;color:var(--color-up)">Withdrawal requested. Requests are processed in 3 business days.</div></div>`;
+    };
+  }
+}
+
+// ===== Balance / Payments Page =====
+function renderBalancePage(el) {
+  const rows = [
+    ...store.deposits.map(d => ({ id: d.id, at: d.createdAt, status: d.status, kind: 'Deposit', method: d.method, amount: d.amountUsd })),
+    ...store.withdrawals.map(w => ({ id: w.id, at: w.createdAt, status: w.status, kind: 'Withdrawal', method: w.method, amount: -w.amount })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  const statusLabels = { AWAITING_PAYMENT: 'Awaiting payment', PENDING_CONFIRMATION: 'Processing', COMPLETED: 'Completed', REJECTED: 'Rejected', EXPIRED: 'Expired', REQUESTED: 'Waiting confirmation', APPROVED: 'Approved', PAID: 'Paid' };
+
+  el.innerHTML = `
+    <div class="inner-wide">
+      <div class="tab-row">${['/withdrawal','/balance','/trade','/account'].map(h => {
+        const labels = { '/withdrawal': 'Withdrawal', '/balance': 'Payments', '/trade': 'Trades', '/account': 'My account' };
+        return `<button class="tab-row__item ${h === '/balance' ? 'active' : ''}" onclick="location.hash='${h}'">${labels[h]}</button>`;
+      }).join('')}</div>
+      <h1>Payments</h1>
+      ${rows.length === 0 ? '<p style="font-size:14px;color:var(--color-ink-2)">No transactions yet.</p>' : `
+      <div style="overflow-x:auto"><table class="data-table"><thead><tr>
+        <th>Transaction ID</th><th>Date and time</th><th>Status</th><th>Type</th><th>Payment system</th><th style="text-align:right">Amount</th>
+      </tr></thead><tbody>${rows.map(r => `<tr>
+        <td style="font-family:monospace;font-size:12px">${r.id.slice(0,8).toUpperCase()}</td>
+        <td style="color:var(--color-ink-2)">${r.at.slice(0,16).replace('T',' ')}</td>
+        <td>🕐 ${statusLabels[r.status] || r.status}</td>
+        <td>${r.kind}</td><td>${r.method}</td>
+        <td style="text-align:right;font-weight:600;color:${r.amount >= 0 ? 'var(--color-up)' : 'var(--color-down)'}">${r.amount >= 0 ? '+' : '−'}${formatMoney(Math.abs(r.amount))}</td>
+      </tr>`).join('')}</tbody></table></div>`}
+    </div>`;
+}
+
+// ===== Account Page =====
+function renderAccountPage(el) {
+  const u = store.user;
+  if (!u) return;
+  const fields = [
+    { key: 'nickname', label: 'Nickname', type: 'text' },
+    { key: 'firstName', label: 'First name', type: 'text' },
+    { key: 'lastName', label: 'Last name', type: 'text' },
+    { key: 'dateOfBirth', label: 'Date of birth', type: 'date' },
+    { key: 'aadhaar', label: 'Aadhaar', type: 'text' },
+    { key: 'address', label: 'Address', type: 'text' },
+    { key: 'country', label: 'Country', type: 'text' },
+  ];
+
+  el.innerHTML = `
+    <div class="inner-page" style="max-width:720px">
+      <h1>My account</h1>
+      <section style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <h2>Personal data</h2>
+          <span style="border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:${u.kycStatus === 'VERIFIED' ? '#14301f' : '#2a2213'};color:${u.kycStatus === 'VERIFIED' ? '#4fc08d' : '#e0ac50'}">${u.kycStatus === 'VERIFIED' ? 'Verified' : 'Not verified'}</span>
+        </div>
+        <div><span class="form-label">Email</span><p style="margin-top:4px;font-size:14px">${u.email} <span style="font-size:10px;font-weight:600;color:#e0ac50">Unverified</span></p></div>
+        <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+          ${fields.map(f => `<div><label class="form-label" for="pf-${f.key}">${f.label}</label><input class="form-input" type="${f.type}" id="pf-${f.key}" value="${u[f.key] || ''}"></div>`).join('')}
+        </div>
+        <div id="profile-msg"></div>
+        <button class="form-btn" id="save-profile">Save</button>
+        <p style="font-size:12px;color:var(--color-ink-2)">Identity fields are stored but never verified in this build.</p>
+      </section>
+      <section style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--color-rule);padding-top:20px">
+        <h2>Security</h2>
+        ${[['twoFaForLogin', 'To enter the platform'], ['twoFaForWithdrawal', 'To withdraw funds']].map(([key, label]) =>
+          `<label style="display:flex;align-items:center;gap:12px;font-size:14px">
+            <input type="checkbox" id="tfa-${key}" ${u[key] ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--color-brand)"> ${label}
+          </label>`).join('')}
+        <button style="font-size:12px;font-weight:600;color:var(--color-brand);text-decoration:underline;text-underline-offset:4px;align-self:flex-start" id="test-code">Send a test code</button>
+        <p style="font-size:12px;color:var(--color-ink-2)">Codes are written to the console rather than emailed — no provider is configured.</p>
+      </section>
+    </div>`;
+
+  $('#save-profile').onclick = () => {
+    fields.forEach(f => { u[f.key] = $(`#pf-${f.key}`).value; });
+    saveStore();
+    $('#profile-msg').innerHTML = '<p class="auth-success">Saved</p>';
+    setTimeout(() => { const m = $('#profile-msg'); if (m) m.innerHTML = ''; }, 2000);
+  };
+  $('#tfa-twoFaForLogin').onchange = e => { u.twoFaForLogin = e.target.checked; saveStore(); };
+  $('#tfa-twoFaForWithdrawal').onchange = e => { u.twoFaForWithdrawal = e.target.checked; saveStore(); };
+  $('#test-code').onclick = () => {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    console.log(`[2FA] evt: auth.2fa_sent, code: ${code}`);
+    $('#profile-msg').innerHTML = '<p class="auth-success">Code written to the browser console (F12)</p>';
+  };
+}
+
+// ===== Support Page =====
+function renderSupportPage(el) {
+  el.innerHTML = `
+    <div class="inner-page" style="max-width:768px">
+      <section class="faq">
+        <h1 style="margin-bottom:16px">Frequently asked questions</h1>
+        ${FAQ.map(e => `<details class="panel"><summary>${e.q}</summary><p>${e.a}</p></details>`).join('')}
+      </section>
+      <section style="display:flex;flex-direction:column;gap:12px">
+        <h2>Contact support</h2>
+        <form id="ticket-form" style="display:flex;flex-direction:column;gap:12px">
+          <input class="form-input" placeholder="Subject" required id="ticket-subject">
+          <textarea class="form-input" placeholder="Describe the problem" required rows="5" id="ticket-body" style="resize:vertical"></textarea>
+          <div id="ticket-msg"></div>
+          <button class="form-btn" type="submit">Create request</button>
+        </form>
+      </section>
+      ${store.tickets.length > 0 ? `
+      <section style="display:flex;flex-direction:column;gap:8px">
+        <h2>Your requests</h2>
+        ${store.tickets.map(t => `<div style="display:flex;align-items:center;justify-content:space-between;border-radius:4px;border:1px solid var(--color-rule);background:var(--color-panel);padding:12px 16px;font-size:14px">
+          <span style="font-weight:600">${t.subject}</span>
+          <span class="form-label">${t.status}</span>
+        </div>`).join('')}
+      </section>` : ''}
+    </div>`;
+
+  $('#ticket-form').onsubmit = e => {
+    e.preventDefault();
+    store.tickets.push({ id: uuid(), subject: $('#ticket-subject').value, body: $('#ticket-body').value, status: 'OPEN', createdAt: new Date().toISOString() });
+    saveStore();
+    $('#ticket-msg').innerHTML = '<p class="auth-success">Ticket submitted. There is no support team in this build.</p>';
+    $('#ticket-subject').value = ''; $('#ticket-body').value = '';
+  };
+}
+
+// ===== Admin Login =====
+function renderAdminLogin(app) {
+  app.innerHTML = `
+    <div class="admin-login">
+      <aside class="admin-login__aside">
+        <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1">
+          <div class="admin-logo">A</div>
+          <div><div class="admin-brand-name" style="color:#F6EFDF">ASM Trading</div><div class="admin-brand-sub" style="color:#A99C82">Operations Console</div></div>
+        </div>
+        <div class="admin-login__pitch">
+          <h1>The control room behind the exchange.</h1>
+          <p>Approve settlements, manage listings, and monitor liquidity across every ASM market — in one operator console.</p>
+        </div>
+        <div class="admin-login__stats">
+          <div class="admin-login__stat"><div class="k">Secured</div><div class="l">Shared-secret gate</div></div>
+          <div class="admin-login__stat"><div class="k">Audited</div><div class="l">Every action logged</div></div>
+          <div class="admin-login__stat"><div class="k">Live</div><div class="l">Real-time data</div></div>
+        </div>
+      </aside>
+      <main class="admin-login__main">
+        <form class="admin-login__card" id="admin-login-form">
+          <h2>Sign in to the console</h2>
+          <p class="sub">Operator access is restricted and fully audited.</p>
+          <div id="admin-login-error"></div>
+          <div class="admin-field"><label for="admin-secret">Admin secret</label><input id="admin-secret" class="admin-input" type="password" required placeholder="••••••••••••"></div>
+          <button type="submit" class="admin-btn admin-btn--primary admin-btn--block">Enter console</button>
+          <div class="admin-demo-hint">In this demo, any password will work. In the real app, access is gated by <code>ADMIN_PANEL_SECRET</code>.</div>
+        </form>
+      </main>
+    </div>`;
+
+  $('#admin-login-form').onsubmit = e => {
+    e.preventDefault();
+    store.adminAuthed = true; saveStore();
+    navigate('/admin');
+  };
+}
+
+// ===== Admin Console =====
+function renderAdminConsole(app, route) {
+  if (!store.adminAuthed) { navigate('/admin/login'); return; }
+  const page = route.replace('/admin', '') || '/';
+  const navItems = [
+    { href: '/admin', label: 'Dashboard', id: '/' },
+    { href: '/admin/markets', label: 'Markets', id: '/markets' },
+    { href: '/admin/approvals', label: 'Approvals', id: '/approvals' },
+    { href: '/admin/users', label: 'Users', id: '/users' },
+    { href: '/admin/messages', label: 'Messages', id: '/messages' },
+    { href: '/admin/audit', label: 'Audit Log', id: '/audit' },
+    { href: '/admin/settings', label: 'Settings', id: '/settings' },
+  ];
+
+  app.innerHTML = `
+    <div class="admin-console">
+      <nav class="admin-sidebar">
+        <div class="admin-sidebar__brand"><div class="admin-logo">A</div><div><div style="font-size:14px;font-weight:700;color:#F6EFDF">ASM Trading</div><div style="font-size:10px;color:#A99C82">Console</div></div></div>
+        ${navItems.map(n => `<a class="admin-nav__item ${page === n.id ? 'active' : ''}" onclick="location.hash='${n.href}'">${n.label}</a>`).join('')}
+        <div style="margin-top:auto;padding:16px"><button class="admin-nav__item" style="width:100%;color:var(--color-ink-3)" onclick="store.adminAuthed=false;saveStore();location.hash='/admin/login'">Log out</button></div>
+      </nav>
+      <main class="admin-main" id="admin-content"></main>
+    </div>`;
+
+  const content = $('#admin-content');
+  if (page === '/' || page === '') renderAdminDashboard(content);
+  else if (page === '/markets') renderAdminMarkets(content);
+  else if (page === '/approvals') renderAdminApprovals(content);
+  else if (page === '/users') renderAdminUsers(content);
+  else if (page === '/messages') renderAdminMessages(content);
+  else if (page === '/audit') renderAdminAudit(content);
+  else if (page === '/settings') renderAdminSettings(content);
+}
+
+function renderAdminDashboard(el) {
+  const totalUsers = store.user ? 1 : 0;
+  const totalTrades = store.trades.length;
+  const totalDeposits = store.deposits.reduce((s, d) => s + (d.status === 'COMPLETED' ? d.amountUsd : 0), 0);
+  const openTrades = store.trades.filter(t => t.status === 'OPEN').length;
+
+  el.innerHTML = `
+    <h1>Dashboard</h1>
+    <div class="admin-stat-grid">
+      <div class="admin-stat-card"><div class="admin-stat-card__label">Registered Users</div><div class="admin-stat-card__value">${totalUsers}</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-card__label">Total Trades</div><div class="admin-stat-card__value">${totalTrades}</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-card__label">Open Positions</div><div class="admin-stat-card__value" style="color:var(--color-brand)">${openTrades}</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-card__label">Deposits (completed)</div><div class="admin-stat-card__value" style="color:var(--color-up)">${formatMoney(totalDeposits)}</div></div>
+    </div>
+    <h2 style="margin-bottom:12px">Recent Trades</h2>
+    <table class="admin-table"><thead><tr><th>ID</th><th>Asset</th><th>Direction</th><th>Stake</th><th>Status</th><th>P&L</th></tr></thead>
+    <tbody>${store.trades.slice(0, 10).map(t => `<tr>
+      <td style="font-family:monospace;font-size:11px">${t.id.slice(0,8)}</td>
+      <td>${t.symbol}</td>
+      <td><span class="dir-mark" data-dir="${t.direction === 'UP' ? 'up' : 'down'}" style="color:${t.direction === 'UP' ? 'var(--color-up)' : 'var(--color-down)'}"></span> ${t.direction}</td>
+      <td>${formatMoney(t.stake)}</td>
+      <td><span class="admin-chip ${t.status === 'WON' ? 'green' : t.status === 'LOST' ? 'red' : 'amber'}">${t.status}</span></td>
+      <td style="color:${t.pnl >= 0 ? 'var(--color-up)' : 'var(--color-down)'}">${t.pnl >= 0 ? '+' : ''}${formatMoney(t.pnl)}</td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--color-ink-3);text-align:center;padding:20px">No trades yet</td></tr>'}</tbody></table>`;
+}
+
+function renderAdminMarkets(el) {
+  el.innerHTML = `
+    <h1>Markets</h1>
+    <table class="admin-table"><thead><tr><th>Symbol</th><th>Display Name</th><th>Kind</th><th>Payout</th><th>Status</th></tr></thead>
+    <tbody>${ASSETS.map(a => `<tr>
+      <td style="font-family:monospace">${a.symbol}</td><td>${a.displayName}</td>
+      <td><span class="admin-chip ${a.kind === 'OTC' ? 'amber' : 'green'}">${a.kind}</span></td>
+      <td style="font-weight:700;color:var(--color-brand)">${a.payoutPct}%</td>
+      <td><span class="admin-chip green">OPEN</span></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function renderAdminApprovals(el) {
+  el.innerHTML = `
+    <h1>Approvals</h1>
+    <table class="admin-table"><thead><tr><th>ID</th><th>Type</th><th>Method</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody>${[
+      ...store.deposits.map(d => ({ id: d.id, type: 'Deposit', method: d.method, amount: d.amountUsd, status: d.status })),
+      ...store.withdrawals.map(w => ({ id: w.id, type: 'Withdrawal', method: w.method, amount: w.amount, status: w.status })),
+    ].map(r => `<tr>
+      <td style="font-family:monospace;font-size:11px">${r.id.slice(0,8)}</td>
+      <td>${r.type}</td><td>${r.method}</td>
+      <td>${formatMoney(r.amount)}</td>
+      <td><span class="admin-chip ${r.status === 'COMPLETED' || r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}">${r.status}</span></td>
+    </tr>`).join('') || '<tr><td colspan="5" style="color:var(--color-ink-3);text-align:center;padding:20px">No transactions</td></tr>'}</tbody></table>`;
+}
+
+function renderAdminUsers(el) {
+  el.innerHTML = `
+    <h1>Users</h1>
+    ${store.user ? `
+    <table class="admin-table"><thead><tr><th>Email</th><th>KYC</th><th>Accounts</th><th>Trades</th></tr></thead>
+    <tbody><tr>
+      <td>${store.user.email}</td>
+      <td><span class="admin-chip ${store.user.kycStatus === 'VERIFIED' ? 'green' : 'amber'}">${store.user.kycStatus}</span></td>
+      <td>${store.accounts.length}</td>
+      <td>${store.trades.length}</td>
+    </tr></tbody></table>` : '<p style="color:var(--color-ink-3)">No registered users.</p>'}`;
+}
+
+function renderAdminMessages(el) {
+  el.innerHTML = `<h1>Messages</h1><p style="color:var(--color-ink-3)">No relay messages in demo mode. In production, SMS relay messages from companion devices appear here.</p>`;
+}
+
+function renderAdminAudit(el) {
+  const events = [
+    ...store.trades.map(t => ({ ts: t.entryTs, action: `trade.opened`, target: t.symbol, detail: `${t.direction} ${formatMoney(t.stake)}` })),
+    ...store.deposits.map(d => ({ ts: Math.floor(new Date(d.createdAt).getTime() / 1000), action: 'deposit.created', target: d.method, detail: formatMoney(d.amountUsd) })),
+  ].sort((a, b) => b.ts - a.ts).slice(0, 20);
+
+  el.innerHTML = `
+    <h1>Audit Log</h1>
+    <table class="admin-table"><thead><tr><th>Time</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
+    <tbody>${events.map(e => `<tr>
+      <td style="font-family:monospace;font-size:11px">${clockTime(e.ts)}</td>
+      <td>${e.action}</td><td>${e.target}</td><td style="color:var(--color-ink-2)">${e.detail}</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--color-ink-3);text-align:center;padding:20px">No events</td></tr>'}</tbody></table>`;
+}
+
+function renderAdminSettings(el) {
+  el.innerHTML = `
+    <h1>Settings</h1>
+    <div class="panel" style="max-width:480px;display:flex;flex-direction:column;gap:16px">
+      <div><span class="form-label">Bank Feed</span><p style="margin-top:4px;font-size:14px;font-weight:600">Simulated</p></div>
+      <div><span class="form-label">Bot Crowd</span><p style="margin-top:4px;font-size:14px;font-weight:600">Enabled — 40 bots, 90 arrivals/min</p></div>
+      <div><span class="form-label">Environment</span><p style="margin-top:4px;font-size:14px;font-weight:600">Demo (standalone HTML)</p></div>
+      <div><span class="form-label">Price Feed</span><p style="margin-top:4px;font-size:14px;font-weight:600">GARCH(1,1) simulator — 3 assets</p></div>
+    </div>`;
+}
+
+// ===== Boot =====
+initPriceEngine();
+setInterval(tickPrices, 500);
+settleInterval = setInterval(settleTrades, 1000);
+render();
+
+</script>
+</body>
+</html>
