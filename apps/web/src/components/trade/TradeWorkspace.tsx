@@ -15,6 +15,16 @@ import { TradesPanel } from "./TradesPanel";
 
 const NO_TRADES: TradeView[] = [];
 
+/** Best-effort native fullscreen; the layout's focus mode is the real source of truth. */
+function toggleNativeFullscreen(on: boolean): void {
+  try {
+    if (on) void document.documentElement.requestFullscreen?.();
+    else if (document.fullscreenElement) void document.exitFullscreen?.();
+  } catch {
+    // Fullscreen API blocked or unsupported — focus mode still applies.
+  }
+}
+
 /** The big price readout; the only part of the stage that renders on a tick. */
 function ChartReadout({ symbol, displayName, precision }: { symbol: string; displayName: string; precision: number }) {
   const { market } = usePlatform();
@@ -68,7 +78,18 @@ export function TradeWorkspace() {
     activeAccount,
     tradesByAccount,
     recordOpened,
+    focusMode,
+    setFocusMode,
   } = usePlatform();
+
+  function enterFocus(): void {
+    setFocusMode(true);
+    toggleNativeFullscreen(true);
+  }
+  function exitFocus(): void {
+    setFocusMode(false);
+    toggleNativeFullscreen(false);
+  }
 
   const payoutPct = useMarket(
     market,
@@ -92,10 +113,22 @@ export function TradeWorkspace() {
   return (
     <section
       aria-label="Trade"
-      className="grid h-full grid-cols-[minmax(0,1fr)_312px] phone:h-auto phone:grid-cols-[minmax(0,1fr)]"
+      className={
+        focusMode
+          ? "grid h-dvh grid-rows-[minmax(0,1fr)_auto] grid-cols-[minmax(0,1fr)]"
+          : "grid h-full grid-cols-[minmax(0,1fr)_312px] phone:h-auto phone:grid-cols-[minmax(0,1fr)]"
+      }
     >
-      <div className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[auto_clamp(360px,72dvh,720px)] phone:gap-1 phone:p-1.5">
-        <MarketSelector assets={assets} active={asset.symbol} onSelect={selectChartSymbol} />
+      <div
+        className={
+          focusMode
+            ? "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] gap-1 p-1.5"
+            : "grid min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[auto_clamp(360px,72dvh,720px)] phone:gap-1 phone:p-1.5"
+        }
+      >
+        {focusMode ? null : (
+          <MarketSelector assets={assets} active={asset.symbol} onSelect={selectChartSymbol} />
+        )}
 
         <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[18px_minmax(0,1fr)] phone:gap-1.5 phone:pl-1.5">
           <LiveSentiment />
@@ -115,13 +148,27 @@ export function TradeWorkspace() {
             <div className="legend pointer-events-none absolute right-[92px] top-2.5 text-ink-3! phone:hidden">
               1m candles
             </div>
+            <button
+              type="button"
+              onClick={focusMode ? exitFocus : enterFocus}
+              aria-label={focusMode ? "Exit fullscreen" : "Fullscreen chart"}
+              className={`absolute right-2 top-2 grid size-8 place-items-center rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink ${
+                focusMode ? "" : "hidden phone:grid"
+              }`}
+            >
+              <Icon name={focusMode ? "close" : "arrow"} className="size-4" />
+            </button>
           </div>
         </div>
       </div>
 
       <aside
         aria-label="Trade ticket and trades"
-        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:border-l-0"
+        className={
+          focusMode
+            ? "grid min-h-0 grid-rows-[auto]"
+            : "grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:border-l-0"
+        }
       >
         <TradeTicket
           symbol={asset.symbol}
@@ -132,7 +179,9 @@ export function TradeWorkspace() {
           live={activeAccount.type === "LIVE"}
           onOpened={recordOpened}
         />
-        <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} />
+        {focusMode ? null : (
+          <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} />
+        )}
       </aside>
     </section>
   );

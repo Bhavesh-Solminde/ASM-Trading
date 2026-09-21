@@ -58,6 +58,9 @@ interface PlatformContextValue {
   chartSymbol: string;
   selectChartSymbol: (symbol: string) => void;
   recordOpened: (result: OpenTradeResult) => void;
+  /** Distraction-free phone trading view: chart + ticket only, chrome hidden. */
+  focusMode: boolean;
+  setFocusMode: (on: boolean) => void;
 }
 
 const PlatformContext = createContext<PlatformContextValue | null>(null);
@@ -88,6 +91,7 @@ export function PlatformProvider({
     accounts.find((a) => a.type === "DEMO")?.id ?? accounts[0]?.id ?? "",
   );
   const [chartSymbol, setChartSymbol] = useState(defaultSymbol);
+  const [focusMode, setFocusMode] = useState(false);
   const [market] = useState(() => new MarketStore(defaultSymbol, "1m", assets));
   const [trades, dispatch] = useReducer(
     reducer,
@@ -164,8 +168,10 @@ export function PlatformProvider({
       chartSymbol,
       selectChartSymbol,
       recordOpened,
+      focusMode,
+      setFocusMode,
     }),
-    [assets, accounts, activeAccountId, trades, market, status, chartSymbol, selectChartSymbol, recordOpened],
+    [assets, accounts, activeAccountId, trades, market, status, chartSymbol, selectChartSymbol, recordOpened, focusMode],
   );
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>;
