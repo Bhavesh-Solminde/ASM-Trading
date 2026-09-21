@@ -15,8 +15,8 @@ type Props = {
   imageCaption: string;
 };
 
-/** Charcoal background for the auth pages — softer than the site's near-black. */
-const AUTH_BG = "#14161b";
+/** Charcoal background for the auth pages, matching the site ground (#1e2024). */
+const AUTH_BG = "#1e2024";
 
 /** Split-screen auth shell — editorial photo left, form right, with a large
  *  brand lockup at the top of the form. Mobile: form-only, image hidden. */

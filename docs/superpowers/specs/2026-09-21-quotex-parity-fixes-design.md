@@ -123,10 +123,16 @@ Detailed separately after Phase 1 review. Summary of intended scope:
 - **#6 Leaderboard:** aggregate realized daily P/L per account into a ranked
   list + "your position"; new contract, API route, and a Leaderboard page/panel
   matching the reference. Needs a query over `Transaction`/`Trade`.
-- **#7 Currency:** default DEMO + new accounts to INR; seed demo balance in INR;
-  deposit crediting becomes currency-aware (INR account credited `amountInr`);
-  a CHANGE control that converts the stored balance at `USD_TO_INR_RATE` in one
-  ledgered transaction. DB default change + data migration.
+- **#7 Currency (clarified 2026-09-21):** the intent is currency **consistency
+  per rail**, NOT live conversion between currencies. An account that deposits
+  in INR withdraws in INR; an account that deposits in USDT withdraws in USDT.
+  So: the account carries its chosen currency (default INR, selectable USDT/USD);
+  deposits credit and are denominated in that currency; withdrawals pay out in
+  the same currency. No cross-currency conversion of an existing balance is
+  required — a currency switch applies to a fresh/empty rail, or is a distinct
+  deposit rail per currency. Display uses `formatMinor`/`currencySymbol`
+  (₹ / $ already supported). DB: `Account.currency` default → INR; deposit and
+  withdrawal flows become currency-aware; seed demo balance in INR.
 
 ## Testing & verification strategy
 
