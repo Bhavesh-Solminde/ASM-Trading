@@ -5,7 +5,10 @@ export {
   getAccountForActor,
   createAccountsForUser,
   changeAccountCurrency,
+  setDemoBalance,
+  demoBalanceCap,
   CurrencyChangeRefused,
+  DemoBalanceRefused,
   DEMO_START_BY_CURRENCY,
 } from "./repositories/account";
 export { findUserByEmail, findUserById } from "./repositories/user";

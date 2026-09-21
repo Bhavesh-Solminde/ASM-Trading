@@ -3,10 +3,13 @@ import { prisma } from "../client";
 import {
   CurrencyChangeRefused,
   DEMO_START_BY_CURRENCY,
+  DemoBalanceRefused,
   changeAccountCurrency,
   createAccountsForUser,
+  demoBalanceCap,
   getAccountForActor,
   listAccountsForActor,
+  setDemoBalance,
 } from "./account";
 
 let alice = "";
@@ -139,5 +142,62 @@ describe("changeAccountCurrency", () => {
     await expect(
       changeAccountCurrency({ actorId: bob, accountId: carolDemoId, currency: "USD" }),
     ).rejects.toBeInstanceOf(CurrencyChangeRefused);
+  });
+});
+
+describe("setDemoBalance", () => {
+  // carolDemoId is INR by the end of the currency suite above.
+  it("sets a custom demo balance and clears any bonus", async () => {
+    await prisma.account.update({
+      where: { id: carolDemoId },
+      data: { bonusBalance: 1_234 },
+    });
+    const updated = await setDemoBalance({
+      actorId: carol,
+      accountId: carolDemoId,
+      amount: 5_000,
+    });
+    expect(updated.realBalance).toBe(5_000);
+    expect(updated.bonusBalance).toBe(0);
+
+    const reset = await prisma.transaction.findFirst({
+      where: { accountId: carolDemoId, kind: "DEMO_RESET", refType: "DemoReset" },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(reset?.amount).toBe(5_000);
+  });
+
+  it("resets to the currency's full default when no amount is given", async () => {
+    const updated = await setDemoBalance({ actorId: carol, accountId: carolDemoId });
+    expect(updated.realBalance).toBe(demoBalanceCap(updated.currency));
+    expect(updated.realBalance).toBe(DEMO_START_BY_CURRENCY.INR);
+  });
+
+  it("refuses an amount above the cap", async () => {
+    await expect(
+      setDemoBalance({
+        actorId: carol,
+        accountId: carolDemoId,
+        amount: DEMO_START_BY_CURRENCY.INR! + 1,
+      }),
+    ).rejects.toBeInstanceOf(DemoBalanceRefused);
+  });
+
+  it("refuses a non-positive amount", async () => {
+    await expect(
+      setDemoBalance({ actorId: carol, accountId: carolDemoId, amount: 0 }),
+    ).rejects.toBeInstanceOf(DemoBalanceRefused);
+  });
+
+  it("refuses editing a LIVE account", async () => {
+    await expect(
+      setDemoBalance({ actorId: carol, accountId: carolLiveId, amount: 5_000 }),
+    ).rejects.toBeInstanceOf(DemoBalanceRefused);
+  });
+
+  it("refuses when the actor does not own the account", async () => {
+    await expect(
+      setDemoBalance({ actorId: bob, accountId: carolDemoId, amount: 5_000 }),
+    ).rejects.toBeInstanceOf(DemoBalanceRefused);
   });
 });

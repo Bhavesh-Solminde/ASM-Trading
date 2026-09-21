@@ -14,6 +14,18 @@ export class CurrencyChangeRefused extends Error {
   }
 }
 
+export class DemoBalanceRefused extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DemoBalanceRefused";
+  }
+}
+
+/** The largest demo balance a user may set for `currency` — its default start. */
+export function demoBalanceCap(currency: string): number {
+  return DEMO_START_BY_CURRENCY[currency] ?? DEMO_START_BY_CURRENCY.USD!;
+}
+
 /**
  * Ownership is expressed in the query predicate, never as a check after the
  * fetch. A caller cannot forget it because `actorId` is a required parameter —
@@ -105,6 +117,55 @@ export async function changeAccountCurrency(input: {
         amount: target,
         balanceAfter: target,
         refType: "CurrencyChange",
+        refId: account.id,
+      },
+    });
+    return updated;
+  });
+}
+
+/**
+ * Sets a DEMO account's play-money balance to `amount` (minor units), or to the
+ * currency's full default when `amount` is omitted — this is the demo "reset".
+ * It re-seeds realBalance, clears any bonus, and ledgers a DEMO_RESET. `amount`
+ * must be a positive integer no greater than the currency's cap (the default
+ * start). LIVE accounts are refused: real balances are never edited here, and
+ * ownership is enforced by `actorId`.
+ */
+export async function setDemoBalance(input: {
+  actorId: string;
+  accountId: string;
+  amount?: number;
+}): Promise<Account> {
+  const account = await prisma.account.findFirst({
+    where: { id: input.accountId, userId: input.actorId },
+  });
+  if (!account) throw new DemoBalanceRefused("Account not found.");
+  if (account.type !== "DEMO") {
+    throw new DemoBalanceRefused("Only the demo account balance can be changed.");
+  }
+
+  const cap = demoBalanceCap(account.currency);
+  const target = input.amount ?? cap;
+  if (!Number.isInteger(target) || target <= 0) {
+    throw new DemoBalanceRefused("Enter a valid amount.");
+  }
+  if (target > cap) {
+    throw new DemoBalanceRefused("That is more than the demo maximum.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.account.update({
+      where: { id: account.id },
+      data: { realBalance: target, bonusBalance: 0, version: { increment: 1 } },
+    });
+    await tx.transaction.create({
+      data: {
+        accountId: account.id,
+        kind: "DEMO_RESET",
+        amount: target,
+        balanceAfter: target,
+        refType: "DemoReset",
         refId: account.id,
       },
     });
