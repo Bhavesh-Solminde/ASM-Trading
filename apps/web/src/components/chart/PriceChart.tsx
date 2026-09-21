@@ -20,6 +20,7 @@ import type { CandleDto, TradeView } from "@asm/contracts";
 import type { MarketStore } from "@/components/shell/market-store";
 import { formatMinor } from "@/lib/format-money";
 import { countdown } from "@/lib/format-time";
+import { stepEase } from "./ease";
 import { TIMEFRAME_SEC, type ChartState } from "./engine-state";
 
 const BRAND = "#ffb000";
@@ -31,6 +32,12 @@ const WATERMARK = "rgba(255, 176, 0, 0.035)";
 const CANDLE_SEC = TIMEFRAME_SEC["1m"];
 /** Fetch older history once the left edge is within this many bars of the start. */
 const LOAD_OLDER_TRIGGER_BARS = 12;
+/**
+ * Per-frame fraction the displayed price moves toward the latest tick. Low so
+ * the price glides slowly and smoothly (Quotex-like) instead of snapping; at
+ * ~60fps this settles a step in roughly a quarter second.
+ */
+const PRICE_EASE_K = 0.14;
 
 function toBar(c: CandleDto): CandlestickData {
   return { time: c.openTs as UTCTimestamp, open: c.o, high: c.h, low: c.l, close: c.c };
@@ -183,6 +190,39 @@ export function PriceChart({
 
     let prev: ChartState | null = null;
 
+    // Displayed price eases toward the latest tick (`target`) each animation
+    // frame; the forming candle's close and the amber price line follow it, so
+    // price drifts smoothly between ticks. O/H/L still come straight from the
+    // store — only the close is eased (and clamped inside the bar's range).
+    const reducedMotion =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const eps = 10 ** -precision / 2;
+    let displayed: number | null = null;
+    let target: number | null = null;
+    let formingBar: CandlestickData | null = null;
+    let paintedBar: CandlestickData | null = null;
+    let paintedClose = NaN;
+    let paintedPrice = NaN;
+    let raf = 0;
+
+    const paintPrice = () => {
+      raf = requestAnimationFrame(paintPrice);
+      if (target === null) return;
+      displayed = displayed === null || reducedMotion ? target : stepEase(displayed, target, PRICE_EASE_K, eps);
+      if (formingBar) {
+        const close = Math.min(formingBar.high, Math.max(formingBar.low, displayed));
+        if (formingBar !== paintedBar || close !== paintedClose) {
+          series.update({ ...formingBar, close });
+          paintedBar = formingBar;
+          paintedClose = close;
+        }
+      }
+      if (displayed !== paintedPrice) {
+        priceLine.applyOptions({ price: displayed, lineVisible: true, axisLabelVisible: true });
+        paintedPrice = displayed;
+      }
+    };
+
     const placeCountdown = () => {
       const label = countdownRef.current;
       if (!label) return;
@@ -203,21 +243,22 @@ export function PriceChart({
       const state = market.getSnapshot().chart;
       if (state === prev) return;
 
+      // Closed history is written straight through; the forming bar and the
+      // last-price line are handed to the eased paint loop below.
       if (!prev || state.candles !== prev.candles) {
         series.setData(state.candles.map(toBar));
-        const last = state.candles.at(-1);
-        if (state.forming && (!last || state.forming.openTs > last.openTs)) series.update(toBar(state.forming));
-      } else if (state.forming && state.forming !== prev.forming) {
-        const last = state.candles.at(-1);
-        if (!last || state.forming.openTs > last.openTs) series.update(toBar(state.forming));
       }
 
-      if (!prev || state.lastPrice !== prev.lastPrice) {
-        priceLine.applyOptions({
-          price: state.lastPrice ?? 0,
-          lineVisible: state.lastPrice !== null,
-          axisLabelVisible: state.lastPrice !== null,
-        });
+      const last = state.candles.at(-1);
+      const formingValid =
+        state.forming && (!last || state.forming.openTs > last.openTs) ? state.forming : null;
+      formingBar = formingValid ? toBar(formingValid) : null;
+
+      if (state.lastPrice === null) {
+        target = null;
+        priceLine.applyOptions({ lineVisible: false, axisLabelVisible: false });
+      } else {
+        target = state.lastPrice;
       }
 
       if (!hoveringRef.current && ohlcRef.current) {
@@ -238,11 +279,13 @@ export function PriceChart({
     };
 
     draw();
+    raf = requestAnimationFrame(paintPrice);
     const unsubscribe = market.subscribe(draw);
     const timer = setInterval(placeCountdown, 1000);
     chart.timeScale().subscribeVisibleLogicalRangeChange(placeCountdown);
     chart.timeScale().subscribeVisibleLogicalRangeChange(maybeLoadOlder);
     return () => {
+      cancelAnimationFrame(raf);
       unsubscribe();
       clearInterval(timer);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(placeCountdown);
