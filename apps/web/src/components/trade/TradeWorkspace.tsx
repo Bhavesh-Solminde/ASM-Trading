@@ -146,12 +146,12 @@ export function TradeWorkspace() {
             {status === "unauthorised" ? (
               <p className="absolute left-2 top-[78px] text-xs text-down">Your session has ended. Log in again.</p>
             ) : null}
-            <TimeframeTabs className="absolute right-[86px] top-2 phone:right-2 phone:top-11" />
+            <TimeframeTabs className="absolute right-[86px] top-2 z-10 phone:right-2 phone:top-11" />
             <button
               type="button"
               onClick={focusMode ? exitFocus : enterFocus}
               aria-label={focusMode ? "Exit fullscreen" : "Fullscreen chart"}
-              className={`absolute right-2 top-2 grid size-8 place-items-center rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink ${
+              className={`absolute right-2 top-2 z-10 grid size-8 place-items-center rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink ${
                 focusMode ? "" : "hidden phone:grid"
               }`}
             >

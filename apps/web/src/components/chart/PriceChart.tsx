@@ -322,7 +322,10 @@ export function PriceChart({
 
   return (
     <>
-      <div ref={containerRef} className="absolute inset-0 cursor-crosshair" />
+      {/* z-0 gives the chart its own stacking context so lightweight-charts'
+          internal z-index:50 canvases stay trapped below the overlay controls
+          (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
+      <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
       <div
         ref={countdownRef}
         hidden
