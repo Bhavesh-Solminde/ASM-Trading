@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   BONUS_PERCENT,
-  TURNOVER_MULTIPLE,
   formatMoney,
   listAccountsForActor,
   withdrawableBalance,
@@ -52,12 +51,11 @@ export default async function WithdrawalPage() {
           {balance.lockedBonus > 0 ? (
             <div className="rounded bg-[var(--color-tile)] p-3">
               <p className="text-xs font-semibold">
-                {formatMoney(balance.lockedBonus, live.currency)} bonus locked
+                {formatMoney(balance.lockedBonus, live.currency)} bonus — not withdrawable
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-ink-2)]">
-                A {BONUS_PERCENT}% bonus requires {TURNOVER_MULTIPLE}× turnover before it can be
-                withdrawn. {formatMoney(balance.turnoverRemaining, live.currency)} of trading volume
-                remaining.
+                Your {BONUS_PERCENT}% first-deposit bonus is for trading only and can&apos;t be
+                cashed out. Only your real balance above is available to withdraw.
               </p>
             </div>
           ) : null}

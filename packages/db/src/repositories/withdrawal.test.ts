@@ -35,22 +35,18 @@ describe("withdrawableBalance", () => {
     expect((await withdrawableBalance(accountId)).withdrawable).toBe(50_000);
   });
 
-  it("excludes bonus funds while turnover is outstanding", async () => {
+  it("excludes bonus funds from the withdrawable balance", async () => {
     await prisma.account.update({
       where: { id: accountId },
       data: { realBalance: 10_000, bonusBalance: 5_000 },
-    });
-    await prisma.bonusGrant.create({
-      data: { accountId, amount: 5_000, turnoverRequired: 150_000, turnoverDone: 0 },
     });
 
     const result = await withdrawableBalance(accountId);
     expect(result.withdrawable).toBe(10_000);
     expect(result.lockedBonus).toBe(5_000);
-    expect(result.turnoverRemaining).toBe(150_000);
   });
 
-  it("releases bonus funds once turnover is met", async () => {
+  it("keeps the bonus locked even after turnover is met (bonus is never withdrawable)", async () => {
     await prisma.account.update({
       where: { id: accountId },
       data: { realBalance: 10_000, bonusBalance: 5_000 },
@@ -60,8 +56,8 @@ describe("withdrawableBalance", () => {
     });
 
     const result = await withdrawableBalance(accountId);
-    expect(result.withdrawable).toBe(15_000);
-    expect(result.turnoverRemaining).toBe(0);
+    expect(result.withdrawable).toBe(10_000);
+    expect(result.lockedBonus).toBe(5_000);
   });
 });
 

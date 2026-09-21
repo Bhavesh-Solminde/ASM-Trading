@@ -14,13 +14,12 @@ class VersionConflict extends Error {}
 const MAX_ATTEMPTS = 5;
 
 /**
- * Bonus funds are withdrawable only once their turnover requirement clears.
- *
- * Without this, a 50% bonus would let anyone deposit and immediately withdraw
- * 150% — which is why every real platform attaches turnover, and why
- * reproducing it is part of reproducing the platform. `lockedBonus` is the
- * amount of bonus still gated; anything above it in `bonusBalance` has been
- * earned out and counts as withdrawable.
+ * Only the real balance is withdrawable. The 100% first-deposit bonus — and
+ * anything won while staking it, which settles back into the bonus balance —
+ * is sticky: it exists to trade with and can never be cashed out. So the
+ * withdrawable amount is exactly `realBalance`, and the whole `bonusBalance`
+ * is reported as locked. (`turnoverRemaining` is kept in the shape for callers
+ * but is always 0 now that bonus never releases.)
  */
 export async function withdrawableBalance(accountId: string): Promise<{
   withdrawable: number;
@@ -32,28 +31,10 @@ export async function withdrawableBalance(accountId: string): Promise<{
     select: { realBalance: true, bonusBalance: true },
   });
 
-  const grants = await prisma.bonusGrant.findMany({
-    where: { accountId, status: "ACTIVE" },
-    select: { amount: true, turnoverRequired: true, turnoverDone: true },
-  });
-
-  let lockedBonus = 0;
-  let turnoverRemaining = 0;
-
-  for (const grant of grants) {
-    const remaining = Math.max(0, grant.turnoverRequired - grant.turnoverDone);
-    if (remaining > 0) {
-      lockedBonus += grant.amount;
-      turnoverRemaining += remaining;
-    }
-  }
-
-  const releasedBonus = Math.max(0, account.bonusBalance - lockedBonus);
-
   return {
-    withdrawable: account.realBalance + releasedBonus,
-    lockedBonus,
-    turnoverRemaining,
+    withdrawable: account.realBalance,
+    lockedBonus: account.bonusBalance,
+    turnoverRemaining: 0,
   };
 }
 
@@ -101,33 +82,19 @@ export async function requestWithdrawal(input: {
           select: { realBalance: true, bonusBalance: true, version: true },
         });
 
-        // Recompute the ceiling inside the transaction so it reflects the
-        // balance we are about to debit, not a stale pre-read.
-        const grants = await tx.bonusGrant.findMany({
-          where: { accountId: input.accountId, status: "ACTIVE" },
-          select: { amount: true, turnoverRequired: true, turnoverDone: true },
-        });
-        let lockedBonus = 0;
-        for (const grant of grants) {
-          if (grant.turnoverRequired - grant.turnoverDone > 0) lockedBonus += grant.amount;
-        }
-        const releasedBonus = Math.max(0, fresh.bonusBalance - lockedBonus);
-        const withdrawable = fresh.realBalance + releasedBonus;
-
-        if (input.amount > withdrawable) {
+        // Only real balance is withdrawable; the bonus is sticky and is never
+        // debited by a withdrawal. Re-read inside the transaction so the
+        // ceiling reflects the balance we are about to debit, not a stale read.
+        if (input.amount > fresh.realBalance) {
           throw new WithdrawalRefused(
-            "That is more than your withdrawable balance. Bonus funds are locked until turnover clears.",
+            "That is more than your withdrawable balance. Bonus funds can't be withdrawn.",
           );
         }
-
-        const fromReal = Math.min(fresh.realBalance, input.amount);
-        const fromBonus = input.amount - fromReal;
 
         const claimed = await tx.account.updateMany({
           where: { id: input.accountId, version: fresh.version },
           data: {
-            realBalance: { decrement: fromReal },
-            bonusBalance: { decrement: fromBonus },
+            realBalance: { decrement: input.amount },
             version: { increment: 1 },
           },
         });
