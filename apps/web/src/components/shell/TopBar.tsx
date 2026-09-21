@@ -8,7 +8,7 @@ import { clockTime } from "@/lib/format-time";
 import { isMuted, setMuted } from "@/lib/sound";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useNowSec } from "@/lib/use-now";
-import { LogoEmblem } from "@/components/brand/Logo";
+import { LogoEmblem, LogoWordmark } from "@/components/brand/Logo";
 import { Icon } from "./Icon";
 import { MobileNav } from "./MobileNav";
 import { PromoBanner } from "./PromoBanner";
@@ -124,9 +124,7 @@ export function TopBar() {
       <MobileNav />
       <Link href="/trade" aria-label="ASM Trade" className="flex h-11 flex-none items-center gap-2">
         <LogoEmblem className="h-8 w-8 flex-none [filter:drop-shadow(0_0_8px_rgba(255,176,0,.3))]" />
-        <span aria-hidden className="font-brand text-[22px] font-black tracking-[0.02em] text-brand [text-shadow:0_0_10px_rgba(255,176,0,.35)]">
-          ASM
-        </span>
+        <LogoWordmark className="h-6 flex-none phone:h-5" />
         <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-ink-2 phone:hidden">Trade</span>
       </Link>
 

@@ -35,6 +35,26 @@ export function LogoEmblem({
   );
 }
 
+/**
+ * The gold "ASM" wordmark (raster). The source art is gold lettering on a
+ * near-black background, so we composite it with `mix-blend-mode: screen`:
+ * against the site's dark surfaces the black drops out and only the gold shows,
+ * no matter the exact surface colour. Height is set by the caller via
+ * className (e.g. `h-6`); width follows the art's aspect ratio.
+ */
+export function LogoWordmark({ className }: { className?: string }) {
+  return (
+    <Image
+      src="/brand/asm-wordmark.png"
+      alt="ASM"
+      width={458}
+      height={140}
+      priority
+      className={`w-auto [mix-blend-mode:screen] ${className ?? ""}`}
+    />
+  );
+}
+
 /** Back-compat alias — some call sites import LogoMark for small placements. */
 export const LogoMark = LogoEmblem;
 
