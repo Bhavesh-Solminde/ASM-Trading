@@ -59,7 +59,7 @@ export interface StepPriceOutput {
  * units. Keep it at or below ~0.25s so the client's price easing still reads as
  * continuous motion rather than visible steps.
  */
-export const TICK_DT_SEC = 0.25; // 4 Hz (was 0.1 / 10 Hz — reduced to calm the chart)
+export const TICK_DT_SEC = 0.15; // ~6.7 Hz (lower = more frequent, finer updates)
 
 /**
  * Per-tick standard deviation in log-price space.
