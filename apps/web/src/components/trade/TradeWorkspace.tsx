@@ -94,7 +94,7 @@ export function TradeWorkspace() {
       aria-label="Trade"
       className="grid h-full grid-cols-[minmax(0,1fr)_312px] phone:h-auto phone:grid-cols-[minmax(0,1fr)]"
     >
-      <div className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[auto_clamp(320px,62dvh,600px)] phone:gap-1 phone:p-1.5">
+      <div className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[auto_clamp(360px,72dvh,720px)] phone:gap-1 phone:p-1.5">
         <MarketSelector assets={assets} active={asset.symbol} onSelect={selectChartSymbol} />
 
         <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[18px_minmax(0,1fr)] phone:gap-1.5 phone:pl-1.5">

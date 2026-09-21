@@ -17,8 +17,8 @@ function formatDuration(seconds: number): string {
 }
 
 const STEP =
-  "grid h-12 place-items-center rounded border border-rule text-ink-2 hover:border-tile-hi hover:bg-panel hover:text-ink phone:h-10";
-const DISPLAY = "grid h-12 place-items-center rounded border border-rule bg-panel phone:h-10";
+  "grid h-12 place-items-center rounded border border-rule text-ink-2 hover:border-tile-hi hover:bg-panel hover:text-ink phone:h-9";
+const DISPLAY = "grid h-12 place-items-center rounded border border-rule bg-panel phone:h-9";
 
 /** Ticks every second on its own, so the rest of the ticket does not re-render. */
 function ExpiresAt({ durationSec }: { durationSec: number }) {
@@ -94,7 +94,7 @@ export function TradeTicket({
   }
 
   const slab =
-    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] hover:brightness-110 active:translate-y-px disabled:cursor-wait phone:h-12 phone:pl-3.5 phone:pr-3 phone:text-[15px]";
+    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] hover:brightness-110 active:translate-y-px disabled:cursor-wait phone:h-11 phone:pl-3.5 phone:pr-3 phone:text-[15px]";
   const slabNote = "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 max-[359px]:hidden";
 
   return (
