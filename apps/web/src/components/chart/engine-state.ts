@@ -1,6 +1,6 @@
-import type { CandleDto, ServerMessage, Timeframe } from "@asm/contracts";
+import { TIMEFRAME_SEC, type CandleDto, type ServerMessage, type Timeframe } from "@asm/contracts";
 
-export const TIMEFRAME_SEC: Record<Timeframe, number> = { "1m": 60 };
+export { TIMEFRAME_SEC };
 // The ceiling on retained closed candles. Large because scroll-left backfill
 // grows the array leftward; a `candle:close` must not trim bars the user
 // scrolled back to load. At 1m this is days of history — effectively a memory

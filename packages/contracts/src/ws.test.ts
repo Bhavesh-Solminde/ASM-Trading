@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ClientMessageSchema } from "./ws";
+import { ClientMessageSchema, TIMEFRAMES, TIMEFRAME_SEC, TimeframeSchema } from "./ws";
 
 describe("ClientMessageSchema", () => {
   it("accepts an auth message", () => {
@@ -16,11 +16,19 @@ describe("ClientMessageSchema", () => {
     expect(parsed.type).toBe("subscribe");
   });
 
-  it("rejects a timeframe the engine does not aggregate", () => {
-    expect(
-      ClientMessageSchema.safeParse({ type: "subscribe", symbol: "AUDNZD_OTC", timeframe: "5m" })
-        .success,
-    ).toBe(false);
+  it("accepts every offered timeframe and rejects unsupported ones", () => {
+    for (const tf of TIMEFRAMES) {
+      expect(TimeframeSchema.safeParse(tf).success).toBe(true);
+    }
+    expect(TimeframeSchema.safeParse("2m").success).toBe(false);
+    expect(TimeframeSchema.safeParse("1d").success).toBe(false);
+  });
+
+  it("maps each offered timeframe to its bucket seconds, ascending", () => {
+    expect(TIMEFRAMES).toEqual(["1m", "5m", "15m", "1h"]);
+    expect(TIMEFRAME_SEC).toEqual({ "1m": 60, "5m": 300, "15m": 900, "1h": 3600 });
+    const secs = TIMEFRAMES.map((t) => TIMEFRAME_SEC[t]);
+    expect(secs).toEqual([...secs].sort((a, b) => a - b));
   });
 
   it("rejects an unknown message type", () => {

@@ -8,9 +8,19 @@ export const SymbolSchema = z
   .max(32)
   .regex(/^[A-Z0-9_]+$/, "Symbol must be uppercase letters, digits, or underscore");
 
-// Only 1m candles are aggregated and persisted; widen when resampling exists.
-export const TimeframeSchema = z.enum(["1m"]);
+export const TimeframeSchema = z.enum(["1m", "5m", "15m", "1h"]);
 export type Timeframe = z.infer<typeof TimeframeSchema>;
+
+/** The offered timeframes, ascending. Single source of truth for the set. */
+export const TIMEFRAMES: readonly Timeframe[] = ["1m", "5m", "15m", "1h"];
+
+/** Seconds per bucket for each timeframe. */
+export const TIMEFRAME_SEC: Record<Timeframe, number> = {
+  "1m": 60,
+  "5m": 300,
+  "15m": 900,
+  "1h": 3600,
+};
 
 export const CandleSchema = z.strictObject({
   openTs: z.number().int(),

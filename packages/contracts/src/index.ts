@@ -7,6 +7,8 @@ export {
 export {
   SymbolSchema,
   TimeframeSchema,
+  TIMEFRAMES,
+  TIMEFRAME_SEC,
   CandleSchema,
   AuthMessageSchema,
   SubscribeMessageSchema,
