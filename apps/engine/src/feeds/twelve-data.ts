@@ -4,20 +4,25 @@ import type { PriceFeed, Quote } from "./types";
 /**
  * Twelve Data REST poller.
  *
- * The free tier allows 8 requests/minute and 800/day. Polling every asset on a
- * timer would exhaust that in minutes, so this polls ONE symbol at a time,
- * round-robin, spaced from the quota. With three assets at 7 requests/minute,
- * each gets a fresh real quote about every 26 seconds — which is the anchor
- * cadence the price engine wants anyway. The synthetic process covers the gap.
+ * The free tier allows 8 requests/minute and 800/day. This polls ONE symbol at
+ * a time, round-robin, spaced from `requestsPerMinute` (fractional is allowed,
+ * for slow polling). Crypto is served by the free Binance WebSocket feed, so in
+ * practice this handles only gold at a low rate that stays inside the free tier;
+ * the synthetic price path covers the long gaps between quotes.
+ *
+ * Note: XAU/USD (gold) has market hours and returns a stale quote on weekends —
+ * the synthetic path keeps the candle alive meanwhile.
  */
 export function createTwelveDataFeed(opts: {
   apiKey: string;
-  /** Internal symbol -> Twelve Data symbol, e.g. AUDNZD_OTC -> AUD/NZD */
+  /** Internal symbol -> Twelve Data symbol, e.g. BTCUSD -> BTC/USD */
   mapping: Record<string, string>;
   requestsPerMinute: number;
 }): PriceFeed {
   const internalSymbols = Object.keys(opts.mapping);
-  const spacingMs = Math.ceil(60_000 / Math.max(1, opts.requestsPerMinute));
+  // Fractional rates are allowed (e.g. 0.4/min ≈ one call every 2.5 min); the
+  // 0.1 floor just caps the spacing at 10 minutes so a bad value can't idle it.
+  const spacingMs = Math.ceil(60_000 / Math.max(0.1, opts.requestsPerMinute));
 
   let timer: NodeJS.Timeout | null = null;
   let index = 0;
@@ -80,43 +85,4 @@ export function createTwelveDataFeed(opts: {
       );
     },
   };
-}
-
-/** Chooses a feed from the environment, falling back to replay. */
-export function createPriceFeed(symbols: string[]): PriceFeed {
-  const apiKey = process.env.TWELVE_DATA_API_KEY;
-
-  if (!apiKey) {
-    logger.info(
-      { evt: "engine.feed_selected", feed: "replay", reason: "no_api_key" },
-      "TWELVE_DATA_API_KEY not set — using the bundled replay dataset",
-    );
-    // Lazy import avoids a cycle between the two feed modules. `inner` is
-    // captured in this closure rather than stashed on `this` — a caller that
-    // destructures `{ start, stop }` instead of calling `feed.start()` would
-    // silently break a `this`-based version (ESM is strict mode, so a
-    // detached method call gets `this === undefined`).
-    let inner: PriceFeed | null = null;
-    return {
-      async start(onQuote) {
-        const { createReplayFeed } = await import("./replay");
-        inner = createReplayFeed({ symbols, intervalMs: 5000 });
-        await inner.start(onQuote);
-      },
-      async stop() {
-        await inner?.stop();
-      },
-    };
-  }
-
-  const mapping: Record<string, string> = {
-    USDJPY: "USD/JPY",
-    AUDNZD_OTC: "AUD/NZD",
-    EURUSD_OTC: "EUR/USD",
-  };
-  const selected = Object.fromEntries(
-    symbols.filter((s) => s in mapping).map((s) => [s, mapping[s]!]),
-  );
-
-  return createTwelveDataFeed({ apiKey, mapping: selected, requestsPerMinute: 7 });
 }

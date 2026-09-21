@@ -15,7 +15,7 @@ export function IconRail() {
   return (
     <nav
       aria-label="Platform sections"
-      className="col-start-1 row-start-3 flex flex-col items-center gap-1 border-r border-rule py-3 phone:row-start-4 phone:flex-row phone:justify-around phone:border-r-0 phone:border-t phone:bg-ground phone:px-2 phone:pb-[max(4px,env(safe-area-inset-bottom))] phone:pt-1"
+      className="col-start-1 row-start-3 flex flex-col items-center gap-1 border-r border-rule py-3 phone:hidden"
     >
       {RAIL_ITEMS.map((item) => {
         const gap = item.pinBottom ? <span className="flex-1 phone:hidden" /> : null;

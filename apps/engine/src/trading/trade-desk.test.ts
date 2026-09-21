@@ -16,7 +16,9 @@ let desk: TradeDesk;
 let seq = 0;
 
 beforeAll(async () => {
-  await registry.load();
+  // Load AUDNZD_OTC explicitly (it is closed since the BTC/Gold-only switch):
+  // the desk logic under test is asset-agnostic and this keeps the OTC fixture.
+  await registry.loadSymbols(["AUDNZD_OTC"]);
   desk = new TradeDesk(registry, notifier, controller);
 });
 

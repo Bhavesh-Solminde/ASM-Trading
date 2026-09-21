@@ -102,7 +102,13 @@ export function PlatformProvider({
     },
     [market],
   );
-  const { status } = useEngineSocket({ symbol: chartSymbol, timeframe: "1m", watch, onMessage });
+  const { status, send } = useEngineSocket({ symbol: chartSymbol, timeframe: "1m", watch, onMessage });
+
+  // Let the market store reach the socket for scroll-left history backfill.
+  useEffect(() => {
+    market.setSender(send);
+    return () => market.setSender(null);
+  }, [market, send]);
 
   const selectChartSymbol = useCallback(
     (symbol: string) => {

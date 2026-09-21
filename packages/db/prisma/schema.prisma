@@ -161,7 +161,7 @@ model Asset {
   tickSize    Float     @default(0.00001)
   precision   Int       @default(5)
   basePrice   Float     @default(1.0)
-  garchOmega  Float     @default(0.000001)
+  garchOmega  Float     @default(0.00000001)
   garchAlpha  Float     @default(0.08)
   garchBeta   Float     @default(0.90)
   anchorAlpha Float     @default(0.08)

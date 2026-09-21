@@ -8,14 +8,20 @@ interface Reply {
   type: string;
   message?: string;
   candles?: Record<string, unknown>[];
+  reachedStart?: boolean;
 }
 
 const registry = new AssetRegistry(99);
 let server: EngineServer;
 let url = "";
+// Whichever asset the seed leaves open — the suite must not hardcode a symbol,
+// since which markets are open is product state (currently BTC/Gold only).
+let openSymbol = "";
 
 beforeAll(async () => {
   await registry.load();
+  openSymbol = registry.symbols()[0] ?? "";
+  if (!openSymbol) throw new Error("no open asset in the registry — seed at least one isOpen asset");
   // Port 0 = any free port. The authenticator is injected, so this test needs
   // no Redis. It answers after 50ms, like a real Redis round trip: without the
   // per-socket queue, a subscribe sent right behind auth would then always be
@@ -84,7 +90,7 @@ describe("EngineServer", () => {
     const { replies } = await exchange(
       [
         { type: "auth", token: "good-ticket" },
-        { type: "subscribe", symbol: "AUDNZD_OTC", timeframe: "1m" },
+        { type: "subscribe", symbol: openSymbol, timeframe: "1m" },
       ],
       4,
     );
@@ -128,7 +134,7 @@ describe("EngineServer", () => {
     const { replies } = await exchange(
       [
         { type: "auth", token: "good-ticket" },
-        { type: "subscribe", symbol: "AUDNZD_OTC", timeframe: "1m" },
+        { type: "subscribe", symbol: openSymbol, timeframe: "1m" },
       ],
       3,
     );
@@ -136,5 +142,40 @@ describe("EngineServer", () => {
     for (const candle of history?.candles ?? []) {
       expect(Object.keys(candle).sort()).toEqual(["c", "h", "l", "o", "openTs"]);
     }
+  });
+
+  it("reports reachedStart when no candles precede the requested time", async () => {
+    // openTs = 1s (1970): nothing in the table is older, so the batch is empty
+    // and the client learns there is no more history to scroll back to.
+    const { replies } = await exchange(
+      [
+        { type: "auth", token: "good-ticket" },
+        { type: "candles:loadOlder", symbol: openSymbol, timeframe: "1m", before: 1, limit: 50 },
+      ],
+      3,
+    );
+    const older = replies.find((r) => r.type === "candles:older");
+    expect(older).toBeDefined();
+    expect(older?.candles).toEqual([]);
+    expect(older?.reachedStart).toBe(true);
+  });
+
+  it("answers candles:loadOlder oldest-first, OHLC-only, without a subscription", async () => {
+    const farFuture = 4_000_000_000; // year 2096 — returns the newest stored candles
+    const { replies } = await exchange(
+      [
+        { type: "auth", token: "good-ticket" },
+        { type: "candles:loadOlder", symbol: openSymbol, timeframe: "1m", before: farFuture, limit: 50 },
+      ],
+      3,
+    );
+    const older = replies.find((r) => r.type === "candles:older");
+    expect(older).toBeDefined();
+    const candles = older?.candles ?? [];
+    for (const candle of candles) {
+      expect(Object.keys(candle).sort()).toEqual(["c", "h", "l", "o", "openTs"]);
+    }
+    const times = candles.map((c) => c["openTs"] as number);
+    expect(times).toEqual([...times].sort((a, b) => a - b));
   });
 });

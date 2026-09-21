@@ -101,6 +101,105 @@ const slots = [
       "background, no visible text or logos, moody cinematic depth, subtle motion blur on " +
       "walking people, shot on Sony A7R V.",
   },
+  // Logo concept explorations (run individually by id). These are direction
+  // studies only — the production logo is a hand-built SVG, not a raster render.
+  {
+    id: "logo-candle-a",
+    filename: "logo-concept-candle-a.png",
+    model: "marketing-studio/image",
+    resolution: "2k",
+    aspectRatio: "1:1",
+    prompt:
+      "Minimalist premium app icon for a trading brand. A single bold geometric letter A " +
+      "monogram constructed from a candlestick — the A is an upward bullish candle body in " +
+      "warm amber gold (#FFB000) with a thin vertical wick extending above the apex. Flat " +
+      "vector style, sharp clean edges, centered, generous negative space, rounded-square " +
+      "matte black tile with a subtle inner bevel. No text, no letters, no words except the " +
+      "single symbol. Dribbble logo design, crisp, iconic, high contrast.",
+  },
+  {
+    id: "logo-candle-bars",
+    filename: "logo-concept-candle-bars.png",
+    model: "marketing-studio/image",
+    resolution: "2k",
+    aspectRatio: "1:1",
+    prompt:
+      "Minimalist premium app icon for a binary options trading brand. Three ascending " +
+      "candlestick bars implying upward momentum, the tallest center bar in warm amber gold " +
+      "(#FFB000), thin wicks, flat vector style, sharp clean edges, centered inside a " +
+      "rounded-square matte black tile. No text, no letters, no numbers, single geometric " +
+      "symbol only. Crisp iconic logo, high contrast, Dribbble quality.",
+  },
+  {
+    id: "logo-tick-diamond",
+    filename: "logo-concept-tick-diamond.png",
+    model: "marketing-studio/image",
+    resolution: "2k",
+    aspectRatio: "1:1",
+    prompt:
+      "Minimalist premium app icon for a trading brand. An up-chevron and down-chevron " +
+      "stacked into a sharp diamond mark, the upper half warm amber gold (#FFB000), flat " +
+      "vector style, sharp clean geometric edges, centered inside a rounded-square matte " +
+      "black tile. No text, no letters, no numbers, single geometric symbol only. Crisp " +
+      "iconic logo, high contrast, Dribbble quality.",
+  },
+  {
+    id: "logo-bull",
+    filename: "logo-concept-bull.png",
+    model: "marketing-studio/image",
+    resolution: "2k",
+    aspectRatio: "1:1",
+    prompt:
+      "FLAT 2D VECTOR logo of a geometric bull head for a trading brand, front view, bold " +
+      "symmetric horns sweeping upward, minimal facets, a single upward arrow integrated as " +
+      "the blaze on the forehead. Solid warm amber gold (#FFB000) on a flat matte black " +
+      "background. Absolutely flat design: NO 3D, NO metallic chrome, NO glossy bevels, NO " +
+      "reflections, NO gradients, NO glow, NO drop shadows, NO lens flare. Clean crisp " +
+      "geometry, thick even line weight, generous negative space, one solid color. Modern " +
+      "flat mono-line logomark, Dribbble minimalist logo, no text, no letters, no words.",
+  },
+  // Fancy premium crest emblems (the client wants ornate, not minimal).
+  {
+    id: "logo-crest-blue",
+    filename: "logo-crest-blue.png",
+    model: "marketing-studio/image",
+    resolution: "4k",
+    aspectRatio: "1:1",
+    prompt:
+      "Premium circular emblem logo for a trading brand. A powerful geometric bull head in " +
+      "polished gold with subtle electric-blue rim light, framed by an ornate circular gold " +
+      "ring with fine tick marks, a bold upward arrow and rising candlestick chart bars " +
+      "behind the bull, deep pure-black background, dramatic yet clean, razor-sharp edges, " +
+      "high-end luxury fintech emblem, centered, perfectly symmetric. NO TEXT, no letters, " +
+      "no words, no numbers.",
+  },
+  {
+    id: "logo-crest-green",
+    filename: "logo-crest-green.png",
+    model: "marketing-studio/image",
+    resolution: "4k",
+    aspectRatio: "1:1",
+    prompt:
+      "Premium circular emblem logo for a trading brand. A bold geometric bull head in warm " +
+      "amber gold with a bright green upward arrow blaze on the forehead, framed by an ornate " +
+      "gold bezel ring with fine tick marks like a dial, small rising green and red " +
+      "candlesticks flanking the bull, deep matte black background, crisp sharp edges, " +
+      "high-end luxury fintech crest, centered, perfectly symmetric. NO TEXT, no letters, no " +
+      "words, no numbers.",
+  },
+  {
+    id: "logo-crest-3d",
+    filename: "logo-crest-3d.png",
+    model: "marketing-studio/image",
+    resolution: "4k",
+    aspectRatio: "1:1",
+    prompt:
+      "Luxury emblem logo, sculpted metallic gold bull head with sharp polished horns, ornate " +
+      "circular gold frame with engraved tick marks, a bold upward stock-market arrow and " +
+      "candlestick bars, pure black background, cinematic studio lighting, premium trading " +
+      "brand mark, ultra sharp and clean, centered and symmetric. Refined and expensive, not " +
+      "gaudy. NO TEXT, no letters, no words, no numbers.",
+  },
 ];
 
 async function submit(slot) {

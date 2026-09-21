@@ -21,7 +21,9 @@ beforeAll(async () => {
       c: RESUME_CLOSE,
     },
   });
-  await registry.load();
+  // Load these explicitly, ignoring isOpen: the product now opens only BTC/Gold,
+  // but this suite exercises the OTC price engine against the OTC fixtures.
+  await registry.loadSymbols(["AUDNZD_OTC", "EURUSD_OTC", "USDJPY"]);
 });
 
 afterAll(async () => {

@@ -159,6 +159,38 @@ export class EngineServer {
       return;
     }
 
+    // Lazy history: the chart asks for candles older than the earliest bar it
+    // holds when the user scrolls left. Does not touch subscriptions.
+    if (message.type === "candles:loadOlder") {
+      const older = await prisma.candle.findMany({
+        where: {
+          assetId: asset.id,
+          timeframe: message.timeframe,
+          openTs: { lt: new Date(message.before * 1000) },
+        },
+        orderBy: { openTs: "desc" },
+        take: message.limit,
+        select: { openTs: true, o: true, h: true, l: true, c: true },
+      });
+
+      this.send(client, {
+        type: "candles:older",
+        symbol: asset.symbol,
+        timeframe: message.timeframe,
+        candles: older
+          .reverse()
+          .map((row) => ({
+            openTs: Math.floor(row.openTs.getTime() / 1000),
+            o: row.o,
+            h: row.h,
+            l: row.l,
+            c: row.c,
+          })),
+        reachedStart: older.length < message.limit,
+      });
+      return;
+    }
+
     client.subscriptions.set(message.symbol, message.timeframe);
 
     const history = await prisma.candle.findMany({

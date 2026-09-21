@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { ServerMessage, Timeframe } from "@asm/contracts";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ClientMessage, ServerMessage, Timeframe } from "@asm/contracts";
 
 export type SocketStatus = "connecting" | "open" | "closed" | "unauthorised";
 
@@ -41,7 +41,7 @@ export function useEngineSocket(opts: {
   /** Symbols kept subscribed for as long as the socket is open (the ticker tape). */
   watch?: readonly string[];
   onMessage?: (message: ServerMessage) => void;
-}): { status: SocketStatus } {
+}): { status: SocketStatus; send: (message: ClientMessage) => void } {
   const [status, setStatus] = useState<SocketStatus>("connecting");
 
   const socketRef = useRef<WebSocket | null>(null);
@@ -156,5 +156,13 @@ export function useEngineSocket(opts: {
     };
   }, [watchKey, opts.timeframe, status]);
 
-  return { status };
+  // Stable across renders so effects that depend on it (e.g. wiring the market
+  // store) don't re-run. Silently drops messages while the socket is not open;
+  // the caller retries — a reconnect resubscribes and re-fetches history.
+  const send = useCallback((message: ClientMessage) => {
+    const socket = socketRef.current;
+    if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+  }, []);
+
+  return { status, send };
 }

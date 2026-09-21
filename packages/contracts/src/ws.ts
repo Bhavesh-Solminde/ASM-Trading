@@ -39,10 +39,24 @@ export const UnsubscribeMessageSchema = z.strictObject({
   symbol: SymbolSchema,
 });
 
+/**
+ * Asks for candles strictly older than `before` (a closed candle's `openTs`,
+ * in seconds) — the chart sends this when the user scrolls past the earliest
+ * bar it holds, so history is fetched lazily instead of all at subscribe time.
+ */
+export const LoadOlderMessageSchema = z.strictObject({
+  type: z.literal("candles:loadOlder"),
+  symbol: SymbolSchema,
+  timeframe: TimeframeSchema,
+  before: z.number().int(),
+  limit: z.number().int().min(1).max(500).default(200),
+});
+
 export const ClientMessageSchema = z.discriminatedUnion("type", [
   AuthMessageSchema,
   SubscribeMessageSchema,
   UnsubscribeMessageSchema,
+  LoadOlderMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 
@@ -69,6 +83,20 @@ export interface CandleCloseMessage {
   symbol: string;
   timeframe: Timeframe;
   candle: CandleDto;
+}
+
+/**
+ * Reply to `candles:loadOlder` — a batch of candles older than the requested
+ * `before`, oldest first, for the client to prepend. `reachedStart` is true
+ * when the store returned fewer than the requested limit, i.e. there is no
+ * more history before this batch.
+ */
+export interface CandleOlderMessage {
+  type: "candles:older";
+  symbol: string;
+  timeframe: Timeframe;
+  candles: CandleDto[];
+  reachedStart: boolean;
 }
 
 export interface PayoutUpdateMessage {
@@ -121,6 +149,7 @@ export type ServerMessage =
   | TickMessage
   | CandleHistoryMessage
   | CandleCloseMessage
+  | CandleOlderMessage
   | PayoutUpdateMessage
   | ReadyMessage
   | ErrorMessage

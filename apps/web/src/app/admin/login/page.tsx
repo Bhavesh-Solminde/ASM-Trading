@@ -35,7 +35,10 @@ export default function AdminLoginPage() {
     <div className="admin-login">
       <aside className="admin-login__aside">
         <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative", zIndex: 1 }}>
-          <div className="admin-logo">A</div>
+          <div className="admin-logo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/asm-logo.png" alt="ASM" />
+          </div>
           <div>
             <div className="admin-brand-name" style={{ color: "#F6EFDF" }}>
               ASM Trading

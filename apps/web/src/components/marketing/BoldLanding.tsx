@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Logo, LogoEmblem } from "@/components/brand/Logo";
 import { LiveCandleBand } from "./LiveCandleBand";
 import { MarketingTicker } from "./MarketingTicker";
 import { CountUp, Reveal } from "./motion";
@@ -387,12 +388,7 @@ function BoldNav() {
   return (
     <header className="sticky top-0 z-30 border-b border-rule bg-ground/70 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="flex items-baseline gap-2">
-          <span className="font-brand text-2xl font-black tracking-wide text-brand [text-shadow:0_0_20px_color-mix(in_srgb,var(--color-brand)_60%,transparent)]">
-            ASM
-          </span>
-          <span className="text-sm font-semibold text-ink-2">Trade</span>
-        </Link>
+        <Logo />
         <div className="hidden items-center gap-8 text-sm text-ink-2 md:flex">
           <a href="#markets" className="hover:text-ink">Markets</a>
           <a href="#how" className="hover:text-ink">How it works</a>
@@ -424,7 +420,7 @@ function BoldFooter() {
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid grid-cols-2 gap-10 sm:grid-cols-4">
           <div className="col-span-2 sm:col-span-1">
-            <span className="font-brand text-2xl font-black tracking-wide text-brand">ASM</span>
+            <LogoEmblem detail className="h-20 w-20" />
             <p className="mt-4 max-w-xs text-xs leading-relaxed text-ink-3">
               UP or DOWN. Fixed risk. Real prices. Built for traders who like their platform to move as fast as they do.
             </p>

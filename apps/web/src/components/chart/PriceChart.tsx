@@ -29,9 +29,24 @@ const DOWN = "#e5413b";
 const CROSSHAIR = "rgba(255, 176, 0, 0.28)";
 const WATERMARK = "rgba(255, 176, 0, 0.035)";
 const CANDLE_SEC = TIMEFRAME_SEC["1m"];
+/** Fetch older history once the left edge is within this many bars of the start. */
+const LOAD_OLDER_TRIGGER_BARS = 12;
 
 function toBar(c: CandleDto): CandlestickData {
   return { time: c.openTs as UTCTimestamp, open: c.o, high: c.h, low: c.l, close: c.c };
+}
+
+/**
+ * The candle width the chart opens at, chosen so a fresh chart looks right on
+ * each screen size — wider candles on phones (fewer, legible bars), tighter on
+ * desktop (more history in view). This is only the DEFAULT: zoom stays enabled,
+ * so the user can pinch/scroll to any spacing from here.
+ */
+function defaultBarSpacing(): number {
+  const w = typeof window === "undefined" ? 1280 : window.innerWidth;
+  if (w < 640) return 10; // phone
+  if (w < 1024) return 12; // tablet
+  return 14; // desktop
 }
 
 /** The forming candle when it is newer than history, else the last closed one. */
@@ -97,7 +112,9 @@ export function PriceChart({
         timeVisible: true,
         secondsVisible: true,
         rightOffset: 14,
-        barSpacing: 11,
+        // Default candle size tuned per screen; zoom/pan stay enabled so the
+        // user can change it freely from here.
+        barSpacing: defaultBarSpacing(),
       },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -212,14 +229,24 @@ export function PriceChart({
       placeCountdown();
     };
 
+    // Scroll-left history: when the left edge nears the earliest loaded bar,
+    // pull older candles. The store guards against duplicate/exhausted loads,
+    // so calling this on every range change is cheap. lightweight-charts keeps
+    // the view time-anchored across the resulting setData, so bars don't jump.
+    const maybeLoadOlder = (range: { from: number; to: number } | null) => {
+      if (range && range.from < LOAD_OLDER_TRIGGER_BARS) market.loadOlder();
+    };
+
     draw();
     const unsubscribe = market.subscribe(draw);
     const timer = setInterval(placeCountdown, 1000);
     chart.timeScale().subscribeVisibleLogicalRangeChange(placeCountdown);
+    chart.timeScale().subscribeVisibleLogicalRangeChange(maybeLoadOlder);
     return () => {
       unsubscribe();
       clearInterval(timer);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(placeCountdown);
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(maybeLoadOlder);
     };
   }, [market, precision, chartVersion]);
 

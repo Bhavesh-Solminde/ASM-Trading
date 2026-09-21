@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { CandleDto, ServerMessage } from "@asm/contracts";
-import { applyChartMessage, initialChartState } from "./engine-state";
+import { applyChartMessage, canLoadOlder, initialChartState } from "./engine-state";
+
+const MAX_CANDLES = 5000;
 
 const MIN = 1_757_534_280; // a minute boundary
 
@@ -13,11 +15,14 @@ function fold(messages: ServerMessage[]) {
 }
 
 describe("applyChartMessage", () => {
-  it("replaces candles with history and caps them at 500", () => {
-    const candles = Array.from({ length: 600 }, (_, i) => candle(MIN + i * 60));
+  it("replaces candles with history and caps them at the retention ceiling", () => {
+    const n = MAX_CANDLES + 100;
+    const candles = Array.from({ length: n }, (_, i) => candle(MIN + i * 60));
     const state = fold([{ type: "candles:history", symbol: "AUDNZD_OTC", timeframe: "1m", candles }]);
-    expect(state.candles).toHaveLength(500);
-    expect(state.candles.at(-1)?.openTs).toBe(MIN + 599 * 60);
+    expect(state.candles).toHaveLength(MAX_CANDLES);
+    // The newest bars are kept; the oldest overflow is dropped.
+    expect(state.candles.at(-1)?.openTs).toBe(MIN + (n - 1) * 60);
+    expect(state.candles[0]?.openTs).toBe(MIN + 100 * 60);
   });
 
   it("ignores every message for a different symbol", () => {
@@ -87,5 +92,83 @@ describe("applyChartMessage", () => {
 
   it("records the payout for its own symbol", () => {
     expect(fold([{ type: "payout:update", symbol: "AUDNZD_OTC", payoutPct: 92 }]).payoutPct).toBe(92);
+  });
+
+  describe("scroll-left history", () => {
+    const history = (candles: CandleDto[]): ServerMessage => ({
+      type: "candles:history",
+      symbol: "AUDNZD_OTC",
+      timeframe: "1m",
+      candles,
+    });
+
+    it("prepends older candles ahead of the earliest held bar", () => {
+      const state = fold([
+        history([candle(MIN), candle(MIN + 60)]),
+        {
+          type: "candles:older",
+          symbol: "AUDNZD_OTC",
+          timeframe: "1m",
+          candles: [candle(MIN - 120), candle(MIN - 60)],
+          reachedStart: false,
+        },
+      ]);
+      expect(state.candles.map((c) => c.openTs)).toEqual([MIN - 120, MIN - 60, MIN, MIN + 60]);
+      expect(state.loadingOlder).toBe(false);
+      expect(state.reachedStart).toBe(false);
+    });
+
+    it("drops overlapping older candles so bars never duplicate or reorder", () => {
+      const state = fold([
+        history([candle(MIN), candle(MIN + 60)]),
+        {
+          type: "candles:older",
+          symbol: "AUDNZD_OTC",
+          timeframe: "1m",
+          // MIN and MIN+60 overlap what we hold; only MIN-60 is genuinely older.
+          candles: [candle(MIN - 60), candle(MIN), candle(MIN + 60)],
+          reachedStart: true,
+        },
+      ]);
+      expect(state.candles.map((c) => c.openTs)).toEqual([MIN - 60, MIN, MIN + 60]);
+      expect(state.reachedStart).toBe(true);
+    });
+
+    it("keeps backfilled history when a later candle closes", () => {
+      const state = fold([
+        history([candle(MIN)]),
+        {
+          type: "candles:older",
+          symbol: "AUDNZD_OTC",
+          timeframe: "1m",
+          candles: [candle(MIN - 120), candle(MIN - 60)],
+          reachedStart: true,
+        },
+        { type: "candle:close", symbol: "AUDNZD_OTC", timeframe: "1m", candle: candle(MIN + 60) },
+      ]);
+      expect(state.candles.map((c) => c.openTs)).toEqual([MIN - 120, MIN - 60, MIN, MIN + 60]);
+    });
+
+    it("resets backfill state on a fresh history batch", () => {
+      const older: ServerMessage = {
+        type: "candles:older",
+        symbol: "AUDNZD_OTC",
+        timeframe: "1m",
+        candles: [],
+        reachedStart: true,
+      };
+      const state = fold([history([candle(MIN)]), older, history([candle(MIN + 120)])]);
+      expect(state.reachedStart).toBe(false);
+      expect(state.loadingOlder).toBe(false);
+      expect(state.candles.map((c) => c.openTs)).toEqual([MIN + 120]);
+    });
+
+    it("gates loading on in-flight, exhausted and empty states", () => {
+      const base = fold([history([candle(MIN)])]);
+      expect(canLoadOlder(base)).toBe(true);
+      expect(canLoadOlder(initialChartState("AUDNZD_OTC", "1m"))).toBe(false); // no candles yet
+      expect(canLoadOlder({ ...base, loadingOlder: true })).toBe(false);
+      expect(canLoadOlder({ ...base, reachedStart: true })).toBe(false);
+    });
   });
 });

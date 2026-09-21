@@ -41,9 +41,13 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
     >
       <div className="flex w-full max-w-md flex-col gap-5">
         <header className="flex items-center justify-between">
-          <p className="text-lg font-bold" style={{ color: "#5b2d9e" }}>
-            {deposit.method}
-          </p>
+          <span className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/asm-logo.png" alt="ASM Trade" className="h-7 w-7 rounded-lg object-cover" />
+            <span className="text-lg font-bold" style={{ color: "#5b2d9e" }}>
+              {deposit.method}
+            </span>
+          </span>
           <span className="text-xs font-semibold text-[#6b5a8a]">EN</span>
         </header>
 

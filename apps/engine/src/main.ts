@@ -5,7 +5,7 @@ import { prisma } from "@asm/db";
 import { AssetRegistry } from "./assets/registry";
 import { EngineServer } from "./server";
 import { startTickLoop } from "./loop";
-import { createPriceFeed } from "./feeds/twelve-data";
+import { createPriceFeed } from "./feeds";
 import { createTicketAuthenticator } from "./auth/ws-ticket";
 import { createInternalApi } from "./internal-api";
 import { TradeDesk } from "./trading/trade-desk";

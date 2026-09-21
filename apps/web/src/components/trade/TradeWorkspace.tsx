@@ -9,7 +9,7 @@ import { useMarket } from "@/components/shell/market-store";
 import { usePlatform, useQuote } from "@/components/shell/PlatformProvider";
 import { tickDirection } from "@/components/shell/quotes";
 import { splitAssetName } from "@/lib/asset-name";
-import { AssetTabs } from "./AssetTabs";
+import { MarketSelector } from "./MarketSelector";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
 
@@ -92,10 +92,10 @@ export function TradeWorkspace() {
   return (
     <section
       aria-label="Trade"
-      className="grid h-full grid-cols-[minmax(0,1fr)_312px] phone:h-auto phone:grid-cols-[minmax(0,1fr)] phone:pb-[76px]"
+      className="grid h-full grid-cols-[minmax(0,1fr)_312px] phone:h-auto phone:grid-cols-[minmax(0,1fr)]"
     >
-      <div className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[auto_clamp(320px,60dvh,560px)] phone:gap-1.5 phone:p-2">
-        <AssetTabs assets={assets} active={asset.symbol} onSelect={selectChartSymbol} />
+      <div className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[auto_clamp(320px,62dvh,600px)] phone:gap-1 phone:p-1.5">
+        <MarketSelector assets={assets} active={asset.symbol} onSelect={selectChartSymbol} />
 
         <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[18px_minmax(0,1fr)] phone:gap-1.5 phone:pl-1.5">
           <LiveSentiment />

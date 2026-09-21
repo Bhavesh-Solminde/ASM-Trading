@@ -110,7 +110,10 @@ export function AdminShell({
 
       <aside className="admin-sidebar">
         <div className="admin-sidebar__brand">
-          <div className="admin-logo">A</div>
+          <div className="admin-logo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/asm-logo.png" alt="ASM" />
+          </div>
           <div>
             <div className="admin-brand-name">ASM Trading</div>
             <div className="admin-brand-sub">Console</div>

@@ -389,13 +389,19 @@
   border-radius: 9px;
   display: grid;
   place-items: center;
-  background: linear-gradient(150deg, #e9ce8e, #b8862b 55%, #8a6215);
+  overflow: hidden;
+  background: #0d0d0d;
   color: #241a06;
   font-family: var(--admin-font-display);
   font-weight: 800;
   font-size: 17px;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
   flex: none;
+}
+.admin-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .admin-brand-name {
   font-family: var(--admin-font-display);

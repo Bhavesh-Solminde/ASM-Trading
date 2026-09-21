@@ -62,8 +62,28 @@ export class AssetRegistry {
   }
 
   async load(): Promise<void> {
-    const rows = await prisma.asset.findMany({ where: { isOpen: true } });
+    await this.ingest(await prisma.asset.findMany({ where: { isOpen: true } }));
 
+    logger.info(
+      { evt: "engine.assets_loaded", count: this.assets.size },
+      "asset registry loaded",
+    );
+  }
+
+  /**
+   * Loads exactly the named assets, ignoring the `isOpen` filter that `load()`
+   * applies. For tests and tooling that must exercise the price engine against
+   * a specific market regardless of whether it is currently open — it reads the
+   * existing rows and never changes their open state, so it neither depends on
+   * nor mutates which markets users can trade.
+   */
+  async loadSymbols(symbols: string[]): Promise<void> {
+    await this.ingest(await prisma.asset.findMany({ where: { symbol: { in: symbols } } }));
+  }
+
+  private async ingest(
+    rows: Awaited<ReturnType<typeof prisma.asset.findMany>>,
+  ): Promise<void> {
     for (const row of rows) {
       // Resume from the last published close, not the seed price. Positions
       // that rejoin after a restart settle on this path, so a reset to
@@ -97,11 +117,6 @@ export class AssetRegistry {
         aggregator: new CandleAggregator(60),
       });
     }
-
-    logger.info(
-      { evt: "engine.assets_loaded", count: this.assets.size },
-      "asset registry loaded",
-    );
   }
 
   symbols(): string[] {

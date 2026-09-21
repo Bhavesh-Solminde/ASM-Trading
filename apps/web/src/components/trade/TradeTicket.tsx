@@ -17,8 +17,8 @@ function formatDuration(seconds: number): string {
 }
 
 const STEP =
-  "grid h-12 place-items-center rounded border border-rule text-ink-2 hover:border-tile-hi hover:bg-panel hover:text-ink phone:h-11";
-const DISPLAY = "grid h-12 place-items-center rounded border border-rule bg-panel phone:h-11";
+  "grid h-12 place-items-center rounded border border-rule text-ink-2 hover:border-tile-hi hover:bg-panel hover:text-ink phone:h-10";
+const DISPLAY = "grid h-12 place-items-center rounded border border-rule bg-panel phone:h-10";
 
 /** Ticks every second on its own, so the rest of the ticket does not re-render. */
 function ExpiresAt({ durationSec }: { durationSec: number }) {
@@ -94,17 +94,17 @@ export function TradeTicket({
   }
 
   const slab =
-    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] hover:brightness-110 active:translate-y-px disabled:cursor-wait phone:h-14 phone:pl-3.5 phone:pr-3 phone:text-[16px]";
+    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] hover:brightness-110 active:translate-y-px disabled:cursor-wait phone:h-12 phone:pl-3.5 phone:pr-3 phone:text-[15px]";
   const slabNote = "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 max-[359px]:hidden";
 
   return (
-    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:gap-1.5 phone:border-b-0 phone:px-2.5 phone:pb-1.5 phone:pt-2">
+    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:gap-1 phone:border-b-0 phone:px-2.5 phone:pb-[max(6px,env(safe-area-inset-bottom))] phone:pt-1.5">
       <div className="flex items-baseline justify-between phone:hidden">
         <span className="text-[17px] font-bold tracking-[0.03em]">{pair}</span>
         <span className="text-[17px] font-extrabold text-brand">{payoutPct === null ? "—" : `${payoutPct}%`}</span>
       </div>
 
-      <div className="grid gap-3 phone:grid-cols-2 phone:gap-1.5">
+      <div className="grid gap-3 phone:grid-cols-2 phone:gap-x-2 phone:gap-y-1">
         <div className="grid gap-1.5">
           <span className="legend" id="ticket-time">
             Time
@@ -211,9 +211,9 @@ export function TradeTicket({
         </span>
       </div>
 
-      <div className="hidden phone:flex phone:items-baseline phone:justify-between phone:gap-2 phone:border-t phone:border-dashed phone:border-rule phone:pt-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3">Payout</span>
-        <span className="led led-lit text-[17px] text-up">
+      <div className="hidden phone:flex phone:items-center phone:justify-between phone:gap-2 phone:border-t phone:border-dashed phone:border-rule phone:pt-1">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3">Payout</span>
+        <span className="led led-lit text-[15px] text-up">
           {profitMinor === null ? "—" : `+${formatMinor(profitMinor, currency)}`}
         </span>
       </div>
@@ -235,7 +235,7 @@ export function TradeTicket({
         </div>
       ) : null}
 
-      <div className="grid gap-2 phone:fixed phone:inset-x-0 phone:bottom-[calc(var(--phone-nav-h)+env(safe-area-inset-bottom))] phone:z-20 phone:h-[76px] phone:grid-cols-2 phone:border-t phone:border-rule phone:bg-ground/95 phone:px-3 phone:py-2.5 phone:backdrop-blur">
+      <div className="grid gap-2 phone:grid-cols-2 phone:pt-0.5">
         <button
           type="button"
           disabled={busy}

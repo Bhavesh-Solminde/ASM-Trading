@@ -40,6 +40,7 @@ const PATHS = {
     </>
   ),
   more: <path d="M6 12h.01M12 12h.01M18 12h.01" />,
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   plus: <path d="M12 5v14M5 12h14" />,
   minus: <path d="M5 12h14" />,
   caret: <path d="M7 10l5 5 5-5" />,
