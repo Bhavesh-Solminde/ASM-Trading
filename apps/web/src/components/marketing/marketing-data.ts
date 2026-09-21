@@ -92,7 +92,7 @@ export const faqs = [
     a: "Yes — OTC pairs like AUD/NZD OTC and USD/CAD OTC trade 24/7. Payouts are quoted per-asset and shown before you place a trade.",
   },
   {
-    q: "Is ASM Trading available in my country?",
+    q: "Is ASM Trade available in my country?",
     a: "We support most jurisdictions but restrict access where local regulation requires it. The full list is in the footer. Your country is checked at sign-up.",
   },
   {
