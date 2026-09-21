@@ -74,28 +74,27 @@ export function startTickLoop(
         });
       }
 
-      if (result.closed) {
-        const candle = result.closed;
+      for (const { timeframe, candle } of result.closed) {
         server.broadcast(asset.symbol, {
           type: "candle:close",
           symbol: asset.symbol,
-          timeframe: "1m",
+          timeframe,
           candle,
         });
 
-        // upsert rather than create — a restart mid-minute must not collide.
+        // upsert rather than create — a restart mid-bucket must not collide.
         await prisma.candle
           .upsert({
             where: {
               assetId_timeframe_openTs: {
                 assetId: asset.id,
-                timeframe: "1m",
+                timeframe,
                 openTs: new Date(candle.openTs * 1000),
               },
             },
             create: {
               assetId: asset.id,
-              timeframe: "1m",
+              timeframe,
               openTs: new Date(candle.openTs * 1000),
               o: candle.o,
               h: candle.h,
@@ -109,6 +108,7 @@ export function startTickLoop(
               {
                 evt: "engine.candle_persist_failed",
                 symbol: asset.symbol,
+                timeframe,
                 openTs: candle.openTs,
                 reason: err instanceof Error ? err.message : "unknown",
               },

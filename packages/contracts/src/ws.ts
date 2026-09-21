@@ -86,6 +86,12 @@ export interface CandleHistoryMessage {
   symbol: string;
   timeframe: Timeframe;
   candles: CandleDto[];
+  /**
+   * The in-progress candle for this timeframe, if any. Lets a client joining
+   * mid-bucket (notably on 5m/15m/1h) seed the current bar instead of building
+   * a partial one from only the ticks it happens to see after connecting.
+   */
+  forming?: CandleDto;
 }
 
 export interface CandleCloseMessage {

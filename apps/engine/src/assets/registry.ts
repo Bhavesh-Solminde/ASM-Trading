@@ -8,6 +8,7 @@ import {
   type PriceState,
   type Rng,
 } from "@asm/pricing";
+import { TIMEFRAMES, TIMEFRAME_SEC, type Timeframe } from "@asm/contracts";
 import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
 
@@ -28,7 +29,8 @@ export interface LiveAsset {
   honestState: PriceState;
   /** Latest real quote, or null until the feed delivers one. */
   anchor: number | null;
-  aggregator: CandleAggregator;
+  /** One candle aggregator per offered timeframe, all fed the same tick stream. */
+  aggregators: Map<Timeframe, CandleAggregator>;
 }
 
 export interface TickBias {
@@ -38,11 +40,17 @@ export interface TickBias {
   magnet: number;
 }
 
+/** A candle that closed on this tick, tagged with the timeframe it belongs to. */
+export interface ClosedCandle {
+  timeframe: Timeframe;
+  candle: Candle;
+}
+
 export interface TickResult {
   price: number;
   sigma: number;
-  /** Non-null exactly when this tick closed a candle. */
-  closed: Candle | null;
+  /** Every timeframe whose candle closed on this tick (empty on most ticks). */
+  closed: ClosedCandle[];
 }
 
 const TICK_HZ = 10;
@@ -114,7 +122,9 @@ export class AssetRegistry {
         state: initPriceState(startPrice, params),
         honestState: initPriceState(startPrice, params),
         anchor: null,
-        aggregator: new CandleAggregator(60),
+        aggregators: new Map(
+          TIMEFRAMES.map((tf) => [tf, new CandleAggregator(TIMEFRAME_SEC[tf])]),
+        ),
       });
     }
   }
@@ -179,9 +189,20 @@ export class AssetRegistry {
     asset.honestState = honestOut.state;
 
     const rounded = Number(out.price.toFixed(asset.precision));
-    const closed = asset.aggregator.addTick(nowSec, rounded);
+
+    // Feed every timeframe's aggregator the same tick; collect whichever closed.
+    const closed: ClosedCandle[] = [];
+    for (const [timeframe, aggregator] of asset.aggregators) {
+      const candle = aggregator.addTick(nowSec, rounded);
+      if (candle) closed.push({ timeframe, candle });
+    }
 
     return { price: rounded, sigma: out.sigma, closed };
+  }
+
+  /** The in-progress candle for a symbol/timeframe, or null before its first tick. */
+  formingCandle(symbol: string, timeframe: Timeframe): Candle | null {
+    return this.assets.get(symbol)?.aggregators.get(timeframe)?.current() ?? null;
   }
 
   /** The unbiased price for `symbol` — the parallel path the shadow ledger compares against. */

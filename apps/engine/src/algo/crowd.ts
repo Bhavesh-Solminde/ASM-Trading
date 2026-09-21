@@ -95,7 +95,7 @@ export class BotCrowd {
     const asset = all[Math.floor(this.rng.next() * all.length)];
     if (!asset) return;
 
-    const recentCandle = asset.aggregator.current();
+    const recentCandle = asset.aggregators.get("1m")?.current() ?? null;
     const recent = recentCandle ? [recentCandle.o, recentCandle.c] : [];
 
     const direction = chooseDirection(bot.profile, recent, this.rng.next());

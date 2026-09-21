@@ -65,7 +65,10 @@ export function applyChartMessage(state: ChartState, message: ServerMessage): Ch
       if (message.symbol !== state.symbol || message.timeframe !== state.timeframe) return state;
       const candles = message.candles.slice(-MAX_CANDLES);
       const last = candles.at(-1);
-      const forming = state.forming && last && state.forming.openTs <= last.openTs ? null : state.forming;
+      // Prefer the server's seeded forming bar (accurate for a mid-bucket join);
+      // otherwise keep our own only if it is newer than the last closed bar.
+      const seeded = message.forming && (!last || message.forming.openTs > last.openTs) ? message.forming : null;
+      const forming = seeded ?? (state.forming && last && state.forming.openTs <= last.openTs ? null : state.forming);
       // A fresh history batch resets backfill: any in-flight request is now
       // stale, and whether older history exists is unknown again.
       return { ...state, candles, forming, loadingOlder: false, reachedStart: false };

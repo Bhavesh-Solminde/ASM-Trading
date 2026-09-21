@@ -25,6 +25,23 @@ describe("applyChartMessage", () => {
     expect(state.candles[0]?.openTs).toBe(MIN + 100 * 60);
   });
 
+  it("seeds the forming bar from a history message when it is newer than the last close", () => {
+    const forming: CandleDto = { openTs: MIN + 60, o: 1.15, h: 1.18, l: 1.14, c: 1.17 };
+    const state = fold([
+      { type: "candles:history", symbol: "AUDNZD_OTC", timeframe: "1m", candles: [candle(MIN)], forming },
+    ]);
+    expect(state.forming).toEqual(forming);
+    expect(state.candles).toHaveLength(1);
+  });
+
+  it("ignores a seeded forming bar that is not newer than the last closed bar", () => {
+    const stale: CandleDto = { openTs: MIN, o: 1.15, h: 1.18, l: 1.14, c: 1.17 };
+    const state = fold([
+      { type: "candles:history", symbol: "AUDNZD_OTC", timeframe: "1m", candles: [candle(MIN)], forming: stale },
+    ]);
+    expect(state.forming).toBeNull();
+  });
+
   it("ignores every message for a different symbol", () => {
     const state = fold([
       { type: "tick", symbol: "EURUSD_OTC", price: 9, ts: MIN },

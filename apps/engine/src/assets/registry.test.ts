@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { TIMEFRAME_SEC } from "@asm/contracts";
 import { AssetRegistry } from "./registry";
 import { prisma } from "@asm/db";
 
@@ -57,14 +58,33 @@ describe("AssetRegistry", () => {
     }
   });
 
-  it("emits a closed candle when a minute boundary is crossed", () => {
-    let closed = null;
+  it("emits closed candles per timeframe on their bucket boundaries", () => {
+    const seen = new Set<string>();
     let now = 1_757_600_000;
-    for (let i = 0; i < 200 && closed === null; i++) {
-      closed = registry.tick("EURUSD_OTC", now, NO_BIAS).closed;
+    for (let i = 0; i < 400; i++) {
+      for (const { timeframe, candle } of registry.tick("EURUSD_OTC", now, NO_BIAS).closed) {
+        seen.add(timeframe);
+        // A closed candle always opens on its own bucket boundary.
+        expect(candle.openTs % TIMEFRAME_SEC[timeframe]).toBe(0);
+      }
       now += 1;
     }
-    expect(closed).not.toBeNull();
+    // ~6.6 minutes elapsed: 1m closes several times, 5m at least once.
+    expect(seen.has("1m")).toBe(true);
+    expect(seen.has("5m")).toBe(true);
+  });
+
+  it("exposes the in-progress candle for each timeframe", () => {
+    // AUDNZD_OTC was last ticked near 1_757_534_481 above; stay ahead of that
+    // so the aggregator's monotonic clock is not violated.
+    let now = 1_757_536_000;
+    for (let i = 0; i < 10; i++) {
+      registry.tick("AUDNZD_OTC", now, NO_BIAS);
+      now += 1;
+    }
+    expect(registry.formingCandle("AUDNZD_OTC", "1m")).not.toBeNull();
+    expect(registry.formingCandle("AUDNZD_OTC", "1h")).not.toBeNull();
+    expect(registry.formingCandle("UNKNOWN", "1m")).toBeNull();
   });
 
   it("pulls the price toward an anchor once one is set", () => {

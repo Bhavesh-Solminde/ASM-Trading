@@ -200,6 +200,8 @@ export class EngineServer {
       select: { openTs: true, o: true, h: true, l: true, c: true },
     });
 
+    const forming = this.registry.formingCandle(message.symbol, message.timeframe);
+
     this.send(client, {
       type: "candles:history",
       symbol: asset.symbol,
@@ -211,6 +213,7 @@ export class EngineServer {
         l: row.l,
         c: row.c,
       })),
+      ...(forming ? { forming } : {}),
     });
 
     this.send(client, {
