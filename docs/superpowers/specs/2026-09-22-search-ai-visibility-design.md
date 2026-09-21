@@ -16,7 +16,7 @@ Two reinforcing outcomes:
 
 ## Constraints (these shape every decision)
 
-- **YMYL vertical.** Binary options is "Your Money or Your Life"; Google holds
+- **YMYL vertical.** This is a "Your Money or Your Life" niche; Google holds
   it to the highest E-E-A-T bar. Thin content is a liability, not an asset.
 - **Ads-hostile.** Paid search/social for this product is banned in most
   markets — organic and AI visibility is the channel.

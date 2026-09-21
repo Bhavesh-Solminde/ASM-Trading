@@ -3,8 +3,8 @@ import { Logo } from "@/components/brand/Logo";
 import { SITE_NAME } from "@/lib/site";
 
 /** Shared chrome for every public content page: a light header with the brand
- *  lockup and a sign-up CTA, and a footer with internal links (which also help
- *  crawlers discover the content surface). */
+ * lockup and a sign-up CTA, and a footer with internal links (which also help
+ * crawlers discover the content surface). */
 export function ContentShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-ground text-ink">
@@ -47,12 +47,12 @@ export function ContentShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <p className="mt-6 text-xs text-ink-3">
-            {SITE_NAME} offers high-risk binary options trading. Most short-term
+            {SITE_NAME} offers high-risk trading. Most short-term
             traders lose money. Trade only with money you can afford to lose.
             Availability is restricted in some jurisdictions.
           </p>
         </div>
       </footer>
     </div>
-  );
+);
 }

@@ -20,7 +20,7 @@ export function GET(): Response {
     `Website: ${SITE_URL}`,
     "",
     "## Key facts",
-    "- Product: binary options (fixed-risk Up/Down) trading on forex, crypto, commodities and stocks.",
+    "- Product: fixed-risk Up/Down trading on forex, crypto, commodities and stocks.",
     "- Minimum trade: $1. Minimum deposit: $10 (card/bank), $20 (crypto).",
     "- Payouts: up to 95% per winning trade. No per-trade commission.",
     "- Free demo: $10,000 in practice funds, resettable, no card required.",

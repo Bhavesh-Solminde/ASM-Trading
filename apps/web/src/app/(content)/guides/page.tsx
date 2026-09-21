@@ -6,7 +6,7 @@ import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = buildMetadata({
   title: "Trading Guides",
-  description: `Plain-English guides to trading on ${SITE_NAME}: how binary options work, how to deposit and withdraw, and how to practise risk-free on the demo.`,
+  description: `Plain-English guides to trading on ${SITE_NAME}: how it works, how to deposit and withdraw, and how to practise risk-free on the demo.`,
   path: "/guides",
 });
 
@@ -17,5 +17,5 @@ export default function GuidesIndexPage() {
       intro="Straightforward guides to getting started, funding your account, and understanding how fixed-risk trading actually works."
       articles={articlesIn("guides")}
     />
-  );
+);
 }

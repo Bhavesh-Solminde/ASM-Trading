@@ -9,7 +9,7 @@
  * ------------------------------------------------------------------------- */
 
 /** Absolute production origin. Overridable per-environment so canonicals and
- *  OpenGraph URLs resolve correctly in preview/staging. No trailing slash. */
+ * OpenGraph URLs resolve correctly in preview/staging. No trailing slash. */
 export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://asmtrader.com"
 ).replace(/\/$/, "");
@@ -19,7 +19,7 @@ export const SITE_NAME = "ASM Trade";
 
 /** One-line entity description reused across metadata and Organization JSON-LD. */
 export const SITE_DESCRIPTION =
-  "ASM Trade is a fast, mobile-first binary options trading platform — trade forex, crypto, commodities and stocks from $1 with fixed risk and up to 95% payout. Free $10,000 demo, no card required.";
+  "ASM Trade is a fast, mobile-first trading platform — trade forex, crypto, commodities and stocks from $1 with fixed risk and up to 95% payout. Free $10,000 demo, no card required.";
 
 /** Short tagline for OG images and hero-style metadata. */
 export const SITE_TAGLINE = "Trade every market. Feel the tick.";
@@ -52,5 +52,5 @@ export const SITE_CONTACT = {
 /** Build an absolute URL from a site-relative path. */
 export function absoluteUrl(path = "/"): string {
   if (/^https?:\/\//.test(path)) return path;
-  return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  return `${SITE_URL}${path.startsWith("/") ? path: `/${path}`}`;
 }

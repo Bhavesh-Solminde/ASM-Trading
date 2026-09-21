@@ -4,7 +4,7 @@ import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = buildMetadata({
   title: `About ${SITE_NAME}`,
-  description: `What ${SITE_NAME} is, who it is for, and the principles behind it — a fast, honest, mobile-first binary options platform for short-term traders.`,
+  description: `What ${SITE_NAME} is, who it is for, and the principles behind it — a fast, honest, mobile-first platform for short-term traders.`,
   path: "/about",
   keywords: [`about ${SITE_NAME}`, "asm trade company", "who owns asm trade"],
 });
@@ -16,7 +16,7 @@ export default function AboutPage() {
         About {SITE_NAME}
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-ink-2">
-        {SITE_NAME} is a mobile-first binary options trading platform built for
+        {SITE_NAME} is a mobile-first trading platform built for
         short-term traders who want a fast, honest Up/Down experience across
         forex, crypto, commodities and stocks.
       </p>
@@ -61,12 +61,12 @@ export default function AboutPage() {
       <section className="mt-10">
         <h2 className="text-xl font-bold text-ink md:text-2xl">Risk disclosure</h2>
         <p className="mt-4 leading-relaxed text-ink-2">
-          {SITE_NAME} offers high-risk binary options trading. Trading is not
+          {SITE_NAME} offers high-risk trading. Trading is not
           suitable for everyone and you can lose your entire stake. Availability
           is restricted in some jurisdictions and your eligibility is checked at
           sign-up.
         </p>
       </section>
     </div>
-  );
+);
 }

@@ -7,7 +7,7 @@ import { CountUp, Reveal } from "./motion";
 import { faqs, featureBullets, howSteps, marketingAssets, testimonials } from "./marketing-data";
 
 /** sizes prop for editorial images: mobile hides them via `hidden md:block`,
- *  so we ask Next for a very small mobile variant to keep the srcset light. */
+ * so we ask Next for a very small mobile variant to keep the srcset light. */
 const editorialSizes = "(min-width: 1280px) 40vw, (min-width: 768px) 45vw, 1px";
 
 /** Bolder Pocket-Option-style: gradients, glow, motion, heavier scale. */
@@ -82,7 +82,7 @@ export function BoldLanding() {
                   <b className="text-ink">{n}</b>
                   <span className="text-ink-2">{l}</span>
                 </span>
-              ))}
+))}
             </div>
           </div>
 
@@ -145,7 +145,7 @@ export function BoldLanding() {
                 </div>
                 <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink-2">{f.body}</p>
               </li>
-            ))}
+))}
           </ul>
         </div>
       </section>
@@ -185,13 +185,13 @@ export function BoldLanding() {
                   <p className="led text-xl">{a.price.toFixed(a.precision)}</p>
                   <p
                     className="text-xs font-bold"
-                    style={{ color: a.changePct >= 0 ? "var(--color-up)" : "var(--color-down)" }}
+                    style={{ color: a.changePct >= 0 ? "var(--color-up)": "var(--color-down)" }}
                   >
-                    {a.changePct >= 0 ? "+" : "−"}{Math.abs(a.changePct).toFixed(2)}%
+                    {a.changePct >= 0 ? "+": "−"}{Math.abs(a.changePct).toFixed(2)}%
                   </p>
                 </div>
               </div>
-            ))}
+))}
           </div>
         </div>
       </section>
@@ -220,14 +220,14 @@ export function BoldLanding() {
               >
                 {i < 2 && (
                   <span aria-hidden className="absolute -right-3 top-8 hidden text-brand md:block">→</span>
-                )}
+)}
                 <p className="font-brand text-[80px] leading-none text-brand [text-shadow:0_0_40px_color-mix(in_srgb,var(--color-brand)_50%,transparent)]">
                   {s.n}
                 </p>
                 <h3 className="mt-6 text-2xl font-black">{s.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-ink-2">{s.body}</p>
               </li>
-            ))}
+))}
           </ol>
         </div>
       </section>
@@ -275,7 +275,7 @@ export function BoldLanding() {
                       <span className="text-ink-2">{b}</span>
                     </span>
                   </li>
-                ))}
+))}
               </ul>
             </div>
           </div>
@@ -313,7 +313,7 @@ export function BoldLanding() {
                   </span>
                 </figcaption>
               </figure>
-            ))}
+))}
           </div>
         </div>
       </section>
@@ -343,7 +343,7 @@ export function BoldLanding() {
                 </summary>
                 <p className="mt-4 text-sm leading-relaxed text-ink-2">{f.a}</p>
               </details>
-            ))}
+))}
           </div>
         </div>
       </section>
@@ -372,7 +372,7 @@ export function BoldLanding() {
 
       <BoldFooter />
     </div>
-  );
+);
 }
 
 function Stat({ value, label }: { value: React.ReactNode; label: string }) {
@@ -381,7 +381,7 @@ function Stat({ value, label }: { value: React.ReactNode; label: string }) {
       <p className="font-brand text-4xl font-black leading-none text-brand sm:text-5xl">{value}</p>
       <p className="mt-3 text-[11px] font-semibold uppercase tracking-widest text-ink-2">{label}</p>
     </div>
-  );
+);
 }
 
 function BoldNav() {
@@ -411,7 +411,7 @@ function BoldNav() {
         </div>
       </nav>
     </header>
-  );
+);
 }
 
 function BoldFooter() {
@@ -437,16 +437,16 @@ function BoldFooter() {
                   <li key={l}>
                     <a href="#" className="hover:text-ink">{l}</a>
                   </li>
-                ))}
+))}
               </ul>
             </div>
-          ))}
+))}
         </div>
 
         <div className="mt-12 border-t border-rule pt-8 text-[11px] leading-relaxed text-ink-3">
           <p className="font-semibold uppercase tracking-widest text-ink-2">Risk disclosure</p>
           <p className="mt-2 max-w-3xl">
-            Trading binary options carries substantial risk and can result in the loss of your invested capital. Past
+            Trading carries substantial risk and can result in the loss of your invested capital. Past
             performance is not indicative of future results. ASM Trading is not available to residents of certain
             jurisdictions. Please review your local regulation before opening a live account.
           </p>
@@ -454,5 +454,5 @@ function BoldFooter() {
         </div>
       </div>
     </footer>
-  );
+);
 }

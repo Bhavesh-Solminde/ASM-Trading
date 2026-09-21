@@ -63,7 +63,7 @@ ul, ol { list-style: none; }
 @keyframes tick-flash-up { from { background-color: color-mix(in srgb, var(--color-up) 30%, transparent); } to { background-color: transparent; } }
 @keyframes tick-flash-down { from { background-color: color-mix(in srgb, var(--color-down) 30%, transparent); } to { background-color: transparent; } }
 .ticker-track { animation: ticker-scroll 42s linear infinite; will-change: transform; }
-.ticker:hover .ticker-track { animation-play-state: paused; }
+.ticker:hover.ticker-track { animation-play-state: paused; }
 @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .chartbox-bg { background: radial-gradient(circle, rgba(255,176,0,0.035) 1px, transparent 1.3px) 0 0 / 5px 5px, #070707; }
 .slab-fired::after { content: ""; position: absolute; inset: 0; background: #fff; animation: slab-fire 0.45s cubic-bezier(.2,.8,.2,1) forwards; }
@@ -72,7 +72,7 @@ ul, ol { list-style: none; }
 @keyframes settle { from { background: rgba(255,176,0,.12); } to { background: transparent; } }
 .blink { animation: blink 1.4s steps(2, jump-none) infinite; }
 @keyframes blink { 50% { opacity: 0.2; } }
-@media (prefers-reduced-motion: reduce) { .tick-up,.tick-down,.ticker-track,.slab-fired::after,.settling,.blink { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) {.tick-up,.tick-down,.ticker-track,.slab-fired::after,.settling,.blink { animation: none !important; } }
 
 /* ===== Platform Shell ===== */
 #app { height: 100%; overflow: hidden; }
@@ -80,7 +80,7 @@ ul, ol { list-style: none; }
   grid-template-columns: 76px minmax(0,1fr);
   grid-template-rows: 60px 32px minmax(0,1fr); }
 @media (max-width: 767px) {
-  .shell { grid-template-columns: minmax(0,1fr); grid-template-rows: 56px 28px minmax(0,1fr) 64px; }
+.shell { grid-template-columns: minmax(0,1fr); grid-template-rows: 56px 28px minmax(0,1fr) 64px; }
 }
 
 /* Top Bar */
@@ -104,11 +104,11 @@ ul, ol { list-style: none; }
 .account-plate__dot { width: 5px; height: 5px; border-radius: 50%; }
 .topbar__deposit { display: inline-flex; height: 44px; align-items: center; gap: 8px; border-radius: 4px;
   border: 1px solid var(--color-brand); padding: 0 16px; font-size: 12px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-brand); transition: background .15s; }
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-brand); transition: background.15s; }
 .topbar__deposit:hover { background: rgba(255,176,0,.1); }
 .topbar__withdraw { display: inline-flex; height: 44px; align-items: center; border-radius: 4px;
   border: 1px solid var(--color-rule); padding: 0 16px; font-size: 12px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-ink-2); transition: all .15s; }
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-ink-2); transition: all.15s; }
 .topbar__withdraw:hover { border-color: var(--color-tile-hi); color: var(--color-ink); }
 
 /* Account Menu */
@@ -128,7 +128,7 @@ ul, ol { list-style: none; }
 /* Promo Banner */
 .promo { display: flex; height: 32px; align-items: center; gap: 10px; border-radius: 4px;
   border: 1px solid rgba(255,176,0,.35); background: rgba(255,176,0,.05); padding: 0 12px;
-  font-size: 12px; color: var(--color-ink-2); transition: border .15s; cursor: pointer; }
+  font-size: 12px; color: var(--color-ink-2); transition: border.15s; cursor: pointer; }
 .promo:hover { border-color: var(--color-brand); }
 
 /* Ticker */
@@ -145,7 +145,7 @@ ul, ol { list-style: none; }
 .rail { grid-column: 1; grid-row: 3; display: flex; flex-direction: column; align-items: center; gap: 4px;
   border-right: 1px solid var(--color-rule); padding: 12px 0; overflow-y: auto; }
 @media (max-width: 767px) {
-  .rail { grid-row: 4; flex-direction: row; justify-content: space-around; border-right: none;
+.rail { grid-row: 4; flex-direction: row; justify-content: space-around; border-right: none;
     border-top: 1px solid var(--color-rule); padding: 4px 8px; }
 }
 .rail__item { position: relative; display: grid; width: 60px; justify-items: center; gap: 6px; border-radius: 4px;
@@ -155,19 +155,19 @@ ul, ol { list-style: none; }
 .rail__item.active { background: var(--color-tile); color: var(--color-ink); }
 .rail__item.active::before { content: ""; position: absolute; left: -8px; top: 12px; bottom: 12px; width: 3px;
   border-radius: 0 2px 2px 0; background: var(--color-brand); }
-.rail__item.disabled { cursor: not-allowed; opacity: .4; }
+.rail__item.disabled { cursor: not-allowed; opacity:.4; }
 .rail__spacer { flex: 1; }
 .rail__icon { width: 22px; height: 22px; }
 
 /* Content Area */
 .content { grid-column: 2; grid-row: 3; min-height: 0; min-width: 0; overflow: auto; }
-@media (max-width: 767px) { .content { grid-column: 1; } }
+@media (max-width: 767px) {.content { grid-column: 1; } }
 
 /* ===== Trade Page ===== */
 .trade-layout { display: grid; height: 100%; grid-template-columns: minmax(0,1fr) 312px; }
-@media (max-width: 767px) { .trade-layout { grid-template-columns: minmax(0,1fr); height: auto; } }
+@media (max-width: 767px) {.trade-layout { grid-template-columns: minmax(0,1fr); height: auto; } }
 .trade-chart-area { display: grid; min-width: 0; grid-template-rows: auto minmax(0,1fr); gap: 10px; padding: 12px 12px 12px 16px; }
-@media (max-width: 767px) { .trade-chart-area { grid-template-rows: auto 52vh; padding: 10px; } }
+@media (max-width: 767px) {.trade-chart-area { grid-template-rows: auto 52vh; padding: 10px; } }
 .chartbox { position: relative; display: grid; min-height: 0; grid-template-columns: 30px minmax(0,1fr);
   gap: 10px; border-radius: 4px; border: 1px solid var(--color-rule); padding: 10px 0 0 10px; }
 .chart-container { position: relative; min-height: 0; }
@@ -175,7 +175,7 @@ ul, ol { list-style: none; }
 .chart-readout { pointer-events: none; position: absolute; left: 8px; top: 8px; display: grid; gap: 6px; }
 .chart-readout__pair { font-size: 15px; font-weight: 700; letter-spacing: 0.03em; }
 .chart-readout__price { font-size: 28px; line-height: 1; color: var(--color-brand); }
-@media (max-width: 767px) { .chart-readout__price { font-size: 22px; } }
+@media (max-width: 767px) {.chart-readout__price { font-size: 22px; } }
 .chart-ohlc { pointer-events: none; position: absolute; bottom: 34px; left: 8px; white-space: pre;
   font-size: 11px; letter-spacing: 0.02em; color: var(--color-ink-2); }
 
@@ -232,13 +232,13 @@ ul, ol { list-style: none; }
 .trade-slab { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center;
   height: 58px; overflow: hidden; border-radius: 4px; padding: 0 16px 0 18px; text-align: left;
   font-size: 17px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em;
-  transition: filter .15s, transform .05s; }
+  transition: filter.15s, transform.05s; }
 .trade-slab:hover { filter: brightness(1.1); }
 .trade-slab:active { transform: translateY(1px); }
 .trade-slab:disabled { cursor: wait; }
 .trade-slab.up { background: var(--color-up); color: var(--color-up-ink); }
 .trade-slab.down { background: var(--color-down); color: var(--color-down-ink); }
-.trade-slab__note { display: block; font-size: 10px; font-weight: 700; text-transform: none; letter-spacing: 0.1em; opacity: .75; margin-top: 2px; }
+.trade-slab__note { display: block; font-size: 10px; font-weight: 700; text-transform: none; letter-spacing: 0.1em; opacity:.75; margin-top: 2px; }
 .trade-slab__icon { width: 26px; height: 26px; }
 
 /* Trades Panel */
@@ -263,7 +263,7 @@ ul, ol { list-style: none; }
 .trades-empty { display: grid; gap: 6px; padding: 28px 18px; text-align: center; color: var(--color-ink-3); }
 .trade-sidebar { display: grid; min-height: 0; grid-template-rows: auto minmax(0,1fr);
   border-left: 1px solid var(--color-rule); }
-@media (max-width: 767px) { .trade-sidebar { border-left: none; } }
+@media (max-width: 767px) {.trade-sidebar { border-left: none; } }
 
 /* ===== Auth Pages ===== */
 .auth-page { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; padding: 24px; }
@@ -276,7 +276,7 @@ ul, ol { list-style: none; }
 .auth-btn { border-radius: 4px; padding: 10px 16px; font-size: 14px; font-weight: 700; }
 .auth-btn.primary { background: var(--color-brand); color: var(--color-brand-ink); }
 .auth-btn.green { background: var(--color-up); color: var(--color-up-ink); }
-.auth-btn:disabled { opacity: .5; cursor: wait; }
+.auth-btn:disabled { opacity:.5; cursor: wait; }
 .auth-error { font-size: 14px; color: var(--color-down); }
 .auth-success { font-size: 14px; color: var(--color-up); }
 
@@ -306,12 +306,12 @@ ul, ol { list-style: none; }
 .form-select:focus { border-color: var(--color-brand); }
 .form-btn { border-radius: 4px; background: var(--color-brand); color: var(--color-brand-ink); padding: 10px 20px;
   font-size: 14px; font-weight: 700; align-self: flex-start; }
-.form-btn:disabled { opacity: .5; }
+.form-btn:disabled { opacity:.5; }
 
 /* Card Panels */
 .panel { border-radius: 4px; border: 1px solid var(--color-rule); background: var(--color-panel); padding: 16px; }
 .panel-grid { display: grid; gap: 20px; }
-@media (min-width: 768px) { .panel-grid.cols-2 { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 768px) {.panel-grid.cols-2 { grid-template-columns: 1fr 1fr; } }
 
 /* Tabs Row */
 .tab-row { display: flex; gap: 4px; overflow-x: auto; border-radius: 4px; border: 1px solid var(--color-rule);
@@ -335,7 +335,7 @@ ul, ol { list-style: none; }
 
 /* Deposit Method Picker */
 .method-grid { display: grid; gap: 8px; }
-@media (min-width: 640px) { .method-grid { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 640px) {.method-grid { grid-template-columns: 1fr 1fr; } }
 .method-card { display: flex; align-items: center; justify-content: space-between; border-radius: 4px;
   border: 1px solid var(--color-rule); background: var(--color-panel); padding: 12px 16px; text-align: left; width: 100%; }
 .method-card:hover { border-color: var(--color-brand); }
@@ -366,7 +366,7 @@ ul, ol { list-style: none; }
 
 /* Admin */
 .admin-login { display: grid; min-height: 100vh; }
-@media (min-width: 768px) { .admin-login { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 768px) {.admin-login { grid-template-columns: 1fr 1fr; } }
 .admin-login__aside { background: linear-gradient(135deg, #0a0a0a 0%, #1a1200 100%); padding: 48px 40px;
   display: flex; flex-direction: column; gap: 48px; }
 .admin-logo { width: 40px; height: 40px; border-radius: 8px; background: var(--color-brand);
@@ -378,12 +378,12 @@ ul, ol { list-style: none; }
 .admin-login__pitch h1 { font-size: 28px; font-weight: 700; color: #F6EFDF; line-height: 1.3; }
 .admin-login__pitch p { margin-top: 12px; font-size: 14px; color: #A99C82; line-height: 1.6; }
 .admin-login__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.admin-login__stat .k { font-size: 14px; font-weight: 700; color: var(--color-brand); }
-.admin-login__stat .l { font-size: 11px; color: #A99C82; margin-top: 2px; }
+.admin-login__stat.k { font-size: 14px; font-weight: 700; color: var(--color-brand); }
+.admin-login__stat.l { font-size: 11px; color: #A99C82; margin-top: 2px; }
 .admin-login__main { display: flex; align-items: center; justify-content: center; padding: 48px 40px; background: #050505; }
 .admin-login__card { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 20px; }
 .admin-login__card h2 { font-size: 22px; font-weight: 700; }
-.admin-login__card .sub { font-size: 13px; color: var(--color-ink-2); margin-top: -12px; }
+.admin-login__card.sub { font-size: 13px; color: var(--color-ink-2); margin-top: -12px; }
 .admin-field label { display: block; font-size: 12px; font-weight: 600; color: var(--color-ink-2); margin-bottom: 6px; }
 .admin-input { width: 100%; border-radius: 4px; border: 1px solid var(--color-rule); background: var(--color-panel);
   padding: 10px 14px; font-size: 14px; color: var(--color-ink); outline: none; }
@@ -391,7 +391,7 @@ ul, ol { list-style: none; }
 .admin-btn { border-radius: 4px; padding: 10px 16px; font-size: 14px; font-weight: 700; text-align: center; }
 .admin-btn--primary { background: var(--color-brand); color: var(--color-brand-ink); }
 .admin-btn--block { width: 100%; }
-.admin-btn:disabled { opacity: .5; }
+.admin-btn:disabled { opacity:.5; }
 .admin-demo-hint { font-size: 11px; color: var(--color-ink-3); line-height: 1.6; }
 .admin-demo-hint code { background: var(--color-tile); padding: 1px 5px; border-radius: 2px; font-size: 11px; }
 .admin-form-error { display: flex; align-items: center; gap: 8px; border-radius: 4px; background: var(--color-warn-bg);
@@ -399,10 +399,10 @@ ul, ol { list-style: none; }
 
 /* Admin Console */
 .admin-console { display: grid; grid-template-columns: 220px minmax(0,1fr); min-height: 100vh; }
-@media (max-width: 767px) { .admin-console { grid-template-columns: 1fr; } }
+@media (max-width: 767px) {.admin-console { grid-template-columns: 1fr; } }
 .admin-sidebar { background: #0a0a0a; border-right: 1px solid var(--color-rule); padding: 20px 0; }
 .admin-sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 16px 20px; }
-.admin-sidebar__brand .admin-logo { width: 32px; height: 32px; font-size: 16px; border-radius: 6px; }
+.admin-sidebar__brand.admin-logo { width: 32px; height: 32px; font-size: 16px; border-radius: 6px; }
 .admin-nav__item { display: block; padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--color-ink-2); }
 .admin-nav__item:hover { background: var(--color-tile); color: var(--color-ink); }
 .admin-nav__item.active { background: var(--color-tile); color: var(--color-ink);
@@ -462,12 +462,12 @@ function $(sel, root = document) { return root.querySelector(sel); }
 function $$(sel, root = document) { return [...root.querySelectorAll(sel)]; }
 function uuid() { return crypto.randomUUID(); }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-function formatMoney(minor, cur = 'USD') { const sign = minor < 0 ? '−' : ''; return sign + '$' + (Math.abs(minor) / 100).toFixed(2); }
+function formatMoney(minor, cur = 'USD') { const sign = minor < 0 ? '−': ''; return sign + '$' + (Math.abs(minor) / 100).toFixed(2); }
 function clockTime(epochSec) { const d = new Date(epochSec * 1000); return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
 function countdown(sec) { if (sec <= 0) return '0:00'; const m = Math.floor(sec / 60); const s = sec % 60; return `${m}:${String(s).padStart(2, '0')}`; }
 function hms(sec) { if (sec < 60) return `0:${String(sec).padStart(2, '0')}`; if (sec < 3600) return `${sec / 60}:00`; return `${sec / 3600}:00:00`; }
 function formatDuration(sec) { if (sec < 60) return sec + 's'; if (sec < 3600) return sec / 60 + 'm'; return sec / 3600 + 'h'; }
-function splitAsset(name) { const m = name.match(/^(.+?)\s+(OTC|Real)$/i); return m ? { pair: m[1], market: m[2] } : { pair: name, market: '' }; }
+function splitAsset(name) { const m = name.match(/^(.+?)\s+(OTC|Real)$/i); return m ? { pair: m[1], market: m[2] }: { pair: name, market: '' }; }
 
 // ===== Assets =====
 const ASSETS = [
@@ -479,7 +479,7 @@ const ASSETS = [
 const DURATIONS = [5, 10, 15, 30, 60, 120, 300, 900, 1800, 3600, 7200, 14400];
 const DEPOSIT_METHODS = ['PhonePe', 'Google Pay', 'Paytm', 'BHIM UPI'];
 const FAQ = [
-  { q: 'What is binary options trading?', a: 'You predict whether an asset\'s price will go up or down within a set time. If correct, you earn a profit based on the payout percentage.' },
+  { q: 'What is short-term trading?', a: 'You predict whether an asset\'s price will go up or down within a set time. If correct, you earn a profit based on the payout percentage.' },
   { q: 'How do I deposit funds?', a: 'Go to the Deposit page, choose a payment method, enter an amount, and complete the payment via UPI.' },
   { q: 'How long do withdrawals take?', a: 'Withdrawal requests are processed within 3 business days to the payment method you deposited with.' },
   { q: 'What is the demo account?', a: 'The demo account uses virtual funds so you can practice trading without risking real money. It starts with $10,000.' },
@@ -500,7 +500,7 @@ try {
   const saved = localStorage.getItem(STORE_KEY);
   if (saved) {
     const parsed = JSON.parse(saved);
-    if (parsed._v === STORE_VERSION) { store = { ...defaultStore(), ...parsed }; }
+    if (parsed._v === STORE_VERSION) { store = {...defaultStore(),...parsed }; }
     else { localStorage.removeItem(STORE_KEY); } // clear stale data
   }
 } catch { localStorage.removeItem(STORE_KEY); }
@@ -529,7 +529,7 @@ const tickListeners = [];
 function initPriceEngine() {
   for (const asset of ASSETS) {
     const candles = generateHistory(asset);
-    const lastClose = candles.length > 0 ? candles[candles.length - 1].c : asset.basePrice;
+    const lastClose = candles.length > 0 ? candles[candles.length - 1].c: asset.basePrice;
     priceState[asset.symbol] = {
       price: lastClose,
       prevPrice: lastClose,
@@ -549,8 +549,8 @@ function generateHistory(asset) {
   const candleSec = 60;
   const mean = asset.basePrice;
   let price = mean;
-  const revert = 0.008;       // gentle mean-reversion per candle
-  const vol = 0.0004;          // per-step volatility (visible candle bodies)
+  const revert = 0.008; // gentle mean-reversion per candle
+  const vol = 0.0004; // per-step volatility (visible candle bodies)
   for (let i = 120; i > 0; i--) {
     const openTs = now - i * candleSec;
     const o = price;
@@ -573,8 +573,8 @@ function tickPrices() {
     const s = priceState[asset.symbol];
     // Mean-reverting tick with visible movement
     const mean = asset.basePrice;
-    const revert = 0.0008;     // gentle pull toward mean
-    const vol = 0.00025;       // per-tick noise — creates visible candle bodies
+    const revert = 0.0008; // gentle pull toward mean
+    const vol = 0.00025; // per-tick noise — creates visible candle bodies
     const drift = revert * (mean - s.price) / mean;
     const noise = (Math.random() - 0.5) * vol;
     const ret = drift + noise;
@@ -612,9 +612,9 @@ function settleTrades() {
     const s = priceState[trade.symbol];
     if (!s) continue;
     trade.exitPrice = s.price;
-    const won = trade.direction === 'UP' ? s.price > trade.entryPrice : s.price < trade.entryPrice;
-    trade.status = won ? 'WON' : 'LOST';
-    trade.pnl = won ? Math.floor(trade.stake * trade.payoutPct / 100) : -trade.stake;
+    const won = trade.direction === 'UP' ? s.price > trade.entryPrice: s.price < trade.entryPrice;
+    trade.status = won ? 'WON': 'LOST';
+    trade.pnl = won ? Math.floor(trade.stake * trade.payoutPct / 100): -trade.stake;
     // Update balance
     const acc = store.accounts.find(a => a.id === trade.accountId);
     if (acc && won) { acc.realBalance += trade.stake + Math.floor(trade.stake * trade.payoutPct / 100); }
@@ -722,11 +722,11 @@ function renderRegister(app) {
 function renderShell(app, route) {
   const acc = activeAccount();
   const isLive = acc?.type === 'LIVE';
-  const bal = acc ? formatMoney(acc.realBalance + acc.bonusBalance) : '—';
+  const bal = acc ? formatMoney(acc.realBalance + acc.bonusBalance): '—';
 
   app.innerHTML = `
     <div class="shell">
-      <header class="topbar ${isLive ? 'live' : ''}">
+      <header class="topbar ${isLive ? 'live': ''}">
         <a class="topbar__logo" onclick="location.hash='/trade'">
           <span class="topbar__logo-text led led-lit">ASM</span>
           <span class="legend" style="font-size:11px">TRADE</span>
@@ -738,13 +738,13 @@ function renderShell(app, route) {
         </div>
         <div style="margin:0 auto;display:none" class="promo-area"></div>
         <div class="topbar__right" style="position:relative">
-          <button class="topbar__account-btn ${isLive ? 'live' : ''}" id="account-toggle">
-            <span class="account-plate ${isLive ? 'live' : 'demo'}">
-              <span class="account-plate__dot" style="background:${isLive ? 'var(--color-up)' : 'var(--color-ink-3)'}"></span>
-              ${isLive ? 'LIVE' : 'DEMO'}
+          <button class="topbar__account-btn ${isLive ? 'live': ''}" id="account-toggle">
+            <span class="account-plate ${isLive ? 'live': 'demo'}">
+              <span class="account-plate__dot" style="background:${isLive ? 'var(--color-up)': 'var(--color-ink-3)'}"></span>
+              ${isLive ? 'LIVE': 'DEMO'}
             </span>
             <span style="display:grid;gap:2px;min-width:0">
-              <span class="legend" style="font-size:10px">${isLive ? 'Live account' : 'Demo account'}</span>
+              <span class="legend" style="font-size:10px">${isLive ? 'Live account': 'Demo account'}</span>
               <span class="led led-lit" style="font-size:20px;line-height:1" id="topbar-balance">${bal}</span>
             </span>
             ${icon('caret')}
@@ -796,15 +796,15 @@ function renderAccountMenu(show) {
   el.style.display = 'block';
   el.innerHTML = `
     <div class="account-menu">
-      ${store.accounts.sort((a, b) => a.type === 'LIVE' ? -1 : 1).map(acc => `
-        <button class="account-menu__item ${acc.id === currentId ? 'active' : ''}" data-aid="${acc.id}">
-          <span class="account-plate ${acc.type === 'LIVE' ? 'live' : 'demo'}" style="height:26px;font-size:10px">
-            <span class="account-plate__dot" style="background:${acc.type === 'LIVE' ? 'var(--color-up)' : 'var(--color-ink-3)'}"></span>
-            ${acc.type === 'LIVE' ? 'LIVE' : 'DEMO'}
+      ${store.accounts.sort((a, b) => a.type === 'LIVE' ? -1: 1).map(acc => `
+        <button class="account-menu__item ${acc.id === currentId ? 'active': ''}" data-aid="${acc.id}">
+          <span class="account-plate ${acc.type === 'LIVE' ? 'live': 'demo'}" style="height:26px;font-size:10px">
+            <span class="account-plate__dot" style="background:${acc.type === 'LIVE' ? 'var(--color-up)': 'var(--color-ink-3)'}"></span>
+            ${acc.type === 'LIVE' ? 'LIVE': 'DEMO'}
           </span>
-          <span><strong style="display:block;font-weight:600">${acc.type === 'LIVE' ? 'Live account' : 'Demo account'}</strong>
+          <span><strong style="display:block;font-weight:600">${acc.type === 'LIVE' ? 'Live account': 'Demo account'}</strong>
             <small style="color:var(--color-ink-3)">${formatMoney(acc.realBalance + acc.bonusBalance)}</small></span>
-          <span class="account-menu__radio ${acc.id === currentId ? 'checked' : ''}"></span>
+          <span class="account-menu__radio ${acc.id === currentId ? 'checked': ''}"></span>
         </button>`).join('')}
       <div class="account-menu__footer">
         <a style="font-size:13px;font-weight:600;color:var(--color-brand)" onclick="location.hash='/account'">My account</a>
@@ -832,11 +832,11 @@ function renderRail(route) {
   const rail = $('#nav-rail');
   if (!rail) return;
   rail.innerHTML = items.map(item => {
-    const paths = [item.href, ...(item.matches || [])];
+    const paths = [item.href,...(item.matches || [])];
     const active = paths.some(p => route.startsWith(p));
     if (item.pinBottom) return `<span class="rail__spacer"></span>`;
     if (!item.available) return `<span class="rail__item disabled" title="Coming soon">${icon(item.icon, 'rail__icon')}<span>${item.label}</span><span style="font-size:8px;letter-spacing:.1em;color:var(--color-ink-3);margin-top:-4px">Soon</span></span>`;
-    return `<a class="rail__item ${active ? 'active' : ''}" onclick="location.hash='${item.href}'">${icon(item.icon, 'rail__icon')}<span>${item.label}</span></a>`;
+    return `<a class="rail__item ${active ? 'active': ''}" onclick="location.hash='${item.href}'">${icon(item.icon, 'rail__icon')}<span>${item.label}</span></a>`;
   }).join('');
 }
 
@@ -846,15 +846,15 @@ function renderTicker() {
   const renderItems = () => {
     const items = ASSETS.map(asset => {
       const s = priceState[asset.symbol];
-      const change = s ? ((s.price - s.openPrice) / s.openPrice * 100) : 0;
+      const change = s ? ((s.price - s.openPrice) / s.openPrice * 100): 0;
       const up = change >= 0;
-      const color = up ? 'var(--color-up)' : 'var(--color-down)';
-      const priceStr = s ? s.price.toFixed(asset.precision) : '—';
+      const color = up ? 'var(--color-up)': 'var(--color-down)';
+      const priceStr = s ? s.price.toFixed(asset.precision): '—';
       return `<span class="ticker-item">
         <span class="ticker-item__name">${asset.displayName}</span>
         <span class="ticker-item__price led">${priceStr}</span>
-        <span class="dir-mark" data-dir="${up ? 'up' : 'down'}" style="color:${color}"></span>
-        <span style="font-weight:700;color:${color}">${up ? '+' : '−'}${Math.abs(change).toFixed(2)}%</span>
+        <span class="dir-mark" data-dir="${up ? 'up': 'down'}" style="color:${color}"></span>
+        <span style="font-weight:700;color:${color}">${up ? '+': '−'}${Math.abs(change).toFixed(2)}%</span>
         <span class="ticker-item__payout">${asset.payoutPct}%</span>
       </span>`;
     }).join('');
@@ -907,7 +907,7 @@ function renderTradePage(el) {
             <div class="chart-readout" id="chart-readout">
               <div style="display:flex;align-items:center;gap:10px">
                 <span class="chart-readout__pair">${pair}</span>
-                ${market ? `<span class="legend">${market}</span>` : ''}
+                ${market ? `<span class="legend">${market}</span>`: ''}
               </div>
               <div style="display:flex;align-items:center;gap:10px">
                 <span class="chart-readout__price led led-lit" id="chart-price">${s.price.toFixed(asset.precision)}</span>
@@ -957,8 +957,8 @@ function renderAssetTabs() {
   if (!list) return;
   list.innerHTML = ASSETS.map(asset => {
     const { pair, market } = splitAsset(asset.displayName);
-    return `<button class="asset-tab ${asset.symbol === selectedSymbol ? 'active' : ''}" data-sym="${asset.symbol}">
-      <span class="asset-tab__name">${pair}${market ? `<span class="asset-tab__qual">${market}</span>` : ''}</span>
+    return `<button class="asset-tab ${asset.symbol === selectedSymbol ? 'active': ''}" data-sym="${asset.symbol}">
+      <span class="asset-tab__name">${pair}${market ? `<span class="asset-tab__qual">${market}</span>`: ''}</span>
       <span class="asset-tab__payout">${asset.payoutPct}%</span>
     </button>`;
   }).join('');
@@ -977,8 +977,8 @@ function renderTradeTicket() {
   const acc = activeAccount();
   const { pair } = splitAsset(asset.displayName);
   const stakeMajor = Number(ticketStake);
-  const stakeMinor = Number.isFinite(stakeMajor) && stakeMajor > 0 ? Math.round(stakeMajor * 100) : 0;
-  const profit = stakeMinor > 0 ? Math.floor(stakeMinor * asset.payoutPct / 100) : 0;
+  const stakeMinor = Number.isFinite(stakeMajor) && stakeMajor > 0 ? Math.round(stakeMajor * 100): 0;
+  const profit = stakeMinor > 0 ? Math.floor(stakeMinor * asset.payoutPct / 100): 0;
   const isLive = acc?.type === 'LIVE';
 
   el.innerHTML = `
@@ -995,7 +995,7 @@ function renderTradeTicket() {
           <button class="step-btn" id="dur-plus">${icon('plus')}</button>
         </div>
         <div class="ticket__durations" id="dur-grid" style="display:none;margin-top:6px">
-          ${DURATIONS.map(d => `<button class="dur-btn ${d === ticketDuration ? 'active' : ''}" data-dur="${d}">${formatDuration(d)}</button>`).join('')}
+          ${DURATIONS.map(d => `<button class="dur-btn ${d === ticketDuration ? 'active': ''}" data-dur="${d}">${formatDuration(d)}</button>`).join('')}
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-ink-3);margin-top:6px">
           <span>Expires at</span>
@@ -1010,7 +1010,7 @@ function renderTradeTicket() {
           <button class="step-btn" id="stake-plus">${icon('plus')}</button>
         </div>
         <div class="ticket__presets">
-          ${[5, 10, 25, 50, 100].map(v => `<button class="preset-btn ${stakeMajor === v ? 'active' : ''}" data-stake="${v}">$${v}</button>`).join('')}
+          ${[5, 10, 25, 50, 100].map(v => `<button class="preset-btn ${stakeMajor === v ? 'active': ''}" data-stake="${v}">$${v}</button>`).join('')}
         </div>
       </div>
       <div class="ticket__profit">
@@ -1019,7 +1019,7 @@ function renderTradeTicket() {
         <span style="font-size:12px;color:var(--color-ink-3)">You get back</span>
         <span style="font-size:12px;color:var(--color-ink-3);text-align:right">${formatMoney(stakeMinor + profit)}</span>
       </div>
-      ${isLive ? `<div class="ticket__live-warn">${icon('alert')} Live account — this uses real balance</div>` : ''}
+      ${isLive ? `<div class="ticket__live-warn">${icon('alert')} Live account — this uses real balance</div>`: ''}
       <div id="ticket-error"></div>
       <div style="display:grid;gap:8px">
         <button class="trade-slab up" id="btn-up"><span>Up<small class="trade-slab__note">Price ends higher</small></span>${icon('up', 'trade-slab__icon', 2.4)}</button>
@@ -1029,7 +1029,7 @@ function renderTradeTicket() {
 
   // Duration controls
   let durGridOpen = false;
-  $('#dur-toggle').onclick = () => { durGridOpen = !durGridOpen; $('#dur-grid').style.display = durGridOpen ? 'grid' : 'none'; };
+  $('#dur-toggle').onclick = () => { durGridOpen = !durGridOpen; $('#dur-grid').style.display = durGridOpen ? 'grid': 'none'; };
   $('#dur-minus').onclick = () => { const i = DURATIONS.indexOf(ticketDuration); if (i > 0) { ticketDuration = DURATIONS[i - 1]; renderTradeTicket(); } };
   $('#dur-plus').onclick = () => { const i = DURATIONS.indexOf(ticketDuration); if (i < DURATIONS.length - 1) { ticketDuration = DURATIONS[i + 1]; renderTradeTicket(); } };
   $$('[data-dur]').forEach(btn => { btn.onclick = () => { ticketDuration = Number(btn.dataset.dur); renderTradeTicket(); }; });
@@ -1048,7 +1048,7 @@ function renderTradeTicket() {
   // Place trade
   const placeTrade = dir => {
     const s = Number(ticketStake);
-    const minor = Number.isFinite(s) && s > 0 ? Math.round(s * 100) : 0;
+    const minor = Number.isFinite(s) && s > 0 ? Math.round(s * 100): 0;
     if (minor <= 0) { $('#ticket-error').innerHTML = `<div class="ticket__error">${icon('alert')} Enter an investment amount.</div>`; return; }
     const ac = activeAccount();
     if (!ac || ac.realBalance + ac.bonusBalance < minor) { $('#ticket-error').innerHTML = `<div class="ticket__error">${icon('alert')} Insufficient funds.</div>`; return; }
@@ -1094,7 +1094,7 @@ function renderTradesPanel() {
 
   let currentTab = 'open';
   const renderList = () => {
-    const shown = currentTab === 'open' ? open : closed;
+    const shown = currentTab === 'open' ? open: closed;
     const listEl = $('#trades-list');
     if (!listEl) return;
     if (shown.length === 0) {
@@ -1110,34 +1110,34 @@ function renderTradesPanel() {
       const isOpen = trade.status === 'OPEN';
       const ps = priceState[trade.symbol];
       const curPrice = ps?.price || trade.entryPrice;
-      const winning = up ? curPrice > trade.entryPrice : curPrice < trade.entryPrice;
-      const losing = up ? curPrice < trade.entryPrice : curPrice > trade.entryPrice;
+      const winning = up ? curPrice > trade.entryPrice: curPrice < trade.entryPrice;
+      const losing = up ? curPrice < trade.entryPrice: curPrice > trade.entryPrice;
       const winProfit = Math.floor(trade.stake * trade.payoutPct / 100);
-      const progress = isOpen ? Math.min(1, Math.max(0, (nowSec - trade.entryTs) / (trade.expiryTs - trade.entryTs))) : 0;
+      const progress = isOpen ? Math.min(1, Math.max(0, (nowSec - trade.entryTs) / (trade.expiryTs - trade.entryTs))): 0;
 
       const chipMap = { OPEN: 'background:var(--color-tile);color:var(--color-ink)', WON: 'background:var(--color-up);color:var(--color-up-ink)', LOST: 'color:var(--color-down);box-shadow:inset 0 0 0 1px var(--color-down)', REFUNDED: 'background:var(--color-tile);color:var(--color-ink-2)' };
       const chipLabel = { OPEN: 'Open', WON: 'Won', LOST: 'Lost', REFUNDED: 'Refund' };
 
       let pnlStr, pnlClass;
       if (isOpen) {
-        pnlStr = winning ? `+${formatMoney(winProfit)}` : `−${formatMoney(trade.stake)}`;
-        pnlClass = winning ? 'color:var(--color-up)' : losing ? 'color:var(--color-down)' : 'color:var(--color-ink-2)';
+        pnlStr = winning ? `+${formatMoney(winProfit)}`: `−${formatMoney(trade.stake)}`;
+        pnlClass = winning ? 'color:var(--color-up)': losing ? 'color:var(--color-down)': 'color:var(--color-ink-2)';
       } else {
-        pnlStr = trade.status === 'REFUNDED' ? formatMoney(0) : `${trade.pnl >= 0 ? '+' : '−'}${formatMoney(Math.abs(trade.pnl))}`;
-        pnlClass = trade.status === 'WON' ? 'color:var(--color-up)' : 'color:var(--color-ink-3)';
+        pnlStr = trade.status === 'REFUNDED' ? formatMoney(0): `${trade.pnl >= 0 ? '+': '−'}${formatMoney(Math.abs(trade.pnl))}`;
+        pnlClass = trade.status === 'WON' ? 'color:var(--color-up)': 'color:var(--color-ink-3)';
       }
 
-      const timeStr = isOpen ? `<span class="led" style="font-size:13px" data-countdown="${trade.expiryTs}">${countdown(trade.expiryTs - nowSec)}</span>` : `<span class="led" style="font-size:13px;color:var(--color-ink-2)">${clockTime(trade.expiryTs)}</span>`;
+      const timeStr = isOpen ? `<span class="led" style="font-size:13px" data-countdown="${trade.expiryTs}">${countdown(trade.expiryTs - nowSec)}</span>`: `<span class="led" style="font-size:13px;color:var(--color-ink-2)">${clockTime(trade.expiryTs)}</span>`;
 
-      return `<li class="trade-row${isOpen && trade._justSettled ? ' settling' : ''}">
-        <span class="dir-mark" data-dir="${up ? 'up' : 'down'}" style="color:${up ? 'var(--color-up)' : 'var(--color-down)'};grid-row:span 3;margin-top:3px"></span>
+      return `<li class="trade-row${isOpen && trade._justSettled ? ' settling': ''}">
+        <span class="dir-mark" data-dir="${up ? 'up': 'down'}" style="color:${up ? 'var(--color-up)': 'var(--color-down)'};grid-row:span 3;margin-top:3px"></span>
         <span class="trade-row__pair">${pair}</span>
         <span class="trade-row__time" style="justify-self:end">${timeStr}</span>
         <span class="trade-row__stake">${formatMoney(trade.stake)}</span>
         <span class="trade-row__pnl" style="${pnlClass}">${pnlStr}</span>
-        <span class="trade-row__prices">${trade.entryPrice.toFixed(prec)}${trade.exitPrice !== null ? ' → ' + trade.exitPrice.toFixed(prec) : ''}</span>
+        <span class="trade-row__prices">${trade.entryPrice.toFixed(prec)}${trade.exitPrice !== null ? ' → ' + trade.exitPrice.toFixed(prec): ''}</span>
         <span class="trade-row__chip" style="${chipMap[trade.status]}">${chipLabel[trade.status]}</span>
-        ${isOpen ? `<span class="trade-row__progress" style="width:${progress * 100}%"></span>` : ''}
+        ${isOpen ? `<span class="trade-row__progress" style="width:${progress * 100}%"></span>`: ''}
       </li>`;
     }).join('');
   };
@@ -1231,7 +1231,7 @@ function mountChart(asset) {
     const latest = st.forming || st.candles[st.candles.length - 1];
     if (ohlcEl && latest) {
       const f = n => n.toFixed(asset.precision);
-      ohlcEl.textContent = `O ${f(latest.o)}  H ${f(latest.h)}  L ${f(latest.l)}  C ${f(latest.c)}`;
+      ohlcEl.textContent = `O ${f(latest.o)} H ${f(latest.h)} L ${f(latest.l)} C ${f(latest.c)}`;
     }
   });
 
@@ -1245,8 +1245,8 @@ function addTradePriceLine(trade) {
   try {
     if (!chartSeries || trade.symbol !== selectedSymbol) return;
     const isUp = trade.direction === 'UP';
-    const color = isUp ? '#3be584' : '#e5413b';
-    const arrow = isUp ? '▲' : '▼';
+    const color = isUp ? '#3be584': '#e5413b';
+    const arrow = isUp ? '▲': '▼';
     const line = chartSeries.createPriceLine({
       price: trade.entryPrice,
       color: color,
@@ -1409,7 +1409,7 @@ function renderWithdrawalPage(el) {
     <div class="inner-wide">
       <div class="tab-row">${['/withdrawal','/balance','/trade','/account'].map(h => {
         const labels = { '/withdrawal': 'Withdrawal', '/balance': 'Payments', '/trade': 'Trades', '/account': 'My account' };
-        return `<button class="tab-row__item ${h === '/withdrawal' ? 'active' : ''}" onclick="location.hash='${h}'">${labels[h]}</button>`;
+        return `<button class="tab-row__item ${h === '/withdrawal' ? 'active': ''}" onclick="location.hash='${h}'">${labels[h]}</button>`;
       }).join('')}</div>
       <h1>Withdrawal</h1>
       <div class="panel-grid cols-2">
@@ -1420,7 +1420,7 @@ function renderWithdrawalPage(el) {
           ${locked > 0 ? `<div style="border-radius:4px;background:var(--color-tile);padding:12px">
             <p style="font-size:12px;font-weight:600">${formatMoney(locked)} bonus locked</p>
             <p style="margin-top:4px;font-size:11px;line-height:1.6;color:var(--color-ink-2)">A 50% bonus requires 3× turnover before it can be withdrawn.</p>
-          </div>` : ''}
+          </div>`: ''}
         </section>
         <section class="panel">
           <h2 style="margin-bottom:12px">Withdraw</h2>
@@ -1428,7 +1428,7 @@ function renderWithdrawalPage(el) {
             <div style="border-radius:4px;border:1px solid var(--color-down);background:var(--color-warn-bg);padding:16px">
               <p style="font-size:14px;color:var(--color-down)">You can withdraw money from your balance to the method you used for depositing. Requests are processed in 3 business days.</p>
               <a onclick="location.hash='/deposit'" style="display:inline-block;margin-top:8px;font-size:12px;font-weight:700;color:var(--color-up);text-decoration:underline;text-underline-offset:4px">Make a deposit</a>
-            </div>` : `
+            </div>`: `
             <form id="withdraw-form" style="display:flex;flex-direction:column;gap:12px">
               <div><label class="form-label" for="wamt">Amount</label><input class="form-input" type="number" min="1" max="${Math.floor(withdrawable / 100)}" value="${Math.max(1, Math.floor(withdrawable / 100))}" id="wamt"></div>
               <div><label class="form-label" for="wmethod">Method</label>
@@ -1458,8 +1458,8 @@ function renderWithdrawalPage(el) {
 // ===== Balance / Payments Page =====
 function renderBalancePage(el) {
   const rows = [
-    ...store.deposits.map(d => ({ id: d.id, at: d.createdAt, status: d.status, kind: 'Deposit', method: d.method, amount: d.amountUsd })),
-    ...store.withdrawals.map(w => ({ id: w.id, at: w.createdAt, status: w.status, kind: 'Withdrawal', method: w.method, amount: -w.amount })),
+...store.deposits.map(d => ({ id: d.id, at: d.createdAt, status: d.status, kind: 'Deposit', method: d.method, amount: d.amountUsd })),
+...store.withdrawals.map(w => ({ id: w.id, at: w.createdAt, status: w.status, kind: 'Withdrawal', method: w.method, amount: -w.amount })),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
   const statusLabels = { AWAITING_PAYMENT: 'Awaiting payment', PENDING_CONFIRMATION: 'Processing', COMPLETED: 'Completed', REJECTED: 'Rejected', EXPIRED: 'Expired', REQUESTED: 'Waiting confirmation', APPROVED: 'Approved', PAID: 'Paid' };
@@ -1468,10 +1468,10 @@ function renderBalancePage(el) {
     <div class="inner-wide">
       <div class="tab-row">${['/withdrawal','/balance','/trade','/account'].map(h => {
         const labels = { '/withdrawal': 'Withdrawal', '/balance': 'Payments', '/trade': 'Trades', '/account': 'My account' };
-        return `<button class="tab-row__item ${h === '/balance' ? 'active' : ''}" onclick="location.hash='${h}'">${labels[h]}</button>`;
+        return `<button class="tab-row__item ${h === '/balance' ? 'active': ''}" onclick="location.hash='${h}'">${labels[h]}</button>`;
       }).join('')}</div>
       <h1>Payments</h1>
-      ${rows.length === 0 ? '<p style="font-size:14px;color:var(--color-ink-2)">No transactions yet.</p>' : `
+      ${rows.length === 0 ? '<p style="font-size:14px;color:var(--color-ink-2)">No transactions yet.</p>': `
       <div style="overflow-x:auto"><table class="data-table"><thead><tr>
         <th>Transaction ID</th><th>Date and time</th><th>Status</th><th>Type</th><th>Payment system</th><th style="text-align:right">Amount</th>
       </tr></thead><tbody>${rows.map(r => `<tr>
@@ -1479,7 +1479,7 @@ function renderBalancePage(el) {
         <td style="color:var(--color-ink-2)">${r.at.slice(0,16).replace('T',' ')}</td>
         <td>🕐 ${statusLabels[r.status] || r.status}</td>
         <td>${r.kind}</td><td>${r.method}</td>
-        <td style="text-align:right;font-weight:600;color:${r.amount >= 0 ? 'var(--color-up)' : 'var(--color-down)'}">${r.amount >= 0 ? '+' : '−'}${formatMoney(Math.abs(r.amount))}</td>
+        <td style="text-align:right;font-weight:600;color:${r.amount >= 0 ? 'var(--color-up)': 'var(--color-down)'}">${r.amount >= 0 ? '+': '−'}${formatMoney(Math.abs(r.amount))}</td>
       </tr>`).join('')}</tbody></table></div>`}
     </div>`;
 }
@@ -1504,7 +1504,7 @@ function renderAccountPage(el) {
       <section style="display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;align-items:center;gap:12px">
           <h2>Personal data</h2>
-          <span style="border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:${u.kycStatus === 'VERIFIED' ? '#14301f' : '#2a2213'};color:${u.kycStatus === 'VERIFIED' ? '#4fc08d' : '#e0ac50'}">${u.kycStatus === 'VERIFIED' ? 'Verified' : 'Not verified'}</span>
+          <span style="border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:${u.kycStatus === 'VERIFIED' ? '#14301f': '#2a2213'};color:${u.kycStatus === 'VERIFIED' ? '#4fc08d': '#e0ac50'}">${u.kycStatus === 'VERIFIED' ? 'Verified': 'Not verified'}</span>
         </div>
         <div><span class="form-label">Email</span><p style="margin-top:4px;font-size:14px">${u.email} <span style="font-size:10px;font-weight:600;color:#e0ac50">Unverified</span></p></div>
         <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
@@ -1518,7 +1518,7 @@ function renderAccountPage(el) {
         <h2>Security</h2>
         ${[['twoFaForLogin', 'To enter the platform'], ['twoFaForWithdrawal', 'To withdraw funds']].map(([key, label]) =>
           `<label style="display:flex;align-items:center;gap:12px;font-size:14px">
-            <input type="checkbox" id="tfa-${key}" ${u[key] ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--color-brand)"> ${label}
+            <input type="checkbox" id="tfa-${key}" ${u[key] ? 'checked': ''} style="width:16px;height:16px;accent-color:var(--color-brand)"> ${label}
           </label>`).join('')}
         <button style="font-size:12px;font-weight:600;color:var(--color-brand);text-decoration:underline;text-underline-offset:4px;align-self:flex-start" id="test-code">Send a test code</button>
         <p style="font-size:12px;color:var(--color-ink-2)">Codes are written to the console rather than emailed — no provider is configured.</p>
@@ -1564,7 +1564,7 @@ function renderSupportPage(el) {
           <span style="font-weight:600">${t.subject}</span>
           <span class="form-label">${t.status}</span>
         </div>`).join('')}
-      </section>` : ''}
+      </section>`: ''}
     </div>`;
 
   $('#ticket-form').onsubmit = e => {
@@ -1632,7 +1632,7 @@ function renderAdminConsole(app, route) {
     <div class="admin-console">
       <nav class="admin-sidebar">
         <div class="admin-sidebar__brand"><div class="admin-logo">A</div><div><div style="font-size:14px;font-weight:700;color:#F6EFDF">ASM Trading</div><div style="font-size:10px;color:#A99C82">Console</div></div></div>
-        ${navItems.map(n => `<a class="admin-nav__item ${page === n.id ? 'active' : ''}" onclick="location.hash='${n.href}'">${n.label}</a>`).join('')}
+        ${navItems.map(n => `<a class="admin-nav__item ${page === n.id ? 'active': ''}" onclick="location.hash='${n.href}'">${n.label}</a>`).join('')}
         <div style="margin-top:auto;padding:16px"><button class="admin-nav__item" style="width:100%;color:var(--color-ink-3)" onclick="store.adminAuthed=false;saveStore();location.hash='/admin/login'">Log out</button></div>
       </nav>
       <main class="admin-main" id="admin-content"></main>
@@ -1649,9 +1649,9 @@ function renderAdminConsole(app, route) {
 }
 
 function renderAdminDashboard(el) {
-  const totalUsers = store.user ? 1 : 0;
+  const totalUsers = store.user ? 1: 0;
   const totalTrades = store.trades.length;
-  const totalDeposits = store.deposits.reduce((s, d) => s + (d.status === 'COMPLETED' ? d.amountUsd : 0), 0);
+  const totalDeposits = store.deposits.reduce((s, d) => s + (d.status === 'COMPLETED' ? d.amountUsd: 0), 0);
   const openTrades = store.trades.filter(t => t.status === 'OPEN').length;
 
   el.innerHTML = `
@@ -1667,10 +1667,10 @@ function renderAdminDashboard(el) {
     <tbody>${store.trades.slice(0, 10).map(t => `<tr>
       <td style="font-family:monospace;font-size:11px">${t.id.slice(0,8)}</td>
       <td>${t.symbol}</td>
-      <td><span class="dir-mark" data-dir="${t.direction === 'UP' ? 'up' : 'down'}" style="color:${t.direction === 'UP' ? 'var(--color-up)' : 'var(--color-down)'}"></span> ${t.direction}</td>
+      <td><span class="dir-mark" data-dir="${t.direction === 'UP' ? 'up': 'down'}" style="color:${t.direction === 'UP' ? 'var(--color-up)': 'var(--color-down)'}"></span> ${t.direction}</td>
       <td>${formatMoney(t.stake)}</td>
-      <td><span class="admin-chip ${t.status === 'WON' ? 'green' : t.status === 'LOST' ? 'red' : 'amber'}">${t.status}</span></td>
-      <td style="color:${t.pnl >= 0 ? 'var(--color-up)' : 'var(--color-down)'}">${t.pnl >= 0 ? '+' : ''}${formatMoney(t.pnl)}</td>
+      <td><span class="admin-chip ${t.status === 'WON' ? 'green': t.status === 'LOST' ? 'red': 'amber'}">${t.status}</span></td>
+      <td style="color:${t.pnl >= 0 ? 'var(--color-up)': 'var(--color-down)'}">${t.pnl >= 0 ? '+': ''}${formatMoney(t.pnl)}</td>
     </tr>`).join('') || '<tr><td colspan="6" style="color:var(--color-ink-3);text-align:center;padding:20px">No trades yet</td></tr>'}</tbody></table>`;
 }
 
@@ -1680,7 +1680,7 @@ function renderAdminMarkets(el) {
     <table class="admin-table"><thead><tr><th>Symbol</th><th>Display Name</th><th>Kind</th><th>Payout</th><th>Status</th></tr></thead>
     <tbody>${ASSETS.map(a => `<tr>
       <td style="font-family:monospace">${a.symbol}</td><td>${a.displayName}</td>
-      <td><span class="admin-chip ${a.kind === 'OTC' ? 'amber' : 'green'}">${a.kind}</span></td>
+      <td><span class="admin-chip ${a.kind === 'OTC' ? 'amber': 'green'}">${a.kind}</span></td>
       <td style="font-weight:700;color:var(--color-brand)">${a.payoutPct}%</td>
       <td><span class="admin-chip green">OPEN</span></td>
     </tr>`).join('')}</tbody></table>`;
@@ -1691,13 +1691,13 @@ function renderAdminApprovals(el) {
     <h1>Approvals</h1>
     <table class="admin-table"><thead><tr><th>ID</th><th>Type</th><th>Method</th><th>Amount</th><th>Status</th></tr></thead>
     <tbody>${[
-      ...store.deposits.map(d => ({ id: d.id, type: 'Deposit', method: d.method, amount: d.amountUsd, status: d.status })),
-      ...store.withdrawals.map(w => ({ id: w.id, type: 'Withdrawal', method: w.method, amount: w.amount, status: w.status })),
+...store.deposits.map(d => ({ id: d.id, type: 'Deposit', method: d.method, amount: d.amountUsd, status: d.status })),
+...store.withdrawals.map(w => ({ id: w.id, type: 'Withdrawal', method: w.method, amount: w.amount, status: w.status })),
     ].map(r => `<tr>
       <td style="font-family:monospace;font-size:11px">${r.id.slice(0,8)}</td>
       <td>${r.type}</td><td>${r.method}</td>
       <td>${formatMoney(r.amount)}</td>
-      <td><span class="admin-chip ${r.status === 'COMPLETED' || r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}">${r.status}</span></td>
+      <td><span class="admin-chip ${r.status === 'COMPLETED' || r.status === 'APPROVED' ? 'green': r.status === 'REJECTED' ? 'red': 'amber'}">${r.status}</span></td>
     </tr>`).join('') || '<tr><td colspan="5" style="color:var(--color-ink-3);text-align:center;padding:20px">No transactions</td></tr>'}</tbody></table>`;
 }
 
@@ -1708,10 +1708,10 @@ function renderAdminUsers(el) {
     <table class="admin-table"><thead><tr><th>Email</th><th>KYC</th><th>Accounts</th><th>Trades</th></tr></thead>
     <tbody><tr>
       <td>${store.user.email}</td>
-      <td><span class="admin-chip ${store.user.kycStatus === 'VERIFIED' ? 'green' : 'amber'}">${store.user.kycStatus}</span></td>
+      <td><span class="admin-chip ${store.user.kycStatus === 'VERIFIED' ? 'green': 'amber'}">${store.user.kycStatus}</span></td>
       <td>${store.accounts.length}</td>
       <td>${store.trades.length}</td>
-    </tr></tbody></table>` : '<p style="color:var(--color-ink-3)">No registered users.</p>'}`;
+    </tr></tbody></table>`: '<p style="color:var(--color-ink-3)">No registered users.</p>'}`;
 }
 
 function renderAdminMessages(el) {
@@ -1720,8 +1720,8 @@ function renderAdminMessages(el) {
 
 function renderAdminAudit(el) {
   const events = [
-    ...store.trades.map(t => ({ ts: t.entryTs, action: `trade.opened`, target: t.symbol, detail: `${t.direction} ${formatMoney(t.stake)}` })),
-    ...store.deposits.map(d => ({ ts: Math.floor(new Date(d.createdAt).getTime() / 1000), action: 'deposit.created', target: d.method, detail: formatMoney(d.amountUsd) })),
+...store.trades.map(t => ({ ts: t.entryTs, action: `trade.opened`, target: t.symbol, detail: `${t.direction} ${formatMoney(t.stake)}` })),
+...store.deposits.map(d => ({ ts: Math.floor(new Date(d.createdAt).getTime() / 1000), action: 'deposit.created', target: d.method, detail: formatMoney(d.amountUsd) })),
   ].sort((a, b) => b.ts - a.ts).slice(0, 20);
 
   el.innerHTML = `

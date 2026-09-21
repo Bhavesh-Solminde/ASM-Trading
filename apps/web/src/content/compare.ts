@@ -10,12 +10,12 @@ export const comparisons: Article[] = [
     slug: "asm-trader-vs-quotex",
     collection: "compare",
     title: `${SITE_NAME} vs Quotex`,
-    description: `An honest, feature-by-feature comparison of ${SITE_NAME} and Quotex for short-term binary options traders in South Asia — minimum deposit, demo, payouts, payment methods and mobile experience.`,
+    description: `An honest, feature-by-feature comparison of ${SITE_NAME} and Quotex for short-term traders in South Asia — minimum deposit, demo, payouts, payment methods and mobile experience.`,
     updated: "2026-09-22",
     keywords: [
       "asm trade vs quotex",
       "quotex alternative",
-      "best binary options platform",
+      "Best trading platform",
       "quotex comparison",
     ],
     sections: [

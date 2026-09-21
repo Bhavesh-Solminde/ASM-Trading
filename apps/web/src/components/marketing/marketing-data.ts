@@ -60,7 +60,7 @@ export const testimonials = [
   {
     name: "Aditi R.",
     role: "Part-time trader, Mumbai",
-    quote: "Cleanest binary options UI I've used. The 30-second expiry with the pinned Up/Down actually works on a phone.",
+    quote: "Cleanest UI I've used. The 30-second expiry with the pinned Up/Down actually works on a phone.",
   },
   {
     name: "Marcus O.",

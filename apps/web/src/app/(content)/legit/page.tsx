@@ -73,7 +73,7 @@ export default function LegitPage() {
           An honest warning
         </h2>
         <p className="mt-4 leading-relaxed text-ink-2">
-          Being legitimate does not make trading safe. Binary options are
+          Being legitimate does not make trading safe. This is
           high-risk, short-term speculation and most short-term traders lose
           money. A real platform is one that tells you this plainly. Trade only
           with money you can afford to lose.
@@ -90,7 +90,7 @@ export default function LegitPage() {
               <dt className="font-semibold text-ink">{faq.q}</dt>
               <dd className="mt-1 text-ink-2">{faq.a}</dd>
             </div>
-          ))}
+))}
         </dl>
       </section>
 
@@ -108,5 +108,5 @@ export default function LegitPage() {
         </Link>
       </div>
     </div>
-  );
+);
 }

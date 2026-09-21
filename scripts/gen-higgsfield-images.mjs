@@ -2,12 +2,12 @@
 /**
  * Generate marketing images via Higgsfield and save them under
  * apps/web/public/marketing/. Reads HIGGSFIELD_API_KEY (format ID:SECRET) from
- * .env at repo root.
+ *.env at repo root.
  *
  * Uses Marketing Studio Image by default — cheapest image model, campaign-tuned.
  * Docs: https://docs.higgsfield.ai/docs/models/marketing-studio-image/generate-and-edit
  *
- * Usage: node scripts/gen-higgsfield-images.mjs [slotId]   # runs all when omitted
+ * Usage: node scripts/gen-higgsfield-images.mjs [slotId] # runs all when omitted
  *
  * NOTE: two Soul-v2 renders (hero-editorial.jpg, platform-editorial.jpg) are
  * currently checked in and used by the landing. Re-running this script will
@@ -46,9 +46,9 @@ const TERMINAL = new Set(["completed", "failed", "nsfw", "canceled"]);
 
 // -----------------------------------------------------------------------------
 // Model catalog — three models per current console pricing.
-//   marketing-studio/image        — $0.0121/image  (default for images)
-//   seedance-2/reference-to-video — video, up to 4K, 4s/15s
-//   kling-3/turbo-text-to-video   — video, up to 1080p, 1s/3s/15s
+// marketing-studio/image — $0.0121/image (default for images)
+// seedance-2/reference-to-video — video, up to 4K, 4s/15s
+// kling-3/turbo-text-to-video — video, up to 1080p, 1s/3s/15s
 // Video models exist for future work; this script only wires the image model.
 // -----------------------------------------------------------------------------
 
@@ -71,8 +71,8 @@ const MODELS = {
 
 // -----------------------------------------------------------------------------
 // Landing-page image slots.
-//   Both are DESKTOP-ONLY in the layout (hidden md:block on <Image>). Keep this
-//   list short — mobile weight is a hard constraint.
+// Both are DESKTOP-ONLY in the layout (hidden md:block on <Image>). Keep this
+// list short — mobile weight is a hard constraint.
 // -----------------------------------------------------------------------------
 
 const slots = [
@@ -124,7 +124,7 @@ const slots = [
     resolution: "2k",
     aspectRatio: "1:1",
     prompt:
-      "Minimalist premium app icon for a binary options trading brand. Three ascending " +
+      "Minimalist premium app icon for a trading brand. Three ascending " +
       "candlestick bars implying upward momentum, the tallest center bar in warm amber gold " +
       "(#FFB000), thin wicks, flat vector style, sharp clean edges, centered inside a " +
       "rounded-square matte black tile. No text, no letters, no numbers, single geometric " +
@@ -224,7 +224,7 @@ async function poll(statusUrl) {
     const text = await r.text();
     if (!r.ok) throw new Error(`poll ${r.status}: ${text}`);
     const body = JSON.parse(text);
-    process.stdout.write(`  status=${body.status}\n`);
+    process.stdout.write(` status=${body.status}\n`);
     if (TERMINAL.has(body.status)) return body;
     await new Promise((res) => setTimeout(res, delay + Math.random() * 500));
     delay = Math.min(delay * 1.5, 10_000);
@@ -242,18 +242,18 @@ async function saveFromUrl(url, dest) {
 async function generateSlot(slot) {
   console.log(`\n▶ ${slot.id} (${slot.model})`);
   const initial = await submit(slot);
-  console.log(`  request_id=${initial.request_id}`);
+  console.log(` request_id=${initial.request_id}`);
   const done = await poll(initial.status_url);
   if (done.status !== "completed") throw new Error(`${slot.id}: ${done.status}: ${JSON.stringify(done)}`);
   const url = done.images?.[0]?.url ?? done.image?.url;
   if (!url) throw new Error(`${slot.id}: no image URL in ${JSON.stringify(done)}`);
   const dest = join(outDir, slot.filename);
   const bytes = await saveFromUrl(url, dest);
-  console.log(`  ✓ saved ${slot.filename} (${(bytes / 1024).toFixed(1)} KB) from ${url}`);
+  console.log(` ✓ saved ${slot.filename} (${(bytes / 1024).toFixed(1)} KB) from ${url}`);
 }
 
 const only = process.argv[2];
-const targets = only ? slots.filter((s) => s.id === only) : slots;
+const targets = only ? slots.filter((s) => s.id === only): slots;
 if (targets.length === 0) {
   console.error(`No slot matched "${only}". Available: ${slots.map((s) => s.id).join(", ")}`);
   process.exit(1);
@@ -263,7 +263,7 @@ for (const slot of targets) {
   try {
     await generateSlot(slot);
   } catch (e) {
-    console.error(`  ✗ ${slot.id}: ${e.message}`);
+    console.error(` ✗ ${slot.id}: ${e.message}`);
     process.exitCode = 1;
   }
 }

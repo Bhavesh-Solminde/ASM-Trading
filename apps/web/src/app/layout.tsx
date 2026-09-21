@@ -19,17 +19,17 @@ const doto = Doto({ subsets: ["latin"], variable: "--font-doto" });
 // is untouched. DNS verification is an alternative that needs nothing here.
 const gscVerification = process.env.NEXT_PUBLIC_GSC_VERIFICATION;
 
-const homeTitle = `${SITE_NAME} — Binary Options Trading Platform`;
+const homeTitle = `${SITE_NAME} — Trading Platform`;
 
 export const metadata: Metadata = {
-  ...buildMetadata({ path: "/" }),
+...buildMetadata({ path: "/" }),
   // Homepage keeps a bespoke title (no brand suffix appended twice) that leads
   // with the entity name for brand queries.
   title: homeTitle,
   applicationName: SITE_NAME,
-  openGraph: { ...buildMetadata({ path: "/" }).openGraph, title: homeTitle },
-  twitter: { ...buildMetadata({ path: "/" }).twitter, title: homeTitle },
-  ...(gscVerification ? { verification: { google: gscVerification } } : {}),
+  openGraph: {...buildMetadata({ path: "/" }).openGraph, title: homeTitle },
+  twitter: {...buildMetadata({ path: "/" }).twitter, title: homeTitle },
+...(gscVerification ? { verification: { google: gscVerification } }: {}),
 };
 
 export const viewport: Viewport = {
@@ -52,5 +52,5 @@ export default function RootLayout({
         {children}
       </body>
     </html>
-  );
+);
 }

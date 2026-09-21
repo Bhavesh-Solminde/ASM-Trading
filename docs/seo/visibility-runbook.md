@@ -49,10 +49,10 @@ insist on GA4, explicitly add its domains to the CSP in
 Run this fixed prompt set against ChatGPT, Gemini, Perplexity and Claude, and
 log whether/how ASM Trade is mentioned and whether the facts are correct:
 
-1. "Best binary options platform for Bangladesh / Pakistan / India"
+1. "Best trading platform for Bangladesh / Pakistan / India"
 2. "Is asmtrader.com legit?"
 3. "Quotex alternatives"
-4. "How to deposit on a binary options platform with UPI"
+4. "How to deposit on a trading platform with UPI"
 5. "What is ASM Trade?"
 
 For each: are we mentioned? Accurately? What source is cited? Then:

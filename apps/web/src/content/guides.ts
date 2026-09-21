@@ -10,27 +10,26 @@ export const guides: Article[] = [
   {
     slug: "how-binary-options-trading-works",
     collection: "guides",
-    title: "How Binary Options Trading Works",
+    title: "How Trading Works",
     description:
-      "A plain-English guide to binary options: how a fixed-risk Up/Down trade is priced, how payouts are calculated, the risks, and how to practice safely on a demo.",
+      "A plain-English guide to how a fixed-risk Up/Down trade is priced, how payouts are calculated, the risks, and how to practice safely on a demo.",
     updated: "2026-09-22",
     keywords: [
-      "binary options",
-      "how binary options work",
+      "how it works",
       "up or down trading",
       "fixed payout trading",
     ],
     sections: [
       {
-        heading: "What a binary option is",
+        heading: "What a fixed-risk trade is",
         blocks: [
           {
             kind: "p",
-            text: "A binary option is a fixed-risk trade on which way a price will move over a set time. You pick an asset — a currency pair, a crypto, a commodity or a stock — choose a direction (UP or DOWN) and a duration (from 15 seconds to end-of-day), and stake an amount. When the timer ends, the trade settles on the market price at that tick.",
+            text: "A fixed-risk trade is a bet on which way a price will move over a set time. You pick an asset — a currency pair, a crypto, a commodity or a stock — choose a direction (UP or DOWN) and a duration (from 15 seconds to end-of-day), and stake an amount. When the timer ends, the trade settles on the market price at that tick.",
           },
           {
             kind: "p",
-            text: "It is “binary” because there are only two outcomes. If the market finished on your side, you win a fixed payout. If it did not, you lose the amount you staked — never more than that. You know both numbers before you click.",
+            text: "There are only two outcomes. If the market finished on your side, you win a fixed payout. If it did not, you lose the amount you staked — never more than that. You know both numbers before you click.",
           },
         ],
       },
@@ -56,7 +55,7 @@ export const guides: Article[] = [
         blocks: [
           {
             kind: "p",
-            text: "Binary options are high-risk, short-term speculation, not investing. Most short-term traders lose money. Because outcomes are all-or-nothing, losses accumulate quickly if you over-stake or chase them.",
+            text: "This is high-risk, short-term speculation, not investing. Most short-term traders lose money. Because outcomes are all-or-nothing, losses accumulate quickly if you over-stake or chase them.",
           },
           {
             kind: "list",
@@ -80,7 +79,7 @@ export const guides: Article[] = [
     ],
     faqs: [
       {
-        q: "Is binary options trading gambling?",
+        q: "Is trading gambling?",
         a: "It shares features with gambling — fixed risk, short time horizon, all-or-nothing outcomes — and should be treated with the same caution. It is not a savings or investment product. Only stake money you can afford to lose.",
       },
       {
@@ -101,7 +100,7 @@ export const guides: Article[] = [
     updated: "2026-09-22",
     keywords: [
       "asm trade deposit",
-      "how to deposit binary options",
+      "how to deposit",
       "upi deposit trading",
       "minimum deposit",
     ],
@@ -182,7 +181,7 @@ export const guides: Article[] = [
     updated: "2026-09-22",
     keywords: [
       "asm trade withdrawal",
-      "how to withdraw binary options",
+      "how to withdraw",
       "withdrawal time",
       "trading withdrawal",
     ],
@@ -254,7 +253,7 @@ export const guides: Article[] = [
     updated: "2026-09-22",
     keywords: [
       "free demo account",
-      "binary options demo",
+      "demo account",
       "practice trading account",
       "asm trade demo",
     ],
