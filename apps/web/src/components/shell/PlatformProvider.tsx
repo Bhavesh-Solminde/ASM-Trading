@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { BalancesDto, OpenTradeResult, ServerMessage, TradeView } from "@asm/contracts";
+import type { BalancesDto, OpenTradeResult, ServerMessage, Timeframe, TradeView } from "@asm/contracts";
 import { useEngineSocket, type SocketStatus } from "@/components/chart/useEngineSocket";
 import { playSettled } from "@/lib/sound";
 import {
@@ -57,6 +57,8 @@ interface PlatformContextValue {
   status: SocketStatus;
   chartSymbol: string;
   selectChartSymbol: (symbol: string) => void;
+  timeframe: Timeframe;
+  selectTimeframe: (timeframe: Timeframe) => void;
   recordOpened: (result: OpenTradeResult) => void;
   /** Distraction-free phone trading view: chart + ticket only, chrome hidden. */
   focusMode: boolean;
@@ -91,6 +93,7 @@ export function PlatformProvider({
     accounts.find((a) => a.type === "DEMO")?.id ?? accounts[0]?.id ?? "",
   );
   const [chartSymbol, setChartSymbol] = useState(defaultSymbol);
+  const [timeframe, setTimeframe] = useState<Timeframe>("1m");
   const [focusMode, setFocusMode] = useState(false);
   const [market] = useState(() => new MarketStore(defaultSymbol, "1m", assets));
   const [trades, dispatch] = useReducer(
@@ -118,7 +121,7 @@ export function PlatformProvider({
     },
     [market],
   );
-  const { status, send } = useEngineSocket({ symbol: chartSymbol, timeframe: "1m", watch, onMessage });
+  const { status, send } = useEngineSocket({ symbol: chartSymbol, timeframe, watch, onMessage });
 
   // Let the market store reach the socket for scroll-left history backfill.
   useEffect(() => {
@@ -130,6 +133,14 @@ export function PlatformProvider({
     (symbol: string) => {
       market.selectSymbol(symbol);
       setChartSymbol(symbol);
+    },
+    [market],
+  );
+
+  const selectTimeframe = useCallback(
+    (tf: Timeframe) => {
+      market.selectTimeframe(tf);
+      setTimeframe(tf);
     },
     [market],
   );
@@ -167,11 +178,26 @@ export function PlatformProvider({
       status,
       chartSymbol,
       selectChartSymbol,
+      timeframe,
+      selectTimeframe,
       recordOpened,
       focusMode,
       setFocusMode,
     }),
-    [assets, accounts, activeAccountId, trades, market, status, chartSymbol, selectChartSymbol, recordOpened, focusMode],
+    [
+      assets,
+      accounts,
+      activeAccountId,
+      trades,
+      market,
+      status,
+      chartSymbol,
+      selectChartSymbol,
+      timeframe,
+      selectTimeframe,
+      recordOpened,
+      focusMode,
+    ],
   );
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>;

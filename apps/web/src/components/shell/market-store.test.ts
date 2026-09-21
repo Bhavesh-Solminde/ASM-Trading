@@ -57,4 +57,22 @@ describe("MarketStore", () => {
     expect(chart.lastPrice).toBeNull();
     expect(quotes.EURUSD!.price).toBe(1.1);
   });
+
+  it("switches timeframe, resetting candle state but keeping the symbol", () => {
+    const store = new MarketStore("EURUSD", "1m", assets);
+    store.apply({ type: "tick", symbol: "EURUSD", price: 1.1, ts: 1 });
+    store.selectTimeframe("15m");
+    const { chart } = store.getSnapshot();
+    expect(chart.timeframe).toBe("15m");
+    expect(chart.symbol).toBe("EURUSD");
+    expect(chart.lastPrice).toBeNull();
+    expect(chart.candles).toEqual([]);
+  });
+
+  it("ignores selecting the timeframe already active", () => {
+    const store = new MarketStore("EURUSD", "1m", assets);
+    const before = store.getSnapshot();
+    store.selectTimeframe("1m");
+    expect(store.getSnapshot()).toBe(before);
+  });
 });

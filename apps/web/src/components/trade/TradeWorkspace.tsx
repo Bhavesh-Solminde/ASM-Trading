@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { TradeView } from "@asm/contracts";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { SentimentBar } from "@/components/chart/SentimentBar";
+import { TimeframeTabs } from "@/components/chart/TimeframeTabs";
 import { Icon } from "@/components/shell/Icon";
 import { useMarket } from "@/components/shell/market-store";
 import { usePlatform, useQuote } from "@/components/shell/PlatformProvider";
@@ -145,9 +146,7 @@ export function TradeWorkspace() {
             {status === "unauthorised" ? (
               <p className="absolute left-2 top-[78px] text-xs text-down">Your session has ended. Log in again.</p>
             ) : null}
-            <div className="legend pointer-events-none absolute right-[92px] top-2.5 text-ink-3! phone:hidden">
-              1m candles
-            </div>
+            <TimeframeTabs className="absolute right-[86px] top-2 phone:right-2 phone:top-11" />
             <button
               type="button"
               onClick={focusMode ? exitFocus : enterFocus}

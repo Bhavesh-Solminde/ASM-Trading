@@ -65,6 +65,13 @@ export class MarketStore {
     this.schedule();
   }
 
+  /** Switches the chart timeframe; resets candle state so fresh history loads. */
+  selectTimeframe(timeframe: Timeframe): void {
+    if (this.snapshot.chart.timeframe === timeframe) return;
+    this.snapshot = { ...this.snapshot, chart: initialChartState(this.snapshot.chart.symbol, timeframe) };
+    this.schedule();
+  }
+
   /** Wires the store to the live socket so `loadOlder` can reach the engine. */
   setSender(sender: ((message: ClientMessage) => void) | null): void {
     this.sender = sender;
