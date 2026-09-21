@@ -30,6 +30,7 @@ export const RAIL_ITEMS: readonly RailItem[] = [
     available: true,
     matches: ["/deposit", "/withdrawal"],
   },
+  { id: "leaderboard", label: "Top", href: "/leaderboard", icon: "cup", available: true },
   { id: "support", label: "Support", href: "/support", icon: "help", available: true },
   { id: "account", label: "Account", href: "/account", icon: "user", available: true },
   { id: "tournaments", label: "Tourney", href: "/tournaments", icon: "cup", available: false },

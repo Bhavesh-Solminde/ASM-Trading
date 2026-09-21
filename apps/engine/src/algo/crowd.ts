@@ -10,6 +10,7 @@ import {
   pickProfile,
   type BotProfile,
 } from "./profiles";
+import { botIdentity } from "./identities";
 
 const BOT_COUNT = Number(process.env.BOT_COUNT ?? 40);
 const ARRIVALS_PER_MINUTE = Number(process.env.BOT_ARRIVALS_PER_MINUTE ?? 90);
@@ -46,16 +47,26 @@ export class BotCrowd {
   async provision(): Promise<void> {
     for (let i = 0; i < BOT_COUNT; i++) {
       const email = `${BOT_EMAIL_PREFIX}${i}@asmtrade.local`;
+      const identity = botIdentity(this.rng, i);
       const user = await prisma.user.upsert({
         where: { email },
-        update: {},
-        create: { email, passwordHash: "bot-no-login", emailVerified: true },
+        update: { isBot: true, nickname: identity.nickname, country: identity.country },
+        create: {
+          email,
+          passwordHash: "bot-no-login",
+          emailVerified: true,
+          isBot: true,
+          nickname: identity.nickname,
+          country: identity.country,
+        },
       });
 
+      // Bots trade on a LIVE account so they populate the LIVE leaderboard with
+      // real settled P/L. isBot keeps them out of deposit reconciliation.
       const account = await prisma.account.upsert({
-        where: { userId_type: { userId: user.id, type: "DEMO" } },
+        where: { userId_type: { userId: user.id, type: "LIVE" } },
         update: {},
-        create: { userId: user.id, type: "DEMO", realBalance: 100_000_000 },
+        create: { userId: user.id, type: "LIVE", currency: "INR", realBalance: 100_000_000 },
       });
 
       this.bots.push({

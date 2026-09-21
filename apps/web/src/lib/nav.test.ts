@@ -9,6 +9,12 @@ describe("rail registry", () => {
     }
   });
 
+  it("exposes an available leaderboard destination", () => {
+    const item = RAIL_ITEMS.find((i) => i.id === "leaderboard");
+    expect(item?.available).toBe(true);
+    expect(item?.href).toBe("/leaderboard");
+  });
+
   it("marks the three deferred destinations unavailable", () => {
     for (const id of ["tournaments", "market", "more"]) {
       const item = RAIL_ITEMS.find((i) => i.id === id);

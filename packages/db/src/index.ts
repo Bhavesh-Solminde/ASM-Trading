@@ -7,6 +7,11 @@ export {
 } from "./repositories/account";
 export { findUserByEmail, findUserById } from "./repositories/user";
 export {
+  dailyLeaderboard,
+  type LeaderboardEntry,
+  type LeaderboardResult,
+} from "./repositories/leaderboard";
+export {
   AmountSpaceExhausted,
   DepositNotFound,
   DepositAlreadyResolved,
