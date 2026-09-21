@@ -49,17 +49,21 @@ export interface StepPriceOutput {
 }
 
 /**
- * The engine tick interval, in seconds — the SINGLE SOURCE OF TRUTH for tick
- * cadence. The loop emits one tick every TICK_DT_SEC (loop.ts derives its
- * setTimeout from this) and each tick advances price by exactly this much
- * simulated time. Because the per-tick move is `sigma·√dt·z`, per-SECOND
- * volatility is invariant to dt: retuning this changes only how OFTEN the price
- * updates, not how far it travels per second. Raise it to calm the chart (fewer,
- * larger steps); lower it to make it livelier. All bias/magnet caps are in these
- * units. Keep it at or below ~0.25s so the client's price easing still reads as
- * continuous motion rather than visible steps.
+ * SECONDS BETWEEN PRICE UPDATES — the single source of truth for how often the
+ * chart moves. This is the one number to change: set it to 1 for one update per
+ * second, 0.5 for two per second, 2 for one every two seconds. The engine loop
+ * emits exactly one new price every TICK_DT_SEC (loop.ts derives its setTimeout
+ * from this) and each update advances the price by this much simulated time.
+ *
+ * At ~1s the price makes one decisive move and then HOLDS until the next update
+ * (the client's brief easing glide settles well inside the interval), instead
+ * of the constant sub-second "vibration" you get at small values. Because the
+ * per-update move is `sigma·√dt·z`, per-SECOND volatility is unchanged when you
+ * retune this — a 1s update simply moves in one larger step rather than many
+ * tiny ones, so the market stays as lively, it just steps instead of shimmering.
+ * All bias/magnet caps are expressed in these units.
  */
-export const TICK_DT_SEC = 0.15; // ~6.7 Hz (lower = more frequent, finer updates)
+export const TICK_DT_SEC = 1; // one update per second — change this to taste
 
 /**
  * Per-tick standard deviation in log-price space.

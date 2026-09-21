@@ -14,7 +14,7 @@ import { computeSentiment } from "./sentiment";
 const TICK_MS = Math.round(TICK_DT_SEC * 1000);
 
 /**
- * The tick loop (TICK_DT_SEC cadence — ~6.7 Hz by default). Uses setTimeout
+ * The tick loop (TICK_DT_SEC cadence — one update per second by default). Uses setTimeout
  * rescheduling rather than setInterval so a slow database write delays the next
  * tick instead of stacking them up.
  */
