@@ -20,7 +20,6 @@ import type { CandleDto, TradeView } from "@asm/contracts";
 import type { MarketStore } from "@/components/shell/market-store";
 import { formatMinor } from "@/lib/format-money";
 import { countdown } from "@/lib/format-time";
-import { stepEase } from "./ease";
 import { TIMEFRAME_SEC, type ChartState } from "./engine-state";
 
 const BRAND = "#ffb000";
@@ -33,11 +32,15 @@ const CANDLE_SEC = TIMEFRAME_SEC["1m"];
 /** Fetch older history once the left edge is within this many bars of the start. */
 const LOAD_OLDER_TRIGGER_BARS = 12;
 /**
- * Per-frame fraction the displayed price moves toward the latest tick. Low so
- * the price glides slowly and smoothly (Quotex-like) instead of snapping; at
- * ~60fps this settles a step in roughly a quarter second.
+ * How long, in milliseconds, the displayed price takes to glide to each new
+ * value from the engine. This is a real time-based transition (frame-rate
+ * independent), so every update — however big the jump — eases in over this
+ * duration with an ease-out curve and then rests until the next update. This is
+ * the one number to change for a slower/faster transition; keep it below the
+ * gap between updates (TICK_DT_SEC × 1000) so each glide finishes before the
+ * next price arrives.
  */
-const PRICE_EASE_K = 0.14;
+const PRICE_TRANSITION_MS = 600;
 
 function toBar(c: CandleDto): CandlestickData {
   return { time: c.openTs as UTCTimestamp, open: c.o, high: c.h, low: c.l, close: c.c };
@@ -190,17 +193,30 @@ export function PriceChart({
 
     let prev: ChartState | null = null;
 
-    // Displayed price eases toward the latest tick (`target`) each animation
-    // frame; the forming candle's close and the amber price line follow it, so
-    // price drifts smoothly between ticks. O/H/L still come straight from the
-    // store — only the close is eased (and clamped inside the bar's range).
+    // The displayed price glides to each new engine value over a fixed
+    // transition time (PRICE_TRANSITION_MS) with an ease-out curve, then rests
+    // until the next value. Because updates are seconds apart, this reads as a
+    // deliberate move-and-hold rather than constant motion. The forming candle
+    // follows the glide: its close tracks the eased price and its high/low grow
+    // to the envelope of the eased path, so the wick extends smoothly with the
+    // body instead of snapping ahead to the raw extreme.
     const reducedMotion =
       typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const eps = 10 ** -precision / 2;
     let displayed: number | null = null;
     let target: number | null = null;
+    // Active glide: from `tweenFrom` toward `tweenTo`, starting at `tweenStart`.
+    let tweenFrom = 0;
+    let tweenTo: number | null = null;
+    let tweenStart = 0;
     let formingBar: CandlestickData | null = null;
-    let paintedBar: CandlestickData | null = null;
+    // The displayed forming candle we grow ourselves (see comment above).
+    let bucketTime: Time | null = null;
+    let dispHigh = NaN;
+    let dispLow = NaN;
+    let paintedTime: Time | null = null;
+    let paintedHigh = NaN;
+    let paintedLow = NaN;
     let paintedClose = NaN;
     let paintedPrice = NaN;
     let raf = 0;
@@ -208,13 +224,45 @@ export function PriceChart({
     const paintPrice = () => {
       raf = requestAnimationFrame(paintPrice);
       if (target === null) return;
-      displayed = displayed === null || reducedMotion ? target : stepEase(displayed, target, PRICE_EASE_K, eps);
+
+      if (displayed === null || reducedMotion) {
+        displayed = target;
+        tweenTo = target;
+      } else {
+        // A new engine value starts a fresh glide from wherever we are now.
+        if (target !== tweenTo) {
+          tweenFrom = displayed;
+          tweenTo = target;
+          tweenStart = performance.now();
+        }
+        if (displayed !== tweenTo) {
+          const t = Math.min(1, (performance.now() - tweenStart) / PRICE_TRANSITION_MS);
+          const e = 1 - (1 - t) ** 3; // ease-out cubic
+          displayed = tweenFrom + (tweenTo - tweenFrom) * e;
+          if (t >= 1 || Math.abs(tweenTo - displayed) <= eps) displayed = tweenTo;
+        }
+      }
+
       if (formingBar) {
-        const close = Math.min(formingBar.high, Math.max(formingBar.low, displayed));
-        if (formingBar !== paintedBar || close !== paintedClose) {
-          series.update({ ...formingBar, close });
-          paintedBar = formingBar;
-          paintedClose = close;
+        if (formingBar.time !== bucketTime) {
+          // New candle: seed its envelope at the bucket's open price.
+          bucketTime = formingBar.time;
+          dispHigh = formingBar.open;
+          dispLow = formingBar.open;
+        }
+        dispHigh = Math.max(dispHigh, displayed, formingBar.open);
+        dispLow = Math.min(dispLow, displayed, formingBar.open);
+        if (
+          formingBar.time !== paintedTime ||
+          dispHigh !== paintedHigh ||
+          dispLow !== paintedLow ||
+          displayed !== paintedClose
+        ) {
+          series.update({ time: formingBar.time, open: formingBar.open, high: dispHigh, low: dispLow, close: displayed });
+          paintedTime = formingBar.time;
+          paintedHigh = dispHigh;
+          paintedLow = dispLow;
+          paintedClose = displayed;
         }
       }
       if (displayed !== paintedPrice) {
