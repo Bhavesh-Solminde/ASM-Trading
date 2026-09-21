@@ -4,11 +4,11 @@
 @custom-variant phone (@media (width < 48rem) or (height < 30rem));
 
 @theme {
-  --color-ground: #050505;
-  --color-panel: #0d0d0d;
-  --color-tile: #151515;
-  --color-tile-hi: #1c1c1c;
-  --color-rule: #222222;
+  --color-ground: #1e2024;
+  --color-panel: #24272b;
+  --color-tile: #2a2e33;
+  --color-tile-hi: #333840;
+  --color-rule: #363b42;
   --color-ink: #e8e6e1;
   --color-ink-2: #9e9b95;
   --color-ink-3: #66635e;
@@ -140,8 +140,8 @@ button,
 
 .chartbox-bg {
   background:
-    radial-gradient(circle, rgba(255, 176, 0, 0.035) 1px, transparent 1.3px) 0 0 / 5px 5px,
-    #070707;
+    radial-gradient(circle, rgba(255, 176, 0, 0.045) 1px, transparent 1.3px) 0 0 / 5px 5px,
+    #17191c;
 }
 
 .slab-fired::after {

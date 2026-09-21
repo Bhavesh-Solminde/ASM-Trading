@@ -131,7 +131,7 @@ export function TradeTicket({
           {gridOpen ? (
             <div
               id="ticket-durations"
-              className="grid grid-cols-4 gap-1 phone:absolute phone:inset-x-3 phone:z-20 phone:mt-1 phone:gap-1.5 phone:rounded phone:border phone:border-rule phone:bg-[#0f0f10] phone:p-2 phone:shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]"
+              className="grid grid-cols-4 gap-1 phone:absolute phone:inset-x-3 phone:z-20 phone:mt-1 phone:gap-1.5 phone:rounded phone:border phone:border-rule phone:bg-[#2c3036] phone:p-2 phone:shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]"
             >
               {DURATIONS_SEC.map((d) => (
                 <button

@@ -145,7 +145,7 @@ export function TopBar() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-[380px] rounded border border-rule bg-[#0f0f10] p-5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]"
+              className="w-full max-w-[380px] rounded border border-rule bg-[#2c3036] p-5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]"
             >
               <h2 id="live-coming-soon-title" className="text-base font-bold tracking-tight text-ink">
                 Live account — coming soon
@@ -173,7 +173,7 @@ export function TopBar() {
             <div aria-hidden onClick={closeMenu} className="fixed inset-0 z-30 hidden bg-black/60 phone:block" />
             <div
               role="menu"
-              className="absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-rule bg-[#0f0f10] p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0 phone:pb-[max(12px,env(safe-area-inset-bottom))]"
+              className="absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-rule bg-[#2c3036] p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0 phone:pb-[max(12px,env(safe-area-inset-bottom))]"
             >
             {[...accounts]
               .sort((a, b) => (a.type === b.type ? 0 : a.type === "LIVE" ? -1 : 1))

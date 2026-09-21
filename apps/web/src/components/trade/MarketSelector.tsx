@@ -73,7 +73,7 @@ export function MarketSelector({
           <div
             role="listbox"
             aria-label="Markets"
-            className="absolute left-0 top-[calc(100%+6px)] z-40 w-[300px] max-w-[calc(100vw-20px)] overflow-hidden rounded border border-rule bg-[#0f0f10] shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:left-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0"
+            className="absolute left-0 top-[calc(100%+6px)] z-40 w-[300px] max-w-[calc(100vw-20px)] overflow-hidden rounded border border-rule bg-[#2c3036] shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:left-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0"
           >
             <div className="border-b border-rule p-2">
               <input

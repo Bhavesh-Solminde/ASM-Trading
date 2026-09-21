@@ -56,7 +56,7 @@ export function AssetTabs({
           <Icon name="plus" />
         </button>
         {picking ? (
-          <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-60 rounded border border-rule bg-[#0f0f10] p-1.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]">
+          <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-60 rounded border border-rule bg-[#2c3036] p-1.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]">
             {closed.map((asset) => (
               <button
                 key={asset.symbol}
