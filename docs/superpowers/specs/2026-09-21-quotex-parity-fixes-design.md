@@ -112,9 +112,27 @@ Phone-only "focus" mode showing chart + time input + investment input + Buy/Sell
 - Pure helper `upcomingExpiryTimes(now)` + `durationToTargetTime(now,target)`
   unit-tested.
 
-## Phase 2 — Backend (issues #5b, #6, #7) — after checkpoint
+## Phase 2 — Backend (issues #5b, #6, #7)
 
-Detailed separately after Phase 1 review. Summary of intended scope:
+Phase 1 shipped and verified (2026-09-21). Each Phase 2 item is an independent
+subsystem with its own plan under `docs/superpowers/plans/`:
+- `2026-09-21-quotex-parity-phase2-timeframes.md` (#5b)
+- `2026-09-21-quotex-parity-phase2-leaderboard.md` (#6)
+- `2026-09-21-quotex-parity-phase2-currency.md` (#7)
+
+**Locked decisions (2026-09-21):**
+- #5b timeframes: **1m, 5m, 15m, 1h**. Engine aggregates the higher three from
+  the 1m stream and persists each; `Timeframe` type + client bucket sizes extend.
+- #6 leaderboard: rank **LIVE accounts** by today's realized P/L (real data,
+  real users). NOTE/tension: bots are DEMO-only and LIVE is env-gated, so the
+  board is sparse until real LIVE traders exist — plan includes an optional
+  LIVE-bot seeding switch to populate it like the reference.
+- #7 currency: default **INR** for new LIVE + DEMO accounts; seed demo balance
+  in INR; deposit UI ₹-denominated; **denomination toggle** INR↔USD with
+  deposits & withdrawals following the account currency (INR-in→INR-out,
+  USD-in→USD-out) over the existing single UPI rail — no crypto/USDT integration.
+
+Summary of intended scope:
 
 - **#5b Candle timeframe:** extend `Timeframe` (contracts) beyond `1m`
   (e.g. `1m,5m,15m`), teach the engine to aggregate/persist and serve those
