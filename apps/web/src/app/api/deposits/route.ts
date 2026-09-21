@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const deposit = await createDepositIntent({
       userId: session.userId,
       method: parsed.data.method,
-      amountUsdMinor: parsed.data.amountUsd,
+      amountInrMinor: parsed.data.amountInr,
       correlationId: ctx.cid,
     });
 

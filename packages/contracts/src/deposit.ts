@@ -8,14 +8,14 @@ import { z } from "zod";
 export const DEPOSIT_METHODS = ["PhonePe", "UPI", "PayTM", "UPI Intent"] as const;
 
 /**
- * Strict. A request carrying amountInr, vpa, checkoutToken or status is
- * rejected — all of those are server-determined, and an attempt to supply
- * them is worth a validation log rather than a silent drop.
+ * Strict. A request carrying vpa, checkoutToken or status is rejected — those
+ * are server-determined. Deposits are collected in rupees over UPI, so the
+ * amount is INR minor units (paise); bounds are enforced again server-side.
  */
 export const CreateDepositSchema = z.strictObject({
   method: z.enum(DEPOSIT_METHODS),
-  /** Minor units (US cents). Bounds are enforced again server-side. */
-  amountUsd: z.number().int().positive().max(100_000_000),
+  /** Minor units (paise). Bounds are enforced again server-side. */
+  amountInr: z.number().int().positive().max(1_000_000_000),
 });
 export type CreateDepositInput = z.infer<typeof CreateDepositSchema>;
 

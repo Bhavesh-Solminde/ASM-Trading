@@ -21,6 +21,9 @@ export const OFFSET_SPACE = 2000;
 export const DEPOSIT_TTL_MINUTES = 60;
 export const MIN_DEPOSIT_USD_MINOR = 1_000; // $10.00
 export const MAX_DEPOSIT_USD_MINOR = 96_100; // $961.00
+// Deposits are collected in rupees over UPI. Paise (minor units).
+export const MIN_DEPOSIT_INR_MINOR = 100_000; // ₹1,000.00
+export const MAX_DEPOSIT_INR_MINOR = 100_000_000; // ₹10,00,000.00
 
 /**
  * VPA no longer participates in matching (amount is the sole reconciliation
@@ -76,21 +79,24 @@ export class UtrAlreadyClaimed extends Error {
 export async function createDepositIntent(input: {
   userId: string;
   method: string;
-  amountUsdMinor: number;
+  amountInrMinor: number;
   correlationId: string;
 }): Promise<Deposit> {
-  if (input.amountUsdMinor < MIN_DEPOSIT_USD_MINOR) {
+  if (input.amountInrMinor < MIN_DEPOSIT_INR_MINOR) {
     throw new Error(
-      `Below the minimum deposit of $${(MIN_DEPOSIT_USD_MINOR / 100).toFixed(2)}.`,
+      `Below the minimum deposit of ₹${(MIN_DEPOSIT_INR_MINOR / 100).toLocaleString("en-IN")}.`,
     );
   }
-  if (input.amountUsdMinor > MAX_DEPOSIT_USD_MINOR) {
+  if (input.amountInrMinor > MAX_DEPOSIT_INR_MINOR) {
     throw new Error(
-      `Above the maximum deposit of $${(MAX_DEPOSIT_USD_MINOR / 100).toFixed(2)}.`,
+      `Above the maximum deposit of ₹${(MAX_DEPOSIT_INR_MINOR / 100).toLocaleString("en-IN")}.`,
     );
   }
 
-  const baseInr = Math.round(input.amountUsdMinor * USD_TO_INR_RATE);
+  // The user enters rupees; that is the amount reserved and, for an INR
+  // account, credited. The USD figure is kept for the record only.
+  const baseInr = input.amountInrMinor;
+  const amountUsd = Math.round(input.amountInrMinor / USD_TO_INR_RATE);
   const expiresAt = new Date(Date.now() + DEPOSIT_TTL_MINUTES * 60_000);
 
   const start = randomBytes(2).readUInt16BE(0) % OFFSET_SPACE;
@@ -104,7 +110,7 @@ export async function createDepositIntent(input: {
         data: {
           userId: input.userId,
           method: input.method,
-          amountUsd: input.amountUsdMinor,
+          amountUsd,
           amountInr,
           vpa: DEMO_VPA,
           checkoutToken: randomBytes(24).toString("base64url"),
@@ -253,7 +259,10 @@ export async function creditDepositToAccount(input: {
     where: { userId: deposit.userId, type: "LIVE" },
   });
 
-  const bonus = Math.floor((deposit.amountUsd * BONUS_PERCENT) / 100);
+  // Credit in the account's own currency: an INR rail is funded with the INR
+  // amount, a USD rail with the USD amount. The deposit carries both figures.
+  const credit = account.currency === "INR" ? deposit.amountInr : deposit.amountUsd;
+  const bonus = Math.floor((credit * BONUS_PERCENT) / 100);
 
   await prisma.$transaction(async (tx) => {
     const claimed = await tx.deposit.updateMany({
@@ -276,7 +285,7 @@ export async function creditDepositToAccount(input: {
     const updated = await tx.account.update({
       where: { id: account.id },
       data: {
-        realBalance: { increment: deposit.amountUsd },
+        realBalance: { increment: credit },
         bonusBalance: { increment: bonus },
         version: { increment: 1 },
       },
@@ -286,7 +295,7 @@ export async function creditDepositToAccount(input: {
       data: {
         accountId: account.id,
         kind: "DEPOSIT",
-        amount: deposit.amountUsd,
+        amount: credit,
         balanceAfter: updated.realBalance + updated.bonusBalance,
         refType: "Deposit",
         refId: deposit.id,
@@ -315,7 +324,7 @@ export async function creditDepositToAccount(input: {
 
     await tx.user.update({
       where: { id: deposit.userId },
-      data: { cumulativeDeposits: { increment: deposit.amountUsd } },
+      data: { cumulativeDeposits: { increment: credit } },
     });
 
     await tx.auditLog.create({

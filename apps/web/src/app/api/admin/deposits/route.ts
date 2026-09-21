@@ -20,20 +20,20 @@ export async function POST(req: NextRequest) {
     typeof body !== "object" ||
     body === null ||
     !("userId" in body) ||
-    !("amountUsdMinor" in body) ||
+    !("amountInrMinor" in body) ||
     typeof (body as { userId: unknown }).userId !== "string" ||
-    typeof (body as { amountUsdMinor: unknown }).amountUsdMinor !== "number"
+    typeof (body as { amountInrMinor: unknown }).amountInrMinor !== "number"
   ) {
-    return NextResponse.json({ error: "userId and amountUsdMinor are required." }, { status: 400 });
+    return NextResponse.json({ error: "userId and amountInrMinor are required." }, { status: 400 });
   }
 
-  const { userId, amountUsdMinor } = body as { userId: string; amountUsdMinor: number };
+  const { userId, amountInrMinor } = body as { userId: string; amountInrMinor: number };
 
   try {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor,
+      amountInrMinor,
       correlationId: randomUUID(),
     });
     return NextResponse.json(

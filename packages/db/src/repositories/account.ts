@@ -23,17 +23,22 @@ export async function getAccountForActor(
   });
 }
 
-/** Every user gets exactly one LIVE account at zero and one funded DEMO account. */
+/**
+ * Every user gets exactly one LIVE account at zero and one funded DEMO account.
+ * Both are denominated in `currency` (defaults to INR); currency is set
+ * explicitly so behaviour never depends on the column's DB default.
+ */
 export async function createAccountsForUser(
   userId: string,
   demoBalanceMinor: number,
+  currency = "INR",
 ): Promise<Account[]> {
   return prisma.$transaction([
     prisma.account.create({
-      data: { userId, type: "LIVE", realBalance: 0 },
+      data: { userId, type: "LIVE", currency, realBalance: 0 },
     }),
     prisma.account.create({
-      data: { userId, type: "DEMO", realBalance: demoBalanceMinor },
+      data: { userId, type: "DEMO", currency, realBalance: demoBalanceMinor },
     }),
   ]);
 }

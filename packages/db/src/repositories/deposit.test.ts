@@ -4,8 +4,8 @@ import { prisma } from "../client";
 import {
   DepositAlreadyResolved,
   DepositNotFound,
-  MAX_DEPOSIT_USD_MINOR,
-  MIN_DEPOSIT_USD_MINOR,
+  MAX_DEPOSIT_INR_MINOR,
+  MIN_DEPOSIT_INR_MINOR,
   USD_TO_INR_RATE,
   UtrAlreadyClaimed,
   claimUtr,
@@ -49,7 +49,7 @@ describe("createDepositIntent", () => {
       createDepositIntent({
         userId,
         method: "upi",
-        amountUsdMinor: MIN_DEPOSIT_USD_MINOR - 1,
+        amountInrMinor: MIN_DEPOSIT_INR_MINOR - 1,
         correlationId: randomUUID(),
       }),
     ).rejects.toThrow(/minimum/);
@@ -60,28 +60,26 @@ describe("createDepositIntent", () => {
       createDepositIntent({
         userId,
         method: "upi",
-        amountUsdMinor: MAX_DEPOSIT_USD_MINOR + 1,
+        amountInrMinor: MAX_DEPOSIT_INR_MINOR + 1,
         correlationId: randomUUID(),
       }),
     ).rejects.toThrow(/maximum/);
   });
 
-  it("reserves an amount within ±999/+1000 paise of the converted base", async () => {
+  it("reserves an amount within ±999/+1000 paise of the requested rupees", async () => {
+    const requestedInr = 1_000_000; // ₹10,000.00
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 10_000, // $100.00
+      amountInrMinor: requestedInr,
       correlationId: randomUUID(),
     });
-    const baseInr = Math.round(10_000 * USD_TO_INR_RATE);
-    // The offset pool spans -999..+1000 inclusive (2000 values) and does
-    // include 0 — an assigned amount landing exactly on the round base is
-    // rare (~1-in-2000) but not excluded by design, so this only asserts
-    // the range, not "never exactly the base" (which would make this test
-    // flaky).
-    expect(deposit.amountInr).toBeGreaterThanOrEqual(baseInr - 999);
-    expect(deposit.amountInr).toBeLessThanOrEqual(baseInr + 1000);
-    expect(deposit.amountUsd).toBe(10_000);
+    // The offset pool spans -999..+1000 inclusive around the requested amount,
+    // so the reserved amount stays within about ±₹10 of what the user asked for.
+    expect(deposit.amountInr).toBeGreaterThanOrEqual(requestedInr - 999);
+    expect(deposit.amountInr).toBeLessThanOrEqual(requestedInr + 1000);
+    // The USD figure is derived from the requested rupees for the record only.
+    expect(deposit.amountUsd).toBe(Math.round(requestedInr / USD_TO_INR_RATE));
     expect(deposit.status).toBe("AWAITING_PAYMENT");
   });
 
@@ -89,13 +87,13 @@ describe("createDepositIntent", () => {
     const a = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 20_000,
+      amountInrMinor: 2_000_000,
       correlationId: randomUUID(),
     });
     const b = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 20_000,
+      amountInrMinor: 2_000_000,
       correlationId: randomUUID(),
     });
     expect(a.amountInr).not.toBe(b.amountInr);
@@ -107,7 +105,7 @@ describe("findLiveDepositByAmount", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 15_000,
+      amountInrMinor: 1_500_000,
       correlationId: randomUUID(),
     });
     const found = await findLiveDepositByAmount(deposit.amountInr);
@@ -125,7 +123,7 @@ describe("findLiveDepositByClaimedUtr", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 25_000,
+      amountInrMinor: 2_500_000,
       correlationId: randomUUID(),
     });
     await prisma.deposit.update({
@@ -147,7 +145,7 @@ describe("creditDepositToAccount", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 30_000,
+      amountInrMinor: 3_000_000,
       correlationId: randomUUID(),
     });
     await prisma.deposit.update({
@@ -180,14 +178,35 @@ describe("creditDepositToAccount", () => {
     const account = await prisma.account.findFirstOrThrow({
       where: { userId, type: "LIVE" },
     });
-    expect(account.realBalance).toBe(30_000);
+    // The account is INR by default, so it is credited the deposit's INR amount.
+    expect(account.currency).toBe("INR");
+    expect(account.realBalance).toBe(deposit.amountInr);
+  });
+
+  it("credits a USD account in USD rather than INR", async () => {
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "USD" } });
+    const deposit = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountInrMinor: 2_500_000,
+      correlationId: randomUUID(),
+    });
+    await prisma.deposit.update({ where: { id: deposit.id }, data: { status: "PENDING_CONFIRMATION" } });
+    const before = (await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } })).realBalance;
+
+    await creditDepositToAccount({ depositId: deposit.id, adminId: null, creditId: null });
+
+    const after = await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } });
+    expect(after.realBalance - before).toBe(deposit.amountUsd);
+    // Restore INR for any later cases.
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
   });
 
   it("throws AmountSpaceExhausted-unrelated DepositAlreadyResolved when called twice", async () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 35_000,
+      amountInrMinor: 3_500_000,
       correlationId: randomUUID(),
     });
     await prisma.deposit.update({
@@ -206,7 +225,7 @@ describe("getDepositByToken", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 40_000,
+      amountInrMinor: 4_000_000,
       correlationId: randomUUID(),
     });
     const found = await getDepositByToken(deposit.checkoutToken);
@@ -226,13 +245,13 @@ describe("listDepositsForActor", () => {
     await createDepositIntent({
       userId: other.id,
       method: "upi",
-      amountUsdMinor: 12_000,
+      amountInrMinor: 1_200_000,
       correlationId: randomUUID(),
     });
     const mine = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 13_000,
+      amountInrMinor: 1_300_000,
       correlationId: randomUUID(),
     });
 
@@ -254,7 +273,7 @@ describe("claimUtr", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 14_000,
+      amountInrMinor: 1_400_000,
       correlationId: randomUUID(),
     });
     const claimed = await claimUtr(userId, deposit.id, "528312345678");
@@ -266,7 +285,7 @@ describe("claimUtr", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 16_000,
+      amountInrMinor: 1_600_000,
       correlationId: randomUUID(),
     });
     await claimUtr(userId, deposit.id, "111111111111");
@@ -279,7 +298,7 @@ describe("claimUtr", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 17_000,
+      amountInrMinor: 1_700_000,
       correlationId: randomUUID(),
     });
     const other = await prisma.user.create({
@@ -297,13 +316,13 @@ describe("listPendingDeposits", () => {
     const awaiting = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 18_000,
+      amountInrMinor: 1_800_000,
       correlationId: randomUUID(),
     });
     const pending = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 19_000,
+      amountInrMinor: 1_900_000,
       correlationId: randomUUID(),
     });
     await claimUtr(userId, pending.id, "444444444444");
@@ -321,7 +340,7 @@ describe("rejectDeposit", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 21_000,
+      amountInrMinor: 2_100_000,
       correlationId: randomUUID(),
     });
     await claimUtr(userId, deposit.id, "555555555555");
@@ -342,7 +361,7 @@ describe("rejectDeposit", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 22_000,
+      amountInrMinor: 2_200_000,
       correlationId: randomUUID(),
     });
     await claimUtr(userId, deposit.id, "666666666666");

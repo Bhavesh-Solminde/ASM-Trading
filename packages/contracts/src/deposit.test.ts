@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { ClaimUtrSchema, CreateDepositSchema } from "./deposit";
 
 describe("CreateDepositSchema", () => {
-  const valid = { method: "PhonePe", amountUsd: 10_000 };
+  const valid = { method: "PhonePe", amountInr: 100_000 };
 
   it("accepts a valid request", () => {
-    expect(CreateDepositSchema.parse(valid).amountUsd).toBe(10_000);
+    expect(CreateDepositSchema.parse(valid).amountInr).toBe(100_000);
   });
 
-  it("rejects a client-supplied INR amount", () => {
-    expect(CreateDepositSchema.safeParse({ ...valid, amountInr: 1 }).success).toBe(false);
+  it("rejects a client-supplied USD amount", () => {
+    expect(CreateDepositSchema.safeParse({ ...valid, amountUsd: 1 }).success).toBe(false);
   });
 
   it("rejects a client-supplied VPA", () => {
@@ -25,7 +25,7 @@ describe("CreateDepositSchema", () => {
   });
 
   it("rejects a fractional amount", () => {
-    expect(CreateDepositSchema.safeParse({ ...valid, amountUsd: 10.5 }).success).toBe(false);
+    expect(CreateDepositSchema.safeParse({ ...valid, amountInr: 10.5 }).success).toBe(false);
   });
 });
 

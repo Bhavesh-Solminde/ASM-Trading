@@ -11,7 +11,7 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
 
-const DEMO_START_BALANCE = 1_000_000; // $10,000.00 in cents
+const DEMO_START_BALANCE = 100_000_000; // ₹10,00,000.00 in paise
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);

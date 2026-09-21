@@ -44,7 +44,7 @@ describe("matchCreditToDeposit", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 10_000,
+      amountInrMinor: 1_000_000,
       correlationId: randomUUID(),
     });
     await prisma.deposit.update({
@@ -64,7 +64,7 @@ describe("matchCreditToDeposit", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 11_000,
+      amountInrMinor: 1_100_000,
       correlationId: randomUUID(),
     });
     await prisma.deposit.update({
@@ -94,7 +94,7 @@ describe("matchCreditToDeposit", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 12_000,
+      amountInrMinor: 1_200_000,
       correlationId: randomUUID(),
     });
     await prisma.deposit.update({
@@ -120,7 +120,7 @@ describe("matchCreditToDeposit", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 13_000,
+      amountInrMinor: 1_300_000,
       correlationId: randomUUID(),
     });
     // No claimedUtr set on the deposit.
@@ -141,7 +141,7 @@ describe("matchCreditToDeposit", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 13_500,
+      amountInrMinor: 1_350_000,
       correlationId: randomUUID(),
     });
     await prisma.deposit.update({

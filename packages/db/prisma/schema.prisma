@@ -125,7 +125,7 @@ model Account {
   id               String         @id @default(uuid())
   userId           String
   type             AccountType
-  currency         String         @default("USD")
+  currency         String         @default("INR")
   realBalance      Int            @default(0)
   bonusBalance     Int            @default(0)
   turnoverProgress Int            @default(0)

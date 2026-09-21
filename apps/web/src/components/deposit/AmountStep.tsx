@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 
-const QUICK = [150, 200, 300, 500];
+const QUICK = [2000, 5000, 10000, 25000];
 
 export function AmountStep({ method, onBack }: { method: string; onBack: () => void }) {
-  const [amountMajor, setAmountMajor] = useState(100);
+  const [amountMajor, setAmountMajor] = useState(2000);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +16,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
     const res = await fetch("/api/deposits", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method, amountUsd: Math.round(amountMajor * 100) }),
+      body: JSON.stringify({ method, amountInr: Math.round(amountMajor * 100) }),
     });
 
     if (res.ok) {
@@ -45,11 +45,11 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
         <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--color-ink-2)]">
           <div>
             <dt>Min</dt>
-            <dd className="tabular-nums text-[var(--color-ink)]">$10.00</dd>
+            <dd className="tabular-nums text-[var(--color-ink)]">₹1,000</dd>
           </div>
           <div>
             <dt>Max</dt>
-            <dd className="tabular-nums text-[var(--color-ink)]">$961.00</dd>
+            <dd className="tabular-nums text-[var(--color-ink)]">₹10,00,000</dd>
           </div>
           <div>
             <dt>Processing</dt>
@@ -68,8 +68,8 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
         <input
           id="amount"
           type="number"
-          min={10}
-          max={961}
+          min={1000}
+          max={1000000}
           value={amountMajor}
           onChange={(e) => setAmountMajor(Number(e.target.value))}
           className="mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 text-sm tabular-nums outline-none focus:border-[var(--color-brand)]"
@@ -82,7 +82,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
               onClick={() => setAmountMajor(q)}
               className="flex-1 rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-2 py-1.5 text-xs font-semibold phone:py-2.5 phone:text-sm"
             >
-              ${q}
+              ₹{q.toLocaleString("en-IN")}
             </button>
           ))}
         </div>
@@ -95,13 +95,13 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
 
       <div className="flex items-baseline justify-between border-t border-dashed border-[var(--color-rule)] pt-3 text-sm">
         <span className="text-[var(--color-ink-2)]">You will receive</span>
-        <span className="font-semibold tabular-nums">${amountMajor.toFixed(2)}</span>
+        <span className="font-semibold tabular-nums">₹{amountMajor.toLocaleString("en-IN")}</span>
       </div>
 
       <div className="flex items-baseline justify-between text-xs text-[var(--color-ink-2)]">
         <span>Bonus (100%)</span>
         <span className="tabular-nums text-[var(--color-up)]">
-          +${amountMajor.toFixed(2)}
+          +₹{amountMajor.toLocaleString("en-IN")}
         </span>
       </div>
 

@@ -150,7 +150,7 @@ describe("POST /api/bank-feed/sms", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 14_000,
+      amountInrMinor: 1_400_000,
       correlationId: randomUUID(),
     });
     const rupees = (deposit.amountInr / 100).toFixed(2);
@@ -194,7 +194,7 @@ describe("POST /api/bank-feed/sms", () => {
     const deposit = await createDepositIntent({
       userId,
       method: "upi",
-      amountUsdMinor: 16_000,
+      amountInrMinor: 1_600_000,
       correlationId: randomUUID(),
     });
     const rupees = (deposit.amountInr / 100).toFixed(2);
