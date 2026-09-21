@@ -7,6 +7,7 @@ import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor } from "@/lib/format-money";
 import { clockTime, countdown } from "@/lib/format-time";
 import { useNowSec } from "@/lib/use-now";
+import { closedRowDisplay, grossReturnMinor } from "./pnl-display";
 
 type Tab = "open" | "closed";
 
@@ -87,7 +88,7 @@ const OpenTradeRow = memo(function OpenTradeRow({
       asset={asset}
       currency={currency}
       time={<span className="led justify-self-end text-[13px] text-ink">{now === null ? "" : countdown(trade.expiryTs - now)}</span>}
-      pnl={winning ? `+${formatMinor(winProfit, currency)}` : `−${formatMinor(trade.stake, currency)}`}
+      pnl={winning ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}` : `−${formatMinor(trade.stake, currency)}`}
       pnlClass={winning ? "text-up" : losing ? "text-down" : "text-ink-2"}
     >
       <span aria-hidden className="absolute -bottom-px left-0 h-0.5 bg-brand" style={{ width: `${progress * 100}%` }} />
@@ -104,19 +105,15 @@ const ClosedTradeRow = memo(function ClosedTradeRow({
   asset: PlatformAsset | undefined;
   currency: string;
 }) {
-  const refunded = trade.status === "REFUNDED";
+  const display = closedRowDisplay(trade);
   return (
     <RowShell
       trade={trade}
       asset={asset}
       currency={currency}
       time={<span className="led justify-self-end text-[13px] text-ink-2">{clockTime(trade.expiryTs)}</span>}
-      pnl={
-        refunded
-          ? formatMinor(0, currency)
-          : `${trade.pnl >= 0 ? "+" : "−"}${formatMinor(Math.abs(trade.pnl), currency)}`
-      }
-      pnlClass={refunded ? "text-ink-2" : trade.status === "WON" ? "text-up" : "text-ink-3"}
+      pnl={`${display.sign}${formatMinor(display.amountMinor, currency)}`}
+      pnlClass={display.className}
     />
   );
 });
