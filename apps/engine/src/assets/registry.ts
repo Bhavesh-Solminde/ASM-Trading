@@ -3,6 +3,7 @@ import {
   createRng,
   initPriceState,
   stepPrice,
+  TICK_DT_SEC,
   type Candle,
   type PriceParams,
   type PriceState,
@@ -53,8 +54,9 @@ export interface TickResult {
   closed: ClosedCandle[];
 }
 
-const TICK_HZ = 10;
-const DT_SEC = 1 / TICK_HZ;
+// One simulated-time step per tick, from the shared cadence constant so the
+// price model and the loop can never disagree about how long a tick is.
+const DT_SEC = TICK_DT_SEC;
 
 /**
  * Holds live per-asset price state in memory. This is why the engine is a

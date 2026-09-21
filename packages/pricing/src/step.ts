@@ -48,8 +48,18 @@ export interface StepPriceOutput {
   readonly sigma: number;
 }
 
-/** The engine tick interval — 10 Hz. All bias caps are expressed in these units. */
-export const TICK_DT_SEC = 0.1;
+/**
+ * The engine tick interval, in seconds — the SINGLE SOURCE OF TRUTH for tick
+ * cadence. The loop emits one tick every TICK_DT_SEC (loop.ts derives its
+ * setTimeout from this) and each tick advances price by exactly this much
+ * simulated time. Because the per-tick move is `sigma·√dt·z`, per-SECOND
+ * volatility is invariant to dt: retuning this changes only how OFTEN the price
+ * updates, not how far it travels per second. Raise it to calm the chart (fewer,
+ * larger steps); lower it to make it livelier. All bias/magnet caps are in these
+ * units. Keep it at or below ~0.25s so the client's price easing still reads as
+ * continuous motion rather than visible steps.
+ */
+export const TICK_DT_SEC = 0.25; // 4 Hz (was 0.1 / 10 Hz — reduced to calm the chart)
 
 /**
  * Per-tick standard deviation in log-price space.

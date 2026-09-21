@@ -1,16 +1,22 @@
 import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
 import { driftBias, imbalance, totalExposure } from "@asm/algo";
+import { TICK_DT_SEC } from "@asm/pricing";
 import type { AssetRegistry } from "./assets/registry";
 import type { EngineServer } from "./server";
 import type { TradeDesk } from "./trading/trade-desk";
 import { computeSentiment } from "./sentiment";
 
-const TICK_MS = 100;
+// Emit one tick per simulated-time step, derived from the shared cadence
+// constant so the loop and the price model always agree on how long a tick is.
+// (A hand-tuned TICK_MS that disagrees with DT_SEC makes the chart move the
+// wrong amount per second and is what caused the over-frequent jitter.)
+const TICK_MS = Math.round(TICK_DT_SEC * 1000);
 
 /**
- * The 10 Hz tick loop. Uses setTimeout rescheduling rather than setInterval so
- * a slow database write delays the next tick instead of stacking them up.
+ * The tick loop (TICK_DT_SEC cadence — 4 Hz by default). Uses setTimeout
+ * rescheduling rather than setInterval so a slow database write delays the next
+ * tick instead of stacking them up.
  */
 export function startTickLoop(
   registry: AssetRegistry,
