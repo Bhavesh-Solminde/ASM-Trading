@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { BalancesDto, OpenTradeResult, ServerMessage, TradeView } from "@asm/contracts";
 import { useEngineSocket, type SocketStatus } from "@/components/chart/useEngineSocket";
+import { playSettled } from "@/lib/sound";
 import {
   applyTradeMessage,
   initialTradeState,
@@ -94,11 +95,22 @@ export function PlatformProvider({
     (init) => initialTradeState(init.initialTrades, init.initialBalances),
   );
 
+  // Always holds the latest active account without going in onMessage's deps
+  // below — adding it there would tear down and rebuild the socket on every
+  // account switch.
+  const activeAccountIdRef = useRef(activeAccountId);
+  useEffect(() => {
+    activeAccountIdRef.current = activeAccountId;
+  }, [activeAccountId]);
+
   const watch = useMemo(() => assets.map((a) => a.symbol), [assets]);
   const onMessage = useCallback(
     (message: ServerMessage) => {
       market.apply(message);
       if (TRADE_MESSAGES.has(message.type)) dispatch({ kind: "message", message });
+      if (message.type === "trade:settled" && message.trade.accountId === activeAccountIdRef.current) {
+        playSettled(message.trade.status);
+      }
     },
     [market],
   );

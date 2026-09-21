@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import type { BalancesDto } from "@asm/contracts";
 import { formatMinor } from "@/lib/format-money";
 import { clockTime } from "@/lib/format-time";
+import { isMuted, setMuted } from "@/lib/sound";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useNowSec } from "@/lib/use-now";
 import { LogoEmblem } from "@/components/brand/Logo";
@@ -56,12 +57,21 @@ export function TopBar() {
   const { status, accounts, activeAccount, balances, setActiveAccountId } = usePlatform();
   const [menuOpen, setMenuOpen] = useState(false);
   const [liveComingSoon, setLiveComingSoon] = useState(false);
+  const [muted, setMutedState] = useState(() => isMuted());
   const menuRef = useRef<HTMLDivElement | null>(null);
   const live = activeAccount?.type === "LIVE";
   const feed = FEED_LABEL[status];
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   useDismiss(menuRef, menuOpen, closeMenu);
+
+  const toggleMuted = useCallback(() => {
+    setMutedState((prev) => {
+      const next = !prev;
+      setMuted(next);
+      return next;
+    });
+  }, []);
 
   const handleSelectAccount = useCallback(
     (account: AccountView) => {
@@ -97,6 +107,15 @@ export function TopBar() {
         <span aria-hidden className={`size-1.5 rounded-full ${feed.dot}`} />
         <span className="legend">{feed.text}</span>
         <FeedClock />
+        <button
+          type="button"
+          aria-label={muted ? "Unmute sounds" : "Mute sounds"}
+          aria-pressed={muted}
+          onClick={toggleMuted}
+          className="text-ink-3 hover:text-ink"
+        >
+          <Icon name={muted ? "muted" : "sound"} />
+        </button>
       </div>
 
       <div className="mx-auto hidden xl:block">
