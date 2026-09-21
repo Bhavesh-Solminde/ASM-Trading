@@ -99,9 +99,9 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
       </div>
 
       <div className="flex items-baseline justify-between text-xs text-[var(--color-ink-2)]">
-        <span>Bonus (50%)</span>
+        <span>Bonus (100%)</span>
         <span className="tabular-nums text-[var(--color-up)]">
-          +${(amountMajor * 0.5).toFixed(2)}
+          +${amountMajor.toFixed(2)}
         </span>
       </div>
 

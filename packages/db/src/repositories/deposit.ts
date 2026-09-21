@@ -231,7 +231,7 @@ export async function claimUtr(actorId: string, depositId: string, utr: string):
   return prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });
 }
 
-export const BONUS_PERCENT = 50;
+export const BONUS_PERCENT = 100;
 export const TURNOVER_MULTIPLE = 3;
 
 /**

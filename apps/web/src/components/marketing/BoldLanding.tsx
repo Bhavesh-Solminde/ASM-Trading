@@ -37,7 +37,7 @@ export function BoldLanding() {
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-brand md:text-[11px]">
               <span aria-hidden className="dir-mark" data-dir="up" style={{ color: "var(--color-brand)", width: 8, height: 8 }} />
-              50% deposit bonus · today only
+              100% deposit bonus · today only
             </span>
             <h1 className="mt-5 text-[clamp(40px,10vw,104px)] font-black leading-[0.92] tracking-[-0.03em] md:mt-6">
               Feel the tick.

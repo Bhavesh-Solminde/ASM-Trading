@@ -25,7 +25,7 @@ export const FAQ = [
   },
   {
     q: "Why is my bonus not withdrawable?",
-    a: "A 50% deposit bonus carries a 3× turnover requirement. Until that trading volume is reached, bonus funds stay separate from your withdrawable balance.",
+    a: "A 100% deposit bonus carries a 3× turnover requirement. Until that trading volume is reached, bonus funds stay separate from your withdrawable balance.",
   },
   {
     q: "What is account verification?",
