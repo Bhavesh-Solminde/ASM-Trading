@@ -4,6 +4,9 @@ export {
   listAccountsForActor,
   getAccountForActor,
   createAccountsForUser,
+  changeAccountCurrency,
+  CurrencyChangeRefused,
+  DEMO_START_BY_CURRENCY,
 } from "./repositories/account";
 export { findUserByEmail, findUserById } from "./repositories/user";
 export {

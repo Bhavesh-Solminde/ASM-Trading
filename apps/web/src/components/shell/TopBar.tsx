@@ -58,6 +58,8 @@ export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [liveComingSoon, setLiveComingSoon] = useState(false);
   const [muted, setMutedState] = useState(() => isMuted());
+  const [curBusy, setCurBusy] = useState(false);
+  const [curError, setCurError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const live = activeAccount?.type === "LIVE";
   const feed = FEED_LABEL[status];
@@ -72,6 +74,31 @@ export function TopBar() {
       return next;
     });
   }, []);
+
+  const changeCurrency = useCallback(
+    async (currency: string) => {
+      if (!activeAccount || curBusy || activeAccount.currency === currency) return;
+      setCurBusy(true);
+      setCurError(null);
+      try {
+        const res = await fetch("/api/account/currency", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId: activeAccount.id, currency }),
+        });
+        if (res.ok) {
+          window.location.reload();
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setCurError(data.error ?? "Could not change currency.");
+      } catch {
+        setCurError("Could not reach the server.");
+      }
+      setCurBusy(false);
+    },
+    [activeAccount, curBusy],
+  );
 
   const handleSelectAccount = useCallback(
     (account: AccountView) => {
@@ -223,6 +250,30 @@ export function TopBar() {
                   </button>
                 );
               })}
+            {activeAccount ? (
+              <div className="mt-1.5 grid gap-1.5 border-t border-rule px-2.5 pb-1 pt-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="legend text-[10px]!">Currency</span>
+                  <div className="flex gap-0.5 rounded-[3px] border border-rule p-0.5">
+                    {["INR", "USD"].map((cur) => (
+                      <button
+                        key={cur}
+                        type="button"
+                        disabled={curBusy}
+                        aria-pressed={activeAccount.currency === cur}
+                        onClick={() => void changeCurrency(cur)}
+                        className={`rounded-[2px] px-2.5 py-0.5 text-[11px] font-bold tracking-[0.06em] disabled:opacity-60 ${
+                          activeAccount.currency === cur ? "bg-brand text-brand-ink" : "text-ink-3 hover:text-ink"
+                        }`}
+                      >
+                        {cur}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {curError ? <p className="text-[11px] text-down">{curError}</p> : null}
+              </div>
+            ) : null}
             <div className="mt-1.5 flex items-center justify-between gap-4 border-t border-rule px-2.5 pb-1 pt-2.5">
               <Link href="/account" onClick={closeMenu} className="py-2 text-[13px] font-semibold text-brand hover:underline">
                 My account
