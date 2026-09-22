@@ -1,5 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { CandleAggregator, bucketStart } from "./candles";
+import { CandleAggregator, bucketStart, resample, type Candle } from "./candles";
+
+describe("resample", () => {
+  // Five 1m candles starting at a 5m boundary; the sixth opens the next bucket.
+  const base = 1_757_534_400; // divisible by 300
+  const minutes: Candle[] = [
+    { openTs: base + 0, o: 10, h: 12, l: 9, c: 11 },
+    { openTs: base + 60, o: 11, h: 15, l: 11, c: 14 },
+    { openTs: base + 120, o: 14, h: 14, l: 8, c: 9 },
+    { openTs: base + 180, o: 9, h: 13, l: 9, c: 12 },
+    { openTs: base + 240, o: 12, h: 12, l: 10, c: 10 },
+    { openTs: base + 300, o: 10, h: 11, l: 10, c: 11 },
+  ];
+
+  it("aggregates 1m candles into a 5m bucket with correct OHLC", () => {
+    const out = resample(minutes, 300);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toEqual({ openTs: base, o: 10, h: 15, l: 8, c: 10 });
+    expect(out[1]).toEqual({ openTs: base + 300, o: 10, h: 11, l: 10, c: 11 });
+  });
+
+  it("returns an empty array for no input", () => {
+    expect(resample([], 300)).toEqual([]);
+  });
+
+  it("keeps a gap as a gap rather than synthesising empty buckets", () => {
+    const sparse: Candle[] = [
+      { openTs: base, o: 1, h: 2, l: 1, c: 2 },
+      { openTs: base + 900, o: 3, h: 4, l: 3, c: 4 }, // 15 minutes later
+    ];
+    const out = resample(sparse, 300);
+    expect(out.map((c) => c.openTs)).toEqual([base, base + 900]);
+  });
+});
 
 describe("bucketStart", () => {
   it("floors to the wall-clock minute", () => {

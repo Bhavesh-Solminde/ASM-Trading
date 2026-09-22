@@ -1,12 +1,22 @@
 import { WebSocketServer, type WebSocket } from "ws";
 import {
   ClientMessageSchema,
+  TIMEFRAME_SEC,
+  type CandleDto,
   type ServerMessage,
   type Timeframe,
 } from "@asm/contracts";
+import { resample } from "@asm/pricing";
 import { prisma } from "@asm/db";
 import { childLogger, newCorrelationId, logger } from "@asm/logger";
 import type { AssetRegistry } from "./assets/registry";
+
+/**
+ * Upper bound on 1m rows scanned when resampling a higher timeframe, so a 1h
+ * request can't pull unbounded history. 8000 minutes ≈ 5.5 days, plenty for a
+ * 120-bar chart at any offered timeframe.
+ */
+const MAX_1M_SCAN = 8000;
 
 /** Resolves a one-time ticket to a user id, or null. Injected so tests need no Redis. */
 export type Authenticate = (ticket: string) => Promise<string | null>;
@@ -162,57 +172,33 @@ export class EngineServer {
     // Lazy history: the chart asks for candles older than the earliest bar it
     // holds when the user scrolls left. Does not touch subscriptions.
     if (message.type === "candles:loadOlder") {
-      const older = await prisma.candle.findMany({
-        where: {
-          assetId: asset.id,
-          timeframe: message.timeframe,
-          openTs: { lt: new Date(message.before * 1000) },
-        },
-        orderBy: { openTs: "desc" },
-        take: message.limit,
-        select: { openTs: true, o: true, h: true, l: true, c: true },
-      });
+      const older = await this.loadCandles(asset.id, message.timeframe, message.limit, message.before);
 
       this.send(client, {
         type: "candles:older",
         symbol: asset.symbol,
         timeframe: message.timeframe,
-        candles: older
-          .reverse()
-          .map((row) => ({
-            openTs: Math.floor(row.openTs.getTime() / 1000),
-            o: row.o,
-            h: row.h,
-            l: row.l,
-            c: row.c,
-          })),
-        reachedStart: older.length < message.limit,
+        candles: older.candles,
+        reachedStart: older.reachedStart,
       });
       return;
     }
 
     client.subscriptions.set(message.symbol, message.timeframe);
 
-    const history = await prisma.candle.findMany({
-      where: { assetId: asset.id, timeframe: message.timeframe },
-      orderBy: { openTs: "desc" },
-      take: HISTORY_CANDLES,
-      select: { openTs: true, o: true, h: true, l: true, c: true },
-    });
+    const history = await this.loadCandles(asset.id, message.timeframe, HISTORY_CANDLES);
 
-    const forming = this.registry.formingCandle(message.symbol, message.timeframe);
+    // For 1m the engine's live aggregator seeds the current bar; for resampled
+    // higher timeframes the last resampled bucket already carries it, and the
+    // client folds live ticks onto it.
+    const forming =
+      message.timeframe === "1m" ? this.registry.formingCandle(message.symbol, message.timeframe) : null;
 
     this.send(client, {
       type: "candles:history",
       symbol: asset.symbol,
       timeframe: message.timeframe,
-      candles: history.reverse().map((row) => ({
-        openTs: Math.floor(row.openTs.getTime() / 1000),
-        o: row.o,
-        h: row.h,
-        l: row.l,
-        c: row.c,
-      })),
+      candles: history.candles,
       ...(forming ? { forming } : {}),
     });
 
@@ -221,6 +207,58 @@ export class EngineServer {
       symbol: asset.symbol,
       payoutPct: asset.payoutPct,
     });
+  }
+
+  /**
+   * Loads up to `limit` candles for a symbol/timeframe, newest `limit` bars,
+   * optionally strictly before `beforeTs` (epoch seconds) for scroll-left
+   * backfill. 1m reads persisted rows directly; higher timeframes are
+   * resampled from the stored 1m candles so they are never empty before the
+   * engine has closed one live. `reachedStart` is true once the underlying
+   * store is exhausted.
+   */
+  private async loadCandles(
+    assetId: string,
+    timeframe: Timeframe,
+    limit: number,
+    beforeTs?: number,
+  ): Promise<{ candles: CandleDto[]; reachedStart: boolean }> {
+    const where = {
+      assetId,
+      timeframe: "1m" as const,
+      ...(beforeTs !== undefined ? { openTs: { lt: new Date(beforeTs * 1000) } } : {}),
+    };
+    const toDto = (row: { openTs: Date; o: number; h: number; l: number; c: number }): CandleDto => ({
+      openTs: Math.floor(row.openTs.getTime() / 1000),
+      o: row.o,
+      h: row.h,
+      l: row.l,
+      c: row.c,
+    });
+
+    if (timeframe === "1m") {
+      const rows = await prisma.candle.findMany({
+        where,
+        orderBy: { openTs: "desc" },
+        take: limit,
+        select: { openTs: true, o: true, h: true, l: true, c: true },
+      });
+      return { candles: rows.reverse().map(toDto), reachedStart: rows.length < limit };
+    }
+
+    // Higher timeframes: pull the underlying 1m candles and resample.
+    const tfSec = TIMEFRAME_SEC[timeframe];
+    const ratio = tfSec / 60;
+    const scan = Math.min(limit * ratio + ratio, MAX_1M_SCAN);
+    const rows = await prisma.candle.findMany({
+      where,
+      orderBy: { openTs: "desc" },
+      take: scan,
+      select: { openTs: true, o: true, h: true, l: true, c: true },
+    });
+    const minutes = rows.reverse().map(toDto);
+    const bars = resample(minutes, tfSec);
+    return { candles: bars.slice(-limit), reachedStart: rows.length < scan };
   }
 
   private send(client: Client, message: ServerMessage): void {

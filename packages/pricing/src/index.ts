@@ -15,4 +15,4 @@ export {
   type StepPriceInput,
   type StepPriceOutput,
 } from "./step";
-export { CandleAggregator, bucketStart, type Candle } from "./candles";
+export { CandleAggregator, bucketStart, resample, type Candle } from "./candles";

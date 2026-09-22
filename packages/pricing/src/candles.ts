@@ -12,6 +12,32 @@ export function bucketStart(tsSec: number, timeframeSec: number): number {
   return Math.floor(tsSec / timeframeSec) * timeframeSec;
 }
 
+/**
+ * Aggregates finer candles (e.g. 1m) into fixed-width `timeframeSec` buckets on
+ * wall-clock boundaries. Input MUST be ascending by `openTs`. Open is the first
+ * sub-candle's open, high/low are the extremes, close is the last sub-candle's
+ * close. Empty buckets are absent — a gap stays a gap. Used to serve 5m/15m/1h
+ * history by resampling the stored 1m candles, so higher timeframes are never
+ * empty even before the engine has closed one live.
+ */
+export function resample(candles: readonly Candle[], timeframeSec: number): Candle[] {
+  const out: Candle[] = [];
+  let cur: Mutable | null = null;
+  for (const c of candles) {
+    const bucket = bucketStart(c.openTs, timeframeSec);
+    if (cur === null || bucket !== cur.openTs) {
+      if (cur) out.push({ ...cur });
+      cur = { openTs: bucket, o: c.o, h: c.h, l: c.l, c: c.c };
+    } else {
+      cur.h = Math.max(cur.h, c.h);
+      cur.l = Math.min(cur.l, c.l);
+      cur.c = c.c;
+    }
+  }
+  if (cur) out.push({ ...cur });
+  return out;
+}
+
 interface Mutable {
   openTs: number;
   o: number;
