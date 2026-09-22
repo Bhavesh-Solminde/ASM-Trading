@@ -318,7 +318,7 @@ export type Direction = "UP" | "DOWN";
 export type Outcome = "WON" | "LOST" | "REFUNDED";
 
 /**
- * A binary option settles on a strict comparison against the entry price.
+ * A fixed-risk trade settles on a strict comparison against the entry price.
  * An exact tie is a refund, not a loss — counting it as a loss would bias every
  * win-rate estimate downward and is a classic silent error.
  */

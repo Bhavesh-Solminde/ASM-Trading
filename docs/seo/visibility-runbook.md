@@ -69,7 +69,7 @@ For each: are we mentioned? Accurately? What source is cited? Then:
 English-first. Only translate the top 2–3 converters (via the hreflang
 scaffold) once they rank. Candidate next pages:
 
-- `/guides/binary-options-strategy-for-beginners`
+- `/guides/trading-strategy-for-beginners`
 - `/guides/otc-pairs-weekend-trading`
 - `/compare/asm-trader-vs-olymp-trade`
 - Country landing pages once demand is proven per market.

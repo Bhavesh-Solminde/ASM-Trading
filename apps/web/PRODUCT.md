@@ -16,7 +16,7 @@ Desktop is the first-class design target (user decision, 2026-09-14). Mobile is 
 
 ## Product Purpose
 
-A web trading platform for digital ("binary") options: the trader picks an asset, sets an expiry duration and a stake, predicts Up or Down, and receives a fixed payout if correct. Around that core loop sits the money path — deposit, balance, withdrawal, transaction history — and the account path — KYC verification, two-step verification, security settings, support.
+A web trading platform for digital options: the trader picks an asset, sets an expiry duration and a stake, predicts Up or Down, and receives a fixed payout if correct. Around that core loop sits the money path — deposit, balance, withdrawal, transaction history — and the account path — KYC verification, two-step verification, security settings, support.
 
 Success is a trader who can fund, place, and settle a trade without hesitating at any step, and withdraw without needing support.
 

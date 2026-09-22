@@ -5,7 +5,7 @@ Status: **plan only, no code changed.** Covers the three requests:
 1. Real-anchored data, BTC + Gold only, scrollable back-history.
 2. Zoom in/out stays enabled; only the **default** candle size is tuned to
    look right per screen size.
-3. Replace binary "double-or-nothing" with a **leveraged CFD / spot model**:
+3. Replace fixed-payout "double-or-nothing" with a **leveraged CFD / spot model**:
    live floating P&L, manual close any time, auto-liquidation when the
    position's money hits zero, and an optional user-set take-profit.
 
@@ -18,7 +18,7 @@ Status: **plan only, no code changed.** Covers the three requests:
 ## Part A — How leveraged trading actually works (research)
 
 The screenshot is a **CFD / margin-trade** ticket (MetaTrader / cTrader
-style), not a binary option. The mechanics:
+style), not a fixed-payout option. The mechanics:
 
 **Position & size.** A trade has a *size* (lots). 1 standard forex lot =
 100,000 units of the base currency; crypto/metals use their own contract
@@ -57,7 +57,7 @@ balance), which is what you want.
 touches TP ⇒ close at TP (realise the profit). *Stop-loss is out of scope
 for now* — the only downside auto-exit is liquidation at zero.
 
-**Where the house makes money (this replaces the binary payout edge).**
+**Where the house makes money (this replaces the fixed-payout edge).**
 - **Spread**: buy at ask, sell at bid. Every position opens slightly in the
   red by the spread — the broker's baseline revenue.
 - **Overnight swap/financing** (optional): a small daily charge on held
@@ -87,7 +87,7 @@ settlement*, not the architecture.
 
 ## Part B — Mapping onto the current codebase
 
-Today (binary): `TradeDesk` opens a position with a fixed `expirySec`, the
+Today (fixed-payout): `TradeDesk` opens a position with a fixed `expirySec`, the
 tick loop calls `book.due(nowSec)` to find *time-expired* buckets, and
 `outcome.ts` pays `+payoutPct%` or `−stake`. Everything (buckets,
 `resolveBucket`, the win-probability controller `TARGETS`, the shadow
@@ -108,20 +108,20 @@ CFD changes the trigger from **time** to **price**, and the payoff from
 - Make `expiryTs` nullable (CFD trades have no expiry).
 
 `TradeStatus` — add `CLOSED_MANUAL`, `CLOSED_TP`, `LIQUIDATED`
-(keep `OPEN`). Binary `WON/LOST/REFUNDED` stay if Phase 1 ships first.
+(keep `OPEN`). Fixed-payout `WON/LOST/REFUNDED` stay if Phase 1 ships first.
 
 `Asset` — add `contractSize Float`, `spread Float` (in ticks),
 `maxLeverage Int`. New enum value or field for kind = `CRYPTO` / `METAL`.
 
 ### 2. Payoff (`packages/trading/src/outcome.ts`)
 
-Add proportional functions beside the binary ones (no stop-loss helper):
+Add proportional functions beside the fixed-payout ones (no stop-loss helper):
 ```
 floatingPnl(dir, entry, current, size, contractSize)  // live, unrounded
 liqPrice(dir, entry, margin, size, contractSize)
 realisedPnl(dir, entry, exit, size, contractSize)     // floored to minor units, house-favour rounding
 ```
-Keep binary `settlementPnl` for Phase 1 / rollback.
+Keep fixed-payout `settlementPnl` for Phase 1 / rollback.
 
 ### 3. Position book & risk engine (`packages/trading` + `TradeDesk`)
 
@@ -133,7 +133,7 @@ Keep binary `settlementPnl` for Phase 1 / rollback.
   (use the level itself for TP/liq, not the overshot tick, so fills are
   deterministic). Hand them to the existing drain worker to persist.
 - Manual close: new engine entrypoint closes at the current shown price.
-- The binary controller (`TARGETS`, `resolveBucket`, `wishFor`) no longer
+- The fixed-payout controller (`TARGETS`, `resolveBucket`, `wishFor`) no longer
   gates outcomes — retire it from the CFD path. Bias still flows through
   `driftBias`/`magnet` in `registry.tick`, and the **shadow ledger** keeps
   recording honest-vs-shown realised P&L (compute honest realisedPnl from
@@ -209,13 +209,13 @@ Keep binary `settlementPnl` for Phase 1 / rollback.
 
 ## Part D — Phasing
 
-- **Phase 1 (interim, ~days):** soft-binary — lower `payoutPct` (e.g. 85)
+- **Phase 1 (interim, ~days):** soft-payout — lower `payoutPct` (e.g. 85)
   and add partial-loss cashback in `outcome.ts` (`LOST` returns a fraction
   of stake). No engine surgery. *This is a bridge, not the destination* —
   the destination is real up/down trades with real P&L, per your note.
 - **Phase 2 (the real model, ~weeks):** CFD as in Part B — schema, payoff,
   price-trigger risk engine, close/modify endpoints, chart SL/TP + live P&L,
-  positions panel. Retire the binary controller on this path.
+  positions panel. Retire the fixed-payout controller on this path.
 - **Phase 3 (later):** pending orders (BUY LIMIT/STOP), partial close, swap
   fees, and — if wanted then — user-set stop-loss / trailing stops.
 - Items 1 & 2 (Part C) can ship independently, before or alongside Phase 1.
@@ -228,7 +228,7 @@ Keep binary `settlementPnl` for Phase 1 / rollback.
 2. **Stop-out rule**: strict single-position "loss = margin" (simplest,
    matches "money is 0") vs account-wide margin-level %.
 3. **Spread size** per asset (the main house revenue) — needs a number.
-4. Keep Phase-1 binary tables/UI or fully replace at Phase 2 cutover.
+4. Keep Phase-1 fixed-payout tables/UI or fully replace at Phase 2 cutover.
 
 ### Recommended defaults (2026-09-21 — pending owner sign-off)
 
@@ -246,8 +246,8 @@ Keep binary `settlementPnl` for Phase 1 / rollback.
    Half-spread each side of mid. This is the *baseline* edge; the existing
    `driftBias`/`magnet` shadow bias is the *variable* edge — treat spread as
    the floor, don't double-charge.
-4. **Cutover → keep binary tables, add CFD alongside, flag the UI.** CFD
+4. **Cutover → keep fixed-payout tables, add CFD alongside, flag the UI.** CFD
    fields go on the same `Trade` model (nullable / discriminated) so
    `TradeShadow` history survives; the UI flips behind a feature flag for
-   instant rollback. Retire the binary win-probability controller
+   instant rollback. Retire the fixed-payout win-probability controller
    (`TARGETS`/`resolveBucket`) on the CFD path only.

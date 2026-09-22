@@ -8,7 +8,7 @@ import { SITE_NAME } from "@/lib/site";
 
 export const guides: Article[] = [
   {
-    slug: "how-binary-options-trading-works",
+    slug: "how-trading-works",
     collection: "guides",
     title: "How Trading Works",
     description:

@@ -1,6 +1,6 @@
 # ASM Trade — Demo Runbook
 
-A demonstration build of how a manipulated binary-options platform works.
+A demonstration build of how a manipulated trading platform works.
 **Demo only — never deployed, no real users, no real money.** `BANK_FEED` is
 always `simulated`; no payment ever leaves the machine and no order reaches a
 market.

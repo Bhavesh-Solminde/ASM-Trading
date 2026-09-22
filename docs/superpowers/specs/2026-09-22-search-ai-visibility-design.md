@@ -90,7 +90,7 @@ scaffold of layer 3.
 
 **Phase 2 — Content core (lean, AI-assisted):** ~8–12 double-duty pages:
 - Trust/brand-defense: `/legit`, `/about`, `/security`.
-- High-intent guides: how-binary-options-works, how-to-deposit, how-to-withdraw,
+- High-intent guides: how-trading-works, how-to-deposit, how-to-withdraw,
   demo-account.
 - Comparison: `/compare/asm-trader-vs-quotex` (+1–2 competitors).
 - English first; regional-language versions of the top converters later via the

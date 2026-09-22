@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A production-grade binary-options trading platform with a synthetic price engine, real-time charting, deposit/withdrawal flows, an admin console, and a full manipulation-ready pricing engine — built end-to-end by AI.
+**Goal:** A production-grade digital-options trading platform with a synthetic price engine, real-time charting, deposit/withdrawal flows, an admin console, and a full manipulation-ready pricing engine — built end-to-end by AI.
 
 **Architecture:** A pnpm monorepo with four apps (web, engine, harness, relay) and six shared packages (pricing, trading, contracts, db, config, logger). The web app is a Next.js 15 server-first application. The engine is a standalone Node.js process that owns all price state, runs a 10 Hz tick loop, manages open trades, broadcasts via WebSocket, and reconciles bank credits. Communication between web and engine uses a shared-secret internal HTTP API for trade execution and Redis-mediated one-time tickets for WebSocket authentication.
 
@@ -198,7 +198,7 @@ After computing the candidate price, the absolute move is clamped to `maxTickMov
 
 The Trade Desk owns every open position from the moment it opens until it settles. It is deliberately split into two phases: a **synchronous collection phase** (inside the tick loop, no I/O) and an **asynchronous settlement phase** (database writes, retries).
 
-### Algorithm 5: Binary Option Outcome Determination
+### Algorithm 5: Trade Outcome Determination
 
 **File:** `packages/trading/src/outcome.ts`
 
