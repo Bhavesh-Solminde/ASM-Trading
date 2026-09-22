@@ -144,6 +144,22 @@ describe("EngineServer", () => {
     }
   });
 
+  it("serves a higher timeframe by resampling the stored 1m candles onto its boundaries", async () => {
+    const { replies } = await exchange(
+      [
+        { type: "auth", token: "good-ticket" },
+        { type: "subscribe", symbol: openSymbol, timeframe: "5m" },
+      ],
+      4,
+    );
+    const history = replies.find((r) => r.type === "candles:history");
+    expect(history?.timeframe).toBe("5m");
+    // Whatever 1m history exists, the 5m bars must open on 5-minute boundaries.
+    for (const candle of history?.candles ?? []) {
+      expect(candle.openTs % 300).toBe(0);
+    }
+  });
+
   it("reports reachedStart when no candles precede the requested time", async () => {
     // openTs = 1s (1970): nothing in the table is older, so the batch is empty
     // and the client learns there is no more history to scroll back to.
