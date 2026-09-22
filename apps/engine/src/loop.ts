@@ -81,12 +81,19 @@ export function startTickLoop(
       }
 
       for (const { timeframe, candle } of result.closed) {
+        // Every timeframe's close is broadcast so live subscribers append the
+        // bar in real time. Only 1m is PERSISTED, though — higher timeframes
+        // are served by resampling the stored 1m candles on read (see
+        // EngineServer.loadCandles), so persisting them too would be dead
+        // writes.
         server.broadcast(asset.symbol, {
           type: "candle:close",
           symbol: asset.symbol,
           timeframe,
           candle,
         });
+
+        if (timeframe !== "1m") continue;
 
         // upsert rather than create — a restart mid-bucket must not collide.
         await prisma.candle

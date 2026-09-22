@@ -7,7 +7,8 @@ import { EngineServer } from "./server";
 interface Reply {
   type: string;
   message?: string;
-  candles?: Record<string, unknown>[];
+  timeframe?: string;
+  candles?: { openTs: number; o: number; h: number; l: number; c: number }[];
   reachedStart?: boolean;
 }
 
