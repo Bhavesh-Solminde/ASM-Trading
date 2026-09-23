@@ -242,3 +242,66 @@ describe("resolveBucket — urgency floor pairing (A2)", () => {
     expect(withSmall).toBeLessThan(1.175);
   });
 });
+
+describe("resolveBucket — undetectability cap (honestPrice + maxHonestShift)", () => {
+  it("honors the cap: no candidate more than N ticks from honestPrice is picked", () => {
+    // A single UP wish that WANTS to win. Without a cap, resolveBucket would
+    // happily move price above entry to satisfy it. With honestPrice pinned
+    // far below entry and maxHonestShift = 2 ticks, the ONLY reachable
+    // candidates are within 2 ticks of the honest price. No candidate above
+    // entry is reachable → the resolver settles at the closest honest-
+    // window candidate below entry, and the wish loses.
+    const target = resolveBucket({
+      wishes: [wish({ direction: "UP", wantWin: true, entryPrice: 1.175 })],
+      currentPrice: 1.17500,
+      maxMove: 0.01,
+      tickSize: TICK,
+      honestPrice: 1.17490,
+      maxHonestShift: 2,
+    });
+    // Reachable candidates ∈ [1.17488, 1.17492]. Everything below entry.
+    // Wish wanted to win but honestPrice constrained the resolver.
+    expect(target).toBeLessThanOrEqual(1.17492 + 1e-9);
+    expect(target).toBeGreaterThanOrEqual(1.17488 - 1e-9);
+    expect(target).toBeLessThan(1.175); // UP wish lost as a natural consequence
+  });
+
+  it("flips a marginal outcome when the honest price is within the cap window", () => {
+    // Big-money side is UP (wish wants UP to LOSE). Honest exit at 1.17501
+    // (barely above entry, UP would naturally win). Cap = 2 ticks: 1.17499
+    // is reachable → UP loses under manipulation.
+    const target = resolveBucket({
+      wishes: [wish({ direction: "UP", wantWin: false, entryPrice: 1.175 })],
+      currentPrice: 1.17501,
+      maxMove: 0.01,
+      tickSize: TICK,
+      honestPrice: 1.17501,
+      maxHonestShift: 2,
+    });
+    expect(target).toBeLessThan(1.175); // flipped UP win → UP loss
+  });
+
+  it("standing at honestPrice is always a valid candidate", () => {
+    // Empty book (no wishes) should return honestPrice (or currentPrice —
+    // both are added as candidates; they may differ under drift).
+    const target = resolveBucket({
+      wishes: [],
+      currentPrice: 1.17501,
+      maxMove: 0.01,
+      tickSize: TICK,
+      honestPrice: 1.17490,
+      maxHonestShift: 2,
+    });
+    expect(target).toBe(1.17501); // empty short-circuit returns currentPrice
+  });
+
+  it("with the cap OFF (both fields omitted), old behavior is preserved", () => {
+    const target = resolveBucket({
+      wishes: [wish({ direction: "UP", wantWin: true, entryPrice: 1.175 })],
+      currentPrice: 1.175,
+      maxMove: 0.01,
+      tickSize: TICK,
+    });
+    expect(target).toBeGreaterThan(1.175); // UP wish satisfied, moves up
+  });
+});

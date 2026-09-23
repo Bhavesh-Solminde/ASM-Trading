@@ -16,6 +16,18 @@ import { logger } from "@asm/logger";
 export interface LiveAsset {
   id: string;
   symbol: string;
+  /**
+   * REAL assets anchor to an external live feed (Binance, Twelve Data). Any
+   * price manipulation on these must stay tight enough to hide inside normal
+   * per-tick volatility — a trader can compare against tradingview.
+   *
+   * OTC assets are fully synthetic; the platform is the sole reference, so
+   * the resolver's undetectability cap can be wider.
+   *
+   * See MAX_HONEST_TICK_SHIFT_REAL / MAX_HONEST_TICK_SHIFT_OTC in
+   * packages/algo/src/constants.ts.
+   */
+  kind: "REAL" | "OTC";
   payoutPct: number;
   precision: number;
   /** The asset's tick size — resolveBucket() snaps candidate exit prices to entryPrice ± this. */
@@ -117,6 +129,7 @@ export class AssetRegistry {
       this.assets.set(row.symbol, {
         id: row.id,
         symbol: row.symbol,
+        kind: row.kind as "REAL" | "OTC",
         payoutPct: row.payoutPct,
         precision: row.precision,
         tickSize: row.tickSize,

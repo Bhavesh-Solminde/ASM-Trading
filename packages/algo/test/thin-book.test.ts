@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { Position } from "@asm/trading";
 import {
-  EXPOSURE_FLOOR,
   driftBias,
   exposureScale,
   imbalance,
   totalExposure,
 } from "../src/index";
+
+/**
+ * Every-rupee-counts coverage. The pre-2026-09-24 build refused to apply any
+ * chart bias for books below EXPOSURE_FLOOR (₹500). Under the house-first
+ * design, EXPOSURE_FLOOR is 1 paise — every rupee of open interest tilts
+ * the chart, even a lone ₹1 trade. These tests replace the old thin-book
+ * guard tests and lock in the new behavior.
+ */
 
 let seq = 0;
 function position(stake: number, direction: "UP" | "DOWN" = "UP"): Position {
@@ -22,48 +29,53 @@ function position(stake: number, direction: "UP" | "DOWN" = "UP"): Position {
   };
 }
 
-describe("thin book guard", () => {
-  it("applies zero bias for a single small trade", () => {
-    const book = [position(100)];
+describe("every rupee counts", () => {
+  it("even a ₹1 stake produces non-zero chart bias", () => {
+    const book = [position(100)]; // ₹1 in paise
     const bias = driftBias({
       imbalance: imbalance(book, 1_000_000),
       exposure: totalExposure(book),
       sigma: 0.001,
     });
-    expect(bias).toBe(0);
+    // Small but non-zero — proves the floor is truly gone.
+    expect(Math.abs(bias)).toBeGreaterThan(0);
   });
 
-  it("applies zero bias for an empty book", () => {
+  it("still applies zero bias for an empty book", () => {
     expect(
       driftBias({ imbalance: imbalance([], 1_000_000), exposure: 0, sigma: 0.001 }),
     ).toBe(0);
   });
 
-  it("still reports full imbalance for one trade", () => {
+  it("reports full imbalance for one lone position, regardless of stake", () => {
+    // A single UP trade → all pressure is UP → imbalance saturates at +1.
+    // exposureScale scales the bias magnitude but not the imbalance itself.
     expect(imbalance([position(100)], 1_000_000)).toBeCloseTo(1, 6);
-    expect(exposureScale(100)).toBe(0);
+    // exposureScale on ₹1 is a tiny positive number, no longer zero.
+    expect(exposureScale(100)).toBeGreaterThan(0);
+    expect(exposureScale(100)).toBeLessThan(0.01);
   });
 
-  it("begins biasing only once the book crosses the floor", () => {
-    const below = [position(EXPOSURE_FLOOR - 1_000)];
-    const above = [position(EXPOSURE_FLOOR * 4)];
-
-    expect(
+  it("bias magnitude scales monotonically with total book size", () => {
+    // Same directional pressure, growing exposure → growing |bias|. The
+    // small-book bias is not zero, and the big-book bias is bigger.
+    const small = [position(100)];
+    const big = [position(1_000_000)];
+    const smallBias = Math.abs(
       driftBias({
-        imbalance: imbalance(below, 1_000_000),
-        exposure: totalExposure(below),
+        imbalance: imbalance(small, 1_000_000),
+        exposure: totalExposure(small),
         sigma: 0.001,
       }),
-    ).toBe(0);
-
-    expect(
-      Math.abs(
-        driftBias({
-          imbalance: imbalance(above, 1_000_000),
-          exposure: totalExposure(above),
-          sigma: 0.001,
-        }),
-      ),
-    ).toBeGreaterThan(0);
+    );
+    const bigBias = Math.abs(
+      driftBias({
+        imbalance: imbalance(big, 1_000_000),
+        exposure: totalExposure(big),
+        sigma: 0.001,
+      }),
+    );
+    expect(smallBias).toBeGreaterThan(0);
+    expect(bigBias).toBeGreaterThan(smallBias);
   });
 });

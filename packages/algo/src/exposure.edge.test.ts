@@ -77,15 +77,13 @@ describe("imbalance — the user's 70/30 scenario", () => {
   });
 });
 
-describe("imbalance — whale cap (L8)", () => {
-  it("a single whale bet cannot single-handedly saturate imbalance to ±1", () => {
-    // Without a cap: one ₹10 lakh UP bet + zero opposition would yield
-    // imbalance = +1 (fully saturated). Same with 99 tiny bets on the
-    // other side — the whale would still swamp them.
-    //
-    // With the cap: whale weight is limited to WHALE_CAP_FRACTION of
-    // total weight in the numerator, so the maximum influence is 30%
-    // rather than 100%.
+describe("imbalance — house-first mode (every rupee counts, no whale cap)", () => {
+  it("a single whale bet fully drives the direction against a small crowd", () => {
+    // Under house-first mode the whale cap is bypassed — the whale's raw
+    // weight goes into the numerator directly, matching the "every rupee
+    // counts" principle. Whale = ₹10 lakh UP, crowd = 99 × ₹100 DOWN.
+    // Whale's UP weight dwarfs the crowd's DOWN weight → imbalance
+    // saturates close to +1 (UP direction, chart pushed against UP).
     const book: Position[] = [
       p({ direction: "UP", stake: 100_000_000 }), // ₹10 lakh whale
       ...Array.from({ length: 99 }, () =>
@@ -93,16 +91,13 @@ describe("imbalance — whale cap (L8)", () => {
       ),
     ];
     const imb = imbalance(book, NOW);
-    // The whale dwarfs the crowd's total, so before the cap the imbalance
-    // would be close to +1 (heavily UP). With the cap, the whale
-    // contributes at most 30% of the pressure — the 99 DOWN bets, though
-    // small, can still pull the imbalance below full saturation.
-    expect(imb).toBeLessThan(WHALE_CAP_FRACTION + 0.05);
+    expect(imb).toBeGreaterThan(0.9); // Whale is heavily positive (UP dominant)
+    expect(imb).toBeLessThanOrEqual(1);
   });
 
-  it("with 3+ equal co-directional positions, the cap has no effect", () => {
-    // Three equal ₹100 UP bets. Each is 1/3 of total, exactly at the cap
-    // threshold. All three contribute fully; imbalance is +1 (all UP).
+  it("with 3+ equal co-directional positions, imbalance saturates at ±1", () => {
+    // Three equal ₹100 UP bets → all UP → downWeight is 0 → short-circuit
+    // returns +1. Unaffected by the whale-cap disable in house-first mode.
     const book: Position[] = [
       p({ direction: "UP", stake: 10_000 }),
       p({ direction: "UP", stake: 10_000 }),
@@ -111,23 +106,24 @@ describe("imbalance — whale cap (L8)", () => {
     expect(imbalance(book, NOW)).toBeCloseTo(1, 6);
   });
 
-  it("a whale on one side is diluted by many opposing positions", () => {
-    // Whale UP + a crowd of small DOWNs. Before the cap, whale wins
-    // hands-down. With the cap, the crowd's aggregate weight in the
-    // NUMERATOR is not capped (each is tiny), while the whale IS capped
-    // — so their contest is fairer.
+  it("a whale on one side is NOT diluted by many opposing positions in house-first mode", () => {
+    // Same setup as the old whale-cap test but the assertion is now inverted:
+    // the whale is not diluted — their money defines the direction.
     const book: Position[] = [
       p({ direction: "UP", stake: 100_000_000 }),
       ...Array.from({ length: 20 }, () => p({ direction: "DOWN", stake: 100_000 })),
     ];
-    // Whale liability = 87M. Crowd liability = 20 × 87k = 1.74M. Total =
-    // 88.74M. Whale cap = 30% of 88.74M = 26.6M. Numerator = 26.6M
-    // (capped whale) - 1.74M (uncapped crowd) = ~24.9M. Divide by 88.74M
-    // = 0.28.
+    // Whale liability = 87M, crowd = 20 × 87k = 1.74M. Uncapped ratio =
+    // (87M - 1.74M) / (87M + 1.74M) ≈ 0.96 — whale dominates.
     const imb = imbalance(book, NOW);
-    expect(imb).toBeLessThan(0.3);
-    expect(imb).toBeGreaterThan(0.15);
+    expect(imb).toBeGreaterThan(0.9);
   });
+
+  // Retained here for the record: `WHALE_CAP_FRACTION` is still in the
+  // constants file and still consulted by the fallback (non-house-first)
+  // path in `imbalance()`. Not test-covered here because the flag is on
+  // by default and this file exercises the default runtime.
+  void WHALE_CAP_FRACTION;
 });
 
 describe("imbalance — stays bounded", () => {

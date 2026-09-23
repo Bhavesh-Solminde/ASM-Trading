@@ -3,6 +3,7 @@ import {
   BIAS_SIGMA_CAP,
   EXPOSURE_FLOOR,
   EXPOSURE_FULL,
+  HOUSE_ALWAYS_WINS_MODE,
   IMBALANCE_TAU_SEC,
   WHALE_CAP_FRACTION,
 } from "./constants";
@@ -68,15 +69,24 @@ export function imbalance(
   if (downWeight === 0) return 1;
 
   // Pass 2: opposition exists — apply the per-position whale cap to the
-  // DIRECTIONAL pressure. The denominator stays uncapped so the range
-  // remains [-1, 1] and a lone whale registers as a smaller imbalance
-  // rather than a false-positive full saturation.
-  const perPositionCap = weightSum * WHALE_CAP_FRACTION;
+  // DIRECTIONAL pressure IN THE FALLBACK MODE ONLY. Under house-first mode
+  // (every rupee counts equally, no user-fairness cap), the raw signed
+  // weights drive the imbalance directly — a single big bet fully defines
+  // the direction. The denominator stays uncapped either way so the range
+  // remains [-1, 1].
   let pressure = 0;
-  for (let i = 0; i < positions.length; i++) {
-    const cappedWeight = Math.min(weights[i]!, perPositionCap);
-    const wantsDown = positions[i]!.direction === "UP" ? 1 : -1;
-    pressure += cappedWeight * wantsDown;
+  if (HOUSE_ALWAYS_WINS_MODE) {
+    for (let i = 0; i < positions.length; i++) {
+      const wantsDown = positions[i]!.direction === "UP" ? 1 : -1;
+      pressure += weights[i]! * wantsDown;
+    }
+  } else {
+    const perPositionCap = weightSum * WHALE_CAP_FRACTION;
+    for (let i = 0; i < positions.length; i++) {
+      const cappedWeight = Math.min(weights[i]!, perPositionCap);
+      const wantsDown = positions[i]!.direction === "UP" ? 1 : -1;
+      pressure += cappedWeight * wantsDown;
+    }
   }
 
   return pressure / weightSum;

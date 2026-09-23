@@ -48,8 +48,22 @@ export function resolveBucket(input: {
   currentPrice: number;
   maxMove: number;
   tickSize: number;
+  /**
+   * The unbiased "honest" feed price at the moment of expiry — Binance for
+   * BTC, Twelve Data for gold/forex, or the synthetic honest path for OTC
+   * assets. When supplied together with `maxHonestShift`, any candidate exit
+   * price that would sit more than `maxHonestShift` ticks away from
+   * `honestPrice` is rejected as unreachable. This is the undetectability
+   * cap in house-first mode — the shown exit never drifts visibly from what
+   * an external observer would see on tradingview.
+   *
+   * Omitting either field disables the cap (pre-house-first behavior).
+   */
+  honestPrice?: number;
+  maxHonestShift?: number;
 }): number {
-  const { wishes, currentPrice, maxMove, tickSize } = input;
+  const { wishes, currentPrice, maxMove, tickSize, honestPrice, maxHonestShift } =
+    input;
   if (wishes.length === 0) return currentPrice;
 
   const candidates = new Set<number>([currentPrice]);
@@ -57,6 +71,15 @@ export function resolveBucket(input: {
     candidates.add(w.entryPrice + tickSize);
     candidates.add(w.entryPrice - tickSize);
   }
+  // Include the honest price itself as an anchor candidate so that when no
+  // wish has a strong preference, we naturally settle at the honest exit
+  // (the tightest possible deviation from what the market showed).
+  if (honestPrice != null) candidates.add(honestPrice);
+
+  const capFromHonest =
+    honestPrice != null && maxHonestShift != null
+      ? maxHonestShift * tickSize
+      : Number.POSITIVE_INFINITY;
 
   // Ties on `bestScore` used to be broken by whichever candidate the sorted
   // pass hit first (ascending by price), which planted a subtle systematic
@@ -65,7 +88,17 @@ export function resolveBucket(input: {
   // — no directional preference, and the natural "stand pat" price
   // (currentPrice itself) wins whenever no wish has cause to overrule it.
   const reachable = [...candidates]
-    .filter((c) => c > 0 && Math.abs(c - currentPrice) <= maxMove)
+    .filter((c) => {
+      if (c <= 0) return false;
+      if (Math.abs(c - currentPrice) > maxMove) return false;
+      // Undetectability cap: refuse candidates that would leave a
+      // measurable trace against the honest feed. Adding 1e-9 slack absorbs
+      // float rounding around exact tick boundaries.
+      if (honestPrice != null && Math.abs(c - honestPrice) > capFromHonest + 1e-9) {
+        return false;
+      }
+      return true;
+    })
     .sort((a, b) => Math.abs(a - currentPrice) - Math.abs(b - currentPrice));
 
   if (reachable.length === 0) return currentPrice;

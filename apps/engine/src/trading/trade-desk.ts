@@ -13,7 +13,16 @@ import {
   type SettledTrade,
   type ShadowInput,
 } from "@asm/db";
-import { imbalance, resolveBucket, TARGETS, type BucketWish } from "@asm/algo";
+import {
+  HOUSE_ALWAYS_WINS_MODE,
+  MAX_HONEST_TICK_SHIFT_OTC,
+  MAX_HONEST_TICK_SHIFT_REAL,
+  houseFirstWishes,
+  imbalance,
+  resolveBucket,
+  TARGETS,
+  type BucketWish,
+} from "@asm/algo";
 import {
   tradeViewFrom,
   type BalancesDto,
@@ -330,27 +339,66 @@ export class TradeDesk {
         throw new Error(`resolveUnresolvedBuckets: unknown symbol "${first.symbol}"`);
       }
 
-      const wishes: BucketWish[] = [];
-      for (const item of group) {
-        const { wantWin, urgency, output } = await this.controller.wishFor(
-          item.position.accountId,
-        );
-        wishes.push({
-          entryPrice: item.position.entryPrice,
-          direction: item.position.direction,
-          wantWin,
-          urgency,
-          stake: item.position.stake,
-          payoutPct: item.position.payoutPct,
-        });
-        item.controllerTarget = output.target;
+      let wishes: BucketWish[];
+      if (HOUSE_ALWAYS_WINS_MODE) {
+        // House-first path. Deterministic per-bucket wishes derived from the
+        // aggregate money at stake — no per-user controller draw, no
+        // probability. Whichever side has more real-money liability loses,
+        // subject only to the undetectability cap enforced by resolveBucket.
+        //
+        // The tie-break seed pins any coin-flip to the bucket identity, so
+        // an audit re-run against the same (symbol, expirySec) reproduces
+        // the same outcome.
+        const positions = group.map((item) => item.position);
+        const expirySec = group[0]!.position.expirySec;
+        const outcome = houseFirstWishes(positions, `${asset.id}|${expirySec}`);
+        wishes = outcome.wishes;
+        for (const item of group) {
+          // Streak counters and the shadow ledger still get "controllerTarget"
+          // for continuity; house-first mode records a sentinel value so
+          // downstream tooling can tell the two paths apart.
+          item.controllerTarget = -1;
+        }
+      } else {
+        wishes = [];
+        for (const item of group) {
+          const { wantWin, urgency, output } = await this.controller.wishFor(
+            item.position.accountId,
+          );
+          wishes.push({
+            entryPrice: item.position.entryPrice,
+            direction: item.position.direction,
+            wantWin,
+            urgency,
+            stake: item.position.stake,
+            payoutPct: item.position.payoutPct,
+          });
+          item.controllerTarget = output.target;
+        }
       }
+
+      // Undetectability cap: on REAL-feed assets the shown exit price is not
+      // allowed to drift more than MAX_HONEST_TICK_SHIFT_REAL ticks from the
+      // honest live feed. On OTC assets there is no external reference, so
+      // the wider MAX_HONEST_TICK_SHIFT_OTC applies. This is the belt-and-
+      // suspenders guarantee — even a book so lopsided that the wishes want
+      // a huge move cannot pull the exit price beyond the invisible-noise
+      // band on assets where an external observer can compare.
+      const maxHonestShift = HOUSE_ALWAYS_WINS_MODE
+        ? asset.kind === "REAL"
+          ? MAX_HONEST_TICK_SHIFT_REAL
+          : MAX_HONEST_TICK_SHIFT_OTC
+        : undefined;
 
       const resolvedPrice = resolveBucket({
         wishes,
         currentPrice: first.exitPrice,
         maxMove: asset.params.maxTickMove,
         tickSize: asset.tickSize,
+        ...(maxHonestShift != null && {
+          honestPrice: first.honestExitPrice,
+          maxHonestShift,
+        }),
       });
 
       for (const item of group) {

@@ -35,12 +35,12 @@ const PASSWORD = "asm-algo-test-2026";
 const N_USERS = 10;
 const LIVE_BALANCE_PAISE = 10_000_000; // ₹1,00,000
 
-// Amplified 100× vs the "conceptual" ₹100/₹300. The engine runs a bot crowd
-// that continuously opens small OTC trades — at the conceptual size, bot
-// noise overwhelms 10 test users. At this size, our test book dominates
-// the imbalance for the duration of the trade.
-const UP_STAKE = 1_000_000; // ₹10,000
-const DOWN_STAKE = 3_000_000; // ₹30,000 (3× UP, matching the 5×₹100 vs 5×₹300 ratio)
+// The algorithm.md canonical scenario: 5×₹500 UP vs 5×₹1000 DOWN. DOWN
+// has 2× the money at stake, so under house-first mode DOWN must lose
+// every single trade in the bucket. The stakes are amplified 100× via env
+// override in bot-heavy environments; the ratio (2×) is what matters.
+const UP_STAKE = Number(process.env["UP_STAKE"] ?? 50_000); // ₹500
+const DOWN_STAKE = Number(process.env["DOWN_STAKE"] ?? 100_000); // ₹1000
 const TRADES = [
   ...Array.from({ length: 5 }, (_, i) => ({
     direction: "UP" as const,

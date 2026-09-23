@@ -11,3 +11,7 @@ export {
 } from "./exposure";
 export { resolveBucket, type BucketWish } from "./resolve";
 export { reachableMove, targetMargin } from "./magnet";
+export {
+  houseFirstWishes,
+  type HouseFirstOutcome,
+} from "./house-first";
