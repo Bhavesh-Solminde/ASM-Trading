@@ -11,13 +11,14 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
 
-  const [accounts, assets] = await Promise.all([
+  const [accounts, assets, user] = await Promise.all([
     listAccountsForActor(session.userId),
     prisma.asset.findMany({
       where: { isOpen: true },
       orderBy: { symbol: "asc" },
       select: { id: true, symbol: true, displayName: true, precision: true, payoutPct: true },
     }),
+    prisma.user.findUnique({ where: { id: session.userId }, select: { liveAccess: true } }),
   ]);
 
   // History is server-rendered for the default (demo) account; the provider
@@ -41,6 +42,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       )}
       initialTrades={recent.map((t) => tradeViewFrom(t, symbolById.get(t.assetId) ?? "UNKNOWN"))}
       defaultSymbol={defaultSymbol}
+      liveAccess={user?.liveAccess ?? false}
     >
       <PlatformShell>{children}</PlatformShell>
     </PlatformProvider>

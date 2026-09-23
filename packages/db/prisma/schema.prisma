@@ -79,6 +79,11 @@ model User {
   passwordHash        String
   role                Role      @default(USER)
   emailVerified       Boolean   @default(false)
+  // Per-user gate for the real-money LIVE account. Default false keeps live
+  // trading closed for everyone; granted individually (seed test users, or the
+  // admin Users panel) so exposure is never global. The client env flag
+  // NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED can still open it for everyone at once.
+  liveAccess          Boolean   @default(false)
   twoFaEnabled        Boolean   @default(false)
   twoFaForLogin       Boolean   @default(false)
   twoFaForWithdrawal  Boolean   @default(false)

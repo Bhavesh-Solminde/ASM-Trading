@@ -5,15 +5,34 @@ import { createTwelveDataFeed } from "./twelve-data";
 
 export type { PriceFeed, Quote } from "./types";
 
-// Internal symbol -> provider symbol. Crypto is free over Binance's WebSocket;
-// gold has no free exchange feed, so it uses Twelve Data's REST quota sparingly.
-const BINANCE: Record<string, string> = { BTCUSD: "btcusdt" };
-const TWELVE_DATA: Record<string, string> = { XAUUSD: "XAU/USD" };
+// Internal symbol -> provider symbol. Crypto is free and real-time over
+// Binance's WebSocket; forex + gold have no free exchange feed, so they share
+// Twelve Data's REST quota sparingly. Any symbol absent from both tables (e.g.
+// the India indices) runs fully synthetic.
+const BINANCE: Record<string, string> = {
+  BTCUSD: "btcusdt",
+  BTCUSDT: "btcusdt",
+  ETHUSDT: "ethusdt",
+  SOLUSDT: "solusdt",
+  BNBUSDT: "bnbusdt",
+  XRPUSDT: "xrpusdt",
+  DOGEUSDT: "dogeusdt",
+};
+const TWELVE_DATA: Record<string, string> = {
+  XAUUSD: "XAU/USD",
+  EURUSD: "EUR/USD",
+  GBPUSD: "GBP/USD",
+  USDJPY: "USD/JPY",
+  USDCHF: "USD/CHF",
+  AUDUSD: "AUD/USD",
+  USDCAD: "USD/CAD",
+};
 
-// Gold poll rate: 0.4/min ≈ one quote every ~2.5 min ≈ 576 calls/day, inside
-// Twelve Data's free 800/day. BTC is on Binance now, so this lone slow symbol
-// is the entire external-data cost; the synthetic path covers the gaps.
-const GOLD_REQUESTS_PER_MINUTE = 0.4;
+// Twelve Data poll budget shared round-robin across ALL its symbols (gold +
+// forex). The free tier is 8/min and 800/day; 0.45/min ≈ 648 calls/day stays
+// inside it with headroom. With ~7 symbols each refreshes roughly every 15 min,
+// and the synthetic path covers the long gaps between quotes.
+const TWELVE_DATA_REQUESTS_PER_MINUTE = 0.45;
 
 function pick(symbols: string[], table: Record<string, string>): Record<string, string> {
   return Object.fromEntries(symbols.filter((s) => s in table).map((s) => [s, table[s]!]));
@@ -33,10 +52,11 @@ function compositeFeed(feeds: PriceFeed[]): PriceFeed {
 
 /**
  * Assembles the price feed for the given symbols from the cheapest source per
- * asset: crypto from Binance (free, real-time WS), gold from Twelve Data (free
- * tier, polled slowly). A symbol with no source simply runs synthetic — the
- * registry leaves its anchor null and the GARCH path still ticks — so a missing
- * key or an unmapped asset degrades to a live-looking chart, never a crash.
+ * asset: crypto from Binance (free, real-time WS), forex + gold from Twelve Data
+ * (free tier, polled slowly and shared). A symbol with no source simply runs
+ * synthetic — the registry leaves its anchor null and the GARCH path still
+ * ticks — so a missing key or an unmapped asset (e.g. the India indices)
+ * degrades to a live-looking chart, never a crash.
  */
 export function createPriceFeed(symbols: string[]): PriceFeed {
   const feeds: PriceFeed[] = [];
@@ -46,17 +66,21 @@ export function createPriceFeed(symbols: string[]): PriceFeed {
     feeds.push(createBinanceFeed({ mapping: crypto }));
   }
 
-  const gold = pick(symbols, TWELVE_DATA);
-  if (Object.keys(gold).length > 0) {
+  const twelveData = pick(symbols, TWELVE_DATA);
+  if (Object.keys(twelveData).length > 0) {
     const apiKey = process.env.TWELVE_DATA_API_KEY;
     if (apiKey) {
       feeds.push(
-        createTwelveDataFeed({ apiKey, mapping: gold, requestsPerMinute: GOLD_REQUESTS_PER_MINUTE }),
+        createTwelveDataFeed({
+          apiKey,
+          mapping: twelveData,
+          requestsPerMinute: TWELVE_DATA_REQUESTS_PER_MINUTE,
+        }),
       );
     } else {
       logger.info(
-        { evt: "engine.feed_selected", feed: "synthetic", reason: "no_api_key", symbols: Object.keys(gold) },
-        "TWELVE_DATA_API_KEY not set — gold runs synthetic (no real anchor)",
+        { evt: "engine.feed_selected", feed: "synthetic", reason: "no_api_key", symbols: Object.keys(twelveData) },
+        "TWELVE_DATA_API_KEY not set — forex + gold run synthetic (no real anchor)",
       );
     }
   }

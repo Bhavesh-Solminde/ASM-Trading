@@ -125,8 +125,8 @@ export default async function MarketsPage({
                         {a.symbol.slice(0, 3)}
                       </span>
                       <div>
-                        <div className="admin-cell-strong">{a.symbol}/USD</div>
-                        <div className="admin-cell-sub">{a.displayName}</div>
+                        <div className="admin-cell-strong">{a.displayName}</div>
+                        <div className="admin-cell-sub">{a.symbol}</div>
                       </div>
                     </div>
                   </td>

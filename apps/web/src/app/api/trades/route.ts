@@ -43,6 +43,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Account not found." }, { status: 404 });
   }
 
+  // Live account is gated server-side, mirroring the TopBar client gate so it
+  // cannot be bypassed by calling the API directly: real-money trades are
+  // allowed only on a global launch (NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED) or for a
+  // user individually granted liveAccess (seed test users, or the admin panel).
+  if (account.type === "LIVE" && process.env.NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED !== "true") {
+    const actor = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { liveAccess: true },
+    });
+    if (!actor?.liveAccess) {
+      log.warn(
+        { evt: "security.authz_denied", route: "trades", reason: "live_not_enabled" },
+        "live trading not enabled for actor",
+      );
+      return NextResponse.json(
+        { error: "Live trading isn't available on your account yet." },
+        { status: 403 },
+      );
+    }
+  }
+
   try {
     const result = await engineOpenTrade({ ...parsed.data, actorId: session.userId });
     return NextResponse.json(result, { status: 201 });

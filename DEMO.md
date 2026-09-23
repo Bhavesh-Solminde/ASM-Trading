@@ -30,12 +30,42 @@ One-time (already done in this checkout; re-run only on a fresh clone or DB):
 nvm use
 pnpm install
 pnpm --filter @asm/db exec prisma migrate deploy   # apply schema
-pnpm --filter @asm/db seed                          # 3 assets + admin user
+pnpm --filter @asm/db seed                          # 20 markets + admin + 10 test users
 ```
 
-The dev database is already migrated and seeded (AUD/NZD OTC, EUR/USD OTC,
-USD/JPY; all open at 100% payout), and test users have been cleared, so it
-starts clean.
+The dev database is already migrated and seeded with **20 open markets** —
+6 crypto (BTC/USDT, ETH/USDT, SOL/USDT, BNB/USDT, XRP/USDT, DOGE/USDT),
+6 forex (EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD), 6 India
+indices (NIFTY 50, BANK NIFTY, FINNIFTY, SENSEX, NIFTY IT, NIFTY MIDCAP 100),
+plus the original BTC/USD and Gold — all open at 100% payout. Crypto anchors to
+Binance's live WebSocket, forex + gold to Twelve Data (if `TWELVE_DATA_API_KEY`
+is set), and the India indices run fully synthetic. The seed is idempotent, so
+re-running it re-funds the test accounts to a known state.
+
+### Test accounts
+
+The seed creates **10 live test users** — `test1@asmtrade.local` …
+`test10@asmtrade.local` — sharing one password: **`asm-demo-test-2026`**. Each
+has a funded **Live** account (₹1,00,000) and a funded **Demo** account
+(₹1,00,000). These are DEMO-ONLY credentials (a single shared, well-known
+password) and must never exist in a real deployment. All 10 appear in the admin
+**Users** panel; every market appears in the admin **Markets** panel.
+
+### Live-account access (per-user gate)
+
+The real-money **Live** account is gated so it is **not** exposed to everyone by
+default. Access is per-user via `User.liveAccess`:
+
+- The 10 test users are seeded with `liveAccess = true`, so they can switch to
+  and trade the Live account. Everyone else (including new registrations) stays
+  Demo-only and sees the "Live account — coming soon" notice.
+- Grant or revoke it in **`/admin/users/<id>`** → *Manage account* →
+  *Live account access* (audited).
+- The gate is enforced both in the UI (the account switcher) and server-side in
+  the trade API, so it can't be bypassed by calling the API directly.
+- To launch Live for **everyone at once**, set
+  `NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED="true"` in `.env` (default `false`). This
+  overrides the per-user gate globally, so use it only for a real launch.
 
 ---
 
@@ -93,11 +123,13 @@ and lands in the admin queue instead.
 Go to **`/admin/login`** and enter the **`ADMIN_PANEL_SECRET`** value from
 `.env` (it's a shared secret, not a user login).
 
-- **`/admin/assets`** — change an asset's payout or open/close it. Payout
-  changes apply to new trades only; open positions keep the payout they were
+- **`/admin/markets`** — every market, searchable and filterable by type
+  (Real/OTC) and status. Change a market's payout or open/close it; payout
+  changes apply to new trades only, so open positions keep the payout they were
   opened at.
-- **`/admin/deposits`** — the reconciliation queue: auto-approved deposits, the
-  residue of pending claims to approve/reject, and any orphaned credits.
+- **`/admin/users`** — all users (including the 10 test accounts), with balances
+  and per-user detail.
+- **`/admin/approvals`** — the deposit/withdrawal reconciliation queue.
 - **`/admin/messages`** — the raw relayed-message log.
 
 ---

@@ -14,8 +14,9 @@ import { MobileNav } from "./MobileNav";
 import { PromoBanner } from "./PromoBanner";
 import { usePlatform, type AccountView } from "./PlatformProvider";
 
-// Gate the live account behind an env flag. Flip
-// NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED=true when we're ready to expose it.
+// Gate the live account. NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED=true opens it for
+// everyone at once (global launch); otherwise it stays gated per-user, and only
+// users with liveAccess (from the server) can select it — see handleSelectAccount.
 const LIVE_ACCOUNT_ENABLED = process.env.NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED === "true";
 
 const FEED_LABEL = {
@@ -54,7 +55,8 @@ function FeedClock() {
 }
 
 export function TopBar() {
-  const { status, accounts, activeAccount, balances, setActiveAccountId } = usePlatform();
+  const { status, accounts, activeAccount, balances, setActiveAccountId, liveAccess } = usePlatform();
+  const liveEnabled = LIVE_ACCOUNT_ENABLED || liveAccess;
   const [menuOpen, setMenuOpen] = useState(false);
   const [liveComingSoon, setLiveComingSoon] = useState(false);
   const [muted, setMutedState] = useState(() => isMuted());
@@ -102,7 +104,7 @@ export function TopBar() {
 
   const handleSelectAccount = useCallback(
     (account: AccountView) => {
-      if (account.type === "LIVE" && !LIVE_ACCOUNT_ENABLED) {
+      if (account.type === "LIVE" && !liveEnabled) {
         setLiveComingSoon(true);
         setMenuOpen(false);
         const demo = accounts.find((a) => a.type === "DEMO");
@@ -112,7 +114,7 @@ export function TopBar() {
       setActiveAccountId(account.id);
       setMenuOpen(false);
     },
-    [accounts, activeAccount, setActiveAccountId],
+    [accounts, activeAccount, setActiveAccountId, liveEnabled],
   );
 
   return (

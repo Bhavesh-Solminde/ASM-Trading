@@ -26,18 +26,19 @@ export async function updateUserAction(formData: FormData): Promise<void> {
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "");
   const kycStatus = String(formData.get("kycStatus") ?? "");
+  const liveAccess = String(formData.get("liveAccess") ?? "") === "true";
   if (!userId || !ROLES.has(role as Role) || !KYCS.has(kycStatus as KycStatus)) return;
 
   const before = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, kycStatus: true, email: true },
+    select: { role: true, kycStatus: true, liveAccess: true, email: true },
   });
   if (!before) return;
 
-  if (before.role !== role || before.kycStatus !== kycStatus) {
+  if (before.role !== role || before.kycStatus !== kycStatus || before.liveAccess !== liveAccess) {
     await prisma.user.update({
       where: { id: userId },
-      data: { role: role as Role, kycStatus: kycStatus as KycStatus },
+      data: { role: role as Role, kycStatus: kycStatus as KycStatus, liveAccess },
     });
     await prisma.auditLog.create({
       data: {
@@ -45,12 +46,12 @@ export async function updateUserAction(formData: FormData): Promise<void> {
         action: "user.updated",
         targetType: "User",
         targetId: userId,
-        before: { role: before.role, kycStatus: before.kycStatus },
-        after: { role, kycStatus },
+        before: { role: before.role, kycStatus: before.kycStatus, liveAccess: before.liveAccess },
+        after: { role, kycStatus, liveAccess },
       },
     });
     logger.info(
-      { evt: "admin.action", action: "user.updated", email: before.email, role, kycStatus },
+      { evt: "admin.action", action: "user.updated", email: before.email, role, kycStatus, liveAccess },
       "admin updated user",
     );
   }

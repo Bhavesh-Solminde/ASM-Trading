@@ -81,6 +81,11 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 ) : (
                   <span className="admin-pill admin-pill--muted">Email unverified</span>
                 )}
+                {user.liveAccess ? (
+                  <span className="admin-pill admin-pill--pos">Live access</span>
+                ) : (
+                  <span className="admin-pill admin-pill--muted">Demo only</span>
+                )}
               </div>
             </div>
           </div>
@@ -150,6 +155,18 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                       {k.replace(/_/g, " ")}
                     </option>
                   ))}
+                </select>
+              </div>
+              <div className="admin-field">
+                <label htmlFor="liveAccess">Live account access</label>
+                <select
+                  id="liveAccess"
+                  name="liveAccess"
+                  className="admin-select"
+                  defaultValue={String(user.liveAccess)}
+                >
+                  <option value="false">Disabled — demo only</option>
+                  <option value="true">Enabled — real-money live</option>
                 </select>
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>

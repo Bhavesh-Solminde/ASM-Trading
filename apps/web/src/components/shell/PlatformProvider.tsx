@@ -55,6 +55,8 @@ interface PlatformContextValue {
   tradesByAccount: TradeState["tradesByAccount"];
   market: MarketStore;
   status: SocketStatus;
+  /** Whether this user may switch to and trade the real-money LIVE account. */
+  liveAccess: boolean;
   chartSymbol: string;
   selectChartSymbol: (symbol: string) => void;
   timeframe: Timeframe;
@@ -80,6 +82,7 @@ export function PlatformProvider({
   initialBalances,
   initialTrades,
   defaultSymbol,
+  liveAccess,
   children,
 }: {
   assets: PlatformAsset[];
@@ -87,6 +90,7 @@ export function PlatformProvider({
   initialBalances: Record<string, BalancesDto>;
   initialTrades: TradeView[];
   defaultSymbol: string;
+  liveAccess: boolean;
   children: React.ReactNode;
 }) {
   const [activeAccountId, setActiveAccountId] = useState(
@@ -176,6 +180,7 @@ export function PlatformProvider({
       tradesByAccount: trades.tradesByAccount,
       market,
       status,
+      liveAccess,
       chartSymbol,
       selectChartSymbol,
       timeframe,
@@ -191,6 +196,7 @@ export function PlatformProvider({
       trades,
       market,
       status,
+      liveAccess,
       chartSymbol,
       selectChartSymbol,
       timeframe,
