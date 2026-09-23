@@ -44,7 +44,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const withdrawal = await requestWithdrawal({ actorId: session.userId, ...parsed.data });
+    const withdrawal = await requestWithdrawal({
+      actorId: session.userId,
+      ipAddress: ctx.ip,
+      userAgent: ctx.userAgent,
+      ...parsed.data,
+    });
     return NextResponse.json({ id: withdrawal.id }, { status: 201 });
   } catch (err) {
     if (err instanceof WithdrawalRefused) {

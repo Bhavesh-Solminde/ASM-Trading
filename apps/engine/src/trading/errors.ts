@@ -1,4 +1,8 @@
-export type DeskRejectionReason = "unknown_asset" | "account_not_found" | "insufficient_funds";
+export type DeskRejectionReason =
+  | "unknown_asset"
+  | "account_not_found"
+  | "insufficient_funds"
+  | "account_not_active";
 
 /** An expected refusal, mapped to a 4xx by the control surface — never a 500. */
 export class DeskRejection extends Error {

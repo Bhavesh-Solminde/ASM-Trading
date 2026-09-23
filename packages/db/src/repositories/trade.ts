@@ -17,6 +17,18 @@ export class InsufficientFunds extends Error {
   }
 }
 
+/**
+ * Refused because the owning User's status is not ACTIVE. Freeze / ban actions
+ * from the fraud queue block new trades this way — already-open positions are
+ * unaffected and still settle honestly, but no new money moves into the book.
+ */
+export class AccountNotActive extends Error {
+  constructor() {
+    super("This account is paused. Contact support.");
+    this.name = "AccountNotActive";
+  }
+}
+
 export class ConcurrentModification extends Error {
   constructor() {
     super("The account changed while this request was in flight. Try again.");
@@ -117,8 +129,19 @@ export async function openTrade(input: OpenTradeInput): Promise<OpenedTrade> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
       return await prisma.$transaction(async (tx) => {
-        const account = await tx.account.findUnique({ where: { id: input.accountId } });
+        const account = await tx.account.findUnique({
+          where: { id: input.accountId },
+          include: { user: { select: { status: true } } },
+        });
         if (!account) throw new Error(`Account ${input.accountId} not found`);
+        // Freeze / ban gate. Checked inside the transaction so a status flip
+        // that lands mid-request wins the race: a user frozen a millisecond
+        // before the trade opens is refused. Already-open trades are read
+        // through settleTrade, which never re-checks status — a frozen user's
+        // in-flight positions still settle honestly.
+        if (account.user.status !== "ACTIVE") {
+          throw new AccountNotActive();
+        }
         if (account.realBalance + account.bonusBalance < input.stake) {
           throw new InsufficientFunds();
         }

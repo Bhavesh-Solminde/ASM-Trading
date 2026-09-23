@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { LoginSchema } from "@asm/contracts";
-import { findUserByEmail } from "@asm/db";
+import { findUserByEmail, updateUserLastSeen } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import {
@@ -56,6 +56,15 @@ export async function POST(req: NextRequest) {
   const token = await createSession(user.id, {
     ip: ctx.ip,
     userAgent: ctx.userAgent,
+  });
+  // Refresh the forensic trail. Best-effort: a failure here must not block
+  // the sign-in — the session cookie is what actually gates access.
+  updateUserLastSeen({
+    userId: user.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+  }).catch(() => {
+    /* logged elsewhere via the db client's own error path */
   });
   log.info({ evt: "auth.login", userId: user.id }, "login succeeded");
 

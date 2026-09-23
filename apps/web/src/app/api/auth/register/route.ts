@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { RegisterSchema } from "@asm/contracts";
-import { createAccountsForUser, findUserByEmail, prisma } from "@asm/db";
+import {
+  createAccountsForUser,
+  findUserByEmail,
+  prisma,
+  writeSignupCapture,
+} from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { hashPassword } from "@/lib/password";
 import {
@@ -62,6 +67,16 @@ export async function POST(req: NextRequest) {
   });
 
   await createAccountsForUser(user.id, DEMO_START_BALANCE);
+
+  // Forensic capture — separate write so a missing header (dev, local) can't
+  // block the signup. `deviceFp` is a placeholder for a future client-side
+  // fingerprint; the detector treats it as optional and IP + UA carry the
+  // signal on their own.
+  await writeSignupCapture({
+    userId: user.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+  });
 
   const token = await createSession(user.id, {
     ip: ctx.ip,

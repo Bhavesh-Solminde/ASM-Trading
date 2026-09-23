@@ -1,5 +1,6 @@
 import { BucketRegistry, expirySecFor, type Position } from "@asm/trading";
 import {
+  AccountNotActive,
   AlreadySettled,
   InsufficientFunds,
   TradeNotFound,
@@ -115,6 +116,7 @@ export class TradeDesk {
       });
     } catch (err) {
       if (err instanceof InsufficientFunds) throw new DeskRejection("insufficient_funds");
+      if (err instanceof AccountNotActive) throw new DeskRejection("account_not_active");
       throw err;
     }
 
@@ -124,6 +126,11 @@ export class TradeDesk {
     const expirySec = expirySecFor(expiryTs.getTime());
     if (expirySec <= Math.floor(this.now() / 1000)) {
       const voided = await voidTrade(opened.trade.id);
+      // Invalidate the cached controller wish for this account. The refund
+      // doesn't move stats today, but the settle path invalidates too and
+      // this keeps the two paths in lock-step — one silent divergence away
+      // from a stale-wish bug in a future change.
+      this.controller.invalidate(input.accountId);
       logger.warn(
         { evt: "trade.open_expired_in_flight", tradeId: opened.trade.id, symbol: asset.symbol },
         "trade expired before its write completed — voided",
@@ -175,6 +182,7 @@ export class TradeDesk {
       }
       try {
         const settled = await voidTrade(position.tradeId);
+        this.controller.invalidate(position.accountId);
         voided += 1;
         this.announce(settled, this.symbolByAssetId.get(position.assetId) ?? "UNKNOWN");
       } catch (err) {

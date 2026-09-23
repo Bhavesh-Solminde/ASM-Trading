@@ -372,3 +372,102 @@ describe("rejectDeposit", () => {
     await prisma.auditLog.deleteMany({ where: { targetId: deposit.id } });
   });
 });
+
+describe("reverseCompletedDeposit", () => {
+  it("decrements cumulativeDeposits, debits both balances, and audits the reversal", async () => {
+    const { reverseCompletedDeposit } = await import("./deposit");
+
+    // Explicitly pin the account currency for this test — an earlier test in
+    // this file flips it to USD and does not reset it, which would make the
+    // reversal decrement by amountUsd rather than amountInr and confuse the
+    // deltas below.
+    await prisma.account.updateMany({
+      where: { userId, type: "LIVE" },
+      data: { currency: "INR" },
+    });
+
+    const deposit = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountInrMinor: 5_000_000,
+      correlationId: randomUUID(),
+    });
+    await claimUtr(userId, deposit.id, "999999999901");
+    await creditDepositToAccount({
+      depositId: deposit.id,
+      adminId: "admin-panel",
+      creditId: null,
+    });
+
+    const before = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { cumulativeDeposits: true },
+    });
+    const accountBefore = await prisma.account.findFirstOrThrow({
+      where: { userId, type: "LIVE" },
+    });
+
+    await reverseCompletedDeposit({
+      depositId: deposit.id,
+      adminId: "admin-panel",
+      reason: "chargeback confirmed by acquirer",
+    });
+
+    const afterDeposit = await prisma.deposit.findUniqueOrThrow({ where: { id: deposit.id } });
+    expect(afterDeposit.status).toBe("REJECTED");
+
+    const afterUser = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { cumulativeDeposits: true },
+    });
+    // The reversal decrements by the deposit's exact `amountInr`, regardless
+    // of what other tests in this file added earlier — the check is on the
+    // DELTA, not the absolute value, so this test tolerates test-order effects.
+    expect(afterUser.cumulativeDeposits).toBe(before.cumulativeDeposits - deposit.amountInr);
+
+    const afterAccount = await prisma.account.findFirstOrThrow({
+      where: { userId, type: "LIVE" },
+    });
+    // Same delta-based check: real drops by the deposit amount, bonus by the
+    // matching 100% grant, and nothing else moves.
+    const grantedBonus = Math.floor((deposit.amountInr * 100) / 100);
+    expect(afterAccount.realBalance).toBe(accountBefore.realBalance - deposit.amountInr);
+    expect(afterAccount.bonusBalance).toBe(accountBefore.bonusBalance - grantedBonus);
+
+    const audit = await prisma.auditLog.findFirst({
+      where: { targetType: "Deposit", targetId: deposit.id, action: "deposit.reversed" },
+    });
+    expect(audit).not.toBeNull();
+    await prisma.auditLog.deleteMany({ where: { targetId: deposit.id } });
+  });
+
+  it("refuses without force when the balance has been spent below what would be reclaimed", async () => {
+    const { reverseCompletedDeposit, DepositReversalRefused } = await import("./deposit");
+
+    const deposit = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountInrMinor: 3_000_000,
+      correlationId: randomUUID(),
+    });
+    await claimUtr(userId, deposit.id, "999999999902");
+    await creditDepositToAccount({
+      depositId: deposit.id,
+      adminId: "admin-panel",
+      creditId: null,
+    });
+    // Simulate the user having burned all of it (a big losing trade).
+    await prisma.account.updateMany({
+      where: { userId, type: "LIVE" },
+      data: { realBalance: 0, bonusBalance: 0 },
+    });
+
+    await expect(
+      reverseCompletedDeposit({
+        depositId: deposit.id,
+        adminId: "admin-panel",
+        reason: "chargeback",
+      }),
+    ).rejects.toBeInstanceOf(DepositReversalRefused);
+  });
+});

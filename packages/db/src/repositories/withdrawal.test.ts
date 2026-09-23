@@ -140,3 +140,125 @@ describe("requestWithdrawal", () => {
     ).rejects.toThrow(/demo/i);
   });
 });
+
+describe("requestWithdrawal — anti-fraud gates", () => {
+  it("refuses when the user's status is not ACTIVE", async () => {
+    await prisma.account.update({
+      where: { id: accountId },
+      data: { realBalance: 100_000 },
+    });
+    await prisma.deposit.create({
+      data: {
+        userId,
+        method: "PhonePe",
+        amountUsd: 1000,
+        amountInr: 100_000,
+        vpa: "x@y",
+        checkoutToken: randomUUID(),
+        correlationId: randomUUID(),
+        expiresAt: new Date(Date.now() + 60_000),
+        status: "COMPLETED",
+      },
+    });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { status: "FROZEN", statusReason: "test freeze" },
+    });
+    await expect(
+      requestWithdrawal({
+        actorId: userId,
+        accountId,
+        amount: 10_000,
+        method: "PhonePe",
+      }),
+    ).rejects.toThrow(/paused/i);
+  });
+
+  it("refuses when the payment method belongs to a different user", async () => {
+    // The primary user completes a deposit on PhonePe.
+    await prisma.account.update({
+      where: { id: accountId },
+      data: { realBalance: 100_000 },
+    });
+    await prisma.deposit.create({
+      data: {
+        userId,
+        method: "PhonePe",
+        amountUsd: 1000,
+        amountInr: 100_000,
+        vpa: "x@y",
+        checkoutToken: randomUUID(),
+        correlationId: randomUUID(),
+        expiresAt: new Date(Date.now() + 60_000),
+        status: "COMPLETED",
+      },
+    });
+    // A second user has ALSO used PhonePe with a completed deposit — that
+    // makes the method shared, so withdrawing to it from the primary user
+    // is a hedging/laundering path and must be refused.
+    const foreigner = await prisma.user.create({
+      data: { email: `fx-${randomUUID()}@t.local`, passwordHash: "x" },
+    });
+    try {
+      await createAccountsForUser(foreigner.id, 0);
+      await prisma.deposit.create({
+        data: {
+          userId: foreigner.id,
+          method: "PhonePe",
+          amountUsd: 1000,
+          amountInr: 100_000,
+          vpa: "x@y",
+          checkoutToken: randomUUID(),
+          correlationId: randomUUID(),
+          expiresAt: new Date(Date.now() + 60_000),
+          status: "COMPLETED",
+        },
+      });
+
+      await expect(
+        requestWithdrawal({
+          actorId: userId,
+          accountId,
+          amount: 10_000,
+          method: "PhonePe",
+        }),
+      ).rejects.toThrow(/another account/i);
+    } finally {
+      await prisma.transaction.deleteMany({ where: { account: { userId: foreigner.id } } });
+      await prisma.deposit.deleteMany({ where: { userId: foreigner.id } });
+      await prisma.account.deleteMany({ where: { userId: foreigner.id } });
+      await prisma.user.delete({ where: { id: foreigner.id } });
+    }
+  });
+
+  it("stores ipAddress and userAgent on the Withdrawal row", async () => {
+    await prisma.account.update({
+      where: { id: accountId },
+      data: { realBalance: 50_000 },
+    });
+    await prisma.deposit.create({
+      data: {
+        userId,
+        method: "PhonePe",
+        amountUsd: 500,
+        amountInr: 50_000,
+        vpa: "x@y",
+        checkoutToken: randomUUID(),
+        correlationId: randomUUID(),
+        expiresAt: new Date(Date.now() + 60_000),
+        status: "COMPLETED",
+      },
+    });
+    const w = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 1_000,
+      method: "PhonePe",
+      ipAddress: "203.0.113.7",
+      userAgent: "Mozilla-test",
+    });
+    const fresh = await prisma.withdrawal.findUniqueOrThrow({ where: { id: w.id } });
+    expect(fresh.ipAddress).toBe("203.0.113.7");
+    expect(fresh.userAgent).toBe("Mozilla-test");
+  });
+});

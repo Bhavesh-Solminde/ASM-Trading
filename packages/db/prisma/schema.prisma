@@ -30,6 +30,33 @@ enum KycStatus {
   REJECTED
 }
 
+/// Account lifecycle from a compliance/anti-fraud standpoint. Kept separate
+/// from KycStatus so a KYC-verified user can still be frozen for abuse, and
+/// a fresh user can be flagged before KYC even starts. Order matters: any
+/// non-ACTIVE status blocks bonus grants, new trades, and withdrawals.
+enum UserStatus {
+  ACTIVE
+  FLAGGED
+  FROZEN
+  BANNED
+}
+
+/// What kind of fraud a FraudFlag records. LINKED_ACCOUNT is the multi-account
+/// bonus-abuse pattern (same signup IP / device / deposit method across users).
+/// HEDGING is opposite trades on linked accounts within a short window.
+enum FraudFlagKind {
+  LINKED_ACCOUNT
+  HEDGING
+  SHARED_WITHDRAWAL_METHOD
+  RAPID_MULTI_ACCOUNT
+}
+
+enum FraudFlagStatus {
+  OPEN
+  DISMISSED
+  CONFIRMED
+}
+
 enum AssetKind {
   REAL
   OTC
@@ -74,31 +101,46 @@ enum TxKind {
 }
 
 model User {
-  id                  String    @id @default(uuid())
-  email               String    @unique
-  passwordHash        String
-  role                Role      @default(USER)
-  emailVerified       Boolean   @default(false)
+  id                 String     @id @default(uuid())
+  email              String     @unique
+  passwordHash       String
+  role               Role       @default(USER)
+  emailVerified      Boolean    @default(false)
   // Per-user gate for the real-money LIVE account. Default false keeps live
   // trading closed for everyone; granted individually (seed test users, or the
   // admin Users panel) so exposure is never global. The client env flag
   // NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED can still open it for everyone at once.
-  liveAccess          Boolean   @default(false)
-  twoFaEnabled        Boolean   @default(false)
-  twoFaForLogin       Boolean   @default(false)
-  twoFaForWithdrawal  Boolean   @default(false)
-  nickname            String?
-  firstName           String?
-  lastName            String?
-  dateOfBirth         DateTime?
-  aadhaar             String?
-  address             String?
-  country             String?
-  kycStatus           KycStatus @default(NOT_STARTED)
-  cumulativeDeposits  Int       @default(0)
-  isBot               Boolean   @default(false)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  liveAccess         Boolean    @default(false)
+  twoFaEnabled       Boolean    @default(false)
+  twoFaForLogin      Boolean    @default(false)
+  twoFaForWithdrawal Boolean    @default(false)
+  nickname           String?
+  firstName          String?
+  lastName           String?
+  dateOfBirth        DateTime?
+  aadhaar            String?
+  address            String?
+  country            String?
+  kycStatus          KycStatus  @default(NOT_STARTED)
+  cumulativeDeposits Int        @default(0)
+  isBot              Boolean    @default(false)
+  // Compliance/anti-fraud status. A non-ACTIVE status blocks new trades,
+  // bonus grants and withdrawals; the status is set by the linked-accounts
+  // detector or an admin action, never by the user's own flow.
+  status             UserStatus @default(ACTIVE)
+  statusReason       String?
+  statusChangedAt    DateTime?
+  // Captured at signup, updated on every session refresh. The pair drives the
+  // linked-accounts detector and gives admin review a per-user forensics trail.
+  // Nullable because pre-existing users have no capture history.
+  signupIp           String?
+  signupUserAgent    String?
+  signupDeviceFp     String?
+  lastIp             String?
+  lastUserAgent      String?
+  lastSeenAt         DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   accounts       Account[]
   sessions       Session[]
@@ -106,8 +148,14 @@ model User {
   withdrawals    Withdrawal[]
   supportTickets SupportTicket[]
   twoFactorCodes TwoFactorCode[]
+  fraudFlags     FraudFlag[]
 
   @@index([email])
+  // The detector queries these hot; a plain btree on a nullable String is
+  // still cheap and NULL rows never enter the index scan.
+  @@index([signupIp])
+  @@index([lastIp])
+  @@index([status])
 }
 
 model Session {
@@ -127,23 +175,23 @@ model Session {
 }
 
 model Account {
-  id               String         @id @default(uuid())
-  userId           String
-  type             AccountType
-  currency         String         @default("INR")
-  realBalance      Int            @default(0)
-  bonusBalance     Int            @default(0)
-  turnoverProgress Int            @default(0)
-  lifecycleStage   LifecycleStage @default(PRE_DEPOSIT)
-  rollingWinRate   Float          @default(0)
-  tradesCount      Int            @default(0)
-  medianStake      Int            @default(100)
-  lossStreak       Int            @default(0)
-  winStreak        Int            @default(0)
+  id                String          @id @default(uuid())
+  userId            String
+  type              AccountType
+  currency          String          @default("INR")
+  realBalance       Int             @default(0)
+  bonusBalance      Int             @default(0)
+  turnoverProgress  Int             @default(0)
+  lifecycleStage    LifecycleStage  @default(PRE_DEPOSIT)
+  rollingWinRate    Float           @default(0)
+  tradesCount       Int             @default(0)
+  medianStake       Int             @default(100)
+  lossStreak        Int             @default(0)
+  winStreak         Int             @default(0)
   lifecycleOverride LifecycleStage?
-  dailyLimit       Int?
-  version          Int            @default(0)
-  createdAt        DateTime       @default(now())
+  dailyLimit        Int?
+  version           Int             @default(0)
+  createdAt         DateTime        @default(now())
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   trades       Trade[]
@@ -196,21 +244,21 @@ model Candle {
 }
 
 model Trade {
-  id         String      @id @default(uuid())
-  accountId  String
-  assetId    String
-  direction  Direction
-  stake      Int
+  id             String      @id @default(uuid())
+  accountId      String
+  assetId        String
+  direction      Direction
+  stake          Int
   /// The part of `stake` drawn from bonusBalance. Settlement credits return in this proportion.
   stakeFromBonus Int         @default(0)
-  payoutPct  Int
-  entryPrice Float
-  entryTs    DateTime
-  expiryTs   DateTime
-  exitPrice  Float?
-  status     TradeStatus @default(OPEN)
-  pnl        Int         @default(0)
-  createdAt  DateTime    @default(now())
+  payoutPct      Int
+  entryPrice     Float
+  entryTs        DateTime
+  expiryTs       DateTime
+  exitPrice      Float?
+  status         TradeStatus @default(OPEN)
+  pnl            Int         @default(0)
+  createdAt      DateTime    @default(now())
 
   account Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   asset   Asset        @relation(fields: [assetId], references: [id])
@@ -264,6 +312,12 @@ model Deposit {
   matchedCreditId String?
   correlationId   String
   expiresAt       DateTime
+  // IP + UA at the moment the deposit was requested. Fed to the linked-
+  // accounts detector alongside signup IP so a fresh account depositing from
+  // an IP that already has a completed deposit under a different user is
+  // linkable even if signup came from a different network.
+  ipAddress       String?
+  userAgent       String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -337,11 +391,18 @@ model Withdrawal {
   status     WithdrawalStatus @default(REQUESTED)
   reviewedBy String?
   reason     String?
+  // Same forensics rationale as Deposit.ipAddress/userAgent.
+  ipAddress  String?
+  userAgent  String?
   createdAt  DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  // Cross-user dedup query: "has any other user withdrawn to this method?"
+  // The predicate hits (method, userId) so a composite covers both the
+  // dedup lookup and any per-user history filter.
+  @@index([method, userId])
 }
 
 /// Append-only ledger. Every balance change writes exactly one row.
@@ -406,6 +467,36 @@ model SupportTicket {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+/// A single fraud-detector finding, awaiting an admin decision. The detector
+/// is deliberately non-authoritative: it never freezes an account on its own
+/// (a shared household IP is a common false positive), it writes a flag with
+/// full evidence and lets an admin decide. `linkedUserIds` is the group of
+/// user IDs the detector considered related — the flag belongs to one of them
+/// so it appears in that user's admin view, but the full group is preserved
+/// so the operator can act on all of them from one screen.
+model FraudFlag {
+  id            String          @id @default(uuid())
+  userId        String
+  kind          FraudFlagKind
+  status        FraudFlagStatus @default(OPEN)
+  /// One JSON blob with all fields that led the detector to raise this flag —
+  /// IPs, UAs, deposit methods, matched user IDs, correlation windows.
+  /// Untyped so evidence can evolve without a migration; typed on read at
+  /// the admin UI.
+  evidence      Json
+  linkedUserIds String[]
+  reviewedBy    String?
+  reviewNote    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([kind, status])
 }
 
 /// Short-lived one-time codes for two-factor login and withdrawal. The code is

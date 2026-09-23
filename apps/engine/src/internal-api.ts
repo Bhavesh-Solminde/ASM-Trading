@@ -23,6 +23,9 @@ const REJECTION_STATUS: Record<DeskRejectionReason, number> = {
   unknown_asset: 404,
   account_not_found: 404,
   insufficient_funds: 409,
+  // 403 for a paused account — the caller is authenticated but the resource
+  // is not usable in its current state, matching the withdrawal refusal path.
+  account_not_active: 403,
 };
 
 function authorised(header: string | undefined, secret: string): boolean {

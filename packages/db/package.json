@@ -10,6 +10,8 @@
     "generate": "prisma generate",
     "migrate": "dotenv -e ../../.env -- prisma migrate dev",
     "seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "seed:fraud": "dotenv -e ../../.env -- tsx prisma/seed-fraud.ts",
+    "seed:algo": "dotenv -e ../../.env -- tsx prisma/seed-algo.ts",
     "test": "vitest run"
   },
   "dependencies": {

@@ -11,7 +11,24 @@ export {
   DemoBalanceRefused,
   DEMO_START_BY_CURRENCY,
 } from "./repositories/account";
-export { findUserByEmail, findUserById } from "./repositories/user";
+export {
+  findUserByEmail,
+  findUserById,
+  writeSignupCapture,
+  updateUserLastSeen,
+  setUserStatus,
+} from "./repositories/user";
+export {
+  detectLinkage,
+  loadUserFacts,
+  flagLinkageForUser,
+  listOpenFraudFlags,
+  reviewFraudFlag,
+  type UserFacts,
+  type LinkageEvidence,
+  type LinkageVerdict,
+  type Linkage,
+} from "./repositories/fraud";
 export {
   dailyLeaderboard,
   type LeaderboardEntry,
@@ -21,6 +38,7 @@ export {
   AmountSpaceExhausted,
   DepositNotFound,
   DepositAlreadyResolved,
+  DepositReversalRefused,
   UtrAlreadyClaimed,
   USD_TO_INR_RATE,
   OFFSET_LOW,
@@ -41,6 +59,7 @@ export {
   listDepositsForActor,
   listPendingDeposits,
   rejectDeposit,
+  reverseCompletedDeposit,
   claimUtr,
 } from "./repositories/deposit";
 export {
@@ -74,6 +93,7 @@ export {
 } from "./repositories/bank-credit";
 export {
   InsufficientFunds,
+  AccountNotActive,
   ConcurrentModification,
   AlreadySettled,
   TradeNotFound,

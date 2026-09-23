@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "../client";
+import { flagLinkageForUser } from "./fraud";
 import type { Deposit } from "../../generated/prisma/client";
 
 /**
@@ -81,6 +82,8 @@ export async function createDepositIntent(input: {
   method: string;
   amountInrMinor: number;
   correlationId: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }): Promise<Deposit> {
   if (input.amountInrMinor < MIN_DEPOSIT_INR_MINOR) {
     throw new Error(
@@ -117,6 +120,8 @@ export async function createDepositIntent(input: {
           status: "AWAITING_PAYMENT",
           correlationId: input.correlationId,
           expiresAt,
+          ipAddress: input.ipAddress ?? null,
+          userAgent: input.userAgent ?? null,
         },
       });
     } catch (err) {
@@ -334,6 +339,144 @@ export async function creditDepositToAccount(input: {
         targetType: "Deposit",
         targetId: deposit.id,
         after: { status: "COMPLETED", creditId: input.creditId, bonus },
+      },
+    });
+  });
+
+  // The bonus grant is when the multi-account attack pays off — every account
+  // gets one, so this is the moment to check whether the user just picked up
+  // is one of many linked accounts. Run OUTSIDE the transaction: a detector
+  // failure must never roll back a completed deposit, and the flag itself is
+  // advisory (admin decides), not a hold on the credit.
+  flagLinkageForUser({ userId: deposit.userId }).catch(() => {
+    /* the detector logs its own failures via the prisma client */
+  });
+}
+
+export class DepositReversalRefused extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DepositReversalRefused";
+  }
+}
+
+/**
+ * Reverses a COMPLETED deposit. This is the admin-only path for chargebacks,
+ * confirmed fraud rulings, and duplicate-credit corrections. Not exposed to
+ * the user's flow — a user cannot ever reverse their own deposit.
+ *
+ * Correctness invariants:
+ *   1. cumulativeDeposits is decremented BY THE SAME `credit` VALUE that was
+ *      added at approval, so lifecycle stage derives correctly on the next
+ *      controller call. Without this, a refunded deposit leaves the user
+ *      stuck in HIGH_VALUE with no matching money on file.
+ *   2. Real and bonus balances are debited by exactly what was credited. If
+ *      the user has already spent below what would need to be reclaimed and
+ *      `force` is false, the reversal is REFUSED (admin decides whether to
+ *      force-cap at zero or freeze the account and pursue recovery).
+ *   3. The Deposit row is moved to REJECTED (no separate REVERSED status —
+ *      that would be a schema migration; the audit log distinguishes the two).
+ *   4. Any BankCredit that was consumed by this deposit stays consumed.
+ *      Un-consuming would let the matcher re-fire against another live
+ *      deposit for the same amount — a real risk of double-spend.
+ */
+export async function reverseCompletedDeposit(input: {
+  depositId: string;
+  adminId: string;
+  reason: string;
+  force?: boolean;
+}): Promise<void> {
+  const deposit = await prisma.deposit.findUnique({ where: { id: input.depositId } });
+  if (!deposit) throw new DepositNotFound();
+  if (deposit.status !== "COMPLETED") {
+    throw new DepositReversalRefused(
+      "Only a COMPLETED deposit can be reversed. Use rejectDeposit for pending ones.",
+    );
+  }
+
+  const account = await prisma.account.findFirstOrThrow({
+    where: { userId: deposit.userId, type: "LIVE" },
+  });
+  const credit = account.currency === "INR" ? deposit.amountInr : deposit.amountUsd;
+  const bonus = Math.floor((credit * BONUS_PERCENT) / 100);
+
+  await prisma.$transaction(async (tx) => {
+    const fresh = await tx.account.findUniqueOrThrow({
+      where: { id: account.id },
+      select: { realBalance: true, bonusBalance: true, version: true },
+    });
+
+    const realCap = Math.min(credit, fresh.realBalance);
+    const bonusCap = Math.min(bonus, fresh.bonusBalance);
+    if (!input.force && (realCap < credit || bonusCap < bonus)) {
+      throw new DepositReversalRefused(
+        "The account balance is below the amount to be reclaimed. Pass force=true to cap at zero.",
+      );
+    }
+
+    const claimedDeposit = await tx.deposit.updateMany({
+      where: { id: deposit.id, status: "COMPLETED" },
+      data: { status: "REJECTED" },
+    });
+    if (claimedDeposit.count !== 1) throw new DepositAlreadyResolved();
+
+    const claimedAccount = await tx.account.updateMany({
+      where: { id: account.id, version: fresh.version },
+      data: {
+        realBalance: { decrement: realCap },
+        bonusBalance: { decrement: bonusCap },
+        version: { increment: 1 },
+      },
+    });
+    if (claimedAccount.count !== 1) {
+      throw new DepositReversalRefused(
+        "Balance changed while the reversal was being applied. Retry.",
+      );
+    }
+
+    await tx.user.update({
+      where: { id: deposit.userId },
+      data: { cumulativeDeposits: { decrement: credit } },
+    });
+
+    const balanceAfter = fresh.realBalance + fresh.bonusBalance - realCap - bonusCap;
+    await tx.transaction.create({
+      data: {
+        accountId: account.id,
+        kind: "DEPOSIT",
+        amount: -realCap,
+        balanceAfter,
+        refType: "Deposit",
+        refId: deposit.id,
+      },
+    });
+    if (bonusCap > 0) {
+      await tx.transaction.create({
+        data: {
+          accountId: account.id,
+          kind: "BONUS_CONVERT",
+          amount: -bonusCap,
+          balanceAfter,
+          refType: "Deposit",
+          refId: deposit.id,
+        },
+      });
+    }
+
+    await tx.auditLog.create({
+      data: {
+        actorId: input.adminId,
+        action: "deposit.reversed",
+        targetType: "Deposit",
+        targetId: deposit.id,
+        before: { status: "COMPLETED", credit, bonus },
+        after: {
+          status: "REJECTED",
+          reason: input.reason,
+          reclaimedReal: realCap,
+          reclaimedBonus: bonusCap,
+          shortfall: (credit - realCap) + (bonus - bonusCap),
+        },
       },
     });
   });

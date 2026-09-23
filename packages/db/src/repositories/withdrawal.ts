@@ -52,9 +52,24 @@ export async function requestWithdrawal(input: {
   accountId: string;
   amount: number;
   method: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }): Promise<Withdrawal> {
   if (!Number.isInteger(input.amount) || input.amount <= 0) {
     throw new WithdrawalRefused("Enter a valid amount.");
+  }
+
+  // The status gate belongs upstream of the balance read: a FROZEN or BANNED
+  // user should not learn how much they had, and the refusal message is
+  // deliberately vague so a suspended abuser can't map out which check tripped.
+  const actor = await prisma.user.findUniqueOrThrow({
+    where: { id: input.actorId },
+    select: { status: true },
+  });
+  if (actor.status !== "ACTIVE") {
+    throw new WithdrawalRefused(
+      "Withdrawals are paused on this account. Contact support.",
+    );
   }
 
   const account = await prisma.account.findFirst({
@@ -71,6 +86,37 @@ export async function requestWithdrawal(input: {
   if (!usedMethod) {
     throw new WithdrawalRefused(
       "You can only withdraw to a method you have already deposited with.",
+    );
+  }
+
+  // Cross-user method dedup: a payment method (UPI ID / card / bank rail
+  // identifier) that has ever completed a deposit or withdrawal for a
+  // DIFFERENT user is a laundering / hedging enabler and is refused. Same-user
+  // history is fine — that is exactly what the check above requires. We look
+  // at both Deposit and Withdrawal so a colluding pair can't pass by opening
+  // the loop from either direction.
+  const foreignDeposit = await prisma.deposit.findFirst({
+    where: {
+      method: input.method,
+      status: "COMPLETED",
+      userId: { not: input.actorId },
+    },
+    select: { id: true },
+  });
+  const foreignWithdrawal = await prisma.withdrawal.findFirst({
+    where: {
+      method: input.method,
+      userId: { not: input.actorId },
+      // Anything past REQUESTED means the operator or the bank has already
+      // touched it — refuse. A stale REQUESTED (never reviewed) is not enough
+      // signal on its own.
+      status: { in: ["APPROVED", "PAID"] },
+    },
+    select: { id: true },
+  });
+  if (foreignDeposit || foreignWithdrawal) {
+    throw new WithdrawalRefused(
+      "This payment method is registered to another account. Contact support.",
     );
   }
 
@@ -106,6 +152,8 @@ export async function requestWithdrawal(input: {
             amount: input.amount,
             method: input.method,
             status: "REQUESTED",
+            ipAddress: input.ipAddress ?? null,
+            userAgent: input.userAgent ?? null,
           },
         });
 

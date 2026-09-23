@@ -38,6 +38,8 @@ export async function POST(req: NextRequest) {
       method: parsed.data.method,
       amountInrMinor: parsed.data.amountInr,
       correlationId: ctx.cid,
+      ipAddress: ctx.ip,
+      userAgent: ctx.userAgent,
     });
 
     log.info(
