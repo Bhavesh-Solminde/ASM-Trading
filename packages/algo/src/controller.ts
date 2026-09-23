@@ -34,6 +34,16 @@ function clamp(value: number, min: number, max: number): number {
   return value < min ? min : value > max ? max : value;
 }
 
+/**
+ * Minimum urgency every wish carries into resolveBucket. Without this floor a
+ * user whose `p` sits at exactly 0.5 (target = 0.5, error 0, no ceiling)
+ * contributes zero to the bucket score — their own trade could then be
+ * resolved purely to serve a co-expiring wish. A tiny positive floor keeps
+ * every trader with a non-zero say in their own outcome without meaningfully
+ * distorting the resolver's tie-breaking.
+ */
+const URGENCY_FLOOR = 0.05;
+
 export function desiredWinProb(stats: AccountStats): ControllerOutput {
   const target = TARGETS[stats.stage];
 
@@ -54,13 +64,32 @@ export function desiredWinProb(stats: AccountStats): ControllerOutput {
   const ceilingPosterior = Math.max(posteriorShort, posteriorLife);
   const ceilingActive = ceilingPosterior > HARD_CEILING;
 
+  // Ceiling clamp — spelled out. With MAX_CORRECTION=0.35, ERROR_SCALE/3≈0.047,
+  // the pre-clamp `target - 0.35*tanh(excess/…)` is bounded in roughly
+  // [target-0.35, target]. Since target ≥ 0.27 and CEILING_CLAMP is 0.03, the
+  // Math.min(..., CEILING_CLAMP) branch always wins as long as the ceiling is
+  // engaged — the tanh calculation was dead code. Pinning `ceilingP` directly
+  // to CEILING_CLAMP is what the code actually computed; the linear blend
+  // through `confidence` still governs how fast we get there.
   if (ceilingActive) {
-    const excess = ceilingPosterior - HARD_CEILING;
-    let ceilingP = target - MAX_CORRECTION * Math.tanh(excess / (ERROR_SCALE / 3));
-    ceilingP = Math.min(ceilingP, CEILING_CLAMP);
-    p = Math.min(p, p + confidence * (ceilingP - p));
+    const ceilingP = CEILING_CLAMP;
+    // `p + confidence * (ceilingP - p)` is a lerp from p toward ceilingP by
+    // `confidence`. Confidence=1 pins p at ceilingP; confidence=0 leaves p
+    // alone (bootstrap protection so a brand-new account with 5 wins can't
+    // be crushed to 0.03 from the third trade).
+    const blended = p + confidence * (ceilingP - p);
+    // Only ever pull `p` DOWN through the ceiling — never up. Guards against
+    // the pathological case where blended > p (would only happen if p was
+    // already below the clamp, e.g. a HIGH_VALUE loser).
+    p = Math.min(p, blended);
   }
 
+  // Loss guard is deliberately OFF when the ceiling is active. A ceiling-
+  // active user has an ELEVATED lifetime win rate — a fresh loss streak on
+  // top of that is regression to the mean, not something to bail out of
+  // with a forced win. Enabling the guard here would hand the streakiest
+  // winners a free "reset" whenever the losses caught up. Locked in by the
+  // A5 test in controller.test.ts.
   if (stats.lossStreak >= MAX_LOSS_STREAK && !ceilingActive) {
     const k = stats.lossStreak - MAX_LOSS_STREAK;
     const floor = LOSS_GUARD_BASE + LOSS_GUARD_STEP * (k + 1);
@@ -74,7 +103,12 @@ export function desiredWinProb(stats: AccountStats): ControllerOutput {
 
   p = clamp(p, P_MIN, P_MAX);
 
-  const urgency = Math.abs(p - 0.5) * 2 + (ceilingActive ? 1 : 0);
+  // `|p - 0.5| * 2` gives the natural urgency (0 at target=0.5, 1 at either
+  // extreme). The +1 boost on ceiling-active makes hot-streak users out-
+  // shout the rest of the bucket. URGENCY_FLOOR keeps on-target users at
+  // least visible in the resolver.
+  const rawUrgency = Math.abs(p - 0.5) * 2 + (ceilingActive ? 1 : 0);
+  const urgency = Math.max(rawUrgency, URGENCY_FLOOR);
 
   return { p, ceilingActive, urgency, posteriorShort, posteriorLife, target, stage: stats.stage };
 }
