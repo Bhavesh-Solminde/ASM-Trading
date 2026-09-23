@@ -40,6 +40,16 @@ export const BIAS_SIGMA_CAP = 0.25;
 
 export const IMBALANCE_TAU_SEC = 45;
 
+/**
+ * Maximum fraction of the total book weight any single position may contribute
+ * to the imbalance calculation. Without this, a whale bet of ₹10 lakh among 99
+ * ₹100 traders would set the direction unilaterally — the crowd's aggregate
+ * would have no voice. Capping each position's contribution at 30% of total
+ * means at least 3 co-directional positions are needed to fully define the
+ * imbalance direction, so a lone whale is diluted by the surrounding book.
+ */
+export const WHALE_CAP_FRACTION = 0.3;
+
 export const CONFIDENCE_THRESHOLD = 30;
 
 export const DEPOSIT_THRESHOLD_MINOR = 50_000;
