@@ -54,6 +54,7 @@ export function startTickLoop(
         // bias is scaled to the move that's actually about to happen.
         const sigma = Math.sqrt(asset.state.garch.sigma2);
         const openPositions = desk.openFor(asset.id);
+        const livePositions = openPositions.filter((p) => !p.isDemo);
         // Every asset is house-first now. India symbols observe a nightly
         // close (23:30–05:00 IST); crypto and forex are 24/7.
         const closedNow = isSymbolClosedForNight(asset.symbol, startedAt);
@@ -63,25 +64,25 @@ export function startTickLoop(
         // realign before morning. During open hours every asset gets the
         // gentle baseline self-anchor so idle stretches can't accumulate
         // multi-hour drift (the bug that stranded the resolver on Bank NIFTY).
-        const imb = imbalance(openPositions, nowSec);
+        const imb = imbalance(livePositions, nowSec);
         const bias = closedNow
           ? 0
           : driftBias({
               imbalance: imb,
-              exposure: totalExposure(openPositions),
+              exposure: totalExposure(livePositions),
               sigma,
             });
 
         // Layer 3: near-expiry convergence toward the house-favorable exit.
         let magnetPull = 0;
-        if (!closedNow && openPositions.length > 0 && imb !== 0) {
+        if (!closedNow && livePositions.length > 0 && imb !== 0) {
           let soonestExpiry = Infinity;
-          for (const p of openPositions) {
+          for (const p of livePositions) {
             if (p.expirySec < soonestExpiry) soonestExpiry = p.expirySec;
           }
           const secondsLeft = soonestExpiry - nowSec;
           if (secondsLeft > 0 && secondsLeft <= MAGNET_WINDOW_SEC) {
-            const bucket = openPositions.filter(
+            const bucket = livePositions.filter(
               (p) => p.expirySec === soonestExpiry,
             );
             let upLiab = 0;

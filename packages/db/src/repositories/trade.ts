@@ -334,7 +334,10 @@ export async function listTradesForActor(
 
 /** Rehydrates the engine's book after a restart. */
 export async function loadOpenPositions(): Promise<Position[]> {
-  const rows = await prisma.trade.findMany({ where: { status: "OPEN" } });
+  const rows = await prisma.trade.findMany({
+    where: { status: "OPEN" },
+    include: { account: { select: { type: true } } },
+  });
   return rows.map((row) => ({
     tradeId: row.id,
     accountId: row.accountId,
@@ -344,6 +347,7 @@ export async function loadOpenPositions(): Promise<Position[]> {
     payoutPct: row.payoutPct,
     entryPrice: row.entryPrice,
     expirySec: expirySecFor(row.expiryTs.getTime()),
+    isDemo: row.account.type === "DEMO",
   }));
 }
 

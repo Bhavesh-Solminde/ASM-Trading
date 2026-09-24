@@ -177,6 +177,7 @@ export class TradeDesk {
       payoutPct: opened.trade.payoutPct,
       entryPrice,
       expirySec,
+      isDemo: account.type === "DEMO",
     });
 
     const result: OpenTradeResult = {
@@ -366,9 +367,14 @@ export class TradeDesk {
         // The tie-break seed pins any coin-flip to the bucket identity, so
         // an audit re-run against the same (symbol, expirySec) reproduces
         // the same outcome.
-        const positions = group.map((item) => item.position);
+        const liveOnly = group
+          .filter((item) => !item.position.isDemo)
+          .map((item) => item.position);
         const expirySec = group[0]!.position.expirySec;
-        const outcome = houseFirstWishes(positions, `${asset.id}|${expirySec}`);
+        const outcome = houseFirstWishes(
+          liveOnly.length > 0 ? liveOnly : group.map((item) => item.position),
+          `${asset.id}|${expirySec}`,
+        );
         wishes = outcome.wishes;
         for (const item of group) {
           // Streak counters and the shadow ledger still get "controllerTarget"

@@ -12,6 +12,7 @@ function pos(direction: "UP" | "DOWN", stake: number): Position {
     payoutPct: 100,
     entryPrice: 1,
     expirySec: 0,
+    isDemo: false,
   };
 }
 
