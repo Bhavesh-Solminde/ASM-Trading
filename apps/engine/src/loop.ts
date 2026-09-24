@@ -1,10 +1,12 @@
 import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
 import {
+  MAGNET_WINDOW_SEC,
   SELF_ANCHOR_ALPHA,
   SELF_ANCHOR_ALPHA_CLOSED,
   SELF_ANCHOR_MODE,
   driftBias,
+  expiryMagnet,
   imbalance,
   isSymbolClosedForNight,
   totalExposure,
@@ -61,13 +63,48 @@ export function startTickLoop(
         // realign before morning. During open hours every asset gets the
         // gentle baseline self-anchor so idle stretches can't accumulate
         // multi-hour drift (the bug that stranded the resolver on Bank NIFTY).
+        const imb = imbalance(openPositions, nowSec);
         const bias = closedNow
           ? 0
           : driftBias({
-              imbalance: imbalance(openPositions, nowSec),
+              imbalance: imb,
               exposure: totalExposure(openPositions),
               sigma,
             });
+
+        // Layer 3: near-expiry convergence toward the house-favorable exit.
+        let magnetPull = 0;
+        if (!closedNow && openPositions.length > 0 && imb !== 0) {
+          let soonestExpiry = Infinity;
+          for (const p of openPositions) {
+            if (p.expirySec < soonestExpiry) soonestExpiry = p.expirySec;
+          }
+          const secondsLeft = soonestExpiry - nowSec;
+          if (secondsLeft > 0 && secondsLeft <= MAGNET_WINDOW_SEC) {
+            const bucket = openPositions.filter(
+              (p) => p.expirySec === soonestExpiry,
+            );
+            let upLiab = 0;
+            let downLiab = 0;
+            for (const p of bucket) {
+              const liab = (p.stake * p.payoutPct) / 100;
+              if (p.direction === "UP") upLiab += liab;
+              else downLiab += liab;
+            }
+            const wantsDown = upLiab >= downLiab;
+            const entries = bucket.map((p) => p.entryPrice);
+            const targetPrice = wantsDown
+              ? Math.min(...entries) - asset.tickSize
+              : Math.max(...entries) + asset.tickSize;
+            magnetPull = expiryMagnet({
+              currentPrice: asset.state.price,
+              targetPrice,
+              secondsLeft,
+              convergenceWindowSec: MAGNET_WINDOW_SEC,
+              sigma,
+            });
+          }
+        }
 
         const selfAnchorTarget = SELF_ANCHOR_MODE
           ? asset.honestState.price
@@ -80,7 +117,7 @@ export function startTickLoop(
 
         result = registry.tick(asset.symbol, nowSec, {
           driftBias: bias,
-          magnet: 0,
+          magnet: magnetPull,
           selfAnchorTarget,
           selfAnchorAlpha,
         });

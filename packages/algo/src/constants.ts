@@ -39,7 +39,7 @@ export const BOOK_WEIGHT = 0.001;
 export const EXPOSURE_FLOOR = 1;
 export const EXPOSURE_FULL = 10_000;
 
-export const BIAS_SIGMA_CAP = 0.25;
+export const BIAS_SIGMA_CAP = 1.0;
 
 export const IMBALANCE_TAU_SEC = 600;
 
@@ -106,11 +106,12 @@ export const SELF_ANCHOR_MODE: boolean =
 
 /**
  * Per-tick log-space pull toward the honest path on OTC assets, when the
- * market is open. 0.05 = ~5% of the log gap closed per tick — a ~14-tick
- * half-life against a gap, invisible on a moving chart but enough to prevent
- * multi-hour unopposed drift. At TICK_DT_SEC=2 that is ~28s to halve.
+ * market is open. 0.02 = ~2% of the log gap closed per tick — a ~35-tick
+ * half-life (~70s at TICK_DT_SEC=2). Gentle enough that the drift bias can
+ * build a meaningful trend over a 1-minute trade, strong enough to prevent
+ * multi-hour unopposed drift during idle stretches.
  */
-export const SELF_ANCHOR_ALPHA = 0.05;
+export const SELF_ANCHOR_ALPHA = 0.02;
 
 /**
  * Accelerated pull used during the nightly OTC market close — 4× the daytime
@@ -154,7 +155,7 @@ export const CONFIDENCE_THRESHOLD = 30;
 
 export const DEPOSIT_THRESHOLD_MINOR = 50_000;
 
-export const MAGNET_WINDOW_SEC = 10;
+export const MAGNET_WINDOW_SEC = 30;
 export const MAGNET_CAP = 1.5;
 export const TARGET_MARGIN_SIGMA = 3;
 
