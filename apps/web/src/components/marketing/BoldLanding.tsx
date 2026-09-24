@@ -107,7 +107,7 @@ export function BoldLanding() {
             </div>
             <div className="absolute -right-10 -bottom-4 z-10 rotate-3 rounded-2xl border border-up/50 bg-panel/90 px-4 py-3 text-[11px] shadow-2xl backdrop-blur">
               <p className="font-bold uppercase tracking-widest text-up">Just settled</p>
-              <p className="mt-1 text-ink">+$19.30 · AUD/NZD</p>
+              <p className="mt-1 text-ink">+$19.30 · NIFTY 50</p>
               <p className="text-ink-3">30s expiry · 93% payout</p>
             </div>
           </div>
