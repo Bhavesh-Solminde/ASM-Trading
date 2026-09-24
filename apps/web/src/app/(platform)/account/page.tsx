@@ -4,6 +4,7 @@ import { loadProfile, listAccountsForActor, demoBalanceCap, formatMoney } from "
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { ProfileForm } from "./ProfileForm";
 import { DemoBalanceForm } from "./DemoBalanceForm";
+import { SignOutSection } from "./SignOutSection";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function AccountPage() {
             capLabel={formatMoney(demoBalanceCap(demo.currency), demo.currency)}
           />
         ) : null}
+        <SignOutSection />
       </div>
     </main>
   );

@@ -1,10 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/session-cookie";
 
 /**
  * Security headers set centrally so no route can omit them. Asserted by an
  * integration test in Task 13 rather than by inspection.
+ *
+ * Also re-issues the session cookie on every request when it's present, so
+ * the browser's Max-Age keeps rolling forward alongside the DB expiresAt
+ * (which readSession refreshes on the server). This is the client half of
+ * the sliding "refresh token" behavior — an active user never falls off the
+ * 7-day cliff.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature required by the Next.js middleware/NextMiddleware contract and by the direct call in headers.test.ts, even though the headers set below don't depend on the request.
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
@@ -28,6 +34,18 @@ export function middleware(request: NextRequest) {
       "form-action 'self'",
     ].join("; "),
   );
+
+  // Skip re-issuing the cookie on auth routes so a logout's clearing
+  // Set-Cookie isn't racing a middleware-issued renewal in the same
+  // response.
+  const path = request.nextUrl.pathname;
+  const isAuthRoute = path.startsWith("/api/auth/");
+  if (!isAuthRoute) {
+    const sessionToken = request.cookies.get(SESSION_COOKIE)?.value;
+    if (sessionToken) {
+      response.cookies.set(SESSION_COOKIE, sessionToken, SESSION_COOKIE_OPTIONS);
+    }
+  }
 
   return response;
 }
