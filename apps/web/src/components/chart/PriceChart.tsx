@@ -291,6 +291,26 @@ export function PriceChart({
       const state = market.getSnapshot().chart;
       if (state === prev) return;
 
+      // When the chart switches to a different symbol, reset the eased
+      // display price so the first tick on the new asset snaps to its own
+      // price instead of easing from the old asset's level — that glide
+      // would paint a multi-thousand-point wick onto the forming candle.
+      if (prev && state.symbol !== prev.symbol) {
+        displayed = null;
+        target = null;
+        tweenTo = null;
+        formingBar = null;
+        bucketTime = null;
+        dispHigh = NaN;
+        dispLow = NaN;
+        paintedTime = null;
+        paintedHigh = NaN;
+        paintedLow = NaN;
+        paintedClose = NaN;
+        paintedPrice = NaN;
+        priceLine.applyOptions({ lineVisible: false, axisLabelVisible: false });
+      }
+
       // Closed history is written straight through; the forming bar and the
       // last-price line are handed to the eased paint loop below.
       if (!prev || state.candles !== prev.candles) {
