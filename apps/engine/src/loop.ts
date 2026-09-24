@@ -6,7 +6,7 @@ import {
   SELF_ANCHOR_MODE,
   driftBias,
   imbalance,
-  isOtcMarketClosed,
+  isSymbolClosedForNight,
   totalExposure,
 } from "@asm/algo";
 import { TICK_DT_SEC } from "@asm/pricing";
@@ -44,8 +44,6 @@ export function startTickLoop(
     // second settles against the price its owner last saw. No awaiting here.
     desk.collectDue(nowSec);
 
-    const marketClosedOtc = isOtcMarketClosed(startedAt);
-
     for (const asset of registry.all()) {
       let result;
       try {
@@ -54,14 +52,15 @@ export function startTickLoop(
         // bias is scaled to the move that's actually about to happen.
         const sigma = Math.sqrt(asset.state.garch.sigma2);
         const openPositions = desk.openFor(asset.id);
-        const isOtc = asset.kind === "OTC";
-        const closedNow = isOtc && marketClosedOtc;
+        // Every asset is house-first now. India symbols observe a nightly
+        // close (23:30–05:00 IST); crypto and forex are 24/7.
+        const closedNow = isSymbolClosedForNight(asset.symbol, startedAt);
 
         // Nightly close: no book pressure decides the shown path, and the
         // accelerated self-anchor pulls shown toward honest fast enough to
-        // realign before morning. During open hours OTC assets get the gentle
-        // baseline self-anchor so idle stretches can't accumulate multi-hour
-        // drift (the bug that stranded the resolver on Bank NIFTY).
+        // realign before morning. During open hours every asset gets the
+        // gentle baseline self-anchor so idle stretches can't accumulate
+        // multi-hour drift (the bug that stranded the resolver on Bank NIFTY).
         const bias = closedNow
           ? 0
           : driftBias({
@@ -70,15 +69,14 @@ export function startTickLoop(
               sigma,
             });
 
-        const selfAnchorTarget =
-          SELF_ANCHOR_MODE && isOtc ? asset.honestState.price : null;
+        const selfAnchorTarget = SELF_ANCHOR_MODE
+          ? asset.honestState.price
+          : null;
         const selfAnchorAlpha = !SELF_ANCHOR_MODE
           ? 0
           : closedNow
             ? SELF_ANCHOR_ALPHA_CLOSED
-            : isOtc
-              ? SELF_ANCHOR_ALPHA
-              : 0;
+            : SELF_ANCHOR_ALPHA;
 
         result = registry.tick(asset.symbol, nowSec, {
           driftBias: bias,

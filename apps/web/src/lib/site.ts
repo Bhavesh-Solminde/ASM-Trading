@@ -19,7 +19,7 @@ export const SITE_NAME = "ASM Trade";
 
 /** One-line entity description reused across metadata and Organization JSON-LD. */
 export const SITE_DESCRIPTION =
-  "ASM Trade is a fast, mobile-first trading platform — trade forex, crypto, commodities and stocks from $1 with fixed risk and up to 95% payout. Free $10,000 demo, no card required.";
+  "ASM Trade is a fast, mobile-first trading platform — trade forex, crypto and India indices from $1 with fixed risk and up to 95% payout. Free $10,000 demo, no card required.";
 
 /** Short tagline for OG images and hero-style metadata. */
 export const SITE_TAGLINE = "Trade every market. Feel the tick.";

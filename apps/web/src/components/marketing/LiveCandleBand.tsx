@@ -43,7 +43,7 @@ export function LiveCandleBand() {
       {/* Session strip label — top-left, anchors the widget as data. */}
       <div className="pointer-events-none absolute left-4 top-3 z-20 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-ink-2 md:left-5 md:top-4 md:text-[11px]">
         <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-up" />
-        Live · AUD/NZD OTC · 1m
+        Live · NIFTY 50 · 1m
       </div>
       {/* Right-side price readout, tracks the newest candle. */}
       <div className="pointer-events-none absolute right-4 top-3 z-20 flex items-center gap-2 md:right-5 md:top-4">

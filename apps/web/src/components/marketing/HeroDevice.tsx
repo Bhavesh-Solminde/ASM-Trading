@@ -64,8 +64,8 @@ export function HeroDevice({ tone = "quiet" }: { tone?: "quiet" | "bold" }) {
         {/* top bar */}
         <div className="flex items-center justify-between border-b border-rule px-3 py-2">
           <div className="flex items-center gap-1.5">
-            <span className="grid h-4 w-4 place-items-center rounded-full bg-brand text-[8px] font-bold text-brand-ink">A</span>
-            <span className="text-[11px] font-bold tracking-tight">AUD/NZD OTC</span>
+            <span className="grid h-4 w-4 place-items-center rounded-full bg-brand text-[8px] font-bold text-brand-ink">N</span>
+            <span className="text-[11px] font-bold tracking-tight">NIFTY 50</span>
             <span className="text-[9px] font-bold text-brand">93%</span>
           </div>
           <span className="text-[10px] font-semibold text-ink-2">$10,000.00</span>

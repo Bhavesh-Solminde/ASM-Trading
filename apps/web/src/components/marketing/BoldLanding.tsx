@@ -72,8 +72,8 @@ export function BoldLanding() {
               {[
                 ["$1", "min trade"],
                 ["95%", "payout"],
-                ["400+", "assets"],
-                ["24/7", "OTC"],
+                ["18", "markets"],
+                ["24/7", "trading"],
               ].map(([n, l]) => (
                 <span
                   key={l}
@@ -157,7 +157,7 @@ export function BoldLanding() {
             <div className="text-center">
               <p className="legend text-brand">Markets</p>
               <h2 className="mx-auto mt-4 max-w-2xl text-[clamp(30px,7vw,64px)] font-black leading-[0.98] tracking-[-0.02em]">
-                Forex. Crypto. Metals. Stocks. <span className="text-brand">OTC 24/7.</span>
+                Forex. Crypto. <span className="text-brand">India indices. 24/7.</span>
               </h2>
             </div>
           </Reveal>

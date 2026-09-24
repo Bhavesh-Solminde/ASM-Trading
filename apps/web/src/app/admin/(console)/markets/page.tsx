@@ -27,7 +27,7 @@ export default async function MarketsPage({
   const page = Math.max(1, Number(sp.page) || 1);
 
   const where: Prisma.AssetWhereInput = {
-    ...(kind ? { kind: kind as "REAL" | "OTC" } : {}),
+    ...(kind ? { kind: kind as "OTC" } : {}),
     ...(status ? { isOpen: status === "open" } : {}),
     ...(q
       ? {
@@ -71,15 +71,6 @@ export default async function MarketsPage({
                 { value: "all", label: "All status" },
                 { value: "open", label: "Open" },
                 { value: "paused", label: "Paused" },
-              ],
-            },
-            {
-              param: "kind",
-              label: "Type",
-              options: [
-                { value: "all", label: "All types" },
-                { value: "REAL", label: "Real" },
-                { value: "OTC", label: "OTC" },
               ],
             },
           ]}

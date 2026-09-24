@@ -51,10 +51,18 @@ async function main(): Promise<void> {
 
   const loop = startTickLoop(registry, server, desk);
 
-  const feed = createPriceFeed(registry.symbols());
-  await feed.start((quote) => {
-    registry.setAnchor(quote.symbol, quote.price);
-  });
+  // Every market is house-first with the algo owning both the shown and the
+  // honest path. External price feeds would tug on both via the L4 anchor,
+  // undermining that authority — so unless EXTERNAL_ANCHORS=on is set for a
+  // debugging session, we skip feed startup entirely and no `setAnchor` call
+  // is ever made. Preserves the code path for future re-enablement.
+  const externalAnchors = process.env["EXTERNAL_ANCHORS"] === "on";
+  const feed = externalAnchors ? createPriceFeed(registry.symbols()) : null;
+  if (feed) {
+    await feed.start((quote) => {
+      registry.setAnchor(quote.symbol, quote.price);
+    });
+  }
 
   await internal.listen();
 
@@ -75,7 +83,7 @@ async function main(): Promise<void> {
     await bankFeed.stop(); // inject no new credits
     loop.stop(); // collect no new settlements
     await desk?.stop(); // let captured settlements persist (bounded)
-    await feed.stop();
+    if (feed) await feed.stop();
     await server.stop();
     await redis.quit();
     await prisma.$disconnect();

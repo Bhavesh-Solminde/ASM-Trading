@@ -15,4 +15,8 @@ export {
   houseFirstWishes,
   type HouseFirstOutcome,
 } from "./house-first";
-export { isOtcMarketClosed } from "./schedule";
+export {
+  isOtcMarketClosed,
+  isSymbolClosedForNight,
+  INDIA_MARKET_SYMBOLS,
+} from "./schedule";

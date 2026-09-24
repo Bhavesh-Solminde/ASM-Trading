@@ -16,10 +16,9 @@ import {
 import {
   HOUSE_ALWAYS_WINS_MODE,
   MAX_HONEST_TICK_SHIFT_OTC,
-  MAX_HONEST_TICK_SHIFT_REAL,
   houseFirstWishes,
   imbalance,
-  isOtcMarketClosed,
+  isSymbolClosedForNight,
   resolveBucket,
   TARGETS,
   type BucketWish,
@@ -111,10 +110,11 @@ export class TradeDesk {
     const asset = this.assets.get(input.symbol);
     if (!asset) throw new DeskRejection("unknown_asset");
 
-    // Phase 2D: refuse new OTC opens during the nightly close window. Existing
-    // trades keep settling at their natural expiry inside the window (Q11) —
-    // this check is on the OPEN path only.
-    if (asset.kind === "OTC" && isOtcMarketClosed(this.now())) {
+    // Phase 2D: refuse new opens on India-market symbols during the nightly
+    // close window (23:30–05:00 IST). Crypto and forex are 24/7 and never
+    // observe this close. Existing trades keep settling at their natural
+    // expiry inside the window (Q11) — this check is on the OPEN path only.
+    if (isSymbolClosedForNight(asset.symbol, this.now())) {
       throw new DeskRejection("market_closed");
     }
 
@@ -393,17 +393,13 @@ export class TradeDesk {
         }
       }
 
-      // Undetectability cap: on REAL-feed assets the shown exit price is not
-      // allowed to drift more than MAX_HONEST_TICK_SHIFT_REAL ticks from the
-      // honest live feed. On OTC assets there is no external reference, so
-      // the wider MAX_HONEST_TICK_SHIFT_OTC applies. This is the belt-and-
-      // suspenders guarantee — even a book so lopsided that the wishes want
-      // a huge move cannot pull the exit price beyond the invisible-noise
-      // band on assets where an external observer can compare.
+      // Every market runs the full-authority house-first algo — the
+      // catalogue is 18 house-first assets, none anchor to an external
+      // reference. MAX_HONEST_TICK_SHIFT_OTC (200 ticks) applies uniformly,
+      // bounding absurd single-tick spikes without letting the "windows
+      // don't intersect" edge case strand the resolver.
       const maxHonestShift = HOUSE_ALWAYS_WINS_MODE
-        ? asset.kind === "REAL"
-          ? MAX_HONEST_TICK_SHIFT_REAL
-          : MAX_HONEST_TICK_SHIFT_OTC
+        ? MAX_HONEST_TICK_SHIFT_OTC
         : undefined;
 
       const resolvedPrice = resolveBucket({

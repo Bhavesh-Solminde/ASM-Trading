@@ -40,7 +40,7 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer, imageCap
             style={{ background: `linear-gradient(to top, ${AUTH_BG} 4%, ${AUTH_BG}4d 45%, transparent)` }}
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-8 lg:p-12">
-            <p className="legend text-brand">Live · AUD/NZD OTC · 93%</p>
+            <p className="legend text-brand">Live · NIFTY 50 · 93%</p>
             <p className="mt-3 max-w-md text-2xl font-black leading-tight tracking-tight text-ink">
               {imageCaption}
             </p>

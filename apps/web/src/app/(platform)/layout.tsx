@@ -26,7 +26,9 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   const defaultAccount = accounts.find((a) => a.type === "DEMO") ?? accounts[0];
   const recent = defaultAccount ? await listTradesForActor(session.userId, defaultAccount.id, 50) : [];
   const symbolById = new Map(assets.map((a) => [a.id, a.symbol]));
-  const defaultSymbol = (assets.find((a) => a.symbol === "AUDNZD_OTC") ?? assets[0])?.symbol ?? "";
+  // First-visit default lands on NIFTY 50 (the platform's flagship India
+  // index); if it's ever unavailable, fall back to whatever is loaded.
+  const defaultSymbol = (assets.find((a) => a.symbol === "NIFTY50") ?? assets[0])?.symbol ?? "";
 
   return (
     <PlatformProvider

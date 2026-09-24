@@ -276,7 +276,7 @@ export const guides: Article[] = [
         blocks: [
           {
             kind: "p",
-            text: "The demo is the safest way to learn how expiries, payouts and the Up/Down mechanics behave. Test a strategy on OTC pairs over a weekend, get comfortable with the mobile Up/Down bar, and only move to a live account once your approach is consistent.",
+            text: "The demo is the safest way to learn how expiries, payouts and the Up/Down mechanics behave. Test a strategy across a weekend, get comfortable with the mobile Up/Down bar, and only move to a live account once your approach is consistent.",
           },
         ],
       },

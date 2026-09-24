@@ -5,22 +5,24 @@ export type MarketingAsset = {
   precision: number;
   changePct: number;
   payoutPct: number;
-  kind: "forex" | "crypto" | "commodity" | "stock" | "otc";
+  kind: "forex" | "crypto" | "index";
 };
 
+// Illustrative marketing ticker — mirrors the actual 18-asset catalogue so
+// the landing page reflects what a visitor can trade.
 export const marketingAssets: MarketingAsset[] = [
   { symbol: "EURUSD", name: "EUR/USD", price: 1.08421, precision: 5, changePct: 0.24, payoutPct: 87, kind: "forex" },
   { symbol: "GBPUSD", name: "GBP/USD", price: 1.27183, precision: 5, changePct: -0.11, payoutPct: 85, kind: "forex" },
   { symbol: "USDJPY", name: "USD/JPY", price: 155.822, precision: 3, changePct: 0.38, payoutPct: 86, kind: "forex" },
-  { symbol: "AUDNZD_OTC", name: "AUD/NZD OTC", price: 1.09347, precision: 5, changePct: 0.71, payoutPct: 93, kind: "otc" },
-  { symbol: "BTCUSD", name: "BTC/USD", price: 68420.12, precision: 2, changePct: 1.42, payoutPct: 82, kind: "crypto" },
-  { symbol: "ETHUSD", name: "ETH/USD", price: 3512.84, precision: 2, changePct: -0.63, payoutPct: 80, kind: "crypto" },
-  { symbol: "SOLUSD", name: "SOL/USD", price: 172.44, precision: 2, changePct: 2.11, payoutPct: 78, kind: "crypto" },
-  { symbol: "XAUUSD", name: "Gold", price: 2412.6, precision: 2, changePct: 0.18, payoutPct: 84, kind: "commodity" },
-  { symbol: "XAGUSD", name: "Silver", price: 30.412, precision: 3, changePct: -0.29, payoutPct: 82, kind: "commodity" },
-  { symbol: "TSLA", name: "Tesla", price: 244.11, precision: 2, changePct: -1.05, payoutPct: 79, kind: "stock" },
-  { symbol: "AAPL", name: "Apple", price: 218.36, precision: 2, changePct: 0.42, payoutPct: 79, kind: "stock" },
-  { symbol: "NVDA", name: "Nvidia", price: 128.72, precision: 2, changePct: 1.88, payoutPct: 80, kind: "stock" },
+  { symbol: "AUDUSD", name: "AUD/USD", price: 0.66412, precision: 5, changePct: 0.19, payoutPct: 86, kind: "forex" },
+  { symbol: "BTCUSDT", name: "BTC/USDT", price: 95_210.12, precision: 2, changePct: 1.42, payoutPct: 82, kind: "crypto" },
+  { symbol: "ETHUSDT", name: "ETH/USDT", price: 3_512.84, precision: 2, changePct: -0.63, payoutPct: 80, kind: "crypto" },
+  { symbol: "SOLUSDT", name: "SOL/USDT", price: 172.44, precision: 2, changePct: 2.11, payoutPct: 78, kind: "crypto" },
+  { symbol: "DOGEUSDT", name: "DOGE/USDT", price: 0.29841, precision: 5, changePct: 0.85, payoutPct: 80, kind: "crypto" },
+  { symbol: "NIFTY50", name: "NIFTY 50", price: 24_012.6, precision: 2, changePct: 0.18, payoutPct: 88, kind: "index" },
+  { symbol: "BANKNIFTY", name: "BANK NIFTY", price: 51_984.05, precision: 2, changePct: -0.29, payoutPct: 88, kind: "index" },
+  { symbol: "SENSEX", name: "SENSEX", price: 79_001.44, precision: 2, changePct: 0.42, payoutPct: 88, kind: "index" },
+  { symbol: "FINNIFTY", name: "FINNIFTY", price: 24_505.02, precision: 2, changePct: 0.48, payoutPct: 88, kind: "index" },
 ];
 
 export const featureBullets = [
@@ -33,8 +35,8 @@ export const featureBullets = [
     body: "Fixed return per winning trade — you know your risk before you click.",
   },
   {
-    title: "400+ assets",
-    body: "Forex, crypto, commodities, stocks and 24/7 OTC pairs on weekends.",
+    title: "18 markets",
+    body: "Six forex pairs, six crypto pairs, and the six major India indices — every one live 24/7.",
   },
   {
     title: "Fast expiries",
@@ -65,7 +67,7 @@ export const testimonials = [
   {
     name: "Marcus O.",
     role: "Prop desk analyst, Lagos",
-    quote: "Started on the demo to test my scalping ideas on OTC pairs. Moved to live once I saw the settlement matched my model.",
+    quote: "Started on the demo to test my scalping ideas on the India index charts. Moved to live once I saw the settlement matched my model.",
   },
   {
     name: "Sofia K.",
@@ -88,8 +90,8 @@ export const faqs = [
     a: "Card and bank withdrawals typically settle within one business day. Crypto withdrawals are usually confirmed within an hour once approved.",
   },
   {
-    q: "Do you offer OTC pairs on weekends?",
-    a: "Yes — OTC pairs like AUD/NZD OTC and USD/CAD OTC trade 24/7. Payouts are quoted per-asset and shown before you place a trade.",
+    q: "Which markets can I trade?",
+    a: "Six major forex pairs (EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD), six top crypto pairs (BTC, ETH, SOL, BNB, XRP, DOGE against USDT), and six India indices (NIFTY 50, BANK NIFTY, FINNIFTY, SENSEX, NIFTY IT, NIFTY MIDCAP 100). Every market is live 24/7 except the India indices, which pause overnight to mirror local market hours. Payouts are quoted per-asset and shown before you place a trade.",
   },
   {
     q: "Is ASM Trade available in my country?",
