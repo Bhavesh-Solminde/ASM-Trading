@@ -26,6 +26,7 @@ function position(stake: number, direction: "UP" | "DOWN" = "UP"): Position {
     payoutPct: 100,
     entryPrice: 1.175,
     expirySec: 1_000_060,
+    isDemo: false,
   };
 }
 

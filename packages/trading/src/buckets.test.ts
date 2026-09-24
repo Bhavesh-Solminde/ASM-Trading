@@ -13,6 +13,7 @@ function pos(overrides: Partial<Position> = {}): Position {
     payoutPct: 100,
     entryPrice: 1.175,
     expirySec: 1_757_534_400,
+    isDemo: false,
     ...overrides,
   };
 }

@@ -10,6 +10,7 @@ export interface Position {
   readonly entryPrice: number;
   /** Epoch seconds. */
   readonly expirySec: number;
+  readonly isDemo: boolean;
 }
 
 export interface ExpiryBucket {
