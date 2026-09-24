@@ -40,6 +40,13 @@ async function trader(balance = 1_000_000): Promise<{ userId: string; accountId:
 function setPrice(price: number): void {
   const asset = registry.get("AUDNZD_OTC")!;
   asset.state = { ...asset.state, price };
+  // Keep the honest path in step with the manually-driven shown path.
+  // Otherwise `honestState` sits at its init value forever (no ticks run in
+  // this suite), and Phase 2C's snap-to-honest fallback correctly identifies
+  // the fabricated gap between shown and honest and snaps every settlement
+  // back to the stale init price — a real behavior, but not what these
+  // settlement-mechanics tests exist to verify.
+  asset.honestState = { ...asset.honestState, price };
 }
 
 const nowSec = () => Math.floor(Date.now() / 1000);

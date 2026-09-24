@@ -305,3 +305,69 @@ describe("resolveBucket — undetectability cap (honestPrice + maxHonestShift)",
     expect(target).toBeGreaterThan(1.175); // UP wish satisfied, moves up
   });
 });
+
+describe("resolveBucket — Phase 2C snap-to-honest fallback", () => {
+  it("snaps to honestPrice when the windows do not intersect (the Bank NIFTY 8-hour drift bug)", () => {
+    // Reproduces the exact conditions that stranded the resolver on
+    // Bank NIFTY: shown has drifted 400 units below honest, maxMove around
+    // shown is ±40 units, cap around honest is ±20 units, and none of the
+    // candidates fall inside both. Before Phase 2C the resolver returned
+    // currentPrice (fully unmanipulated). After Phase 2C it snaps to
+    // honestPrice, restoring reachability for the next tick.
+    const honestPrice = 53_310;
+    const currentPrice = 52_920; // 390 units below honest
+    const target = resolveBucket({
+      wishes: [
+        wish({
+          direction: "UP",
+          wantWin: false,
+          entryPrice: currentPrice,
+          urgency: 10,
+          stake: 10_000,
+        }),
+      ],
+      currentPrice,
+      maxMove: 40, // typical Bank NIFTY per-tick cap
+      tickSize: 1,
+      honestPrice,
+      maxHonestShift: 20, // the too-tight cap that caused the bug
+    });
+    expect(target).toBe(honestPrice);
+  });
+
+  it("does NOT snap when the reachable set is non-empty (regression)", () => {
+    // Reachable non-empty → the scoring loop runs. Construct a big-money
+    // UP-loses scenario where honestPrice sits at entry (a REFUND, not a
+    // loss) and manipulated exit below entry is strictly better on score.
+    // The resolver must pick the manipulated candidate, NOT snap to honest.
+    const target = resolveBucket({
+      wishes: [
+        wish({
+          direction: "UP",
+          wantWin: false,
+          entryPrice: 1.175,
+          urgency: 10,
+        }),
+      ],
+      currentPrice: 1.17501,
+      maxMove: 0.01,
+      tickSize: TICK,
+      honestPrice: 1.17500, // sits at entry → refund for the wish
+      maxHonestShift: 5,
+    });
+    // A snap would return honestPrice (=entry, refund). A working scoring
+    // loop picks a candidate BELOW entry (UP loses = wish satisfied).
+    expect(target).toBeLessThan(1.175);
+  });
+
+  it("still returns currentPrice when honestPrice is not supplied and reachable is empty", () => {
+    // With no honestPrice the pre-Phase-2 fallback path stays in force.
+    const target = resolveBucket({
+      wishes: [wish({ direction: "UP", wantWin: true, entryPrice: 5.0 })],
+      currentPrice: 1.175,
+      maxMove: 0.001,
+      tickSize: TICK,
+    });
+    expect(target).toBe(1.175);
+  });
+});

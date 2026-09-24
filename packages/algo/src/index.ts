@@ -15,3 +15,4 @@ export {
   houseFirstWishes,
   type HouseFirstOutcome,
 } from "./house-first";
+export { isOtcMarketClosed } from "./schedule";

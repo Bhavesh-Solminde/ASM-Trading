@@ -19,6 +19,7 @@ import {
   MAX_HONEST_TICK_SHIFT_REAL,
   houseFirstWishes,
   imbalance,
+  isOtcMarketClosed,
   resolveBucket,
   TARGETS,
   type BucketWish,
@@ -101,6 +102,13 @@ export class TradeDesk {
   async open(input: EngineOpenTradeInput): Promise<OpenTradeResult> {
     const asset = this.assets.get(input.symbol);
     if (!asset) throw new DeskRejection("unknown_asset");
+
+    // Phase 2D: refuse new OTC opens during the nightly close window. Existing
+    // trades keep settling at their natural expiry inside the window (Q11) —
+    // this check is on the OPEN path only.
+    if (asset.kind === "OTC" && isOtcMarketClosed(this.now())) {
+      throw new DeskRejection("market_closed");
+    }
 
     // Defence in depth: the web app checked ownership, and so does the engine.
     const account = await getAccountForActor(input.actorId, input.accountId);

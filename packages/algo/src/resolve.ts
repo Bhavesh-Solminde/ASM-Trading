@@ -1,5 +1,5 @@
 import type { Direction } from "@asm/trading";
-import { BOOK_WEIGHT } from "./constants";
+import { BOOK_WEIGHT, SNAP_TO_HONEST_ON_EMPTY } from "./constants";
 
 export interface BucketWish {
   readonly entryPrice: number;
@@ -101,7 +101,18 @@ export function resolveBucket(input: {
     })
     .sort((a, b) => Math.abs(a - currentPrice) - Math.abs(b - currentPrice));
 
-  if (reachable.length === 0) return currentPrice;
+  if (reachable.length === 0) {
+    // Phase 2C — snap-to-honest fallback. If no candidate fits the
+    // reachable window (currentPrice has drifted so far from honestPrice
+    // that their windows don't intersect), returning `currentPrice` would
+    // settle at the drifted shown price with zero manipulation — the exact
+    // bug Phase 2 fixes. Snapping to honestPrice instead re-anchors the
+    // shown chart and restores reachability from the next tick. Rare on
+    // OTC once Phase 2A + 2B are shipped; the guard remains as belt-and-
+    // suspenders. Gated by `SNAP_TO_HONEST_ON_EMPTY` env for rollback.
+    if (SNAP_TO_HONEST_ON_EMPTY && honestPrice != null) return honestPrice;
+    return currentPrice;
+  }
 
   let best = reachable[0]!;
   let bestScore = -Infinity;

@@ -39,6 +39,18 @@ export interface StepPriceInput {
   readonly magnet: number;
   /** Layer 4 target, or null when no real quote is available. */
   readonly anchorTarget: number | null;
+  /**
+   * Layer 5 (Phase 2A). Optional pull toward an INTERNAL reference — the
+   * asset's own honest path — for OTC assets that have no external anchor.
+   * Same log-space proportional-pull shape as Layer 4 so it composes cleanly
+   * with the others.
+   *
+   * When present, `selfAnchorAlpha` controls the pull rate per tick. Passing
+   * null (or omitting both fields) disables the layer entirely — the
+   * pre-Phase-2 four-layer behavior.
+   */
+  readonly selfAnchorTarget?: number | null;
+  readonly selfAnchorAlpha?: number;
 }
 
 export interface StepPriceOutput {
@@ -84,7 +96,17 @@ export function initPriceState(
 }
 
 export function stepPrice(input: StepPriceInput): StepPriceOutput {
-  const { state, params, dtSec, z, driftBias, magnet, anchorTarget } = input;
+  const {
+    state,
+    params,
+    dtSec,
+    z,
+    driftBias,
+    magnet,
+    anchorTarget,
+    selfAnchorTarget,
+    selfAnchorAlpha,
+  } = input;
 
   const { state: garch, sigma } = stepGarch(state.garch, params.garch, z);
 
@@ -96,6 +118,19 @@ export function stepPrice(input: StepPriceInput): StepPriceOutput {
   // with the others rather than fighting them.
   if (anchorTarget !== null && params.anchorAlpha > 0 && anchorTarget > 0) {
     logMove += params.anchorAlpha * Math.log(anchorTarget / state.price);
+  }
+
+  // L5: OTC self-anchor. Same proportional-pull shape as L4 but the target is
+  // the caller-supplied internal reference (the asset's own honest path). The
+  // per-call `selfAnchorAlpha` is what governs it, not `params.anchorAlpha`,
+  // because L4 and L5 are independent axes.
+  if (
+    selfAnchorTarget != null &&
+    selfAnchorAlpha != null &&
+    selfAnchorAlpha > 0 &&
+    selfAnchorTarget > 0
+  ) {
+    logMove += selfAnchorAlpha * Math.log(selfAnchorTarget / state.price);
   }
 
   const candidate = state.price * Math.exp(logMove);

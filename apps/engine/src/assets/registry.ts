@@ -51,6 +51,15 @@ export interface TickBias {
   driftBias: number;
   /** Layer 3. Log-space pull toward an expiry target. Zero at tick granularity in Plan 04. */
   magnet: number;
+  /**
+   * Layer 5 (Phase 2A). Optional pull of the SHOWN path toward an internal
+   * reference — the loop supplies the asset's own honest path on OTC assets
+   * so their shown chart can't drift unboundedly during idle stretches. Only
+   * applied to the shown path; the honest path never self-anchors (it's the
+   * reference).
+   */
+  selfAnchorTarget?: number | null;
+  selfAnchorAlpha?: number;
 }
 
 /** A candle that closed on this tick, tagged with the timeframe it belongs to. */
@@ -188,6 +197,8 @@ export class AssetRegistry {
       driftBias: bias.driftBias,
       magnet: bias.magnet,
       anchorTarget: asset.anchor,
+      selfAnchorTarget: bias.selfAnchorTarget ?? null,
+      selfAnchorAlpha: bias.selfAnchorAlpha ?? 0,
     });
 
     const honestOut = stepPrice({
@@ -198,6 +209,9 @@ export class AssetRegistry {
       driftBias: 0,
       magnet: 0,
       anchorTarget: asset.anchor,
+      // Honest path never self-anchors — it IS the reference.
+      selfAnchorTarget: null,
+      selfAnchorAlpha: 0,
     });
 
     asset.state = out.state;

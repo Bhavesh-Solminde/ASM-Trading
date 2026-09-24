@@ -11,6 +11,8 @@ const REJECTION_MESSAGE: Record<string, string> = {
   insufficient_funds: "Not enough balance for that stake.",
   unknown_asset: "That asset is not available right now.",
   account_not_found: "Account not found.",
+  market_closed:
+    "This market is closed for the night. Trading resumes at 5:00 AM IST.",
 };
 
 export async function POST(req: NextRequest) {
