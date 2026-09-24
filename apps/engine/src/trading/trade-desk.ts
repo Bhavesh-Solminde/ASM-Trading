@@ -61,6 +61,14 @@ const STOP_TIMEOUT_MS = 5_000;
 
 export interface Notifier {
   sendToUser(userId: string, message: ServerMessage): void;
+  /**
+   * Fans a message out to every subscriber of `symbol`. The desk uses this
+   * to publish a settlement tick when the resolver picks an exit price that
+   * differs from the shown chart the user just watched — the visual truth
+   * must match the settled outcome or every trader's reaction is "my chart
+   * went up but I lost".
+   */
+  broadcast(symbol: string, message: ServerMessage): void;
 }
 
 interface PendingSettlement {
@@ -411,6 +419,31 @@ export class TradeDesk {
 
       for (const item of group) {
         item.resolvedExitPrice = resolvedPrice;
+      }
+
+      // UX consistency: the shown chart the user just watched (`first.exitPrice`)
+      // may differ from what the resolver picked (`resolvedPrice`) — the
+      // resolver is free to pick any candidate inside its reachable window,
+      // including `entryPrice ± tickSize` and `honestPrice`. Under house-first
+      // mode that gap can literally cross entry (e.g. shown was 23,764 above
+      // entry 23,760 so a BUY looked like a win, but resolvedPrice snapped to
+      // 23,759 to make BUY lose). Without a correction, the user's chart said
+      // "won" while the settlement said "lost" — the exact bug reported. Snap
+      // the shown state to the resolved price and publish a tick so every
+      // watcher sees the chart complete the move. The next tick continues
+      // naturally from the corrected price.
+      const roundedResolved = Number(
+        resolvedPrice.toFixed(asset.precision),
+      );
+      const roundedShown = Number(first.exitPrice.toFixed(asset.precision));
+      if (roundedResolved !== roundedShown) {
+        asset.state = { ...asset.state, price: resolvedPrice };
+        this.notifier.broadcast(first.symbol, {
+          type: "tick",
+          symbol: first.symbol,
+          price: roundedResolved,
+          ts: Math.floor(this.now() / 1000),
+        });
       }
     }
   }

@@ -10,7 +10,13 @@ import { ControllerBridge } from "../algo/controller-bridge";
 const RUN = randomUUID();
 const registry = new AssetRegistry(7);
 const sent: { userId: string; message: ServerMessage }[] = [];
-const notifier = { sendToUser: (userId: string, message: ServerMessage) => sent.push({ userId, message }) };
+const broadcasts: { symbol: string; message: ServerMessage }[] = [];
+const notifier = {
+  sendToUser: (userId: string, message: ServerMessage) =>
+    sent.push({ userId, message }),
+  broadcast: (symbol: string, message: ServerMessage) =>
+    broadcasts.push({ symbol, message }),
+};
 const controller = new ControllerBridge(7);
 let desk: TradeDesk;
 let seq = 0;
@@ -140,6 +146,52 @@ describe("TradeDesk settlement", () => {
     expect(
       sent.some((s) => s.userId === t.userId && s.message.type === "trade:settled"),
     ).toBe(true);
+  });
+
+  it("snaps the shown chart to the resolved exit price when the resolver picks a different candidate", async () => {
+    // The exact bug a real user hit: they placed a BUY, the chart moved
+    // above entry (they'd visually won), but under house-first the resolver
+    // picked entryPrice-tick to make UP lose. Without the settlement snap
+    // the chart's last visible price stays above entry while the settled
+    // exit sits below entry — "my chart said WON but the trade says LOST".
+    //
+    // Setup: a single UP trade — house-first says UP is the losing side, so
+    // the resolver will pick entryPrice - tick. We move the shown chart to
+    // 1.178 (well above entry) before capture so shown and resolved differ
+    // by more than 1 tick, then assert a `tick` broadcast at the resolved
+    // price fires and asset.state.price is updated to match.
+    broadcasts.length = 0;
+    const t = await trader();
+    setPrice(1.175);
+    const { trade } = await desk.open(request(t, { direction: "UP" }));
+
+    // Push shown ~10 ticks above entry — comfortably inside maxMove so the
+    // resolver can also reach `entryPrice - tick` from the same window
+    // (this is the whole point: chart is above entry, resolver picks below).
+    setPrice(1.17510);
+    desk.collectDue(nowSec() + 10);
+    await desk.idle();
+
+    const row = await prisma.trade.findUniqueOrThrow({ where: { id: trade.id } });
+    // Under house-first a single UP wish loses → exit at entryPrice - tick.
+    expect(row.status).toBe("LOST");
+    expect(row.exitPrice).toBeLessThan(1.175);
+
+    // The settlement snap must have (a) broadcast a tick at the resolved
+    // exit price so watchers see the chart complete the move, and (b)
+    // updated asset.state.price so the next tick continues from there
+    // rather than from the drifted 1.178 the resolver rejected.
+    const snapTick = broadcasts.find(
+      (b) =>
+        b.symbol === "AUDNZD_OTC" &&
+        b.message.type === "tick" &&
+        Math.abs(b.message.price - row.exitPrice!) < 1e-9,
+    );
+    expect(snapTick).toBeDefined();
+    const asset = registry.get("AUDNZD_OTC")!;
+    expect(Number(asset.state.price.toFixed(asset.precision))).toBe(
+      row.exitPrice,
+    );
   });
 });
 
