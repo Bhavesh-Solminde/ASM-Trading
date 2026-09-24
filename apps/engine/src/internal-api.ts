@@ -26,6 +26,10 @@ const REJECTION_STATUS: Record<DeskRejectionReason, number> = {
   // 403 for a paused account — the caller is authenticated but the resource
   // is not usable in its current state, matching the withdrawal refusal path.
   account_not_active: 403,
+  // Phase 2D nightly OTC close: the asset itself is temporarily unavailable
+  // for new opens. 503 matches how other temporary-unavailability paths
+  // surface to callers.
+  market_closed: 503,
 };
 
 function authorised(header: string | undefined, secret: string): boolean {
