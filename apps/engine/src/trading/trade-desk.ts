@@ -15,6 +15,7 @@ import {
 } from "@asm/db";
 import {
   HOUSE_ALWAYS_WINS_MODE,
+  MAX_CORRECTIVE_TICKS,
   MAX_HONEST_TICK_SHIFT_OTC,
   houseFirstWishes,
   imbalance,
@@ -405,7 +406,7 @@ export class TradeDesk {
       const resolvedPrice = resolveBucket({
         wishes,
         currentPrice: first.exitPrice,
-        maxMove: asset.params.maxTickMove,
+        maxMove: asset.tickSize * MAX_CORRECTIVE_TICKS,
         tickSize: asset.tickSize,
         ...(maxHonestShift != null && {
           honestPrice: first.honestExitPrice,

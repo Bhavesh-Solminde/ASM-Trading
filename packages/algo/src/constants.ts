@@ -37,11 +37,11 @@ export const BOOK_WEIGHT = 0.001;
 // smallest possible book. Previously ₹500 (50,000 paise) was needed before
 // any drift was applied at all.
 export const EXPOSURE_FLOOR = 1;
-export const EXPOSURE_FULL = 500_000;
+export const EXPOSURE_FULL = 10_000;
 
 export const BIAS_SIGMA_CAP = 0.25;
 
-export const IMBALANCE_TAU_SEC = 45;
+export const IMBALANCE_TAU_SEC = 600;
 
 /**
  * Retained for the pre-house-first behavior (fallback path when
@@ -157,3 +157,5 @@ export const DEPOSIT_THRESHOLD_MINOR = 50_000;
 export const MAGNET_WINDOW_SEC = 10;
 export const MAGNET_CAP = 1.5;
 export const TARGET_MARGIN_SIGMA = 3;
+
+export const MAX_CORRECTIVE_TICKS = 5;
