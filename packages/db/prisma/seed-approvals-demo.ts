@@ -110,7 +110,7 @@ async function main(): Promise<void> {
         method: d.method,
         amountInr: d.amountInrMinor,
         amountUsd: Math.round(d.amountInrMinor / 107.64),
-        vpa: "7977304892@axl",
+        vpa: "ulkasolminde@okhdfcbank",
         checkoutToken: `${CORRELATION_TAG}-token-${i}-${now}`,
         claimedUtr: d.claimedUtr,
         status: "PENDING_CONFIRMATION",

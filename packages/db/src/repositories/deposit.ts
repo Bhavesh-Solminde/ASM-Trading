@@ -32,7 +32,7 @@ export const MAX_DEPOSIT_INR_MINOR = 100_000_000; // ₹10,00,000.00
  * identity. It still matters for the QR/UPI deep link, which routes real
  * payment traffic to this address.
  */
-export const DEMO_VPA = "7977304892@axl";
+export const DEMO_VPA = "ulkasolminde@okhdfcbank";
 
 export class AmountSpaceExhausted extends Error {
   constructor() {
