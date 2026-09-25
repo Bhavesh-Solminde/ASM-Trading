@@ -6,6 +6,11 @@
    switch, history sheet) take over — desktop's two-column layout is ≥1024px. */
 @custom-variant phone (@media (width < 64rem) or (height < 30rem));
 
+/* Short landscape (a phone held sideways): too little height to stack, so the
+   trade screen keeps the compact chrome but moves the ticket back to a side
+   column. Declared after `phone` so `land:` utilities win where both match. */
+@custom-variant land (@media (height < 30rem) and (orientation: landscape));
+
 @theme {
   /* Black + blue + white theme. Ground is true black; surfaces step up in
      lightness for depth. Blue is the single brand accent (replaces the old
@@ -179,6 +184,23 @@ button,
   50% { opacity: 0.2; }
 }
 
+/* Live-account indicator: a solid red dot that breathes with an expanding glow
+   ring — stays fully visible (never fades out like .blink) so "live / real
+   money" reads at a glance. */
+.live-pulse {
+  animation: live-pulse 1.05s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 4px 1px rgba(229, 65, 59, 0.9), 0 0 0 0 rgba(229, 65, 59, 0.55);
+  }
+  50% {
+    transform: scale(1.3);
+    box-shadow: 0 0 11px 3px rgba(229, 65, 59, 1), 0 0 0 6px rgba(229, 65, 59, 0);
+  }
+}
+
 /* In-chart trade result card: a quick pop-and-settle. */
 .result-pop {
   animation: result-pop 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -205,6 +227,7 @@ button,
   .slab-fired::after,
   .settling,
   .blink,
+  .live-pulse,
   .result-pop,
   .sheet-in {
     animation: none !important;

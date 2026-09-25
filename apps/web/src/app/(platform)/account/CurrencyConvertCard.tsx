@@ -90,7 +90,7 @@ export function CurrencyConvertCard({ accounts }: { accounts: AccountBalance[] }
                   <span
                     aria-hidden
                     className={`size-1.5 rounded-full ${
-                      live ? "bg-down shadow-[0_0_5px_var(--color-down)] blink" : "bg-ink-3"
+                      live ? "bg-down shadow-[0_0_5px_var(--color-down)] live-pulse" : "bg-ink-3"
                     }`}
                   />
                   {live ? "LIVE" : "DEMO"}

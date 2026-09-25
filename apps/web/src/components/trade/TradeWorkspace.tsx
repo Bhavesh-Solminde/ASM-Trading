@@ -90,7 +90,7 @@ function AccountPlateMini({ type }: { type: AccountView["type"] }) {
       <span
         aria-hidden
         className={`size-1.5 rounded-full ${
-          live ? "bg-down shadow-[0_0_5px_var(--color-down)] blink" : "bg-ink-3"
+          live ? "bg-down shadow-[0_0_5px_var(--color-down)] live-pulse" : "bg-ink-3"
         }`}
       />
       {live ? "LIVE" : "DEMO"}
@@ -290,7 +290,7 @@ export function TradeWorkspace() {
       className={
         focusMode
           ? "grid h-dvh grid-rows-[minmax(0,1fr)_auto] grid-cols-[minmax(0,1fr)]"
-          : "grid h-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[minmax(0,1fr)_auto]"
+          : "grid h-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[minmax(0,1fr)_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)]"
       }
     >
       <div
@@ -339,7 +339,7 @@ export function TradeWorkspace() {
                     onClick={() => setHistoryOpen(true)}
                     aria-label="Trades & history"
                     title="Trades & history"
-                    className="relative grid size-[34px] place-items-center rounded-[4px] border border-brand/50 bg-brand/15 text-brand backdrop-blur hover:border-brand hover:bg-brand/25"
+                    className="relative grid size-[34px] place-items-center rounded-[4px] border border-brand/50 bg-brand/15 text-brand backdrop-blur hover:border-brand hover:bg-brand/25 land:hidden"
                   >
                     <Icon name="history" className="size-5" />
                     {openCount > 0 ? (
@@ -377,7 +377,7 @@ export function TradeWorkspace() {
         className={
           focusMode
             ? "grid min-h-0 grid-rows-[auto]"
-            : "grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:border-l-0"
+            : "grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:border-l-0 land:grid-rows-[auto_minmax(0,1fr)] land:border-l"
         }
       >
         <TradeTicket
@@ -390,7 +390,7 @@ export function TradeWorkspace() {
           onOpened={recordOpened}
         />
         {focusMode ? null : (
-          <div className="min-h-0 phone:hidden">
+          <div className="min-h-0 phone:hidden land:block">
             <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} />
           </div>
         )}

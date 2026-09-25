@@ -364,7 +364,7 @@ export function TradeTicket({
         </div>
       ) : null}
 
-      <div className="grid gap-2 phone:grid-cols-2 phone:gap-1.5 phone:pt-0">
+      <div className="grid gap-2 phone:grid-cols-2 phone:gap-1.5 phone:pt-0 land:grid-cols-1 land:gap-1.5">
         <button
           type="button"
           disabled={busy}
