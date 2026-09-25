@@ -24,11 +24,24 @@ export type CreateDepositInput = z.infer<typeof CreateDepositSchema>;
  * a claim and a tiebreaker, never the match key — so this only shapes it, and
  * rejects an injected depositId (ownership comes from the session and the path).
  */
+// The screenshot lives on Cloudinary; we store only its secure_url. Restrict
+// to Cloudinary hosts so a rogue client cannot substitute an arbitrary URL
+// that the admin panel would then render inline.
+export const ScreenshotUrlSchema = z
+  .string()
+  .url()
+  .max(500, "Screenshot URL is too long.")
+  .regex(
+    /^https:\/\/res\.cloudinary\.com\/[A-Za-z0-9_-]+\/image\/upload\//,
+    "Screenshot URL must come from Cloudinary.",
+  );
+
 export const ClaimUtrSchema = z.strictObject({
   utr: z
     .string()
     .trim()
     .regex(/^[0-9]{9,22}$/, "Enter the numeric reference from your payment app"),
+  screenshotUrl: ScreenshotUrlSchema.optional(),
 });
 export type ClaimUtrInput = z.infer<typeof ClaimUtrSchema>;
 

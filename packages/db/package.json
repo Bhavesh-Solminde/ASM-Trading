@@ -12,6 +12,7 @@
     "seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
     "seed:fraud": "dotenv -e ../../.env -- tsx prisma/seed-fraud.ts",
     "seed:algo": "dotenv -e ../../.env -- tsx prisma/seed-algo.ts",
+    "seed:approvals": "dotenv -e ../../.env -- tsx prisma/seed-approvals-demo.ts",
     "test": "vitest run"
   },
   "dependencies": {

@@ -313,6 +313,11 @@ model Deposit {
   matchedCreditId String?
   correlationId   String
   expiresAt       DateTime
+  // Optional user-submitted proof of payment: a screenshot from their UPI app,
+  // uploaded to Cloudinary from the browser. We store only the secure_url; the
+  // image itself lives in Cloudinary. Only present when the user attached one
+  // at UTR-submission time; auto-matched deposits never touch this column.
+  screenshotUrl   String?
   // IP + UA at the moment the deposit was requested. Fed to the linked-
   // accounts detector alongside signup IP so a fresh account depositing from
   // an IP that already has a completed deposit under a different user is

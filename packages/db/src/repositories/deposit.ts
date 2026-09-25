@@ -220,7 +220,12 @@ export async function listDepositsForActor(actorId: string, limit: number): Prom
  * never touched, and the caller cannot tell an authz failure apart from a
  * genuinely missing row.
  */
-export async function claimUtr(actorId: string, depositId: string, utr: string): Promise<Deposit> {
+export async function claimUtr(
+  actorId: string,
+  depositId: string,
+  utr: string,
+  screenshotUrl?: string,
+): Promise<Deposit> {
   const claimed = await prisma.deposit.updateMany({
     where: {
       id: depositId,
@@ -228,7 +233,11 @@ export async function claimUtr(actorId: string, depositId: string, utr: string):
       status: "AWAITING_PAYMENT",
       claimedUtr: null,
     },
-    data: { claimedUtr: utr, status: "PENDING_CONFIRMATION" },
+    data: {
+      claimedUtr: utr,
+      status: "PENDING_CONFIRMATION",
+      ...(screenshotUrl ? { screenshotUrl } : {}),
+    },
   });
 
   if (claimed.count !== 1) {

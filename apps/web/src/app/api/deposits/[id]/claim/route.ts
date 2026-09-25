@@ -29,7 +29,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   try {
     // Ownership is enforced inside claimUtr, which takes the actor id.
-    const deposit = await claimUtr(session.userId, id, parsed.data.utr);
+    const deposit = await claimUtr(
+      session.userId,
+      id,
+      parsed.data.utr,
+      parsed.data.screenshotUrl,
+    );
     log.info(
       { evt: "deposit.utr_claimed", depositId: deposit.id, cid: deposit.correlationId },
       "utr claimed",

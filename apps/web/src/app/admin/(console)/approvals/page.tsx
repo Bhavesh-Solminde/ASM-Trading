@@ -97,6 +97,39 @@ export default async function ApprovalsPage() {
                   <div className="mono admin-cell-sub" style={{ fontSize: 12 }}>
                     {d.claimedUtr ?? "no reference"}
                   </div>
+                  {d.screenshotUrl ? (
+                    <a
+                      href={d.screenshotUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Open the payment screenshot the user attached"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "4px 6px",
+                        border: "1px solid var(--admin-border)",
+                        borderRadius: "var(--admin-radius-sm)",
+                        background: "var(--admin-surface)",
+                        textDecoration: "none",
+                      }}
+                    >
+                      <img
+                        src={d.screenshotUrl}
+                        alt=""
+                        width={36}
+                        height={36}
+                        style={{ objectFit: "cover", borderRadius: 3 }}
+                      />
+                      <span className="admin-cell-sub" style={{ fontSize: 11 }}>
+                        screenshot
+                      </span>
+                    </a>
+                  ) : (
+                    <span className="admin-cell-sub" style={{ fontSize: 11, opacity: 0.6 }}>
+                      no screenshot
+                    </span>
+                  )}
                   <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                     <form action={rejectDepositAction}>
                       <input type="hidden" name="depositId" value={d.id} />

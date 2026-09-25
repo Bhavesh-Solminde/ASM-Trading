@@ -27,7 +27,9 @@ export function middleware(request: NextRequest) {
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data:",
+      // res.cloudinary.com hosts payment-screenshot uploads shown on the admin
+      // approvals queue and the checkout preview thumbnail.
+      "img-src 'self' data: blob: https://res.cloudinary.com",
       "connect-src 'self' ws: wss:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
