@@ -91,7 +91,7 @@ const OpenTradeRow = memo(function OpenTradeRow({
       pnl={winning ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}` : `−${formatMinor(trade.stake, currency)}`}
       pnlClass={winning ? "text-up" : losing ? "text-down" : "text-ink-2"}
     >
-      <span aria-hidden className="absolute -bottom-px left-0 h-0.5 bg-brand" style={{ width: `${progress * 100}%` }} />
+      <span aria-hidden className="absolute -bottom-px left-0 h-0.5 bg-up" style={{ width: `${progress * 100}%` }} />
     </RowShell>
   );
 });
@@ -144,7 +144,7 @@ export function TradesPanel({
             aria-selected={tab === t}
             onClick={() => setTab(t)}
             className={`mr-2 flex items-center gap-2 border-b-2 px-2 pb-2.5 pt-3 text-[11px] font-bold uppercase tracking-[0.1em] ${
-              tab === t ? "border-brand text-ink" : "border-transparent text-ink-3"
+              tab === t ? "border-up text-ink" : "border-transparent text-ink-3"
             }`}
           >
             {t}

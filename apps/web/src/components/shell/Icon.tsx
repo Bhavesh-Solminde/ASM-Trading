@@ -48,6 +48,21 @@ const PATHS = {
   down: <path d="M12 5v14M6 13l6 6 6-6" />,
   arrow: <path d="M12 18V6M7 11l5-5 5 5" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  expand: <path d="M15 3h6v6M21 3l-7 7M9 21H3v-6M3 21l7-7" />,
+  collapse: <path d="M20 10h-6V4M14 10l7-7M4 14h6v6M10 14l-7 7" />,
+  history: (
+    <>
+      <path d="M3 12a9 9 0 1 0 2.6-6.3L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M12 8v4.5l3 1.8" />
+    </>
+  ),
+  swap: (
+    <>
+      <path d="M4 8h13l-3.5-3.5" />
+      <path d="M20 16H7l3.5 3.5" />
+    </>
+  ),
   alert: (
     <>
       <path d="M12 4 21 19H3z" />

@@ -65,6 +65,9 @@ interface PlatformContextValue {
   /** Distraction-free phone trading view: chart + ticket only, chrome hidden. */
   focusMode: boolean;
   setFocusMode: (on: boolean) => void;
+  /** The most recent settlement on the active account, for the in-chart result popup. */
+  settlement: { trade: TradeView; at: number } | null;
+  clearSettlement: () => void;
 }
 
 const PlatformContext = createContext<PlatformContextValue | null>(null);
@@ -99,6 +102,8 @@ export function PlatformProvider({
   const [chartSymbol, setChartSymbol] = useState(defaultSymbol);
   const [timeframe, setTimeframe] = useState<Timeframe>("1m");
   const [focusMode, setFocusMode] = useState(false);
+  const [settlement, setSettlement] = useState<{ trade: TradeView; at: number } | null>(null);
+  const clearSettlement = useCallback(() => setSettlement(null), []);
   const [market] = useState(() => new MarketStore(defaultSymbol, "1m", assets));
   const [trades, dispatch] = useReducer(
     reducer,
@@ -121,6 +126,7 @@ export function PlatformProvider({
       if (TRADE_MESSAGES.has(message.type)) dispatch({ kind: "message", message });
       if (message.type === "trade:settled" && message.trade.accountId === activeAccountIdRef.current) {
         playSettled(message.trade.status);
+        setSettlement({ trade: message.trade, at: Date.now() });
       }
     },
     [market],
@@ -188,6 +194,8 @@ export function PlatformProvider({
       recordOpened,
       focusMode,
       setFocusMode,
+      settlement,
+      clearSettlement,
     }),
     [
       assets,
@@ -203,6 +211,8 @@ export function PlatformProvider({
       selectTimeframe,
       recordOpened,
       focusMode,
+      settlement,
+      clearSettlement,
     ],
   );
 

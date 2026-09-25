@@ -3,8 +3,10 @@ import { z } from "zod";
 import { DEPOSIT_METHODS } from "@asm/contracts";
 import {
   WithdrawalRefused,
+  formatMoney,
   getAccountForActor,
   listWithdrawalsForActor,
+  loadProfile,
   requestWithdrawal,
   withdrawableBalance,
 } from "@asm/db";
@@ -12,6 +14,8 @@ import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { certificateHtml, certificateName, type CertificateData } from "@/lib/certificate";
+import { sendEmail } from "@/lib/mail";
 
 const WithdrawSchema = z.strictObject({
   accountId: z.string().uuid(),
@@ -50,7 +54,38 @@ export async function POST(req: NextRequest) {
       userAgent: ctx.userAgent,
       ...parsed.data,
     });
-    return NextResponse.json({ id: withdrawal.id }, { status: 201 });
+
+    // Build the reward certificate and (when Resend is configured) email it.
+    // Currency comes from the account; email/name from the profile. A mail
+    // failure never fails the withdrawal — the request is already recorded.
+    const [account, profile] = await Promise.all([
+      getAccountForActor(session.userId, parsed.data.accountId),
+      loadProfile(session.userId),
+    ]);
+    const certificate: CertificateData = {
+      name: certificateName(profile),
+      amountLabel: formatMoney(parsed.data.amount, account?.currency ?? "INR"),
+      dateLabel: new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(new Date()),
+      refId: withdrawal.id,
+    };
+    let emailed = false;
+    try {
+      const sent = await sendEmail({
+        to: profile.email,
+        subject: "Your ASM Trade withdrawal certificate",
+        html: certificateHtml(certificate),
+        cid: ctx.cid,
+      });
+      emailed = sent.ok;
+    } catch (mailErr) {
+      log.warn({ evt: "withdrawal.mail_failed", err: String(mailErr) }, "certificate email failed");
+    }
+
+    return NextResponse.json({ id: withdrawal.id, certificate, emailed }, { status: 201 });
   } catch (err) {
     if (err instanceof WithdrawalRefused) {
       return NextResponse.json({ error: err.message }, { status: 400 });

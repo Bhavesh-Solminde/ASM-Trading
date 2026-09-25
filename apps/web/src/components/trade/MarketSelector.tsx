@@ -20,10 +20,16 @@ export function MarketSelector({
   assets,
   active,
   onSelect,
+  compact = false,
+  iconOnly = false,
 }: {
   assets: PlatformAsset[];
   active: string;
   onSelect: (symbol: string) => void;
+  /** Small chip trigger for the in-chart overlay (phone/tablet); dropdown is unchanged. */
+  compact?: boolean;
+  /** Square, icon-only trigger (the selected market still shows in the chart readout). */
+  iconOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -46,26 +52,48 @@ export function MarketSelector({
 
   return (
     <div ref={rootRef} className="relative flex min-w-0 flex-none">
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className={`grid grid-cols-[auto_auto_auto] items-center gap-2.5 rounded border px-3.5 py-2 text-left phone:gap-2 phone:px-3 phone:py-2.5 ${
-          open ? "border-brand bg-tile" : "border-rule bg-panel hover:border-tile-hi"
-        }`}
-      >
-        <span className="text-sm font-bold tracking-[0.03em]">
-          {pair}
-          {market ? (
-            <span className="ml-1.5 text-[9px] font-semibold tracking-[0.08em] text-ink-3">{market}</span>
-          ) : null}
-        </span>
-        <span className="text-xs font-bold text-brand">
-          <LivePayout asset={activeAsset} />
-        </span>
-        <Icon name="caret" className={`size-4 text-ink-2 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      {iconOnly ? (
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label="Change market"
+          title="Change market"
+          onClick={() => setOpen((o) => !o)}
+          className={`grid size-7 place-items-center rounded-[4px] border backdrop-blur ${
+            open ? "border-brand bg-tile/90 text-ink" : "border-rule bg-ground/75 text-ink-2 hover:border-tile-hi hover:text-ink"
+          }`}
+        >
+          <Icon name="trade" className="size-4" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          className={
+            compact
+              ? `grid grid-cols-[auto_auto_auto] items-center gap-1.5 rounded-[4px] border px-2.5 py-1.5 text-left backdrop-blur ${
+                  open ? "border-brand bg-tile/90" : "border-rule bg-ground/75 hover:border-tile-hi"
+                }`
+              : `grid grid-cols-[auto_auto_auto] items-center gap-2.5 rounded border px-3.5 py-2 text-left phone:gap-2 phone:px-3 phone:py-2.5 ${
+                  open ? "border-brand bg-tile" : "border-rule bg-panel hover:border-tile-hi"
+                }`
+          }
+        >
+          <span className={compact ? "text-[13px] font-bold tracking-[0.02em]" : "text-sm font-bold tracking-[0.03em]"}>
+            {pair}
+            {market ? (
+              <span className="ml-1.5 text-[9px] font-semibold tracking-[0.08em] text-ink-3">{market}</span>
+            ) : null}
+          </span>
+          <span className={`font-bold text-brand ${compact ? "text-[11px]" : "text-xs"}`}>
+            <LivePayout asset={activeAsset} />
+          </span>
+          <Icon name="caret" className={`size-4 text-ink-2 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      )}
 
       {open ? (
         <>

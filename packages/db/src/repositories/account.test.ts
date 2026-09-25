@@ -4,7 +4,10 @@ import {
   CurrencyChangeRefused,
   DEMO_START_BY_CURRENCY,
   DemoBalanceRefused,
+  USD_INR_RATE,
   changeAccountCurrency,
+  convertAccountCurrency,
+  convertMinorBetween,
   createAccountsForUser,
   demoBalanceCap,
   getAccountForActor,
@@ -15,9 +18,12 @@ import {
 let alice = "";
 let bob = "";
 let carol = "";
+let dave = "";
 let aliceLiveId = "";
 let carolDemoId = "";
 let carolLiveId = "";
+let daveDemoId = "";
+let daveLiveId = "";
 
 beforeAll(async () => {
   const a = await prisma.user.create({
@@ -29,19 +35,27 @@ beforeAll(async () => {
   const c = await prisma.user.create({
     data: { email: `carol-${Date.now()}@test.local`, passwordHash: "x" },
   });
+  const d = await prisma.user.create({
+    data: { email: `dave-${Date.now()}@test.local`, passwordHash: "x" },
+  });
   alice = a.id;
   bob = b.id;
   carol = c.id;
+  dave = d.id;
   const accounts = await createAccountsForUser(alice, 1_000_000);
   await createAccountsForUser(bob, 1_000_000);
   const carolAccounts = await createAccountsForUser(carol, 1_000_000);
+  // Dave's DEMO is funded with ₹10,00,000 (paise) so conversion math is exact.
+  const daveAccounts = await createAccountsForUser(dave, 100_000_000, "INR");
   aliceLiveId = accounts.find((x) => x.type === "LIVE")!.id;
   carolDemoId = carolAccounts.find((x) => x.type === "DEMO")!.id;
   carolLiveId = carolAccounts.find((x) => x.type === "LIVE")!.id;
+  daveDemoId = daveAccounts.find((x) => x.type === "DEMO")!.id;
+  daveLiveId = daveAccounts.find((x) => x.type === "LIVE")!.id;
 });
 
 afterAll(async () => {
-  await prisma.user.deleteMany({ where: { id: { in: [alice, bob, carol] } } });
+  await prisma.user.deleteMany({ where: { id: { in: [alice, bob, carol, dave] } } });
   await prisma.$disconnect();
 });
 
@@ -141,6 +155,83 @@ describe("changeAccountCurrency", () => {
   it("refuses when the actor does not own the account", async () => {
     await expect(
       changeAccountCurrency({ actorId: bob, accountId: carolDemoId, currency: "USD" }),
+    ).rejects.toBeInstanceOf(CurrencyChangeRefused);
+  });
+});
+
+describe("convertMinorBetween", () => {
+  it("converts INR paise to USD cents at ₹100 = $1", () => {
+    // ₹10,00,000 = 100_000_000 paise → $10,000 = 1_000_000 cents.
+    expect(convertMinorBetween(100_000_000, "INR", "USD")).toBe(1_000_000);
+    expect(USD_INR_RATE).toBe(100);
+  });
+
+  it("converts USD cents to INR paise at $1 = ₹100", () => {
+    // $100 = 10_000 cents → ₹10,000 = 1_000_000 paise.
+    expect(convertMinorBetween(10_000, "USD", "INR")).toBe(1_000_000);
+  });
+
+  it("rounds INR→USD to the nearest cent", () => {
+    expect(convertMinorBetween(150, "INR", "USD")).toBe(2); // 1.5 → 2
+    expect(convertMinorBetween(149, "INR", "USD")).toBe(1); // 1.49 → 1
+  });
+
+  it("leaves the amount unchanged for the same currency", () => {
+    expect(convertMinorBetween(1234, "INR", "INR")).toBe(1234);
+  });
+});
+
+describe("convertAccountCurrency", () => {
+  it("converts a funded DEMO account INR→USD and ledgers CURRENCY_CONVERT", async () => {
+    const updated = await convertAccountCurrency({
+      actorId: dave,
+      accountId: daveDemoId,
+      currency: "USD",
+    });
+    expect(updated.currency).toBe("USD");
+    expect(updated.realBalance).toBe(1_000_000); // ₹10,00,000 → $10,000
+
+    const ledger = await prisma.transaction.findFirst({
+      where: { accountId: daveDemoId, kind: "CURRENCY_CONVERT" },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(ledger?.amount).toBe(1_000_000);
+  });
+
+  it("converts real and bonus balances of a funded LIVE account (no rail lock)", async () => {
+    await prisma.account.update({
+      where: { id: daveLiveId },
+      data: { realBalance: 1_000_000, bonusBalance: 500_000 }, // ₹10,000 + ₹5,000
+    });
+    const updated = await convertAccountCurrency({
+      actorId: dave,
+      accountId: daveLiveId,
+      currency: "USD",
+    });
+    expect(updated.currency).toBe("USD");
+    expect(updated.realBalance).toBe(10_000); // ₹10,000 → $100
+    expect(updated.bonusBalance).toBe(5_000); // ₹5,000 → $50
+  });
+
+  it("is a no-op when the account is already in the target currency", async () => {
+    const before = await getAccountForActor(dave, daveLiveId);
+    const updated = await convertAccountCurrency({
+      actorId: dave,
+      accountId: daveLiveId,
+      currency: "USD",
+    });
+    expect(updated.realBalance).toBe(before!.realBalance);
+  });
+
+  it("refuses an unsupported currency", async () => {
+    await expect(
+      convertAccountCurrency({ actorId: dave, accountId: daveDemoId, currency: "EUR" }),
+    ).rejects.toBeInstanceOf(CurrencyChangeRefused);
+  });
+
+  it("refuses when the actor does not own the account", async () => {
+    await expect(
+      convertAccountCurrency({ actorId: bob, accountId: daveDemoId, currency: "INR" }),
     ).rejects.toBeInstanceOf(CurrencyChangeRefused);
   });
 });

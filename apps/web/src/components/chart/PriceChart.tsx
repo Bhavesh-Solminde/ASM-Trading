@@ -22,12 +22,12 @@ import { formatMinor } from "@/lib/format-money";
 import { countdown } from "@/lib/format-time";
 import { TIMEFRAME_SEC, type ChartState } from "./engine-state";
 
-const BRAND = "#ffb000";
-const BRAND_INK = "#1a1000";
+const BRAND = "#2f81f7";
+const BRAND_INK = "#ffffff";
 const UP = "#3be584";
 const DOWN = "#e5413b";
-const CROSSHAIR = "rgba(255, 176, 0, 0.28)";
-const WATERMARK = "rgba(255, 176, 0, 0.035)";
+const CROSSHAIR = "rgba(47, 129, 247, 0.32)";
+const WATERMARK = "rgba(47, 129, 247, 0.045)";
 const CANDLE_SEC = TIMEFRAME_SEC["1m"];
 /** Fetch older history once the left edge is within this many bars of the start. */
 const LOAD_OLDER_TRIGGER_BARS = 12;
@@ -113,8 +113,8 @@ export function PriceChart({
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: "rgba(255, 176, 0, 0.06)" },
-        horzLines: { color: "rgba(255, 176, 0, 0.06)" },
+        vertLines: { color: "rgba(47, 129, 247, 0.07)" },
+        horzLines: { color: "rgba(47, 129, 247, 0.07)" },
       },
       rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.18, bottom: 0.1 } },
       timeScale: {
@@ -145,8 +145,8 @@ export function PriceChart({
       priceFormat: { type: "price", precision, minMove: 10 ** -precision },
     });
 
-    // The last price is drawn as our own amber line so its axis label can be
-    // amber too; the series' built-in label takes the candle colour.
+    // The last price is drawn as our own blue line so its axis label can be
+    // blue too; the series' built-in label takes the candle colour.
     priceLineRef.current = series.createPriceLine({
       price: 0,
       color: BRAND,

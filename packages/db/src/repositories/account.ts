@@ -27,6 +27,24 @@ export function demoBalanceCap(currency: string): number {
 }
 
 /**
+ * Fixed conversion rate: ₹100 = $1. Because both currencies carry two minor
+ * digits (paise / cents), the same factor relates their minor units:
+ * `INR_minor = USD_minor × USD_INR_RATE`. Kept as a constant so a future live
+ * rate has one place to change. Mirrored in the web client (`lib/currency.ts`)
+ * for the pre-convert preview — keep the two in step.
+ */
+export const USD_INR_RATE = 100;
+
+/** Convert a minor-unit amount between INR and USD at the fixed rate. */
+export function convertMinorBetween(amount: number, from: string, to: string): number {
+  if (from === to) return amount;
+  if (from === "INR" && to === "USD") return Math.round(amount / USD_INR_RATE);
+  if (from === "USD" && to === "INR") return amount * USD_INR_RATE;
+  // Unknown pair: no conversion (callers validate currencies first).
+  return amount;
+}
+
+/**
  * Ownership is expressed in the query predicate, never as a check after the
  * fetch. A caller cannot forget it because `actorId` is a required parameter —
  * this is what closes broken-object-level-authorisation by construction.
@@ -117,6 +135,51 @@ export async function changeAccountCurrency(input: {
         amount: target,
         balanceAfter: target,
         refType: "CurrencyChange",
+        refId: account.id,
+      },
+    });
+    return updated;
+  });
+}
+
+/**
+ * Converts an account's balances to another currency at the fixed rate
+ * (`convertMinorBetween`). Unlike `changeAccountCurrency` this performs a real
+ * cross-currency conversion of `realBalance` and `bonusBalance` — for DEMO and
+ * LIVE alike, funded or not — and ledgers it as a CURRENCY_CONVERT. Ownership is
+ * enforced by `actorId`.
+ */
+export async function convertAccountCurrency(input: {
+  actorId: string;
+  accountId: string;
+  currency: string;
+}): Promise<Account> {
+  const currency = input.currency.toUpperCase();
+  if (!(currency in DEMO_START_BY_CURRENCY)) {
+    throw new CurrencyChangeRefused("Unsupported currency.");
+  }
+
+  const account = await prisma.account.findFirst({
+    where: { id: input.accountId, userId: input.actorId },
+  });
+  if (!account) throw new CurrencyChangeRefused("Account not found.");
+  if (account.currency === currency) return account;
+
+  const newReal = convertMinorBetween(account.realBalance, account.currency, currency);
+  const newBonus = convertMinorBetween(account.bonusBalance, account.currency, currency);
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.account.update({
+      where: { id: account.id },
+      data: { currency, realBalance: newReal, bonusBalance: newBonus, version: { increment: 1 } },
+    });
+    await tx.transaction.create({
+      data: {
+        accountId: account.id,
+        kind: "CURRENCY_CONVERT",
+        amount: newReal,
+        balanceAfter: newReal,
+        refType: "CurrencyConvert",
         refId: account.id,
       },
     });

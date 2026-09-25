@@ -69,6 +69,7 @@ export function TradeTicket({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fired, setFired] = useState<"UP" | "DOWN" | null>(null);
+  const [warnDismissed, setWarnDismissed] = useState(false);
 
   const stakeMajor = Number(stakeInput);
   const stakeMinor = Number.isFinite(stakeMajor) && stakeMajor > 0 ? Math.round(stakeMajor * 100) : 0;
@@ -160,7 +161,7 @@ export function TradeTicket({
                   aria-selected={mode === m}
                   onClick={() => switchMode(m)}
                   className={`rounded-[2px] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] ${
-                    mode === m ? "bg-brand text-brand-ink" : "text-ink-3 hover:text-ink"
+                    mode === m ? "bg-up text-up-ink" : "text-ink-3 hover:text-ink"
                   }`}
                 >
                   {m}
@@ -223,7 +224,7 @@ export function TradeTicket({
                           setGridOpen(false);
                         }}
                         className={`h-[30px] rounded-[2px] text-xs font-semibold phone:h-10 phone:text-sm ${
-                          active ? "bg-brand text-brand-ink" : "bg-tile text-ink-2 hover:bg-tile-hi hover:text-ink"
+                          active ? "bg-up text-up-ink" : "bg-tile text-ink-2 hover:bg-tile-hi hover:text-ink"
                         }`}
                       >
                         {clockTime(Math.floor(slot.epochMs / 1000))}
@@ -239,7 +240,7 @@ export function TradeTicket({
                         setGridOpen(false);
                       }}
                       className={`h-[30px] rounded-[2px] text-xs font-semibold phone:h-10 phone:text-sm ${
-                        d === durationSec ? "bg-brand text-brand-ink" : "bg-tile text-ink-2 hover:bg-tile-hi hover:text-ink"
+                        d === durationSec ? "bg-up text-up-ink" : "bg-tile text-ink-2 hover:bg-tile-hi hover:text-ink"
                       }`}
                     >
                       {formatDuration(d)}
@@ -311,7 +312,7 @@ export function TradeTicket({
             type="button"
             onClick={() => setStakeInput(String(value))}
             className={`h-7 rounded-[2px] border bg-panel text-xs font-semibold phone:h-10 phone:text-sm ${
-              stakeMajor === value ? "border-brand text-brand" : "border-rule text-ink-2 hover:text-ink"
+              stakeMajor === value ? "border-up text-up" : "border-rule text-ink-2 hover:text-ink"
             }`}
           >
             {currencySymbol(currency)}
@@ -338,10 +339,18 @@ export function TradeTicket({
         </span>
       </div>
 
-      {live ? (
-        <div className="flex items-center gap-2 rounded-[2px] bg-brand/10 px-2.5 py-2 text-xs font-semibold text-brand">
-          <Icon name="alert" />
-          Live account — this uses real balance
+      {live && !warnDismissed ? (
+        <div className="flex items-center gap-2 rounded-[2px] border border-caution/30 bg-caution/10 px-2.5 py-2 text-xs font-semibold text-caution">
+          <Icon name="alert" className="size-4 flex-none" />
+          <span className="flex-1">Live account — this uses real balance</span>
+          <button
+            type="button"
+            aria-label="Dismiss live-account warning"
+            onClick={() => setWarnDismissed(true)}
+            className="grid size-5 flex-none place-items-center rounded text-caution/80 hover:bg-caution/15 hover:text-caution"
+          >
+            <Icon name="close" className="size-3.5" />
+          </button>
         </div>
       ) : null}
 

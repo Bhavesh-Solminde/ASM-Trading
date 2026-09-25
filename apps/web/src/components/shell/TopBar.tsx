@@ -4,10 +4,8 @@ import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import type { BalancesDto } from "@asm/contracts";
 import { formatMinor } from "@/lib/format-money";
-import { clockTime } from "@/lib/format-time";
 import { isMuted, setMuted } from "@/lib/sound";
 import { useDismiss } from "@/lib/use-dismiss";
-import { useNowSec } from "@/lib/use-now";
 import { LogoEmblem, LogoWordmark } from "@/components/brand/Logo";
 import { Icon } from "./Icon";
 import { MobileNav } from "./MobileNav";
@@ -37,21 +35,15 @@ function AccountPlate({ type, small = false }: { type: AccountView["type"]; smal
     <span
       className={`grid auto-cols-max grid-flow-col place-content-center items-center gap-[5px] rounded-[2px] px-[9px] font-extrabold tracking-[0.12em] ${
         small ? "h-[26px] text-[10px]" : "h-[30px] text-[11px]"
-      } ${live ? "bg-brand text-brand-ink" : "border border-dotted border-[#555] text-ink-2"}`}
+      } ${live ? "bg-up text-up-ink" : "border border-dotted border-[#555] text-ink-2"}`}
     >
       <span
         aria-hidden
-        className={`size-[5px] rounded-full ${live ? "bg-up shadow-[0_0_5px_var(--color-up)]" : "bg-ink-3"}`}
+        className={`size-[5px] rounded-full ${live ? "bg-up-ink" : "bg-ink-3"}`}
       />
       {live ? "LIVE" : "DEMO"}
     </span>
   );
-}
-
-/** Ticks every second on its own, so the rest of the top bar does not re-render. */
-function FeedClock() {
-  const now = useNowSec();
-  return <span className="led text-[13px]">{now === null ? "" : clockTime(now)}</span>;
 }
 
 export function TopBar() {
@@ -120,20 +112,19 @@ export function TopBar() {
   return (
     <header
       className={`col-span-full row-start-1 flex min-w-0 items-center gap-5 border-b border-rule bg-ground pl-3.5 pr-4 phone:gap-2 phone:px-2.5 ${
-        live ? "shadow-[inset_0_-2px_0_0_var(--color-brand)]" : ""
+        live ? "shadow-[inset_0_-2px_0_0_var(--color-up)]" : ""
       }`}
     >
       <MobileNav />
       <Link href="/trade" aria-label="ASM Trade" className="flex h-11 flex-none items-center gap-2">
         <LogoEmblem className="h-8 w-8 flex-none [filter:drop-shadow(0_0_8px_rgba(255,176,0,.3))]" />
-        <LogoWordmark className="h-6 flex-none phone:h-5" />
+        <LogoWordmark className="h-6 flex-none phone:hidden" />
         <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-ink-2 phone:hidden">Trade</span>
       </Link>
 
       <div className="ml-1 flex flex-none items-center gap-2.5 text-ink-3 phone:hidden">
         <span aria-hidden className={`size-1.5 rounded-full ${feed.dot}`} />
         <span className="legend">{feed.text}</span>
-        <FeedClock />
         <button
           type="button"
           aria-label={muted ? "Unmute sounds" : "Mute sounds"}
@@ -155,8 +146,8 @@ export function TopBar() {
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((o) => !o)}
-          className={`grid h-11 min-w-0 grid-cols-[auto_minmax(0,1fr)_18px] items-center gap-2.5 rounded border bg-panel pl-1.5 pr-2.5 text-left phone:gap-1.5 phone:pr-1.5 ${
-            live ? "border-brand" : "border-rule hover:border-tile-hi"
+          className={`grid h-11 min-w-0 grid-cols-[auto_minmax(0,1fr)_18px] items-center gap-2.5 rounded border bg-panel pl-1.5 pr-2.5 text-left phone:grid-cols-[auto_auto_18px] phone:gap-1.5 phone:pr-1.5 ${
+            live ? "border-up" : "border-rule hover:border-tile-hi"
           }`}
         >
           {activeAccount ? <AccountPlate type={activeAccount.type} /> : null}
@@ -169,7 +160,7 @@ export function TopBar() {
 
         <Link
           href="/deposit"
-          className="inline-flex h-11 flex-none items-center gap-2 rounded border border-brand px-4 text-xs font-bold uppercase tracking-[0.06em] text-brand transition-colors hover:bg-brand/10 phone:w-11 phone:justify-center phone:px-0"
+          className="inline-flex h-11 flex-none items-center gap-2 rounded border border-up bg-up px-4 text-xs font-bold uppercase tracking-[0.06em] text-up-ink transition-colors hover:bg-up/90 phone:w-11 phone:justify-center phone:px-0"
         >
           <Icon name="plus" />
           <span className="phone:sr-only">Deposit</span>
@@ -245,7 +236,7 @@ export function TopBar() {
                     </span>
                     <span
                       aria-hidden
-                      className={`size-[18px] rounded-full ${active ? "border-[5px] border-brand" : "border-[1.5px] border-[#4a4f55]"}`}
+                      className={`size-[18px] rounded-full ${active ? "border-[5px] border-up" : "border-[1.5px] border-[#4a4f55]"}`}
                     />
                   </button>
                 );

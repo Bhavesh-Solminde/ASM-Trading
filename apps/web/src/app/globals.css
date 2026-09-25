@@ -1,23 +1,31 @@
 @import "tailwindcss";
 
-/* Phone layout: narrow portrait OR short landscape. One variant keeps both orientations consistent. */
-@custom-variant phone (@media (width < 48rem) or (height < 30rem));
+/* Compact layout: phones AND portrait tablets ("vertical tab view"), plus short
+   landscape. Below 64rem (1024px) the trade screen stacks the ticket under the
+   chart, the nav collapses to the hamburger, and the in-chart controls (market
+   switch, history sheet) take over — desktop's two-column layout is ≥1024px. */
+@custom-variant phone (@media (width < 64rem) or (height < 30rem));
 
 @theme {
-  --color-ground: #1e2024;
-  --color-panel: #24272b;
-  --color-tile: #2a2e33;
-  --color-tile-hi: #333840;
-  --color-rule: #363b42;
-  --color-ink: #e8e6e1;
-  --color-ink-2: #9e9b95;
-  --color-ink-3: #66635e;
-  --color-brand: #ffb000;
-  --color-brand-ink: #1a1000;
+  /* Black + blue + white theme. Ground is true black; surfaces step up in
+     lightness for depth. Blue is the single brand accent (replaces the old
+     amber); up/green and down/red stay as trading semantics. */
+  --color-ground: #000000;
+  --color-panel: #0b0e13;
+  --color-tile: #12161d;
+  --color-tile-hi: #1c222c;
+  --color-rule: #232a34;
+  --color-ink: #f4f7fb;
+  --color-ink-2: #98a2b3;
+  --color-ink-3: #5a6472;
+  --color-brand: #2f81f7;
+  --color-brand-ink: #ffffff;
+  --color-brand-dim: #10233f;
   --color-up: #3be584;
   --color-up-ink: #03170b;
   --color-down: #e5413b;
   --color-down-ink: #fff4f3;
+  --color-caution: #f5c518;
   --color-warn-bg: #2a1210;
   --font-ui: var(--font-hanken), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   /* Glanceable numerals use the UI face with tabular digits; the dot-matrix
@@ -140,8 +148,8 @@ button,
 
 .chartbox-bg {
   background:
-    radial-gradient(circle, rgba(255, 176, 0, 0.045) 1px, transparent 1.3px) 0 0 / 5px 5px,
-    #17191c;
+    radial-gradient(circle, rgba(47, 129, 247, 0.06) 1px, transparent 1.3px) 0 0 / 5px 5px,
+    #05070b;
 }
 
 .slab-fired::after {
@@ -160,7 +168,7 @@ button,
   animation: settle 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes settle {
-  from { background: rgba(255, 176, 0, 0.12); }
+  from { background: rgba(47, 129, 247, 0.14); }
   to { background: transparent; }
 }
 
@@ -171,13 +179,34 @@ button,
   50% { opacity: 0.2; }
 }
 
+/* In-chart trade result card: a quick pop-and-settle. */
+.result-pop {
+  animation: result-pop 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes result-pop {
+  from { opacity: 0; transform: scale(0.82); }
+  60% { transform: scale(1.04); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Bottom sheet (history / market pickers) slide-up. */
+.sheet-in {
+  animation: sheet-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tick-up,
   .tick-down,
   .ticker-track,
   .slab-fired::after,
   .settling,
-  .blink {
+  .blink,
+  .result-pop,
+  .sheet-in {
     animation: none !important;
   }
 }

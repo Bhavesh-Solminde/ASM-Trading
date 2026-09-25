@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { changeAccountCurrency, CurrencyChangeRefused } from "@asm/db";
+import { convertAccountCurrency, CurrencyChangeRefused } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 
 const CURRENCIES = new Set(["INR", "USD"]);
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const account = await changeAccountCurrency({
+    const account = await convertAccountCurrency({
       actorId: session.userId,
       accountId: body.accountId,
       currency: body.currency,

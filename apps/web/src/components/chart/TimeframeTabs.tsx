@@ -20,7 +20,7 @@ export function TimeframeTabs({ className = "" }: { className?: string }) {
           aria-selected={tf === timeframe}
           onClick={() => selectTimeframe(tf)}
           className={`rounded-[2px] px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.08em] ${
-            tf === timeframe ? "bg-brand text-brand-ink" : "text-ink-3 hover:text-ink"
+            tf === timeframe ? "bg-up text-up-ink" : "text-ink-3 hover:text-ink"
           }`}
         >
           {tf}

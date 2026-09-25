@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DEPOSIT_METHODS } from "@asm/contracts";
+import { certificateHtml, type CertificateData } from "@/lib/certificate";
 
 export function WithdrawForm({
   accountId,
@@ -14,6 +15,8 @@ export function WithdrawForm({
   const [method, setMethod] = useState<(typeof DEPOSIT_METHODS)[number]>("PhonePe");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [cert, setCert] = useState<CertificateData | null>(null);
+  const [emailed, setEmailed] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,6 +29,12 @@ export function WithdrawForm({
     });
 
     if (res.ok) {
+      const data = (await res.json().catch(() => ({}))) as {
+        certificate?: CertificateData;
+        emailed?: boolean;
+      };
+      setCert(data.certificate ?? null);
+      setEmailed(Boolean(data.emailed));
       setDone(true);
       return;
     }
@@ -33,11 +42,46 @@ export function WithdrawForm({
     setError(data.error ?? "Could not request that withdrawal.");
   }
 
+  const certDoc = cert
+    ? `<!doctype html><html><head><meta charset="utf-8"><title>ASM Trade certificate</title></head><body style="margin:0;padding:20px;background:#000;">${certificateHtml(cert)}</body></html>`
+    : "";
+
+  function downloadCertificate() {
+    if (!cert) return;
+    const blob = new Blob([certDoc], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `asm-certificate-${cert.refId}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (done) {
     return (
-      <p className="rounded border border-[var(--color-up)] bg-[var(--color-up)]/10 p-3 text-sm text-[var(--color-up)]">
-        Withdrawal requested. Requests are processed in 3 business days.
-      </p>
+      <div className="grid gap-4">
+        <p className="rounded border border-[var(--color-up)] bg-[var(--color-up)]/10 p-3 text-sm text-[var(--color-up)]">
+          Withdrawal requested. Requests are processed in 3 business days.
+          {emailed ? " A certificate has been emailed to you." : ""}
+        </p>
+        {cert ? (
+          <>
+            <iframe
+              title="Withdrawal certificate"
+              srcDoc={certDoc}
+              sandbox=""
+              className="h-[360px] w-full rounded border border-rule bg-black"
+            />
+            <button
+              type="button"
+              onClick={downloadCertificate}
+              className="justify-self-start rounded border border-brand px-4 py-2 text-xs font-bold uppercase tracking-[0.06em] text-brand hover:bg-brand/10"
+            >
+              Download certificate
+            </button>
+          </>
+        ) : null}
+      </div>
     );
   }
 
