@@ -16,10 +16,16 @@ const NAV = (badges: Record<string, number>): NavGroup[] => [
       { href: "/admin/users", label: "Users & Accounts", icon: "users" },
       { href: "/admin/markets", label: "Markets", icon: "coins" },
       {
-        href: "/admin/approvals",
-        label: "Approvals",
+        href: "/admin/deposits",
+        label: "Deposits",
         icon: "inbox",
-        ...(badges.approvals ? { badge: badges.approvals } : {}),
+        ...(badges.deposits ? { badge: badges.deposits } : {}),
+      },
+      {
+        href: "/admin/withdrawals",
+        label: "Withdrawals",
+        icon: "dollar",
+        ...(badges.withdrawals ? { badge: badges.withdrawals } : {}),
       },
       {
         href: "/admin/fraud",
@@ -43,6 +49,8 @@ const TITLES: Record<string, { title: string; crumb: string }> = {
   "/admin": { title: "Overview", crumb: "Home / Overview" },
   "/admin/users": { title: "Users & Accounts", crumb: "Operations / Users" },
   "/admin/markets": { title: "Markets", crumb: "Operations / Markets" },
+  "/admin/deposits": { title: "Deposits", crumb: "Operations / Deposits" },
+  "/admin/withdrawals": { title: "Withdrawals", crumb: "Operations / Withdrawals" },
   "/admin/approvals": { title: "Approvals", crumb: "Operations / Approvals" },
   "/admin/fraud": { title: "Fraud queue", crumb: "Operations / Fraud queue" },
   "/admin/messages": { title: "Messages", crumb: "Operations / Messages" },
@@ -217,10 +225,10 @@ export function AdminShell({
           >
             <Icon name={theme === "dark" ? "sun" : "moon"} />
           </button>
-          <Link className="admin-icon-btn" href="/admin/approvals" aria-label="Pending approvals">
+          <Link className="admin-icon-btn" href="/admin/deposits" aria-label="Pending approvals">
             <span style={{ position: "relative", display: "inline-grid" }}>
               <Icon name="bell" />
-              {badges.approvals ? (
+              {(badges.deposits ?? 0) + (badges.withdrawals ?? 0) ? (
                 <span
                   style={{
                     position: "absolute",

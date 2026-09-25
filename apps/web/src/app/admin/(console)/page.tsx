@@ -133,7 +133,9 @@ export default async function OverviewPage() {
           warn={pendingApprovals > 0}
           foot={
             <span>
-              {pendingDeposits} deposits &middot; {requestedWithdrawals} withdrawals
+              <Link href="/admin/deposits" style={{ color: "inherit" }}>{pendingDeposits} deposits</Link>
+              {" · "}
+              <Link href="/admin/withdrawals" style={{ color: "inherit" }}>{requestedWithdrawals} withdrawals</Link>
             </span>
           }
         />

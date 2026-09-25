@@ -1250,3 +1250,48 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Segmented tab bar used on the deposit + withdrawal list pages. Link-based:
+   each tab is a real navigation to ?tab= so the RSC re-renders with fresh
+   data instead of relying on client state. */
+.admin-tabbar {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface-2);
+}
+.admin-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: calc(var(--admin-radius-sm) - 2px);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-muted);
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+.admin-tab:hover {
+  color: var(--admin-text);
+}
+.admin-tab.active {
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+.admin-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: var(--admin-neg, #e5413b);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}

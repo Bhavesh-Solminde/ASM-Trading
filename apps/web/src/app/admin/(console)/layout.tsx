@@ -16,7 +16,8 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   return (
     <AdminShell
       badges={{
-        approvals: pendingDeposits + requestedWithdrawals,
+        deposits: pendingDeposits,
+        withdrawals: requestedWithdrawals,
         fraud: openFlags,
       }}
     >
