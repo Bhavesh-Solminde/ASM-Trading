@@ -87,7 +87,12 @@ export function CurrencyConvertCard({ accounts }: { accounts: AccountBalance[] }
                     live ? "bg-up text-up-ink" : "border border-dotted border-[#555] text-ink-2"
                   }`}
                 >
-                  <span aria-hidden className={`size-1.5 rounded-full ${live ? "bg-up-ink" : "bg-ink-3"}`} />
+                  <span
+                    aria-hidden
+                    className={`size-1.5 rounded-full ${
+                      live ? "bg-down shadow-[0_0_5px_var(--color-down)] blink" : "bg-ink-3"
+                    }`}
+                  />
                   {live ? "LIVE" : "DEMO"}
                 </span>
                 <span className="text-[11px] font-bold tracking-[0.08em] text-ink-2">{acct.currency}</span>

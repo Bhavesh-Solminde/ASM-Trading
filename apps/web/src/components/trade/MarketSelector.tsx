@@ -60,11 +60,13 @@ export function MarketSelector({
           aria-label="Change market"
           title="Change market"
           onClick={() => setOpen((o) => !o)}
-          className={`grid size-7 place-items-center rounded-[4px] border backdrop-blur ${
-            open ? "border-brand bg-tile/90 text-ink" : "border-rule bg-ground/75 text-ink-2 hover:border-tile-hi hover:text-ink"
+          className={`grid size-[34px] place-items-center rounded-[4px] border backdrop-blur ${
+            open
+              ? "border-brand bg-brand/25 text-brand"
+              : "border-brand/50 bg-brand/15 text-brand hover:border-brand hover:bg-brand/25"
           }`}
         >
-          <Icon name="trade" className="size-4" />
+          <Icon name="trade" className="size-5" />
         </button>
       ) : (
         <button

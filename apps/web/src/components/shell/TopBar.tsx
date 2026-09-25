@@ -39,7 +39,9 @@ function AccountPlate({ type, small = false }: { type: AccountView["type"]; smal
     >
       <span
         aria-hidden
-        className={`size-[5px] rounded-full ${live ? "bg-up-ink" : "bg-ink-3"}`}
+        className={`size-[6px] rounded-full ${
+          live ? "bg-down shadow-[0_0_6px_var(--color-down)] blink" : "bg-ink-3"
+        }`}
       />
       {live ? "LIVE" : "DEMO"}
     </span>

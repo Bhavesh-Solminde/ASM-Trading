@@ -140,7 +140,7 @@ export function TradeTicket({
   const slabNote = "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 max-[359px]:hidden";
 
   return (
-    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:gap-1 phone:border-b-0 phone:px-2.5 phone:pb-[max(6px,env(safe-area-inset-bottom))] phone:pt-1.5">
+    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:gap-0.5 phone:border-b-0 phone:px-2.5 phone:pb-[max(4px,env(safe-area-inset-bottom))] phone:pt-1">
       <div className="flex items-baseline justify-between phone:hidden">
         <span className="text-[17px] font-bold tracking-[0.03em]">{pair}</span>
         <span className="text-[17px] font-extrabold text-brand">{payoutPct === null ? "—" : `${payoutPct}%`}</span>
@@ -332,7 +332,7 @@ export function TradeTicket({
         </span>
       </div>
 
-      <div className="hidden phone:flex phone:items-center phone:justify-between phone:gap-2 phone:border-t phone:border-dashed phone:border-rule phone:pt-1">
+      <div className="hidden phone:flex phone:items-center phone:justify-between phone:gap-2 phone:border-t phone:border-dashed phone:border-rule phone:pt-0.5">
         <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3">Payout</span>
         <span className="led led-lit text-[15px] text-up">
           {profitMinor === null ? "—" : `+${formatMinor(profitMinor, currency)}`}
@@ -364,7 +364,7 @@ export function TradeTicket({
         </div>
       ) : null}
 
-      <div className="grid gap-2 phone:grid-cols-2 phone:pt-0.5">
+      <div className="grid gap-2 phone:grid-cols-2 phone:gap-1.5 phone:pt-0">
         <button
           type="button"
           disabled={busy}

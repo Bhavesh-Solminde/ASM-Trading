@@ -87,7 +87,12 @@ function AccountPlateMini({ type }: { type: AccountView["type"] }) {
         live ? "bg-up text-up-ink" : "border border-dotted border-[#555] text-ink-2"
       }`}
     >
-      <span aria-hidden className={`size-1 rounded-full ${live ? "bg-up-ink" : "bg-ink-3"}`} />
+      <span
+        aria-hidden
+        className={`size-1.5 rounded-full ${
+          live ? "bg-down shadow-[0_0_5px_var(--color-down)] blink" : "bg-ink-3"
+        }`}
+      />
       {live ? "LIVE" : "DEMO"}
     </span>
   );
@@ -334,9 +339,9 @@ export function TradeWorkspace() {
                     onClick={() => setHistoryOpen(true)}
                     aria-label="Trades & history"
                     title="Trades & history"
-                    className="relative grid size-7 place-items-center rounded-[4px] border border-rule bg-ground/75 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink"
+                    className="relative grid size-[34px] place-items-center rounded-[4px] border border-brand/50 bg-brand/15 text-brand backdrop-blur hover:border-brand hover:bg-brand/25"
                   >
-                    <Icon name="history" className="size-4" />
+                    <Icon name="history" className="size-5" />
                     {openCount > 0 ? (
                       <span className="absolute -right-1 -top-1 grid size-3.5 place-items-center rounded-full bg-up text-[9px] font-bold text-up-ink">
                         {openCount}
@@ -352,12 +357,12 @@ export function TradeWorkspace() {
               <p className="absolute left-2 bottom-2 z-10 text-xs text-down">Your session has ended. Log in again.</p>
             ) : null}
 
-            <TimeframeTabs className="absolute right-[86px] top-2 z-10 phone:right-2 phone:top-11" />
+            <TimeframeTabs className="absolute right-2 top-2 z-10" />
             <button
               type="button"
               onClick={focusMode ? exitFocus : enterFocus}
               aria-label={focusMode ? "Exit fullscreen" : "Fullscreen chart"}
-              className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink"
+              className="absolute bottom-2 right-2 z-10 grid size-8 place-items-center rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink"
             >
               <Icon name={focusMode ? "collapse" : "expand"} className="size-4" />
             </button>
