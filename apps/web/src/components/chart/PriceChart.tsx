@@ -2,17 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  AreaSeries,
+  BarSeries,
+  BaselineSeries,
   CandlestickSeries,
+  LineSeries,
+  LineType,
   ColorType,
   CrosshairMode,
   LineStyle,
   createChart,
   createTextWatermark,
+  type BarData,
   type CandlestickData,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
   type ITextWatermarkPluginApi,
+  type LineData,
+  type SeriesType,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
@@ -21,6 +29,9 @@ import type { MarketStore } from "@/components/shell/market-store";
 import { formatMinor } from "@/lib/format-money";
 import { countdown } from "@/lib/format-time";
 import { TIMEFRAME_SEC, type ChartState } from "./engine-state";
+import type { ChartType } from "./chart-types";
+import { HlcAreaSeriesView } from "./plugins/hlc-area-series";
+import { VolumeCandlesSeriesView } from "./plugins/volume-candles-series";
 
 const BRAND = "#2f81f7";
 const BRAND_INK = "#ffffff";
@@ -44,6 +55,27 @@ const PRICE_TRANSITION_MS = 600;
 
 function toBar(c: CandleDto): CandlestickData {
   return { time: c.openTs as UTCTimestamp, open: c.o, high: c.h, low: c.l, close: c.c };
+}
+
+function toHollowBar(c: CandleDto, prevClose: number): CandlestickData {
+  const isUpTrend = c.c >= prevClose;
+  const themeColor = isUpTrend ? UP : DOWN;
+  const isIntraBarUp = c.c >= c.o;
+  const bodyColor = isIntraBarUp ? "transparent" : themeColor;
+  return {
+    time: c.openTs as UTCTimestamp,
+    open: c.o,
+    high: c.h,
+    low: c.l,
+    close: c.c,
+    color: bodyColor,
+    borderColor: themeColor,
+    wickColor: themeColor,
+  };
+}
+
+function toSingleValue(c: CandleDto): LineData {
+  return { time: c.openTs as UTCTimestamp, value: c.c };
 }
 
 /**
@@ -71,7 +103,7 @@ function formatOhlc(c: { o: number; h: number; l: number; c: number }, precision
 }
 
 /**
- * The candle chart. Market data never passes through React props or state:
+ * The interactive chart. Market data never passes through React props or state:
  * the component subscribes to the market store and pushes each change into
  * lightweight-charts directly (`series.update` per tick, `setData` only when
  * history is replaced), so a tick costs a canvas draw and no render.
@@ -82,19 +114,21 @@ export function PriceChart({
   watermark,
   openTrades,
   currency,
+  chartType = "candles",
 }: {
   market: MarketStore;
   precision: number;
   watermark: string;
   openTrades: TradeView[];
   currency: string;
+  chartType?: ChartType;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const countdownRef = useRef<HTMLDivElement | null>(null);
   const ohlcRef = useRef<HTMLDivElement | null>(null);
   const hoveringRef = useRef(false);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const seriesRef = useRef<ISeriesApi<any> | null>(null);
   const priceLineRef = useRef<IPriceLine | null>(null);
   const watermarkRef = useRef<ITextWatermarkPluginApi<Time> | null>(null);
   const tradeLinesRef = useRef<IPriceLine[]>([]);
@@ -134,16 +168,146 @@ export function PriceChart({
       autoSize: true,
     });
 
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor: UP,
-      downColor: DOWN,
-      wickUpColor: UP,
-      wickDownColor: DOWN,
-      borderVisible: false,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      priceFormat: { type: "price", precision, minMove: 10 ** -precision },
-    });
+    const priceFormat = { type: "price" as const, precision, minMove: 10 ** -precision };
+    let series: ISeriesApi<any>;
+
+    switch (chartType) {
+      case "bars":
+        series = chart.addSeries(BarSeries, {
+          upColor: UP,
+          downColor: DOWN,
+          openVisible: true,
+          thinBars: false,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+      case "hlc_bars":
+        series = chart.addSeries(BarSeries, {
+          upColor: UP,
+          downColor: DOWN,
+          openVisible: false,
+          thinBars: false,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+      case "hollow_candles":
+        series = chart.addSeries(CandlestickSeries, {
+          upColor: "transparent",
+          downColor: DOWN,
+          borderVisible: true,
+          wickVisible: true,
+          borderColor: UP,
+          borderUpColor: UP,
+          borderDownColor: DOWN,
+          wickUpColor: UP,
+          wickDownColor: DOWN,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+      case "volume_candles":
+        series = chart.addCustomSeries(new VolumeCandlesSeriesView(), {
+          upColor: UP,
+          downColor: DOWN,
+          wickUpColor: UP,
+          wickDownColor: DOWN,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+      case "hlc_area":
+        series = chart.addCustomSeries(new HlcAreaSeriesView(), {
+          highLineColor: "#089981",
+          highLineWidth: 1.5,
+          highFillColor: "rgba(8, 153, 129, 0.20)",
+          lowLineColor: "#f23645",
+          lowLineWidth: 1.5,
+          lowFillColor: "rgba(242, 54, 69, 0.20)",
+          closeLineColor: "#cbd5e1",
+          closeLineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+      case "area":
+        series = chart.addSeries(AreaSeries, {
+          topColor: "rgba(47, 129, 247, 0.38)",
+          bottomColor: "rgba(47, 129, 247, 0.0)",
+          lineColor: BRAND,
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+      case "line":
+        series = chart.addSeries(LineSeries, {
+          color: BRAND,
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+      case "line_markers":
+        series = chart.addSeries(LineSeries, {
+          color: BRAND,
+          lineWidth: 2,
+          pointMarkersVisible: true,
+          crosshairMarkerVisible: true,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+      case "step_line":
+        series = chart.addSeries(LineSeries, {
+          color: BRAND,
+          lineWidth: 2,
+          lineType: LineType.WithSteps,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+      case "baseline": {
+        const basePrice = market.getSnapshot().chart.candles[0]?.c ?? 0;
+        series = chart.addSeries(BaselineSeries, {
+          baseValue: { type: "price", price: basePrice },
+          topLineColor: UP,
+          bottomLineColor: DOWN,
+          topFillColor1: "rgba(59, 229, 132, 0.3)",
+          topFillColor2: "rgba(59, 229, 132, 0.0)",
+          bottomFillColor1: "rgba(229, 65, 59, 0.0)",
+          bottomFillColor2: "rgba(229, 65, 59, 0.3)",
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+      }
+      case "candles":
+      default:
+        series = chart.addSeries(CandlestickSeries, {
+          upColor: UP,
+          downColor: DOWN,
+          wickUpColor: UP,
+          wickDownColor: DOWN,
+          borderVisible: false,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat,
+        });
+        break;
+    }
 
     // The last price is drawn as our own blue line so its axis label can be
     // blue too; the series' built-in label takes the candle colour.
@@ -163,10 +327,19 @@ export function PriceChart({
 
     // OHLC shows the hovered bar, or the latest one when not hovering.
     chart.subscribeCrosshairMove((param) => {
-      const bar = param.seriesData.get(series) as CandlestickData | undefined;
-      hoveringRef.current = Boolean(bar);
+      const raw = param.seriesData.get(series);
+      hoveringRef.current = Boolean(raw);
       const latest = latestCandle(market.getSnapshot().chart);
-      const shown = bar ? { o: bar.open, h: bar.high, l: bar.low, c: bar.close } : latest;
+      let shown: { o: number; h: number; l: number; c: number } | undefined;
+      if (raw) {
+        if ("open" in raw && typeof raw.open === "number") {
+          shown = { o: raw.open, h: raw.high, l: raw.low, c: raw.close };
+        } else if ("value" in raw && typeof raw.value === "number") {
+          shown = { o: raw.value, h: raw.value, l: raw.value, c: raw.value };
+        }
+      } else {
+        shown = latest;
+      }
       if (ohlcRef.current) ohlcRef.current.textContent = shown ? formatOhlc(shown, precision) : "";
     });
 
@@ -182,7 +355,7 @@ export function PriceChart({
       watermarkRef.current = null;
       tradeLinesRef.current = [];
     };
-  }, [precision, market]);
+  }, [precision, market, chartType]);
 
   // Streams market data into the chart without rendering.
   useEffect(() => {
@@ -220,6 +393,13 @@ export function PriceChart({
     let paintedClose = NaN;
     let paintedPrice = NaN;
     let raf = 0;
+    const isOhlc =
+      chartType === "candles" ||
+      chartType === "bars" ||
+      chartType === "hlc_bars" ||
+      chartType === "hollow_candles" ||
+      chartType === "volume_candles" ||
+      chartType === "hlc_area";
 
     const paintPrice = () => {
       raf = requestAnimationFrame(paintPrice);
@@ -245,20 +425,53 @@ export function PriceChart({
 
       if (formingBar) {
         if (formingBar.time !== bucketTime) {
-          // New candle: seed its envelope at the bucket's open price.
+          // New candle: seed its envelope at the bucket's open/extremes.
           bucketTime = formingBar.time;
-          dispHigh = formingBar.open;
-          dispLow = formingBar.open;
+          dispHigh = Math.max(formingBar.open, formingBar.high);
+          dispLow = Math.min(formingBar.open, formingBar.low);
         }
-        dispHigh = Math.max(dispHigh, displayed, formingBar.open);
-        dispLow = Math.min(dispLow, displayed, formingBar.open);
+        dispHigh = Math.max(dispHigh, displayed, formingBar.open, formingBar.high);
+        dispLow = Math.min(dispLow, displayed, formingBar.open, formingBar.low);
         if (
           formingBar.time !== paintedTime ||
           dispHigh !== paintedHigh ||
           dispLow !== paintedLow ||
           displayed !== paintedClose
         ) {
-          series.update({ time: formingBar.time, open: formingBar.open, high: dispHigh, low: dispLow, close: displayed });
+          if (isOhlc) {
+            if (chartType === "hollow_candles") {
+              const state = market.getSnapshot().chart;
+              const lastClosed = state.candles.at(-1);
+              const prevClose = lastClosed ? lastClosed.c : formingBar.open;
+              const isUpTrend = displayed >= prevClose;
+              const themeColor = isUpTrend ? UP : DOWN;
+              const isIntraBarUp = displayed >= formingBar.open;
+              const bodyColor = isIntraBarUp ? "transparent" : themeColor;
+              (series as ISeriesApi<"Candlestick">).update({
+                time: formingBar.time,
+                open: formingBar.open,
+                high: dispHigh,
+                low: dispLow,
+                close: displayed,
+                color: bodyColor,
+                borderColor: themeColor,
+                wickColor: themeColor,
+              });
+            } else {
+              (series as ISeriesApi<"Candlestick">).update({
+                time: formingBar.time,
+                open: formingBar.open,
+                high: dispHigh,
+                low: dispLow,
+                close: displayed,
+              });
+            }
+          } else {
+            (series as ISeriesApi<"Line">).update({
+              time: formingBar.time,
+              value: displayed,
+            });
+          }
           paintedTime = formingBar.time;
           paintedHigh = dispHigh;
           paintedLow = dispLow;
@@ -314,7 +527,23 @@ export function PriceChart({
       // Closed history is written straight through; the forming bar and the
       // last-price line are handed to the eased paint loop below.
       if (!prev || state.candles !== prev.candles) {
-        series.setData(state.candles.map(toBar));
+        if (chartType === "hollow_candles") {
+          (series as ISeriesApi<"Candlestick">).setData(
+            state.candles.map((c, i) => {
+              const prevClose = i > 0 ? state.candles[i - 1]!.c : c.o;
+              return toHollowBar(c, prevClose);
+            }),
+          );
+        } else if (isOhlc) {
+          (series as ISeriesApi<"Candlestick">).setData(state.candles.map(toBar));
+        } else {
+          (series as ISeriesApi<"Line">).setData(state.candles.map(toSingleValue));
+          if (chartType === "baseline" && state.candles.length > 0) {
+            (series as ISeriesApi<"Baseline">).applyOptions({
+              baseValue: { type: "price", price: state.candles[0]!.c },
+            });
+          }
+        }
       }
 
       const last = state.candles.at(-1);
@@ -359,7 +588,7 @@ export function PriceChart({
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(placeCountdown);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(maybeLoadOlder);
     };
-  }, [market, precision, chartVersion]);
+  }, [market, precision, chartVersion, chartType]);
 
   useEffect(() => {
     const el = containerRef.current;

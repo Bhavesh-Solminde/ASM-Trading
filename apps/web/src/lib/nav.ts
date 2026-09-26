@@ -1,4 +1,4 @@
-export type RailIcon = "trade" | "wallet" | "help" | "user" | "cup" | "globe" | "more";
+export type RailIcon = "trade" | "wallet" | "help" | "user" | "cup" | "globe" | "more" | "referral";
 
 export interface RailItem {
   readonly id: string;
@@ -45,3 +45,29 @@ export function availableRailItems(): RailItem[] {
 export function isRailItemActive(item: RailItem, pathname: string): boolean {
   return [item.href, ...(item.matches ?? [])].some((prefix) => pathname.startsWith(prefix));
 }
+
+export interface BottomNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+  readonly icon: RailIcon;
+  readonly matches?: readonly string[];
+}
+
+export const BOTTOM_NAV_ITEMS: readonly BottomNavItem[] = [
+  { id: "trade", label: "Trades", href: "/trade", icon: "trade" },
+  {
+    id: "payments",
+    label: "Payments",
+    href: "/balance",
+    icon: "wallet",
+    matches: ["/deposit", "/withdrawal"],
+  },
+  { id: "referral", label: "Referral", href: "/referral", icon: "referral" },
+  { id: "account", label: "Account", href: "/account", icon: "user" },
+];
+
+export function isBottomNavItemActive(item: BottomNavItem, pathname: string): boolean {
+  return [item.href, ...(item.matches ?? [])].some((prefix) => pathname.startsWith(prefix));
+}
+
