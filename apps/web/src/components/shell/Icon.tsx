@@ -82,6 +82,79 @@ const PATHS = {
       <path d="M15.5 10.5l5 5M20.5 10.5l-5 5" />
     </>
   ),
+  candles: (
+    <>
+      <path d="M7 4v3m0 10v3" />
+      <rect x="5" y="7" width="4" height="10" rx="0.5" fill="currentColor" fillOpacity="0.4" />
+      <path d="M17 2v5m0 10v5" />
+      <rect x="15" y="7" width="4" height="10" rx="0.5" fill="currentColor" fillOpacity="0.4" />
+    </>
+  ),
+  hollow_candles: (
+    <>
+      <path d="M7 4v3m0 10v3" />
+      <rect x="5" y="7" width="4" height="10" rx="0.5" fill="none" />
+      <path d="M17 2v5m0 10v5" />
+      <rect x="15" y="7" width="4" height="10" rx="0.5" fill="none" />
+    </>
+  ),
+  volume_candles: (
+    <>
+      <path d="M7 3v3m0 12v3" />
+      <rect x="4" y="6" width="6" height="12" rx="0.5" fill="currentColor" fillOpacity="0.4" />
+      <path d="M17 5v3m0 8v3" />
+      <rect x="16" y="8" width="2" height="8" rx="0.5" fill="currentColor" fillOpacity="0.4" />
+    </>
+  ),
+  bars: (
+    <>
+      <path d="M7 3v18" />
+      <path d="M4 14h3" />
+      <path d="M7 8h3" />
+      <path d="M17 3v18" />
+      <path d="M14 9h3" />
+      <path d="M17 16h3" />
+    </>
+  ),
+  hlc_bars: (
+    <>
+      <path d="M7 3v18" />
+      <path d="M7 8h3" />
+      <path d="M17 3v18" />
+      <path d="M17 16h3" />
+    </>
+  ),
+  area: (
+    <>
+      <path d="M3 17l5-6 4 3 6-8 3 4" />
+      <path d="M3 17l5-6 4 3 6-8 3 4v7H3z" fill="currentColor" fillOpacity="0.2" />
+    </>
+  ),
+  hlc_area: (
+    <>
+      <path d="M3 10l5-4 5 3 8-5v11l-8 2-5-3-5 3z" fill="currentColor" fillOpacity="0.22" />
+      <path d="M3 10l5-4 5 3 8-5" strokeOpacity="0.85" />
+      <path d="M3 14l5-4 5 3 8-4" strokeWidth={1.75} />
+      <path d="M3 18l5-3 5 2 8-3" strokeOpacity="0.85" />
+    </>
+  ),
+  line: <path d="M3 16l6-7 4 5 8-9" />,
+  line_markers: (
+    <>
+      <path d="M3 16l6-7 4 5 8-9" />
+      <circle cx="3" cy="16" r="1.5" fill="currentColor" />
+      <circle cx="9" cy="9" r="1.5" fill="currentColor" />
+      <circle cx="13" cy="14" r="1.5" fill="currentColor" />
+      <circle cx="21" cy="5" r="1.5" fill="currentColor" />
+    </>
+  ),
+  step_line: <path d="M3 17h5v-6h5v-5h8" />,
+  baseline: (
+    <>
+      <path d="M2 13h20" strokeDasharray="2 2" strokeOpacity="0.6" />
+      <path d="M3 13l4-5 4 5 5 5 5-5" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof PATHS;
