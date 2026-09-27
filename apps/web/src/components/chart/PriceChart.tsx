@@ -52,6 +52,12 @@ const LOAD_OLDER_TRIGGER_BARS = 12;
  * next price arrives.
  */
 const PRICE_TRANSITION_MS = 600;
+/**
+ * How long, in milliseconds, the graph transformation wave takes to travel from
+ * the latest point (right) backwards across the entire chart to the end (left).
+ * 1200ms (1.2 seconds) gives a relaxed, graceful, and smooth right-to-left sweep.
+ */
+const CHART_TRANSFORM_DURATION_MS = 2000;
 
 function toBar(c: CandleDto): CandlestickData {
   return { time: c.openTs as UTCTimestamp, open: c.o, high: c.h, low: c.l, close: c.c };
@@ -102,6 +108,261 @@ function formatOhlc(c: { o: number; h: number; l: number; c: number }, precision
   return `O ${f(c.o)}  H ${f(c.h)}  L ${f(c.l)}  C ${f(c.c)}`;
 }
 
+function createSeriesForType(
+  chart: IChartApi,
+  type: ChartType,
+  precision: number,
+  basePrice = 0,
+): ISeriesApi<any> {
+  const priceFormat = { type: "price" as const, precision, minMove: 10 ** -precision };
+
+  switch (type) {
+    case "bars":
+      return chart.addSeries(BarSeries, {
+        upColor: UP,
+        downColor: DOWN,
+        openVisible: true,
+        thinBars: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+    case "hlc_bars":
+      return chart.addSeries(BarSeries, {
+        upColor: UP,
+        downColor: DOWN,
+        openVisible: false,
+        thinBars: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+    case "hollow_candles":
+      return chart.addSeries(CandlestickSeries, {
+        upColor: "transparent",
+        downColor: DOWN,
+        borderVisible: true,
+        wickVisible: true,
+        borderColor: UP,
+        borderUpColor: UP,
+        borderDownColor: DOWN,
+        wickUpColor: UP,
+        wickDownColor: DOWN,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+    case "volume_candles":
+      return chart.addCustomSeries(new VolumeCandlesSeriesView(), {
+        upColor: UP,
+        downColor: DOWN,
+        wickUpColor: UP,
+        wickDownColor: DOWN,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+    case "hlc_area":
+      return chart.addCustomSeries(new HlcAreaSeriesView(), {
+        highLineColor: "#089981",
+        highLineWidth: 1.5,
+        highFillColor: "rgba(8, 153, 129, 0.20)",
+        lowLineColor: "#f23645",
+        lowLineWidth: 1.5,
+        lowFillColor: "rgba(242, 54, 69, 0.20)",
+        closeLineColor: "#cbd5e1",
+        closeLineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+    case "area":
+      return chart.addSeries(AreaSeries, {
+        topColor: "rgba(47, 129, 247, 0.38)",
+        bottomColor: "rgba(47, 129, 247, 0.0)",
+        lineColor: BRAND,
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+    case "line":
+      return chart.addSeries(LineSeries, {
+        color: BRAND,
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+    case "line_markers":
+      return chart.addSeries(LineSeries, {
+        color: BRAND,
+        lineWidth: 2,
+        pointMarkersVisible: true,
+        crosshairMarkerVisible: true,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+    case "step_line":
+      return chart.addSeries(LineSeries, {
+        color: BRAND,
+        lineWidth: 2,
+        lineType: LineType.WithSteps,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+    case "baseline":
+      return chart.addSeries(BaselineSeries, {
+        baseValue: { type: "price", price: basePrice },
+        topLineColor: UP,
+        bottomLineColor: DOWN,
+        topFillColor1: "rgba(59, 229, 132, 0.3)",
+        topFillColor2: "rgba(59, 229, 132, 0.0)",
+        bottomFillColor1: "rgba(229, 65, 59, 0.0)",
+        bottomFillColor2: "rgba(229, 65, 59, 0.3)",
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+    case "candles":
+    default:
+      return chart.addSeries(CandlestickSeries, {
+        upColor: UP,
+        downColor: DOWN,
+        wickUpColor: UP,
+        wickDownColor: DOWN,
+        borderVisible: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat,
+      });
+  }
+}
+
+function populateSeriesData(
+  series: ISeriesApi<any>,
+  chartType: ChartType,
+  state: ChartState,
+) {
+  if (state.candles.length === 0) return;
+  const isOhlc =
+    chartType === "candles" ||
+    chartType === "bars" ||
+    chartType === "hlc_bars" ||
+    chartType === "hollow_candles" ||
+    chartType === "volume_candles" ||
+    chartType === "hlc_area";
+
+  if (chartType === "hollow_candles") {
+    (series as ISeriesApi<"Candlestick">).setData(
+      state.candles.map((c, i) => {
+        const prevClose = i > 0 ? state.candles[i - 1]!.c : c.o;
+        return toHollowBar(c, prevClose);
+      }),
+    );
+  } else if (isOhlc) {
+    (series as ISeriesApi<"Candlestick">).setData(state.candles.map(toBar));
+  } else {
+    (series as ISeriesApi<"Line">).setData(state.candles.map(toSingleValue));
+    if (chartType === "baseline") {
+      (series as ISeriesApi<"Baseline">).applyOptions({
+        baseValue: { type: "price", price: state.candles[0]!.c },
+      });
+    }
+  }
+}
+
+function applySeriesAlpha(series: ISeriesApi<any>, type: ChartType, alpha: number) {
+  const a = Math.max(0, Math.min(1, alpha));
+  const aFixed = a.toFixed(3);
+
+  switch (type) {
+    case "candles":
+      series.applyOptions({
+        upColor: `rgba(59, 229, 132, ${aFixed})`,
+        downColor: `rgba(229, 65, 59, ${aFixed})`,
+        wickUpColor: `rgba(59, 229, 132, ${aFixed})`,
+        wickDownColor: `rgba(229, 65, 59, ${aFixed})`,
+      });
+      break;
+
+    case "bars":
+      series.applyOptions({
+        upColor: `rgba(59, 229, 132, ${aFixed})`,
+        downColor: `rgba(229, 65, 59, ${aFixed})`,
+      });
+      break;
+
+    case "hlc_bars":
+      series.applyOptions({
+        upColor: `rgba(59, 229, 132, ${aFixed})`,
+        downColor: `rgba(229, 65, 59, ${aFixed})`,
+      });
+      break;
+
+    case "hollow_candles":
+      series.applyOptions({
+        upColor: "transparent",
+        downColor: `rgba(229, 65, 59, ${aFixed})`,
+        borderColor: `rgba(59, 229, 132, ${aFixed})`,
+        borderUpColor: `rgba(59, 229, 132, ${aFixed})`,
+        borderDownColor: `rgba(229, 65, 59, ${aFixed})`,
+        wickUpColor: `rgba(59, 229, 132, ${aFixed})`,
+        wickDownColor: `rgba(229, 65, 59, ${aFixed})`,
+      });
+      break;
+
+    case "volume_candles":
+      series.applyOptions({
+        upColor: `rgba(59, 229, 132, ${aFixed})`,
+        downColor: `rgba(229, 65, 59, ${aFixed})`,
+        wickUpColor: `rgba(59, 229, 132, ${aFixed})`,
+        wickDownColor: `rgba(229, 65, 59, ${aFixed})`,
+      });
+      break;
+
+    case "hlc_area":
+      series.applyOptions({
+        highLineColor: `rgba(8, 153, 129, ${aFixed})`,
+        highFillColor: `rgba(8, 153, 129, ${(0.2 * a).toFixed(3)})`,
+        lowLineColor: `rgba(242, 54, 69, ${aFixed})`,
+        lowFillColor: `rgba(242, 54, 69, ${(0.2 * a).toFixed(3)})`,
+        closeLineColor: `rgba(203, 213, 225, ${aFixed})`,
+      });
+      break;
+
+    case "area":
+      series.applyOptions({
+        lineColor: `rgba(47, 129, 247, ${aFixed})`,
+        topColor: `rgba(47, 129, 247, ${(0.38 * a).toFixed(3)})`,
+        bottomColor: `rgba(47, 129, 247, 0)`,
+      });
+      break;
+
+    case "line":
+    case "line_markers":
+    case "step_line":
+      series.applyOptions({
+        color: `rgba(47, 129, 247, ${aFixed})`,
+      });
+      break;
+
+    case "baseline":
+      series.applyOptions({
+        topLineColor: `rgba(59, 229, 132, ${aFixed})`,
+        bottomLineColor: `rgba(229, 65, 59, ${aFixed})`,
+        topFillColor1: `rgba(59, 229, 132, ${(0.3 * a).toFixed(3)})`,
+        topFillColor2: `rgba(59, 229, 132, 0)`,
+        bottomFillColor1: `rgba(229, 65, 59, 0)`,
+        bottomFillColor2: `rgba(229, 65, 59, ${(0.3 * a).toFixed(3)})`,
+      });
+      break;
+  }
+}
+
 /**
  * The interactive chart. Market data never passes through React props or state:
  * the component subscribes to the market store and pushes each change into
@@ -134,6 +395,14 @@ export function PriceChart({
   const tradeLinesRef = useRef<IPriceLine[]>([]);
   const [chartVersion, setChartVersion] = useState(0);
 
+  // Seamless in-engine wave transformation state (from latest point to the end)
+  const prevChartTypeRef = useRef<ChartType>(chartType);
+  const activeOldSeriesRef = useRef<ISeriesApi<any> | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const [hudLabel, setHudLabel] = useState<string | null>(null);
+  const hudTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 1. Chart Instance Lifecycle: Created once on mount (or when precision changes)
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -156,8 +425,6 @@ export function PriceChart({
         timeVisible: true,
         secondsVisible: true,
         rightOffset: 14,
-        // Default candle size tuned per screen; zoom/pan stay enabled so the
-        // user can change it freely from here.
         barSpacing: defaultBarSpacing(),
       },
       crosshair: {
@@ -168,150 +435,11 @@ export function PriceChart({
       autoSize: true,
     });
 
-    const priceFormat = { type: "price" as const, precision, minMove: 10 ** -precision };
-    let series: ISeriesApi<any>;
+    const basePrice = market.getSnapshot().chart.candles[0]?.c ?? 0;
+    const initialSeries = createSeriesForType(chart, chartType, precision, basePrice);
+    populateSeriesData(initialSeries, chartType, market.getSnapshot().chart);
 
-    switch (chartType) {
-      case "bars":
-        series = chart.addSeries(BarSeries, {
-          upColor: UP,
-          downColor: DOWN,
-          openVisible: true,
-          thinBars: false,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-      case "hlc_bars":
-        series = chart.addSeries(BarSeries, {
-          upColor: UP,
-          downColor: DOWN,
-          openVisible: false,
-          thinBars: false,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-      case "hollow_candles":
-        series = chart.addSeries(CandlestickSeries, {
-          upColor: "transparent",
-          downColor: DOWN,
-          borderVisible: true,
-          wickVisible: true,
-          borderColor: UP,
-          borderUpColor: UP,
-          borderDownColor: DOWN,
-          wickUpColor: UP,
-          wickDownColor: DOWN,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-      case "volume_candles":
-        series = chart.addCustomSeries(new VolumeCandlesSeriesView(), {
-          upColor: UP,
-          downColor: DOWN,
-          wickUpColor: UP,
-          wickDownColor: DOWN,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-      case "hlc_area":
-        series = chart.addCustomSeries(new HlcAreaSeriesView(), {
-          highLineColor: "#089981",
-          highLineWidth: 1.5,
-          highFillColor: "rgba(8, 153, 129, 0.20)",
-          lowLineColor: "#f23645",
-          lowLineWidth: 1.5,
-          lowFillColor: "rgba(242, 54, 69, 0.20)",
-          closeLineColor: "#cbd5e1",
-          closeLineWidth: 2,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-      case "area":
-        series = chart.addSeries(AreaSeries, {
-          topColor: "rgba(47, 129, 247, 0.38)",
-          bottomColor: "rgba(47, 129, 247, 0.0)",
-          lineColor: BRAND,
-          lineWidth: 2,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-      case "line":
-        series = chart.addSeries(LineSeries, {
-          color: BRAND,
-          lineWidth: 2,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-      case "line_markers":
-        series = chart.addSeries(LineSeries, {
-          color: BRAND,
-          lineWidth: 2,
-          pointMarkersVisible: true,
-          crosshairMarkerVisible: true,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-      case "step_line":
-        series = chart.addSeries(LineSeries, {
-          color: BRAND,
-          lineWidth: 2,
-          lineType: LineType.WithSteps,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-      case "baseline": {
-        const basePrice = market.getSnapshot().chart.candles[0]?.c ?? 0;
-        series = chart.addSeries(BaselineSeries, {
-          baseValue: { type: "price", price: basePrice },
-          topLineColor: UP,
-          bottomLineColor: DOWN,
-          topFillColor1: "rgba(59, 229, 132, 0.3)",
-          topFillColor2: "rgba(59, 229, 132, 0.0)",
-          bottomFillColor1: "rgba(229, 65, 59, 0.0)",
-          bottomFillColor2: "rgba(229, 65, 59, 0.3)",
-          lineWidth: 2,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-      }
-      case "candles":
-      default:
-        series = chart.addSeries(CandlestickSeries, {
-          upColor: UP,
-          downColor: DOWN,
-          wickUpColor: UP,
-          wickDownColor: DOWN,
-          borderVisible: false,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          priceFormat,
-        });
-        break;
-    }
-
-    // The last price is drawn as our own blue line so its axis label can be
-    // blue too; the series' built-in label takes the candle colour.
-    priceLineRef.current = series.createPriceLine({
+    priceLineRef.current = initialSeries.createPriceLine({
       price: 0,
       color: BRAND,
       lineWidth: 1,
@@ -327,7 +455,9 @@ export function PriceChart({
 
     // OHLC shows the hovered bar, or the latest one when not hovering.
     chart.subscribeCrosshairMove((param) => {
-      const raw = param.seriesData.get(series);
+      const activeSeries = seriesRef.current;
+      if (!activeSeries) return;
+      const raw = param.seriesData.get(activeSeries);
       hoveringRef.current = Boolean(raw);
       const latest = latestCandle(market.getSnapshot().chart);
       let shown: { o: number; h: number; l: number; c: number } | undefined;
@@ -344,18 +474,148 @@ export function PriceChart({
     });
 
     chartRef.current = chart;
-    seriesRef.current = series;
+    seriesRef.current = initialSeries;
+    prevChartTypeRef.current = chartType;
     setChartVersion((v) => v + 1);
 
     return () => {
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      activeOldSeriesRef.current = null;
       priceLineRef.current = null;
       watermarkRef.current = null;
       tradeLinesRef.current = [];
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [precision, market, chartType]);
+  }, [precision, market]);
+
+  // 2. Progressive Wave Transformation from the latest point (right) backwards to the start (left)
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !containerRef.current) return;
+    if (prevChartTypeRef.current === chartType) return;
+
+    const oldType = prevChartTypeRef.current;
+    const oldSeries = seriesRef.current;
+    prevChartTypeRef.current = chartType;
+
+    // Cancel any previous wave animation
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    // Clean up any old series lingering from rapid switching
+    if (activeOldSeriesRef.current && activeOldSeriesRef.current !== oldSeries) {
+      try {
+        chart.removeSeries(activeOldSeriesRef.current);
+      } catch { }
+      activeOldSeriesRef.current = null;
+    }
+
+    const reducedMotion =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Save exact time scale position
+    const range = chart.timeScale().getVisibleLogicalRange();
+
+    // Create new series in the same chart
+    const allCandles = market.getSnapshot().chart.candles;
+    const N = allCandles.length;
+    const basePrice = allCandles[0]?.c ?? 0;
+    const newSeries = createSeriesForType(chart, chartType, precision, basePrice);
+
+    // Re-attach live price line to new series
+    priceLineRef.current = newSeries.createPriceLine({
+      price: 0,
+      color: BRAND,
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      lineVisible: false,
+      axisLabelVisible: false,
+      axisLabelColor: BRAND,
+      axisLabelTextColor: BRAND_INK,
+    });
+
+    // Restore exact time range
+    if (range) {
+      chart.timeScale().setVisibleLogicalRange(range);
+    }
+
+    // Set new series as active for crosshair and live streaming
+    seriesRef.current = newSeries;
+    setChartVersion((v) => v + 1);
+
+    // Show HUD toast of style name
+    const styleLabel = chartType
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+    setHudLabel(styleLabel);
+    if (hudTimerRef.current) clearTimeout(hudTimerRef.current);
+    hudTimerRef.current = setTimeout(() => setHudLabel(null), 1400);
+
+    if (reducedMotion || !oldSeries || N <= 1) {
+      populateSeriesData(newSeries, chartType, market.getSnapshot().chart);
+      if (oldSeries) {
+        try {
+          chart.removeSeries(oldSeries);
+        } catch { }
+      }
+      return;
+    }
+
+    // Mark old series for cleanup
+    activeOldSeriesRef.current = oldSeries;
+
+    // Wave animation: begins at the latest candle (right) and sweeps backwards to index 0 (left)
+    const duration = CHART_TRANSFORM_DURATION_MS; // 1200ms smooth right-to-left sweep
+    const startTime = performance.now();
+    let lastK = -1;
+
+    const transformWave = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // Easing: starts gracefully at the latest point, flows smoothly across history to the left
+      const eased = 1 - Math.pow(1 - progress, 2);
+
+      // K starts at (N - 1) and counts down to 0
+      const K = Math.max(0, Math.min(N - 1, Math.round((N - 1) * (1 - eased))));
+
+      if (K !== lastK) {
+        lastK = K;
+        // Left portion [0 .. K] is rendered in the old graph style
+        const oldSlice = allCandles.slice(0, K + 1);
+        // Right portion [K .. N-1] is rendered in the new graph style (min 2 points for line/area)
+        const newSlice = allCandles.slice(Math.max(0, Math.min(K, N - 2)));
+
+        if (oldSlice.length > 0) {
+          populateSeriesData(oldSeries, oldType, { ...market.getSnapshot().chart, candles: oldSlice });
+        }
+        if (newSlice.length > 0) {
+          populateSeriesData(newSeries, chartType, { ...market.getSnapshot().chart, candles: newSlice });
+        }
+
+        if (range) {
+          chart.timeScale().setVisibleLogicalRange(range);
+        }
+      }
+
+      if (progress < 1 && K > 0) {
+        animFrameRef.current = requestAnimationFrame(transformWave);
+      } else {
+        // Wave has reached the end! Finalize full dataset on new series and remove old series
+        populateSeriesData(newSeries, chartType, market.getSnapshot().chart);
+        try {
+          chart.removeSeries(oldSeries);
+        } catch { }
+        activeOldSeriesRef.current = null;
+        animFrameRef.current = null;
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(transformWave);
+  }, [chartType, precision, market]);
 
   // Streams market data into the chart without rendering.
   useEffect(() => {
@@ -623,6 +883,20 @@ export function PriceChart({
           internal z-index:50 canvases stay trapped below the overlay controls
           (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
+
+
+
+      {/* Style Switch HUD Pill */}
+      {hudLabel && (
+        <div
+          className="pointer-events-none absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-brand/50 bg-[#0c121d]/85 px-3 py-1 text-xs font-semibold text-white shadow-[0_4px_20px_rgba(0,0,0,0.6)] backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200"
+          aria-live="polite"
+        >
+          <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#38bdf8]" />
+          <span className="tracking-wide text-[11px]">{hudLabel}</span>
+        </div>
+      )}
+
       <div
         ref={countdownRef}
         hidden
