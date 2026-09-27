@@ -31,6 +31,23 @@ describe("engineOpenTrade", () => {
     expect(err).toMatchObject({ status: 409, reason: "insufficient_funds" });
   });
 
+  it("surfaces a closed market as a refusal even though the engine answers 503", async () => {
+    engineReplies(503, { error: "market_closed" });
+    const err = await engineOpenTrade(input).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(EngineRejected);
+    expect(err).toMatchObject({ status: 503, reason: "market_closed" });
+  });
+
+  it("surfaces a paused account as a refusal", async () => {
+    engineReplies(403, { error: "account_not_active" });
+    await expect(engineOpenTrade(input)).rejects.toBeInstanceOf(EngineRejected);
+  });
+
+  it("treats an unexpected engine failure as an outage", async () => {
+    engineReplies(500, { error: "internal" });
+    await expect(engineOpenTrade(input)).rejects.toBeInstanceOf(EngineUnavailable);
+  });
+
   it("treats a rejected secret as an outage, never as the trader being signed out", async () => {
     engineReplies(401, { error: "unauthorised" });
     await expect(engineOpenTrade(input)).rejects.toBeInstanceOf(EngineUnavailable);

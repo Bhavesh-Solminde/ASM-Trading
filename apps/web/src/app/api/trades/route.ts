@@ -11,9 +11,14 @@ const REJECTION_MESSAGE: Record<string, string> = {
   insufficient_funds: "Not enough balance for that stake.",
   unknown_asset: "That asset is not available right now.",
   account_not_found: "Account not found.",
+  account_not_active: "This account is paused. Contact support.",
   market_closed:
     "This market is closed for the night. Trading resumes at 5:00 AM IST.",
 };
+
+// A closed market is the trader's state, not our outage — the engine's 503
+// would read as "Service Unavailable" in the browser.
+const BROWSER_STATUS: Record<string, number> = { market_closed: 409 };
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -73,7 +78,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof EngineRejected) {
       return NextResponse.json(
         { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade." },
-        { status: err.status },
+        { status: BROWSER_STATUS[err.reason] ?? err.status },
       );
     }
     if (err instanceof EngineUnavailable) {
