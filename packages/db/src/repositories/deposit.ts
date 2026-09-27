@@ -134,6 +134,113 @@ export async function createDepositIntent(input: {
   throw new AmountSpaceExhausted();
 }
 
+/**
+ * USDT reservation offsets — deliberately a SEPARATE constant pool from
+ * OFFSET_LOW/OFFSET_SPACE above, in the same 2-decimal-cent granularity (not
+ * the token's native 6dp — see usdt-money.ts for why): a window of ±$0.99
+ * around the requested amount, ~198 distinct slots. Small on purpose: many
+ * exchanges cannot send more than 2-decimal USDT precision anyway, so this is
+ * also the most precision a real user could realistically hit exactly.
+ */
+export const USDT_OFFSET_LOW = -99;
+export const USDT_OFFSET_SPACE = 198;
+
+export const USDT_DEPOSIT_TTL_MINUTES = 60;
+// Placeholder business bounds pending an explicit decision — deliberately
+// conservative and easy to find/change; not derived from any verified
+// requirement.
+export const MIN_DEPOSIT_USDT_MINOR = 1_000; // $10.00
+export const MAX_DEPOSIT_USDT_MINOR = 1_000_000; // $10,000.00
+
+/**
+ * The USDT analog of createDepositIntent — deliberately a SEPARATE function
+ * rather than a branch inside createDepositIntent, so the INR path's
+ * signature, behavior and tests are provably untouched by this feature (see
+ * the design doc). Network/token contract/receiving address are the caller's
+ * live config (read from process.env in the engine/web layer, never
+ * hardcoded here — packages/db stays environment-agnostic, same as every
+ * other repository function in this file).
+ */
+export async function createUsdtDepositIntent(input: {
+  userId: string;
+  amountUsdtMinorRequested: number;
+  network: string;
+  tokenContract: string;
+  receivingAddress: string;
+  correlationId: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}): Promise<Deposit> {
+  if (input.amountUsdtMinorRequested < MIN_DEPOSIT_USDT_MINOR) {
+    throw new Error(
+      `Below the minimum deposit of $${(MIN_DEPOSIT_USDT_MINOR / 100).toLocaleString("en-US")}.`,
+    );
+  }
+  if (input.amountUsdtMinorRequested > MAX_DEPOSIT_USDT_MINOR) {
+    throw new Error(
+      `Above the maximum deposit of $${(MAX_DEPOSIT_USDT_MINOR / 100).toLocaleString("en-US")}.`,
+    );
+  }
+
+  const expiresAt = new Date(Date.now() + USDT_DEPOSIT_TTL_MINUTES * 60_000);
+  const start = randomBytes(2).readUInt16BE(0) % USDT_OFFSET_SPACE;
+
+  for (let probe = 0; probe < USDT_OFFSET_SPACE; probe++) {
+    const offset = USDT_OFFSET_LOW + ((start + probe) % USDT_OFFSET_SPACE);
+    const amountUsdtMinor = input.amountUsdtMinorRequested + offset;
+    if (amountUsdtMinor <= 0) continue;
+
+    try {
+      return await prisma.deposit.create({
+        data: {
+          userId: input.userId,
+          method: "USDT",
+          // amountUsd/amountInr are legacy required columns predating the
+          // USDT method. amountUsd has no uniqueness constraint, so 0 (never
+          // a real USD/INR value — MIN_DEPOSIT_*_MINOR forbid it) is a safe
+          // "not applicable" sentinel. amountInr is NOT safe to fix at a
+          // constant: it's the column Deposit_live_amount_unique enforces
+          // uniqueness on while a deposit is live, and every USDT deposit
+          // would otherwise collide with every OTHER live USDT deposit on
+          // that same INR index (a real bug caught by this feature's own
+          // tests — a second simultaneously-pending USDT deposit exhausted
+          // the entire reservation probe because both rows fixed amountInr
+          // at 0). Storing the negative of amountUsdtMinor instead is always
+          // representable (Int, only 8-9 digits here even at the max
+          // supported deposit), always negative (real INR amounts are always
+          // positive — MIN_DEPOSIT_INR_MINOR — so no cross-currency
+          // collision is possible), and — since amountUsdtMinor is already
+          // unique among live USDT deposits via its own partial index — is
+          // therefore unique among live rows on amountInr too, for free.
+          amountUsd: 0,
+          amountInr: -amountUsdtMinor,
+          // vpa is a legacy NOT NULL column (the UPI collection identity);
+          // for a USDT deposit it denormalizes the receiving address instead
+          // of a fake/empty value — cosmetic display data only, same role it
+          // already plays for INR (see matchCreditToDeposit's doc comment).
+          vpa: input.receivingAddress,
+          network: input.network,
+          tokenContract: input.tokenContract,
+          receivingAddress: input.receivingAddress,
+          amountUsdtMinor,
+          checkoutToken: randomBytes(24).toString("base64url"),
+          status: "AWAITING_PAYMENT",
+          correlationId: input.correlationId,
+          expiresAt,
+          ipAddress: input.ipAddress ?? null,
+          userAgent: input.userAgent ?? null,
+        },
+      });
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      if (code === "P2002") continue;
+      throw err;
+    }
+  }
+
+  throw new AmountSpaceExhausted();
+}
+
 /** All live (not yet resolved) deposits that reserved exactly this amount. In
  * practice this is 0 or 1 rows — the partial unique index guarantees at most
  * one — but the caller (the matcher) treats more than one as a bug to flag,
@@ -259,12 +366,17 @@ export const TURNOVER_MULTIPLE = 3;
  * or a retry cannot double-credit. `creditId` may be null for a manually
  * approved deposit with no specific bank credit on record (e.g. an admin
  * override); when present, that credit is atomically marked consumed inside
- * the same transaction as the approval.
+ * the same transaction as the approval. `chainCreditId` is the USDT analog —
+ * mutually exclusive with `creditId` in practice (a deposit is either an
+ * INR/UPI deposit with a BankCredit or a USDT deposit with a ChainCredit,
+ * never both), guarded the same way: atomically marked consumed inside the
+ * same transaction, and a 0-row guard throws exactly like the BankCredit one.
  */
 export async function creditDepositToAccount(input: {
   depositId: string;
   adminId: string | null;
-  creditId: string | null;
+  creditId?: string | null;
+  chainCreditId?: string | null;
 }): Promise<void> {
   const deposit = await prisma.deposit.findUnique({ where: { id: input.depositId } });
   if (!deposit) throw new DepositNotFound();
@@ -274,8 +386,15 @@ export async function creditDepositToAccount(input: {
   });
 
   // Credit in the account's own currency: an INR rail is funded with the INR
-  // amount, a USD rail with the USD amount. The deposit carries both figures.
-  const credit = account.currency === "INR" ? deposit.amountInr : deposit.amountUsd;
+  // amount, a USD rail with the USD amount, a USDT rail with the reserved/
+  // credited USDT-cents amount. The deposit carries all three figures (only
+  // one of which is ever populated for a given deposit).
+  const credit =
+    account.currency === "INR"
+      ? deposit.amountInr
+      : account.currency === "USDT"
+        ? deposit.amountUsdtMinor!
+        : deposit.amountUsd;
   const bonus = Math.floor((credit * BONUS_PERCENT) / 100);
 
   await prisma.$transaction(async (tx) => {
@@ -284,7 +403,11 @@ export async function creditDepositToAccount(input: {
         id: deposit.id,
         status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
       },
-      data: { status: "COMPLETED", matchedCreditId: input.creditId },
+      data: {
+        status: "COMPLETED",
+        matchedCreditId: input.creditId ?? null,
+        matchedChainCreditId: input.chainCreditId ?? null,
+      },
     });
     if (claimed.count !== 1) throw new DepositAlreadyResolved();
 
@@ -292,6 +415,14 @@ export async function creditDepositToAccount(input: {
       const consumed = await tx.bankCredit.updateMany({
         where: { id: input.creditId, consumed: false },
         data: { consumed: true },
+      });
+      if (consumed.count !== 1) throw new DepositAlreadyResolved();
+    }
+
+    if (input.chainCreditId) {
+      const consumed = await tx.chainCredit.updateMany({
+        where: { id: input.chainCreditId, consumed: false, processingStatus: "PENDING" },
+        data: { consumed: true, processingStatus: "MATCHED" },
       });
       if (consumed.count !== 1) throw new DepositAlreadyResolved();
     }
@@ -406,7 +537,12 @@ export async function reverseCompletedDeposit(input: {
   const account = await prisma.account.findFirstOrThrow({
     where: { userId: deposit.userId, type: "LIVE" },
   });
-  const credit = account.currency === "INR" ? deposit.amountInr : deposit.amountUsd;
+  const credit =
+    account.currency === "INR"
+      ? deposit.amountInr
+      : account.currency === "USDT"
+        ? deposit.amountUsdtMinor!
+        : deposit.amountUsd;
   const bonus = Math.floor((credit * BONUS_PERCENT) / 100);
 
   await prisma.$transaction(async (tx) => {

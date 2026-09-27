@@ -10,6 +10,7 @@ import { createTicketAuthenticator } from "./auth/ws-ticket";
 import { createInternalApi } from "./internal-api";
 import { TradeDesk } from "./trading/trade-desk";
 import { startBankFeedRunner } from "./bank-feed/runner";
+import { startChainWatcher } from "./chain-watcher/runner";
 import { ControllerBridge } from "./algo/controller-bridge";
 import { BotCrowd } from "./algo/crowd";
 
@@ -67,6 +68,7 @@ async function main(): Promise<void> {
   await internal.listen();
 
   const bankFeed = await startBankFeedRunner();
+  const chainWatcher = await startChainWatcher();
 
   const crowd = new BotCrowd(registry, desk, (Date.now() >>> 1) & 0x7fffffff);
   if (process.env.BOTS_ENABLED !== "false") {
@@ -81,6 +83,7 @@ async function main(): Promise<void> {
     await internal.close(); // accept no new trades
     crowd.stop(); // stop bots from opening new ones
     await bankFeed.stop(); // inject no new credits
+    await chainWatcher.stop(); // inject no new USDT credits
     loop.stop(); // collect no new settlements
     await desk?.stop(); // let captured settlements persist (bounded)
     if (feed) await feed.stop();

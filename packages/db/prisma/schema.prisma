@@ -89,6 +89,28 @@ enum WithdrawalStatus {
   PAID
 }
 
+/// A USDT on-chain transfer's own confirmation lifecycle — an SMS/UPI credit
+/// never needed this (it's instant), but a blockchain transfer genuinely does.
+/// FAILED_ON_CHAIN is checked independently even though a decoded Transfer
+/// event structurally can't come from a reverted call (the TVM discards logs
+/// on revert, same as the EVM) — "observed" is never treated as proof
+/// "safe to credit" on its own; see matchChainCreditToDeposit and the design
+/// doc this implements (2026-09-27 USDT deposit plan).
+enum ChainCreditFinalityState {
+  DETECTED
+  CONFIRMING
+  FINAL
+  FAILED_ON_CHAIN
+  REORGED
+}
+
+enum ChainCreditProcessingStatus {
+  PENDING
+  MATCHED
+  MANUAL_REVIEW
+  UNMATCHED
+}
+
 enum TxKind {
   DEPOSIT
   WITHDRAWAL
@@ -324,6 +346,24 @@ model Deposit {
   // linkable even if signup came from a different network.
   ipAddress       String?
   userAgent       String?
+  // ── USDT (TRC-20) fields — all nullable, unused by the INR/UPI path ──
+  // network/tokenContract/receivingAddress are denormalized display fields
+  // (the live config is re-verified at match time regardless — see
+  // matchChainCreditToDeposit; these are never trusted as authoritative).
+  network         String?
+  tokenContract   String?
+  receivingAddress String?
+  // Reserved AND credited amount, in USDT-cents (2dp) — deliberately the same
+  // precision Account.realBalance already uses for every other currency, not
+  // the token's native 6dp. See usdt-money.ts and the design doc's precision
+  // section for why 6dp would silently overflow Int32 balances and lose
+  // sub-cent value the ledger has nowhere to put.
+  amountUsdtMinor Int?
+  matchedChainCreditId String? @unique
+  // Set only by the USDT matcher when this deposit lands in manual review.
+  // Nothing else in this codebase populates this today — the INR path has no
+  // equivalent field and is not being retrofitted with one here.
+  reviewReason    String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -348,6 +388,12 @@ model Deposit {
   @@index([vpa, amountInr, status])
   @@index([userId, createdAt])
   @@index([status])
+  // USDT gets its OWN partial unique index on amountUsdtMinor, hand-written in
+  // the same migration as the column additions (Prisma can't express a
+  // partial index declaratively) — see
+  // <migration>_add_usdt_chain_credit/migration.sql. A separate index from
+  // Deposit_live_amount_unique: paise and USDT-cents are different unit
+  // spaces and must never collide with each other.
 }
 
 /// Stands in for a bank statement. Populated by whichever BankFeed is configured.
@@ -387,6 +433,97 @@ model RelayMessage {
 
   @@index([source, deviceLabel])
   @@index([createdAt])
+}
+
+/// The BankCredit analog for a USDT (TRC-20) on-chain transfer — deliberately
+/// a separate model rather than a generalized BankCredit, since utr there is
+/// a required unique string with no network/contract/event columns, and
+/// retrofitting it risks the working SMS path for no benefit.
+///
+/// Event identity: eventIndex is "the event's index within the transaction's
+/// event log" (TronGrid's own field, resolved via
+/// GET /v1/transactions/{txHash}/events — never assumed, never defaulted to
+/// 0). That position is already unique within a transaction across every
+/// contract that emitted anything in it, so (network, txHash, eventIndex)
+/// alone would be a sufficient identity; tokenContract is included in the
+/// unique constraint anyway as defense-in-depth, so a bug that resolves the
+/// wrong contract's event for a given (txHash, eventIndex) fails a
+/// constraint instead of silently colliding into an existing row.
+model ChainCredit {
+  id            String   @id @default(uuid())
+  network       String
+  tokenContract String
+  txHash        String
+  eventIndex    Int
+  fromAddress   String
+  toAddress     String
+  // The true on-chain value, 6dp, never rounded/truncated — lossless
+  // evidence. See usdt-money.ts for the exact (raw <-> normalized) integer
+  // conversion and why normalizedAmountMinor is nullable.
+  rawAmount     BigInt
+  // 2dp (USDT-cents), null when rawAmount isn't an exact multiple of 10_000 —
+  // i.e. genuinely not representable at this app's accounting precision.
+  // Never coerced/rounded into a value; a null here always routes to
+  // MANUAL_REVIEW/PRECISION_NOT_REPRESENTABLE, never silently dropped.
+  normalizedAmountMinor Int?
+  blockNumber     BigInt
+  blockTimestamp  DateTime
+  finalityState   ChainCreditFinalityState @default(DETECTED)
+  processingStatus ChainCreditProcessingStatus @default(PENDING)
+  // Enumerated reason codes: AMBIGUOUS_AMOUNT, PRECISION_NOT_REPRESENTABLE,
+  // AMBIGUOUS_EVENT_WITHIN_TRANSACTION, WRONG_TOKEN_CONTRACT, WRONG_NETWORK,
+  // WRONG_DESTINATION, EXPIRED_DEPOSIT, NO_LIVE_DEPOSIT.
+  reviewReason    String?
+  // Guard field creditDepositToAccount flips atomically alongside
+  // processingStatus->MATCHED and Deposit.status->COMPLETED — the same
+  // update-then-count idiom BankCredit.consumed already uses. Once true,
+  // never reused for a different deposit (see the one-credit-only guarantee
+  // in the design doc).
+  consumed        Boolean  @default(false)
+  // Finality poller's own bookkeeping (the strict multi-signal reorg
+  // criteria: >=3 consecutive not-found checks AND >=10 minutes elapsed AND
+  // also missing on the full node — never set from one transient response).
+  lastCheckedAt   DateTime?
+  checkAttempts   Int      @default(0)
+  firstNotFoundAt DateTime?
+  // Full provider response(s) — audit/evidence only. Matching and crediting
+  // code never reads this; only the normalized fields above are the
+  // accounting-relevant representation.
+  rawPayload      Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([network, tokenContract, txHash, eventIndex])
+  @@index([processingStatus])
+  @@index([finalityState])
+  @@index([network, tokenContract, toAddress, normalizedAmountMinor])
+}
+
+/// Durable pagination state for the USDT chain watcher's discovery scan.
+/// version is the same optimistic-concurrency idiom Account.version already
+/// uses elsewhere in this codebase — it's what stops two concurrent watcher
+/// instances from both advancing (or corrupting) the same cursor row for one
+/// tick; the loser just no-ops and re-reads fresh next tick.
+///
+/// activeSession* fields are non-null only while a pagination session (a
+/// bounded [min,max] timestamp window, walked page-by-page via TronGrid's
+/// fingerprint) is in progress. lastCommittedTimestampMs — the durable safe
+/// floor — only ever advances once a session's EVERY page has been
+/// persisted; see the design doc's pagination/checkpoint section for why a
+/// bare timestamp cursor alone is not sufficient and the fingerprint must be
+/// treated as the actual resumption identity.
+model ChainScanCursor {
+  network                     String
+  tokenContract               String
+  receivingAddress            String
+  lastCommittedTimestampMs    BigInt
+  activeSessionMinTimestampMs BigInt?
+  activeSessionMaxTimestampMs BigInt?
+  activeSessionFingerprint    String?
+  version                     Int      @default(0)
+  updatedAt                   DateTime @updatedAt
+
+  @@id([network, tokenContract, receivingAddress])
 }
 
 model Withdrawal {

@@ -54,7 +54,13 @@ export {
   DEMO_VPA,
   BONUS_PERCENT,
   TURNOVER_MULTIPLE,
+  USDT_OFFSET_LOW,
+  USDT_OFFSET_SPACE,
+  USDT_DEPOSIT_TTL_MINUTES,
+  MIN_DEPOSIT_USDT_MINOR,
+  MAX_DEPOSIT_USDT_MINOR,
   createDepositIntent,
+  createUsdtDepositIntent,
   findLiveDepositByAmount,
   findLiveDepositByClaimedUtr,
   creditDepositToAccount,
@@ -94,6 +100,26 @@ export {
   findBankCreditByUtr,
   listOrphanBankCredits,
 } from "./repositories/bank-credit";
+export {
+  createChainCreditIfNew,
+  findChainCreditByKey,
+  listPendingFinalityChecks,
+  listPendingMatches,
+  listOrphanChainCredits,
+  listManualReviewChainCredits,
+} from "./repositories/chain-credit";
+export {
+  matchChainCreditToDeposit,
+  findLiveDepositByUsdtAmount,
+  type ChainMatchOutcome,
+} from "./repositories/chain-credit-matcher";
+export {
+  getOrCreateCursor,
+  ensureSessionOpen,
+  advanceSessionPage,
+  closeSession,
+} from "./repositories/chain-scan-cursor";
+export { RAW_PER_MINOR, rawToNormalizedMinor, normalizedMinorToRaw } from "./usdt-money";
 export {
   InsufficientFunds,
   AccountNotActive,
