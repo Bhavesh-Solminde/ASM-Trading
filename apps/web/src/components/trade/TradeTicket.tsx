@@ -7,7 +7,7 @@ import { Icon } from "@/components/shell/Icon";
 import { durationForTargetTime, offeredExpirySlots } from "@/lib/expiry-times";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
 import { clockTime, hms } from "@/lib/format-time";
-import { useNowSec } from "@/lib/use-now";
+import { useMarketClosed, useNowSec } from "@/lib/use-now";
 
 const STAKE_PRESETS = [5, 10, 25, 50, 100] as const;
 
@@ -70,6 +70,7 @@ export function TradeTicket({
   const [error, setError] = useState<string | null>(null);
   const [fired, setFired] = useState<"UP" | "DOWN" | null>(null);
   const [warnDismissed, setWarnDismissed] = useState(false);
+  const closed = useMarketClosed(symbol);
 
   const stakeMajor = Number(stakeInput);
   const stakeMinor = Number.isFinite(stakeMajor) && stakeMajor > 0 ? Math.round(stakeMajor * 100) : 0;
@@ -136,7 +137,9 @@ export function TradeTicket({
   }
 
   const slab =
-    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] hover:brightness-110 active:translate-y-px disabled:cursor-wait phone:h-11 phone:pl-3.5 phone:pr-3 phone:text-[15px]";
+    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-11 phone:pl-3.5 phone:pr-3 phone:text-[15px]";
+  const slabLive = "hover:brightness-110 active:translate-y-px disabled:cursor-wait";
+  const slabClosed = "cursor-not-allowed bg-tile text-ink-3";
   const slabNote = "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 max-[359px]:hidden";
 
   return (
@@ -354,7 +357,15 @@ export function TradeTicket({
         </div>
       ) : null}
 
-      {error ? (
+      {closed ? (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-[2px] border border-rule bg-panel px-2.5 py-2 text-xs font-semibold text-ink-2"
+        >
+          <Icon name="alert" className="size-4 flex-none" />
+          <span>{pair} is closed for the night. Trading resumes at 5:00 AM IST.</span>
+        </div>
+      ) : error ? (
         <div
           role="alert"
           className="grid grid-cols-[auto_1fr] items-start gap-2 rounded-[2px] bg-warn-bg px-2.5 py-2 text-xs text-[#ffb3a8] shadow-[inset_0_0_0_1px_rgba(229,65,59,.5)]"
@@ -367,25 +378,25 @@ export function TradeTicket({
       <div className="grid gap-2 phone:grid-cols-2 phone:gap-1.5 phone:pt-0 land:grid-cols-1 land:gap-1.5">
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || closed}
           onClick={() => void place("UP")}
           onAnimationEnd={() => setFired(null)}
-          className={`${slab} bg-up text-up-ink ${fired === "UP" ? "slab-fired" : ""}`}
+          className={`${slab} ${closed ? slabClosed : `${slabLive} bg-up text-up-ink`} ${fired === "UP" ? "slab-fired" : ""}`}
         >
           <span>
-            Buy<small className={slabNote}>Price ends higher</small>
+            Buy<small className={slabNote}>{closed ? "Market closed" : "Price ends higher"}</small>
           </span>
           <Icon name="up" className="size-[26px]" strokeWidth={2.4} />
         </button>
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || closed}
           onClick={() => void place("DOWN")}
           onAnimationEnd={() => setFired(null)}
-          className={`${slab} bg-down text-down-ink ${fired === "DOWN" ? "slab-fired" : ""}`}
+          className={`${slab} ${closed ? slabClosed : `${slabLive} bg-down text-down-ink`} ${fired === "DOWN" ? "slab-fired" : ""}`}
         >
           <span>
-            Sell<small className={slabNote}>Price ends lower</small>
+            Sell<small className={slabNote}>{closed ? "Market closed" : "Price ends lower"}</small>
           </span>
           <Icon name="down" className="size-[26px]" strokeWidth={2.4} />
         </button>
