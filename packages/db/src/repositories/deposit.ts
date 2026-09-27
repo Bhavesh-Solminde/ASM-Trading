@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "../client";
 import { flagLinkageForUser } from "./fraud";
+import { convertMinorBetween } from "./account";
 import type { Deposit } from "../../generated/prisma/client";
 
 /**
@@ -145,7 +146,11 @@ export async function createDepositIntent(input: {
 export const USDT_OFFSET_LOW = -99;
 export const USDT_OFFSET_SPACE = 198;
 
-export const USDT_DEPOSIT_TTL_MINUTES = 60;
+// The payment window the user sees counting down on the checkout page. A
+// transfer counts as on time by its on-chain block timestamp, not by when the
+// matcher gets to it (see findLiveDepositByUsdtAmount) — so a payment sent
+// just before the deadline is still credited after it solidifies.
+export const USDT_DEPOSIT_TTL_MINUTES = 5;
 // Placeholder business bounds pending an explicit decision — deliberately
 // conservative and easy to find/change; not derived from any verified
 // requirement.
@@ -358,8 +363,123 @@ export async function claimUtr(
   return prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });
 }
 
+/**
+ * USDT "I already paid": records the transaction hash the user says paid
+ * their deposit (plus an optional screenshot) as EVIDENCE for an admin
+ * reviewing an unmatched on-chain transfer.
+ *
+ * Security: a tx hash is public on-chain, so anyone can claim anyone's hash.
+ * This therefore never credits anything, never changes the deposit's status,
+ * and is never read by the automatic matcher — the admin decides. It is also
+ * never exclusive (no uniqueness on the hash): a fraudulent claim must not
+ * block the real payer from claiming the same hash.
+ *
+ * Ownership is enforced in the same guarded UPDATE, like claimUtr. A user may
+ * overwrite their own earlier claim while the deposit is still open
+ * (AWAITING_PAYMENT or EXPIRED) — they may have pasted the wrong hash.
+ */
+export async function claimUsdtPayment(input: {
+  actorId: string;
+  depositId: string;
+  txHash: string;
+  screenshotUrl?: string | null;
+}): Promise<Deposit> {
+  const txHash = input.txHash.trim().replace(/^0x/i, "").toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(txHash)) {
+    throw new Error("Invalid transaction hash.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const claimed = await tx.deposit.updateMany({
+      where: {
+        id: input.depositId,
+        userId: input.actorId,
+        method: "USDT",
+        status: { in: ["AWAITING_PAYMENT", "EXPIRED"] },
+      },
+      data: {
+        claimedTxHash: txHash,
+        ...(input.screenshotUrl ? { screenshotUrl: input.screenshotUrl } : {}),
+      },
+    });
+
+    if (claimed.count !== 1) {
+      // Not yours / not USDT / gone (404) vs. already resolved (409). The
+      // caller cannot tell another user's deposit apart from a missing one.
+      const existing = await tx.deposit.findFirst({
+        where: { id: input.depositId, userId: input.actorId, method: "USDT" },
+        select: { id: true },
+      });
+      if (!existing) throw new DepositNotFound();
+      throw new DepositAlreadyResolved();
+    }
+
+    await tx.auditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: "deposit.usdt_payment_claimed",
+        targetType: "Deposit",
+        targetId: input.depositId,
+        after: { txHash, hasScreenshot: Boolean(input.screenshotUrl) },
+      },
+    });
+
+    return tx.deposit.findUniqueOrThrow({ where: { id: input.depositId } });
+  });
+}
+
 export const BONUS_PERCENT = 100;
 export const TURNOVER_MULTIPLE = 3;
+
+/**
+ * The amount (minor units of `accountCurrency`) a deposit credits to — and a
+ * reversal reclaims from — a LIVE account. Shared by creditDepositToAccount
+ * and reverseCompletedDeposit so the two can never disagree.
+ *
+ * USDT deposits: amountInr holds a NEGATIVE uniqueness sentinel and amountUsd
+ * is 0 (see createUsdtDepositIntent), so neither may ever be credited. The
+ * USDT-cents amount is converted instead, treating 1 USDT as 1 USD (USDT-cents
+ * == USD-cents): an INR account gets ×USD_INR_RATE paise, a USD account the
+ * same figure. A legacy "USDT"-denominated account gets USDT-cents as-is.
+ * `usdtMinorOverride` is the amount actually received on-chain, for an admin
+ * resolution.
+ *
+ * Any other method: unchanged INR/UPI semantics (INR rail → amountInr,
+ * otherwise amountUsd).
+ *
+ * Throws unless the result is a positive integer — a deposit must never
+ * reduce a balance.
+ */
+export function depositCreditMinor(
+  deposit: Pick<Deposit, "method" | "amountInr" | "amountUsd" | "amountUsdtMinor">,
+  accountCurrency: string,
+  usdtMinorOverride?: number | null,
+): number {
+  let credit: number;
+  if (deposit.method === "USDT") {
+    const usdtMinor = usdtMinorOverride ?? deposit.amountUsdtMinor;
+    if (usdtMinor === null || usdtMinor <= 0) {
+      throw new Error("USDT deposit has no positive USDT amount to credit.");
+    }
+    if (accountCurrency === "USDT") {
+      credit = usdtMinor;
+    } else if (accountCurrency === "INR" || accountCurrency === "USD") {
+      credit = convertMinorBetween(usdtMinor, "USD", accountCurrency);
+    } else {
+      throw new Error(`Cannot credit a USDT deposit to a ${accountCurrency} account.`);
+    }
+  } else if (accountCurrency === "INR") {
+    credit = deposit.amountInr;
+  } else if (accountCurrency === "USDT") {
+    throw new Error(`Cannot credit a ${deposit.method} deposit to a USDT account.`);
+  } else {
+    credit = deposit.amountUsd;
+  }
+  if (!Number.isInteger(credit) || credit <= 0) {
+    throw new Error(`Refusing a non-positive deposit credit (${credit}).`);
+  }
+  return credit;
+}
 
 /**
  * Approves a deposit and credits the account, in one transaction so a crash
@@ -377,6 +497,14 @@ export async function creditDepositToAccount(input: {
   adminId: string | null;
   creditId?: string | null;
   chainCreditId?: string | null;
+  /**
+   * Admin resolution of a reviewed ChainCredit (see chain-credit-admin.ts).
+   * Only valid with chainCreditId on a USDT deposit. Widens the deposit guard
+   * to EXPIRED and the chain-credit guard to MANUAL_REVIEW/UNMATCHED, and
+   * credits `usdtMinorOverride` (the amount actually received on-chain),
+   * rewriting the deposit's amounts to match in the same guarded UPDATE.
+   */
+  adminResolution?: { usdtMinorOverride: number };
 }): Promise<void> {
   const deposit = await prisma.deposit.findUnique({ where: { id: input.depositId } });
   if (!deposit) throw new DepositNotFound();
@@ -385,28 +513,48 @@ export async function creditDepositToAccount(input: {
     where: { userId: deposit.userId, type: "LIVE" },
   });
 
-  // Credit in the account's own currency: an INR rail is funded with the INR
-  // amount, a USD rail with the USD amount, a USDT rail with the reserved/
-  // credited USDT-cents amount. The deposit carries all three figures (only
-  // one of which is ever populated for a given deposit).
-  const credit =
-    account.currency === "INR"
-      ? deposit.amountInr
-      : account.currency === "USDT"
-        ? deposit.amountUsdtMinor!
-        : deposit.amountUsd;
+  const admin = input.adminResolution ?? null;
+  if (admin) {
+    if (!input.chainCreditId) {
+      throw new Error("adminResolution requires a chainCreditId.");
+    }
+    if (deposit.method !== "USDT") {
+      throw new Error("adminResolution is only valid for a USDT deposit.");
+    }
+    if (!Number.isInteger(admin.usdtMinorOverride) || admin.usdtMinorOverride <= 0) {
+      throw new Error("adminResolution.usdtMinorOverride must be a positive integer.");
+    }
+  }
+
+  // Credit in the account's own currency — see depositCreditMinor. For an
+  // admin resolution the credit is what actually arrived on-chain, which may
+  // differ from what the deposit reserved.
+  const credit = depositCreditMinor(deposit, account.currency, admin?.usdtMinorOverride ?? null);
   const bonus = Math.floor((credit * BONUS_PERCENT) / 100);
 
   await prisma.$transaction(async (tx) => {
+    // With an admin resolution the deposit's amounts are rewritten to what
+    // actually arrived. Safe w.r.t. the partial unique indexes
+    // (Deposit_live_amount_unique on amountInr, Deposit_live_usdt_amount_unique
+    // on amountUsdtMinor): both cover only AWAITING_PAYMENT/PENDING_CONFIRMATION,
+    // and this same UPDATE moves the row to COMPLETED, so the new values never
+    // enter either index.
     const claimed = await tx.deposit.updateMany({
       where: {
         id: deposit.id,
-        status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
+        status: {
+          in: admin
+            ? ["AWAITING_PAYMENT", "PENDING_CONFIRMATION", "EXPIRED"]
+            : ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"],
+        },
       },
       data: {
         status: "COMPLETED",
         matchedCreditId: input.creditId ?? null,
         matchedChainCreditId: input.chainCreditId ?? null,
+        ...(admin
+          ? { amountUsdtMinor: admin.usdtMinorOverride, amountInr: -admin.usdtMinorOverride }
+          : {}),
       },
     });
     if (claimed.count !== 1) throw new DepositAlreadyResolved();
@@ -421,7 +569,13 @@ export async function creditDepositToAccount(input: {
 
     if (input.chainCreditId) {
       const consumed = await tx.chainCredit.updateMany({
-        where: { id: input.chainCreditId, consumed: false, processingStatus: "PENDING" },
+        where: admin
+          ? {
+              id: input.chainCreditId,
+              consumed: false,
+              processingStatus: { in: ["PENDING", "MANUAL_REVIEW", "UNMATCHED"] },
+            }
+          : { id: input.chainCreditId, consumed: false, processingStatus: "PENDING" },
         data: { consumed: true, processingStatus: "MATCHED" },
       });
       if (consumed.count !== 1) throw new DepositAlreadyResolved();
@@ -478,7 +632,16 @@ export async function creditDepositToAccount(input: {
         action: input.adminId ? "deposit.approved_manual" : "deposit.approved_auto",
         targetType: "Deposit",
         targetId: deposit.id,
-        after: { status: "COMPLETED", creditId: input.creditId, bonus },
+        after: admin
+          ? {
+              status: "COMPLETED",
+              creditId: input.creditId,
+              bonus,
+              resolvedByAdmin: true,
+              usdtMinorOverride: admin.usdtMinorOverride,
+              reservedUsdtMinor: deposit.amountUsdtMinor,
+            }
+          : { status: "COMPLETED", creditId: input.creditId, bonus },
       },
     });
   });
@@ -537,12 +700,9 @@ export async function reverseCompletedDeposit(input: {
   const account = await prisma.account.findFirstOrThrow({
     where: { userId: deposit.userId, type: "LIVE" },
   });
-  const credit =
-    account.currency === "INR"
-      ? deposit.amountInr
-      : account.currency === "USDT"
-        ? deposit.amountUsdtMinor!
-        : deposit.amountUsd;
+  // The same figure creditDepositToAccount added (an admin resolution rewrote
+  // amountUsdtMinor to the credited amount, so it is read back here as-is).
+  const credit = depositCreditMinor(deposit, account.currency);
   const bonus = Math.floor((credit * BONUS_PERCENT) / 100);
 
   await prisma.$transaction(async (tx) => {
@@ -625,4 +785,28 @@ export async function reverseCompletedDeposit(input: {
       },
     });
   });
+}
+
+/**
+ * How long a lapsed USDT deposit keeps its reservation before being marked
+ * EXPIRED. Callers pass `new Date(Date.now() - USDT_RESERVATION_QUARANTINE_MS)`
+ * to expireStaleUsdtDeposits.
+ *
+ * Why a quarantine rather than expiring at expiresAt: EXPIRED drops the row
+ * out of Deposit_live_usdt_amount_unique, freeing that exact amount for reuse.
+ * Freed immediately, a late payment for user A's old amount could auto-credit
+ * user B who later reserved the same amount. Holding it AWAITING_PAYMENT for
+ * 48h after expiry blocks reuse during the window when late payments
+ * realistically arrive; the matcher already ignores it (expiresAt > paidAt),
+ * so a late payment lands in UNMATCHED for admin review instead.
+ */
+export const USDT_RESERVATION_QUARANTINE_MS = 48 * 60 * 60 * 1000;
+
+/** Marks method "USDT" deposits still AWAITING_PAYMENT whose expiresAt < expiredBefore as EXPIRED. Returns the count. Never touches INR deposits. */
+export async function expireStaleUsdtDeposits(expiredBefore: Date): Promise<number> {
+  const result = await prisma.deposit.updateMany({
+    where: { method: "USDT", status: "AWAITING_PAYMENT", expiresAt: { lt: expiredBefore } },
+    data: { status: "EXPIRED" },
+  });
+  return result.count;
 }

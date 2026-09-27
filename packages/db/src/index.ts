@@ -59,6 +59,9 @@ export {
   USDT_DEPOSIT_TTL_MINUTES,
   MIN_DEPOSIT_USDT_MINOR,
   MAX_DEPOSIT_USDT_MINOR,
+  USDT_RESERVATION_QUARANTINE_MS,
+  depositCreditMinor,
+  expireStaleUsdtDeposits,
   createDepositIntent,
   createUsdtDepositIntent,
   findLiveDepositByAmount,
@@ -70,6 +73,7 @@ export {
   rejectDeposit,
   reverseCompletedDeposit,
   claimUtr,
+  claimUsdtPayment,
 } from "./repositories/deposit";
 export {
   matchCreditToDeposit,
@@ -103,6 +107,8 @@ export {
 export {
   createChainCreditIfNew,
   findChainCreditByKey,
+  findChainCreditById,
+  findChainCreditForDepositDisplay,
   listPendingFinalityChecks,
   listPendingMatches,
   listOrphanChainCredits,
@@ -114,11 +120,24 @@ export {
   type ChainMatchOutcome,
 } from "./repositories/chain-credit-matcher";
 export {
+  ChainCreditResolutionRefused,
+  listUsdtReviewQueue,
+  countUsdtReviewQueue,
+  listCandidateDepositsForChainCredit,
+  resolveChainCreditToDeposit,
+  dismissChainCredit,
+  getUsdtReviewEvidence,
+  type UsdtClaimEvidence,
+  type UsdtKnownSender,
+  type UsdtReviewEvidence,
+} from "./repositories/chain-credit-admin";
+export {
   getOrCreateCursor,
   ensureSessionOpen,
   advanceSessionPage,
   closeSession,
 } from "./repositories/chain-scan-cursor";
+export { hasActiveUsdtWork } from "./repositories/usdt-activity";
 export { RAW_PER_MINOR, rawToNormalizedMinor, normalizedMinorToRaw } from "./usdt-money";
 export {
   InsufficientFunds,

@@ -24,18 +24,23 @@ export type ChainMatchOutcome =
  * caller treats more than one as a bug to flag, never something to guess
  * between.
  *
+ * Expiry is judged at `paidAt` — the transfer's on-chain block timestamp —
+ * never at match time. Matching only happens after solidification (~1 min)
+ * plus watcher ticks, so with a short payment window, "now" would wrongly
+ * reject a transfer the user sent in time.
+ *
  * The expiresAt check here is new relative to the INR equivalent
  * (findLiveDepositByAmount has none) and is deliberately USDT-only: it does
  * not touch, generalize, or "fix" the INR path's lack of an expiry sweep,
  * which is separate, pre-existing, and out of scope for this feature.
  */
-export async function findLiveDepositByUsdtAmount(amountUsdtMinor: number): Promise<Deposit[]> {
+export async function findLiveDepositByUsdtAmount(amountUsdtMinor: number, paidAt: Date): Promise<Deposit[]> {
   return prisma.deposit.findMany({
     where: {
       method: "USDT",
       amountUsdtMinor,
       status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
-      expiresAt: { gt: new Date() },
+      expiresAt: { gt: paidAt },
     },
   });
 }
@@ -96,7 +101,7 @@ export async function matchChainCreditToDeposit(input: {
     return { kind: "manual_review", reason: "not_final", depositId: null };
   }
 
-  const candidates = await findLiveDepositByUsdtAmount(credit.normalizedAmountMinor);
+  const candidates = await findLiveDepositByUsdtAmount(credit.normalizedAmountMinor, credit.blockTimestamp);
 
   if (candidates.length > 1) {
     // Should be prevented by Deposit_live_usdt_amount_unique — defense in

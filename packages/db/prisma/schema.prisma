@@ -109,6 +109,10 @@ enum ChainCreditProcessingStatus {
   MATCHED
   MANUAL_REVIEW
   UNMATCHED
+  // Terminal: an admin reviewed a MANUAL_REVIEW/UNMATCHED row and marked it
+  // handled WITHOUT crediting anyone (refunded off-platform, spam/dust, etc.).
+  // Always set together with consumed = true (see dismissChainCredit).
+  DISMISSED
 }
 
 enum TxKind {
@@ -364,6 +368,13 @@ model Deposit {
   // Nothing else in this codebase populates this today — the INR path has no
   // equivalent field and is not being retrofitted with one here.
   reviewReason    String?
+  // USDT only: the transaction hash the user SAYS paid this deposit ("I
+  // already paid"), 64 lowercase hex chars, no 0x. Evidence for an admin
+  // reviewing an unmatched ChainCredit — NEVER a match key and never credits
+  // anything. A tx hash is public on-chain, so anyone can claim anyone's
+  // hash: deliberately NOT unique (a fraudulent claim must not block the real
+  // payer from claiming too). Indexed for the admin's claim lookup by hash.
+  claimedTxHash   String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -388,6 +399,7 @@ model Deposit {
   @@index([vpa, amountInr, status])
   @@index([userId, createdAt])
   @@index([status])
+  @@index([claimedTxHash])
   // USDT gets its OWN partial unique index on amountUsdtMinor, hand-written in
   // the same migration as the column additions (Prisma can't express a
   // partial index declaratively) — see

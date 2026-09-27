@@ -32,7 +32,7 @@ afterAll(async () => {
 /** A FINAL, PENDING ChainCredit ready for the matcher — the state ingestion + finality would have produced. */
 async function makeFinalCredit(
   amountUsdtMinor: number,
-  overrides: Partial<{ network: string; tokenContract: string; toAddress: string }> = {},
+  overrides: Partial<{ network: string; tokenContract: string; toAddress: string; blockTimestamp: Date }> = {},
 ): Promise<string> {
   const credit = await prisma.chainCredit.create({
     data: {
@@ -45,7 +45,7 @@ async function makeFinalCredit(
       rawAmount: BigInt(amountUsdtMinor) * 10_000n,
       normalizedAmountMinor: amountUsdtMinor,
       blockNumber: 1_000_000n,
-      blockTimestamp: new Date(),
+      blockTimestamp: overrides.blockTimestamp ?? new Date(),
       finalityState: "FINAL",
       rawPayload: {},
     },
@@ -195,6 +195,26 @@ describe("matchChainCreditToDeposit", () => {
 
     const outcome = await matchChainCreditToDeposit({ chainCreditId: creditId, ...expectedConfig() });
     expect(outcome).toEqual({ kind: "unmatched" });
+  });
+
+  it("a payment sent inside the window is still credited even if matching runs after the deadline", async () => {
+    const deposit = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: 45_000,
+      network: NETWORK,
+      tokenContract: CONTRACT,
+      receivingAddress: RECEIVING_ADDRESS,
+      correlationId: randomUUID(),
+    });
+    // Deadline already passed by match time, but the transfer's block landed before it.
+    const expiresAt = new Date(Date.now() - 30_000);
+    await prisma.deposit.update({ where: { id: deposit.id }, data: { expiresAt } });
+    const creditId = await makeFinalCredit(deposit.amountUsdtMinor!, {
+      blockTimestamp: new Date(expiresAt.getTime() - 10_000),
+    });
+
+    const outcome = await matchChainCreditToDeposit({ chainCreditId: creditId, ...expectedConfig() });
+    expect(outcome).toEqual({ kind: "auto_approved", depositId: deposit.id });
   });
 
   it("an already-MATCHED/consumed credit is never re-decided", async () => {

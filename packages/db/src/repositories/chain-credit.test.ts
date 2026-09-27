@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "../client";
-import { createChainCreditIfNew, listOrphanChainCredits } from "./chain-credit";
+import {
+  DISPLAY_LOOKUP_SLACK_MS,
+  createChainCreditIfNew,
+  findChainCreditForDepositDisplay,
+  listOrphanChainCredits,
+} from "./chain-credit";
 
 const NETWORK = "tron";
 const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -90,5 +95,38 @@ describe("listOrphanChainCredits", () => {
     const foundIds = found.map((c) => c.id);
     expect(foundIds).toContain(unmatched!.id);
     expect(foundIds).not.toContain(matched!.id);
+  });
+});
+
+describe("findChainCreditForDepositDisplay", () => {
+  it("finds the transfer with the exact amount/destination, and ignores one from before the deposit existed", async () => {
+    const toAddress = `TDisplay${randomUUID().slice(0, 8)}`;
+    const depositCreatedAt = new Date();
+
+    const stale = await createChainCreditIfNew(
+      input({
+        toAddress,
+        rawAmount: 25_940_000n,
+        blockTimestamp: new Date(depositCreatedAt.getTime() - DISPLAY_LOOKUP_SLACK_MS - 60_000),
+      }),
+    );
+    createdIds.push(stale!.id);
+
+    const lookup = {
+      network: NETWORK,
+      tokenContract: CONTRACT,
+      receivingAddress: toAddress,
+      amountUsdtMinor: 2594,
+      depositCreatedAt,
+    };
+    expect(await findChainCreditForDepositDisplay(lookup)).toBeNull();
+
+    const wrongAmount = await createChainCreditIfNew(input({ toAddress, rawAmount: 25_950_000n }));
+    createdIds.push(wrongAmount!.id);
+    expect(await findChainCreditForDepositDisplay(lookup)).toBeNull();
+
+    const real = await createChainCreditIfNew(input({ toAddress, rawAmount: 25_940_000n }));
+    createdIds.push(real!.id);
+    expect((await findChainCreditForDepositDisplay(lookup))?.id).toBe(real!.id);
   });
 });

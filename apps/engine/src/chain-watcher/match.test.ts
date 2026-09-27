@@ -47,8 +47,10 @@ afterAll(async () => {
   await prisma.user.delete({ where: { id: userId } });
 });
 
+// Tests share the dev database: only ever delete rows under this file's own
+// fake contract, never real ingested transfers (network "tron" alone matches them).
 afterEach(async () => {
-  await prisma.chainCredit.deleteMany({ where: { network: NETWORK } });
+  await prisma.chainCredit.deleteMany({ where: { network: NETWORK, tokenContract: CONTRACT } });
 });
 
 describe("runMatchTick", () => {

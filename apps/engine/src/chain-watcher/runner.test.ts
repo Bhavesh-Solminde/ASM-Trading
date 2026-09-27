@@ -10,6 +10,7 @@ const ENV_KEYS = [
   "USDT_TOKEN_CONTRACT",
   "USDT_TRONGRID_API_KEY",
   "USDT_WATCHER_TICK_INTERVAL_MS",
+  "USDT_WATCHER_IDLE_INTERVAL_MS",
   "USDT_OVERLAP_MS",
   "USDT_MAX_PAGES_PER_TICK",
   "USDT_AUTO_CONFIRM_ENABLED",
@@ -215,6 +216,9 @@ describe("startChainWatcher — configured behavior", () => {
       USDT_RECEIVING_ADDRESS: `TReceiving-${randomUUID()}`,
       USDT_TOKEN_CONTRACT: `TContract-${randomUUID()}`,
       USDT_WATCHER_TICK_INTERVAL_MS: "30",
+      // Idle pacing equal to the fast interval: these tests exercise the
+      // stages themselves, not the adaptive pacing (covered separately below).
+      USDT_WATCHER_IDLE_INTERVAL_MS: "30",
       ...overrides,
     };
   }
@@ -374,6 +378,55 @@ describe("startChainWatcher — configured behavior", () => {
       await prisma.transaction.deleteMany({ where: { account: { userId: user.id } } });
       await prisma.bonusGrant.deleteMany({ where: { account: { userId: user.id } } });
       await prisma.chainCredit.deleteMany({ where: { tokenContract: env.USDT_TOKEN_CONTRACT } });
+      await prisma.deposit.deleteMany({ where: { userId: user.id } });
+      await prisma.account.deleteMany({ where: { userId: user.id } });
+      await prisma.user.delete({ where: { id: user.id } });
+    }
+  });
+});
+
+describe("startChainWatcher — adaptive pacing", () => {
+  function pacedEnv() {
+    return {
+      USDT_NETWORK: "tron",
+      USDT_TRONGRID_NETWORK: "nile",
+      USDT_RECEIVING_ADDRESS: `TReceiving-${randomUUID()}`,
+      USDT_TOKEN_CONTRACT: `TContract-${randomUUID()}`,
+      USDT_WATCHER_TICK_INTERVAL_MS: "25",
+      USDT_WATCHER_IDLE_INTERVAL_MS: "600000",
+    };
+  }
+
+  it("makes no chain calls between idle ticks when nobody is depositing, then speeds up as soon as a deposit opens", async () => {
+    const env = pacedEnv();
+    setEnv(env);
+    const { startChainWatcher } = await importRunner();
+    const provider = stubProvider();
+    const calls = () => (provider.fetchTransferPage as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    const user = await prisma.user.create({ data: { email: `paced-${randomUUID()}@test.local`, passwordHash: "x" } });
+    await createAccountsForUser(user.id, 0);
+
+    const watcher = await startChainWatcher(provider);
+    try {
+      // First wake always runs a full tick (nothing has run yet)…
+      await waitUntil(() => calls() >= 1);
+      // …then with no activity, many 25ms wakes pass without another chain call.
+      await sleep(300);
+      expect(calls()).toBe(1);
+
+      // A user presses "Proceed to Pay" — the next wake sees it and goes fast.
+      await createUsdtDepositIntent({
+        userId: user.id,
+        amountUsdtMinorRequested: 5_000,
+        network: env.USDT_NETWORK,
+        tokenContract: env.USDT_TOKEN_CONTRACT,
+        receivingAddress: env.USDT_RECEIVING_ADDRESS,
+        correlationId: randomUUID(),
+      });
+      await waitUntil(() => calls() >= 3);
+    } finally {
+      await watcher.stop();
       await prisma.deposit.deleteMany({ where: { userId: user.id } });
       await prisma.account.deleteMany({ where: { userId: user.id } });
       await prisma.user.delete({ where: { id: user.id } });

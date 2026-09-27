@@ -73,6 +73,41 @@ export async function findChainCreditByKey(input: {
   });
 }
 
+/** One ChainCredit by its own id — the checkout page's status-polling endpoint uses this to read the linked row's finality/processing state. */
+export async function findChainCreditById(id: string): Promise<ChainCredit | null> {
+  return prisma.chainCredit.findUnique({ where: { id } });
+}
+
+/**
+ * DISPLAY ONLY — never used for matching or crediting. A deposit is only
+ * linked to its ChainCredit (matchedChainCreditId) at the moment it's
+ * credited, so before that the checkout page has no link to show "payment
+ * detected / confirming" progress. This finds the transfer the matcher would
+ * later pick — same network/contract/destination/exact amount — observed no
+ * earlier than shortly before the deposit was created (the slack absorbs
+ * clock skew between this DB and chain block timestamps).
+ */
+export const DISPLAY_LOOKUP_SLACK_MS = 2 * 60_000;
+
+export async function findChainCreditForDepositDisplay(input: {
+  network: string;
+  tokenContract: string;
+  receivingAddress: string;
+  amountUsdtMinor: number;
+  depositCreatedAt: Date;
+}): Promise<ChainCredit | null> {
+  return prisma.chainCredit.findFirst({
+    where: {
+      network: input.network,
+      tokenContract: input.tokenContract,
+      toAddress: input.receivingAddress,
+      normalizedAmountMinor: input.amountUsdtMinor,
+      blockTimestamp: { gte: new Date(input.depositCreatedAt.getTime() - DISPLAY_LOOKUP_SLACK_MS) },
+    },
+    orderBy: { blockTimestamp: "asc" },
+  });
+}
+
 /** Rows in DETECTED/CONFIRMING, oldest first — what the finality poller re-checks each tick. */
 export async function listPendingFinalityChecks(limit: number): Promise<ChainCredit[]> {
   return prisma.chainCredit.findMany({

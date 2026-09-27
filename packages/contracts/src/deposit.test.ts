@@ -5,7 +5,16 @@ describe("CreateDepositSchema", () => {
   const valid = { method: "PhonePe", amountInr: 100_000 };
 
   it("accepts a valid request", () => {
-    expect(CreateDepositSchema.parse(valid).amountInr).toBe(100_000);
+    expect(CreateDepositSchema.parse(valid)).toEqual(valid);
+  });
+
+  it("accepts a USDT request with a USDT-cents amount", () => {
+    const usdt = { method: "USDT", amountUsdtMinor: 2_500 };
+    expect(CreateDepositSchema.parse(usdt)).toEqual(usdt);
+  });
+
+  it("rejects a USDT request carrying an INR amount (each method takes only its own field)", () => {
+    expect(CreateDepositSchema.safeParse({ method: "USDT", amountInr: 100_000 }).success).toBe(false);
   });
 
   it("rejects a client-supplied USD amount", () => {

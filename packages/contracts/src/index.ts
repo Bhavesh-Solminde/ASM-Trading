@@ -51,8 +51,10 @@ export {
   DEPOSIT_METHODS,
   CreateDepositSchema,
   ClaimUtrSchema,
+  ClaimUsdtPaymentSchema,
   type CreateDepositInput,
   type ClaimUtrInput,
+  type ClaimUsdtPaymentInput,
   type DepositView,
 } from "./deposit";
 export {

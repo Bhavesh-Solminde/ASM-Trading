@@ -29,12 +29,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Enforce ownership + a live-deposit status BEFORE spending a Cloudinary
   // request. A claimed or resolved deposit rejects here without touching the
-  // upload API.
+  // upload API. A USDT deposit whose payment window lapsed (EXPIRED) is still
+  // open for proof — its late payment lands in admin review, where the
+  // screenshot is evidence for the "I already paid" claim.
   const deposit = await prisma.deposit.findFirst({
     where: {
       id,
       userId: session.userId,
-      status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
+      OR: [
+        { status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] } },
+        { method: "USDT", status: "EXPIRED" },
+      ],
     },
     select: { id: true },
   });
