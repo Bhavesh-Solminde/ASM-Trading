@@ -526,6 +526,56 @@ export class TradeDesk {
    * once per group so co-expiring positions share a single resolved exit price.
    */
   private async resolveUnresolvedBuckets(): Promise<void> {
+    // ── Pre-pass: same-time value-imbalanced house protection ──────────────
+    // Group pending live GLG-stamped trades by (symbol, expirySec). Inside
+    // each such contest, if BOTH directions have live trades AND aggregate
+    // stakes differ, the higher-stake direction must lose the bucket — a
+    // single big win on the heavier side would drain the treasury by more
+    // than the lighter side ever put at risk. Solo users are untouched
+    // (their side has no counterparty). Marks each item with a boolean the
+    // wish-building block honors.
+    const forcedLossByTradeId = new Map<string, boolean>();
+    if (USE_GLG_TREASURY) {
+      const contests = new Map<
+        string,
+        { upStake: number; downStake: number; items: PendingSettlement[] }
+      >();
+      for (const item of this.pending) {
+        if (item.resolvedExitPrice !== undefined) continue;
+        if (item.position.isDemo) continue;
+        if (
+          item.position.verdict == null ||
+          item.position.verdict === "HONEST"
+        ) {
+          continue;
+        }
+        const key = `${item.symbol}:${item.position.expirySec}`;
+        let c = contests.get(key);
+        if (!c) {
+          c = { upStake: 0, downStake: 0, items: [] };
+          contests.set(key, c);
+        }
+        if (item.position.direction === "UP") c.upStake += item.position.stake;
+        else c.downStake += item.position.stake;
+        c.items.push(item);
+      }
+      for (const [, c] of contests) {
+        if (c.upStake === 0 || c.downStake === 0) continue;
+        const losingDir: "UP" | "DOWN" | null =
+          c.upStake > c.downStake
+            ? "UP"
+            : c.downStake > c.upStake
+              ? "DOWN"
+              : null;
+        if (losingDir === null) continue;
+        for (const it of c.items) {
+          if (it.position.direction === losingDir) {
+            forcedLossByTradeId.set(it.position.tradeId, true);
+          }
+        }
+      }
+    }
+
     const groups = new Map<string, PendingSettlement[]>();
     for (const item of this.pending) {
       if (item.resolvedExitPrice !== undefined) continue;
@@ -583,10 +633,16 @@ export class TradeDesk {
           const p = item.position;
           const verdict = p.verdict;
           const isHonest = p.isDemo || verdict === "HONEST" || verdict == null;
+          // Same-time value-imbalance override: if this trade sits on the
+          // heavier direction of a live GLG contest, force LOSS regardless
+          // of the stamped verdict. Solo trades and lighter-side trades
+          // keep their stamped verdict.
+          const forcedLoss = forcedLossByTradeId.get(p.tradeId) === true;
+          const wantWin = forcedLoss ? false : verdict === "WIN";
           wishes.push({
             entryPrice: p.entryPrice,
             direction: p.direction,
-            wantWin: verdict === "WIN",
+            wantWin,
             urgency: isHonest ? 0 : 10,
             stake: p.stake,
             payoutPct: p.payoutPct,
