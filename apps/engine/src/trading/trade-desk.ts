@@ -529,7 +529,22 @@ export class TradeDesk {
     const groups = new Map<string, PendingSettlement[]>();
     for (const item of this.pending) {
       if (item.resolvedExitPrice !== undefined) continue;
-      const key = `${item.symbol}:${item.exitPrice}`;
+      // Under GLG, isolate each verdict-stamped live trade in its own bucket
+      // so the resolver can honor that trade's stamped verdict without a
+      // conflicting wish from a co-expiring opposite-direction trade
+      // producing a compromise price that satisfies neither. This is the
+      // rescue mechanism for the "5 UPs stamped WIN + 5 DOWNs stamped WIN
+      // in the same bucket → resolver picks a middle price → some/all get
+      // demoted to LOST" failure mode. Demo, HONEST-verdict, and unstamped
+      // trades keep the shared-bucket path (they don't need isolation).
+      const shouldIsolate =
+        USE_GLG_TREASURY &&
+        !item.position.isDemo &&
+        item.position.verdict != null &&
+        item.position.verdict !== "HONEST";
+      const key = shouldIsolate
+        ? `${item.symbol}:${item.exitPrice}:${item.position.tradeId}`
+        : `${item.symbol}:${item.exitPrice}`;
       let group = groups.get(key);
       if (!group) {
         group = [];
