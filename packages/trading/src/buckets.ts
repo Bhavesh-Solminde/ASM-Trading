@@ -1,5 +1,15 @@
 import type { Direction } from "./outcome";
 
+/**
+ * House-governor path style. See packages/algo/src/path-style.ts. Kept as a
+ * string literal here so @asm/trading (the schema-package) does not need to
+ * depend on @asm/algo (the decision-package).
+ */
+export type PositionPathStyle = "DIRECT" | "OSCILLATE" | "FEINT";
+
+/** House-governor verdict stamped at trade open. */
+export type PositionVerdict = "WIN" | "LOSS" | "HONEST";
+
 export interface Position {
   readonly tradeId: string;
   readonly accountId: string;
@@ -10,7 +20,17 @@ export interface Position {
   readonly entryPrice: number;
   /** Epoch seconds. */
   readonly expirySec: number;
+  /** Entry epoch seconds. Needed by the per-trade magnet to compute elapsedFrac. */
+  readonly entrySec?: number;
   readonly isDemo: boolean;
+  /**
+   * House-governor stamps. Present only for trades opened while
+   * USE_HOUSE_GOVERNOR was on. Undefined = pre-existing trade / flag off /
+   * demo grandfathered = treat as HONEST with no target.
+   */
+  readonly verdict?: PositionVerdict;
+  readonly pathStyle?: PositionPathStyle;
+  readonly targetPrice?: number;
 }
 
 export interface ExpiryBucket {
