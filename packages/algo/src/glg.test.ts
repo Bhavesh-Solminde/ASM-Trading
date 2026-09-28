@@ -16,7 +16,9 @@ function baseInput(overrides: Partial<GlgInput> = {}): GlgInput {
     isDemo: false,
     treasuryMinor: 0,
     treasuryTargetMinor: 1_000_000,
-    tradeStakeMinor: 10_000,
+    // At the default referenceStakeMinor (1000), a 1000-minor stake gets no
+    // stake-tilt penalty, so the ladder's pWin is what other tests measure.
+    tradeStakeMinor: 1_000,
     tradePayoutPct: 85,
     ...overrides,
   };
@@ -150,10 +152,10 @@ describe("decideVerdictGLG — invariant I2 (global ceiling)", () => {
 describe("decideVerdictGLG — invariant I3 (giveback protection)", () => {
   it("clamps pWin when a WIN would drop treasury below the cushion", () => {
     // treasury just above the cushion floor; a payout would drop it below.
-    // cushion = 0.9 × 1_000_000 = 900_000. A win pays 8_500 (10_000 × 85%).
+    // cushion = 0.9 × 1_000_000 = 900_000. A win at stake 10_000 pays 8_500.
     // So treasury just at 908_400 (which is above cushion by 8_400 < payout).
     const out = decideVerdictGLG(
-      baseInput({ treasuryMinor: 908_400 }),
+      baseInput({ treasuryMinor: 908_400, tradeStakeMinor: 10_000 }),
       () => 0.16, // above clamp (0.15) → LOSS
     );
     expect(out).toBe("LOSS");
@@ -168,6 +170,78 @@ describe("decideVerdictGLG — invariant I3 (giveback protection)", () => {
       () => 0.47,
     );
     expect(out).toBe("WIN");
+  });
+});
+
+describe("decideVerdictGLG — stake tilt", () => {
+  it("no penalty when stake equals reference", () => {
+    let wins = 0;
+    const N = 5000;
+    let state = 0xabc12345;
+    const rng = () => {
+      state = (state + 0x6d2b79f5) | 0;
+      let t = state;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    for (let i = 0; i < N; i++) {
+      const v = decideVerdictGLG(
+        baseInput({ treasuryMinor: 5_000_000, tradeStakeMinor: 1_000 }),
+        rng,
+      );
+      if (v === "WIN") wins++;
+    }
+    // Baseline at max treasury health, 85% payout: per-asset cap ~0.4905.
+    expect(wins / N).toBeGreaterThan(0.45);
+    expect(wins / N).toBeLessThan(0.52);
+  });
+
+  it("penalizes 10× reference stake toward pWin*0.20", () => {
+    let wins = 0;
+    const N = 5000;
+    let state = 0xdef98765;
+    const rng = () => {
+      state = (state + 0x6d2b79f5) | 0;
+      let t = state;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    for (let i = 0; i < N; i++) {
+      const v = decideVerdictGLG(
+        baseInput({ treasuryMinor: 5_000_000, tradeStakeMinor: 10_000 }),
+        rng,
+      );
+      if (v === "WIN") wins++;
+    }
+    // Ladder at health=3 → 0.5. Tilt: (1000/10000)^0.7 = 0.10^0.7 ≈ 0.20.
+    // Expected pWin ≈ 0.5 × 0.20 ≈ 0.10. Allow 0.07 – 0.13.
+    expect(wins / N).toBeGreaterThan(0.07);
+    expect(wins / N).toBeLessThan(0.13);
+  });
+
+  it("penalizes 100× reference stake toward pWin*0.04", () => {
+    let wins = 0;
+    const N = 5000;
+    let state = 0x1a2b3c4d;
+    const rng = () => {
+      state = (state + 0x6d2b79f5) | 0;
+      let t = state;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    for (let i = 0; i < N; i++) {
+      const v = decideVerdictGLG(
+        baseInput({ treasuryMinor: 5_000_000, tradeStakeMinor: 100_000 }),
+        rng,
+      );
+      if (v === "WIN") wins++;
+    }
+    // Ladder 0.5 × (1000/100000)^0.7 = 0.5 × 0.01^0.7 ≈ 0.5 × 0.04 = 0.02.
+    // Allow 0 – 0.04.
+    expect(wins / N).toBeLessThan(0.04);
   });
 });
 
