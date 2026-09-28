@@ -13,7 +13,7 @@ async function seedCredit(overrides: Partial<Parameters<typeof prisma.chainCredi
       eventIndex: 0,
       fromAddress: "TFrom111",
       toAddress: "TReceiving111",
-      rawAmount: 1_000_000n,
+      rawAmount: "1000000",
       normalizedAmountMinor: 100,
       blockNumber: 1_000_000n,
       blockTimestamp: new Date(),
@@ -22,6 +22,10 @@ async function seedCredit(overrides: Partial<Parameters<typeof prisma.chainCredi
       ...overrides,
     },
   });
+}
+
+function scopeOf(credit: { network: string; tokenContract: string }) {
+  return { network: credit.network, tokenContract: credit.tokenContract };
 }
 
 function providerReturning(exec: ExecutionResult): ChainProvider {
@@ -42,7 +46,7 @@ describe("runFinalityTick", () => {
     const credit = await seedCredit();
     const provider = providerReturning({ state: "solidified", success: true });
 
-    const result = await runFinalityTick(provider, 200);
+    const result = await runFinalityTick(provider, scopeOf(credit), 200);
     expect(result).toMatchObject({ checked: 1, finalized: 1 });
 
     const updated = await prisma.chainCredit.findUniqueOrThrow({ where: { id: credit.id } });
@@ -53,7 +57,7 @@ describe("runFinalityTick", () => {
     const credit = await seedCredit();
     const provider = providerReturning({ state: "solidified", success: false });
 
-    const result = await runFinalityTick(provider, 200);
+    const result = await runFinalityTick(provider, scopeOf(credit), 200);
     expect(result.failedOnChain).toBe(1);
 
     const updated = await prisma.chainCredit.findUniqueOrThrow({ where: { id: credit.id } });
@@ -64,7 +68,7 @@ describe("runFinalityTick", () => {
     const credit = await seedCredit();
     const provider = providerReturning({ state: "not_yet_solidified" });
 
-    await runFinalityTick(provider, 200);
+    await runFinalityTick(provider, scopeOf(credit), 200);
     const updated = await prisma.chainCredit.findUniqueOrThrow({ where: { id: credit.id } });
     expect(updated.finalityState).toBe("CONFIRMING");
     expect(updated.checkAttempts).toBe(0);
@@ -74,7 +78,7 @@ describe("runFinalityTick", () => {
     const credit = await seedCredit({ checkAttempts: 2, firstNotFoundAt: new Date(Date.now() - 20 * 60_000) });
     const provider = providerReturning({ state: "not_found_on_solidity_node", alsoMissingOnFullNode: false });
 
-    await runFinalityTick(provider, 200);
+    await runFinalityTick(provider, scopeOf(credit), 200);
     const updated = await prisma.chainCredit.findUniqueOrThrow({ where: { id: credit.id } });
     expect(updated.finalityState).toBe("CONFIRMING");
     // The streak resets — this check wasn't "missing everywhere".
@@ -89,7 +93,7 @@ describe("runFinalityTick", () => {
     });
     const provider = providerReturning({ state: "not_found_on_solidity_node", alsoMissingOnFullNode: true });
 
-    const result = await runFinalityTick(provider, 200, Date.now());
+    const result = await runFinalityTick(provider, scopeOf(credit), 200, Date.now());
     expect(result.reorged).toBe(0);
     const updated = await prisma.chainCredit.findUniqueOrThrow({ where: { id: credit.id } });
     expect(updated.finalityState).toBe("DETECTED"); // unchanged — not enough evidence yet
@@ -105,7 +109,7 @@ describe("runFinalityTick", () => {
     });
     const provider = providerReturning({ state: "not_found_on_solidity_node", alsoMissingOnFullNode: true });
 
-    const result = await runFinalityTick(provider, 200, now);
+    const result = await runFinalityTick(provider, scopeOf(credit), 200, now);
     expect(result.reorged).toBe(0);
     const updated = await prisma.chainCredit.findUniqueOrThrow({ where: { id: credit.id } });
     expect(updated.finalityState).toBe("DETECTED");
@@ -119,7 +123,7 @@ describe("runFinalityTick", () => {
     });
     const provider = providerReturning({ state: "not_found_on_solidity_node", alsoMissingOnFullNode: true });
 
-    const result = await runFinalityTick(provider, 200, now);
+    const result = await runFinalityTick(provider, scopeOf(credit), 200, now);
     expect(result.reorged).toBe(1);
     const updated = await prisma.chainCredit.findUniqueOrThrow({ where: { id: credit.id } });
     expect(updated.finalityState).toBe("REORGED");
@@ -129,7 +133,7 @@ describe("runFinalityTick", () => {
     const credit = await seedCredit({ finalityState: "CONFIRMING", checkAttempts: 1 });
     const provider = providerReturning({ state: "provider_error", retryable: true, message: "timeout" });
 
-    const result = await runFinalityTick(provider, 200);
+    const result = await runFinalityTick(provider, scopeOf(credit), 200);
     expect(result.providerErrors).toBe(1);
     const updated = await prisma.chainCredit.findUniqueOrThrow({ where: { id: credit.id } });
     expect(updated.finalityState).toBe("CONFIRMING");
@@ -137,15 +141,24 @@ describe("runFinalityTick", () => {
   });
 
   it("is idempotent — a row already FINAL is never re-checked or re-processed", async () => {
-    await seedCredit({ finalityState: "FINAL" });
+    const credit = await seedCredit({ finalityState: "FINAL" });
     const provider = providerReturning({ state: "solidified", success: false }); // would flip it to FAILED_ON_CHAIN if ever re-checked
 
-    const result = await runFinalityTick(provider, 200);
+    const result = await runFinalityTick(provider, scopeOf(credit), 200);
     expect(result.checked).toBe(0); // listPendingFinalityChecks never returns FINAL rows
   });
 
+  it("only checks rows in its own network/contract scope", async () => {
+    const credit = await seedCredit();
+    const provider = providerReturning({ state: "solidified", success: true });
+
+    const result = await runFinalityTick(provider, { network: credit.network, tokenContract: "TSomeOtherContract" }, 200);
+    expect(result.checked).toBe(0);
+    expect((await prisma.chainCredit.findUniqueOrThrow({ where: { id: credit.id } })).finalityState).toBe("DETECTED");
+  });
+
   it("a network exception from getExecutionResult is caught and counted as a provider error, not thrown", async () => {
-    await seedCredit();
+    const credit = await seedCredit();
     const provider: ChainProvider = {
       fetchTransferPage: vi.fn(),
       resolveTransferEvent: vi.fn(),
@@ -153,7 +166,7 @@ describe("runFinalityTick", () => {
       getTokenDecimals: vi.fn(async () => 6),
     };
 
-    const result = await runFinalityTick(provider, 200);
+    const result = await runFinalityTick(provider, scopeOf(credit), 200);
     expect(result.providerErrors).toBe(1);
   });
 });

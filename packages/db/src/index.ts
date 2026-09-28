@@ -113,6 +113,7 @@ export {
   listPendingMatches,
   listOrphanChainCredits,
   listManualReviewChainCredits,
+  type ChainCreditScope,
 } from "./repositories/chain-credit";
 export {
   matchChainCreditToDeposit,
@@ -136,9 +137,12 @@ export {
   ensureSessionOpen,
   advanceSessionPage,
   closeSession,
+  getOrCreateEvmCursor,
+  advanceEvmCursor,
+  type CursorKey,
 } from "./repositories/chain-scan-cursor";
 export { hasActiveUsdtWork } from "./repositories/usdt-activity";
-export { RAW_PER_MINOR, rawToNormalizedMinor, normalizedMinorToRaw } from "./usdt-money";
+export { rawPerMinor, rawToNormalizedMinor, normalizedMinorToRaw } from "./usdt-money";
 export {
   InsufficientFunds,
   AccountNotActive,

@@ -1,7 +1,7 @@
 import { prisma } from "../client";
 import type { ChainScanCursor } from "../../generated/prisma/client";
 
-type CursorKey = { network: string; tokenContract: string; receivingAddress: string };
+export type CursorKey = { network: string; tokenContract: string; receivingAddress: string };
 
 function whereKey(key: CursorKey) {
   return {
@@ -121,6 +121,50 @@ export async function closeSession(
       activeSessionFingerprint: null,
       version: { increment: 1 },
     },
+  });
+  return result.count === 1;
+}
+
+/**
+ * EVM (BSC) block cursor. Reads the cursor for one (network, tokenContract,
+ * receivingAddress), creating it at `initialBlock` if missing (an EVM row
+ * keeps lastCommittedTimestampMs = 0 and never opens a TRON-style session).
+ * Returns the existing row otherwise — `initialBlock` is ignored then.
+ * lastScannedBlock is the highest block whose logs are durably ingested AND
+ * finalized; the watcher resumes at lastScannedBlock + 1.
+ */
+export async function getOrCreateEvmCursor(key: CursorKey, initialBlock: bigint): Promise<ChainScanCursor> {
+  const existing = await prisma.chainScanCursor.findUnique({ where: whereKey(key) });
+  if (existing) return existing;
+
+  try {
+    return await prisma.chainScanCursor.create({
+      data: { ...key, lastCommittedTimestampMs: 0n, lastScannedBlock: initialBlock },
+    });
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === "P2002") {
+      // Lost a creation race to a concurrent watcher instance.
+      return await prisma.chainScanCursor.findUniqueOrThrow({ where: whereKey(key) });
+    }
+    throw err;
+  }
+}
+
+/**
+ * Advances the EVM block cursor, guarded by `expectedVersion` exactly like
+ * the TRON session functions above. Returns false if the guard failed (a
+ * concurrent instance already moved this cursor) — the caller must stop this
+ * tick and re-read, never proceed on stale assumptions.
+ */
+export async function advanceEvmCursor(
+  key: CursorKey,
+  expectedVersion: number,
+  lastScannedBlock: bigint,
+): Promise<boolean> {
+  const result = await prisma.chainScanCursor.updateMany({
+    where: { ...key, version: expectedVersion },
+    data: { lastScannedBlock, version: { increment: 1 } },
   });
   return result.count === 1;
 }

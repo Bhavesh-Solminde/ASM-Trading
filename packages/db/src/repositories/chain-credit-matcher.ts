@@ -33,14 +33,30 @@ export type ChainMatchOutcome =
  * (findLiveDepositByAmount has none) and is deliberately USDT-only: it does
  * not touch, generalize, or "fix" the INR path's lack of an expiry sweep,
  * which is separate, pre-existing, and out of scope for this feature.
+ *
+ * `scope` restricts candidates to deposits that asked to be paid on this
+ * exact network/contract/address. The live-amount unique index is global
+ * across networks, so without it a TRON transfer could credit a BSC deposit
+ * reserving the same amount (and vice versa). The matcher always passes it.
  */
-export async function findLiveDepositByUsdtAmount(amountUsdtMinor: number, paidAt: Date): Promise<Deposit[]> {
+export async function findLiveDepositByUsdtAmount(
+  amountUsdtMinor: number,
+  paidAt: Date,
+  scope?: { network: string; tokenContract: string; receivingAddress: string },
+): Promise<Deposit[]> {
   return prisma.deposit.findMany({
     where: {
       method: "USDT",
       amountUsdtMinor,
       status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
       expiresAt: { gt: paidAt },
+      ...(scope
+        ? {
+            network: scope.network,
+            tokenContract: scope.tokenContract,
+            receivingAddress: scope.receivingAddress,
+          }
+        : {}),
     },
   });
 }
@@ -101,7 +117,14 @@ export async function matchChainCreditToDeposit(input: {
     return { kind: "manual_review", reason: "not_final", depositId: null };
   }
 
-  const candidates = await findLiveDepositByUsdtAmount(credit.normalizedAmountMinor, credit.blockTimestamp);
+  // Scoped to the credit's own network/contract/destination (already checked
+  // equal to live config above): a same-amount deposit on the OTHER network
+  // is never a candidate — that payment lands in UNMATCHED for the admin.
+  const candidates = await findLiveDepositByUsdtAmount(credit.normalizedAmountMinor, credit.blockTimestamp, {
+    network: credit.network,
+    tokenContract: credit.tokenContract,
+    receivingAddress: credit.toAddress,
+  });
 
   if (candidates.length > 1) {
     // Should be prevented by Deposit_live_usdt_amount_unique — defense in

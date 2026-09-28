@@ -6,6 +6,8 @@ import {
   createChainCreditIfNew,
   findChainCreditForDepositDisplay,
   listOrphanChainCredits,
+  listPendingFinalityChecks,
+  listPendingMatches,
 } from "./chain-credit";
 
 const NETWORK = "tron";
@@ -21,6 +23,7 @@ function input(overrides: Partial<Parameters<typeof createChainCreditIfNew>[0]> 
     fromAddress: "TFromAddress111111111111111111111",
     toAddress: "TToAddress1111111111111111111111",
     rawAmount: 100_000_000n,
+    tokenDecimals: 6,
     blockNumber: 1_000_000n,
     blockTimestamp: new Date(),
     rawPayload: { note: "test" },
@@ -71,7 +74,92 @@ describe("createChainCreditIfNew", () => {
     expect(credit!.processingStatus).toBe("MANUAL_REVIEW");
     expect(credit!.reviewReason).toBe("PRECISION_NOT_REPRESENTABLE");
     // The lossless raw value is still there for the admin to see.
-    expect(credit!.rawAmount).toBe(100_000_001n);
+    expect(BigInt(credit!.rawAmount.toFixed(0))).toBe(100_000_001n);
+    expect(credit!.tokenDecimals).toBe(6);
+  });
+
+  it("round-trips an 18-decimal amount far above the int8 range exactly (1,000,000 USDT on BSC)", async () => {
+    const raw = 1_000_000n * 10n ** 18n; // 1e24 — int8 tops out at ~9.2e18
+    const created = await createChainCreditIfNew(
+      input({
+        network: "bsc",
+        tokenContract: `0xtest${randomUUID().replace(/-/g, "")}`,
+        txHash: `0x${randomUUID().replace(/-/g, "")}`,
+        rawAmount: raw,
+        tokenDecimals: 18,
+      }),
+    );
+    createdIds.push(created!.id);
+    expect(created!.tokenDecimals).toBe(18);
+    expect(created!.normalizedAmountMinor).toBe(100_000_000); // $1,000,000.00
+    expect(created!.processingStatus).toBe("PENDING");
+
+    const row = await prisma.chainCredit.findUniqueOrThrow({ where: { id: created!.id } });
+    expect(BigInt(row.rawAmount.toFixed(0))).toBe(raw);
+    expect(row.rawAmount.toFixed(0)).toBe("1000000000000000000000000");
+  });
+
+  it("an 18-decimal sub-cent amount -> null normalized amount, manual review, raw value kept exactly", async () => {
+    const raw = 25_260_000_000_000_000_001n;
+    const created = await createChainCreditIfNew(
+      input({ network: "bsc", tokenContract: `0xtest${randomUUID().replace(/-/g, "")}`, rawAmount: raw, tokenDecimals: 18 }),
+    );
+    createdIds.push(created!.id);
+    expect(created!.normalizedAmountMinor).toBeNull();
+    expect(created!.reviewReason).toBe("PRECISION_NOT_REPRESENTABLE");
+    expect(BigInt(created!.rawAmount.toFixed(0))).toBe(raw);
+  });
+
+  it("rejects tokenDecimals < 2 before writing anything", async () => {
+    const txHash = `bad-decimals-${randomUUID()}`;
+    await expect(createChainCreditIfNew(input({ txHash, tokenDecimals: 1 }))).rejects.toThrow(/>= 2/);
+    expect(await prisma.chainCredit.findFirst({ where: { txHash } })).toBeNull();
+  });
+});
+
+describe("listPendingFinalityChecks / listPendingMatches scoping", () => {
+  // One unique fake contract shared by a "tron" and a "bsc" row, plus a
+  // second fake contract on "tron", so only network OR contract differs.
+  const contractA = `TEST-SCOPE-A-${randomUUID()}`;
+  const contractB = `TEST-SCOPE-B-${randomUUID()}`;
+
+  async function make(network: string, tokenContract: string, state: "DETECTED" | "FINAL"): Promise<string> {
+    const c = await createChainCreditIfNew(
+      input({ network, tokenContract, tokenDecimals: network === "bsc" ? 18 : 6, rawAmount: network === "bsc" ? 10n ** 18n : 1_000_000n }),
+    );
+    createdIds.push(c!.id);
+    if (state === "FINAL") {
+      await prisma.chainCredit.update({ where: { id: c!.id }, data: { finalityState: "FINAL" } });
+    }
+    return c!.id;
+  }
+
+  it("never returns a bsc row for a tron scope, nor a tron row for a bsc scope, nor another contract's row", async () => {
+    const tronPending = await make("tron", contractA, "DETECTED");
+    const bscPending = await make("bsc", contractA, "DETECTED");
+    const otherContractPending = await make("tron", contractB, "DETECTED");
+    const tronFinal = await make("tron", contractA, "FINAL");
+    const bscFinal = await make("bsc", contractA, "FINAL");
+    const otherContractFinal = await make("tron", contractB, "FINAL");
+
+    const tronChecks = (await listPendingFinalityChecks(500, { network: "tron", tokenContract: contractA })).map((c) => c.id);
+    expect(tronChecks).toEqual([tronPending]);
+    const bscChecks = (await listPendingFinalityChecks(500, { network: "bsc", tokenContract: contractA })).map((c) => c.id);
+    expect(bscChecks).toEqual([bscPending]);
+    const otherChecks = (await listPendingFinalityChecks(500, { network: "tron", tokenContract: contractB })).map((c) => c.id);
+    expect(otherChecks).toEqual([otherContractPending]);
+
+    const tronMatches = (await listPendingMatches(500, { network: "tron", tokenContract: contractA })).map((c) => c.id);
+    expect(tronMatches).toEqual([tronFinal]);
+    const bscMatches = (await listPendingMatches(500, { network: "bsc", tokenContract: contractA })).map((c) => c.id);
+    expect(bscMatches).toEqual([bscFinal]);
+    const otherMatches = (await listPendingMatches(500, { network: "tron", tokenContract: contractB })).map((c) => c.id);
+    expect(otherMatches).toEqual([otherContractFinal]);
+  });
+
+  it("throws rather than silently widening when the scope is missing or empty", async () => {
+    await expect(listPendingFinalityChecks(10, undefined as never)).rejects.toThrow(/scope is required/);
+    await expect(listPendingMatches(10, { network: "tron", tokenContract: "" })).rejects.toThrow(/scope is required/);
   });
 });
 

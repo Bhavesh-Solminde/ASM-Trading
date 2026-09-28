@@ -10,6 +10,32 @@ export const UPI_METHODS = ["PhonePe", "UPI", "PayTM", "UPI Intent"] as const;
 export const DEPOSIT_METHODS = [...UPI_METHODS, "USDT"] as const;
 
 /**
+ * The chains a USDT deposit can arrive on. These are the ids stored in
+ * Deposit.network / ChainCredit.network — never display strings.
+ */
+export const USDT_NETWORKS = ["tron", "bsc"] as const;
+export type UsdtNetwork = (typeof USDT_NETWORKS)[number];
+
+export interface UsdtNetworkInfo {
+  /** Chain name, e.g. "BNB Smart Chain". */
+  label: string;
+  /** Token standard on that chain, e.g. "BEP-20". */
+  standard: string;
+  /** Compact "label (standard)" form for buttons and pills. */
+  shortLabel: string;
+}
+
+/** Client-safe display metadata per network (no addresses, no config). */
+export const USDT_NETWORK_INFO: Record<UsdtNetwork, UsdtNetworkInfo> = {
+  tron: { label: "TRON", standard: "TRC-20", shortLabel: "TRON (TRC-20)" },
+  bsc: { label: "BNB Smart Chain", standard: "BEP-20", shortLabel: "BNB Smart Chain (BEP-20)" },
+};
+
+export function isUsdtNetwork(value: unknown): value is UsdtNetwork {
+  return typeof value === "string" && (USDT_NETWORKS as readonly string[]).includes(value);
+}
+
+/**
  * Strict. A request carrying vpa, checkoutToken or status is rejected — those
  * are server-determined. A discriminated union on `method` since the two
  * rails take a different amount field/currency: UPI deposits are INR minor
@@ -25,6 +51,8 @@ export const CreateDepositSchema = z.discriminatedUnion("method", [
   }),
   z.strictObject({
     method: z.literal("USDT"),
+    /** Which chain the user will send on. Required — never inferred. */
+    network: z.enum(USDT_NETWORKS),
     /** USDT-cents (2dp). Bounds are enforced again server-side. */
     amountUsdtMinor: z.number().int().positive().max(1_000_000_000),
   }),

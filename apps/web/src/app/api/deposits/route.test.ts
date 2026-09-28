@@ -33,6 +33,40 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+function stubTron(): void {
+  vi.stubEnv("USDT_NETWORK", "tron");
+  vi.stubEnv("USDT_TRONGRID_NETWORK", "nile");
+  vi.stubEnv("USDT_TOKEN_CONTRACT", "TTestContract11111111111111111111");
+  vi.stubEnv("USDT_RECEIVING_ADDRESS", "TTestReceiving111111111111111111");
+}
+
+function clearTron(): void {
+  vi.stubEnv("USDT_NETWORK", "");
+  vi.stubEnv("USDT_TRONGRID_NETWORK", "");
+  vi.stubEnv("USDT_TOKEN_CONTRACT", "");
+  vi.stubEnv("USDT_RECEIVING_ADDRESS", "");
+}
+
+// Mixed case on purpose: the route must store EVM addresses lowercase.
+const BSC_RECEIVING = "0xAbCdEf0123456789aBcDeF0123456789AbCdEf01";
+const BSC_CONTRACT = "0x1234567890ABCDEF1234567890abcdef12345678";
+
+function stubBsc(): void {
+  vi.stubEnv("USDT_BSC_CHAIN_ID", "97");
+  vi.stubEnv("USDT_BSC_RPC_URL", "https://bsc-testnet.example.invalid");
+  vi.stubEnv("USDT_BSC_RECEIVING_ADDRESS", BSC_RECEIVING);
+  vi.stubEnv("USDT_BSC_TOKEN_CONTRACT", BSC_CONTRACT);
+  vi.stubEnv("USDT_BSC_TOKEN_DECIMALS", "18");
+}
+
+function clearBsc(): void {
+  vi.stubEnv("USDT_BSC_CHAIN_ID", "");
+  vi.stubEnv("USDT_BSC_RPC_URL", "");
+  vi.stubEnv("USDT_BSC_RECEIVING_ADDRESS", "");
+  vi.stubEnv("USDT_BSC_TOKEN_CONTRACT", "");
+  vi.stubEnv("USDT_BSC_TOKEN_DECIMALS", "");
+}
+
 function headers(sessionCookie: string | null): Record<string, string> {
   const h: Record<string, string> = { "content-type": "application/json", "x-forwarded-for": randomUUID() };
   if (sessionCookie) h["cookie"] = `${SESSION_COOKIE}=${sessionCookie}`;
@@ -72,31 +106,69 @@ describe("POST /api/deposits", () => {
   });
 
   it("refuses a USDT deposit when the chain watcher isn't configured", async () => {
-    vi.stubEnv("USDT_NETWORK", "");
-    vi.stubEnv("USDT_TRONGRID_NETWORK", "");
-    vi.stubEnv("USDT_TOKEN_CONTRACT", "");
-    vi.stubEnv("USDT_RECEIVING_ADDRESS", "");
-    const res = await post({ method: "USDT", amountUsdtMinor: 1500 }, cookie);
+    clearTron();
+    clearBsc();
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 1500 }, cookie);
     expect(res.status).toBe(503);
   });
 
-  it("creates a USDT deposit intent when the chain watcher is configured", async () => {
-    vi.stubEnv("USDT_NETWORK", "tron");
-    vi.stubEnv("USDT_TRONGRID_NETWORK", "nile");
-    vi.stubEnv("USDT_TOKEN_CONTRACT", "TTestContract11111111111111111111");
-    vi.stubEnv("USDT_RECEIVING_ADDRESS", "TTestReceiving111111111111111111");
+  it("rejects a USDT deposit without a network", async () => {
+    stubTron();
+    stubBsc();
     const res = await post({ method: "USDT", amountUsdtMinor: 1500 }, cookie);
+    expect(res.status).toBe(400);
+  });
+
+  it("creates a USDT deposit intent when the chain watcher is configured", async () => {
+    stubTron();
+    clearBsc();
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 1500 }, cookie);
     expect(res.status).toBe(201);
     const body = (await res.json()) as { checkoutToken: string };
     expect(typeof body.checkoutToken).toBe("string");
+    const row = await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken: body.checkoutToken } });
+    expect(row.network).toBe("tron");
   });
 
   it("refuses a USDT deposit whose USDT_TRONGRID_NETWORK is neither mainnet nor nile", async () => {
-    vi.stubEnv("USDT_NETWORK", "tron");
+    stubTron();
     vi.stubEnv("USDT_TRONGRID_NETWORK", "shasta");
-    vi.stubEnv("USDT_TOKEN_CONTRACT", "TTestContract11111111111111111111");
-    vi.stubEnv("USDT_RECEIVING_ADDRESS", "TTestReceiving111111111111111111");
-    const res = await post({ method: "USDT", amountUsdtMinor: 1500 }, cookie);
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 1500 }, cookie);
+    expect(res.status).toBe(503);
+  });
+
+  it("creates a BSC deposit on the BSC config, with lowercase EVM addresses", async () => {
+    clearTron();
+    stubBsc();
+    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 1600 }, cookie);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { checkoutToken: string };
+    const row = await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken: body.checkoutToken } });
+    expect(row.network).toBe("bsc");
+    expect(row.receivingAddress).toBe(BSC_RECEIVING.toLowerCase());
+    expect(row.tokenContract).toBe(BSC_CONTRACT.toLowerCase());
+  });
+
+  it("refuses a BSC deposit when only TRON is configured", async () => {
+    stubTron();
+    clearBsc();
+    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 1600 }, cookie);
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain("BNB Smart Chain");
+  });
+
+  it("refuses a BSC deposit whose chain id is not 56 or 97 (never defaults to mainnet)", async () => {
+    stubBsc();
+    vi.stubEnv("USDT_BSC_CHAIN_ID", "1");
+    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 1600 }, cookie);
+    expect(res.status).toBe(503);
+  });
+
+  it("refuses a BSC deposit when token decimals are missing", async () => {
+    stubBsc();
+    vi.stubEnv("USDT_BSC_TOKEN_DECIMALS", "");
+    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 1600 }, cookie);
     expect(res.status).toBe(503);
   });
 });

@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { USDT_NETWORK_INFO, type UsdtNetwork } from "@asm/contracts";
 
 const QUICK = [25, 50, 100, 250];
 
-export function UsdtAmountStep({ onBack }: { onBack: () => void }) {
+export function UsdtAmountStep({
+  networks,
+  onBack,
+}: {
+  /** Enabled networks, server-computed; never empty (DepositFlow guards that). */
+  networks: UsdtNetwork[];
+  onBack: () => void;
+}) {
+  const [network, setNetwork] = useState<UsdtNetwork>(networks[0] ?? "tron");
+  const info = USDT_NETWORK_INFO[network];
   const [amountMajor, setAmountMajor] = useState(25);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +26,7 @@ export function UsdtAmountStep({ onBack }: { onBack: () => void }) {
     const res = await fetch("/api/deposits", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method: "USDT", amountUsdtMinor: Math.round(amountMajor * 100) }),
+      body: JSON.stringify({ method: "USDT", network, amountUsdtMinor: Math.round(amountMajor * 100) }),
     });
 
     if (res.ok) {
@@ -40,8 +50,48 @@ export function UsdtAmountStep({ onBack }: { onBack: () => void }) {
         &lsaquo; Change method
       </button>
 
+      {networks.length > 1 ? (
+        <div>
+          <p
+            id="usdt-network-label"
+            className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]"
+          >
+            Network
+          </p>
+          <div
+            role="radiogroup"
+            aria-labelledby="usdt-network-label"
+            className="mt-1 flex gap-2 phone:flex-col"
+          >
+            {networks.map((n) => {
+              const selected = n === network;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setNetwork(n)}
+                  className={`flex-1 rounded border px-3 py-2 text-xs font-semibold phone:py-2.5 phone:text-sm ${
+                    selected
+                      ? "border-[var(--color-brand)] bg-[var(--color-brand)]/10 text-[var(--color-brand)]"
+                      : "border-[var(--color-rule)] bg-[var(--color-panel)] text-[var(--color-ink)]"
+                  }`}
+                >
+                  {USDT_NETWORK_INFO[n].shortLabel}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-ink-2)]">
+            Pick the network you will send on. Sending on a different network
+            than the one you choose here cannot be credited.
+          </p>
+        </div>
+      ) : null}
+
       <div className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
-        <p className="text-sm font-semibold">USDT (TRC-20)</p>
+        <p className="text-sm font-semibold">USDT ({info.standard})</p>
         <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--color-ink-2)]">
           <div>
             <dt>Min</dt>
@@ -53,7 +103,7 @@ export function UsdtAmountStep({ onBack }: { onBack: () => void }) {
           </div>
           <div>
             <dt>Network</dt>
-            <dd className="text-[var(--color-ink)]">TRON</dd>
+            <dd className="text-[var(--color-ink)]">{info.label}</dd>
           </div>
         </dl>
       </div>

@@ -6,9 +6,27 @@ import { useEffect, useRef, useState } from "react";
 // pointless round-trip on an oversized file.
 const MAX_SCREENSHOT_BYTES = 5_000_000;
 
-// A TRON transaction ID is 32 bytes of hex; wallets sometimes show a 0x
-// prefix. The server normalizes either form.
+// A TRON transaction ID is 32 bytes of hex (wallets sometimes show a 0x
+// prefix); a BSC transaction hash is 0x + the same 32 bytes. One regex covers
+// both and the server normalizes either form.
 const TX_HASH_RE = /^(0x)?[0-9a-fA-F]{64}$/;
+
+/** Where to find the hash, per the deposit's stored network. */
+const HASH_HELP: Record<string, { placeholder: string; hint: string }> = {
+  tron: {
+    placeholder: "64-character transaction ID",
+    hint: "Find it in your wallet’s transaction details (TronLink: tap the transaction → Transaction ID).",
+  },
+  bsc: {
+    placeholder: "0x… transaction hash (66 characters)",
+    hint: "Find it in your wallet’s transaction details (MetaMask/Trust Wallet: open the transaction → Transaction hash).",
+  },
+};
+
+const GENERIC_HASH_HELP = {
+  placeholder: "Transaction hash",
+  hint: "Find it in your wallet’s transaction details.",
+};
 
 interface UploadResponse {
   url?: string;
@@ -23,10 +41,14 @@ interface UploadResponse {
 export function UsdtClaimForm({
   depositId,
   existingTxHash,
+  network,
 }: {
   depositId: string;
   existingTxHash: string | null;
+  /** The deposit's stored network id ("tron" / "bsc"); only changes the help text. */
+  network: string | null;
 }) {
+  const help = (network && HASH_HELP[network]) || GENERIC_HASH_HELP;
   const [txHash, setTxHash] = useState("");
   const [screenshot, setScreenshot] = useState<{
     url: string;
@@ -95,7 +117,11 @@ export function UsdtClaimForm({
     e.preventDefault();
     const hash = txHash.trim();
     if (!TX_HASH_RE.test(hash)) {
-      setError("Paste the 64-character transaction hash from your wallet");
+      setError(
+        network === "bsc"
+          ? "Paste the transaction hash from your wallet — 0x followed by 64 characters"
+          : "Paste the 64-character transaction hash from your wallet",
+      );
       return;
     }
 
@@ -168,13 +194,10 @@ export function UsdtClaimForm({
         spellCheck={false}
         value={txHash}
         onChange={(e) => setTxHash(e.target.value)}
-        placeholder="64-character transaction ID"
+        placeholder={help.placeholder}
         className="rounded-lg border border-[#d8cdf0] bg-white px-4 py-2.5 text-center font-mono text-xs text-[#241436] outline-none focus:border-[#5b2d9e]"
       />
-      <p className="text-center text-[11px] text-[#6b5a8a]">
-        Find it in your wallet&rsquo;s transaction details (TronLink: tap the
-        transaction &rarr; Transaction ID).
-      </p>
+      <p className="text-center text-[11px] text-[#6b5a8a]">{help.hint}</p>
 
       <label
         htmlFor="screenshot"

@@ -138,7 +138,7 @@ export async function createDepositIntent(input: {
 /**
  * USDT reservation offsets — deliberately a SEPARATE constant pool from
  * OFFSET_LOW/OFFSET_SPACE above, in the same 2-decimal-cent granularity (not
- * the token's native 6dp — see usdt-money.ts for why): a window of ±$0.99
+ * the token's native 6dp/18dp — see usdt-money.ts for why): a window of ±$0.99
  * around the requested amount, ~198 distinct slots. Small on purpose: many
  * exchanges cannot send more than 2-decimal USDT precision anyway, so this is
  * also the most precision a real user could realistically hit exactly.

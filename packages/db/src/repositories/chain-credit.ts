@@ -14,6 +14,12 @@ import type { ChainCredit } from "../../generated/prisma/client";
  * genuine sub-cent on-chain precision is null from the moment this row
  * exists, and every downstream reader (the matcher, reconciliation, the
  * admin panel) sees the same non-representable-precision fact consistently.
+ *
+ * `tokenDecimals` is the token's decimals() (6 for TRON USDT, 18 for BSC
+ * USDT) — required, never defaulted, since guessing it wrong would mis-scale
+ * the credited amount by orders of magnitude. rawAmount is persisted as an
+ * exact decimal string into NUMERIC(78,0); read it back with
+ * BigInt(row.rawAmount.toFixed(0)).
  */
 export async function createChainCreditIfNew(input: {
   network: string;
@@ -23,11 +29,13 @@ export async function createChainCreditIfNew(input: {
   fromAddress: string;
   toAddress: string;
   rawAmount: bigint;
+  tokenDecimals: number;
   blockNumber: bigint;
   blockTimestamp: Date;
   rawPayload: unknown;
 }): Promise<ChainCredit | null> {
-  const normalizedAmountMinor = rawToNormalizedMinor(input.rawAmount);
+  // Throws (before any write) for decimals < 2 or a non-integer.
+  const normalizedAmountMinor = rawToNormalizedMinor(input.rawAmount, input.tokenDecimals);
   try {
     return await prisma.chainCredit.create({
       data: {
@@ -37,7 +45,8 @@ export async function createChainCreditIfNew(input: {
         eventIndex: input.eventIndex,
         fromAddress: input.fromAddress,
         toAddress: input.toAddress,
-        rawAmount: input.rawAmount,
+        rawAmount: input.rawAmount.toString(),
+        tokenDecimals: input.tokenDecimals,
         normalizedAmountMinor,
         blockNumber: input.blockNumber,
         blockTimestamp: input.blockTimestamp,
@@ -108,19 +117,44 @@ export async function findChainCreditForDepositDisplay(input: {
   });
 }
 
-/** Rows in DETECTED/CONFIRMING, oldest first — what the finality poller re-checks each tick. */
-export async function listPendingFinalityChecks(limit: number): Promise<ChainCredit[]> {
+/** Which network/token a watcher owns — every per-tick list is scoped to it, so one network's watcher never processes another's rows. */
+export type ChainCreditScope = { network: string; tokenContract: string };
+
+// Prisma treats an `undefined` filter value as "no filter" — a missing scope
+// must fail loudly, never silently widen to every network's rows.
+function assertScope(scope: ChainCreditScope | undefined): asserts scope is ChainCreditScope {
+  if (!scope || !scope.network || !scope.tokenContract) {
+    throw new Error("A { network, tokenContract } scope is required.");
+  }
+}
+
+/** Rows in DETECTED/CONFIRMING for this network/contract, oldest first — what that network's finality poller re-checks each tick. */
+export async function listPendingFinalityChecks(
+  limit: number,
+  scope: ChainCreditScope,
+): Promise<ChainCredit[]> {
+  assertScope(scope);
   return prisma.chainCredit.findMany({
-    where: { finalityState: { in: ["DETECTED", "CONFIRMING"] } },
+    where: {
+      network: scope.network,
+      tokenContract: scope.tokenContract,
+      finalityState: { in: ["DETECTED", "CONFIRMING"] },
+    },
     orderBy: { blockTimestamp: "asc" },
     take: Math.min(Math.max(limit, 1), 500),
   });
 }
 
-/** FINAL + PENDING rows — what the matcher consumes each tick. */
-export async function listPendingMatches(limit: number): Promise<ChainCredit[]> {
+/** FINAL + PENDING rows for this network/contract — what that network's matcher consumes each tick. */
+export async function listPendingMatches(limit: number, scope: ChainCreditScope): Promise<ChainCredit[]> {
+  assertScope(scope);
   return prisma.chainCredit.findMany({
-    where: { finalityState: "FINAL", processingStatus: "PENDING" },
+    where: {
+      network: scope.network,
+      tokenContract: scope.tokenContract,
+      finalityState: "FINAL",
+      processingStatus: "PENDING",
+    },
     orderBy: { blockTimestamp: "asc" },
     take: Math.min(Math.max(limit, 1), 500),
   });

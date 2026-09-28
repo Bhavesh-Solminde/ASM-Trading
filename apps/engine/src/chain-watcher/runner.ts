@@ -4,6 +4,7 @@ import { createTronProvider } from "./providers/tron";
 import { runIngestTick } from "./ingest";
 import { runFinalityTick } from "./finality";
 import { runMatchTick } from "./match";
+import { USDT_LATE_PAYMENT_GRACE_MS, runStage, startAdaptiveWatchLoop } from "./watch-loop";
 import type { ChainProvider } from "./types";
 
 // Read directly via process.env, not piped through @asm/config's strict
@@ -49,9 +50,6 @@ const USDT_TICK_INTERVAL_MS = Number(process.env["USDT_WATCHER_TICK_INTERVAL_MS"
 // depositing / a transfer is confirming — otherwise at most once per idle
 // interval, which still guarantees late or unexpected payments are found.
 const USDT_IDLE_INTERVAL_MS = Number(process.env["USDT_WATCHER_IDLE_INTERVAL_MS"] ?? 120_000);
-// How long after a deposit's window closes it still counts as "active" —
-// exchange withdrawals and slow wallets routinely land a few minutes late.
-const USDT_LATE_PAYMENT_GRACE_MS = 15 * 60_000;
 const USDT_OVERLAP_MS = Number(process.env["USDT_OVERLAP_MS"] ?? 600_000);
 const USDT_MAX_PAGES_PER_TICK = Number(process.env["USDT_MAX_PAGES_PER_TICK"] ?? 50);
 // The production-activation safety gate: ingestion and finality always run
@@ -124,13 +122,13 @@ export async function startChainWatcher(provider?: ChainProvider): Promise<Chain
     network: USDT_NETWORK,
     tokenContract: USDT_TOKEN_CONTRACT,
     receivingAddress: USDT_RECEIVING_ADDRESS,
+    tokenDecimals: EXPECTED_USDT_DECIMALS,
     overlapMs: USDT_OVERLAP_MS,
     maxPagesPerTick: USDT_MAX_PAGES_PER_TICK,
   };
+  const scope = { network: USDT_NETWORK, tokenContract: USDT_TOKEN_CONTRACT };
 
   let decimalsVerified = false;
-  let stopped = false;
-  let timer: NodeJS.Timeout | null = null;
 
   async function tick(): Promise<void> {
     if (!decimalsVerified) {
@@ -163,119 +161,60 @@ export async function startChainWatcher(provider?: ChainProvider): Promise<Chain
       }
     }
 
-    try {
+    // Each stage is isolated: one stage's unexpected failure never kills the
+    // whole tick, let alone the timer loop.
+    await runStage(USDT_NETWORK, "ingest", async () => {
       const ingestResult = await runIngestTick(activeProvider, ingestConfig);
       if (ingestResult.rowsSkipped > 0 || ingestResult.stoppedReason === "provider_error") {
         logger.info({ evt: "chain.watcher.tick", stage: "ingest", ...ingestResult }, "ingest tick complete");
       }
-    } catch (err) {
-      // Never let one stage's unexpected failure kill the whole tick, let
-      // alone the timer loop — the next tick is still scheduled regardless.
-      logger.error({ evt: "chain.watcher.tick_error", stage: "ingest", reason: err instanceof Error ? err.message : "unknown" }, "ingest tick threw");
-    }
+    });
 
-    try {
-      const finalityResult = await runFinalityTick(activeProvider);
+    await runStage(USDT_NETWORK, "finality", async () => {
+      const finalityResult = await runFinalityTick(activeProvider, scope);
       if (finalityResult.checked > 0) {
         logger.info({ evt: "chain.watcher.tick", stage: "finality", ...finalityResult }, "finality tick complete");
       }
-    } catch (err) {
-      logger.error({ evt: "chain.watcher.tick_error", stage: "finality", reason: err instanceof Error ? err.message : "unknown" }, "finality tick threw");
-    }
+    });
 
     // Only frees a reserved amount 48h after its window closed — never credits
     // or rejects anything, so it runs regardless of the auto-confirm gate.
-    try {
+    await runStage(USDT_NETWORK, "expiry", async () => {
       const expired = await expireStaleUsdtDeposits(new Date(Date.now() - USDT_RESERVATION_QUARANTINE_MS));
       if (expired > 0) {
         logger.info({ evt: "chain.watcher.tick", stage: "expiry", expired }, "stale USDT deposits marked EXPIRED");
       }
-    } catch (err) {
-      logger.error({ evt: "chain.watcher.tick_error", stage: "expiry", reason: err instanceof Error ? err.message : "unknown" }, "expiry sweep threw");
-    }
+    });
 
     if (USDT_AUTO_CONFIRM_ENABLED) {
-      try {
+      await runStage(USDT_NETWORK, "match", async () => {
         const matchResult = await runMatchTick(matchConfig);
         if (matchResult.checked > 0) {
           logger.info({ evt: "chain.watcher.tick", stage: "match", ...matchResult }, "match tick complete");
         }
-      } catch (err) {
-        logger.error({ evt: "chain.watcher.tick_error", stage: "match", reason: err instanceof Error ? err.message : "unknown" }, "match tick threw");
-      }
+      });
     }
   }
 
-  let lastFullTickAt = 0;
-  let mode: "active" | "idle" | null = null;
-
-  async function wake(): Promise<void> {
-    const now = Date.now();
-    // Fail toward doing the work: if the cheap DB check itself errors, run the
-    // full tick rather than risk silently skipping detection.
-    let active = true;
-    try {
-      active = await hasActiveUsdtWork({
+  const loop = startAdaptiveWatchLoop({
+    network: USDT_NETWORK,
+    tickIntervalMs: USDT_TICK_INTERVAL_MS,
+    idleIntervalMs: USDT_IDLE_INTERVAL_MS,
+    isActive: (now) =>
+      hasActiveUsdtWork({
         network: USDT_NETWORK,
         tokenContract: USDT_TOKEN_CONTRACT,
         receivingAddress: USDT_RECEIVING_ADDRESS,
-        now: new Date(now),
+        now,
         lateGraceMs: USDT_LATE_PAYMENT_GRACE_MS,
         includePendingMatches: USDT_AUTO_CONFIRM_ENABLED,
-      });
-    } catch (err) {
-      logger.error(
-        { evt: "chain.watcher.tick_error", stage: "activity_check", reason: err instanceof Error ? err.message : "unknown" },
-        "activity check failed — running a full tick anyway",
-      );
-    }
-
-    const nextMode = active ? "active" : "idle";
-    if (nextMode !== mode) {
-      mode = nextMode;
-      logger.info(
-        { evt: "chain.watcher.mode", mode, intervalMs: active ? USDT_TICK_INTERVAL_MS : USDT_IDLE_INTERVAL_MS },
-        active ? "USDT watcher: deposit activity — checking the chain every tick" : "USDT watcher: no deposit activity — slowing down",
-      );
-    }
-
-    if (!active && now - lastFullTickAt < USDT_IDLE_INTERVAL_MS) return;
-    lastFullTickAt = now;
-    await tick();
-  }
-
-  // Self-rescheduling via setTimeout (never setInterval), and the next timer
-  // is only ever armed after the current wake's promise settles — this is
-  // both "one execution cannot overlap another" (in-process) and "no
-  // uncontrolled tight loop" in one mechanism, same shape as
-  // bank-feed/simulated.ts's existing schedule().
-  const schedule = (): void => {
-    timer = setTimeout(() => {
-      void wake()
-        .catch((err: unknown) => {
-          logger.error(
-            { evt: "chain.watcher.tick_error", stage: "unknown", reason: err instanceof Error ? err.message : "unknown" },
-            "chain watcher tick failed unexpectedly",
-          );
-        })
-        .finally(() => {
-          if (!stopped) schedule();
-        });
-    }, USDT_TICK_INTERVAL_MS);
-  };
-  schedule();
+      }),
+    tick,
+  });
 
   return {
     async stop(): Promise<void> {
-      stopped = true;
-      if (timer) clearTimeout(timer);
-      timer = null;
-      // Deliberately does not await an in-flight tick — its own DB
-      // transactions are already atomic and safe to leave running to
-      // completion; the process shutdown sequence elsewhere (main.ts)
-      // disconnects prisma only after every stop() has been awaited, which
-      // in practice gives the in-flight tick time to finish. Mirrors
-      // bank-feed's own stop() semantics (no in-flight-tick join there either).
+      loop.stop();
       logger.info({ evt: "chain.watcher.stopped" }, "USDT chain watcher stopped");
     },
   };

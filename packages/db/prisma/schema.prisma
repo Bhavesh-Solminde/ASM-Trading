@@ -447,7 +447,9 @@ model RelayMessage {
   @@index([createdAt])
 }
 
-/// The BankCredit analog for a USDT (TRC-20) on-chain transfer — deliberately
+/// The BankCredit analog for a USDT on-chain transfer (network "tron" TRC-20
+/// or "bsc" BEP-20; EVM hashes/addresses stored lowercase 0x-prefixed; for
+/// "bsc" eventIndex is the receipt's logIndex) — deliberately
 /// a separate model rather than a generalized BankCredit, since utr there is
 /// a required unique string with no network/contract/event columns, and
 /// retrofitting it risks the working SMS path for no benefit.
@@ -469,12 +471,18 @@ model ChainCredit {
   eventIndex    Int
   fromAddress   String
   toAddress     String
-  // The true on-chain value, 6dp, never rounded/truncated — lossless
-  // evidence. See usdt-money.ts for the exact (raw <-> normalized) integer
-  // conversion and why normalizedAmountMinor is nullable.
-  rawAmount     BigInt
-  // 2dp (USDT-cents), null when rawAmount isn't an exact multiple of 10_000 —
-  // i.e. genuinely not representable at this app's accounting precision.
+  // The true on-chain value in the token's own base units (tokenDecimals dp),
+  // never rounded/truncated — lossless evidence. NUMERIC(78,0) holds any
+  // uint256: an 18-decimal token (BSC USDT) overflows int8 above ~9.2 tokens.
+  // Prisma returns a Decimal; read it exactly with BigInt(rawAmount.toFixed(0)).
+  // See usdt-money.ts for the exact (raw <-> normalized) integer conversion
+  // and why normalizedAmountMinor is nullable.
+  rawAmount     Decimal  @db.Decimal(78, 0)
+  // The token's decimals() at ingestion (TRON USDT 6, BSC USDT 18).
+  tokenDecimals Int      @default(6)
+  // 2dp (USDT-cents), null when rawAmount isn't an exact multiple of
+  // 10^(tokenDecimals-2) — i.e. genuinely not representable at this app's
+  // accounting precision.
   // Never coerced/rounded into a value; a null here always routes to
   // MANUAL_REVIEW/PRECISION_NOT_REPRESENTABLE, never silently dropped.
   normalizedAmountMinor Int?
@@ -532,6 +540,10 @@ model ChainScanCursor {
   activeSessionMinTimestampMs BigInt?
   activeSessionMaxTimestampMs BigInt?
   activeSessionFingerprint    String?
+  // EVM (BSC) block cursor: the highest block whose logs are durably
+  // ingested AND finalized. TRON rows leave it null; EVM rows keep
+  // lastCommittedTimestampMs = 0 and never open a session.
+  lastScannedBlock            BigInt?
   version                     Int      @default(0)
   updatedAt                   DateTime @updatedAt
 

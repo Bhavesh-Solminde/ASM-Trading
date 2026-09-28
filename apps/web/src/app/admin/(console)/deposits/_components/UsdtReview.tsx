@@ -1,4 +1,5 @@
 import type { ChainCredit, Deposit } from "@asm/db";
+import { usdtNetworkDisplay } from "@/lib/usdt-network-display";
 import { EmptyRow, Pill, StatusPill } from "../../../_components/ui";
 import { fmtDateTime, timeAgo } from "../../../_lib/format";
 import { dismissChainCreditAction, resolveChainCreditAction } from "../actions";
@@ -23,13 +24,43 @@ function amountDelta(reserved: number | null, received: number | null): string {
   return `${diff > 0 ? "+" : "-"}${Math.floor(m / 100)}.${String(m % 100).padStart(2, "0")} vs received`;
 }
 
-const RAW_SCALE = BigInt(1_000_000);
+/** Prisma.Decimal (NUMERIC(78,0)) or a plain bigint — only its integer string is read. */
+type RawAmount = bigint | { toFixed(dp: number): string };
 
-/** Raw 6dp token amount → "25.264301 USDT", BigInt math only. */
-function usdtFromRaw(raw: bigint): string {
-  const neg = raw < BigInt(0);
+/**
+ * Raw token amount at the credit's own decimals (6 on TRON, 18 on BSC) →
+ * "25.264301 USDT", BigInt math only. Trailing zeros past the cent are
+ * trimmed so an 18-dp amount stays readable; nothing is ever rounded.
+ */
+export function usdtFromRaw(rawAmount: RawAmount, decimals: number): string {
+  const raw = typeof rawAmount === "bigint" ? rawAmount : BigInt(rawAmount.toFixed(0));
+  const zero = BigInt(0);
+  const neg = raw < zero;
   const a = neg ? -raw : raw;
-  return `${neg ? "-" : ""}${(a / RAW_SCALE).toString()}.${(a % RAW_SCALE).toString().padStart(6, "0")} USDT`;
+  if (!Number.isInteger(decimals) || decimals < 0) return `${neg ? "-" : ""}${a.toString()} raw`;
+  const scale = BigInt(10) ** BigInt(decimals);
+  let frac = (a % scale).toString().padStart(decimals, "0");
+  while (frac.length > 2 && frac.endsWith("0")) frac = frac.slice(0, -1);
+  return `${neg ? "-" : ""}${(a / scale).toString()}${frac ? `.${frac}` : ""} USDT`;
+}
+
+/** Display label for a stored network id ("tron" → "TRON (TRC-20)"); unknown ids shown raw. */
+export function usdtNetworkLabel(network: string | null | undefined): string {
+  if (!network) return "—";
+  return usdtNetworkDisplay(network).shortLabel;
+}
+
+/** Small pill naming the chain a payment/deposit is on. */
+export function NetworkPill({ network }: { network: string | null | undefined }) {
+  if (!network) return null;
+  return <Pill tone="muted">{usdtNetworkLabel(network)}</Pill>;
+}
+
+/** Tx hashes compared case-insensitively and with or without a 0x prefix — a
+ *  claim is stored without 0x while EVM credits keep it. */
+function sameTxHash(a: string, b: string): boolean {
+  const norm = (h: string) => h.trim().toLowerCase().replace(/^0x/, "");
+  return norm(a) === norm(b);
 }
 
 function truncateMiddle(s: string, head = 8, tail = 6): string {
@@ -106,7 +137,7 @@ function claimedTxHashOf(d: CandidateDeposit): string | null {
 function claimedThisPayment(d: CandidateDeposit, c: ChainCredit, claimDepositIds: Set<string>): boolean {
   if (claimDepositIds.has(d.id)) return true;
   const h = claimedTxHashOf(d);
-  return h !== null && h.toLowerCase() === c.txHash.toLowerCase();
+  return h !== null && sameTxHash(h, c.txHash);
 }
 
 /* --------------------------------- Evidence ---------------------------------- */
@@ -280,13 +311,16 @@ export function UsdtReviewTable({ rows }: { rows: UsdtReviewRow[] }) {
                 <tr key={c.id}>
                   <td className="admin-cell-sub" style={{ whiteSpace: "nowrap" }}>
                     {fmtDateTime(c.blockTimestamp)}
+                    <div style={{ marginTop: 4 }}>
+                      <NetworkPill network={c.network} />
+                    </div>
                   </td>
                   <td className="num admin-num-right admin-cell-strong" style={{ whiteSpace: "nowrap" }}>
                     {c.normalizedAmountMinor !== null ? (
                       usdtFromMinor(c.normalizedAmountMinor)
                     ) : (
                       <>
-                        {usdtFromRaw(c.rawAmount)}
+                        {usdtFromRaw(c.rawAmount, c.tokenDecimals)}
                         <div className="admin-cell-sub" style={{ fontSize: 11 }}>
                           sub-cent
                         </div>

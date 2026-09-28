@@ -66,3 +66,54 @@ export interface ChainProvider {
   /** Independently verifies the configured contract's decimals at startup — never trusted from provider metadata alone. */
   getTokenDecimals(tokenContract: string): Promise<number>;
 }
+
+/**
+ * EVM (BNB Smart Chain) boundary. Every value here is already decoded:
+ * addresses and tx hashes are lowercase "0x"-prefixed, block numbers and
+ * token values are bigint (never a JS number — an 18-decimal value overflows
+ * 2^53 at well under one token). Every method THROWS on any provider failure
+ * (network, HTTP, JSON-RPC error, malformed payload) — callers treat a throw as
+ * "this step failed, change nothing" and retry next tick.
+ */
+export interface EvmTransferLog {
+  txHash: string;
+  logIndex: number;
+  blockNumber: bigint;
+  fromAddress: string;
+  toAddress: string;
+  rawValue: bigint;
+  /** Set by the node when the log belonged to a block that was since reorged out. */
+  removed: boolean;
+}
+
+export interface EvmReceiptLog {
+  logIndex: number;
+  /** The emitting contract, lowercase. */
+  address: string;
+  /** Lowercase 32-byte hex topics. */
+  topics: string[];
+  data: string;
+}
+
+export interface EvmReceipt {
+  status: 0 | 1;
+  blockNumber: bigint;
+  logs: EvmReceiptLog[];
+}
+
+export interface EvmChainProvider {
+  getChainId(): Promise<number>;
+  getTokenDecimals(tokenContract: string): Promise<number>;
+  getLatestBlockNumber(): Promise<bigint>;
+  getFinalizedBlockNumber(): Promise<bigint>;
+  /** Transfer(from, to, value) logs of `tokenContract` whose `to` is `toAddress`, in the inclusive block range. */
+  getTransferLogs(params: {
+    tokenContract: string;
+    toAddress: string;
+    fromBlock: bigint;
+    toBlock: bigint;
+  }): Promise<EvmTransferLog[]>;
+  getBlockTimestampMs(blockNumber: bigint): Promise<number>;
+  /** Null when the node has no receipt for this hash (not mined, or reorged out). */
+  getReceipt(txHash: string): Promise<EvmReceipt | null>;
+}

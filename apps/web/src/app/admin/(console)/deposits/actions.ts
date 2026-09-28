@@ -7,11 +7,14 @@ import {
   ChainCreditResolutionRefused,
   creditDepositToAccount,
   dismissChainCredit,
+  prisma,
   rejectDeposit,
   resolveChainCreditToDeposit,
 } from "@asm/db";
+import { USDT_NETWORK_INFO, isUsdtNetwork } from "@asm/contracts";
 import { logger } from "@asm/logger";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
+import { getUsdtNetworkConfig } from "@/lib/usdt-networks";
 
 const ADMIN_ACTOR = "admin-panel";
 
@@ -55,27 +58,10 @@ export async function rejectDepositAction(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
-/* ------------------------- USDT (TRC-20) manual review ------------------------ */
+/* ---------------------- USDT (TRC-20 / BEP-20) manual review --------------------- */
 
 const USDT_TAB = "/admin/deposits?tab=usdt";
 const NOTE_MAX = 500;
-
-/**
- * Live USDT receiving config, re-read from the environment on every call.
- * Deliberately a local replica of usdtDepositConfig() in
- * app/api/deposits/route.ts (not imported from a route module): null unless
- * the whole config is present and valid, so a resolve can never run against a
- * half-configured server.
- */
-function usdtDepositConfig(): { network: string; tokenContract: string; receivingAddress: string } | null {
-  const network = process.env["USDT_NETWORK"] ?? "";
-  const trongridNetwork = process.env["USDT_TRONGRID_NETWORK"] ?? "";
-  const tokenContract = process.env["USDT_TOKEN_CONTRACT"] ?? "";
-  const receivingAddress = process.env["USDT_RECEIVING_ADDRESS"] ?? "";
-  const trongridNetworkValid = trongridNetwork === "mainnet" || trongridNetwork === "nile";
-  if (network !== "tron" || !trongridNetworkValid || !tokenContract || !receivingAddress) return null;
-  return { network, tokenContract, receivingAddress };
-}
 
 function usdtError(message: string): never {
   redirect(`${USDT_TAB}&error=${encodeURIComponent(message)}`);
@@ -106,9 +92,21 @@ export async function resolveChainCreditAction(formData: FormData): Promise<void
   const depositId = formString(formData, "depositId");
   if (!chainCreditId || !depositId) usdtError("Pick a deposit to credit this payment to.");
 
-  const config = usdtDepositConfig();
+  // The credit's network comes from its DB row, never from the form: the live
+  // receiving config it is re-verified against must be that network's own.
+  const credit = await prisma.chainCredit.findUnique({
+    where: { id: chainCreditId },
+    select: { network: true },
+  });
+  if (!credit) usdtError("That payment no longer exists.");
+  if (!isUsdtNetwork(credit.network)) {
+    usdtError(`Unknown network "${credit.network}" on this payment — cannot verify it.`);
+  }
+  const config = getUsdtNetworkConfig(credit.network);
   if (!config) {
-    usdtError("USDT deposits are not configured on this server — cannot verify the payment against the live receiving config.");
+    usdtError(
+      `USDT on ${USDT_NETWORK_INFO[credit.network].label} is not configured on this server — cannot verify the payment against the live receiving config.`,
+    );
   }
 
   let refusal: string | null = null;

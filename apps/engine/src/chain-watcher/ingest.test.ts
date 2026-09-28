@@ -9,6 +9,7 @@ function config(overrides: Partial<Parameters<typeof runIngestTick>[1]> = {}) {
     network: `test-${randomUUID()}`,
     tokenContract: "TContract111",
     receivingAddress: "TReceiving111",
+    tokenDecimals: 6,
     overlapMs: 0,
     maxPagesPerTick: 50,
     ...overrides,
@@ -203,6 +204,28 @@ describe("runIngestTick — row validation and event resolution", () => {
       expect(c.processingStatus).toBe("MANUAL_REVIEW");
       expect(c.reviewReason).toBe("AMBIGUOUS_EVENT_WITHIN_TRANSACTION");
     }
+  });
+
+  it("skips a row whose provider-reported decimals disagree with the verified contract decimals", async () => {
+    const cfg = config();
+    const r = row({ tokenDecimals: 18 });
+    const p = provider({ fetchTransferPage: vi.fn(async () => ({ rows: [r], nextFingerprint: null })) });
+
+    const result = await runIngestTick(p, cfg, 5_000_000);
+    expect(result.rowsSkipped).toBe(1);
+    expect(await prisma.chainCredit.count({ where: { txHash: r.transactionId } })).toBe(0);
+  });
+
+  it("persists TRON rows with tokenDecimals 6", async () => {
+    const cfg = config();
+    const r = row();
+    const p = provider({ fetchTransferPage: vi.fn(async () => ({ rows: [r], nextFingerprint: null })) });
+
+    await runIngestTick(p, cfg, 5_000_000);
+    const credit = await prisma.chainCredit.findFirstOrThrow({ where: { txHash: r.transactionId } });
+    expect(credit.tokenDecimals).toBe(6);
+    expect(credit.rawAmount.toFixed(0)).toBe("1000000");
+    expect(credit.normalizedAmountMinor).toBe(100);
   });
 
   it("skips a row with a non-integer rawValue rather than throwing", async () => {

@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { getDepositByToken } from "@asm/db";
 import { ClaimForm } from "./ClaimForm";
 import { UsdtStatusPoller } from "./UsdtStatusPoller";
+import { usdtNetworkDisplay } from "@/lib/usdt-network-display";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,8 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
     deposit.status === "COMPLETED" || deposit.status === "REJECTED" || deposit.status === "EXPIRED";
 
   const isUsdt = deposit.method === "USDT";
+  // Every network label/warning comes from the deposit's own stored network.
+  const net = usdtNetworkDisplay(deposit.network);
 
   // A real UPI deep link, pointing at a fictitious demo VPA — only relevant
   // for the UPI-rail methods. A USDT deposit's QR just encodes the bare
@@ -77,9 +80,22 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
                 Step 1
               </span>
               <h1 className="mt-3 text-sm font-bold" style={{ color: "#5b2d9e" }}>
-                Send USDT (TRC-20) to this address
+                Send {net.assetLabel} to this address
               </h1>
               <p className="mt-2 text-3xl font-bold tabular-nums">{usdtAmount} USDT</p>
+              <p className="mt-2">
+                <span className="inline-block rounded-full border border-[#5b2d9e]/30 bg-[#5b2d9e]/10 px-3 py-0.5 text-[11px] font-bold text-[#5b2d9e]">
+                  Network: {net.shortLabel}
+                </span>
+              </p>
+              {net.warning ? (
+                <p
+                  role="alert"
+                  className="mt-3 rounded-lg border border-[#c2410c]/30 bg-[#fff7ed] px-3 py-2 text-left text-xs font-semibold leading-relaxed text-[#9a3412]"
+                >
+                  {net.warning}
+                </p>
+              ) : null}
               <img
                 src={qrDataUri}
                 alt="Receiving address QR code"
@@ -111,7 +127,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
                   <dt className="text-[10px] font-bold uppercase tracking-wider text-[#6b5a8a]">
                     Network
                   </dt>
-                  <dd>TRON (TRC-20)</dd>
+                  <dd>{net.shortLabel}</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-bold uppercase tracking-wider text-[#6b5a8a]">
@@ -121,9 +137,9 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
                 </div>
               </dl>
               <p className="mt-3 text-[11px] leading-relaxed text-[#8a7aa8]">
-                Send this exact amount, on the TRON network only. A different
-                amount, or a transfer on any other network, cannot be matched
-                automatically and may be unrecoverable.
+                Send this exact amount, on the {net.label} network only. A
+                different amount, or a transfer on any other network, cannot be
+                matched automatically and may be unrecoverable.
               </p>
             </section>
 

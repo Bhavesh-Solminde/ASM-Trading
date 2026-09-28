@@ -30,12 +30,19 @@ export interface FinalityResult {
  * a concurrent run (or a previous tick) is simply skipped, never
  * re-processed or double-transitioned.
  */
+export interface ChainScope {
+  network: string;
+  tokenContract: string;
+}
+
 export async function runFinalityTick(
   provider: ChainProvider,
+  /** Only this watcher's own rows — another network's watcher owns the rest. */
+  scope: ChainScope,
   limit = 200,
   nowMs: number = Date.now(),
 ): Promise<FinalityResult> {
-  const rows = await listPendingFinalityChecks(limit);
+  const rows = await listPendingFinalityChecks(limit, scope);
   const result: FinalityResult = {
     checked: 0,
     finalized: 0,

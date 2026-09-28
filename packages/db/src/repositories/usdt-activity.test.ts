@@ -52,7 +52,7 @@ async function credit(s: ReturnType<typeof scope>, finalityState: "DETECTED" | "
       eventIndex: 0,
       fromAddress: "TActSender",
       toAddress: s.receivingAddress,
-      rawAmount: 10_000_000n,
+      rawAmount: "10000000",
       normalizedAmountMinor: 1_000,
       blockNumber: 1n,
       blockTimestamp: new Date(),

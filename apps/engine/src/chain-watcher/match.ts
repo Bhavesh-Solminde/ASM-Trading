@@ -30,7 +30,13 @@ export interface MatchResult {
  * here (see the Phase 3 audit's assumptions section).
  */
 export async function runMatchTick(config: MatchConfig, limit = 200): Promise<MatchResult> {
-  const rows = await listPendingMatches(limit);
+  // Scoped to this watcher's own network/contract — another network's rows
+  // belong to that network's watcher (and would only be routed to
+  // WRONG_NETWORK manual review by the matcher's re-verification here).
+  const rows = await listPendingMatches(limit, {
+    network: config.expectedNetwork,
+    tokenContract: config.expectedTokenContract,
+  });
   const result: MatchResult = { checked: 0, autoApproved: 0, manualReview: 0, unmatched: 0, raceLost: 0 };
 
   for (const row of rows) {

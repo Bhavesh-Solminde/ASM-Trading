@@ -6,6 +6,8 @@ export interface IngestConfig {
   network: string;
   tokenContract: string;
   receivingAddress: string;
+  /** The contract's decimals as verified on-chain at watcher startup (6 for USDT-TRC20). A row whose provider-reported decimals disagree is skipped, never normalized at the wrong scale. */
+  tokenDecimals: number;
   /** Safety margin re-scanned on every new session — absorbs any ordering/clock slop right at the committed floor. Re-observing an already-persisted transfer here is a guaranteed no-op (see chain-credit.ts's unique constraint). */
   overlapMs: number;
   /** Bounds how much of a long-idle catch-up one tick attempts; an unfinished session simply continues next tick from its persisted fingerprint. */
@@ -139,6 +141,18 @@ async function persistRow(provider: ChainProvider, config: IngestConfig, row: Ra
     );
     return false;
   }
+  if (row.tokenDecimals !== config.tokenDecimals) {
+    logger.warn(
+      {
+        evt: "chain.credit.wrong_decimals_at_ingest",
+        txHash: row.transactionId,
+        got: row.tokenDecimals,
+        expected: config.tokenDecimals,
+      },
+      "discovery row reports unexpected token decimals — skipped rather than normalized at the wrong scale",
+    );
+    return false;
+  }
 
   let rawAmount: bigint;
   try {
@@ -187,6 +201,7 @@ async function persistRow(provider: ChainProvider, config: IngestConfig, row: Ra
         fromAddress: row.fromAddress,
         toAddress: row.toAddress,
         rawAmount,
+        tokenDecimals: config.tokenDecimals,
         blockNumber: 0n, // unknown at this branch — the events call didn't resolve a single winner
         blockTimestamp: new Date(row.blockTimestampMs),
         rawPayload: basePayload,
@@ -207,6 +222,7 @@ async function persistRow(provider: ChainProvider, config: IngestConfig, row: Ra
     fromAddress: row.fromAddress,
     toAddress: row.toAddress,
     rawAmount,
+    tokenDecimals: config.tokenDecimals,
     blockNumber: resolution.blockNumber,
     blockTimestamp: new Date(row.blockTimestampMs),
     rawPayload: basePayload,

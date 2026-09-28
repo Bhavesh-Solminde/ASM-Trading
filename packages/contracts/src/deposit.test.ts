@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { ClaimUtrSchema, CreateDepositSchema } from "./deposit";
+import {
+  ClaimUsdtPaymentSchema,
+  ClaimUtrSchema,
+  CreateDepositSchema,
+  USDT_NETWORK_INFO,
+  USDT_NETWORKS,
+  isUsdtNetwork,
+} from "./deposit";
 
 describe("CreateDepositSchema", () => {
   const valid = { method: "PhonePe", amountInr: 100_000 };
@@ -8,13 +15,30 @@ describe("CreateDepositSchema", () => {
     expect(CreateDepositSchema.parse(valid)).toEqual(valid);
   });
 
-  it("accepts a USDT request with a USDT-cents amount", () => {
-    const usdt = { method: "USDT", amountUsdtMinor: 2_500 };
-    expect(CreateDepositSchema.parse(usdt)).toEqual(usdt);
+  it("accepts a USDT request with a USDT-cents amount on each network", () => {
+    for (const network of USDT_NETWORKS) {
+      const usdt = { method: "USDT", network, amountUsdtMinor: 2_500 };
+      expect(CreateDepositSchema.parse(usdt)).toEqual(usdt);
+    }
+  });
+
+  it("rejects a USDT request without a network (never inferred)", () => {
+    expect(CreateDepositSchema.safeParse({ method: "USDT", amountUsdtMinor: 2_500 }).success).toBe(false);
+  });
+
+  it("rejects an unknown USDT network", () => {
+    const r = CreateDepositSchema.safeParse({ method: "USDT", network: "eth", amountUsdtMinor: 2_500 });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a network on a UPI request", () => {
+    expect(CreateDepositSchema.safeParse({ ...valid, network: "tron" }).success).toBe(false);
   });
 
   it("rejects a USDT request carrying an INR amount (each method takes only its own field)", () => {
-    expect(CreateDepositSchema.safeParse({ method: "USDT", amountInr: 100_000 }).success).toBe(false);
+    expect(
+      CreateDepositSchema.safeParse({ method: "USDT", network: "tron", amountInr: 100_000 }).success,
+    ).toBe(false);
   });
 
   it("rejects a client-supplied USD amount", () => {
@@ -57,5 +81,19 @@ describe("ClaimUtrSchema", () => {
 
   it("rejects an injected depositId", () => {
     expect(ClaimUtrSchema.safeParse({ utr: "528312345678", depositId: "other" }).success).toBe(false);
+  });
+});
+
+describe("USDT networks", () => {
+  it("has display metadata for every network", () => {
+    expect(USDT_NETWORK_INFO.tron).toEqual({ label: "TRON", standard: "TRC-20", shortLabel: "TRON (TRC-20)" });
+    expect(USDT_NETWORK_INFO.bsc.standard).toBe("BEP-20");
+    for (const n of USDT_NETWORKS) expect(USDT_NETWORK_INFO[n].shortLabel).toContain(USDT_NETWORK_INFO[n].label);
+  });
+
+  it("isUsdtNetwork narrows only known ids", () => {
+    expect(isUsdtNetwork("bsc")).toBe(true);
+    expect(isUsdtNetwork("BSC")).toBe(false);
+    expect(isUsdtNetwork(null)).toBe(false);
   });
 });

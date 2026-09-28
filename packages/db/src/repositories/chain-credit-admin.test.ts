@@ -12,6 +12,7 @@ import {
   listUsdtReviewQueue,
   resolveChainCreditToDeposit,
 } from "./chain-credit-admin";
+import { rawPerMinor } from "../usdt-money";
 import type { Deposit } from "../../generated/prisma/client";
 
 const NETWORK = "tron";
@@ -49,6 +50,7 @@ type CreditOverrides = Partial<{
   consumed: boolean;
   txHash: string;
   fromAddress: string;
+  tokenDecimals: number;
 }>;
 
 /** A FINAL ChainCredit the matcher already routed to review (UNMATCHED by default). */
@@ -61,7 +63,8 @@ async function makeCredit(amountUsdtMinor: number, o: CreditOverrides = {}): Pro
       eventIndex: 0,
       fromAddress: o.fromAddress ?? "TSender11111111111111111111111111",
       toAddress: o.toAddress ?? RECEIVING_ADDRESS,
-      rawAmount: BigInt(amountUsdtMinor) * 10_000n,
+      rawAmount: (BigInt(amountUsdtMinor) * rawPerMinor(o.tokenDecimals ?? 6)).toString(),
+      tokenDecimals: o.tokenDecimals ?? 6,
       normalizedAmountMinor: amountUsdtMinor,
       blockNumber: 1_000_000n,
       blockTimestamp: o.blockTimestamp ?? new Date(),
@@ -496,5 +499,66 @@ describe("getUsdtReviewEvidence", () => {
 
   it("returns an empty object for no ids", async () => {
     expect(await getUsdtReviewEvidence([])).toEqual({});
+  });
+});
+
+describe("BSC credits: 0x-prefixed ChainCredit.txHash vs un-prefixed Deposit.claimedTxHash", () => {
+  // Unique fake BSC config so nothing here collides with other rows.
+  const BSC_CONTRACT = `0x${randomBytes(20).toString("hex")}`;
+  const BSC_ADDRESS = `0x${randomBytes(20).toString("hex")}`;
+
+  async function bscDeposit(requested: number): Promise<Deposit> {
+    const d = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: requested,
+      network: "bsc",
+      tokenContract: BSC_CONTRACT,
+      receivingAddress: BSC_ADDRESS,
+      correlationId: randomUUID(),
+    });
+    return prisma.deposit.update({ where: { id: d.id }, data: { status: "EXPIRED" } });
+  }
+
+  it("a claim (stored without 0x) is found for a credit whose hash is stored 0x-prefixed — candidates and evidence", async () => {
+    const hex = hexHash();
+    const blockTimestamp = new Date();
+    const creditId = await makeCredit(95_000, {
+      network: "bsc",
+      tokenContract: BSC_CONTRACT,
+      toAddress: BSC_ADDRESS,
+      txHash: `0x${hex}`,
+      tokenDecimals: 18,
+      blockTimestamp,
+    });
+
+    // Claimant outside the 48h window, so only the claim can surface it.
+    const claimant = await bscDeposit(85_000);
+    await prisma.deposit.update({
+      where: { id: claimant.id },
+      data: { createdAt: new Date(blockTimestamp.getTime() - 72 * 3_600_000) },
+    });
+    // The user pastes it 0x-prefixed and uppercase; claimUsdtPayment normalizes.
+    await claimUsdtPayment({ actorId: userId, depositId: claimant.id, txHash: `0x${hex.toUpperCase()}` });
+    const stored = await prisma.deposit.findUniqueOrThrow({ where: { id: claimant.id } });
+    expect(stored.claimedTxHash).toBe(hex);
+
+    const second = await bscDeposit(86_000);
+    await claimUsdtPayment({ actorId: userId, depositId: second.id, txHash: hex });
+
+    const ids = (await listCandidateDepositsForChainCredit(creditId, 200)).map((d) => d.id);
+    expect(ids.slice(0, 2).sort()).toEqual([claimant.id, second.id].sort());
+
+    const evidence = await getUsdtReviewEvidence([creditId]);
+    expect(evidence[creditId]!.claims.map((c) => c.depositId).sort()).toEqual([claimant.id, second.id].sort());
+  });
+
+  it("a TRON credit (no 0x) still matches its claims — both formats coexist", async () => {
+    const hex = hexHash();
+    const creditId = await makeCredit(96_000, { txHash: hex });
+    const d = await makeUsdtDeposit(87_000, "EXPIRED");
+    await claimUsdtPayment({ actorId: userId, depositId: d.id, txHash: `0x${hex}` });
+
+    const evidence = await getUsdtReviewEvidence([creditId]);
+    expect(evidence[creditId]!.claims.map((c) => c.depositId)).toEqual([d.id]);
   });
 });

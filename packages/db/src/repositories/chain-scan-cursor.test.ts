@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { prisma } from "../client";
-import { advanceSessionPage, closeSession, ensureSessionOpen, getOrCreateCursor } from "./chain-scan-cursor";
+import {
+  advanceEvmCursor,
+  advanceSessionPage,
+  closeSession,
+  ensureSessionOpen,
+  getOrCreateCursor,
+  getOrCreateEvmCursor,
+} from "./chain-scan-cursor";
 
 function key() {
   return { network: `test-${randomUUID()}`, tokenContract: "TContract", receivingAddress: "TReceiving" };
@@ -107,5 +114,43 @@ describe("ensureSessionOpen / advanceSessionPage / closeSession", () => {
     const second = await ensureSessionOpen(k, { overlapMs: 500_000, nowMs: 3_000_000 });
     expect(second.activeSessionMinTimestampMs).toBe(1_500_000n);
     expect(second.activeSessionMaxTimestampMs).toBe(3_000_000n);
+  });
+});
+
+describe("getOrCreateEvmCursor / advanceEvmCursor", () => {
+  it("creates at the initial block with lastCommittedTimestampMs 0, and returns the existing row on a second call", async () => {
+    const k = key();
+    const created = await getOrCreateEvmCursor(k, 50_000_000n);
+    expect(created.lastScannedBlock).toBe(50_000_000n);
+    expect(created.lastCommittedTimestampMs).toBe(0n);
+    expect(created.activeSessionMinTimestampMs).toBeNull();
+    expect(created.version).toBe(0);
+
+    const again = await getOrCreateEvmCursor(k, 1n);
+    expect(again.lastScannedBlock).toBe(50_000_000n);
+    expect(again.version).toBe(created.version);
+  });
+
+  it("advances with the current version (bumping it), and refuses a stale version", async () => {
+    const k = key();
+    const c = await getOrCreateEvmCursor(k, 100n);
+
+    expect(await advanceEvmCursor(k, c.version, 2_100n)).toBe(true);
+    const after = await getOrCreateEvmCursor(k, 0n);
+    expect(after.lastScannedBlock).toBe(2_100n);
+    expect(after.version).toBe(c.version + 1);
+
+    // The version we read before the advance is now stale.
+    expect(await advanceEvmCursor(k, c.version, 9_999n)).toBe(false);
+    const unchanged = await getOrCreateEvmCursor(k, 0n);
+    expect(unchanged.lastScannedBlock).toBe(2_100n);
+    expect(unchanged.version).toBe(after.version);
+  });
+
+  it("holds block numbers beyond 2^53 exactly", async () => {
+    const k = key();
+    const big = 2n ** 60n + 7n;
+    const c = await getOrCreateEvmCursor(k, big);
+    expect(c.lastScannedBlock).toBe(big);
   });
 });

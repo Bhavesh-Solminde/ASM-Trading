@@ -21,6 +21,7 @@ import {
   UsdtResultBanner,
   UsdtReviewTable,
   usdtFromMinor,
+  usdtNetworkLabel,
   type CandidateDeposit,
   type ReviewEvidence,
   type UsdtReviewRow,
@@ -300,6 +301,11 @@ export default async function DepositsPage({
                             amountUsd — their real amount lives in amountUsdtMinor. */}
                         <td className="num admin-num-right admin-cell-strong">
                           {d.method === "USDT" ? usdtFromMinor(d.amountUsdtMinor) : usdFromMinor(d.amountUsd)}
+                          {d.method === "USDT" ? (
+                            <div className="admin-cell-sub" style={{ fontSize: 11, fontWeight: 400 }}>
+                              on {usdtNetworkLabel(d.network)}
+                            </div>
+                          ) : null}
                         </td>
                         <td className="num admin-num-right admin-cell-sub">
                           {d.method === "USDT" ? "—" : inrFromMinor(d.amountInr)}

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CreateDepositSchema, type DepositView } from "@asm/contracts";
+import { CreateDepositSchema, USDT_NETWORK_INFO, type DepositView } from "@asm/contracts";
 import {
   AmountSpaceExhausted,
   createDepositIntent,
@@ -10,23 +10,7 @@ import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
-
-// Read directly via process.env, not piped through @asm/config's strict
-// shared schema — same precedent as SMS_RELAY_SECRET (see .env.example) and
-// the engine's own chain-watcher/runner.ts, since these are specific to this
-// one feature. Mirrors the exact set runner.ts requires before it treats the
-// watcher as "configured" — a deposit created when the watcher would stay
-// idle could never be detected or credited, so this route must refuse it
-// rather than hand the user an address nothing is watching.
-function usdtDepositConfig(): { network: string; tokenContract: string; receivingAddress: string } | null {
-  const network = process.env["USDT_NETWORK"] ?? "";
-  const trongridNetwork = process.env["USDT_TRONGRID_NETWORK"] ?? "";
-  const tokenContract = process.env["USDT_TOKEN_CONTRACT"] ?? "";
-  const receivingAddress = process.env["USDT_RECEIVING_ADDRESS"] ?? "";
-  const trongridNetworkValid = trongridNetwork === "mainnet" || trongridNetwork === "nile";
-  if (network !== "tron" || !trongridNetworkValid || !tokenContract || !receivingAddress) return null;
-  return { network, tokenContract, receivingAddress };
-}
+import { getUsdtNetworkConfig } from "@/lib/usdt-networks";
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -56,11 +40,18 @@ export async function POST(req: NextRequest) {
 
   try {
     if (parsed.data.method === "USDT") {
-      const config = usdtDepositConfig();
+      // Only the requested network's config is consulted: a deposit created
+      // on a network whose watcher would stay idle could never be detected or
+      // credited, so refuse it rather than hand out an unwatched address.
+      const network = parsed.data.network;
+      const config = getUsdtNetworkConfig(network);
       if (!config) {
-        log.warn({ evt: "deposit.usdt_unavailable", route: "deposits" }, "USDT deposit requested but not configured");
+        log.warn(
+          { evt: "deposit.usdt_unavailable", route: "deposits", network },
+          "USDT deposit requested on a network that is not configured",
+        );
         return NextResponse.json(
-          { error: "USDT deposits are temporarily unavailable. Try again later." },
+          { error: `USDT on ${USDT_NETWORK_INFO[network].label} is temporarily unavailable. Try again later.` },
           { status: 503 },
         );
       }
@@ -81,6 +72,7 @@ export async function POST(req: NextRequest) {
           evt: "deposit.intent",
           depositId: deposit.id,
           method: deposit.method,
+          network: config.network,
           amountUsdtMinor: deposit.amountUsdtMinor,
         },
         "USDT deposit intent created",

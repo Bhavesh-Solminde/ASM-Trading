@@ -11,6 +11,7 @@ import { createInternalApi } from "./internal-api";
 import { TradeDesk } from "./trading/trade-desk";
 import { startBankFeedRunner } from "./bank-feed/runner";
 import { startChainWatcher } from "./chain-watcher/runner";
+import { startBscWatcher } from "./chain-watcher/bsc-runner";
 import { ControllerBridge } from "./algo/controller-bridge";
 import { BotCrowd } from "./algo/crowd";
 
@@ -69,6 +70,7 @@ async function main(): Promise<void> {
 
   const bankFeed = await startBankFeedRunner();
   const chainWatcher = await startChainWatcher();
+  const bscWatcher = await startBscWatcher();
 
   const crowd = new BotCrowd(registry, desk, (Date.now() >>> 1) & 0x7fffffff);
   if (process.env.BOTS_ENABLED !== "false") {
@@ -84,6 +86,7 @@ async function main(): Promise<void> {
     crowd.stop(); // stop bots from opening new ones
     await bankFeed.stop(); // inject no new credits
     await chainWatcher.stop(); // inject no new USDT credits
+    await bscWatcher.stop(); // …on either network
     loop.stop(); // collect no new settlements
     await desk?.stop(); // let captured settlements persist (bounded)
     if (feed) await feed.stop();

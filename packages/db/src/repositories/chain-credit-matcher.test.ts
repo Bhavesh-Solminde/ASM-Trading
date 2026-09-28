@@ -42,7 +42,7 @@ async function makeFinalCredit(
       eventIndex: 0,
       fromAddress: "TSender11111111111111111111111111",
       toAddress: overrides.toAddress ?? RECEIVING_ADDRESS,
-      rawAmount: BigInt(amountUsdtMinor) * 10_000n,
+      rawAmount: (BigInt(amountUsdtMinor) * 10_000n).toString(),
       normalizedAmountMinor: amountUsdtMinor,
       blockNumber: 1_000_000n,
       blockTimestamp: overrides.blockTimestamp ?? new Date(),
@@ -115,7 +115,7 @@ describe("matchChainCreditToDeposit", () => {
         eventIndex: 0,
         fromAddress: "TSender11111111111111111111111111",
         toAddress: RECEIVING_ADDRESS,
-        rawAmount: BigInt(deposit.amountUsdtMinor!) * 10_000n,
+        rawAmount: (BigInt(deposit.amountUsdtMinor!) * 10_000n).toString(),
         normalizedAmountMinor: deposit.amountUsdtMinor,
         blockNumber: 1_000_000n,
         blockTimestamp: new Date(),
@@ -226,6 +226,26 @@ describe("matchChainCreditToDeposit", () => {
 
     const outcome = await matchChainCreditToDeposit({ chainCreditId: creditId, ...expectedConfig() });
     expect(outcome).toEqual({ kind: "manual_review", reason: "already_processed", depositId: null });
+  });
+
+  it("a same-amount live deposit on ANOTHER network is never a candidate — unmatched, never cross-credited", async () => {
+    const bscDeposit = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: 55_000,
+      network: "bsc",
+      tokenContract: `0xtest${randomUUID().replace(/-/g, "")}`,
+      receivingAddress: `0xtest${randomUUID().replace(/-/g, "")}`,
+      correlationId: randomUUID(),
+    });
+    // A TRON transfer for exactly the amount the BSC deposit reserved.
+    const creditId = await makeFinalCredit(bscDeposit.amountUsdtMinor!);
+
+    const outcome = await matchChainCreditToDeposit({ chainCreditId: creditId, ...expectedConfig() });
+    expect(outcome).toEqual({ kind: "unmatched" });
+
+    const d = await prisma.deposit.findUniqueOrThrow({ where: { id: bscDeposit.id } });
+    expect(d.status).toBe("AWAITING_PAYMENT");
+    expect(d.matchedChainCreditId).toBeNull();
   });
 
   it("safety rule: amount matches more than one live deposit -> manual review, never a guess", async () => {

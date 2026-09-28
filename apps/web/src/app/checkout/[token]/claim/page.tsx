@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getDepositByToken } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { usdtNetworkDisplay } from "@/lib/usdt-network-display";
 import { UsdtClaimForm } from "../UsdtClaimForm";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,14 @@ export default async function UsdtClaimPage({ params }: { params: Promise<{ toke
   // isn't on the type — read it defensively so this compiles either way.
   const existingTxHash =
     (deposit as { claimedTxHash?: string | null }).claimedTxHash ?? null;
+
+  const net = usdtNetworkDisplay(deposit.network);
+  // Claims are stored as bare lowercase hex; show an EVM hash the way the
+  // user's wallet shows it (0x-prefixed) so it is recognisable.
+  const shownTxHash =
+    existingTxHash && deposit.network === "bsc" && !existingTxHash.startsWith("0x")
+      ? `0x${existingTxHash}`
+      : existingTxHash;
 
   const usdtAmount =
     deposit.amountUsdtMinor != null ? (deposit.amountUsdtMinor / 100).toFixed(2) : "0.00";
@@ -92,7 +101,7 @@ export default async function UsdtClaimPage({ params }: { params: Promise<{ toke
                   <dt className="text-[10px] font-bold uppercase tracking-wider text-[#6b5a8a]">
                     Network
                   </dt>
-                  <dd>TRON (TRC-20)</dd>
+                  <dd>{net.shortLabel}</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-bold uppercase tracking-wider text-[#6b5a8a]">
@@ -101,6 +110,14 @@ export default async function UsdtClaimPage({ params }: { params: Promise<{ toke
                   <dd className="break-all font-mono text-xs">{deposit.receivingAddress}</dd>
                 </div>
               </dl>
+              {net.warning ? (
+                <p
+                  role="note"
+                  className="mt-4 rounded-lg border border-[#c2410c]/30 bg-[#fff7ed] px-3 py-2 text-left text-xs font-semibold leading-relaxed text-[#9a3412]"
+                >
+                  {net.warning}
+                </p>
+              ) : null}
             </section>
 
             <section className="rounded-xl bg-white p-5 shadow-sm">
@@ -110,14 +127,18 @@ export default async function UsdtClaimPage({ params }: { params: Promise<{ toke
                     Proof submitted
                   </p>
                   <p className="mt-1 break-all font-mono text-[11px] text-[#4b2d86]">
-                    {existingTxHash}
+                    {shownTxHash}
                   </p>
                   <p className="mt-2 text-[11px] text-[#6b5a8a]">
                     Our team will review it. Wrong hash? Update your proof below.
                   </p>
                 </div>
               ) : null}
-              <UsdtClaimForm depositId={deposit.id} existingTxHash={existingTxHash} />
+              <UsdtClaimForm
+                depositId={deposit.id}
+                existingTxHash={existingTxHash}
+                network={deposit.network}
+              />
             </section>
           </>
         )}

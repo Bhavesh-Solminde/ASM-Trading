@@ -43,7 +43,12 @@ type CandidateDeposit = Deposit & {
   user: { email: string; firstName: string | null; lastName: string | null };
 };
 
-/** Deposit.claimedTxHash is stored as 64 lowercase hex chars without 0x; normalize a ChainCredit's txHash the same way before comparing. */
+/**
+ * Deposit.claimedTxHash is stored as 64 lowercase hex chars without 0x (see
+ * claimUsdtPayment), while ChainCredit.txHash is 64 hex without 0x for TRON
+ * but "0x"+64 lowercase hex for BSC. Every comparison normalizes BOTH sides
+ * through this (strip 0x, lowercase).
+ */
 function normalizeTxHash(hash: string): string {
   return hash.trim().replace(/^0x/i, "").toLowerCase();
 }
@@ -177,7 +182,8 @@ export async function getUsdtReviewEvidence(
   const claimsByHash = new Map<string, UsdtClaimEvidence[]>();
   for (const d of claimRows) {
     if (!d.claimedTxHash) continue;
-    const list = claimsByHash.get(d.claimedTxHash) ?? [];
+    const key = normalizeTxHash(d.claimedTxHash);
+    const list = claimsByHash.get(key) ?? [];
     list.push({
       depositId: d.id,
       status: d.status,
@@ -186,7 +192,7 @@ export async function getUsdtReviewEvidence(
       createdAt: d.createdAt,
       user: { id: d.user.id, email: d.user.email },
     });
-    claimsByHash.set(d.claimedTxHash, list);
+    claimsByHash.set(key, list);
   }
 
   const senderOfCredit = new Map(senderCredits.map((c) => [c.id, c.fromAddress]));
