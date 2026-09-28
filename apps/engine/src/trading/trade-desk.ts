@@ -546,7 +546,39 @@ export class TradeDesk {
       }
 
       let wishes: BucketWish[];
-      if (HOUSE_ALWAYS_WINS_MODE) {
+      // Governor-first path: when a per-trade verdict was stamped at open
+      // time (v2 House Governor or GLG), the settlement resolver honors it
+      // per-user instead of picking a losing side by aggregate stake.
+      // Without this branch, `houseFirstWishes` forces every single-user
+      // bucket to lose (upLiability > 0, downLiability = 0 → user's side
+      // loses), silently overriding every WIN verdict. HONEST verdicts run
+      // with zero urgency so the resolver leaves the honest price alone.
+      const anyGovernor = USE_HOUSE_GOVERNOR || USE_GLG_TREASURY;
+      const stampedGroup =
+        anyGovernor &&
+        group.every(
+          (item) =>
+            item.position.isDemo ||
+            (item.position.verdict !== undefined &&
+              item.position.verdict !== null),
+        );
+      if (stampedGroup) {
+        wishes = [];
+        for (const item of group) {
+          const p = item.position;
+          const verdict = p.verdict;
+          const isHonest = p.isDemo || verdict === "HONEST" || verdict == null;
+          wishes.push({
+            entryPrice: p.entryPrice,
+            direction: p.direction,
+            wantWin: verdict === "WIN",
+            urgency: isHonest ? 0 : 10,
+            stake: p.stake,
+            payoutPct: p.payoutPct,
+          });
+          item.controllerTarget = -1;
+        }
+      } else if (HOUSE_ALWAYS_WINS_MODE) {
         // House-first path. Deterministic per-bucket wishes derived from the
         // aggregate money at stake — no per-user controller draw, no
         // probability. Whichever side has more real-money liability loses,
