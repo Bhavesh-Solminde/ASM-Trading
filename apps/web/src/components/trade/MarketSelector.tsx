@@ -23,6 +23,7 @@ export function MarketSelector({
   onSelect,
   compact = false,
   iconOnly = false,
+  onOpenChange,
 }: {
   assets: PlatformAsset[];
   active: string;
@@ -31,14 +32,26 @@ export function MarketSelector({
   compact?: boolean;
   /** Square, icon-only trigger (the selected market still shows in the chart readout). */
   iconOnly?: boolean;
+  /** Called when markets picker opens or closes */
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleOpen = useCallback(() => {
+    setOpen((prev) => {
+      const next = !prev;
+      onOpenChange?.(next);
+      return next;
+    });
+  }, [onOpenChange]);
+
   const close = useCallback(() => {
     setOpen(false);
+    onOpenChange?.(false);
     setQuery("");
-  }, []);
+  }, [onOpenChange]);
   useDismiss(rootRef, open, close);
 
   const activeAsset = assets.find((a) => a.symbol === active) ?? assets[0];
@@ -60,7 +73,7 @@ export function MarketSelector({
           aria-expanded={open}
           aria-label="Change market"
           title="Change market"
-          onClick={() => setOpen((o) => !o)}
+          onClick={toggleOpen}
           className={`grid size-[34px] place-items-center rounded-[4px] border backdrop-blur ${
             open
               ? "border-brand bg-brand/25 text-brand"
@@ -74,7 +87,7 @@ export function MarketSelector({
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
+          onClick={toggleOpen}
           className={
             compact
               ? `flex items-center gap-2 rounded-[4px] border px-2.5 py-1.5 text-left backdrop-blur ${
@@ -101,11 +114,11 @@ export function MarketSelector({
 
       {open ? (
         <>
-          <div aria-hidden onClick={close} className="fixed inset-0 z-30 hidden bg-black/60 phone:block" />
+          <div aria-hidden onClick={close} className="fixed inset-0 z-50 hidden bg-black/60 phone:block" />
           <div
             role="listbox"
             aria-label="Markets"
-            className="absolute left-0 top-[calc(100%+6px)] z-40 w-[300px] max-w-[calc(100vw-20px)] overflow-hidden rounded border border-rule bg-[#2c3036] shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:left-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0"
+            className="absolute left-0 top-[calc(100%+6px)] z-50 w-[300px] max-w-[calc(100vw-20px)] overflow-hidden rounded border border-rule bg-[#2c3036] shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:left-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0"
           >
             <div className="border-b border-rule p-2">
               <input
