@@ -306,6 +306,18 @@ model HouseDay {
   updatedAt           DateTime @updatedAt
 }
 
+/// Cumulative house treasury for the Growth-Loop Governor (GLG). Singleton row
+/// (id = 1). Never resets on a calendar boundary: house profit accumulates
+/// forever, and pWin is a piecewise-linear function of `treasuryMinor` divided
+/// by `treasuryTargetMinor`. Written by the settlement path on every non-DEMO
+/// trade when `USE_GLG_TREASURY` is on. Read once per trade open.
+model HouseTreasury {
+  id                  Int      @id @default(1)
+  treasuryMinor       Int      @default(0)
+  treasuryTargetMinor Int      @default(1000000)
+  updatedAt           DateTime @updatedAt
+}
+
 /// Recorded for every settled trade, never exposed to a trading client.
 model TradeShadow {
   tradeId          String   @id
