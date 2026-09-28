@@ -1,14 +1,17 @@
 import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
 import {
+  MAGNET_CAP,
   MAGNET_WINDOW_SEC,
   SELF_ANCHOR_ALPHA,
   SELF_ANCHOR_ALPHA_CLOSED,
   SELF_ANCHOR_MODE,
+  USE_HOUSE_GOVERNOR,
   driftBias,
   expiryMagnet,
   imbalance,
   isSymbolClosedForNight,
+  pathBias,
   totalExposure,
 } from "@asm/algo";
 import { TICK_DT_SEC } from "@asm/pricing";
@@ -59,51 +62,106 @@ export function startTickLoop(
         // close (23:30–05:00 IST); crypto and forex are 24/7.
         const closedNow = isSymbolClosedForNight(asset.symbol, startedAt);
 
-        // Nightly close: no book pressure decides the shown path, and the
-        // accelerated self-anchor pulls shown toward honest fast enough to
-        // realign before morning. During open hours every asset gets the
-        // gentle baseline self-anchor so idle stretches can't accumulate
-        // multi-hour drift (the bug that stranded the resolver on Bank NIFTY).
+        // Two mutually exclusive paths:
+        //   - USE_HOUSE_GOVERNOR: per-trade duration-scaled blend. The chart
+        //     is steered toward each open live trade's own targetPrice for the
+        //     WHOLE trade duration. If no non-HONEST trades are open, the
+        //     chart wanders honestly (magnet=0, bias=0).
+        //   - Legacy: pre-governor aggregate-liability magnet in the last
+        //     MAGNET_WINDOW_SEC of the soonest bucket.
         const imb = imbalance(livePositions, nowSec);
-        const bias = closedNow
-          ? 0
-          : driftBias({
-              imbalance: imb,
-              exposure: totalExposure(livePositions),
-              sigma,
-            });
-
-        // Layer 3: near-expiry convergence toward the house-favorable exit.
+        let bias: number;
         let magnetPull = 0;
-        if (!closedNow && livePositions.length > 0 && imb !== 0) {
-          let soonestExpiry = Infinity;
-          for (const p of livePositions) {
-            if (p.expirySec < soonestExpiry) soonestExpiry = p.expirySec;
-          }
-          const secondsLeft = soonestExpiry - nowSec;
-          if (secondsLeft > 0 && secondsLeft <= MAGNET_WINDOW_SEC) {
-            const bucket = livePositions.filter(
-              (p) => p.expirySec === soonestExpiry,
-            );
-            let upLiab = 0;
-            let downLiab = 0;
-            for (const p of bucket) {
-              const liab = (p.stake * p.payoutPct) / 100;
-              if (p.direction === "UP") upLiab += liab;
-              else downLiab += liab;
+
+        if (USE_HOUSE_GOVERNOR) {
+          // No book-pressure bias between trades. Only per-trade steering.
+          bias = 0;
+
+          if (!closedNow) {
+            const currentPrice = asset.state.price;
+            let numer = 0; // sum of liability * pathBias * gap
+            let denom = 0; // sum of liability
+            for (const p of livePositions) {
+              // A trade without a governor stamp — pre-existing row, or one
+              // opened while the flag was off — grandfathers as HONEST.
+              if (
+                !p.verdict ||
+                p.verdict === "HONEST" ||
+                !p.pathStyle ||
+                p.targetPrice === undefined ||
+                p.entrySec === undefined
+              ) {
+                continue;
+              }
+              const duration = p.expirySec - p.entrySec;
+              if (duration <= 0) continue;
+              const elapsedFrac = Math.max(
+                0,
+                Math.min(1, (nowSec - p.entrySec) / duration),
+              );
+              const pb = pathBias(p.pathStyle, elapsedFrac);
+              if (pb === 0) continue;
+              const gap = Math.log(p.targetPrice / currentPrice);
+              if (!Number.isFinite(gap) || gap === 0) continue;
+              const liability = (p.stake * p.payoutPct) / 100;
+              // Extra tightening in the last MAGNET_WINDOW_SEC so the last
+              // ticks can't drift the price back across the target.
+              const secondsLeft = p.expirySec - nowSec;
+              const tighten =
+                secondsLeft > 0 && secondsLeft <= MAGNET_WINDOW_SEC
+                  ? 1 +
+                    (MAGNET_WINDOW_SEC - secondsLeft) / MAGNET_WINDOW_SEC
+                  : 1;
+              numer += liability * pb * gap * tighten;
+              denom += liability;
             }
-            const wantsDown = upLiab >= downLiab;
-            const entries = bucket.map((p) => p.entryPrice);
-            const targetPrice = wantsDown
-              ? Math.min(...entries) - asset.tickSize
-              : Math.max(...entries) + asset.tickSize;
-            magnetPull = expiryMagnet({
-              currentPrice: asset.state.price,
-              targetPrice,
-              secondsLeft,
-              convergenceWindowSec: MAGNET_WINDOW_SEC,
-              sigma,
-            });
+            if (denom > 0) {
+              const combined = numer / denom;
+              const cap = MAGNET_CAP * sigma;
+              magnetPull =
+                combined > cap ? cap : combined < -cap ? -cap : combined;
+            }
+          }
+        } else {
+          // Legacy pre-governor path — book-pressure bias + last-window magnet.
+          bias = closedNow
+            ? 0
+            : driftBias({
+                imbalance: imb,
+                exposure: totalExposure(livePositions),
+                sigma,
+              });
+
+          if (!closedNow && livePositions.length > 0 && imb !== 0) {
+            let soonestExpiry = Infinity;
+            for (const p of livePositions) {
+              if (p.expirySec < soonestExpiry) soonestExpiry = p.expirySec;
+            }
+            const secondsLeft = soonestExpiry - nowSec;
+            if (secondsLeft > 0 && secondsLeft <= MAGNET_WINDOW_SEC) {
+              const bucket = livePositions.filter(
+                (p) => p.expirySec === soonestExpiry,
+              );
+              let upLiab = 0;
+              let downLiab = 0;
+              for (const p of bucket) {
+                const liab = (p.stake * p.payoutPct) / 100;
+                if (p.direction === "UP") upLiab += liab;
+                else downLiab += liab;
+              }
+              const wantsDown = upLiab >= downLiab;
+              const entries = bucket.map((p) => p.entryPrice);
+              const targetPrice = wantsDown
+                ? Math.min(...entries) - asset.tickSize
+                : Math.max(...entries) + asset.tickSize;
+              magnetPull = expiryMagnet({
+                currentPrice: asset.state.price,
+                targetPrice,
+                secondsLeft,
+                convergenceWindowSec: MAGNET_WINDOW_SEC,
+                sigma,
+              });
+            }
           }
         }
 

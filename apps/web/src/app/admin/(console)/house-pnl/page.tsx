@@ -6,6 +6,7 @@ import {
   listHouseDays,
 } from "@asm/db";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
+import { setTargetAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -74,11 +75,32 @@ export default async function HousePnlDashboard() {
         />
       </section>
 
+      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3">
+        <form action={setTargetAction} className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col text-xs uppercase tracking-wide text-[var(--color-ink-2)]">
+            Today's target (INR)
+            <input
+              name="targetRupees"
+              type="number"
+              min={0}
+              step={100}
+              defaultValue={target > 0 ? Math.round(target / 100) : 10000}
+              className="mt-1 w-40 rounded border border-[var(--color-border)] bg-[var(--color-surface-3)] px-2 py-1 font-mono text-sm text-[var(--color-ink-0)]"
+            />
+          </label>
+          <button
+            type="submit"
+            className="rounded bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-white"
+          >
+            Save
+          </button>
+        </form>
+      </section>
+
       {!todayRow && (
         <p className="rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-sm text-[var(--color-ink-2)]">
-          No HouseDay row for today yet. The engine writes one on the first
-          settled live trade; you can also seed it manually via the DB — the
-          admin form is coming in a follow-up commit.
+          No row for today yet. Default fallback is INR 10,000
+          (FALLBACK_DAILY_TARGET_MINOR). First save creates it.
         </p>
       )}
 
