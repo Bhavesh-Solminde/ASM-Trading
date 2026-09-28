@@ -17,9 +17,15 @@ function baseInput(overrides: Partial<GovernorInput> = {}): GovernorInput {
     dailyTargetMinor: 1_000_000,
     realizedTodayMinor: 0,
     userLossStreak: 0,
+    // Default: streak stakes are large enough that the affordability cap
+    // never bites unless a test explicitly sets a small value. Existing
+    // mercy tests assume mercy fires for the reference stake ($1).
+    userLossStreakStakeMinor: 1_000_000,
     userIsHighValue: false,
     tradeStakeMinor: 10_000,
     tradePayoutPct: 85,
+    // Default well outside the closing window (whole day left).
+    minutesUntilDayEnd: 24 * 60,
     ...overrides,
   };
 }
@@ -115,6 +121,98 @@ describe("decideVerdict — mercy floor", () => {
       () => 0.1,
     );
     expect(out).toBe("LOSS");
+  });
+});
+
+describe("decideVerdict — mercy payout-affordability cap", () => {
+  it("mercy is skipped when payout exceeds accumulated streak stakes", () => {
+    // Farming attack: user loses 4×$1 = 400 minor, then places $100 (1_000_000
+    // minor). Payout on the $100 trade = 850_000 minor >> 400 → mercy skipped,
+    // fall back to base pWin (0.05 at progress 0). rng=0.5 → LOSS.
+    const out = decideVerdict(
+      baseInput({
+        userLossStreak: 4,
+        userLossStreakStakeMinor: 400,
+        tradeStakeMinor: 1_000_000,
+      }),
+      () => 0.5,
+    );
+    expect(out).toBe("LOSS");
+  });
+
+  it("mercy fires when payout is within the affordability budget", () => {
+    // User loses 4×$1 = 40_000 minor. Next trade is another $1 (payout
+    // 8_500 minor ≤ 40_000). Mercy applies. rng=0.5 → WIN under floor 0.55.
+    const out = decideVerdict(
+      baseInput({
+        userLossStreak: 4,
+        userLossStreakStakeMinor: 40_000,
+        tradeStakeMinor: 10_000,
+      }),
+      () => 0.5,
+    );
+    expect(out).toBe("WIN");
+  });
+
+  it("mercyPayoutCapRatio=0 disables the cap and reverts to raw mercy", () => {
+    // Same farming setup, but cap disabled → mercy fires anyway.
+    const out = decideVerdict(
+      baseInput({
+        userLossStreak: 4,
+        userLossStreakStakeMinor: 400,
+        tradeStakeMinor: 1_000_000,
+      }),
+      () => 0.5,
+      { ...DEFAULT_GOVERNOR_CONFIG, mercyPayoutCapRatio: 0 },
+    );
+    expect(out).toBe("WIN");
+  });
+});
+
+describe("decideVerdict — closing-window guard", () => {
+  it("clamps pWin near end-of-day when house is behind target", () => {
+    // 30 min left, progress 0.1 (well below 0.5 floor). Even a large mercy
+    // streak can't override the closing clamp (0.10). rng=0.5 → LOSS.
+    const out = decideVerdict(
+      baseInput({
+        userLossStreak: 6, // would otherwise force pWin ≥ 0.80
+        minutesUntilDayEnd: 30,
+        realizedTodayMinor: 100_000,
+        dailyTargetMinor: 1_000_000,
+      }),
+      () => 0.5,
+    );
+    expect(out).toBe("LOSS");
+  });
+
+  it("does not clamp when the house is at or above the closing floor", () => {
+    // 30 min left, progress 0.5 (meets the closingMinProgress floor).
+    // Mercy at streak 6 (0.80) survives.
+    const out = decideVerdict(
+      baseInput({
+        userLossStreak: 6,
+        minutesUntilDayEnd: 30,
+        realizedTodayMinor: 500_000,
+        dailyTargetMinor: 1_000_000,
+      }),
+      () => 0.5,
+    );
+    expect(out).toBe("WIN");
+  });
+
+  it("does not clamp outside the closing window", () => {
+    // 300 min left (5h), progress 0.1. Outside 240-min closing window.
+    // Mercy at streak 6 survives.
+    const out = decideVerdict(
+      baseInput({
+        userLossStreak: 6,
+        minutesUntilDayEnd: 300,
+        realizedTodayMinor: 100_000,
+        dailyTargetMinor: 1_000_000,
+      }),
+      () => 0.5,
+    );
+    expect(out).toBe("WIN");
   });
 });
 

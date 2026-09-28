@@ -10,7 +10,7 @@ import {
   houseDateForInstant,
   loadOpenPositions,
   openTrade,
-  recentLossStreakForAccount,
+  recentLossStreakStatsForAccount,
   recordSettledTrade,
   settleTrade,
   voidTrade,
@@ -152,19 +152,35 @@ export class TradeDesk {
         let dailyTargetMinor = FALLBACK_DAILY_TARGET_MINOR;
         let realizedTodayMinor = 0;
         let userLossStreak = 0;
+        let userLossStreakStakeMinor = 0;
 
         if (!isDemo) {
           const today = houseDateForInstant(entryTs);
-          const [ledger, streak] = await Promise.all([
+          const [ledger, streakStats] = await Promise.all([
             getHouseDay(today),
-            recentLossStreakForAccount(input.accountId),
+            recentLossStreakStatsForAccount(input.accountId),
           ]);
           if (ledger) {
             dailyTargetMinor = ledger.targetProfitMinor;
             realizedTodayMinor = ledger.realizedProfitMinor;
           }
-          userLossStreak = streak;
+          userLossStreak = streakStats.count;
+          userLossStreakStakeMinor = streakStats.totalStakeMinor;
         }
+
+        // Minutes until the IST house-day rolls over (00:00 IST). Feeds the
+        // closing-window guard so the governor tightens up as the day ends.
+        const istMs = entryTs.getTime() + 5.5 * 3_600_000;
+        const istInstant = new Date(istMs);
+        const istDayEnd = Date.UTC(
+          istInstant.getUTCFullYear(),
+          istInstant.getUTCMonth(),
+          istInstant.getUTCDate() + 1,
+        );
+        const minutesUntilDayEnd = Math.max(
+          0,
+          Math.round((istDayEnd - istMs) / 60_000),
+        );
 
         const verdict = decideVerdict(
           {
@@ -172,9 +188,11 @@ export class TradeDesk {
             dailyTargetMinor,
             realizedTodayMinor,
             userLossStreak,
+            userLossStreakStakeMinor,
             userIsHighValue: false,
             tradeStakeMinor: input.stake,
             tradePayoutPct: asset.payoutPct,
+            minutesUntilDayEnd,
           },
           Math.random,
         );

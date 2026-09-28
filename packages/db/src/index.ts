@@ -43,7 +43,7 @@ export {
   listHouseDays,
   upsertHouseDayTarget,
   applySettlementToHouseDay,
-  recentLossStreakForAccount,
+  recentLossStreakStatsForAccount,
 } from "./repositories/house-day";
 export {
   AmountSpaceExhausted,

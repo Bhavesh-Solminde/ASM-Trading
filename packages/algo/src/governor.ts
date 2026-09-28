@@ -25,12 +25,26 @@ export interface GovernorInput {
   realizedTodayMinor: number;
   /** Consecutive losses on this user's most recent settled live trades. */
   userLossStreak: number;
+  /**
+   * Sum of stakes in the current LOSS streak, minor units. Feeds the mercy
+   * payout-affordability cap: mercy only fires when a WIN's payout is
+   * ≤ this amount, so users can't farm mercy by stacking tiny losses then
+   * placing one huge trade.
+   */
+  userLossStreakStakeMinor: number;
   /** Currently unused directly; reserved for future tilt (VIP protection etc). */
   userIsHighValue: boolean;
   /** Trade stake in minor units. */
   tradeStakeMinor: number;
   /** Payout percentage the user is offered, e.g. 85 for a 1.85× win. */
   tradePayoutPct: number;
+  /**
+   * Minutes remaining until the current IST house-day rolls over. Feeds the
+   * closing-window guard: when the day is nearly over AND the house is far
+   * behind its target, mercy is clamped so users don't drag the house into
+   * the red as the day ends.
+   */
+  minutesUntilDayEnd: number;
 }
 
 export interface GovernorConfig {
@@ -53,6 +67,25 @@ export interface GovernorConfig {
    */
   referenceStakeMinor: number;
   stakeTiltExponent: number;
+  /**
+   * Mercy payout-affordability cap. Mercy floors only apply when the trade's
+   * would-be payout is ≤ `mercyPayoutCapRatio × userLossStreakStakeMinor`.
+   * At 1.0 (default) the payout on the mercy trade cannot exceed what the
+   * user has already burned in the current streak — the house is at worst
+   * flat over the streak-window. Set higher to be more generous, 0 disables
+   * the cap entirely (reverts to pre-cap behavior).
+   */
+  mercyPayoutCapRatio: number;
+  /**
+   * Closing-window guard: within the last `closingWindowMinutes` of the IST
+   * day, if daily progress is below `closingMinProgress`, pWin is clamped
+   * to `closingClampPWin`. This prevents mercy or a soft ladder from
+   * dragging the house into a losing day when there's no runway left to
+   * grind back to target. Set `closingWindowMinutes` to 0 to disable.
+   */
+  closingWindowMinutes: number;
+  closingMinProgress: number;
+  closingClampPWin: number;
 }
 
 export const DEFAULT_GOVERNOR_CONFIG: GovernorConfig = {
@@ -72,6 +105,10 @@ export const DEFAULT_GOVERNOR_CONFIG: GovernorConfig = {
   giveBackClampPWin: 0.25,
   referenceStakeMinor: 10_000, // ₹100
   stakeTiltExponent: 0.5,
+  mercyPayoutCapRatio: 1.0,
+  closingWindowMinutes: 240, // last 4 hours of the IST day (20:00–00:00)
+  closingMinProgress: 0.5,
+  closingClampPWin: 0.1,
 };
 
 /**
@@ -128,20 +165,42 @@ export function decideVerdict(
     // ladder is already the baseline so we don't multiply UP).
   }
 
-  // Mercy floor: never let a user lose N in a row. Iterate so the highest
-  // matching threshold wins even if the config is unsorted.
-  for (const [minStreak, floor] of config.mercy) {
-    if (input.userLossStreak >= minStreak) {
-      pWin = Math.max(pWin, floor);
+  // Would-be payout on a WIN (the "cost" to the house). Also used by the
+  // giveback clamp below.
+  const winCost = Math.round(
+    (input.tradeStakeMinor * input.tradePayoutPct) / 100,
+  );
+
+  // Mercy floor: never let a user lose N in a row, BUT only when the
+  // would-be payout is affordable given what they've already burned in the
+  // current streak. This kills the "lose 4×$1, then place $100" farming
+  // pattern: on the $100 trade, payout $85 > $4 losses → mercy skipped.
+  // A ratio of 0 disables the affordability cap and reverts to raw mercy.
+  const mercyAffordable =
+    config.mercyPayoutCapRatio <= 0 ||
+    winCost <= config.mercyPayoutCapRatio * input.userLossStreakStakeMinor;
+  if (mercyAffordable) {
+    for (const [minStreak, floor] of config.mercy) {
+      if (input.userLossStreak >= minStreak) {
+        pWin = Math.max(pWin, floor);
+      }
     }
+  }
+
+  // Closing-window guard: near the end of the IST day, if the house is
+  // behind its target, we won't hand out wins — including mercy wins. There
+  // isn't enough runway left to grind back what we give away.
+  if (
+    config.closingWindowMinutes > 0 &&
+    input.minutesUntilDayEnd <= config.closingWindowMinutes &&
+    progress < config.closingMinProgress
+  ) {
+    pWin = Math.min(pWin, config.closingClampPWin);
   }
 
   // Giveback protection: once we're over target, a win must not drop realized
   // below target again. If it would, cap pWin so we don't giveback more than
   // the day's overage.
-  const winCost = Math.round(
-    (input.tradeStakeMinor * input.tradePayoutPct) / 100,
-  );
   if (progress > 1 && realized - winCost < target) {
     pWin = Math.min(pWin, config.giveBackClampPWin);
   }
