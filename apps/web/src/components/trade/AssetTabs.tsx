@@ -5,6 +5,7 @@ import { Icon } from "@/components/shell/Icon";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
 import { splitAssetName } from "@/lib/asset-name";
 import { useDismiss } from "@/lib/use-dismiss";
+import { AssetIcon } from "./AssetIcon";
 
 const INITIAL_TABS = 3;
 
@@ -66,10 +67,13 @@ export function AssetTabs({
                   onSelect(asset.symbol);
                   setPicking(false);
                 }}
-                className="flex w-full items-baseline justify-between rounded-[2px] px-2.5 py-2 text-left hover:bg-tile"
+                className="flex w-full items-center justify-between gap-2.5 rounded-[2px] px-2.5 py-2 text-left hover:bg-tile"
               >
-                <span className="text-sm font-bold">{asset.displayName}</span>
-                <span className="text-xs font-bold text-brand">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AssetIcon symbol={asset.symbol} size="sm" />
+                  <span className="truncate text-sm font-bold">{asset.displayName}</span>
+                </div>
+                <span className="shrink-0 text-xs font-bold text-brand">
                   <LivePayout asset={asset} />
                 </span>
               </button>
@@ -91,17 +95,20 @@ export function AssetTabs({
                 role="tab"
                 aria-selected={selected}
                 onClick={() => onSelect(symbol)}
-                className={`grid min-w-[150px] grid-cols-[auto_auto] items-baseline justify-between gap-x-3 rounded border px-3.5 py-2 text-left phone:min-w-[118px] phone:py-2.5 pointer-coarse:pr-8 ${
+                className={`flex min-w-[155px] items-center justify-between gap-2.5 rounded border px-3 py-2 text-left phone:min-w-[124px] phone:py-2.5 pointer-coarse:pr-8 ${
                   selected
                     ? "border-ink-3 bg-tile shadow-[inset_0_-2px_0_var(--color-brand)]"
                     : "border-rule bg-panel hover:border-tile-hi"
                 }`}
               >
-                <span className="text-sm font-bold tracking-[0.03em]">
-                  {pair}
-                  {market ? <span className="ml-1.5 text-[9px] font-semibold tracking-[0.08em] text-ink-3">{market}</span> : null}
-                </span>
-                <span className="text-xs font-bold text-brand">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AssetIcon symbol={symbol} size="sm" />
+                  <span className="truncate text-sm font-bold tracking-[0.03em]">
+                    {pair}
+                    {market ? <span className="ml-1.5 text-[9px] font-semibold tracking-[0.08em] text-ink-3">{market}</span> : null}
+                  </span>
+                </div>
+                <span className="shrink-0 text-xs font-bold text-brand">
                   <LivePayout asset={asset} />
                 </span>
               </button>

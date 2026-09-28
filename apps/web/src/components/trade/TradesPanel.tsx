@@ -8,6 +8,7 @@ import { formatMinor } from "@/lib/format-money";
 import { clockTime, countdown } from "@/lib/format-time";
 import { useNowSec } from "@/lib/use-now";
 import { closedRowDisplay, grossReturnMinor } from "./pnl-display";
+import { AssetIcon } from "./AssetIcon";
 
 type Tab = "open" | "closed";
 
@@ -46,7 +47,10 @@ function RowShell({
         className={`dir-mark row-span-3 mt-[3px] ${up ? "text-up" : "text-down"}`}
         data-dir={up ? "up" : "down"}
       />
-      <span className="font-bold tracking-[0.03em]">{asset ? splitAssetName(asset.displayName).pair : trade.symbol}</span>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <AssetIcon symbol={trade.symbol} size="sm" />
+        <span className="font-bold tracking-[0.03em] truncate">{asset ? splitAssetName(asset.displayName).pair : trade.symbol}</span>
+      </div>
       {time}
       <span className="text-xs text-ink-2">{formatMinor(trade.stake, currency)}</span>
       <span className={`justify-self-end font-bold ${pnlClass}`}>{pnl}</span>

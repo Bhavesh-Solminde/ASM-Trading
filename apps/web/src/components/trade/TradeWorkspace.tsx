@@ -19,6 +19,7 @@ import { useNowSec } from "@/lib/use-now";
 import { MarketSelector } from "./MarketSelector";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
+import { AssetIcon } from "./AssetIcon";
 
 const NO_TRADES: TradeView[] = [];
 const LIVE_ACCOUNT_ENABLED = process.env.NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED === "true";
@@ -47,6 +48,7 @@ function ChartReadout({ symbol, displayName, precision }: { symbol: string; disp
   return (
     <div className="pointer-events-none grid gap-0.5">
       <div className="flex items-center gap-2">
+        <AssetIcon symbol={symbol} size="sm" />
         <span className="text-[14px] font-bold tracking-[0.03em] phone:text-[12px]">{pair}</span>
         {qualifier ? <span className="legend">{qualifier}</span> : null}
       </div>
@@ -253,6 +255,7 @@ export function TradeWorkspace() {
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candles");
+  const [marketPickerOpen, setMarketPickerOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -338,7 +341,12 @@ export function TradeWorkspace() {
             widths and in focus mode the market switch moves inside the chart. */}
         {focusMode ? null : (
           <div className="phone:hidden">
-            <MarketSelector assets={assets} active={asset.symbol} onSelect={selectChartSymbol} />
+            <MarketSelector
+              assets={assets}
+              active={asset.symbol}
+              onSelect={selectChartSymbol}
+              onOpenChange={setMarketPickerOpen}
+            />
           </div>
         )}
 
@@ -357,7 +365,7 @@ export function TradeWorkspace() {
 
             {/* Top-left overlay: account switcher (focus), then a row of the clock
                 plus the compact market + history buttons, then the price readout. */}
-            <div className="pointer-events-none absolute left-2 top-2 z-10 grid max-w-[calc(100%-16px)] gap-1.5">
+            <div className={`pointer-events-none absolute left-2 top-2 ${marketPickerOpen ? "z-50" : "z-10"} grid max-w-[calc(100%-16px)] gap-1.5`}>
               {focusMode ? <FocusAccountSwitcher /> : null}
               <div className="flex items-center gap-1.5">
                 <ChartClock />
@@ -368,6 +376,7 @@ export function TradeWorkspace() {
                     onSelect={selectChartSymbol}
                     compact
                     iconOnly
+                    onOpenChange={setMarketPickerOpen}
                   />
                   <button
                     type="button"
@@ -398,14 +407,16 @@ export function TradeWorkspace() {
             ) : null}
 
             <TimeframeTabs className="absolute right-2 top-2 z-10" />
-            <button
-              type="button"
-              onClick={focusMode ? exitFocus : enterFocus}
-              aria-label={focusMode ? "Exit fullscreen" : "Fullscreen chart"}
-              className="absolute bottom-2 right-2 z-10 grid size-8 place-items-center rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink"
-            >
-              <Icon name={focusMode ? "collapse" : "expand"} className="size-4" />
-            </button>
+            {!marketPickerOpen ? (
+              <button
+                type="button"
+                onClick={focusMode ? exitFocus : enterFocus}
+                aria-label={focusMode ? "Exit fullscreen" : "Fullscreen chart"}
+                className="absolute bottom-2 right-2 z-10 grid size-8 place-items-center rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink"
+              >
+                <Icon name={focusMode ? "collapse" : "expand"} className="size-4" />
+              </button>
+            ) : null}
 
             <ResultPopup />
           </div>
