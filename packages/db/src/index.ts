@@ -72,6 +72,7 @@ export {
   listPendingDeposits,
   rejectDeposit,
   reverseCompletedDeposit,
+  reverseUsdtDepositAndRequeue,
   claimUtr,
   claimUsdtPayment,
 } from "./repositories/deposit";

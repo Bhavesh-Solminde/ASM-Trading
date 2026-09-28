@@ -2,7 +2,9 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "../client";
 import { flagLinkageForUser } from "./fraud";
 import { convertMinorBetween } from "./account";
-import type { Deposit } from "../../generated/prisma/client";
+import type { Deposit, Prisma } from "../../generated/prisma/client";
+
+type Tx = Prisma.TransactionClient;
 
 /**
  * The PSP-style conversion rate. Deliberately above interbank — that spread is
@@ -689,6 +691,21 @@ export async function reverseCompletedDeposit(input: {
   reason: string;
   force?: boolean;
 }): Promise<void> {
+  return performDepositReversal(input);
+}
+
+/**
+ * The shared reversal core behind reverseCompletedDeposit and
+ * reverseUsdtDepositAndRequeue — one place for the balance-debit math so the
+ * two can never drift apart (same reasoning as depositCreditMinor). `onReversed`
+ * runs inside the SAME transaction, after the deposit/account/audit writes but
+ * before it commits, so a caller-specific follow-up (e.g. re-queuing the
+ * on-chain payment) is exactly as atomic as the reversal itself.
+ */
+async function performDepositReversal(
+  input: { depositId: string; adminId: string; reason: string; force?: boolean },
+  onReversed?: (tx: Tx, deposit: Deposit) => Promise<void>,
+): Promise<void> {
   const deposit = await prisma.deposit.findUnique({ where: { id: input.depositId } });
   if (!deposit) throw new DepositNotFound();
   if (deposit.status !== "COMPLETED") {
@@ -782,6 +799,69 @@ export async function reverseCompletedDeposit(input: {
           reclaimedBonus: bonusCap,
           shortfall: (credit - realCap) + (bonus - bonusCap),
         },
+      },
+    });
+
+    if (onReversed) await onReversed(tx, deposit);
+  });
+}
+
+/**
+ * Reverses a COMPLETED USDT deposit exactly like reverseCompletedDeposit, and
+ * — in the SAME transaction — returns its linked on-chain payment to the
+ * admin review queue (MANUAL_REVIEW, un-consumed) so it can be re-attached to
+ * the correct deposit via resolveChainCreditToDeposit. This is the fix for
+ * the gap a wrong "Credit to deposit" click leaves behind: without it, the
+ * only way to undo a mis-credit is hand-editing the database.
+ *
+ * Refuses (never partially applies) when the deposit isn't a USDT deposit, or
+ * has no linked ChainCredit — those cases have no on-chain payment to give
+ * back to the queue, so the generic reverseCompletedDeposit is the right tool.
+ */
+export async function reverseUsdtDepositAndRequeue(input: {
+  depositId: string;
+  adminId: string;
+  reason: string;
+  force?: boolean;
+}): Promise<void> {
+  const deposit = await prisma.deposit.findUnique({ where: { id: input.depositId } });
+  if (!deposit) throw new DepositNotFound();
+  if (deposit.method !== "USDT") {
+    throw new DepositReversalRefused("Only a USDT deposit can be reversed and requeued this way.");
+  }
+  if (!deposit.matchedChainCreditId) {
+    throw new DepositReversalRefused("This deposit has no linked on-chain payment to return to the review queue.");
+  }
+
+  return performDepositReversal(input, async (tx, freshDeposit) => {
+    const chainCreditId = freshDeposit.matchedChainCreditId;
+    if (!chainCreditId) throw new DepositReversalRefused("This deposit has no linked on-chain payment to return to the review queue.");
+
+    // Guarded on consumed: true — the one-credit-only guarantee means a
+    // COMPLETED deposit's chain credit is always consumed, so count !== 1
+    // here means something else already changed it (a genuine anomaly, never
+    // silently ignored).
+    const requeued = await tx.chainCredit.updateMany({
+      where: { id: chainCreditId, consumed: true },
+      data: { consumed: false, processingStatus: "MANUAL_REVIEW", reviewReason: "ADMIN_REVERSED" },
+    });
+    if (requeued.count !== 1) {
+      throw new DepositReversalRefused("The linked on-chain payment was not in the expected state — nothing was changed.");
+    }
+
+    // Deposit.matchedChainCreditId is @unique — left pointing at this credit,
+    // it would permanently block the credit from ever being attached to a
+    // different (correct) deposit. The reversed deposit is REJECTED and dead
+    // either way, so clearing it here costs nothing.
+    await tx.deposit.update({ where: { id: freshDeposit.id }, data: { matchedChainCreditId: null } });
+
+    await tx.auditLog.create({
+      data: {
+        actorId: input.adminId,
+        action: "chain_credit.requeued_after_reversal",
+        targetType: "ChainCredit",
+        targetId: chainCreditId,
+        after: { processingStatus: "MANUAL_REVIEW", reviewReason: "ADMIN_REVERSED", requeuedFromDepositId: freshDeposit.id },
       },
     });
   });

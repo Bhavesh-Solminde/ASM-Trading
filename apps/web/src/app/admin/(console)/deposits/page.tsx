@@ -14,7 +14,7 @@ import { TableControls } from "../../_components/TableControls";
 import { Avatar, Card, EmptyRow, Pager, StatCard, StatusPill } from "../../_components/ui";
 import { Icon } from "../../_lib/icons";
 import { hrefWith, fmtDate, fmtDateTime, inrFromMinor, timeAgo, usdCompactFromMinor, usdFromMinor } from "../../_lib/format";
-import { approveDepositAction, rejectDepositAction } from "./actions";
+import { approveDepositAction, rejectDepositAction, reverseUsdtDepositAction } from "./actions";
 import {
   EMPTY_EVIDENCE,
   isCreditable,
@@ -252,6 +252,12 @@ export default async function DepositsPage({
             <TabBar tab={tab} sp={sp} pendingCount={pendingCount} usdtReviewCount={usdtReviewCount} />
           </div>
 
+          {sp.ok || sp.error ? (
+            <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
+              <UsdtResultBanner ok={sp.ok} error={sp.error} />
+            </div>
+          ) : null}
+
           <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
             <TableControls placeholder="Search UTR, user email or name…" />
           </div>
@@ -360,6 +366,45 @@ export default async function DepositsPage({
                                 <input type="hidden" name="depositId" value={d.id} />
                                 <button type="submit" className="admin-btn admin-btn--sm admin-btn--pos">
                                   Approve
+                                </button>
+                              </form>
+                            </div>
+                          ) : d.method === "USDT" && d.status === "COMPLETED" ? (
+                            <div style={{ display: "inline-flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                              <Link
+                                href={`/admin/users?q=${encodeURIComponent(d.user.email)}`}
+                                className="admin-cell-sub"
+                                style={{ fontSize: 11, textDecoration: "underline" }}
+                              >
+                                user
+                              </Link>
+                              <form
+                                action={reverseUsdtDepositAction}
+                                style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}
+                              >
+                                <input type="hidden" name="depositId" value={d.id} />
+                                <input
+                                  type="text"
+                                  name="reason"
+                                  required
+                                  placeholder="Reason (e.g. wrong user)"
+                                  className="admin-input"
+                                  style={{ width: 180, fontSize: 12, padding: "4px 6px" }}
+                                />
+                                <label
+                                  className="admin-cell-sub"
+                                  style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 4 }}
+                                  title="Reclaim the credit even if the user's balance is now below it (caps at zero instead of refusing)."
+                                >
+                                  <input type="checkbox" name="force" />
+                                  Force if balance is short
+                                </label>
+                                <button
+                                  type="submit"
+                                  className="admin-btn admin-btn--sm admin-btn--danger"
+                                  title="Undo this credit and return the on-chain payment to the USDT review queue."
+                                >
+                                  Reverse &amp; requeue
                                 </button>
                               </form>
                             </div>

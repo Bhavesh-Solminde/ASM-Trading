@@ -76,6 +76,7 @@ const REASON_TEXT: Record<string, string> = {
   WRONG_NETWORK: "Wrong network",
   WRONG_DESTINATION: "Not sent to our receiving address",
   EXPIRED_DEPOSIT: "Deposit window expired",
+  ADMIN_REVERSED: "Wrongly credited — reversed by an admin and returned here",
 };
 
 const NEVER_CREDITABLE_REASONS = new Set(["WRONG_TOKEN_CONTRACT", "WRONG_NETWORK", "WRONG_DESTINATION"]);
@@ -258,7 +259,7 @@ export function UsdtResultBanner({ ok, error }: { ok?: string | undefined; error
       </div>
     );
   }
-  if (ok === "resolved" || ok === "dismissed") {
+  if (ok === "resolved" || ok === "dismissed" || ok === "reversed") {
     return (
       <div
         className="admin-banner"
@@ -272,7 +273,9 @@ export function UsdtResultBanner({ ok, error }: { ok?: string | undefined; error
         <span>
           {ok === "resolved"
             ? "Payment credited — the received amount was added to the user's balance."
-            : "Payment dismissed."}
+            : ok === "reversed"
+              ? "Deposit reversed — the payment is back in the queue below, ready to be credited to the right user."
+              : "Payment dismissed."}
         </span>
       </div>
     );

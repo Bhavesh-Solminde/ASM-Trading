@@ -5,11 +5,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   ChainCreditResolutionRefused,
+  DepositReversalRefused,
   creditDepositToAccount,
   dismissChainCredit,
   prisma,
   rejectDeposit,
   resolveChainCreditToDeposit,
+  reverseUsdtDepositAndRequeue,
 } from "@asm/db";
 import { USDT_NETWORK_INFO, isUsdtNetwork } from "@asm/contracts";
 import { logger } from "@asm/logger";
@@ -61,16 +63,29 @@ export async function rejectDepositAction(formData: FormData): Promise<void> {
 /* ---------------------- USDT (TRC-20 / BEP-20) manual review --------------------- */
 
 const USDT_TAB = "/admin/deposits?tab=usdt";
+const HISTORY_TAB = "/admin/deposits?tab=history";
 const NOTE_MAX = 500;
+const REASON_MAX = 500;
 
 function usdtError(message: string): never {
   redirect(`${USDT_TAB}&error=${encodeURIComponent(message)}`);
+}
+
+function historyError(message: string): never {
+  redirect(`${HISTORY_TAB}&error=${encodeURIComponent(message)}`);
 }
 
 function isResolutionRefusal(err: unknown): err is Error {
   return (
     err instanceof ChainCreditResolutionRefused ||
     (err instanceof Error && err.name === "ChainCreditResolutionRefused")
+  );
+}
+
+function isReversalRefusal(err: unknown): err is Error {
+  return (
+    err instanceof DepositReversalRefused ||
+    (err instanceof Error && (err.name === "DepositReversalRefused" || err.name === "DepositNotFound"))
   );
 }
 
@@ -175,4 +190,49 @@ export async function dismissChainCreditAction(formData: FormData): Promise<void
     "chain credit dismissed by admin",
   );
   redirect(`${USDT_TAB}&ok=dismissed`);
+}
+
+/**
+ * Undoes a completed USDT deposit that was credited to the wrong user (e.g. an
+ * operator picked the wrong row from the "Credit to deposit" dropdown):
+ * reverses the balance/bonus exactly like a chargeback, and — in the same
+ * transaction (see reverseUsdtDepositAndRequeue) — puts the on-chain payment
+ * back in the USDT review queue so it can be credited to the right deposit.
+ * `force` is a deliberately explicit, unchecked-by-default checkbox: without
+ * it, a shortfall (the user already spent the money) refuses rather than
+ * silently capping the reclaim at zero.
+ */
+export async function reverseUsdtDepositAction(formData: FormData): Promise<void> {
+  await requirePanel();
+  const depositId = formString(formData, "depositId");
+  const reason = formString(formData, "reason");
+  const force = formData.get("force") === "on";
+  if (!depositId) historyError("Missing deposit id.");
+  if (!reason) historyError("A reason is required to reverse a deposit.");
+  if (reason.length > REASON_MAX) historyError(`Reason must be ${REASON_MAX} characters or fewer.`);
+
+  let refusal: string | null = null;
+  try {
+    await reverseUsdtDepositAndRequeue({ depositId, adminId: ADMIN_ACTOR, reason, force });
+  } catch (err) {
+    if (!isReversalRefusal(err)) throw err;
+    refusal = err.message || "The deposit could not be reversed.";
+  }
+
+  revalidatePath("/admin/deposits");
+  revalidatePath("/admin");
+
+  if (refusal !== null) {
+    logger.warn(
+      { evt: "admin.action", action: "deposit.reverse_usdt", depositId, refused: refusal },
+      "USDT deposit reversal refused",
+    );
+    historyError(refusal);
+  }
+
+  logger.info(
+    { evt: "admin.action", action: "deposit.reverse_usdt", depositId, reason, force },
+    "USDT deposit reversed and payment requeued by admin",
+  );
+  redirect(`${USDT_TAB}&ok=reversed`);
 }
