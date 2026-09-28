@@ -4,9 +4,13 @@ import {
   AlreadySettled,
   InsufficientFunds,
   TradeNotFound,
+  applySettlementToHouseDay,
   getAccountForActor,
+  getHouseDay,
+  houseDateForInstant,
   loadOpenPositions,
   openTrade,
+  recentLossStreakForAccount,
   recordSettledTrade,
   settleTrade,
   voidTrade,
@@ -14,12 +18,16 @@ import {
   type ShadowInput,
 } from "@asm/db";
 import {
+  FALLBACK_DAILY_TARGET_MINOR,
   HOUSE_ALWAYS_WINS_MODE,
   MAX_CORRECTIVE_TICKS,
   MAX_HONEST_TICK_SHIFT_OTC,
+  USE_HOUSE_GOVERNOR,
+  decideVerdict,
   houseFirstWishes,
   imbalance,
   isSymbolClosedForNight,
+  pickStyle,
   resolveBucket,
   TARGETS,
   type BucketWish,
@@ -128,6 +136,80 @@ export class TradeDesk {
     const expiryTs = new Date(entryTs.getTime() + input.durationSec * 1000);
     const entryPrice = Number(asset.state.price.toFixed(asset.precision));
 
+    // House-governor stamps. Off by default — when the flag is on the verdict
+    // is decided at OPEN time and the tick loop's per-trade magnet steers the
+    // shown price toward the outcome across the full duration. Demo trades
+    // always resolve to HONEST. On failure to read the ledger we fall through
+    // to HONEST (fail-safe: no bias applied).
+    let governorStamp: {
+      verdict: "WIN" | "LOSS" | "HONEST";
+      pathStyle: "DIRECT" | "OSCILLATE" | "FEINT";
+      targetPrice: number;
+    } | null = null;
+    if (USE_HOUSE_GOVERNOR) {
+      try {
+        const isDemo = account.type === "DEMO";
+        let dailyTargetMinor = FALLBACK_DAILY_TARGET_MINOR;
+        let realizedTodayMinor = 0;
+        let userLossStreak = 0;
+
+        if (!isDemo) {
+          const today = houseDateForInstant(entryTs);
+          const [ledger, streak] = await Promise.all([
+            getHouseDay(today),
+            recentLossStreakForAccount(input.accountId),
+          ]);
+          if (ledger) {
+            dailyTargetMinor = ledger.targetProfitMinor;
+            realizedTodayMinor = ledger.realizedProfitMinor;
+          }
+          userLossStreak = streak;
+        }
+
+        const verdict = decideVerdict(
+          {
+            isDemo,
+            dailyTargetMinor,
+            realizedTodayMinor,
+            userLossStreak,
+            userIsHighValue: false,
+            tradeStakeMinor: input.stake,
+            tradePayoutPct: asset.payoutPct,
+          },
+          Math.random,
+        );
+
+        const pathStyle = pickStyle(input.durationSec, verdict, Math.random);
+
+        // Target price: for WIN we want the user's side, for LOSS the house side.
+        // For UP direction: user wins if price rises → LOSS target is below entry.
+        // For DOWN direction: user wins if price falls → LOSS target is above entry.
+        // HONEST: no target used but we stamp entryPrice as a harmless default.
+        const tick = asset.tickSize;
+        const userWins =
+          verdict === "WIN" ||
+          (verdict === "HONEST" && input.direction === "UP");
+        let target: number;
+        if (verdict === "HONEST") {
+          target = entryPrice;
+        } else if (input.direction === "UP") {
+          target = userWins ? entryPrice + tick : entryPrice - tick;
+        } else {
+          target = userWins ? entryPrice - tick : entryPrice + tick;
+        }
+
+        governorStamp = { verdict, pathStyle, targetPrice: target };
+      } catch (err) {
+        logger.warn(
+          {
+            evt: "trade.governor_stamp_failed",
+            reason: err instanceof Error ? err.message : "unknown",
+          },
+          "governor stamp failed — proceeding without a verdict",
+        );
+      }
+    }
+
     let opened;
     try {
       opened = await openTrade({
@@ -139,6 +221,13 @@ export class TradeDesk {
         entryPrice,
         entryTs,
         expiryTs,
+        ...(governorStamp
+          ? {
+              verdict: governorStamp.verdict,
+              pathStyle: governorStamp.pathStyle,
+              targetPrice: governorStamp.targetPrice,
+            }
+          : {}),
       });
     } catch (err) {
       if (err instanceof InsufficientFunds) throw new DeskRejection("insufficient_funds");
@@ -176,8 +265,16 @@ export class TradeDesk {
       stake: opened.trade.stake,
       payoutPct: opened.trade.payoutPct,
       entryPrice,
+      entrySec: Math.floor(entryTs.getTime() / 1000),
       expirySec,
       isDemo: account.type === "DEMO",
+      ...(governorStamp
+        ? {
+            verdict: governorStamp.verdict,
+            pathStyle: governorStamp.pathStyle,
+            targetPrice: governorStamp.targetPrice,
+          }
+        : {}),
     });
 
     const result: OpenTradeResult = {
@@ -325,6 +422,28 @@ export class TradeDesk {
             "account stats update failed after settlement",
           );
         });
+
+        // House-governor ledger. Live only — demo trades never move it. Also
+        // best-effort; a failed upsert must not roll the settlement back.
+        if (USE_HOUSE_GOVERNOR && !item.position.isDemo) {
+          const settledAt = settled.trade.expiryTs ?? new Date(this.now());
+          await applySettlementToHouseDay({
+            date: houseDateForInstant(settledAt),
+            fallbackTargetMinor: FALLBACK_DAILY_TARGET_MINOR,
+            userPnl: settled.trade.pnl,
+            stake: item.position.stake,
+            outcome: settled.trade.status,
+          }).catch((err: unknown) => {
+            logger.error(
+              {
+                evt: "trade.house_day_update_failed",
+                tradeId: item.position.tradeId,
+                reason: err instanceof Error ? err.message : "unknown",
+              },
+              "HouseDay ledger update failed after settlement",
+            );
+          });
+        }
       }
       this.controller.invalidate(item.position.accountId);
 
