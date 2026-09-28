@@ -93,6 +93,15 @@ export const FALLBACK_DAILY_TARGET_MINOR: number = (() => {
 })();
 
 /**
+ * Commit-phase window (seconds). In the last COMMIT_WINDOW_SEC of a
+ * governor-stamped live trade the shown price is deterministically eased
+ * toward the trade's targetPrice, so a freak GARCH z draw cannot pull the
+ * chart back across the target line. Guarantees the "chart == settled"
+ * invariant that removes the fraud-report vector.
+ */
+export const COMMIT_WINDOW_SEC = 6;
+
+/**
  * Undetectability cap. In house-first mode the resolver may pick an exit
  * price that differs from the honest live feed by AT MOST this many ticks.
  * Beyond this bound the manipulation would be visible against an external

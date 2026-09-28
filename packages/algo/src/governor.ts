@@ -40,6 +40,19 @@ export interface GovernorConfig {
   mercy: ReadonlyArray<readonly [minStreak: number, pWinFloor: number]>;
   /** Absolute ceiling on pWin during giveback so the house never bleeds. */
   giveBackClampPWin: number;
+  /**
+   * Stake-value tilt. Bigger stakes tilt more toward LOSS because a lost
+   * high-stake trade contributes more to the daily profit target and a won
+   * high-stake trade drains more of the giveback budget.
+   *
+   *   effective pWin = base pWin × (referenceStakeMinor / stakeMinor)^stakeTiltExponent
+   *
+   * At stakeTiltExponent = 0 the tilt is disabled. At 0.5, a stake 4× the
+   * reference halves pWin. Mercy floor is applied AFTER the tilt so no user
+   * is trapped in the LOSS bucket forever.
+   */
+  referenceStakeMinor: number;
+  stakeTiltExponent: number;
 }
 
 export const DEFAULT_GOVERNOR_CONFIG: GovernorConfig = {
@@ -57,6 +70,8 @@ export const DEFAULT_GOVERNOR_CONFIG: GovernorConfig = {
     [6, 0.8],
   ],
   giveBackClampPWin: 0.25,
+  referenceStakeMinor: 10_000, // ₹100
+  stakeTiltExponent: 0.5,
 };
 
 /**
@@ -100,6 +115,18 @@ export function decideVerdict(
   const progress = target > 0 ? realized / target : 1;
 
   let pWin = ladder(progress, config.ladder);
+
+  // Stake-value tilt: on the same daily-progress row, bigger stakes tilt
+  // more toward LOSS. Applied BEFORE the mercy floor so a big-stake user on
+  // a long losing streak can still get bailed out.
+  if (config.stakeTiltExponent > 0 && input.tradeStakeMinor > 0) {
+    const ratio = config.referenceStakeMinor / input.tradeStakeMinor;
+    if (ratio < 1) {
+      pWin *= Math.pow(ratio, config.stakeTiltExponent);
+    }
+    // stakes <= reference get no penalty (ratio >= 1 → factor >= 1, but the
+    // ladder is already the baseline so we don't multiply UP).
+  }
 
   // Mercy floor: never let a user lose N in a row. Iterate so the highest
   // matching threshold wins even if the config is unsorted.

@@ -1,6 +1,7 @@
 import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
 import {
+  COMMIT_WINDOW_SEC,
   MAGNET_CAP,
   MAGNET_WINDOW_SEC,
   SELF_ANCHOR_ALPHA,
@@ -12,6 +13,7 @@ import {
   imbalance,
   isSymbolClosedForNight,
   pathBias,
+  smoothstep,
   totalExposure,
 } from "@asm/algo";
 import { TICK_DT_SEC } from "@asm/pricing";
@@ -180,6 +182,44 @@ export function startTickLoop(
           selfAnchorTarget,
           selfAnchorAlpha,
         });
+
+        // Commit-phase snap. In the last COMMIT_WINDOW_SEC of a stamped live
+        // trade we ease the shown price toward the trade's target with a
+        // smoothstep-weighted blend, so no z draw — however extreme — can
+        // pull the chart back across the target line. This is what makes
+        // "chart == settled" a hard invariant. Applied only when the flag is
+        // on; skipped during nightly close.
+        if (USE_HOUSE_GOVERNOR && !closedNow) {
+          let commitTarget: number | null = null;
+          let commitSecondsLeft = Infinity;
+          for (const p of livePositions) {
+            if (
+              !p.verdict ||
+              p.verdict === "HONEST" ||
+              p.targetPrice === undefined ||
+              p.entrySec === undefined
+            ) {
+              continue;
+            }
+            const secondsLeft = p.expirySec - nowSec;
+            if (
+              secondsLeft >= 0 &&
+              secondsLeft <= COMMIT_WINDOW_SEC &&
+              secondsLeft < commitSecondsLeft
+            ) {
+              commitSecondsLeft = secondsLeft;
+              commitTarget = p.targetPrice;
+            }
+          }
+          if (commitTarget !== null) {
+            const commitProgress =
+              1 - commitSecondsLeft / COMMIT_WINDOW_SEC;
+            const w = smoothstep(commitProgress);
+            const blended = (1 - w) * result.price + w * commitTarget;
+            asset.state = { ...asset.state, price: blended };
+            result = { ...result, price: blended };
+          }
+        }
       } catch (err) {
         logger.error(
           {
