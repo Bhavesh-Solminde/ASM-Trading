@@ -5,6 +5,7 @@ import { Icon } from "@/components/shell/Icon";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
 import { splitAssetName } from "@/lib/asset-name";
 import { useDismiss } from "@/lib/use-dismiss";
+import { AssetIcon } from "./AssetIcon";
 
 function LivePayout({ asset }: { asset: PlatformAsset }) {
   const quote = useQuote(asset.symbol);
@@ -76,21 +77,22 @@ export function MarketSelector({
           onClick={() => setOpen((o) => !o)}
           className={
             compact
-              ? `grid grid-cols-[auto_auto_auto] items-center gap-1.5 rounded-[4px] border px-2.5 py-1.5 text-left backdrop-blur ${
+              ? `flex items-center gap-2 rounded-[4px] border px-2.5 py-1.5 text-left backdrop-blur ${
                   open ? "border-brand bg-tile/90" : "border-rule bg-ground/75 hover:border-tile-hi"
                 }`
-              : `grid grid-cols-[auto_auto_auto] items-center gap-2.5 rounded border px-3.5 py-2 text-left phone:gap-2 phone:px-3 phone:py-2.5 ${
+              : `flex items-center gap-2.5 rounded border px-3.5 py-2 text-left phone:gap-2 phone:px-3 phone:py-2.5 ${
                   open ? "border-brand bg-tile" : "border-rule bg-panel hover:border-tile-hi"
                 }`
           }
         >
+          <AssetIcon symbol={activeAsset.symbol} size={compact ? "sm" : "md"} />
           <span className={compact ? "text-[13px] font-bold tracking-[0.02em]" : "text-sm font-bold tracking-[0.03em]"}>
             {pair}
             {market ? (
               <span className="ml-1.5 text-[9px] font-semibold tracking-[0.08em] text-ink-3">{market}</span>
             ) : null}
           </span>
-          <span className={`font-bold text-brand ${compact ? "text-[11px]" : "text-xs"}`}>
+          <span className={`font-bold text-brand ml-1 ${compact ? "text-[11px]" : "text-xs"}`}>
             <LivePayout asset={activeAsset} />
           </span>
           <Icon name="caret" className={`size-4 text-ink-2 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -132,19 +134,22 @@ export function MarketSelector({
                         onSelect(asset.symbol);
                         close();
                       }}
-                      className={`flex w-full items-baseline justify-between rounded-[2px] px-2.5 py-2.5 text-left hover:bg-tile ${
+                      className={`flex w-full items-center justify-between gap-3 rounded-[3px] px-2.5 py-2 text-left transition-colors hover:bg-tile ${
                         selected ? "bg-tile shadow-[inset_0_0_0_1px_var(--color-tile-hi)]" : ""
                       }`}
                     >
-                      <span className="text-sm font-bold tracking-[0.03em]">
-                        {parts.pair}
-                        {parts.market ? (
-                          <span className="ml-1.5 text-[9px] font-semibold tracking-[0.08em] text-ink-3">
-                            {parts.market}
-                          </span>
-                        ) : null}
-                      </span>
-                      <span className="text-xs font-bold text-brand">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <AssetIcon symbol={asset.symbol} size="md" />
+                        <span className="truncate text-sm font-bold tracking-[0.03em]">
+                          {parts.pair}
+                          {parts.market ? (
+                            <span className="ml-1.5 text-[9px] font-semibold tracking-[0.08em] text-ink-3">
+                              {parts.market}
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                      <span className="shrink-0 text-xs font-bold text-brand">
                         <LivePayout asset={asset} />
                       </span>
                     </button>

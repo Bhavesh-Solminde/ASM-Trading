@@ -19,6 +19,7 @@ import { useNowSec } from "@/lib/use-now";
 import { MarketSelector } from "./MarketSelector";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
+import { AssetIcon } from "./AssetIcon";
 
 const NO_TRADES: TradeView[] = [];
 const LIVE_ACCOUNT_ENABLED = process.env.NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED === "true";
@@ -47,6 +48,7 @@ function ChartReadout({ symbol, displayName, precision }: { symbol: string; disp
   return (
     <div className="pointer-events-none grid gap-0.5">
       <div className="flex items-center gap-2">
+        <AssetIcon symbol={symbol} size="sm" />
         <span className="text-[14px] font-bold tracking-[0.03em] phone:text-[12px]">{pair}</span>
         {qualifier ? <span className="legend">{qualifier}</span> : null}
       </div>
