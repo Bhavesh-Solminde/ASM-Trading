@@ -5,12 +5,14 @@ import {
   InsufficientFunds,
   TradeNotFound,
   applySettlementToHouseDay,
+  applySettlementToTreasury,
   getAccountForActor,
   getHouseDay,
+  getTreasury,
   houseDateForInstant,
   loadOpenPositions,
   openTrade,
-  recentLossStreakForAccount,
+  recentLossStreakStatsForAccount,
   recordSettledTrade,
   settleTrade,
   voidTrade,
@@ -22,8 +24,10 @@ import {
   HOUSE_ALWAYS_WINS_MODE,
   MAX_CORRECTIVE_TICKS,
   MAX_HONEST_TICK_SHIFT_OTC,
+  USE_GLG_TREASURY,
   USE_HOUSE_GOVERNOR,
   decideVerdict,
+  decideVerdictGLG,
   houseFirstWishes,
   imbalance,
   isSymbolClosedForNight,
@@ -146,38 +150,81 @@ export class TradeDesk {
       pathStyle: "DIRECT" | "OSCILLATE" | "FEINT";
       targetPrice: number;
     } | null = null;
-    if (USE_HOUSE_GOVERNOR) {
+    if (USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) {
       try {
         const isDemo = account.type === "DEMO";
-        let dailyTargetMinor = FALLBACK_DAILY_TARGET_MINOR;
-        let realizedTodayMinor = 0;
-        let userLossStreak = 0;
+        let verdict: "WIN" | "LOSS" | "HONEST";
 
-        if (!isDemo) {
-          const today = houseDateForInstant(entryTs);
-          const [ledger, streak] = await Promise.all([
-            getHouseDay(today),
-            recentLossStreakForAccount(input.accountId),
-          ]);
-          if (ledger) {
-            dailyTargetMinor = ledger.targetProfitMinor;
-            realizedTodayMinor = ledger.realizedProfitMinor;
+        if (USE_GLG_TREASURY) {
+          // Growth-Loop Governor: single treasury signal, no time state.
+          let treasuryMinor = 0;
+          let treasuryTargetMinor = FALLBACK_DAILY_TARGET_MINOR;
+          if (!isDemo) {
+            const treasury = await getTreasury();
+            if (treasury) {
+              treasuryMinor = treasury.treasuryMinor;
+              treasuryTargetMinor = treasury.treasuryTargetMinor;
+            }
           }
-          userLossStreak = streak;
-        }
+          verdict = decideVerdictGLG(
+            {
+              isDemo,
+              treasuryMinor,
+              treasuryTargetMinor,
+              tradeStakeMinor: input.stake,
+              tradePayoutPct: asset.payoutPct,
+            },
+            Math.random,
+          );
+        } else {
+          // v2 House Governor (daily ladder). Kept during the rollout so we
+          // can toggle back without a code deploy.
+          let dailyTargetMinor = FALLBACK_DAILY_TARGET_MINOR;
+          let realizedTodayMinor = 0;
+          let userLossStreak = 0;
+          let userLossStreakStakeMinor = 0;
 
-        const verdict = decideVerdict(
-          {
-            isDemo,
-            dailyTargetMinor,
-            realizedTodayMinor,
-            userLossStreak,
-            userIsHighValue: false,
-            tradeStakeMinor: input.stake,
-            tradePayoutPct: asset.payoutPct,
-          },
-          Math.random,
-        );
+          if (!isDemo) {
+            const today = houseDateForInstant(entryTs);
+            const [ledger, streakStats] = await Promise.all([
+              getHouseDay(today),
+              recentLossStreakStatsForAccount(input.accountId),
+            ]);
+            if (ledger) {
+              dailyTargetMinor = ledger.targetProfitMinor;
+              realizedTodayMinor = ledger.realizedProfitMinor;
+            }
+            userLossStreak = streakStats.count;
+            userLossStreakStakeMinor = streakStats.totalStakeMinor;
+          }
+
+          const istMs = entryTs.getTime() + 5.5 * 3_600_000;
+          const istInstant = new Date(istMs);
+          const istDayEnd = Date.UTC(
+            istInstant.getUTCFullYear(),
+            istInstant.getUTCMonth(),
+            istInstant.getUTCDate() + 1,
+          );
+          const minutesUntilDayEnd = Math.max(
+            0,
+            Math.round((istDayEnd - istMs) / 60_000),
+          );
+
+          verdict = decideVerdict(
+            {
+              isDemo,
+              dailyTargetMinor,
+              realizedTodayMinor,
+              userLossStreak,
+              userLossStreakStakeMinor,
+              userIsHighValue: false,
+              tradeStakeMinor: input.stake,
+              tradePayoutPct: asset.payoutPct,
+              minutesUntilDayEnd,
+            },
+            Math.random,
+          );
+        }
 
         const pathStyle = pickStyle(input.durationSec, verdict, Math.random);
 
@@ -423,9 +470,15 @@ export class TradeDesk {
           );
         });
 
-        // House-governor ledger. Live only — demo trades never move it. Also
-        // best-effort; a failed upsert must not roll the settlement back.
-        if (USE_HOUSE_GOVERNOR && !item.position.isDemo) {
+        // Governor ledgers. Live only — demo trades never move them. Both
+        // writes are best-effort; a failed upsert must not roll the
+        // settlement back. We dual-write during the GLG rollout so admin
+        // reporting keeps its daily breakdown AND the treasury keeps
+        // accumulating even when USE_GLG_TREASURY is toggled off.
+        if (
+          (USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) &&
+          !item.position.isDemo
+        ) {
           const settledAt = settled.trade.expiryTs ?? new Date(this.now());
           await applySettlementToHouseDay({
             date: houseDateForInstant(settledAt),
@@ -441,6 +494,22 @@ export class TradeDesk {
                 reason: err instanceof Error ? err.message : "unknown",
               },
               "HouseDay ledger update failed after settlement",
+            );
+          });
+
+          await applySettlementToTreasury({
+            stake: item.position.stake,
+            payoutPct: item.position.payoutPct,
+            outcome: settled.trade.status,
+            fallbackTargetMinor: FALLBACK_DAILY_TARGET_MINOR,
+          }).catch((err: unknown) => {
+            logger.error(
+              {
+                evt: "trade.house_treasury_update_failed",
+                tradeId: item.position.tradeId,
+                reason: err instanceof Error ? err.message : "unknown",
+              },
+              "HouseTreasury ledger update failed after settlement",
             );
           });
         }

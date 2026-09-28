@@ -43,8 +43,13 @@ export {
   listHouseDays,
   upsertHouseDayTarget,
   applySettlementToHouseDay,
-  recentLossStreakForAccount,
+  recentLossStreakStatsForAccount,
 } from "./repositories/house-day";
+export {
+  getTreasury,
+  applySettlementToTreasury,
+  setTreasuryTarget,
+} from "./repositories/house-treasury";
 export {
   AmountSpaceExhausted,
   DepositNotFound,

@@ -315,9 +315,11 @@ function runSequential(opts: {
             dailyTargetMinor: DAILY_TARGET_MINOR,
             realizedTodayMinor: realizedMinor,
             userLossStreak: lossStreak,
+            userLossStreakStakeMinor: lossStreak * stake,
             userIsHighValue: false,
             tradeStakeMinor: stake,
             tradePayoutPct: PAYOUT_PCT,
+            minutesUntilDayEnd: 24 * 60,
           },
           rng,
         );
@@ -422,6 +424,7 @@ function runConcurrent(opts: {
 } {
   const rng = mulberry32(opts.seed);
   const positions: Position[] = opts.users.map((u) => {
+    const streak = opts.lossStreakByUser?.[u.userId] ?? 0;
     const verdict = u.isDemo
       ? ("HONEST" as Verdict)
       : decideVerdict(
@@ -429,10 +432,12 @@ function runConcurrent(opts: {
             isDemo: false,
             dailyTargetMinor: DAILY_TARGET_MINOR,
             realizedTodayMinor: opts.realizedTodayMinor ?? 0,
-            userLossStreak: opts.lossStreakByUser?.[u.userId] ?? 0,
+            userLossStreak: streak,
+            userLossStreakStakeMinor: streak * u.stake,
             userIsHighValue: false,
             tradeStakeMinor: u.stake,
             tradePayoutPct: PAYOUT_PCT,
+            minutesUntilDayEnd: 24 * 60,
           },
           rng,
         );
@@ -732,9 +737,11 @@ function main(): void {
           dailyTargetMinor: DAILY_TARGET_MINOR,
           realizedTodayMinor: 0,
           userLossStreak: 0,
+          userLossStreakStakeMinor: 0,
           userIsHighValue: false,
           tradeStakeMinor: u.stake,
           tradePayoutPct: PAYOUT_PCT,
+          minutesUntilDayEnd: 24 * 60,
         },
         rng,
       );
@@ -770,9 +777,11 @@ function main(): void {
             dailyTargetMinor: DAILY_TARGET_MINOR,
             realizedTodayMinor: 0,
             userLossStreak: streak,
+            userLossStreakStakeMinor: streak * stake,
             userIsHighValue: false,
             tradeStakeMinor: stake,
             tradePayoutPct: PAYOUT_PCT,
+            minutesUntilDayEnd: 24 * 60,
           },
           rng,
         );
@@ -826,9 +835,11 @@ function main(): void {
           dailyTargetMinor: DAILY_TARGET_MINOR,
           realizedTodayMinor: realized,
           userLossStreak: 0,
+          userLossStreakStakeMinor: 0,
           userIsHighValue: false,
           tradeStakeMinor: REFERENCE_STAKE_MINOR,
           tradePayoutPct: PAYOUT_PCT,
+          minutesUntilDayEnd: 24 * 60,
         },
         rng,
       );

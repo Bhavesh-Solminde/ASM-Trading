@@ -75,23 +75,46 @@ export async function applySettlementToHouseDay(input: {
 }
 
 /**
- * Count consecutive most-recent LOST rows for one account, capped. Used by
- * the mercy floor. WON breaks the streak; OPEN and REFUNDED are skipped.
+ * Consecutive most-recent LOST rows for one account, capped. Used by the
+ * mercy floor. WON breaks the streak; REFUNDED is skipped.
+ *
+ * OPEN rows are treated as pre-decided losses when they carry a governor
+ * verdict of "LOSS" — the trade will settle LOST unless the price feed
+ * misbehaves. Counting them makes the streak accurate under rapid fire
+ * (many 10s trades opened seconds apart, before any settle), so mercy
+ * triggers on the user's next open instead of after they've quit.
+ *
+ * Returns both the count and the sum of stakes in the streak, in minor
+ * units — the governor's mercy affordability cap needs both.
  */
-export async function recentLossStreakForAccount(
+export async function recentLossStreakStatsForAccount(
   accountId: string,
   cap = 10,
-): Promise<number> {
+): Promise<{ count: number; totalStakeMinor: number }> {
   const rows = await prisma.trade.findMany({
-    where: { accountId, status: { in: ["WON", "LOST"] } },
+    where: {
+      accountId,
+      OR: [
+        { status: { in: ["WON", "LOST"] } },
+        { status: "OPEN", verdict: "LOSS" },
+      ],
+    },
     orderBy: { createdAt: "desc" },
     take: cap,
-    select: { status: true },
+    select: { status: true, verdict: true, stake: true },
   });
-  let streak = 0;
+  let count = 0;
+  let totalStakeMinor = 0;
   for (const row of rows) {
-    if (row.status === "LOST") streak++;
-    else break;
+    const isLost =
+      row.status === "LOST" ||
+      (row.status === "OPEN" && row.verdict === "LOSS");
+    if (isLost) {
+      count++;
+      totalStakeMinor += row.stake;
+    } else {
+      break;
+    }
   }
-  return streak;
+  return { count, totalStakeMinor };
 }

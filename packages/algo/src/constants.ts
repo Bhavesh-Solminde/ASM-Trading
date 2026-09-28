@@ -81,6 +81,25 @@ export const USE_HOUSE_GOVERNOR: boolean =
     .process?.env?.["USE_HOUSE_GOVERNOR"] === "on";
 
 /**
+ * Growth-Loop Governor phase 1 (2026-09-28 rewrite). When ON:
+ *   - decideVerdictGLG runs at trade open, using cumulative treasury (not
+ *     daily progress) as its only shared signal — no time component, no
+ *     day-boundary reset
+ *   - pWin is capped at GLG_PWIN_CEILING (0.50 default), guaranteeing house
+ *     edge on every single trade regardless of state
+ *   - the settlement path dual-writes to HouseDay (admin reporting) AND
+ *     HouseTreasury (source of truth for pWin)
+ *   - if `USE_HOUSE_GOVERNOR` is also on, GLG takes precedence
+ *
+ * Default OFF. Rollback: set `USE_GLG_TREASURY=off` (or unset). The engine
+ * falls back to the v2 daily-progress governor with no data loss — the
+ * treasury keeps accumulating in the background regardless.
+ */
+export const USE_GLG_TREASURY: boolean =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.["USE_GLG_TREASURY"] === "on";
+
+/**
  * Fallback daily target (paise) used only when no HouseDay row exists for
  * today. Set high enough that a config gap doesn't accidentally drain the
  * house into giveback mode.

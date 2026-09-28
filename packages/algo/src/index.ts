@@ -29,6 +29,16 @@ export {
   type Verdict,
 } from "./governor";
 export {
+  DEFAULT_GLG_CONFIG,
+  decideVerdictGLG,
+  ladder as glgLadder,
+  perAssetPwinCeiling,
+  treasuryHealth,
+  type GlgConfig,
+  type GlgInput,
+  type GlgVerdict,
+} from "./glg";
+export {
   pathBias,
   pickStyle,
   smoothstep,
