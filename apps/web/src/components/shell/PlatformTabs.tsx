@@ -5,10 +5,9 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 
 const TABS = [
+  { href: "/deposit", label: "Deposits" },
   { href: "/withdrawal", label: "Withdrawal" },
-  { href: "/balance", label: "Payments" },
-  { href: "/trade", label: "Trades" },
-  { href: "/account", label: "My account" },
+  { href: "/balance", label: "History" },
 ] as const;
 
 export function PlatformTabs() {
@@ -23,7 +22,7 @@ export function PlatformTabs() {
   return (
     <div className="flex gap-1 overflow-x-auto rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-1 [scrollbar-width:none]">
       {TABS.map((tab) => {
-        const active = pathname === tab.href;
+        const active = pathname === tab.href || pathname.startsWith(tab.href + "/");
         return (
           <Link
             key={tab.href}

@@ -5,6 +5,8 @@ import type { TradeView } from "@asm/contracts";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { SentimentBar } from "@/components/chart/SentimentBar";
 import { TimeframeTabs } from "@/components/chart/TimeframeTabs";
+import { ChartTypeSelector } from "@/components/chart/ChartTypeSelector";
+import type { ChartType } from "@/components/chart/chart-types";
 import { Icon } from "@/components/shell/Icon";
 import { useMarket } from "@/components/shell/market-store";
 import { usePlatform, useQuote, type AccountView } from "@/components/shell/PlatformProvider";
@@ -250,6 +252,38 @@ export function TradeWorkspace() {
   } = usePlatform();
 
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [chartType, setChartType] = useState<ChartType>("candles");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("asm_chart_type") as ChartType | null;
+      if (
+        saved &&
+        [
+          "bars",
+          "candles",
+          "hollow_candles",
+          "volume_candles",
+          "hlc_bars",
+          "line",
+          "line_markers",
+          "step_line",
+          "area",
+          "hlc_area",
+          "baseline",
+        ].includes(saved)
+      ) {
+        setChartType(saved);
+      }
+    } catch {}
+  }, []);
+
+  const handleChartTypeChange = (type: ChartType) => {
+    setChartType(type);
+    try {
+      localStorage.setItem("asm_chart_type", type);
+    } catch {}
+  };
 
   function enterFocus(): void {
     setFocusMode(true);
@@ -318,6 +352,7 @@ export function TradeWorkspace() {
               watermark={activeAccount.type === "DEMO" ? "DEMO" : ""}
               openTrades={openOnChart}
               currency={activeAccount.currency}
+              chartType={chartType}
             />
 
             {/* Top-left overlay: account switcher (focus), then a row of the clock
@@ -349,6 +384,11 @@ export function TradeWorkspace() {
                     ) : null}
                   </button>
                 </div>
+                <ChartTypeSelector
+                  value={chartType}
+                  onChange={handleChartTypeChange}
+                  className="pointer-events-auto"
+                />
               </div>
               <ChartReadout symbol={asset.symbol} displayName={asset.displayName} precision={asset.precision} />
             </div>
