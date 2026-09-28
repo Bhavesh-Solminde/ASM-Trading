@@ -40,6 +40,12 @@ const NAV = (badges: Record<string, number>): NavGroup[] => [
     label: "Governance",
     items: [
       { href: "/admin/audit", label: "Audit Log", icon: "scroll" },
+      {
+        href: "/admin/reconciliation",
+        label: "Reconciliation",
+        icon: "check",
+        ...(badges.reconciliation ? { badge: badges.reconciliation } : {}),
+      },
       { href: "/admin/settings", label: "Settings", icon: "settings" },
     ],
   },
@@ -55,6 +61,7 @@ const TITLES: Record<string, { title: string; crumb: string }> = {
   "/admin/fraud": { title: "Fraud queue", crumb: "Operations / Fraud queue" },
   "/admin/messages": { title: "Messages", crumb: "Operations / Messages" },
   "/admin/audit": { title: "Audit Log", crumb: "Governance / Audit Log" },
+  "/admin/reconciliation": { title: "Reconciliation", crumb: "Governance / Reconciliation" },
   "/admin/settings": { title: "Settings", crumb: "Governance / Settings" },
 };
 

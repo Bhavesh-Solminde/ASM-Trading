@@ -168,4 +168,15 @@ export {
 } from "./repositories/account-stats";
 export { provisionBots, resetDemoBalance } from "./repositories/bots";
 export { setLifecycleOverride } from "./repositories/lifecycle";
+export {
+  STUCK_TRANSFER_AGE_MS,
+  findReconciliationIssues,
+  runUsdtReconciliation,
+  listOpenReconciliationIssues,
+  countOpenReconciliationIssues,
+  listRecentlyResolvedReconciliationIssues,
+  type ReconciliationSeverity,
+  type ReconciliationFinding,
+  type ReconciliationRunSummary,
+} from "./repositories/reconciliation";
 export * from "../generated/prisma/client";

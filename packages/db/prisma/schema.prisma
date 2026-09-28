@@ -682,3 +682,36 @@ model TwoFactorCode {
 
   @@index([userId, purpose])
 }
+
+/// USDT reconciliation (Phase 7): a read-only background check that verifies
+/// the USDT deposit/ChainCredit invariants and raises findings. Populated
+/// exclusively by runUsdtReconciliation() in repositories/reconciliation.ts —
+/// nothing else writes to this table, and this table is never read by any
+/// crediting/matching code path (it observes, never participates).
+enum ReconciliationSeverity {
+  P1
+  WARNING
+}
+
+enum ReconciliationIssueStatus {
+  OPEN
+  RESOLVED
+}
+
+model ReconciliationIssue {
+  id              String                    @id @default(uuid())
+  checkName       String
+  severity        ReconciliationSeverity
+  network         String
+  subjectType     String
+  subjectId       String
+  message         String
+  status          ReconciliationIssueStatus @default(OPEN)
+  firstDetectedAt DateTime                  @default(now())
+  lastSeenAt      DateTime                  @updatedAt
+  resolvedAt      DateTime?
+
+  @@unique([checkName, subjectType, subjectId])
+  @@index([status, severity])
+  @@index([checkName])
+}
