@@ -644,10 +644,22 @@ export class TradeDesk {
         ? MAX_HONEST_TICK_SHIFT_OTC
         : undefined;
 
+      // Under GLG's per-trade isolation, the tick-blend for one trade may
+      // have fought against other co-open trades' targets on the same
+      // asset, so currentPrice at expiry can be many ticks away from THIS
+      // trade's target. Widen the corrective window to
+      // MAX_HONEST_TICK_SHIFT_OTC so the resolver can rescue a WIN verdict
+      // that the tick-blend failed to steer to. The honest-price cap
+      // (also MAX_HONEST_TICK_SHIFT_OTC) still bounds absolute manipulation.
+      const glgIsolated = stampedGroup && USE_GLG_TREASURY;
+      const correctiveTicks = glgIsolated
+        ? MAX_HONEST_TICK_SHIFT_OTC
+        : MAX_CORRECTIVE_TICKS;
+
       const resolvedPrice = resolveBucket({
         wishes,
         currentPrice: first.exitPrice,
-        maxMove: asset.tickSize * MAX_CORRECTIVE_TICKS,
+        maxMove: asset.tickSize * correctiveTicks,
         tickSize: asset.tickSize,
         ...(maxHonestShift != null && {
           honestPrice: first.honestExitPrice,
