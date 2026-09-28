@@ -50,15 +50,6 @@ export interface GlgConfig {
    */
   givebackCushion: number;
   givebackClampPwin: number;
-  /**
-   * Stake-tilt: higher-stake trades get a lower pWin so a big win doesn't
-   * drain the treasury. pWin is multiplied by
-   * (referenceStakeMinor / tradeStakeMinor) ^ stakeTiltExponent, applied
-   * only when tradeStakeMinor > referenceStakeMinor. Default reference =
-   * ₹10, exponent 0.7 → a ₹100 stake (10× ref) gets pWin * ~0.20.
-   */
-  referenceStakeMinor: number;
-  stakeTiltExponent: number;
 }
 
 export const DEFAULT_GLG_CONFIG: GlgConfig = {
@@ -73,8 +64,6 @@ export const DEFAULT_GLG_CONFIG: GlgConfig = {
   perAssetEdgeMargin: 0.05,
   givebackCushion: 0.9,
   givebackClampPwin: 0.15,
-  referenceStakeMinor: 1000,
-  stakeTiltExponent: 0.7,
 };
 
 /**
@@ -145,19 +134,6 @@ export function decideVerdictGLG(
 
   const health = treasuryHealth(input.treasuryMinor, input.treasuryTargetMinor);
   let pWin = ladder(health, config.basePwinLadder);
-
-  // Stake-tilt: higher stakes get a lower pWin so a single big win cannot
-  // drain the treasury. Applied BEFORE the giveback clamp and ceiling so
-  // those still bound the tilted result. Only bites when stake exceeds the
-  // reference — small stakes get the ladder's baseline unchanged.
-  if (
-    config.stakeTiltExponent > 0 &&
-    config.referenceStakeMinor > 0 &&
-    input.tradeStakeMinor > config.referenceStakeMinor
-  ) {
-    const ratio = config.referenceStakeMinor / input.tradeStakeMinor;
-    pWin *= Math.pow(ratio, config.stakeTiltExponent);
-  }
 
   // Giveback protection: clamp when a WIN would push the treasury DOWN
   // through the cushion floor. Only fires when the treasury is currently at
