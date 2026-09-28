@@ -66,6 +66,42 @@ export const HOUSE_ALWAYS_WINS_MODE: boolean =
     .process?.env?.["HOUSE_ALWAYS_WINS_MODE"] !== "false";
 
 /**
+ * House-governor mode (2026-09-28 rewrite). When ON:
+ *   - decideVerdict runs at trade open, stamping WIN/LOSS/HONEST on the row
+ *   - the tick loop replaces the aggregate-liability magnet with a per-trade
+ *     duration-scaled blend keyed on the trade's own targetPrice + pathStyle
+ *   - demo trades always resolve to HONEST (no bias, ignored by ledger)
+ *   - HouseDay ledger records realized profit against the admin's daily target
+ *
+ * Default OFF (opt-in via env). While off, engine behavior is unchanged from
+ * the existing HOUSE_ALWAYS_WINS_MODE / Bayesian-controller path.
+ */
+export const USE_HOUSE_GOVERNOR: boolean =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.["USE_HOUSE_GOVERNOR"] === "on";
+
+/**
+ * Fallback daily target (paise) used only when no HouseDay row exists for
+ * today. Set high enough that a config gap doesn't accidentally drain the
+ * house into giveback mode.
+ */
+export const FALLBACK_DAILY_TARGET_MINOR: number = (() => {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.["FALLBACK_DAILY_TARGET_MINOR"];
+  const n = env ? Number(env) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : 1_000_000; // ₹10,000 default
+})();
+
+/**
+ * Commit-phase window (seconds). In the last COMMIT_WINDOW_SEC of a
+ * governor-stamped live trade the shown price is deterministically eased
+ * toward the trade's targetPrice, so a freak GARCH z draw cannot pull the
+ * chart back across the target line. Guarantees the "chart == settled"
+ * invariant that removes the fraud-report vector.
+ */
+export const COMMIT_WINDOW_SEC = 6;
+
+/**
  * Undetectability cap. In house-first mode the resolver may pick an exit
  * price that differs from the honest live feed by AT MOST this many ticks.
  * Beyond this bound the manipulation would be visible against an external

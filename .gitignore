@@ -16,3 +16,7 @@ apps/relay/modules/*/android/build/
 apps/web/.env
 *.tsbuildinfo
 AgentContext.md
+
+# House-governor simulation artifacts (webp / PNG frames)
+.house-governor-webp/
+.playwright-mcp/
