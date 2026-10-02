@@ -46,6 +46,27 @@ function reducer(state: TradeState, action: Action): TradeState {
 /** The only messages that change React state; everything tick-rate goes to the market store. */
 const TRADE_MESSAGES = new Set<ServerMessage["type"]>(["trade:opened", "trade:settled", "balance:update"]);
 
+/** Keys for the per-tab prefs we persist so a refresh lands you back where you were. */
+const LS_ACTIVE_ACCOUNT = "asm_active_account_id";
+const LS_CHART_SYMBOL = "asm_chart_symbol";
+
+function readLS(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeLS(key: string, value: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Private mode / storage full — persistence degrades silently.
+  }
+}
+
 interface PlatformContextValue {
   assets: PlatformAsset[];
   accounts: AccountView[];
@@ -96,6 +117,9 @@ export function PlatformProvider({
   liveAccess: boolean;
   children: React.ReactNode;
 }) {
+  // Initial values must match the server render (no window reads here) so
+  // hydration stays clean; the restore-from-localStorage happens in an effect
+  // below. A missing/invalid persisted value stays with the server defaults.
   const [activeAccountId, setActiveAccountId] = useState(
     accounts.find((a) => a.type === "DEMO")?.id ?? accounts[0]?.id ?? "",
   );
@@ -154,6 +178,34 @@ export function PlatformProvider({
     },
     [market],
   );
+
+  // Restore the last-used account and chart symbol from localStorage after
+  // mount. Done in an effect (not a lazy state initializer) so SSR and the
+  // first client render match. Guarded so it only fires once per tab load.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    const savedAccount = readLS(LS_ACTIVE_ACCOUNT);
+    if (savedAccount && accounts.some((a) => a.id === savedAccount) && savedAccount !== activeAccountId) {
+      setActiveAccountId(savedAccount);
+    }
+    const savedSymbol = readLS(LS_CHART_SYMBOL);
+    if (savedSymbol && assets.some((a) => a.symbol === savedSymbol) && savedSymbol !== chartSymbol) {
+      selectChartSymbol(savedSymbol);
+    }
+    // Depends only on the restore sources — accounts/assets are stable from props.
+  }, [accounts, assets, activeAccountId, chartSymbol, selectChartSymbol]);
+
+  // Mirror live state back to localStorage so the next refresh lands here.
+  useEffect(() => {
+    if (!restoredRef.current || !activeAccountId) return;
+    writeLS(LS_ACTIVE_ACCOUNT, activeAccountId);
+  }, [activeAccountId]);
+  useEffect(() => {
+    if (!restoredRef.current || !chartSymbol) return;
+    writeLS(LS_CHART_SYMBOL, chartSymbol);
+  }, [chartSymbol]);
 
   // The layout rendered history for the default account only; fetch on switch.
   useEffect(() => {
