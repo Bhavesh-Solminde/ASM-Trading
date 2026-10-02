@@ -94,7 +94,9 @@ function defaultBarSpacing(): number {
   const w = typeof window === "undefined" ? 1280 : window.innerWidth;
   if (w < 640) return 10; // phone
   if (w < 1024) return 12; // tablet
-  return 14; // desktop
+  if (w < 1920) return 14; // standard desktop
+  if (w < 2560) return 18; // wide / 2K+
+  return 22; // ultrawide / 4K
 }
 
 /** The forming candle when it is newer than history, else the last closed one. */
