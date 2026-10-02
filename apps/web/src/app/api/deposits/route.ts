@@ -1,10 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CreateDepositSchema, type DepositView } from "@asm/contracts";
-import { AmountSpaceExhausted, createDepositIntent, listDepositsForActor } from "@asm/db";
+import { CreateDepositSchema, USDT_NETWORK_INFO, type DepositView } from "@asm/contracts";
+import {
+  AmountSpaceExhausted,
+  createDepositIntent,
+  createUsdtDepositIntent,
+  listDepositsForActor,
+} from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getUsdtNetworkConfig } from "@/lib/usdt-networks";
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -33,6 +39,48 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    if (parsed.data.method === "USDT") {
+      // Only the requested network's config is consulted: a deposit created
+      // on a network whose watcher would stay idle could never be detected or
+      // credited, so refuse it rather than hand out an unwatched address.
+      const network = parsed.data.network;
+      const config = getUsdtNetworkConfig(network);
+      if (!config) {
+        log.warn(
+          { evt: "deposit.usdt_unavailable", route: "deposits", network },
+          "USDT deposit requested on a network that is not configured",
+        );
+        return NextResponse.json(
+          { error: `USDT on ${USDT_NETWORK_INFO[network].label} is temporarily unavailable. Try again later.` },
+          { status: 503 },
+        );
+      }
+
+      const deposit = await createUsdtDepositIntent({
+        userId: session.userId,
+        amountUsdtMinorRequested: parsed.data.amountUsdtMinor,
+        network: config.network,
+        tokenContract: config.tokenContract,
+        receivingAddress: config.receivingAddress,
+        correlationId: ctx.cid,
+        ipAddress: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+
+      log.info(
+        {
+          evt: "deposit.intent",
+          depositId: deposit.id,
+          method: deposit.method,
+          network: config.network,
+          amountUsdtMinor: deposit.amountUsdtMinor,
+        },
+        "USDT deposit intent created",
+      );
+
+      return NextResponse.json({ checkoutToken: deposit.checkoutToken }, { status: 201 });
+    }
+
     const deposit = await createDepositIntent({
       userId: session.userId,
       method: parsed.data.method,
@@ -75,9 +123,15 @@ export async function GET(req: NextRequest) {
     id: d.id,
     method: d.method,
     amountUsd: d.amountUsd,
-    amountInr: d.amountInr,
+    // A USDT deposit stores -amountUsdtMinor here as a reservation sentinel
+    // (see createUsdtDepositIntent) — never a real INR amount, so it's not
+    // surfaced as one.
+    amountInr: d.method === "USDT" ? 0 : d.amountInr,
+    amountUsdtMinor: d.amountUsdtMinor,
+    network: d.network,
     status: d.status,
     claimedUtr: d.claimedUtr,
+    claimedTxHash: d.claimedTxHash,
     createdAt: Math.floor(d.createdAt.getTime() / 1000),
   }));
 

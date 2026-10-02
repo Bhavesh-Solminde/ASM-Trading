@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../client";
 import {
@@ -9,8 +9,13 @@ import {
   USD_TO_INR_RATE,
   UtrAlreadyClaimed,
   claimUtr,
+  claimUsdtPayment,
   createDepositIntent,
+  createUsdtDepositIntent,
   creditDepositToAccount,
+  depositCreditMinor,
+  expireStaleUsdtDeposits,
+  USDT_RESERVATION_QUARANTINE_MS,
   findLiveDepositByAmount,
   findLiveDepositByClaimedUtr,
   getDepositByToken,
@@ -202,6 +207,163 @@ describe("creditDepositToAccount", () => {
     await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
   });
 
+  it("credits a USDT account with the reserved USDT-cents amount and consumes the chain credit", async () => {
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "USDT" } });
+    const deposit = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: 15_000,
+      network: "tron",
+      tokenContract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      receivingAddress: "TReceivingAddress1111111111111111",
+      correlationId: randomUUID(),
+    });
+    const chainCredit = await prisma.chainCredit.create({
+      data: {
+        network: "tron",
+        tokenContract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+        txHash: `tx-${randomUUID()}`,
+        eventIndex: 0,
+        fromAddress: "TSender11111111111111111111111111",
+        toAddress: "TReceivingAddress1111111111111111",
+        rawAmount: (BigInt(deposit.amountUsdtMinor!) * 10_000n).toString(),
+        normalizedAmountMinor: deposit.amountUsdtMinor,
+        blockNumber: 1_000_000n,
+        blockTimestamp: new Date(),
+        finalityState: "FINAL",
+        rawPayload: {},
+      },
+    });
+    const before = (await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } })).realBalance;
+
+    await creditDepositToAccount({ depositId: deposit.id, adminId: null, chainCreditId: chainCredit.id });
+
+    const updatedDeposit = await prisma.deposit.findUniqueOrThrow({ where: { id: deposit.id } });
+    expect(updatedDeposit.status).toBe("COMPLETED");
+    expect(updatedDeposit.matchedChainCreditId).toBe(chainCredit.id);
+
+    const updatedCredit = await prisma.chainCredit.findUniqueOrThrow({ where: { id: chainCredit.id } });
+    expect(updatedCredit.consumed).toBe(true);
+    expect(updatedCredit.processingStatus).toBe("MATCHED");
+
+    const after = await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } });
+    expect(after.realBalance - before).toBe(deposit.amountUsdtMinor);
+
+    await prisma.chainCredit.delete({ where: { id: chainCredit.id } });
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
+  });
+
+  it("two concurrent credit attempts on the same ChainCredit result in exactly one credit — the loser gets DepositAlreadyResolved", async () => {
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "USDT" } });
+    const deposit = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: 16_000,
+      network: "tron",
+      tokenContract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      receivingAddress: "TReceivingAddress1111111111111111",
+      correlationId: randomUUID(),
+    });
+    const chainCredit = await prisma.chainCredit.create({
+      data: {
+        network: "tron",
+        tokenContract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+        txHash: `tx-${randomUUID()}`,
+        eventIndex: 0,
+        fromAddress: "TSender11111111111111111111111111",
+        toAddress: "TReceivingAddress1111111111111111",
+        rawAmount: (BigInt(deposit.amountUsdtMinor!) * 10_000n).toString(),
+        normalizedAmountMinor: deposit.amountUsdtMinor,
+        blockNumber: 1_000_000n,
+        blockTimestamp: new Date(),
+        finalityState: "FINAL",
+        rawPayload: {},
+      },
+    });
+
+    const attempt = () =>
+      creditDepositToAccount({ depositId: deposit.id, adminId: null, chainCreditId: chainCredit.id });
+    const results = await Promise.allSettled([attempt(), attempt()]);
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    expect(fulfilled.length).toBe(1);
+    expect(rejected.length).toBe(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(DepositAlreadyResolved);
+
+    // Exactly one DEPOSIT-kind row — not "exactly one Transaction row", since
+    // a single successful credit legitimately writes two (DEPOSIT +
+    // BONUS_GRANT, both refId'd to this deposit, per BONUS_PERCENT).
+    const depositTxCount = await prisma.transaction.count({
+      where: { account: { userId }, refType: "Deposit", refId: deposit.id, kind: "DEPOSIT" },
+    });
+    expect(depositTxCount).toBe(1);
+
+    await prisma.transaction.deleteMany({ where: { account: { userId }, refId: deposit.id } });
+    await prisma.chainCredit.delete({ where: { id: chainCredit.id } });
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
+  });
+
+  it("credits a USDT deposit into an INR account as paise (×100), never the negative amountInr sentinel", async () => {
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
+    const deposit = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: 17_000,
+      network: "tron",
+      tokenContract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      receivingAddress: "TReceivingAddress1111111111111111",
+      correlationId: randomUUID(),
+    });
+    expect(deposit.amountInr).toBeLessThan(0); // the uniqueness sentinel
+    const usdt = deposit.amountUsdtMinor!;
+    const before = await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } });
+    const userBefore = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    await creditDepositToAccount({ depositId: deposit.id, adminId: null });
+
+    const after = await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } });
+    expect(after.realBalance - before.realBalance).toBe(usdt * 100);
+    expect(after.bonusBalance - before.bonusBalance).toBe(usdt * 100);
+    const tx = await prisma.transaction.findFirstOrThrow({
+      where: { accountId: after.id, refId: deposit.id, kind: "DEPOSIT" },
+    });
+    expect(tx.amount).toBe(usdt * 100);
+    const userAfter = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(userAfter.cumulativeDeposits - userBefore.cumulativeDeposits).toBe(usdt * 100);
+  });
+
+  it("credits a USDT deposit into a USD account 1:1 in cents", async () => {
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "USD" } });
+    const deposit = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: 18_000,
+      network: "tron",
+      tokenContract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      receivingAddress: "TReceivingAddress1111111111111111",
+      correlationId: randomUUID(),
+    });
+    const before = (await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } })).realBalance;
+
+    await creditDepositToAccount({ depositId: deposit.id, adminId: null });
+
+    const after = (await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } })).realBalance;
+    expect(after - before).toBe(deposit.amountUsdtMinor);
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
+  });
+
+  it("refuses adminResolution without a chainCreditId", async () => {
+    const deposit = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: 19_000,
+      network: "tron",
+      tokenContract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      receivingAddress: "TReceivingAddress1111111111111111",
+      correlationId: randomUUID(),
+    });
+    await expect(
+      creditDepositToAccount({ depositId: deposit.id, adminId: "admin", adminResolution: { usdtMinorOverride: 100 } }),
+    ).rejects.toThrow(/chainCreditId/);
+    const unchanged = await prisma.deposit.findUniqueOrThrow({ where: { id: deposit.id } });
+    expect(unchanged.status).toBe("AWAITING_PAYMENT");
+  });
+
   it("throws AmountSpaceExhausted-unrelated DepositAlreadyResolved when called twice", async () => {
     const deposit = await createDepositIntent({
       userId,
@@ -217,6 +379,65 @@ describe("creditDepositToAccount", () => {
     await expect(
       creditDepositToAccount({ depositId: deposit.id, adminId: null, creditId: null }),
     ).rejects.toThrow();
+  });
+});
+
+describe("depositCreditMinor", () => {
+  const usdt = { method: "USDT", amountInr: -12_345, amountUsd: 0, amountUsdtMinor: 12_345 };
+  const upi = { method: "upi", amountInr: 1_000_037, amountUsd: 9_291, amountUsdtMinor: null };
+
+  it("converts USDT-cents to the account currency and never uses the sentinel columns", () => {
+    expect(depositCreditMinor(usdt, "INR")).toBe(1_234_500);
+    expect(depositCreditMinor(usdt, "USD")).toBe(12_345);
+    expect(depositCreditMinor(usdt, "USDT")).toBe(12_345);
+    expect(depositCreditMinor(usdt, "INR", 10_000)).toBe(1_000_000);
+  });
+
+  it("keeps INR/UPI semantics unchanged", () => {
+    expect(depositCreditMinor(upi, "INR")).toBe(1_000_037);
+    expect(depositCreditMinor(upi, "USD")).toBe(9_291);
+  });
+
+  it("throws rather than guess or produce a non-positive credit", () => {
+    expect(() => depositCreditMinor(usdt, "EUR")).toThrow();
+    expect(() => depositCreditMinor({ ...usdt, amountUsdtMinor: null }, "INR")).toThrow();
+    expect(() => depositCreditMinor(usdt, "INR", 0)).toThrow();
+    expect(() => depositCreditMinor({ ...upi, amountInr: -5 }, "INR")).toThrow();
+    expect(() => depositCreditMinor(upi, "USDT")).toThrow();
+  });
+});
+
+describe("expireStaleUsdtDeposits", () => {
+  it("expires only USDT deposits past the quarantine, never INR ones", async () => {
+    const HOUR = 60 * 60 * 1000;
+    const mk = (amountUsdtMinorRequested: number) =>
+      createUsdtDepositIntent({
+        userId,
+        amountUsdtMinorRequested,
+        network: "tron",
+        tokenContract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+        receivingAddress: "TReceivingAddress1111111111111111",
+        correlationId: randomUUID(),
+      });
+    const stale = await mk(21_000);
+    const recent = await mk(22_000);
+    const inr = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountInrMinor: 2_300_000,
+      correlationId: randomUUID(),
+    });
+    await prisma.deposit.update({ where: { id: stale.id }, data: { expiresAt: new Date(Date.now() - 49 * HOUR) } });
+    await prisma.deposit.update({ where: { id: recent.id }, data: { expiresAt: new Date(Date.now() - 1 * HOUR) } });
+    await prisma.deposit.update({ where: { id: inr.id }, data: { expiresAt: new Date(Date.now() - 500 * HOUR) } });
+
+    const count = await expireStaleUsdtDeposits(new Date(Date.now() - USDT_RESERVATION_QUARANTINE_MS));
+    expect(count).toBeGreaterThanOrEqual(1);
+
+    const status = async (id: string) => (await prisma.deposit.findUniqueOrThrow({ where: { id } })).status;
+    expect(await status(stale.id)).toBe("EXPIRED");
+    expect(await status(recent.id)).toBe("AWAITING_PAYMENT");
+    expect(await status(inr.id)).toBe("AWAITING_PAYMENT");
   });
 });
 
@@ -308,6 +529,87 @@ describe("claimUtr", () => {
       DepositNotFound,
     );
     await prisma.user.delete({ where: { id: other.id } });
+  });
+});
+
+describe("claimUsdtPayment", () => {
+  const hash = () => randomBytes(32).toString("hex");
+  const usdtDeposit = (requested: number) =>
+    createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: requested,
+      network: "tron",
+      tokenContract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      receivingAddress: "TReceivingAddress1111111111111111",
+      correlationId: randomUUID(),
+    });
+
+  it("records the lowercased hash + screenshot, leaves status alone, and audits", async () => {
+    const deposit = await usdtDeposit(31_000);
+    const h = hash();
+    const screenshotUrl = "https://res.cloudinary.com/demo/image/upload/v1/deposits/x.png";
+    const claimed = await claimUsdtPayment({
+      actorId: userId,
+      depositId: deposit.id,
+      txHash: `0x${h.toUpperCase()}`,
+      screenshotUrl,
+    });
+    expect(claimed.claimedTxHash).toBe(h);
+    expect(claimed.screenshotUrl).toBe(screenshotUrl);
+    expect(claimed.status).toBe("AWAITING_PAYMENT");
+    expect(claimed.matchedChainCreditId).toBeNull();
+
+    const audit = await prisma.auditLog.findFirst({
+      where: { action: "deposit.usdt_payment_claimed", targetId: deposit.id },
+    });
+    expect(audit?.actorId).toBe(userId);
+    expect(audit?.after).toEqual({ txHash: h, hasScreenshot: true });
+  });
+
+  it("lets the owner overwrite an earlier claim, including on an EXPIRED deposit", async () => {
+    const deposit = await usdtDeposit(32_000);
+    await claimUsdtPayment({ actorId: userId, depositId: deposit.id, txHash: hash() });
+    await prisma.deposit.update({ where: { id: deposit.id }, data: { status: "EXPIRED" } });
+    const second = hash();
+    const claimed = await claimUsdtPayment({ actorId: userId, depositId: deposit.id, txHash: second });
+    expect(claimed.claimedTxHash).toBe(second);
+    expect(claimed.status).toBe("EXPIRED");
+  });
+
+  it("refuses another user's deposit as if it did not exist", async () => {
+    const deposit = await usdtDeposit(33_000);
+    const other = await prisma.user.create({
+      data: { email: `usdt-claim-other-${randomUUID()}@test.local`, passwordHash: "x" },
+    });
+    try {
+      await expect(
+        claimUsdtPayment({ actorId: other.id, depositId: deposit.id, txHash: hash() }),
+      ).rejects.toBeInstanceOf(DepositNotFound);
+      const fresh = await prisma.deposit.findUniqueOrThrow({ where: { id: deposit.id } });
+      expect(fresh.claimedTxHash).toBeNull();
+    } finally {
+      await prisma.user.delete({ where: { id: other.id } });
+    }
+  });
+
+  it("refuses a COMPLETED deposit as already resolved", async () => {
+    const deposit = await usdtDeposit(34_000);
+    await prisma.deposit.update({ where: { id: deposit.id }, data: { status: "COMPLETED" } });
+    await expect(
+      claimUsdtPayment({ actorId: userId, depositId: deposit.id, txHash: hash() }),
+    ).rejects.toBeInstanceOf(DepositAlreadyResolved);
+  });
+
+  it("refuses a non-USDT deposit as not found", async () => {
+    const deposit = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountInrMinor: 1_850_000,
+      correlationId: randomUUID(),
+    });
+    await expect(
+      claimUsdtPayment({ actorId: userId, depositId: deposit.id, txHash: hash() }),
+    ).rejects.toBeInstanceOf(DepositNotFound);
   });
 });
 
@@ -469,5 +771,163 @@ describe("reverseCompletedDeposit", () => {
         reason: "chargeback",
       }),
     ).rejects.toBeInstanceOf(DepositReversalRefused);
+  });
+});
+
+describe("reverseUsdtDepositAndRequeue", () => {
+  const NETWORK = "tron";
+  const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+  const RECEIVING = "TReceivingAddress1111111111111111";
+
+  async function creditedUsdtDeposit(amountUsdtMinorRequested: number) {
+    const deposit = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested,
+      network: NETWORK,
+      tokenContract: CONTRACT,
+      receivingAddress: RECEIVING,
+      correlationId: randomUUID(),
+    });
+    const chainCredit = await prisma.chainCredit.create({
+      data: {
+        network: NETWORK,
+        tokenContract: CONTRACT,
+        txHash: `tx-${randomUUID()}`,
+        eventIndex: 0,
+        fromAddress: "TSender11111111111111111111111111",
+        toAddress: RECEIVING,
+        rawAmount: (BigInt(deposit.amountUsdtMinor!) * 10_000n).toString(),
+        normalizedAmountMinor: deposit.amountUsdtMinor,
+        blockNumber: 1_000_000n,
+        blockTimestamp: new Date(),
+        finalityState: "FINAL",
+        rawPayload: {},
+      },
+    });
+    await creditDepositToAccount({ depositId: deposit.id, adminId: null, chainCreditId: chainCredit.id });
+    return { deposit, chainCreditId: chainCredit.id };
+  }
+
+  it("reverses the credit and puts the chain credit back in the review queue, un-consumed", async () => {
+    const { reverseUsdtDepositAndRequeue } = await import("./deposit");
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "USDT" } });
+    const { deposit, chainCreditId } = await creditedUsdtDeposit(45_000);
+    const before = (await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } })).realBalance;
+
+    await reverseUsdtDepositAndRequeue({
+      depositId: deposit.id,
+      adminId: "admin-panel",
+      reason: "credited to the wrong user's deposit",
+    });
+
+    const afterDeposit = await prisma.deposit.findUniqueOrThrow({ where: { id: deposit.id } });
+    expect(afterDeposit.status).toBe("REJECTED");
+
+    const afterAccount = await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } });
+    expect(afterAccount.realBalance).toBe(before - deposit.amountUsdtMinor!);
+
+    const credit = await prisma.chainCredit.findUniqueOrThrow({ where: { id: chainCreditId } });
+    expect(credit.consumed).toBe(false);
+    expect(credit.processingStatus).toBe("MANUAL_REVIEW");
+    expect(credit.reviewReason).toBe("ADMIN_REVERSED");
+
+    const audit = await prisma.auditLog.findFirst({
+      where: { targetType: "ChainCredit", targetId: chainCreditId, action: "chain_credit.requeued_after_reversal" },
+    });
+    expect(audit).not.toBeNull();
+
+    await prisma.chainCredit.delete({ where: { id: chainCreditId } });
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
+  });
+
+  it("the requeued chain credit can then be credited to the correct deposit", async () => {
+    const { reverseUsdtDepositAndRequeue } = await import("./deposit");
+    const { resolveChainCreditToDeposit } = await import("./chain-credit-admin");
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "USDT" } });
+    const { deposit: wrongDeposit, chainCreditId } = await creditedUsdtDeposit(46_000);
+    const rightDeposit = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: 46_500,
+      network: NETWORK,
+      tokenContract: CONTRACT,
+      receivingAddress: RECEIVING,
+      correlationId: randomUUID(),
+    });
+
+    await reverseUsdtDepositAndRequeue({ depositId: wrongDeposit.id, adminId: "admin-panel", reason: "wrong user" });
+    await resolveChainCreditToDeposit({
+      chainCreditId,
+      depositId: rightDeposit.id,
+      adminId: "admin-panel",
+      expectedNetwork: NETWORK,
+      expectedTokenContract: CONTRACT,
+      expectedReceivingAddress: RECEIVING,
+    });
+
+    const finalDeposit = await prisma.deposit.findUniqueOrThrow({ where: { id: rightDeposit.id } });
+    expect(finalDeposit.status).toBe("COMPLETED");
+    expect(finalDeposit.matchedChainCreditId).toBe(chainCreditId);
+
+    await prisma.chainCredit.delete({ where: { id: chainCreditId } });
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
+  });
+
+  it("refuses a non-USDT deposit", async () => {
+    const { reverseUsdtDepositAndRequeue, DepositReversalRefused } = await import("./deposit");
+    // Pin currency explicitly — a prior test in this block leaves it at USDT.
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
+    const deposit = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountInrMinor: 2_000_000,
+      correlationId: randomUUID(),
+    });
+    await claimUtr(userId, deposit.id, "999999999903");
+    await creditDepositToAccount({ depositId: deposit.id, adminId: "admin-panel", creditId: null });
+
+    await expect(
+      reverseUsdtDepositAndRequeue({ depositId: deposit.id, adminId: "admin-panel", reason: "x" }),
+    ).rejects.toBeInstanceOf(DepositReversalRefused);
+
+    // Nothing should have moved — refused before the transaction even opened.
+    const unchanged = await prisma.deposit.findUniqueOrThrow({ where: { id: deposit.id } });
+    expect(unchanged.status).toBe("COMPLETED");
+  });
+
+  it("refuses a USDT deposit with no linked chain credit (e.g. an admin-approved-without-evidence case)", async () => {
+    const { reverseUsdtDepositAndRequeue, DepositReversalRefused } = await import("./deposit");
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "USDT" } });
+    const deposit = await createUsdtDepositIntent({
+      userId,
+      amountUsdtMinorRequested: 47_000,
+      network: NETWORK,
+      tokenContract: CONTRACT,
+      receivingAddress: RECEIVING,
+      correlationId: randomUUID(),
+    });
+    await creditDepositToAccount({ depositId: deposit.id, adminId: "admin-panel", creditId: null, chainCreditId: null });
+
+    await expect(
+      reverseUsdtDepositAndRequeue({ depositId: deposit.id, adminId: "admin-panel", reason: "x" }),
+    ).rejects.toBeInstanceOf(DepositReversalRefused);
+
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
+  });
+
+  it("does not requeue when the balance can't be reclaimed and force is not set — the whole reversal rolls back", async () => {
+    const { reverseUsdtDepositAndRequeue, DepositReversalRefused } = await import("./deposit");
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "USDT" } });
+    const { deposit, chainCreditId } = await creditedUsdtDeposit(48_000);
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { realBalance: 0, bonusBalance: 0 } });
+
+    await expect(
+      reverseUsdtDepositAndRequeue({ depositId: deposit.id, adminId: "admin-panel", reason: "x" }),
+    ).rejects.toBeInstanceOf(DepositReversalRefused);
+
+    const credit = await prisma.chainCredit.findUniqueOrThrow({ where: { id: chainCreditId } });
+    expect(credit.consumed).toBe(true); // untouched — the transaction rolled back
+
+    await prisma.chainCredit.delete({ where: { id: chainCreditId } });
+    await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
   });
 });

@@ -49,11 +49,18 @@ export {
 } from "./trade";
 export {
   DEPOSIT_METHODS,
+  USDT_NETWORKS,
+  USDT_NETWORK_INFO,
+  isUsdtNetwork,
   CreateDepositSchema,
   ClaimUtrSchema,
+  ClaimUsdtPaymentSchema,
   type CreateDepositInput,
   type ClaimUtrInput,
+  type ClaimUsdtPaymentInput,
   type DepositView,
+  type UsdtNetwork,
+  type UsdtNetworkInfo,
 } from "./deposit";
 export {
   UpdateProfileSchema,

@@ -86,6 +86,23 @@ curl -s https://asmtrader.com/api/account -I     # expect 401/403 (auth-gated)
 #   - /trade renders live candles
 ```
 
+## USDT deposits (mainnet)
+
+`.env.production.example` has a full `USDT_*` block — read its comments before
+filling it in, especially the custody note. After the first deploy with it
+set:
+
+```bash
+# Confirm both watchers actually started (look for chain.watcher.started with
+# network "tron" and network "bsc" — chain_id_mismatch/decimals_mismatch means
+# a config value is wrong; the watcher stays idle rather than guess).
+ssh deploy@187.52.118.185 'cd /opt/asmtrader/deploy && docker compose logs engine | grep chain.watcher'
+```
+
+Then open `/admin/reconciliation` — it should show no open issues. Check back
+on it regularly; it's the only thing watching for the automation getting
+something wrong after the fact.
+
 ## Redeploy (until CI is wired)
 
 ```bash
@@ -116,3 +133,5 @@ docker compose down -v                      # DESTROYS postgres/redis data
 - Edit `/etc/nginx/sites-available/amscoins.conf`
 - Reuse `.env.production` across sites
 - Commit the filled `.env.production`
+- Put a USDT private key anywhere near this box. The app only ever needs the
+  two public receiving addresses — never a key for either.

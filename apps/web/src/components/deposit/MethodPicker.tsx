@@ -6,9 +6,13 @@ const MIN_USD = 10;
 
 export function MethodPicker({
   onPick,
+  usdtEnabled,
 }: {
   onPick: (method: (typeof DEPOSIT_METHODS)[number]) => void;
+  /** False when no USDT network is configured — the method is hidden, not shown broken. */
+  usdtEnabled: boolean;
 }) {
+  const methods = DEPOSIT_METHODS.filter((m) => m !== "USDT" || usdtEnabled);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2 rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 text-sm">
@@ -18,10 +22,10 @@ export function MethodPicker({
 
       <div>
         <p className="mb-2 text-xs font-semibold text-[var(--color-ink-2)]">
-          Popular in your region ({DEPOSIT_METHODS.length})
+          Popular in your region ({methods.length})
         </p>
         <ul className="grid gap-2 sm:grid-cols-2">
-          {DEPOSIT_METHODS.map((method) => (
+          {methods.map((method) => (
             <li key={method}>
               <button
                 type="button"

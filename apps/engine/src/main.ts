@@ -10,6 +10,9 @@ import { createTicketAuthenticator } from "./auth/ws-ticket";
 import { createInternalApi } from "./internal-api";
 import { TradeDesk } from "./trading/trade-desk";
 import { startBankFeedRunner } from "./bank-feed/runner";
+import { startChainWatcher } from "./chain-watcher/runner";
+import { startBscWatcher } from "./chain-watcher/bsc-runner";
+import { startReconciliationRunner } from "./chain-watcher/reconciliation-runner";
 import { ControllerBridge } from "./algo/controller-bridge";
 import { BotCrowd } from "./algo/crowd";
 
@@ -67,6 +70,9 @@ async function main(): Promise<void> {
   await internal.listen();
 
   const bankFeed = await startBankFeedRunner();
+  const chainWatcher = await startChainWatcher();
+  const bscWatcher = await startBscWatcher();
+  const reconciliationRunner = startReconciliationRunner();
 
   const crowd = new BotCrowd(registry, desk, (Date.now() >>> 1) & 0x7fffffff);
   if (process.env.BOTS_ENABLED !== "false") {
@@ -81,6 +87,9 @@ async function main(): Promise<void> {
     await internal.close(); // accept no new trades
     crowd.stop(); // stop bots from opening new ones
     await bankFeed.stop(); // inject no new credits
+    await reconciliationRunner.stop(); // inject no new findings
+    await chainWatcher.stop(); // inject no new USDT credits
+    await bscWatcher.stop(); // …on either network
     loop.stop(); // collect no new settlements
     await desk?.stop(); // let captured settlements persist (bounded)
     if (feed) await feed.stop();

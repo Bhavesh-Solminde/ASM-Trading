@@ -17,6 +17,7 @@
     "@asm/pricing": "workspace:*",
     "@asm/trading": "workspace:*",
     "ioredis": "5.9.0",
+    "tronweb": "6.5.1",
     "ws": "8.21.3"
   },
   "devDependencies": {

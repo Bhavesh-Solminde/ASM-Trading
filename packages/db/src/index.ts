@@ -67,7 +67,16 @@ export {
   DEMO_VPA,
   BONUS_PERCENT,
   TURNOVER_MULTIPLE,
+  USDT_OFFSET_LOW,
+  USDT_OFFSET_SPACE,
+  USDT_DEPOSIT_TTL_MINUTES,
+  MIN_DEPOSIT_USDT_MINOR,
+  MAX_DEPOSIT_USDT_MINOR,
+  USDT_RESERVATION_QUARANTINE_MS,
+  depositCreditMinor,
+  expireStaleUsdtDeposits,
   createDepositIntent,
+  createUsdtDepositIntent,
   findLiveDepositByAmount,
   findLiveDepositByClaimedUtr,
   creditDepositToAccount,
@@ -76,7 +85,9 @@ export {
   listPendingDeposits,
   rejectDeposit,
   reverseCompletedDeposit,
+  reverseUsdtDepositAndRequeue,
   claimUtr,
+  claimUsdtPayment,
 } from "./repositories/deposit";
 export {
   matchCreditToDeposit,
@@ -108,6 +119,45 @@ export {
   listOrphanBankCredits,
 } from "./repositories/bank-credit";
 export {
+  createChainCreditIfNew,
+  findChainCreditByKey,
+  findChainCreditById,
+  findChainCreditForDepositDisplay,
+  listPendingFinalityChecks,
+  listPendingMatches,
+  listOrphanChainCredits,
+  listManualReviewChainCredits,
+  type ChainCreditScope,
+} from "./repositories/chain-credit";
+export {
+  matchChainCreditToDeposit,
+  findLiveDepositByUsdtAmount,
+  type ChainMatchOutcome,
+} from "./repositories/chain-credit-matcher";
+export {
+  ChainCreditResolutionRefused,
+  listUsdtReviewQueue,
+  countUsdtReviewQueue,
+  listCandidateDepositsForChainCredit,
+  resolveChainCreditToDeposit,
+  dismissChainCredit,
+  getUsdtReviewEvidence,
+  type UsdtClaimEvidence,
+  type UsdtKnownSender,
+  type UsdtReviewEvidence,
+} from "./repositories/chain-credit-admin";
+export {
+  getOrCreateCursor,
+  ensureSessionOpen,
+  advanceSessionPage,
+  closeSession,
+  getOrCreateEvmCursor,
+  advanceEvmCursor,
+  type CursorKey,
+} from "./repositories/chain-scan-cursor";
+export { hasActiveUsdtWork } from "./repositories/usdt-activity";
+export { rawPerMinor, rawToNormalizedMinor, normalizedMinorToRaw } from "./usdt-money";
+export {
   InsufficientFunds,
   AccountNotActive,
   ConcurrentModification,
@@ -131,4 +181,15 @@ export {
 } from "./repositories/account-stats";
 export { provisionBots, resetDemoBalance } from "./repositories/bots";
 export { setLifecycleOverride } from "./repositories/lifecycle";
+export {
+  STUCK_TRANSFER_AGE_MS,
+  findReconciliationIssues,
+  runUsdtReconciliation,
+  listOpenReconciliationIssues,
+  countOpenReconciliationIssues,
+  listRecentlyResolvedReconciliationIssues,
+  type ReconciliationSeverity,
+  type ReconciliationFinding,
+  type ReconciliationRunSummary,
+} from "./repositories/reconciliation";
 export * from "../generated/prisma/client";
