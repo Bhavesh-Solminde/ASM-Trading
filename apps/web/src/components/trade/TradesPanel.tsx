@@ -26,6 +26,7 @@ function RowShell({
   time,
   pnl,
   pnlClass,
+  chipOverride,
   children,
 }: {
   trade: TradeView;
@@ -34,10 +35,11 @@ function RowShell({
   time: ReactNode;
   pnl: string;
   pnlClass: string;
+  chipOverride?: { label: string; className: string };
   children?: ReactNode;
 }) {
   const precision = asset?.precision ?? 5;
-  const chip = STATUS_CHIP[trade.status];
+  const chip = chipOverride ?? STATUS_CHIP[trade.status];
   const up = trade.direction === "UP";
 
   return (
@@ -85,15 +87,21 @@ const OpenTradeRow = memo(function OpenTradeRow({
   const winProfit = Math.floor((trade.stake * trade.payoutPct) / 100);
   const progress =
     now === null ? 0 : Math.min(1, Math.max(0, (now - trade.entryTs) / (trade.expiryTs - trade.entryTs)));
+  const settling = now !== null && now >= trade.expiryTs;
 
   return (
     <RowShell
       trade={trade}
       asset={asset}
       currency={currency}
-      time={<span className="led justify-self-end text-[13px] text-ink">{now === null ? "" : countdown(trade.expiryTs - now)}</span>}
+      time={
+        <span className={`led justify-self-end text-[13px] ${settling ? "text-ink-2" : "text-ink"}`}>
+          {now === null ? "" : settling ? "Settling…" : countdown(trade.expiryTs - now)}
+        </span>
+      }
       pnl={winning ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}` : `−${formatMinor(trade.stake, currency)}`}
       pnlClass={winning ? "text-up" : losing ? "text-down" : "text-ink-2"}
+      chipOverride={settling ? { label: "Settling", className: "bg-tile text-ink-2" } : undefined}
     >
       <span aria-hidden className="absolute -bottom-px left-0 h-0.5 bg-up" style={{ width: `${progress * 100}%` }} />
     </RowShell>
