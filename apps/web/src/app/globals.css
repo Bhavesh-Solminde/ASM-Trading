@@ -11,6 +11,12 @@
    column. Declared after `phone` so `land:` utilities win where both match. */
 @custom-variant land (@media (height < 30rem) and (orientation: landscape));
 
+/* Ultrawide / very wide monitors (≥ 2048px). Beyond this the chart stretches
+   so wide that candles become needle-thin and the ticket controls sprawl
+   edge-to-edge. We cap content width on screens this big and center it so the
+   trade stage reads at a comfortable density regardless of the panel width. */
+@custom-variant wide (@media (min-width: 128rem));
+
 @theme {
   /* Black + blue + white theme. Ground is true black; surfaces step up in
      lightness for depth. Blue is the single brand accent (replaces the old

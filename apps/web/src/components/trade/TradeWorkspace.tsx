@@ -326,8 +326,8 @@ export function TradeWorkspace() {
       aria-label="Trade"
       className={
         focusMode
-          ? "grid h-dvh grid-rows-[minmax(0,1fr)_auto] grid-cols-[minmax(0,1fr)]"
-          : "grid h-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[minmax(0,1fr)_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)]"
+          ? "mx-auto grid h-dvh w-full grid-rows-[minmax(0,1fr)_auto] grid-cols-[minmax(0,1fr)] wide:max-w-[1920px]"
+          : "mx-auto grid h-full w-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[minmax(0,1fr)_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)] wide:max-w-[1920px]"
       }
     >
       <div

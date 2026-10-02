@@ -141,13 +141,20 @@ async function main() {
       // made during testing. Live access is per-user, so only these test
       // accounts (and anyone granted in the admin panel) can use the LIVE
       // account — it is never opened globally.
-      update: { liveAccess: true },
+      //
+      // cumulativeDeposits must match the funded LIVE balance so the
+      // controller's `stageFor` derivation puts these accounts in the correct
+      // bracket. Without it they resolve to PRE_DEPOSIT (65% target win rate),
+      // which is a bootstrap-period bias not meant for the LIVE path and lets
+      // test accounts win far more than the house edge allows.
+      update: { liveAccess: true, cumulativeDeposits: LIVE_BALANCE },
       create: {
         email,
         passwordHash: testHash,
         role: "USER",
         emailVerified: true,
         liveAccess: true,
+        cumulativeDeposits: LIVE_BALANCE,
         nickname: `Test ${i}`,
         country: "IN",
       },
