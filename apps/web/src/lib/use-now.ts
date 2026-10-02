@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { isSymbolClosedForNight } from "@asm/algo";
 
 const listeners = new Set<() => void>();
 let current = Math.floor(Date.now() / 1000);
@@ -35,5 +36,18 @@ export function useNowSec(): number | null {
     subscribe,
     () => current,
     () => null,
+  );
+}
+
+/**
+ * Whether `symbol` is inside its nightly close (India indices, 23:30–05:00
+ * IST) — the same check the engine refuses opens with. Re-renders only when
+ * the answer flips, so the ticket re-enables itself at the reopen.
+ */
+export function useMarketClosed(symbol: string): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => isSymbolClosedForNight(symbol, current * 1000),
+    () => false,
   );
 }

@@ -139,6 +139,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         </p>
       </section>
 
+      {/* Security section commented out
       <section className="flex flex-col gap-3 border-t border-[var(--color-rule)] pt-5">
         <h2 className="text-sm font-semibold">Security</h2>
 
@@ -170,6 +171,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
           Codes are written to the server log rather than emailed — no provider is configured.
         </p>
       </section>
+      */}
     </div>
   );
 }

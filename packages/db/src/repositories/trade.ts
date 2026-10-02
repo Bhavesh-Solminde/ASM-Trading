@@ -8,7 +8,14 @@ import {
   type Position,
 } from "@asm/trading";
 import { prisma } from "../client";
-import type { Direction, Prisma, Trade, TradeShadow } from "../../generated/prisma/client";
+import type {
+  Direction,
+  PathStyle,
+  Prisma,
+  Trade,
+  TradeShadow,
+  TradeVerdict,
+} from "../../generated/prisma/client";
 
 export class InsufficientFunds extends Error {
   constructor() {
@@ -76,6 +83,10 @@ export interface OpenTradeInput {
   entryPrice: number;
   entryTs: Date;
   expiryTs: Date;
+  /** House-governor stamps. All three or none; null-ok for legacy path. */
+  verdict?: TradeVerdict;
+  pathStyle?: PathStyle;
+  targetPrice?: number;
 }
 
 export interface OpenedTrade {
@@ -172,6 +183,9 @@ export async function openTrade(input: OpenTradeInput): Promise<OpenedTrade> {
             entryTs: input.entryTs,
             expiryTs: input.expiryTs,
             status: "OPEN",
+            verdict: input.verdict ?? null,
+            pathStyle: input.pathStyle ?? null,
+            targetPrice: input.targetPrice ?? null,
           },
         });
 
@@ -338,17 +352,27 @@ export async function loadOpenPositions(): Promise<Position[]> {
     where: { status: "OPEN" },
     include: { account: { select: { type: true } } },
   });
-  return rows.map((row) => ({
-    tradeId: row.id,
-    accountId: row.accountId,
-    assetId: row.assetId,
-    direction: row.direction,
-    stake: row.stake,
-    payoutPct: row.payoutPct,
-    entryPrice: row.entryPrice,
-    expirySec: expirySecFor(row.expiryTs.getTime()),
-    isDemo: row.account.type === "DEMO",
-  }));
+  return rows.map((row): Position => {
+    const base: Position = {
+      tradeId: row.id,
+      accountId: row.accountId,
+      assetId: row.assetId,
+      direction: row.direction,
+      stake: row.stake,
+      payoutPct: row.payoutPct,
+      entryPrice: row.entryPrice,
+      entrySec: Math.floor(row.entryTs.getTime() / 1000),
+      expirySec: expirySecFor(row.expiryTs.getTime()),
+      isDemo: row.account.type === "DEMO",
+    };
+    // exactOptionalPropertyTypes: omit keys rather than assign undefined.
+    return {
+      ...base,
+      ...(row.verdict !== null ? { verdict: row.verdict } : {}),
+      ...(row.pathStyle !== null ? { pathStyle: row.pathStyle } : {}),
+      ...(row.targetPrice !== null ? { targetPrice: row.targetPrice } : {}),
+    };
+  });
 }
 
 export async function loadTradeShadow(tradeId: string): Promise<TradeShadow | null> {

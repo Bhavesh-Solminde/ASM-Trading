@@ -127,6 +127,23 @@ enum TxKind {
   CURRENCY_CONVERT
 }
 
+/// House-governor verdict stamped on Trade at open time. WIN/LOSS drive the
+/// per-trade magnet; HONEST means no bias (demo, or governor flag off).
+enum TradeVerdict {
+  WIN
+  LOSS
+  HONEST
+}
+
+/// Shape of the price journey from entry to target. DIRECT ramps smoothly.
+/// OSCILLATE wanders near entry for the first 60% then converges. FEINT
+/// drives opposite for the first 35% (feels like a fake-out) then reverses.
+enum PathStyle {
+  DIRECT
+  OSCILLATE
+  FEINT
+}
+
 model User {
   id                 String     @id @default(uuid())
   email              String     @unique
@@ -287,12 +304,44 @@ model Trade {
   pnl            Int         @default(0)
   createdAt      DateTime    @default(now())
 
+  /// House-governor fields — stamped at open on live trades; null for
+  /// pre-existing rows and demo trades (grandfathered as HONEST at read).
+  /// targetPrice uses the same Float scale as entryPrice/exitPrice.
+  verdict     TradeVerdict?
+  pathStyle   PathStyle?
+  targetPrice Float?
+
   account Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   asset   Asset        @relation(fields: [assetId], references: [id])
   shadow  TradeShadow?
 
   @@index([accountId, createdAt])
   @@index([expiryTs, status])
+}
+
+/// Per-IST-day house ledger. Written by the settlement path on every non-DEMO
+/// trade. Drives the governor's win-probability ladder.
+model HouseDay {
+  date                DateTime @id @db.Date
+  targetProfitMinor   Int
+  realizedProfitMinor Int      @default(0)
+  totalStakesMinor    Int      @default(0)
+  totalPayoutsMinor   Int      @default(0)
+  tradesSettled       Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+/// Cumulative house treasury for the Growth-Loop Governor (GLG). Singleton row
+/// (id = 1). Never resets on a calendar boundary: house profit accumulates
+/// forever, and pWin is a piecewise-linear function of `treasuryMinor` divided
+/// by `treasuryTargetMinor`. Written by the settlement path on every non-DEMO
+/// trade when `USE_GLG_TREASURY` is on. Read once per trade open.
+model HouseTreasury {
+  id                  Int      @id @default(1)
+  treasuryMinor       Int      @default(0)
+  treasuryTargetMinor Int      @default(1000000)
+  updatedAt           DateTime @updatedAt
 }
 
 /// Recorded for every settled trade, never exposed to a trading client.

@@ -5,6 +5,7 @@ import { Icon } from "@/components/shell/Icon";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
 import { splitAssetName } from "@/lib/asset-name";
 import { useDismiss } from "@/lib/use-dismiss";
+import { AssetIcon } from "./AssetIcon";
 
 function LivePayout({ asset }: { asset: PlatformAsset }) {
   const quote = useQuote(asset.symbol);
@@ -22,6 +23,7 @@ export function MarketSelector({
   onSelect,
   compact = false,
   iconOnly = false,
+  onOpenChange,
 }: {
   assets: PlatformAsset[];
   active: string;
@@ -30,14 +32,26 @@ export function MarketSelector({
   compact?: boolean;
   /** Square, icon-only trigger (the selected market still shows in the chart readout). */
   iconOnly?: boolean;
+  /** Called when markets picker opens or closes */
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleOpen = useCallback(() => {
+    setOpen((prev) => {
+      const next = !prev;
+      onOpenChange?.(next);
+      return next;
+    });
+  }, [onOpenChange]);
+
   const close = useCallback(() => {
     setOpen(false);
+    onOpenChange?.(false);
     setQuery("");
-  }, []);
+  }, [onOpenChange]);
   useDismiss(rootRef, open, close);
 
   const activeAsset = assets.find((a) => a.symbol === active) ?? assets[0];
@@ -59,7 +73,7 @@ export function MarketSelector({
           aria-expanded={open}
           aria-label="Change market"
           title="Change market"
-          onClick={() => setOpen((o) => !o)}
+          onClick={toggleOpen}
           className={`grid size-[34px] place-items-center rounded-[4px] border backdrop-blur ${
             open
               ? "border-brand bg-brand/25 text-brand"
@@ -73,24 +87,25 @@ export function MarketSelector({
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
+          onClick={toggleOpen}
           className={
             compact
-              ? `grid grid-cols-[auto_auto_auto] items-center gap-1.5 rounded-[4px] border px-2.5 py-1.5 text-left backdrop-blur ${
+              ? `flex items-center gap-2 rounded-[4px] border px-2.5 py-1.5 text-left backdrop-blur ${
                   open ? "border-brand bg-tile/90" : "border-rule bg-ground/75 hover:border-tile-hi"
                 }`
-              : `grid grid-cols-[auto_auto_auto] items-center gap-2.5 rounded border px-3.5 py-2 text-left phone:gap-2 phone:px-3 phone:py-2.5 ${
+              : `flex items-center gap-2.5 rounded border px-3.5 py-2 text-left phone:gap-2 phone:px-3 phone:py-2.5 ${
                   open ? "border-brand bg-tile" : "border-rule bg-panel hover:border-tile-hi"
                 }`
           }
         >
+          <AssetIcon symbol={activeAsset.symbol} size={compact ? "sm" : "md"} />
           <span className={compact ? "text-[13px] font-bold tracking-[0.02em]" : "text-sm font-bold tracking-[0.03em]"}>
             {pair}
             {market ? (
               <span className="ml-1.5 text-[9px] font-semibold tracking-[0.08em] text-ink-3">{market}</span>
             ) : null}
           </span>
-          <span className={`font-bold text-brand ${compact ? "text-[11px]" : "text-xs"}`}>
+          <span className={`font-bold text-brand ml-1 ${compact ? "text-[11px]" : "text-xs"}`}>
             <LivePayout asset={activeAsset} />
           </span>
           <Icon name="caret" className={`size-4 text-ink-2 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -99,11 +114,11 @@ export function MarketSelector({
 
       {open ? (
         <>
-          <div aria-hidden onClick={close} className="fixed inset-0 z-30 hidden bg-black/60 phone:block" />
+          <div aria-hidden onClick={close} className="fixed inset-0 z-50 hidden bg-black/60 phone:block" />
           <div
             role="listbox"
             aria-label="Markets"
-            className="absolute left-0 top-[calc(100%+6px)] z-40 w-[300px] max-w-[calc(100vw-20px)] overflow-hidden rounded border border-rule bg-[#2c3036] shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:left-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0"
+            className="absolute left-0 top-[calc(100%+6px)] z-50 w-[300px] max-w-[calc(100vw-20px)] overflow-hidden rounded border border-rule bg-[#2c3036] shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:left-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0"
           >
             <div className="border-b border-rule p-2">
               <input
@@ -132,19 +147,22 @@ export function MarketSelector({
                         onSelect(asset.symbol);
                         close();
                       }}
-                      className={`flex w-full items-baseline justify-between rounded-[2px] px-2.5 py-2.5 text-left hover:bg-tile ${
+                      className={`flex w-full items-center justify-between gap-3 rounded-[3px] px-2.5 py-2 text-left transition-colors hover:bg-tile ${
                         selected ? "bg-tile shadow-[inset_0_0_0_1px_var(--color-tile-hi)]" : ""
                       }`}
                     >
-                      <span className="text-sm font-bold tracking-[0.03em]">
-                        {parts.pair}
-                        {parts.market ? (
-                          <span className="ml-1.5 text-[9px] font-semibold tracking-[0.08em] text-ink-3">
-                            {parts.market}
-                          </span>
-                        ) : null}
-                      </span>
-                      <span className="text-xs font-bold text-brand">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <AssetIcon symbol={asset.symbol} size="md" />
+                        <span className="truncate text-sm font-bold tracking-[0.03em]">
+                          {parts.pair}
+                          {parts.market ? (
+                            <span className="ml-1.5 text-[9px] font-semibold tracking-[0.08em] text-ink-3">
+                              {parts.market}
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                      <span className="shrink-0 text-xs font-bold text-brand">
                         <LivePayout asset={asset} />
                       </span>
                     </button>

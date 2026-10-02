@@ -11,6 +11,15 @@ export class EngineRejected extends Error {
   }
 }
 
+/** Mirrors the engine's DeskRejectionReason (apps/engine/src/trading/errors.ts). */
+const TRADER_REFUSALS = new Set([
+  "unknown_asset",
+  "account_not_found",
+  "insufficient_funds",
+  "account_not_active",
+  "market_closed",
+]);
+
 /** The engine could not be reached or failed unexpectedly. */
 export class EngineUnavailable extends Error {
   constructor(detail: string) {
@@ -43,10 +52,11 @@ export async function engineOpenTrade(input: EngineOpenTradeInput): Promise<Open
   if (res.status === 201) return (await res.json()) as OpenTradeResult;
 
   const body = (await res.json().catch(() => ({}))) as { error?: string };
-  // Only 404/409 are refusals the trader can act on. A 401 (secret mismatch),
-  // 400 (schema drift) or 413 is our misconfiguration, so it must not reach the
-  // browser as "signed out" or "bad input".
-  if ((res.status === 404 || res.status === 409) && body.error) {
+  // Only the desk's own refusal reasons are ones the trader can act on — keyed
+  // by reason, not status, because market_closed arrives as a 503. A 401
+  // (secret mismatch), 400 (schema drift) or 413 is our misconfiguration, so it
+  // must not reach the browser as "signed out" or "bad input".
+  if (body.error && TRADER_REFUSALS.has(body.error)) {
     throw new EngineRejected(res.status, body.error);
   }
   throw new EngineUnavailable(`engine responded ${res.status}`);

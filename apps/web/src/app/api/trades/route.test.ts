@@ -108,6 +108,15 @@ describe("POST /api/trades", () => {
     expect(await res.json()).toEqual({ error: "Not enough balance for that stake." });
   });
 
+  it("maps an engine market-closed rejection to a 409 with the reopening time", async () => {
+    engine.mockRejectedValueOnce(new EngineRejected(503, "market_closed"));
+    const res = await post(order(), alice.cookie);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: "This market is closed for the night. Trading resumes at 5:00 AM IST.",
+    });
+  });
+
   it("returns 503 when the engine is unavailable", async () => {
     engine.mockRejectedValueOnce(new EngineUnavailable("engine unreachable"));
     expect((await post(order(), alice.cookie)).status).toBe(503);

@@ -38,6 +38,19 @@ export {
   type LeaderboardResult,
 } from "./repositories/leaderboard";
 export {
+  houseDateForInstant,
+  getHouseDay,
+  listHouseDays,
+  upsertHouseDayTarget,
+  applySettlementToHouseDay,
+  recentLossStreakStatsForAccount,
+} from "./repositories/house-day";
+export {
+  getTreasury,
+  applySettlementToTreasury,
+  setTreasuryTarget,
+} from "./repositories/house-treasury";
+export {
   AmountSpaceExhausted,
   DepositNotFound,
   DepositAlreadyResolved,
