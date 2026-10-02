@@ -265,7 +265,10 @@ describe("matchChainCreditToDeposit", () => {
           userId,
           method: "USDT",
           amountUsd: 0,
-          amountInr: 0,
+          // Distinct negative sentinels (prod uses -amountUsdtMinor) so the
+          // INR live-amount index stays intact — only the USDT index is
+          // dropped for this test.
+          amountInr: -shared,
           vpa: RECEIVING_ADDRESS,
           network: NETWORK,
           tokenContract: CONTRACT,
@@ -282,7 +285,7 @@ describe("matchChainCreditToDeposit", () => {
           userId,
           method: "USDT",
           amountUsd: 0,
-          amountInr: 0,
+          amountInr: -shared - 1,
           vpa: RECEIVING_ADDRESS,
           network: NETWORK,
           tokenContract: CONTRACT,
