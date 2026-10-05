@@ -47,6 +47,9 @@ importers:
       '@asm/pricing':
         specifier: workspace:*
         version: link:../../packages/pricing
+      '@asm/tatum':
+        specifier: workspace:*
+        version: link:../../packages/tatum
       '@asm/trading':
         specifier: workspace:*
         version: link:../../packages/trading
