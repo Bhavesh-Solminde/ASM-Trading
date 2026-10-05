@@ -87,6 +87,14 @@ enum WithdrawalStatus {
   APPROVED
   REJECTED
   PAID
+  // First-ever withdrawal placed within FIRST_WITHDRAWAL_WINDOW_HOURS of the
+  // first completed deposit sits on hold for WITHDRAWAL_HOLD_HOURS before it
+  // enters the admin queue. Funds are debited at request time (same as
+  // REQUESTED), so the user can't re-trade with held money.
+  HELD
+  // User cancelled a HELD withdrawal within the cancel window; funds are
+  // refunded to realBalance inside the cancel transaction.
+  CANCELLED_BY_USER
 }
 
 /// A USDT on-chain transfer's own confirmation lifecycle — an SMS/UPI credit
@@ -610,6 +618,12 @@ model Withdrawal {
   // Same forensics rationale as Deposit.ipAddress/userAgent.
   ipAddress  String?
   userAgent  String?
+  // First-withdrawal hold. Non-null only when the row was created with
+  // status=HELD; the hold auto-promotes to REQUESTED at `holdUntil`, and the
+  // user may cancel it until `cancelableUntil`. Null on every withdrawal that
+  // skipped the hold path and on historical rows (nullable backfill).
+  holdUntil        DateTime?
+  cancelableUntil  DateTime?
   createdAt  DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -21,6 +21,8 @@ const STATUS_TONE: Record<string, PillTone> = {
   REQUESTED: "warn",
   APPROVED: "info",
   PAID: "pos",
+  HELD: "warn",
+  CANCELLED_BY_USER: "muted",
   // kyc
   NOT_STARTED: "muted",
   PENDING: "warn",

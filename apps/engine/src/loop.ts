@@ -1,4 +1,4 @@
-import { prisma } from "@asm/db";
+import { autoPromoteHeldWithdrawals, prisma } from "@asm/db";
 import { logger } from "@asm/logger";
 import {
   COMMIT_WINDOW_SEC,
@@ -43,6 +43,10 @@ export function startTickLoop(
   let timer: NodeJS.Timeout | null = null;
   let lastLagWarn = 0;
   let lastSentimentSec = 0;
+  // First-withdrawal hold auto-promotion: one SQL UPDATE per minute. Keeps
+  // the admin's "Pending" queue honest after a hold expires without needing
+  // a separate scheduler process.
+  let lastHoldPromoteSec = 0;
 
   const run = async (): Promise<void> => {
     const startedAt = Date.now();
@@ -315,6 +319,34 @@ export function startTickLoop(
     }
 
     lastSentimentSec = nowSec;
+
+    // Once per minute, flip HELD → REQUESTED for any withdrawal whose
+    // holdUntil has passed. A single UPDATE statement; a slow DB call here
+    // delays the next tick (setTimeout reschedule) rather than stacking, so
+    // we fire-and-forget to keep the price path hot. Errors are logged but
+    // never kill the loop.
+    if (nowSec - lastHoldPromoteSec >= 60) {
+      lastHoldPromoteSec = nowSec;
+      void autoPromoteHeldWithdrawals().then(
+        (promoted) => {
+          if (promoted > 0) {
+            logger.info(
+              { evt: "withdrawal.hold_auto_promoted", count: promoted },
+              "promoted held withdrawals to requested",
+            );
+          }
+        },
+        (err: unknown) => {
+          logger.error(
+            {
+              evt: "withdrawal.hold_auto_promote_failed",
+              reason: err instanceof Error ? err.message : "unknown",
+            },
+            "auto-promote tick failed",
+          );
+        },
+      );
+    }
 
     const elapsed = Date.now() - startedAt;
     if (elapsed > TICK_MS * 3 && Date.now() - lastLagWarn > 30_000) {
