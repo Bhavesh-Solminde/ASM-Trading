@@ -1,0 +1,50 @@
+{
+  "ret": [
+    {
+      "contractRet": "SUCCESS"
+    }
+  ],
+  "signature": [
+    "bf15f059c9bcee344d0e3961964dc0ee1e2c85cd61a5a77e35a4bdef2b82812e5c0f227b2c7ac39a0c572ddc4b5eb1c5f21d6d3f6314cbafd79af98590982cac01"
+  ],
+  "blockNumber": 68944514,
+  "txID": "15b3458c34cb89048696f887953a60c7ec0e6447ff9f02485ad68fcc99240679",
+  "netFee": 346000,
+  "fee": 1628900,
+  "energyFee": 1282900,
+  "energyUsage": 215,
+  "energyUsageTotal": 13045,
+  "rawData": {
+    "ref_block_bytes": "026e",
+    "ref_block_hash": "363a4a7838c1cf43",
+    "expiration": 1791116670000,
+    "contract": [
+      {
+        "parameter": {
+          "value": {
+            "owner_address": "41d3682962027e721c5247a9faf7865fe4a71d5438",
+            "contract_address": "4142a1e39aefa49290f2b3f9ed688d7cecf86cd6e0",
+            "data": "a9059cbb00000000000000000000000042a1e39aefa49290f2b3f9ed688d7cecf86cd6e0000000000000000000000000000000000000000000000000000000003b9aca00",
+            "ownerAddressBase58": "TVF2Mp9QY7FEGTnr3DBpFLobA6jguHyMvi",
+            "contractAddressBase58": "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs"
+          },
+          "type_url": "type.googleapis.com/protocol.TriggerSmartContract"
+        },
+        "type": "TriggerSmartContract"
+      }
+    ],
+    "timestamp": 1791116612973,
+    "fee_limit": 1000000000
+  },
+  "log": [
+    {
+      "address": "42a1e39aefa49290f2b3f9ed688d7cecf86cd6e0",
+      "topics": [
+        "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "000000000000000000000000d3682962027e721c5247a9faf7865fe4a71d5438",
+        "00000000000000000000000042a1e39aefa49290f2b3f9ed688d7cecf86cd6e0"
+      ],
+      "data": "000000000000000000000000000000000000000000000000000000003b9aca00"
+    }
+  ]
+}

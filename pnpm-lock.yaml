@@ -286,6 +286,19 @@ importers:
 
   packages/pricing: {}
 
+  packages/tatum:
+    dependencies:
+      '@asm/db':
+        specifier: workspace:*
+        version: link:../db
+      '@asm/logger':
+        specifier: workspace:*
+        version: link:../logger
+    devDependencies:
+      dotenv:
+        specifier: 17.4.2
+        version: 17.4.2
+
   packages/trading: {}
 
 packages:
