@@ -1,0 +1,24 @@
+{
+  "raw_data": {
+    "ref_block_bytes": "8858",
+    "ref_block_hash": "01a6030600f13062",
+    "expiration": 1791220554000,
+    "contract": [
+      {
+        "parameter": {
+          "value": {
+            "owner_address": "41d3682962027e721c5247a9faf7865fe4a71d5438",
+            "to_address": "41cc97b5008657b42fdc7b918365e9183ab231027f",
+            "amount": 7500000
+          },
+          "type_url": "type.googleapis.com/protocol.TransferContract"
+        },
+        "type": "TransferContract"
+      }
+    ],
+    "timestamp": 1791220495712
+  },
+  "raw_data_hex": "0a028858220801a6030600f130624090b2c2e890345a68080112640a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412330a1541d3682962027e721c5247a9faf7865fe4a71d5438121541cc97b5008657b42fdc7b918365e9183ab231027f18e0e1c90370e0eabee89034",
+  "txID": "eff8a6a9414b4280b1c68d7fad809dbef3398d3f4e79961ed97665b2fa8d4da2",
+  "visible": false
+}

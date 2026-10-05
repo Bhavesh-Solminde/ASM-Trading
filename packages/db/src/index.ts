@@ -156,6 +156,13 @@ export {
   type GatewayManualReviewReason,
 } from "./repositories/gateway-deposit";
 export {
+  listGatewaySweepCandidates,
+  startGatewaySweep,
+  updateGatewaySweep,
+  listOpenGatewaySweeps,
+  type GatewaySweepCandidate,
+} from "./repositories/gateway-sweep";
+export {
   ChainCreditResolutionRefused,
   listUsdtReviewQueue,
   countUsdtReviewQueue,

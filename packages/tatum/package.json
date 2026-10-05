@@ -8,11 +8,15 @@
   "scripts": {
     "test": "vitest run",
     "setup": "dotenv -e ../../.env -- tsx scripts/setup.ts",
-    "check:testnet": "dotenv -e ../../.env -- tsx scripts/testnet-check.ts"
+    "check:testnet": "dotenv -e ../../.env -- tsx scripts/testnet-check.ts",
+    "sweep": "dotenv -e ../../.env -- tsx scripts/sweep.ts",
+    "pay:testnet": "dotenv -e ../../.env -- tsx scripts/testnet-pay.ts"
   },
   "dependencies": {
     "@asm/db": "workspace:*",
-    "@asm/logger": "workspace:*"
+    "@asm/logger": "workspace:*",
+    "ethers": "6.17.0",
+    "tronweb": "6.5.1"
   },
   "devDependencies": {
     "dotenv": "17.4.2",

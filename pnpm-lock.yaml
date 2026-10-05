@@ -300,6 +300,12 @@ importers:
       '@asm/logger':
         specifier: workspace:*
         version: link:../logger
+      ethers:
+        specifier: 6.17.0
+        version: 6.17.0
+      tronweb:
+        specifier: 6.5.1
+        version: 6.5.1
     devDependencies:
       dotenv:
         specifier: 17.4.2

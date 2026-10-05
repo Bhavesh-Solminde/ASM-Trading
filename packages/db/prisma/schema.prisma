@@ -439,6 +439,7 @@ model Deposit {
   updatedAt       DateTime      @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sweeps GatewaySweep[]
 
   // NOTE: the amount-reservation guarantee is enforced by a PARTIAL unique
   // index — unique on (amountInr) ALONE, WHERE status IN ('AWAITING_PAYMENT',
@@ -477,6 +478,50 @@ model GatewayAddressCounter {
   network   String @id
   nextIndex Int
   updatedAt DateTime @updatedAt
+}
+
+enum GatewaySweepStatus {
+  // Row written, nothing broadcast yet.
+  PENDING
+  // Gas wallet's TRX/BNB top-up broadcast (gasTopUpTxHash set).
+  GAS_SENT
+  // Token transfer to the treasury broadcast (sweepTxHash set).
+  SUBMITTED
+  // Token transfer succeeded on-chain.
+  CONFIRMED
+  // Gave up on this attempt; `error` says why. A later run re-plans from the
+  // live on-chain balance, so nothing is lost or double-sent.
+  FAILED
+}
+
+/// One attempt by the offline sweep tool (packages/tatum/scripts/sweep.ts)
+/// to move a gateway deposit address's whole USDT balance to the treasury.
+/// Audit only — the on-chain balance, never this table, decides what to sweep.
+/// See docs/superpowers/specs/2026-10-05-tatum-usdt-sweep-design.md.
+model GatewaySweep {
+  id             String             @id @default(uuid())
+  depositId      String
+  network        String
+  fromAddress    String
+  // Treasury address the token was sent to.
+  toAddress      String
+  tokenContract  String
+  tokenDecimals  Int
+  // Token base units swept (the address's whole balance at plan time).
+  rawAmount      Decimal            @db.Decimal(78, 0)
+  // Native units (sun / wei) the gas wallet sent first; null = no top-up needed.
+  gasTopUpRaw    Decimal?           @db.Decimal(78, 0)
+  gasTopUpTxHash String?
+  sweepTxHash    String?
+  status         GatewaySweepStatus @default(PENDING)
+  error          String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  deposit Deposit @relation(fields: [depositId], references: [id], onDelete: Restrict)
+
+  @@index([depositId])
+  @@index([network, status])
 }
 
 /// Stands in for a bank statement. Populated by whichever BankFeed is configured.
