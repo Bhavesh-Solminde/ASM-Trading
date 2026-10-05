@@ -20,3 +20,6 @@ AgentContext.md
 # House-governor simulation artifacts (webp / PNG frames)
 .house-governor-webp/
 .playwright-mcp/
+
+# Local-only secrets (testnet HD wallet mnemonics etc.)
+.secrets/
