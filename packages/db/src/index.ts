@@ -95,9 +95,16 @@ export {
 } from "./repositories/deposit-matcher";
 export {
   WithdrawalRefused,
+  WITHDRAWAL_HOLD_HOURS,
+  WITHDRAWAL_CANCEL_WINDOW_HOURS,
+  FIRST_WITHDRAWAL_WINDOW_HOURS,
   withdrawableBalance,
   requestWithdrawal,
   approveWithdrawal,
+  cancelHeldWithdrawal,
+  autoPromoteHeldWithdrawals,
+  releaseHeldWithdrawal,
+  rejectWithdrawal,
   listWithdrawalsForActor,
 } from "./repositories/withdrawal";
 export {

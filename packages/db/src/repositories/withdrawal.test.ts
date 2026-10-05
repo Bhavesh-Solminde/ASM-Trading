@@ -3,8 +3,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../client";
 import { createAccountsForUser } from "./account";
 import {
+  autoPromoteHeldWithdrawals,
+  cancelHeldWithdrawal,
   listWithdrawalsForActor,
   requestWithdrawal,
+  WITHDRAWAL_CANCEL_WINDOW_HOURS,
+  WITHDRAWAL_HOLD_HOURS,
   withdrawableBalance,
 } from "./withdrawal";
 
@@ -64,7 +68,7 @@ describe("withdrawableBalance", () => {
 describe("requestWithdrawal", () => {
   beforeEach(async () => {
     await prisma.account.update({ where: { id: accountId }, data: { realBalance: 50_000 } });
-    await prisma.deposit.create({
+    const d = await prisma.deposit.create({
       data: {
         userId,
         method: "PhonePe",
@@ -77,6 +81,12 @@ describe("requestWithdrawal", () => {
         expiresAt: new Date(),
       },
     });
+    // Backdate the first-deposit completion to outside the hold window — this
+    // suite tests the plain REQUESTED path, not the first-withdrawal hold.
+    // The hold is covered separately below.
+    await prisma.$executeRaw`UPDATE "Deposit" SET "updatedAt" = ${new Date(
+      Date.now() - 1000 * 60 * 60 * 24 * 7,
+    )} WHERE "id" = ${d.id}`;
   });
 
   it("creates a request and debits the balance", async () => {
@@ -260,5 +270,196 @@ describe("requestWithdrawal — anti-fraud gates", () => {
     const fresh = await prisma.withdrawal.findUniqueOrThrow({ where: { id: w.id } });
     expect(fresh.ipAddress).toBe("203.0.113.7");
     expect(fresh.userAgent).toBe("Mozilla-test");
+  });
+});
+
+describe("requestWithdrawal — first-withdrawal hold", () => {
+  async function seedCompletedDeposit(opts: { completedAt?: Date } = {}): Promise<void> {
+    await prisma.account.update({ where: { id: accountId }, data: { realBalance: 50_000 } });
+    const d = await prisma.deposit.create({
+      data: {
+        userId,
+        method: "PhonePe",
+        amountUsd: 500,
+        amountInr: 50_000,
+        vpa: "x@y",
+        checkoutToken: randomUUID(),
+        correlationId: randomUUID(),
+        expiresAt: new Date(Date.now() + 60_000),
+        status: "COMPLETED",
+      },
+    });
+    if (opts.completedAt) {
+      // Prisma's @updatedAt overrides any value we pass through the client,
+      // so backdate via raw SQL. The row is otherwise untouched.
+      await prisma.$executeRaw`UPDATE "Deposit" SET "updatedAt" = ${opts.completedAt} WHERE "id" = ${d.id}`;
+    }
+  }
+
+  it("qualifies for hold when first withdrawal within 48h of first deposit", async () => {
+    await seedCompletedDeposit();
+    const w = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 10_000,
+      method: "PhonePe",
+    });
+    expect(w.status).toBe("HELD");
+    expect(w.holdUntil).toBeInstanceOf(Date);
+    expect(w.cancelableUntil).toBeInstanceOf(Date);
+    // holdUntil should sit near createdAt + WITHDRAWAL_HOLD_HOURS.
+    const holdDeltaMs = w.holdUntil!.getTime() - w.createdAt.getTime();
+    expect(holdDeltaMs).toBeGreaterThanOrEqual(WITHDRAWAL_HOLD_HOURS * 60 * 60 * 1000 - 5_000);
+    expect(holdDeltaMs).toBeLessThanOrEqual(WITHDRAWAL_HOLD_HOURS * 60 * 60 * 1000 + 5_000);
+    const cancelDeltaMs = w.cancelableUntil!.getTime() - w.createdAt.getTime();
+    expect(cancelDeltaMs).toBeGreaterThanOrEqual(
+      WITHDRAWAL_CANCEL_WINDOW_HOURS * 60 * 60 * 1000 - 5_000,
+    );
+    expect(cancelDeltaMs).toBeLessThanOrEqual(
+      WITHDRAWAL_CANCEL_WINDOW_HOURS * 60 * 60 * 1000 + 5_000,
+    );
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.realBalance).toBe(40_000);
+  });
+
+  it("does not hold on second withdrawal", async () => {
+    await seedCompletedDeposit();
+    await prisma.withdrawal.create({
+      data: {
+        userId,
+        amount: 1_000,
+        method: "PhonePe",
+        status: "PAID",
+      },
+    });
+    const w = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 5_000,
+      method: "PhonePe",
+    });
+    expect(w.status).toBe("REQUESTED");
+    expect(w.holdUntil).toBeNull();
+    expect(w.cancelableUntil).toBeNull();
+  });
+
+  it("does not hold when > 48h past first deposit", async () => {
+    await seedCompletedDeposit({ completedAt: new Date(Date.now() - 1000 * 60 * 60 * 72) });
+    const w = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 5_000,
+      method: "PhonePe",
+    });
+    expect(w.status).toBe("REQUESTED");
+    expect(w.holdUntil).toBeNull();
+  });
+
+  it("cancel within window returns funds and sets CANCELLED_BY_USER", async () => {
+    await seedCompletedDeposit();
+    const w = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 7_000,
+      method: "PhonePe",
+    });
+    expect(w.status).toBe("HELD");
+    const before = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(before.realBalance).toBe(43_000);
+
+    const cancelled = await cancelHeldWithdrawal({ actorId: userId, withdrawalId: w.id });
+    expect(cancelled.status).toBe("CANCELLED_BY_USER");
+
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(after.realBalance).toBe(50_000);
+
+    // Refund ledger row.
+    const rows = await prisma.transaction.findMany({
+      where: { refType: "Withdrawal", refId: w.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.amount).toBe(-7_000);
+    expect(rows[1]!.amount).toBe(7_000);
+  });
+
+  it("cancel after cancelableUntil refuses", async () => {
+    await seedCompletedDeposit();
+    const w = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 3_000,
+      method: "PhonePe",
+    });
+    // Rewind the cancel window into the past so the gate trips.
+    await prisma.withdrawal.update({
+      where: { id: w.id },
+      data: { cancelableUntil: new Date(Date.now() - 60_000) },
+    });
+
+    await expect(
+      cancelHeldWithdrawal({ actorId: userId, withdrawalId: w.id }),
+    ).rejects.toThrow(/cancel/i);
+  });
+
+  it("cancel after already cancelled refuses", async () => {
+    await seedCompletedDeposit();
+    const w = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 2_000,
+      method: "PhonePe",
+    });
+    await cancelHeldWithdrawal({ actorId: userId, withdrawalId: w.id });
+    await expect(
+      cancelHeldWithdrawal({ actorId: userId, withdrawalId: w.id }),
+    ).rejects.toThrow(/no longer be cancelled/i);
+  });
+
+  it("cancel by non-owner refuses", async () => {
+    await seedCompletedDeposit();
+    const w = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 2_000,
+      method: "PhonePe",
+    });
+    const other = await prisma.user.create({
+      data: { email: `cx-${randomUUID()}@test.local`, passwordHash: "x" },
+    });
+    try {
+      await expect(
+        cancelHeldWithdrawal({ actorId: other.id, withdrawalId: w.id }),
+      ).rejects.toThrow(/not found/i);
+    } finally {
+      await prisma.user.delete({ where: { id: other.id } });
+    }
+  });
+
+  it("auto-promote flips HELD → REQUESTED when holdUntil passed", async () => {
+    await seedCompletedDeposit();
+    const w = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 1_500,
+      method: "PhonePe",
+    });
+    // Still in the future — no-op.
+    const first = await autoPromoteHeldWithdrawals();
+    expect(first).toBe(0);
+
+    // Push holdUntil into the past.
+    await prisma.withdrawal.update({
+      where: { id: w.id },
+      data: { holdUntil: new Date(Date.now() - 60_000) },
+    });
+    const second = await autoPromoteHeldWithdrawals();
+    expect(second).toBe(1);
+    const fresh = await prisma.withdrawal.findUniqueOrThrow({ where: { id: w.id } });
+    expect(fresh.status).toBe("REQUESTED");
+
+    // A second call does nothing — nothing is HELD any more.
+    const third = await autoPromoteHeldWithdrawals();
+    expect(third).toBe(0);
   });
 });

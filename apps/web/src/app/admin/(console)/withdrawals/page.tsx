@@ -4,22 +4,33 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
 import { Avatar, Card, EmptyRow, Pager, StatCard, StatusPill } from "../../_components/ui";
 import { hrefWith, fmtDate, timeAgo, usdCompactFromMinor, usdFromMinor } from "../../_lib/format";
-import { approveWithdrawalAction } from "./actions";
+import { approveWithdrawalAction, releaseHeldWithdrawalAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 const PATH = "/admin/withdrawals";
 const PER_PAGE = 20;
-type Tab = "pending" | "history";
+type Tab = "pending" | "held" | "history";
 
 function userName(u: { firstName: string | null; lastName: string | null; email: string }): string {
   const full = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
   return full || u.email.split("@")[0]!;
 }
 
-function TabBar({ tab, sp, pendingCount }: { tab: Tab; sp: Record<string, string | undefined>; pendingCount: number }) {
+function TabBar({
+  tab,
+  sp,
+  pendingCount,
+  heldCount,
+}: {
+  tab: Tab;
+  sp: Record<string, string | undefined>;
+  pendingCount: number;
+  heldCount: number;
+}) {
   const tabs: { key: Tab; label: string; badge?: number }[] = [
     { key: "pending", label: "Pending", ...(pendingCount ? { badge: pendingCount } : {}) },
+    { key: "held", label: "On Hold", ...(heldCount ? { badge: heldCount } : {}) },
     { key: "history", label: "History" },
   ];
   return (
@@ -40,6 +51,25 @@ function TabBar({ tab, sp, pendingCount }: { tab: Tab; sp: Record<string, string
   );
 }
 
+/**
+ * Live countdown of time remaining until the hold auto-promotes. Rendered as
+ * a server-rendered absolute label — a 60s refresh via `force-dynamic` keeps
+ * it fresh enough for the admin console (no need for a 1s client ticker).
+ */
+function HoldUntilLabel({ holdUntil }: { holdUntil: Date | null }) {
+  if (!holdUntil) return <span className="admin-cell-sub">—</span>;
+  const ms = holdUntil.getTime() - Date.now();
+  if (ms <= 0) return <span className="admin-cell-sub">now</span>;
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  return (
+    <span className="admin-cell-sub mono tabular-nums">
+      {h}h {m}m
+    </span>
+  );
+}
+
 export default async function WithdrawalsPage({
   searchParams,
 }: {
@@ -48,22 +78,26 @@ export default async function WithdrawalsPage({
   await requireAdmin();
   const sp = await searchParams;
 
-  const tab: Tab = sp.tab === "history" ? "history" : "pending";
+  const tab: Tab =
+    sp.tab === "history" ? "history" : sp.tab === "held" ? "held" : "pending";
   const q = sp.q?.trim() ?? "";
   const page = Math.max(1, Number(sp.page) || 1);
 
-  const [pendingCount, pendingAgg] = await Promise.all([
+  const [pendingCount, pendingAgg, heldCount] = await Promise.all([
     prisma.withdrawal.count({ where: { status: "REQUESTED" } }),
     prisma.withdrawal.aggregate({
       where: { status: "REQUESTED" },
       _sum: { amount: true },
     }),
+    prisma.withdrawal.count({ where: { status: "HELD" } }),
   ]);
 
   const statusFilter: Prisma.WithdrawalWhereInput =
     tab === "pending"
       ? { status: "REQUESTED" }
-      : { status: { in: ["APPROVED", "REJECTED", "PAID"] } };
+      : tab === "held"
+        ? { status: "HELD" }
+        : { status: { in: ["APPROVED", "REJECTED", "PAID", "CANCELLED_BY_USER"] } };
 
   const where: Prisma.WithdrawalWhereInput = q
     ? {
@@ -121,16 +155,24 @@ export default async function WithdrawalsPage({
 
       <div style={{ marginTop: 16 }}>
         <Card
-          title={tab === "pending" ? "Withdrawals awaiting approval" : "Withdrawal history"}
+          title={
+            tab === "pending"
+              ? "Withdrawals awaiting approval"
+              : tab === "held"
+                ? "Withdrawals on hold"
+                : "Withdrawal history"
+          }
           sub={
             tab === "pending"
               ? "Approving transitions the request to APPROVED for payout."
-              : "Approved, paid and rejected requests."
+              : tab === "held"
+                ? "Funds already debited; auto-promotes to Pending at the hold expiry."
+                : "Approved, paid, cancelled and rejected requests."
           }
           noBody
         >
           <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
-            <TabBar tab={tab} sp={sp} pendingCount={pendingCount} />
+            <TabBar tab={tab} sp={sp} pendingCount={pendingCount} heldCount={heldCount} />
           </div>
 
           <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
@@ -144,7 +186,10 @@ export default async function WithdrawalsPage({
                   <th>User</th>
                   <th className="admin-num-right">Amount (USD)</th>
                   <th>Method</th>
-                  <th>{tab === "pending" ? "Requested" : "Created"}</th>
+                  <th>
+                    {tab === "pending" ? "Requested" : tab === "held" ? "Held" : "Created"}
+                  </th>
+                  {tab === "held" ? <th>Releases in</th> : null}
                   {tab === "history" ? <th>Status</th> : null}
                   <th className="admin-num-right">Actions</th>
                 </tr>
@@ -158,7 +203,9 @@ export default async function WithdrawalsPage({
                         ? "No withdrawals match that search."
                         : tab === "pending"
                           ? "No withdrawals awaiting approval."
-                          : "No withdrawal history yet."
+                          : tab === "held"
+                            ? "No withdrawals currently on hold."
+                            : "No withdrawal history yet."
                     }
                   />
                 ) : (
@@ -180,8 +227,15 @@ export default async function WithdrawalsPage({
                           {w.method}
                         </td>
                         <td className="admin-cell-sub">
-                          {tab === "pending" ? timeAgo(w.createdAt) : fmtDate(w.createdAt)}
+                          {tab === "pending" || tab === "held"
+                            ? timeAgo(w.createdAt)
+                            : fmtDate(w.createdAt)}
                         </td>
+                        {tab === "held" ? (
+                          <td>
+                            <HoldUntilLabel holdUntil={w.holdUntil} />
+                          </td>
+                        ) : null}
                         {tab === "history" ? (
                           <td>
                             <StatusPill status={w.status} />
@@ -193,6 +247,13 @@ export default async function WithdrawalsPage({
                               <input type="hidden" name="withdrawalId" value={w.id} />
                               <button type="submit" className="admin-btn admin-btn--sm admin-btn--pos">
                                 Approve payout
+                              </button>
+                            </form>
+                          ) : tab === "held" ? (
+                            <form action={releaseHeldWithdrawalAction}>
+                              <input type="hidden" name="withdrawalId" value={w.id} />
+                              <button type="submit" className="admin-btn admin-btn--sm">
+                                Force-release now
                               </button>
                             </form>
                           ) : (
