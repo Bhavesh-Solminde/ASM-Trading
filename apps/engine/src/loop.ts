@@ -7,6 +7,7 @@ import {
   SELF_ANCHOR_ALPHA,
   SELF_ANCHOR_ALPHA_CLOSED,
   SELF_ANCHOR_MODE,
+  USE_GLG_TREASURY,
   USE_HOUSE_GOVERNOR,
   driftBias,
   expiryMagnet,
@@ -36,7 +37,7 @@ const TICK_MS = Math.round(TICK_DT_SEC * 1000);
 export function startTickLoop(
   registry: AssetRegistry,
   server: EngineServer,
-  desk: Pick<TradeDesk, "collectDue" | "openFor">,
+  desk: Pick<TradeDesk, "collectDue" | "openFor" | "preSettle">,
 ): { stop(): void } {
   let running = true;
   let timer: NodeJS.Timeout | null = null;
@@ -46,6 +47,11 @@ export function startTickLoop(
   const run = async (): Promise<void> => {
     const startedAt = Date.now();
     const nowSec = Math.floor(startedAt / 1000);
+
+    // Pre-settle pass. For buckets expiring NEXT tick, pick the resolved exit
+    // price now and snap the chart to it so the user's countdown never ticks
+    // through a visible shift at expiry. Sync, no DB. See TradeDesk.preSettle.
+    desk.preSettle(nowSec, TICK_DT_SEC);
 
     // Capture exit prices before this tick moves them: a trade expiring this
     // second settles against the price its owner last saw. No awaiting here.
@@ -64,18 +70,17 @@ export function startTickLoop(
         // close (23:30–05:00 IST); crypto and forex are 24/7.
         const closedNow = isSymbolClosedForNight(asset.symbol, startedAt);
 
-        // Two mutually exclusive paths:
-        //   - USE_HOUSE_GOVERNOR: per-trade duration-scaled blend. The chart
-        //     is steered toward each open live trade's own targetPrice for the
-        //     WHOLE trade duration. If no non-HONEST trades are open, the
-        //     chart wanders honestly (magnet=0, bias=0).
-        //   - Legacy: pre-governor aggregate-liability magnet in the last
-        //     MAGNET_WINDOW_SEC of the soonest bucket.
+        // GLG per-trade duration-scaled blend. The chart is steered toward
+        // each open live trade's own targetPrice for the WHOLE trade
+        // duration. If no stamped trades are open, the chart wanders
+        // honestly (magnet=0, bias=0). The pre-GLG aggregate-liability
+        // magnet (`else` branch) is commented out below — DO NOT reactivate
+        // without reviewing algorithm.md Phase 3.
         const imb = imbalance(livePositions, nowSec);
         let bias: number;
         let magnetPull = 0;
 
-        if (USE_HOUSE_GOVERNOR) {
+        if (USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) {
           // No book-pressure bias between trades. Only per-trade steering.
           bias = 0;
 
@@ -125,46 +130,55 @@ export function startTickLoop(
             }
           }
         } else {
-          // Legacy pre-governor path — book-pressure bias + last-window magnet.
-          bias = closedNow
-            ? 0
-            : driftBias({
-                imbalance: imb,
-                exposure: totalExposure(livePositions),
-                sigma,
-              });
+          // GLG RETIRE 2026-10-05 — the pre-governor aggregate-liability
+          // path is no longer reachable with GLG on. If both governor flags
+          // are OFF (deliberate rollback), the chart wanders honestly: no
+          // book-pressure bias, no last-window magnet. Reactivating the
+          // retired path requires reviewing algorithm.md Phase 3 first.
+          bias = 0;
 
-          if (!closedNow && livePositions.length > 0 && imb !== 0) {
-            let soonestExpiry = Infinity;
-            for (const p of livePositions) {
-              if (p.expirySec < soonestExpiry) soonestExpiry = p.expirySec;
-            }
-            const secondsLeft = soonestExpiry - nowSec;
-            if (secondsLeft > 0 && secondsLeft <= MAGNET_WINDOW_SEC) {
-              const bucket = livePositions.filter(
-                (p) => p.expirySec === soonestExpiry,
-              );
-              let upLiab = 0;
-              let downLiab = 0;
-              for (const p of bucket) {
-                const liab = (p.stake * p.payoutPct) / 100;
-                if (p.direction === "UP") upLiab += liab;
-                else downLiab += liab;
-              }
-              const wantsDown = upLiab >= downLiab;
-              const entries = bucket.map((p) => p.entryPrice);
-              const targetPrice = wantsDown
-                ? Math.min(...entries) - asset.tickSize
-                : Math.max(...entries) + asset.tickSize;
-              magnetPull = expiryMagnet({
-                currentPrice: asset.state.price,
-                targetPrice,
-                secondsLeft,
-                convergenceWindowSec: MAGNET_WINDOW_SEC,
-                sigma,
-              });
-            }
-          }
+          /*
+           * // Pre-GLG book-pressure bias + last-window magnet. Preserved
+           * // for history; DO NOT reactivate without reviewing Phase 3.
+           * bias = closedNow
+           *   ? 0
+           *   : driftBias({
+           *       imbalance: imb,
+           *       exposure: totalExposure(livePositions),
+           *       sigma,
+           *     });
+           * if (!closedNow && livePositions.length > 0 && imb !== 0) {
+           *   let soonestExpiry = Infinity;
+           *   for (const p of livePositions) {
+           *     if (p.expirySec < soonestExpiry) soonestExpiry = p.expirySec;
+           *   }
+           *   const secondsLeft = soonestExpiry - nowSec;
+           *   if (secondsLeft > 0 && secondsLeft <= MAGNET_WINDOW_SEC) {
+           *     const bucket = livePositions.filter(
+           *       (p) => p.expirySec === soonestExpiry,
+           *     );
+           *     let upLiab = 0;
+           *     let downLiab = 0;
+           *     for (const p of bucket) {
+           *       const liab = (p.stake * p.payoutPct) / 100;
+           *       if (p.direction === "UP") upLiab += liab;
+           *       else downLiab += liab;
+           *     }
+           *     const wantsDown = upLiab >= downLiab;
+           *     const entries = bucket.map((p) => p.entryPrice);
+           *     const targetPrice = wantsDown
+           *       ? Math.min(...entries) - asset.tickSize
+           *       : Math.max(...entries) + asset.tickSize;
+           *     magnetPull = expiryMagnet({
+           *       currentPrice: asset.state.price,
+           *       targetPrice,
+           *       secondsLeft,
+           *       convergenceWindowSec: MAGNET_WINDOW_SEC,
+           *       sigma,
+           *     });
+           *   }
+           * }
+           */
         }
 
         const selfAnchorTarget = SELF_ANCHOR_MODE
@@ -189,7 +203,7 @@ export function startTickLoop(
         // pull the chart back across the target line. This is what makes
         // "chart == settled" a hard invariant. Applied only when the flag is
         // on; skipped during nightly close.
-        if (USE_HOUSE_GOVERNOR && !closedNow) {
+        if ((USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) && !closedNow) {
           let commitTarget: number | null = null;
           let commitSecondsLeft = Infinity;
           for (const p of livePositions) {

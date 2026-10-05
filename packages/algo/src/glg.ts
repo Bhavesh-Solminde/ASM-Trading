@@ -21,10 +21,12 @@
  * See doc: Growth-Loop Governor — Design & Migration Plan.
  */
 
+import { DEMO_WIN_RATE } from "./constants";
+
 export type GlgVerdict = "WIN" | "LOSS" | "HONEST";
 
 export interface GlgInput {
-  /** Demo trades short-circuit to HONEST. */
+  /** Demo trades skip the treasury ladder and roll `DEMO_WIN_RATE` for a WIN. */
   isDemo: boolean;
   /** Cumulative house treasury in minor units. Can be negative (rare). */
   treasuryMinor: number;
@@ -54,16 +56,20 @@ export interface GlgConfig {
 
 export const DEFAULT_GLG_CONFIG: GlgConfig = {
   basePwinLadder: [
-    [0.0, 0.2],
-    [0.5, 0.35],
-    [1.0, 0.45],
-    [2.0, 0.48],
-    [3.0, 0.5],
+    [0.0, 0.15],
+    [0.5, 0.25],
+    [1.0, 0.33],
+    [2.0, 0.36],
+    [3.0, 0.38],
   ],
-  pwinCeiling: 0.5,
+  // Hard cap at 0.38 so observed LIVE win rate stays comfortably under
+  // 40%. The per-asset edge margin still binds tighter for high-payout
+  // assets, but the ladder itself never asks for more than 0.38 even at
+  // max treasury health.
+  pwinCeiling: 0.38,
   perAssetEdgeMargin: 0.05,
   givebackCushion: 0.9,
-  givebackClampPwin: 0.15,
+  givebackClampPwin: 0.1,
 };
 
 /**
@@ -130,7 +136,7 @@ export function decideVerdictGLG(
   rng: () => number,
   config: GlgConfig = DEFAULT_GLG_CONFIG,
 ): GlgVerdict {
-  if (input.isDemo) return "HONEST";
+  if (input.isDemo) return rng() < DEMO_WIN_RATE ? "WIN" : "LOSS";
 
   const health = treasuryHealth(input.treasuryMinor, input.treasuryTargetMinor);
   let pWin = ladder(health, config.basePwinLadder);

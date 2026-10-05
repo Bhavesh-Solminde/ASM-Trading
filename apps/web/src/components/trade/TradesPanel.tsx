@@ -89,6 +89,19 @@ const OpenTradeRow = memo(function OpenTradeRow({
     now === null ? 0 : Math.min(1, Math.max(0, (now - trade.entryTs) / (trade.expiryTs - trade.entryTs)));
   const settling = now !== null && now >= trade.expiryTs;
 
+  // During the brief "Settling…" window (expired, server settlement write
+  // in flight) the live chart price can snap to the resolver's picked exit,
+  // which would flip the winning/losing calc and bounce the displayed PnL
+  // between +₹X and −₹Y right as the user is watching. Suppress the live
+  // amount during Settling and show the Settling label instead — the final
+  // amount lands with the "trade:settled" WS event, replacing this row with
+  // ClosedTradeRow.
+  const pnlDisplay = settling
+    ? "Settling…"
+    : winning
+      ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
+      : `−${formatMinor(trade.stake, currency)}`;
+
   return (
     <RowShell
       trade={trade}
@@ -99,8 +112,8 @@ const OpenTradeRow = memo(function OpenTradeRow({
           {now === null ? "" : settling ? "Settling…" : countdown(trade.expiryTs - now)}
         </span>
       }
-      pnl={winning ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}` : `−${formatMinor(trade.stake, currency)}`}
-      pnlClass={winning ? "text-up" : losing ? "text-down" : "text-ink-2"}
+      pnl={pnlDisplay}
+      pnlClass={settling ? "text-ink-2" : winning ? "text-up" : losing ? "text-down" : "text-ink-2"}
       chipOverride={settling ? { label: "Settling", className: "bg-tile text-ink-2" } : undefined}
     >
       <span aria-hidden className="absolute -bottom-px left-0 h-0.5 bg-up" style={{ width: `${progress * 100}%` }} />

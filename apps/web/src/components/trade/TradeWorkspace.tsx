@@ -324,11 +324,7 @@ export function TradeWorkspace() {
   return (
     <section
       aria-label="Trade"
-      className={
-        focusMode
-          ? "mx-auto grid h-dvh w-full grid-rows-[minmax(0,1fr)_auto] grid-cols-[minmax(0,1fr)] wide:max-w-[1920px]"
-          : "mx-auto grid h-full w-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[minmax(0,1fr)_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)] wide:max-w-[1920px]"
-      }
+      className={`${focusMode ? "h-dvh" : "h-full"} grid w-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[minmax(0,1fr)_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)] wide:grid-cols-[minmax(0,1fr)_360px]`}
     >
       <div
         className={
@@ -425,11 +421,7 @@ export function TradeWorkspace() {
 
       <aside
         aria-label="Trade ticket and trades"
-        className={
-          focusMode
-            ? "grid min-h-0 grid-rows-[auto]"
-            : "grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:border-l-0 land:grid-rows-[auto_minmax(0,1fr)] land:border-l"
-        }
+        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:border-l-0 land:grid-rows-[auto_minmax(0,1fr)] land:border-l"
       >
         <TradeTicket
           symbol={asset.symbol}
