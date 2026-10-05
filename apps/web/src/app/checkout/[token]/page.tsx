@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { getDepositByToken } from "@asm/db";
 import { ClaimForm } from "./ClaimForm";
+import { DepositResult } from "./DepositResult";
 import { UsdtStatusPoller } from "./UsdtStatusPoller";
 import { usdtNetworkDisplay } from "@/lib/usdt-network-display";
 
@@ -18,8 +19,10 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
   const deposit = await getDepositByToken(token);
   if (!deposit) notFound();
 
-  const resolved =
-    deposit.status === "COMPLETED" || deposit.status === "REJECTED" || deposit.status === "EXPIRED";
+  const resolvedStatus =
+    deposit.status === "COMPLETED" || deposit.status === "REJECTED" || deposit.status === "EXPIRED"
+      ? deposit.status
+      : null;
 
   const isUsdt = deposit.method === "USDT";
   // Payment-gateway deposit: a receiving address issued to this deposit
@@ -64,18 +67,8 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
           <span className="text-xs font-semibold text-[#6b5a8a]">EN</span>
         </header>
 
-        {resolved ? (
-          <div className="rounded-xl bg-white p-6 text-center shadow-sm">
-            <p className="text-sm font-semibold">
-              This payment is already {deposit.status.toLowerCase()}.
-            </p>
-            <a
-              href="/trade"
-              className="mt-3 inline-block text-xs font-semibold text-[#5b2d9e] underline underline-offset-4"
-            >
-              Back to trading
-            </a>
-          </div>
+        {resolvedStatus ? (
+          <DepositResult deposit={deposit} status={resolvedStatus} token={token} />
         ) : isUsdt ? (
           <>
             <section className="rounded-xl bg-white p-6 text-center shadow-sm phone:p-5">
