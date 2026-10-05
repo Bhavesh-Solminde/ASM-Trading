@@ -24,3 +24,12 @@ import { createTronChain } from "./tron";
 export function createGatewayChain(cfg: TatumNetworkConfig, fetchImpl: typeof fetch = fetch): GatewayChain {
   return cfg.network === "tron" ? createTronChain(cfg, fetchImpl) : createBscChain(cfg, fetchImpl);
 }
+export {
+  closedDepositIds,
+  recheckDetectedCredits,
+  recordAndSettleTransfer,
+  releaseDepositAlert,
+  scanGatewayDeposit,
+  type ProcessorLog,
+  type SettledOutcome,
+} from "./processor";
