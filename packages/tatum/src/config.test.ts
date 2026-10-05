@@ -51,12 +51,13 @@ describe("readTatumConfig", () => {
     expect(readTatumConfig("bsc", { ...BASE, TATUM_BSC_USDT_CONTRACT: "TG3XX" })).toBeNull();
   });
 
-  it("refuses a testnet key on mainnet and vice versa", () => {
-    expect(readTatumConfig("tron", { ...BASE, TATUM_NETWORK: "mainnet" })).toBeNull();
-    expect(readTatumConfig("tron", { ...BASE, TATUM_API_KEY: "mainnet-key" })).toBeNull();
-    expect(readTatumConfig("tron", { ...BASE, TATUM_API_KEY: "mainnet-key", TATUM_NETWORK: "mainnet" })).toMatchObject({
-      testnet: false,
-    });
+  it("takes the network from TATUM_NETWORK alone — Tatum issues t- prefixed keys for BOTH networks", () => {
+    // Verified live 2026-10-05: a real mainnet key starting with "t-" answered
+    // /v3/tron/info with testnet:false. Key/network agreement is checked
+    // against Tatum at runtime instead (checkTatumKeyNetwork).
+    expect(readTatumConfig("tron", { ...BASE, TATUM_NETWORK: "mainnet" })).toMatchObject({ testnet: false, apiKey: "t-abc" });
+    expect(readTatumConfig("tron", { ...BASE, TATUM_API_KEY: "other-key" })).toMatchObject({ testnet: true });
+    expect(readTatumConfig("tron", { ...BASE, TATUM_NETWORK: "" })).toBeNull();
   });
 
   it("requires an HMAC secret whenever a webhook URL is configured", () => {

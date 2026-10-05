@@ -45,10 +45,11 @@ export function readTatumConfig(network: GatewayNetwork, env: Env = process.env)
   if (!apiKey) return null;
   // Never defaulted: an unset network must never end up pointed at mainnet.
   if (tatumNetwork !== "testnet" && tatumNetwork !== "mainnet") return null;
+  // The key's own network is NOT inferable from its text: Tatum issues
+  // "t-"-prefixed keys for testnet and mainnet alike (verified live). The
+  // engine asks Tatum which network the key serves instead —
+  // checkTatumKeyNetwork — and stays idle on a mismatch.
   const testnet = tatumNetwork === "testnet";
-  // Tatum testnet keys start with "t-". A mismatch means the wrong key is in
-  // the wrong environment — refuse rather than half-work.
-  if (apiKey.startsWith("t-") !== testnet) return null;
 
   const webhookUrl = v(env, "TATUM_WEBHOOK_URL") || null;
   const hmacSecret = v(env, "TATUM_WEBHOOK_HMAC_SECRET") || null;

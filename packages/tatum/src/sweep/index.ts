@@ -9,7 +9,18 @@ import { createBscSweeper } from "./bsc";
 import { createTronSweeper } from "./tron";
 import type { ChainSweeper } from "./types";
 
-export { ACCOUNT_PATHS, WrongMnemonicError, addressForPrivateKey, createHdSigner, signerFromPrivateKey, type HdSigner, type Signer } from "./keys";
+export {
+  ACCOUNT_PATHS,
+  MAINNET_ACCOUNT_PATH,
+  WrongMnemonicError,
+  addressForPrivateKey,
+  createHdSigner,
+  generateGatewayWallets,
+  signerFromPrivateKey,
+  type GeneratedGatewayWallets,
+  type HdSigner,
+  type Signer,
+} from "./keys";
 export { UnsafeTransactionError, createTronSweeper, verifyBuiltTx } from "./tron";
 export { createBscSweeper } from "./bsc";
 export type { ChainSweeper, SweepQuote, TxOutcome } from "./types";

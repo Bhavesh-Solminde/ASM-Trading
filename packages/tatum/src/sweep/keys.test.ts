@@ -1,7 +1,14 @@
 import { HDNodeWallet, Mnemonic } from "ethers";
 import { TronWeb } from "tronweb";
 import { describe, expect, it } from "vitest";
-import { WrongMnemonicError, addressForPrivateKey, createHdSigner, signerFromPrivateKey } from "./keys";
+import {
+  MAINNET_ACCOUNT_PATH,
+  WrongMnemonicError,
+  addressForPrivateKey,
+  createHdSigner,
+  generateGatewayWallets,
+  signerFromPrivateKey,
+} from "./keys";
 
 // BIP-39 test vector mnemonic — public, holds nothing.
 const MNEMONIC = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -36,6 +43,27 @@ describe("createHdSigner", () => {
     expect(() => createHdSigner("tron", OTHER, xpubAt(MNEMONIC, "m/44'/195'/0'/0"))).toThrow(WrongMnemonicError);
     // A TRON-path xpub is not accepted for BSC either.
     expect(() => createHdSigner("bsc", MNEMONIC, xpubAt(MNEMONIC, "m/44'/195'/0'/0"))).toThrow(WrongMnemonicError);
+  });
+});
+
+describe("generateGatewayWallets", () => {
+  it("makes a 24-word phrase whose mainnet-path xpubs the sweep accepts, plus valid gas keys", () => {
+    const w = generateGatewayWallets();
+    expect(w.mnemonic.split(" ")).toHaveLength(24);
+    expect(w.xpub.tron).toBe(xpubAt(w.mnemonic, MAINNET_ACCOUNT_PATH.tron));
+    expect(w.xpub.bsc).toBe(xpubAt(w.mnemonic, MAINNET_ACCOUNT_PATH.bsc));
+    // The sweep resolves BSC to the MAINNET path (coin 60) for these xpubs.
+    expect(createHdSigner("bsc", w.mnemonic, w.xpub.bsc).path).toBe("m/44'/60'/0'/0");
+    expect(w.sample.tron).toBe(TronWeb.fromMnemonic(w.mnemonic, "m/44'/195'/0'/0/1").address);
+    expect(w.sample.bsc).toBe(HDNodeWallet.fromPhrase(w.mnemonic, undefined, "m/44'/60'/0'/0/1").address.toLowerCase());
+    expect(w.gas.tron.address).toMatch(/^T[1-9A-HJ-NP-Za-km-z]{33}$/);
+    expect(w.gas.bsc).toEqual(signerFromPrivateKey("bsc", w.gas.bsc.privateKey));
+  });
+
+  it("never repeats", () => {
+    const [a, b] = [generateGatewayWallets(), generateGatewayWallets()];
+    expect(a.mnemonic).not.toBe(b.mnemonic);
+    expect(a.gas.tron.privateKey).not.toBe(b.gas.tron.privateKey);
   });
 });
 

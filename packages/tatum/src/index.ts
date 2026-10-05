@@ -9,6 +9,7 @@ export {
   type TatumNetworkConfig,
 } from "./config";
 export { TatumError, resetTatumPacing } from "./http";
+export { checkTatumKeyNetwork } from "./network-check";
 export type { GatewayChain, VerifiedTransfer, VerifiedTx } from "./chain";
 export { createTronChain, tronBase58ToHex, tronHexToBase58, TRON_FINALITY_CONFIRMATIONS } from "./tron";
 export { createBscChain, BSC_MAX_LOOKBACK_BLOCKS } from "./bsc";
