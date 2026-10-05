@@ -190,23 +190,30 @@ export async function executeSweep(ctx: SweepContext, plan: PlanItem[]): Promise
       rawAmount: item.tokenBalance,
     });
     try {
-      if (item.topUp > 0n) {
-        const gasTx = await ctx.sweeper.sendNative(ctx.gasSigner, from, item.topUp);
-        await ctx.db.update(row.id, { status: "GAS_SENT", gasTopUpTxHash: gasTx, gasTopUpRaw: item.topUp });
-        ctx.log(`${from}: gas top-up ${item.topUp} sent (${gasTx})`);
+      // Re-quote now rather than trusting the plan: an earlier sweep in this
+      // run can make this one cheaper (the first token transfer into a
+      // treasury that holds none costs ~2× the energy/gas of later ones), and
+      // any top-up beyond the real cost is stranded on the address as dust.
+      const quote = await ctx.sweeper.quoteSweep(from, ctx.treasury, item.tokenBalance);
+      const held = await ctx.sweeper.nativeBalance(from);
+      const topUp = quote.requiredNative > held ? quote.requiredNative - held : 0n;
+      if (topUp > 0n) {
+        const gasTx = await ctx.sweeper.sendNative(ctx.gasSigner, from, topUp);
+        await ctx.db.update(row.id, { status: "GAS_SENT", gasTopUpTxHash: gasTx, gasTopUpRaw: topUp });
+        ctx.log(`${from}: gas top-up ${topUp} sent (${gasTx})`);
         const gasOutcome = await ctx.sweeper.waitForTx(gasTx, timeout);
         if (gasOutcome !== "success") throw new Error(`gas top-up ${gasOutcome === "failed" ? "failed on-chain" : "not confirmed in time"} (${gasTx})`);
         // The node that confirmed the tx may serve balances a beat behind.
         let native = 0n;
         for (let attempt = 0; attempt < 5; attempt++) {
           native = await ctx.sweeper.nativeBalance(from);
-          if (native >= item.quote.requiredNative) break;
+          if (native >= quote.requiredNative) break;
           await new Promise((r) => setTimeout(r, Math.min(3_000, timeout)));
         }
-        if (native < item.quote.requiredNative) throw new Error(`address holds ${native} after top-up, needs ${item.quote.requiredNative}`);
+        if (native < quote.requiredNative) throw new Error(`address holds ${native} after top-up, needs ${quote.requiredNative}`);
       }
 
-      const sweepTx = await ctx.sweeper.sendToken(item.signer, ctx.treasury, item.tokenBalance, item.quote);
+      const sweepTx = await ctx.sweeper.sendToken(item.signer, ctx.treasury, item.tokenBalance, quote);
       await ctx.db.update(row.id, { status: "SUBMITTED", sweepTxHash: sweepTx });
       ctx.log(`${from}: sweep of ${item.tokenBalance} sent (${sweepTx})`);
       const outcome = await ctx.sweeper.waitForTx(sweepTx, timeout);

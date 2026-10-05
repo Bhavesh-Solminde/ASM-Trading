@@ -50,6 +50,7 @@ Every gateway deposit gets its own HD-derived address, so credited USDT ends up 
    - Print a table and the totals.
 3. **Execute** (`--execute`), one address at a time:
    - insert a `PENDING` row;
+   - **re-quote** the address. The plan's figure is only an estimate, because an earlier sweep in the same run can lower this one's cost: the first token transfer into a treasury that holds none costs about twice the energy/gas of later ones, and any top-up beyond the real cost would be left on the address as dust. This was observed live on Shasta: 28,045 energy before the treasury held the token, about 13k after;
    - if a top-up is needed, the gas wallet sends it (`GAS_SENT`), and the tool waits until it succeeds on-chain;
    - the deposit address sends its whole token balance to the treasury (`SUBMITTED`), and the tool waits until it succeeds on-chain (`CONFIRMED`);
    - any error marks that row `FAILED` with the message, and the run moves on to the next address.

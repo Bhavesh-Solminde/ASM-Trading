@@ -111,6 +111,26 @@ describe("executeSweep", () => {
     expect(rows["row-1"]).toMatchObject({ status: "CONFIRMED", depositId: "dep-1", fromAddress: "0xaddr1", toAddress: TREASURY, rawAmount: 50n, gasTopUpRaw: 100n, gasTopUpTxHash: "0xgas1", sweepTxHash: "0xsweep2" });
   });
 
+  it("re-quotes right before each sweep, so an earlier sweep making the next one cheaper strands no gas", async () => {
+    // First transfer into a treasury that holds none of the token costs more
+    // (new storage slot); once it holds some, the next quote drops.
+    const chain = fakeChain({ token: { "0xaddr1": 50n, "0xaddr2": 60n }, native: { [GAS.address]: 1_000n } });
+    let swept = 0;
+    chain.sweeper.quoteSweep = async () => ({ ...QUOTE, requiredNative: swept > 0 ? 40n : 100n });
+    const sendToken = chain.sweeper.sendToken;
+    chain.sweeper.sendToken = async (...args) => {
+      swept++;
+      return sendToken(...args);
+    };
+    const { db, rows } = fakeDb([{ address: "0xaddr1", index: 1 }, { address: "0xaddr2", index: 2 }]);
+    const c = ctx(chain.sweeper, db);
+    const plan = await planSweep(c, { minTokenRaw: 0n, includeUnresolved: false });
+    expect(plan.map((p) => (p.kind === "sweep" ? p.topUp : null))).toEqual([100n, 100n]); // planned at the upper bound
+    await executeSweep(c, plan);
+    expect(chain.sends).toEqual(["native 0xgas->0xaddr1 100", `token 0xaddr1->${TREASURY} 50`, "native 0xgas->0xaddr2 40", `token 0xaddr2->${TREASURY} 60`]);
+    expect(rows["row-2"]).toMatchObject({ status: "CONFIRMED", gasTopUpRaw: 40n });
+  });
+
   it("sends nothing when the gas wallet cannot fund the whole run", async () => {
     const chain = fakeChain({ token: { "0xaddr1": 50n }, native: { [GAS.address]: 109n } });
     const { db, rows } = fakeDb([{ address: "0xaddr1", index: 1 }]);
