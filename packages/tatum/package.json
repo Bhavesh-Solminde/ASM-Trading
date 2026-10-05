@@ -10,7 +10,8 @@
     "setup": "dotenv -e ../../.env -- tsx scripts/setup.ts",
     "check:testnet": "dotenv -e ../../.env -- tsx scripts/testnet-check.ts",
     "sweep": "dotenv -e ../../.env -- tsx scripts/sweep.ts",
-    "pay:testnet": "dotenv -e ../../.env -- tsx scripts/testnet-pay.ts"
+    "pay:testnet": "dotenv -e ../../.env -- tsx scripts/testnet-pay.ts",
+    "wallets:generate": "tsx scripts/generate-wallets.ts"
   },
   "dependencies": {
     "@asm/db": "workspace:*",

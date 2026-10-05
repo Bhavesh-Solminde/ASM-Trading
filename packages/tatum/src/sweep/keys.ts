@@ -1,4 +1,4 @@
-import { HDNodeWallet, Mnemonic, computeAddress } from "ethers";
+import { HDNodeWallet, Mnemonic, computeAddress, randomBytes } from "ethers";
 import type { GatewayNetwork } from "../config";
 import { tronHexToBase58 } from "../tron";
 
@@ -55,6 +55,42 @@ export interface HdSigner {
   /** The account path whose xpub matched. */
   path: string;
   derive(index: number): Signer;
+}
+
+/** Tatum's MAINNET account paths — what generateGatewayWallets derives its xpubs at. */
+export const MAINNET_ACCOUNT_PATH: Record<GatewayNetwork, string> = {
+  tron: "m/44'/195'/0'/0",
+  bsc: "m/44'/60'/0'/0",
+};
+
+export interface GeneratedGatewayWallets {
+  /** 24 words; ONE phrase backs both chains (different account paths). */
+  mnemonic: string;
+  xpub: Record<GatewayNetwork, string>;
+  /** Fresh sweep gas-wallet keys, one per chain. */
+  gas: Record<GatewayNetwork, Signer>;
+  /** Deposit address at index 1, re-derived through createHdSigner (proves the sweep can sign for it). */
+  sample: Record<GatewayNetwork, string>;
+}
+
+/** A new deposit HD wallet (256-bit entropy) plus sweep gas keys. In memory only — the caller decides where it goes. */
+export function generateGatewayWallets(): GeneratedGatewayWallets {
+  const mnemonic = Mnemonic.fromEntropy(randomBytes(32)).phrase;
+  const root = HDNodeWallet.fromSeed(Mnemonic.fromPhrase(mnemonic).computeSeed());
+  const xpub = {
+    tron: root.derivePath(MAINNET_ACCOUNT_PATH.tron).neuter().extendedKey,
+    bsc: root.derivePath(MAINNET_ACCOUNT_PATH.bsc).neuter().extendedKey,
+  };
+  const key = () => Buffer.from(randomBytes(32)).toString("hex");
+  return {
+    mnemonic,
+    xpub,
+    gas: { tron: signerFromPrivateKey("tron", key()), bsc: signerFromPrivateKey("bsc", key()) },
+    sample: {
+      tron: createHdSigner("tron", mnemonic, xpub.tron).derive(1).address,
+      bsc: createHdSigner("bsc", mnemonic, xpub.bsc).derive(1).address,
+    },
+  };
 }
 
 /** Derives deposit-address keys from `mnemonic`, refusing unless it reproduces `xpub`. */
