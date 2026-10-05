@@ -7,6 +7,7 @@ import {
   prisma,
 } from "@asm/db";
 import {
+  checkTatumKeyNetwork,
   closedDepositIds,
   createGatewayChain,
   isTatumProvider,
@@ -59,7 +60,28 @@ export function startTatumRunner(): TatumRunner {
   const lastScanned = new Map<string, number>();
   const log = logger.child({ component: "tatum-runner" });
 
+  // One API key serves every network config; confirm with Tatum that it is a
+  // key for TATUM_NETWORK before polling. Unknown (Tatum unreachable) is
+  // retried on the next tick; a mismatch idles the poller for good, loudly.
+  const anyCfg = [...configs.values()][0]!;
+  let keyNetwork: "ok" | "mismatch" | null = null;
+
   async function tick(): Promise<void> {
+    if (keyNetwork === null) {
+      try {
+        keyNetwork = await checkTatumKeyNetwork(anyCfg);
+        if (keyNetwork === "mismatch") {
+          log.error(
+            { evt: "tatum.network_mismatch", tatumNetwork: anyCfg.testnet ? "testnet" : "mainnet" },
+            "TATUM_API_KEY belongs to the other Tatum network than TATUM_NETWORK — gateway poller idle; fix the env",
+          );
+        }
+      } catch (err) {
+        log.warn({ evt: "tatum.network_check_failed", err: (err as Error).message }, "could not confirm the Tatum key's network yet");
+      }
+    }
+    if (keyNetwork === "mismatch") return;
+
     const now = new Date();
     const closed: { network: string; depositId: string }[] = [];
 

@@ -47,7 +47,7 @@ Only one provider is active at a time, so nothing ever double-processes.
 
 ```
 USDT_DEPOSIT_PROVIDER=tatum
-TATUM_API_KEY=t-...                 # testnet keys start with "t-"
+TATUM_API_KEY=t-...                 # Tatum keys start with "t-" on BOTH networks
 TATUM_NETWORK=testnet               # exactly "testnet" | "mainnet" — never defaulted
 TATUM_TRON_XPUB=xpub...             # HD wallet xpub (TRON derivation path)
 TATUM_TRON_USDT_CONTRACT=T...       # base58; Shasta test USDT: TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs
@@ -228,8 +228,11 @@ amount.
   message). The runner logs it and retries on the next tick, changing nothing.
 - Amounts are always bigint raw values. Normalization reuses
   `rawToNormalizedMinor`, and sub-cent dust goes to `MANUAL_REVIEW` as today.
-- Mainnet safety: `TATUM_NETWORK` must be set explicitly, and a `t-` key with
-  `TATUM_NETWORK=mainnet` (or the reverse) is refused as a config error.
+- Mainnet safety: `TATUM_NETWORK` must be set explicitly; it is never defaulted.
+  *Correction (2026-10-05, found going live):* this spec first said a `t-` key means testnet. That is wrong: Tatum
+  issues `t-` keys for mainnet too. Instead, the engine asks Tatum which network the key serves
+  (`GET /v3/tron/info` returns `testnet`), using `checkTatumKeyNetwork`. On a mismatch it logs `tatum.network_mismatch`
+  and leaves the poller idle.
 
 ## Testing
 
