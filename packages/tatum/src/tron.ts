@@ -119,7 +119,15 @@ export function createTronChain(cfg: TatumNetworkConfig, fetchImpl: typeof fetch
 
     async verifyTransfer(txHash, toAddress): Promise<VerifiedTx> {
       if (!/^[0-9a-fA-F]{64}$/.test(txHash)) return { kind: "not_found" };
-      const tx = await get<TronTx>(`/v3/tron/transaction/${txHash}`, true);
+      let tx: TronTx | null;
+      try {
+        tx = await get<TronTx>(`/v3/tron/transaction/${txHash}`, true);
+      } catch (err) {
+        // Tatum answers an unknown OR still-pending tx with 403
+        // "tron.tx.not.found" (verified live), not 404.
+        if (err instanceof TatumError && err.code === "tron.tx.not.found") return { kind: "not_found" };
+        throw err;
+      }
       if (!tx || !tx.txID) return { kind: "not_found" };
       const result = tx.ret?.[0]?.contractRet;
       if (result && result !== "SUCCESS") return { kind: "failed" };

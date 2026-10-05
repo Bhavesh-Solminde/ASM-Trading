@@ -11,5 +11,7 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     fileParallelism: false,
+    // Unit tests hit a fake fetch; don't pace them at the free tier's 3 rps.
+    env: { TATUM_MAX_RPS: "1000" },
   },
 });

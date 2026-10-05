@@ -90,6 +90,20 @@ describe("createTronChain", () => {
     expect(await createTronChain(CFG, missing.fetch).verifyTransfer(TX, CONTRACT)).toEqual({ kind: "not_found" });
   });
 
+  it("maps Tatum's 403 tron.tx.not.found (unknown or pending tx) to not_found, but surfaces other 403s", async () => {
+    const notFound = fakeFetch({
+      [`GET /v3/tron/transaction/${TX}`]: {
+        status: 403,
+        body: { statusCode: 403, errorCode: "tron.tx.not.found", message: "Transaction not found." },
+      },
+    });
+    expect(await createTronChain(CFG, notFound.fetch).verifyTransfer(TX, CONTRACT)).toEqual({ kind: "not_found" });
+    const forbidden = fakeFetch({
+      [`GET /v3/tron/transaction/${TX}`]: { status: 403, body: { errorCode: "subscription.invalid", message: "nope" } },
+    });
+    await expect(createTronChain(CFG, forbidden.fetch).verifyTransfer(TX, CONTRACT)).rejects.toThrow(/subscription.invalid/);
+  });
+
   it("treats a tx with no block yet as not final and transferless", async () => {
     const pending = { ...tronTx, blockNumber: undefined };
     const f = fakeFetch({ [`GET /v3/tron/transaction/${TX}`]: pending });

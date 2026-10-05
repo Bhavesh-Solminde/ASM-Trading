@@ -6,13 +6,17 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "setup": "dotenv -e ../../.env -- tsx scripts/setup.ts",
+    "check:testnet": "dotenv -e ../../.env -- tsx scripts/testnet-check.ts"
   },
   "dependencies": {
     "@asm/db": "workspace:*",
     "@asm/logger": "workspace:*"
   },
   "devDependencies": {
-    "dotenv": "17.4.2"
+    "dotenv": "17.4.2",
+    "dotenv-cli": "10.0.0",
+    "tsx": "4.20.6"
   }
 }
