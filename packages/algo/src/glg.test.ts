@@ -47,19 +47,19 @@ describe("treasuryHealth", () => {
 
 describe("ladder", () => {
   it("interpolates linearly", () => {
-    // Between (0.5, 0.35) and (1.0, 0.45): at x=0.75, y = 0.35 + 0.5*0.10 = 0.40
-    expect(ladder(0.75, DEFAULT_GLG_CONFIG.basePwinLadder)).toBeCloseTo(0.4, 6);
+    // Between (0.5, 0.25) and (1.0, 0.33): at x=0.75, y = 0.25 + 0.5*0.08 = 0.29
+    expect(ladder(0.75, DEFAULT_GLG_CONFIG.basePwinLadder)).toBeCloseTo(0.29, 6);
   });
 
   it("hits anchors", () => {
-    expect(ladder(0.0, DEFAULT_GLG_CONFIG.basePwinLadder)).toBe(0.2);
-    expect(ladder(1.0, DEFAULT_GLG_CONFIG.basePwinLadder)).toBe(0.45);
-    expect(ladder(3.0, DEFAULT_GLG_CONFIG.basePwinLadder)).toBe(0.5);
+    expect(ladder(0.0, DEFAULT_GLG_CONFIG.basePwinLadder)).toBe(0.15);
+    expect(ladder(1.0, DEFAULT_GLG_CONFIG.basePwinLadder)).toBe(0.33);
+    expect(ladder(3.0, DEFAULT_GLG_CONFIG.basePwinLadder)).toBe(0.38);
   });
 
   it("clamps outside range", () => {
-    expect(ladder(-1, DEFAULT_GLG_CONFIG.basePwinLadder)).toBe(0.2);
-    expect(ladder(99, DEFAULT_GLG_CONFIG.basePwinLadder)).toBe(0.5);
+    expect(ladder(-1, DEFAULT_GLG_CONFIG.basePwinLadder)).toBe(0.15);
+    expect(ladder(99, DEFAULT_GLG_CONFIG.basePwinLadder)).toBe(0.38);
   });
 });
 
@@ -80,34 +80,43 @@ describe("perAssetPwinCeiling", () => {
 });
 
 describe("decideVerdictGLG — demo short-circuit", () => {
-  it("returns HONEST for demo regardless of state", () => {
+  it("returns WIN for demo when RNG rolls under DEMO_WIN_RATE", () => {
     const out = decideVerdictGLG(
       baseInput({ isDemo: true, treasuryMinor: 5_000_000 }),
       alwaysLow,
     );
-    expect(out).toBe("HONEST");
+    expect(out).toBe("WIN");
+  });
+
+  it("returns LOSS for demo when RNG rolls over DEMO_WIN_RATE", () => {
+    const out = decideVerdictGLG(
+      baseInput({ isDemo: true, treasuryMinor: 5_000_000 }),
+      alwaysHigh,
+    );
+    expect(out).toBe("LOSS");
   });
 });
 
 describe("decideVerdictGLG — treasury drives pWin", () => {
   it("returns LOSS at empty treasury when RNG is high", () => {
-    // health=0 → pWin=0.20; alwaysHigh → LOSS
+    // health=0 → pWin=0.15; alwaysHigh → LOSS
     expect(decideVerdictGLG(baseInput(), alwaysHigh)).toBe("LOSS");
   });
 
-  it("returns WIN at empty treasury when RNG is under 0.20", () => {
+  it("returns WIN at empty treasury when RNG is under 0.15", () => {
     expect(decideVerdictGLG(baseInput(), () => 0.1)).toBe("WIN");
-    expect(decideVerdictGLG(baseInput(), () => 0.19)).toBe("WIN");
+    expect(decideVerdictGLG(baseInput(), () => 0.14)).toBe("WIN");
   });
 
-  it("returns LOSS at empty treasury when RNG is over 0.20", () => {
-    expect(decideVerdictGLG(baseInput(), () => 0.21)).toBe("LOSS");
+  it("returns LOSS at empty treasury when RNG is over 0.15", () => {
+    expect(decideVerdictGLG(baseInput(), () => 0.16)).toBe("LOSS");
   });
 
   it("returns WIN at max treasury health when RNG is under ceiling", () => {
+    // ceiling = min(ladder(3)=0.38, pwinCeiling=0.38, perAsset) = 0.38
     const out = decideVerdictGLG(
       baseInput({ treasuryMinor: 5_000_000 }),
-      () => 0.48,
+      () => 0.37,
     );
     expect(out).toBe("WIN");
   });
@@ -154,18 +163,18 @@ describe("decideVerdictGLG — invariant I3 (giveback protection)", () => {
     // So treasury just at 908_400 (which is above cushion by 8_400 < payout).
     const out = decideVerdictGLG(
       baseInput({ treasuryMinor: 908_400 }),
-      () => 0.16, // above clamp (0.15) → LOSS
+      () => 0.11, // above clamp (0.1) → LOSS
     );
     expect(out).toBe("LOSS");
   });
 
   it("does not clamp when treasury has room to give back", () => {
     // treasury well above cushion + payout → normal ladder pWin applies.
-    // health = 2_000_000 / 1_000_000 = 2.0 → ladder = 0.48.
-    // Global ceiling clamps to 0.50, per-asset (85%) to ~0.4905. Actual pWin = min(0.48, 0.5, 0.4905) = 0.48
+    // health = 2_000_000 / 1_000_000 = 2.0 → ladder = 0.36.
+    // Global ceiling 0.38, per-asset (85%) ~0.4905 → effective pWin = 0.36.
     const out = decideVerdictGLG(
       baseInput({ treasuryMinor: 2_000_000 }),
-      () => 0.47,
+      () => 0.35,
     );
     expect(out).toBe("WIN");
   });
@@ -207,8 +216,8 @@ describe("decideVerdictGLG — house-edge property test", () => {
   });
 });
 
-describe("decideVerdictGLG — fresh-day-start comparison to v1", () => {
-  it("gives ~20% pWin at treasury=0 (vs v1's 5%)", () => {
+describe("decideVerdictGLG — fresh-day-start empirical pWin", () => {
+  it("gives ~15% pWin at treasury=0 (ladder bottom)", () => {
     let state = 0xcafebabe;
     const rng = () => {
       state = (state + 0x6d2b79f5) | 0;
@@ -224,8 +233,8 @@ describe("decideVerdictGLG — fresh-day-start comparison to v1", () => {
       if (v === "WIN") wins++;
     }
     const empirical = wins / N;
-    // Expect ~0.20, tolerate 0.18 – 0.22
-    expect(empirical).toBeGreaterThan(0.18);
-    expect(empirical).toBeLessThan(0.22);
+    // Expect ~0.15, tolerate 0.13 – 0.17
+    expect(empirical).toBeGreaterThan(0.13);
+    expect(empirical).toBeLessThan(0.17);
   });
 });

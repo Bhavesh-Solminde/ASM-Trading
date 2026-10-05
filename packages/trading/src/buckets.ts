@@ -66,6 +66,38 @@ export class BucketRegistry {
   }
 
   /**
+   * Non-destructive bucket peek by exact key. Returns the positions already
+   * sitting in (assetId, expirySec) — empty array if the bucket has no
+   * trades yet. Used by the open-time value-imbalance override to decide
+   * whether a new trade would tip its direction into the heavier side of
+   * the contest, so its verdict can be forced to LOSS before the per-trade
+   * magnet starts steering toward a WIN target.
+   */
+  positionsAt(assetId: string, expirySec: number): readonly Position[] {
+    return this.buckets.get(keyOf(assetId, expirySec)) ?? [];
+  }
+
+  /**
+   * Non-destructive peek. Returns every bucket whose expirySec is in the
+   * inclusive range [fromSec, toSec]. Used by the pre-settle pass to look
+   * one tick ahead so the chart can snap to the resolver's picked exit
+   * price *before* the user's expiry countdown reaches zero.
+   */
+  peekRange(fromSec: number, toSec: number): ExpiryBucket[] {
+    const out: ExpiryBucket[] = [];
+    for (const [key, positions] of this.buckets) {
+      const expirySec = Number(key.slice(key.indexOf("|") + 1));
+      if (expirySec < fromSec || expirySec > toSec) continue;
+      out.push({
+        assetId: key.slice(0, key.indexOf("|")),
+        expirySec,
+        positions,
+      });
+    }
+    return out.sort((a, b) => a.expirySec - b.expirySec);
+  }
+
+  /**
    * Returns every bucket at or before `nowSec`, removing them.
    * Overdue buckets are included deliberately — if the loop stalled, those
    * trades must still settle rather than being silently stranded.

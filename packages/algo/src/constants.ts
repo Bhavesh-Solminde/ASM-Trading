@@ -215,3 +215,30 @@ export const MAGNET_CAP = 1.5;
 export const TARGET_MARGIN_SIGMA = 3;
 
 export const MAX_CORRECTIVE_TICKS = 5;
+
+/**
+ * GLG-only corrective window at settlement (ticks). Under GLG the per-trade
+ * tick-blend may be fighting other co-open trades' targets on the same asset,
+ * so `currentPrice` at expiry can drift several ticks from THIS trade's
+ * target. The resolver is allowed to shift the exit price by up to this many
+ * ticks to rescue the stamped verdict.
+ *
+ * Previously this reused `MAX_HONEST_TICK_SHIFT_OTC` (200 ticks). On 1M the
+ * aggregator captured those rescue snaps as long single-tick wicks (reported
+ * 2026-10-05). Shrunk to 10 — the resolver still rescues most WIN verdicts
+ * that land inside the normal duration-weighted magnet envelope, but the
+ * visible candle wick stays inside a plausible intraticle range. Verdicts
+ * that fall outside become de-facto HONEST at settlement; GLG's `pWin ≤ 0.5`
+ * ceiling means house edge survives on honest resolution.
+ */
+export const MAX_CORRECTIVE_TICKS_GLG = 10;
+
+/**
+ * Demo account win probability — GLG only. Demo trades under the Growth-Loop
+ * Governor skip the treasury ladder and roll this fixed WIN/LOSS probability
+ * instead; the engine's magnet still steers the chart to the stamped outcome,
+ * and demo settlements are ignored by the HouseDay and Treasury ledgers.
+ * 0.75 means roughly 3-in-4 demo trades show as wins — the "feel-good demo"
+ * experience. The legacy v2 governor still short-circuits demo to HONEST.
+ */
+export const DEMO_WIN_RATE = 0.75;

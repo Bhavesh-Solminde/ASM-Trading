@@ -1,8 +1,100 @@
 # Algorithm redesign — the "house-first" mode
 
 Living document. Phase 1 shipped on 2026-09-23. Phase 2 shipped on
-2026-09-24 (this commit) — code, tests and a live 10-user verification
-all pass locally.
+2026-09-24. Phase 3 (GLG + chart-wick fix) shipped on 2026-10-05 — see
+the Phase 3 section at the top of this doc for the current algorithm;
+Phases 1 and 2 below are retained for provenance but their code paths
+are commented out and MUST NOT be reactivated without reading Phase 3
+first.
+
+---
+
+# ✅ PHASE 3 — Growth-Loop Governor + chart-wick fix (SHIPPED, 2026-10-05)
+
+GLG (Growth-Loop Governor) is now the sole algorithm path. The pre-GLG
+code paths (HOUSE_ALWAYS_WINS_MODE aggregate-liability resolver, v2
+daily-ladder governor, legacy per-user Bayesian controller, pre-governor
+aggregate-liability tick-loop magnet) are commented out in-place with
+`GLG RETIRE 2026-10-05` markers so a reader can see what was removed and
+why. The `HOUSE_ALWAYS_WINS_MODE`, `USE_HOUSE_GOVERNOR`,
+`decideVerdict`, and `houseFirstWishes` symbols are still exported from
+`@asm/algo` for test files and tooling, but no engine code reads them.
+
+## ✅ What's live
+
+- Verdict stamp at open: `decideVerdictGLG` only. Treasury-health ladder
+  with `pWin ≤ GLG_PWIN_CEILING = 0.5`, per-asset edge margin, and
+  giveback-cushion clamp.
+- Tick loop: per-trade duration-scaled magnet in
+  `apps/engine/src/loop.ts` steers the shown price toward each stamped
+  trade's `targetPrice` for the whole trade duration. Liability-weighted
+  across co-open trades. Commit-window smoothstep snap in the final
+  `COMMIT_WINDOW_SEC = 6` seconds. Both now trigger under
+  `USE_HOUSE_GOVERNOR || USE_GLG_TREASURY` so GLG alone is enough.
+- Settlement: `stampedGroup` path is the only live path in
+  `resolveUnresolvedBuckets`. Value-imbalance pre-pass forces the
+  heavier-stake direction to LOSS inside multi-user GLG contests.
+  Co-expiring trades share one bucket (same `exitPrice` key) so the
+  snap-to-resolved broadcasts once per bucket.
+
+## ✅ The chart-wick fix (reported 2026-10-05)
+
+User-reported symptom: 1M candles looked chaotic with long single wicks
+when the algorithm was active. Root cause: `correctiveTicks` for GLG was
+set to `MAX_HONEST_TICK_SHIFT_OTC` (200 ticks) at
+`trade-desk.ts:704` — the resolver could pick an exit price up to 200
+ticks away from the shown price, and the snap-to-resolved broadcast at
+`trade-desk.ts:738` landed inside the current 1M candle as a long wick.
+
+Fix: new constant `MAX_CORRECTIVE_TICKS_GLG = 10`, used in place of
+`MAX_HONEST_TICK_SHIFT_OTC` for the GLG rescue window. The resolver
+still rescues most WIN verdicts (the per-trade magnet usually keeps
+`currentPrice` well within 10 ticks of the trade's target by expiry),
+but verdicts the magnet failed to steer within the shrunk window settle
+at the honest price instead. GLG's `pWin ≤ 0.5` cap guarantees house
+edge survives on honest resolution.
+
+The absolute honest-price cap at the resolver (`MAX_HONEST_TICK_SHIFT_OTC
+= 200`) is unchanged — that's the backstop on absurd single-tick spikes
+and it's always applied now that there's only one live algo path.
+
+## ✅ Files changed in Phase 3
+
+1. ✅ `packages/algo/src/constants.ts` — new `MAX_CORRECTIVE_TICKS_GLG`
+2. ✅ `apps/engine/src/trading/trade-desk.ts` — use the new constant for
+   the GLG rescue window; GLG RETIRE comments wrap the pre-GLG open-time
+   stamping branch (v2 governor) and the two pre-GLG settlement
+   branches (HOUSE_ALWAYS_WINS_MODE, legacy controller). The fallback
+   when `stampedGroup` is somehow false logs
+   `settle.unstamped_group_fallback` and treats the group as HONEST
+   rather than silently reactivating a retired algo.
+3. ✅ `apps/engine/src/loop.ts` — tick-loop per-trade magnet and
+   commit-window snap gate on `USE_HOUSE_GOVERNOR || USE_GLG_TREASURY`.
+   Legacy else-branch (pre-governor aggregate-liability magnet)
+   commented out with GLG RETIRE marker.
+4. ✅ `algorithm.md` — this section.
+
+## ✅ Rollback
+
+- Shrink too tight? Raise `MAX_CORRECTIVE_TICKS_GLG` in
+  `packages/algo/src/constants.ts`. 10 → 20 is the safe experiment
+  range; anything above ~30 starts producing visible wicks again.
+- Need a retired algo back temporarily? Un-comment the `GLG RETIRE`
+  block in the file that owns the path. Each block is self-contained.
+
+---
+
+# PHASE 1 and PHASE 2 — historical (code paths retired)
+
+Phase 1 and Phase 2 below are retained for provenance. The code paths
+they describe are commented out in-place (see `GLG RETIRE` markers) and
+MUST NOT be reactivated without first reading Phase 3 above. The
+constants (`HOUSE_ALWAYS_WINS_MODE`, `MAX_HONEST_TICK_SHIFT_OTC`,
+`USE_HOUSE_GOVERNOR`) are still exported from `@asm/algo` so tests
+compile, but no live engine code reads the first two of them and the
+third is kept only as an "either flag enables GLG" convenience.
+
+---
 
 ---
 
