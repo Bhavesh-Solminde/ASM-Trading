@@ -36,6 +36,14 @@ jobs:
         # toolchain that this workflow does not deploy.
         run: pnpm install --frozen-lockfile --filter '!@asm/relay...'
 
+      - name: Generate Prisma client
+        # pnpm v10 silently skips the @asm/db postinstall `prisma generate` hook
+        # unless the package is in `onlyBuiltDependencies`, so the typecheck
+        # step below sees stale generated types and fails on symbols that only
+        # exist after a fresh schema generate. Running it explicitly here is
+        # cheap (~100ms) and unblocks the deploy.
+        run: pnpm --filter @asm/db exec prisma generate
+
       - name: Typecheck the deployed packages
         run: |
           pnpm --filter @asm/web --filter @asm/engine \

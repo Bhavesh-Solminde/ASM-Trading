@@ -114,7 +114,9 @@ const OpenTradeRow = memo(function OpenTradeRow({
       }
       pnl={pnlDisplay}
       pnlClass={settling ? "text-ink-2" : winning ? "text-up" : losing ? "text-down" : "text-ink-2"}
-      chipOverride={settling ? { label: "Settling", className: "bg-tile text-ink-2" } : undefined}
+      {...(settling
+        ? { chipOverride: { label: "Settling", className: "bg-tile text-ink-2" } }
+        : {})}
     >
       <span aria-hidden className="absolute -bottom-px left-0 h-0.5 bg-up" style={{ width: `${progress * 100}%` }} />
     </RowShell>
