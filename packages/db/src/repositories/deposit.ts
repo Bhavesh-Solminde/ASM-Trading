@@ -507,6 +507,16 @@ export async function creditDepositToAccount(input: {
    * rewriting the deposit's amounts to match in the same guarded UPDATE.
    */
   adminResolution?: { usdtMinorOverride: number };
+  /**
+   * Payment-gateway (per-deposit address) auto-credit: the USDT-cents that
+   * actually arrived at the deposit's own address, which may exceed what the
+   * user asked for (the gateway matcher never calls this for an underpayment).
+   * Unlike adminResolution it widens NO guard — the deposit must still be
+   * live and the ChainCredit still PENDING — it only credits, and rewrites
+   * the deposit's amounts to, the received value. Mutually exclusive with
+   * adminResolution; only valid with chainCreditId on a USDT gateway deposit.
+   */
+  receivedUsdtMinor?: number;
 }): Promise<void> {
   const deposit = await prisma.deposit.findUnique({ where: { id: input.depositId } });
   if (!deposit) throw new DepositNotFound();
@@ -516,6 +526,17 @@ export async function creditDepositToAccount(input: {
   });
 
   const admin = input.adminResolution ?? null;
+  const received = input.receivedUsdtMinor ?? null;
+  if (received !== null) {
+    if (admin) throw new Error("receivedUsdtMinor and adminResolution are mutually exclusive.");
+    if (!input.chainCreditId) throw new Error("receivedUsdtMinor requires a chainCreditId.");
+    if (deposit.method !== "USDT" || !deposit.gateway) {
+      throw new Error("receivedUsdtMinor is only valid for a USDT gateway deposit.");
+    }
+    if (!Number.isInteger(received) || received <= 0) {
+      throw new Error("receivedUsdtMinor must be a positive integer.");
+    }
+  }
   if (admin) {
     if (!input.chainCreditId) {
       throw new Error("adminResolution requires a chainCreditId.");
@@ -531,7 +552,8 @@ export async function creditDepositToAccount(input: {
   // Credit in the account's own currency — see depositCreditMinor. For an
   // admin resolution the credit is what actually arrived on-chain, which may
   // differ from what the deposit reserved.
-  const credit = depositCreditMinor(deposit, account.currency, admin?.usdtMinorOverride ?? null);
+  const usdtOverride = admin?.usdtMinorOverride ?? received;
+  const credit = depositCreditMinor(deposit, account.currency, usdtOverride);
   const bonus = Math.floor((credit * BONUS_PERCENT) / 100);
 
   await prisma.$transaction(async (tx) => {
@@ -554,8 +576,8 @@ export async function creditDepositToAccount(input: {
         status: "COMPLETED",
         matchedCreditId: input.creditId ?? null,
         matchedChainCreditId: input.chainCreditId ?? null,
-        ...(admin
-          ? { amountUsdtMinor: admin.usdtMinorOverride, amountInr: -admin.usdtMinorOverride }
+        ...(usdtOverride !== null
+          ? { amountUsdtMinor: usdtOverride, amountInr: -usdtOverride }
           : {}),
       },
     });
@@ -643,7 +665,16 @@ export async function creditDepositToAccount(input: {
               usdtMinorOverride: admin.usdtMinorOverride,
               reservedUsdtMinor: deposit.amountUsdtMinor,
             }
-          : { status: "COMPLETED", creditId: input.creditId, bonus },
+          : received !== null
+            ? {
+                status: "COMPLETED",
+                chainCreditId: input.chainCreditId,
+                bonus,
+                gateway: deposit.gateway,
+                receivedUsdtMinor: received,
+                requestedUsdtMinor: deposit.amountUsdtMinor,
+              }
+            : { status: "COMPLETED", creditId: input.creditId, bonus },
       },
     });
   });
@@ -885,7 +916,9 @@ export const USDT_RESERVATION_QUARANTINE_MS = 48 * 60 * 60 * 1000;
 /** Marks method "USDT" deposits still AWAITING_PAYMENT whose expiresAt < expiredBefore as EXPIRED. Returns the count. Never touches INR deposits. */
 export async function expireStaleUsdtDeposits(expiredBefore: Date): Promise<number> {
   const result = await prisma.deposit.updateMany({
-    where: { method: "USDT", status: "AWAITING_PAYMENT", expiresAt: { lt: expiredBefore } },
+    // gateway: null — gateway (per-address) deposits have no amount
+    // reservation to quarantine and are expired by the gateway runner.
+    where: { method: "USDT", status: "AWAITING_PAYMENT", gateway: null, expiresAt: { lt: expiredBefore } },
     data: { status: "EXPIRED" },
   });
   return result.count;

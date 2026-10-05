@@ -1,0 +1,81 @@
+import { describe, expect, it } from "vitest";
+import { isTatumProvider, listTatumEnabledNetworks, readTatumConfig } from "./config";
+
+const BASE = {
+  TATUM_API_KEY: "t-abc",
+  TATUM_NETWORK: "testnet",
+  TATUM_TRON_XPUB: "xpub6TronTest",
+  TATUM_TRON_USDT_CONTRACT: "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs",
+  TATUM_BSC_XPUB: "xpub6BscTest",
+  TATUM_BSC_USDT_CONTRACT: "0x337610D27C682E347C9CD60BD4B3B107C9D34DDD",
+  TATUM_BSC_USDT_DECIMALS: "18",
+};
+
+describe("isTatumProvider", () => {
+  it("defaults to tatum; only an explicit 'manual' opts out", () => {
+    expect(isTatumProvider({})).toBe(true);
+    expect(isTatumProvider({ USDT_DEPOSIT_PROVIDER: "tatum" })).toBe(true);
+    expect(isTatumProvider({ USDT_DEPOSIT_PROVIDER: "bogus" })).toBe(true);
+    expect(isTatumProvider({ USDT_DEPOSIT_PROVIDER: "manual" })).toBe(false);
+  });
+});
+
+describe("readTatumConfig", () => {
+  it("returns a complete TRON config (USDT 6 decimals)", () => {
+    expect(readTatumConfig("tron", BASE)).toEqual({
+      network: "tron",
+      apiKey: "t-abc",
+      testnet: true,
+      xpub: "xpub6TronTest",
+      tokenContract: "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs",
+      tokenDecimals: 6,
+      webhookUrl: null,
+      hmacSecret: null,
+    });
+  });
+
+  it("lowercases the BSC contract and reads explicit decimals", () => {
+    expect(readTatumConfig("bsc", BASE)).toMatchObject({
+      network: "bsc",
+      tokenContract: "0x337610d27c682e347c9cd60bd4b3b107c9d34ddd",
+      tokenDecimals: 18,
+    });
+  });
+
+  it("is null when any required value is missing or malformed", () => {
+    expect(readTatumConfig("tron", { ...BASE, TATUM_API_KEY: "" })).toBeNull();
+    expect(readTatumConfig("tron", { ...BASE, TATUM_NETWORK: "" })).toBeNull();
+    expect(readTatumConfig("tron", { ...BASE, TATUM_TRON_XPUB: "" })).toBeNull();
+    expect(readTatumConfig("tron", { ...BASE, TATUM_TRON_USDT_CONTRACT: "0xnot-tron" })).toBeNull();
+    expect(readTatumConfig("bsc", { ...BASE, TATUM_BSC_USDT_DECIMALS: "" })).toBeNull();
+    expect(readTatumConfig("bsc", { ...BASE, TATUM_BSC_USDT_CONTRACT: "TG3XX" })).toBeNull();
+  });
+
+  it("refuses a testnet key on mainnet and vice versa", () => {
+    expect(readTatumConfig("tron", { ...BASE, TATUM_NETWORK: "mainnet" })).toBeNull();
+    expect(readTatumConfig("tron", { ...BASE, TATUM_API_KEY: "mainnet-key" })).toBeNull();
+    expect(readTatumConfig("tron", { ...BASE, TATUM_API_KEY: "mainnet-key", TATUM_NETWORK: "mainnet" })).toMatchObject({
+      testnet: false,
+    });
+  });
+
+  it("requires an HMAC secret whenever a webhook URL is configured", () => {
+    expect(readTatumConfig("tron", { ...BASE, TATUM_WEBHOOK_URL: "https://x.test/api/webhooks/tatum" })).toBeNull();
+    expect(
+      readTatumConfig("tron", {
+        ...BASE,
+        TATUM_WEBHOOK_URL: "https://x.test/api/webhooks/tatum",
+        TATUM_WEBHOOK_HMAC_SECRET: "s3cret",
+      }),
+    ).toMatchObject({ webhookUrl: "https://x.test/api/webhooks/tatum", hmacSecret: "s3cret" });
+    expect(readTatumConfig("tron", { ...BASE, TATUM_WEBHOOK_URL: "http://insecure.test/hook", TATUM_WEBHOOK_HMAC_SECRET: "s" })).toBeNull();
+  });
+});
+
+describe("listTatumEnabledNetworks", () => {
+  it("lists only fully configured networks, and none under the manual provider", () => {
+    expect(listTatumEnabledNetworks(BASE)).toEqual(["tron", "bsc"]);
+    expect(listTatumEnabledNetworks({ ...BASE, TATUM_BSC_XPUB: "" })).toEqual(["tron"]);
+    expect(listTatumEnabledNetworks({ ...BASE, USDT_DEPOSIT_PROVIDER: "manual" })).toEqual([]);
+  });
+});

@@ -2,6 +2,7 @@
 // this from a "use client" module; client code gets display metadata from
 // USDT_NETWORK_INFO in @asm/contracts and the enabled list as a prop.
 import { USDT_NETWORKS, type UsdtNetwork } from "@asm/contracts";
+import { isTatumProvider, listTatumEnabledNetworks, readTatumConfig, type TatumNetworkConfig } from "@asm/tatum";
 
 export interface UsdtNetworkConfig {
   network: UsdtNetwork;
@@ -75,7 +76,28 @@ export function getUsdtNetworkConfig(network: UsdtNetwork): UsdtNetworkConfig | 
   }
 }
 
-/** Networks a user may deposit on right now, in USDT_NETWORKS order. */
+/**
+ * Live config for one network under the MANUAL provider (shared receiving
+ * address + unique-amount matching). Kept intact; only used when
+ * USDT_DEPOSIT_PROVIDER=manual, or by admin tooling for legacy rows.
+ */
+export { getUsdtNetworkConfig as getManualUsdtNetworkConfig };
+
+/** True unless USDT_DEPOSIT_PROVIDER is exactly "manual" — the Tatum gateway is the default. */
+export function usdtGatewayActive(): boolean {
+  return isTatumProvider();
+}
+
+/** Tatum gateway config for one network (null when not fully configured). */
+export function getGatewayUsdtConfig(network: UsdtNetwork): TatumNetworkConfig | null {
+  return readTatumConfig(network);
+}
+
+/** Networks a user may deposit on right now, in USDT_NETWORKS order, for the active provider. */
 export function listEnabledUsdtNetworks(): UsdtNetwork[] {
+  if (usdtGatewayActive()) {
+    const enabled = new Set<string>(listTatumEnabledNetworks());
+    return USDT_NETWORKS.filter((n) => enabled.has(n));
+  }
   return USDT_NETWORKS.filter((n) => getUsdtNetworkConfig(n) !== null);
 }

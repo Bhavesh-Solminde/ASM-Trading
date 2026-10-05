@@ -2,15 +2,21 @@ import { NextResponse, type NextRequest } from "next/server";
 import { CreateDepositSchema, USDT_NETWORK_INFO, type DepositView } from "@asm/contracts";
 import {
   AmountSpaceExhausted,
+  MAX_DEPOSIT_USDT_MINOR,
+  MIN_DEPOSIT_USDT_MINOR,
+  allocateGatewayAddressIndex,
   createDepositIntent,
+  createGatewayUsdtDeposit,
   createUsdtDepositIntent,
   listDepositsForActor,
+  setGatewaySubscriptionId,
 } from "@asm/db";
+import { createGatewayChain, createIncomingTokenSubscription } from "@asm/tatum";
 import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getUsdtNetworkConfig } from "@/lib/usdt-networks";
+import { getGatewayUsdtConfig, getUsdtNetworkConfig, usdtGatewayActive } from "@/lib/usdt-networks";
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -39,8 +45,91 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    if (parsed.data.method === "USDT" && usdtGatewayActive()) {
+      // Payment gateway (Tatum): a fresh receiving address per deposit,
+      // derived from the gateway's xpub; matched by address, not amount.
+      const network = parsed.data.network;
+      const amount = parsed.data.amountUsdtMinor;
+      const cfg = getGatewayUsdtConfig(network);
+      if (!cfg) {
+        log.warn(
+          { evt: "deposit.usdt_unavailable", route: "deposits", network, provider: "tatum" },
+          "USDT gateway deposit requested on a network that is not configured",
+        );
+        return NextResponse.json(
+          { error: `USDT on ${USDT_NETWORK_INFO[network].label} is temporarily unavailable. Try again later.` },
+          { status: 503 },
+        );
+      }
+      // Bounds first, so a rejected amount never burns an address index or a Tatum call.
+      if (amount < MIN_DEPOSIT_USDT_MINOR || amount > MAX_DEPOSIT_USDT_MINOR) {
+        return NextResponse.json(
+          {
+            error: `Deposit between $${(MIN_DEPOSIT_USDT_MINOR / 100).toLocaleString("en-US")} and $${(MAX_DEPOSIT_USDT_MINOR / 100).toLocaleString("en-US")}.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      let addressIndex: number;
+      let address: string;
+      try {
+        addressIndex = await allocateGatewayAddressIndex(cfg.network);
+        address = await createGatewayChain(cfg).deriveAddress(addressIndex);
+      } catch (err) {
+        log.error(
+          { evt: "deposit.gateway_address_failed", network, err: (err as Error).message },
+          "could not derive a gateway deposit address",
+        );
+        return NextResponse.json(
+          { error: `USDT on ${USDT_NETWORK_INFO[network].label} is temporarily unavailable. Try again later.` },
+          { status: 503 },
+        );
+      }
+
+      const deposit = await createGatewayUsdtDeposit({
+        userId: session.userId,
+        amountUsdtMinorRequested: amount,
+        network: cfg.network,
+        tokenContract: cfg.tokenContract,
+        receivingAddress: address,
+        addressIndex,
+        correlationId: ctx.cid,
+        ipAddress: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+
+      // Webhook alert = faster detection. Best-effort: the engine poller
+      // watches every live gateway address regardless, so a Tatum alerts
+      // outage never blocks a deposit.
+      if (cfg.webhookUrl) {
+        try {
+          await setGatewaySubscriptionId(deposit.id, await createIncomingTokenSubscription(cfg, address));
+        } catch (err) {
+          log.warn(
+            { evt: "deposit.gateway_alert_failed", depositId: deposit.id, err: (err as Error).message },
+            "could not create Tatum alert; poller will cover this address",
+          );
+        }
+      }
+
+      log.info(
+        {
+          evt: "deposit.intent",
+          depositId: deposit.id,
+          method: deposit.method,
+          network: cfg.network,
+          gateway: deposit.gateway,
+          addressIndex,
+          amountUsdtMinor: deposit.amountUsdtMinor,
+        },
+        "USDT gateway deposit intent created",
+      );
+      return NextResponse.json({ checkoutToken: deposit.checkoutToken }, { status: 201 });
+    }
+
     if (parsed.data.method === "USDT") {
-      // Only the requested network's config is consulted: a deposit created
+      // Manual provider. Only the requested network's config is consulted: a deposit created
       // on a network whose watcher would stay idle could never be detected or
       // credited, so refuse it rather than hand out an unwatched address.
       const network = parsed.data.network;

@@ -135,6 +135,34 @@ export {
   type ChainMatchOutcome,
 } from "./repositories/chain-credit-matcher";
 export {
+  GATEWAY_TATUM,
+  GATEWAY_USDT_DEPOSIT_TTL_MINUTES,
+  GATEWAY_EXPIRE_GRACE_MS,
+  GATEWAY_WATCH_AFTER_EXPIRY_MS,
+  allocateGatewayAddressIndex,
+  createGatewayUsdtDeposit,
+  setGatewaySubscriptionId,
+  findGatewayDepositByAddress,
+  listGatewayDepositsToWatch,
+  listGatewayDepositsToExpire,
+  expireGatewayDeposit,
+  markChainCreditsFinalForTx,
+  markChainCreditsFailedForTx,
+  listDetectedGatewayCredits,
+  listFinalUnmatchedGatewayCredits,
+  findLatestChainCreditForGatewayDeposit,
+  matchGatewayChainCredit,
+  type GatewayMatchOutcome,
+  type GatewayManualReviewReason,
+} from "./repositories/gateway-deposit";
+export {
+  listGatewaySweepCandidates,
+  startGatewaySweep,
+  updateGatewaySweep,
+  listOpenGatewaySweeps,
+  type GatewaySweepCandidate,
+} from "./repositories/gateway-sweep";
+export {
   ChainCreditResolutionRefused,
   listUsdtReviewQueue,
   countUsdtReviewQueue,

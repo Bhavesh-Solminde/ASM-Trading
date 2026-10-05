@@ -8,10 +8,13 @@ const QUICK = [25, 50, 100, 250];
 export function UsdtAmountStep({
   networks,
   onBack,
+  gateway,
 }: {
   /** Enabled networks, server-computed; never empty (DepositFlow guards that). */
   networks: UsdtNetwork[];
   onBack: () => void;
+  /** True under the Tatum payment gateway: a unique address per deposit, no unique-cents amount. */
+  gateway: boolean;
 }) {
   const [network, setNetwork] = useState<UsdtNetwork>(networks[0] ?? "tron");
   const info = USDT_NETWORK_INFO[network];
@@ -140,11 +143,21 @@ export function UsdtAmountStep({
       </div>
 
       <div className="rounded border border-[var(--color-brand)]/30 bg-[var(--color-brand)]/10 p-3 text-xs leading-relaxed text-[var(--color-brand)]">
-        You&rsquo;ll be shown a specific, one-time amount to send on the next
-        page — it may differ slightly (a few cents) from what you enter here.
-        That exact figure is what identifies your payment; sending a
-        different amount cannot be matched automatically. You&rsquo;ll have{" "}
-        <strong>5 minutes</strong> to send it.
+        {gateway ? (
+          <>
+            You&rsquo;ll get a deposit address created just for this payment.
+            Send at least the amount you enter here — anything above it is
+            credited too. You&rsquo;ll have <strong>30 minutes</strong> to send it.
+          </>
+        ) : (
+          <>
+            You&rsquo;ll be shown a specific, one-time amount to send on the next
+            page — it may differ slightly (a few cents) from what you enter here.
+            That exact figure is what identifies your payment; sending a
+            different amount cannot be matched automatically. You&rsquo;ll have{" "}
+            <strong>5 minutes</strong> to send it.
+          </>
+        )}
       </div>
 
       <div className="flex items-baseline justify-between border-t border-dashed border-[var(--color-rule)] pt-3 text-sm">

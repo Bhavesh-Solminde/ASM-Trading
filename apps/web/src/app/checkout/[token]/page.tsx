@@ -22,6 +22,9 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
     deposit.status === "COMPLETED" || deposit.status === "REJECTED" || deposit.status === "EXPIRED";
 
   const isUsdt = deposit.method === "USDT";
+  // Payment-gateway deposit: a receiving address issued to this deposit
+  // alone, matched by address — any amount at or above the request credits.
+  const isGateway = isUsdt && deposit.gateway !== null;
   // Every network label/warning comes from the deposit's own stored network.
   const net = usdtNetworkDisplay(deposit.network);
 
@@ -83,6 +86,11 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
                 Send {net.assetLabel} to this address
               </h1>
               <p className="mt-2 text-3xl font-bold tabular-nums">{usdtAmount} USDT</p>
+              {isGateway ? (
+                <p className="mt-1 text-[11px] font-semibold text-[#6b5a8a]">
+                  This address is unique to this deposit
+                </p>
+              ) : null}
               <p className="mt-2">
                 <span className="inline-block rounded-full border border-[#5b2d9e]/30 bg-[#5b2d9e]/10 px-3 py-0.5 text-[11px] font-bold text-[#5b2d9e]">
                   Network: {net.shortLabel}
@@ -137,12 +145,23 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
                 </div>
               </dl>
               <p className="mt-3 text-[11px] leading-relaxed text-[#8a7aa8]">
-                Send this exact amount, on the {net.label} network only. A
-                different amount, or a transfer on any other network, cannot be
-                matched automatically and may be unrecoverable.
+                {isGateway ? (
+                  <>
+                    Send at least this amount, on the {net.label} network only.
+                    Anything above it is credited too. A transfer on any other
+                    network, or of a token other than USDT, may be unrecoverable.
+                  </>
+                ) : (
+                  <>
+                    Send this exact amount, on the {net.label} network only. A
+                    different amount, or a transfer on any other network, cannot be
+                    matched automatically and may be unrecoverable.
+                  </>
+                )}
               </p>
             </section>
 
+            {isGateway ? null : (
             <p className="text-center">
               <a
                 href={`/checkout/${token}/claim`}
@@ -151,6 +170,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
                 Sent a different amount? Submit your transaction &rarr;
               </a>
             </p>
+            )}
           </>
         ) : (
           <>

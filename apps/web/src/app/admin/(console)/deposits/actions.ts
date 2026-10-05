@@ -12,11 +12,12 @@ import {
   rejectDeposit,
   resolveChainCreditToDeposit,
   reverseUsdtDepositAndRequeue,
+  findGatewayDepositByAddress,
 } from "@asm/db";
 import { USDT_NETWORK_INFO, isUsdtNetwork } from "@asm/contracts";
 import { logger } from "@asm/logger";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
-import { getUsdtNetworkConfig } from "@/lib/usdt-networks";
+import { getGatewayUsdtConfig, getUsdtNetworkConfig } from "@/lib/usdt-networks";
 
 const ADMIN_ACTOR = "admin-panel";
 
@@ -111,13 +112,24 @@ export async function resolveChainCreditAction(formData: FormData): Promise<void
   // receiving config it is re-verified against must be that network's own.
   const credit = await prisma.chainCredit.findUnique({
     where: { id: chainCreditId },
-    select: { network: true },
+    select: { network: true, toAddress: true },
   });
   if (!credit) usdtError("That payment no longer exists.");
   if (!isUsdtNetwork(credit.network)) {
     usdtError(`Unknown network "${credit.network}" on this payment — cannot verify it.`);
   }
-  const config = getUsdtNetworkConfig(credit.network);
+  // A payment to a gateway (per-deposit) address is verified against the
+  // gateway's own token config and THAT address; anything else against the
+  // manual flow's shared receiving config, as before.
+  const gatewayDeposit = await findGatewayDepositByAddress(credit.network, credit.toAddress);
+  const gatewayConfig = gatewayDeposit ? getGatewayUsdtConfig(credit.network) : null;
+  const config = gatewayDeposit
+    ? gatewayConfig && {
+        network: gatewayConfig.network,
+        tokenContract: gatewayConfig.tokenContract,
+        receivingAddress: credit.toAddress,
+      }
+    : getUsdtNetworkConfig(credit.network);
   if (!config) {
     usdtError(
       `USDT on ${USDT_NETWORK_INFO[credit.network].label} is not configured on this server — cannot verify the payment against the live receiving config.`,

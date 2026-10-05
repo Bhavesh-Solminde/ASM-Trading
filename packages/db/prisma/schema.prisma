@@ -424,10 +424,22 @@ model Deposit {
   // hash: deliberately NOT unique (a fraudulent claim must not block the real
   // payer from claiming too). Indexed for the admin's claim lookup by hash.
   claimedTxHash   String?
+  // ── Payment-gateway (Tatum) fields — null on every legacy/manual row ──
+  // "TATUM" when this deposit was issued its OWN receiving address derived
+  // from the gateway's HD-wallet xpub. Such deposits are matched by address,
+  // never by amount, so they are excluded from both live-amount partial
+  // unique indexes (see 20261005120000_tatum_gateway/migration.sql).
+  gateway               String?
+  // HD derivation index the receivingAddress was derived at (>= 1 per network).
+  gatewayAddressIndex   Int?
+  // Tatum INCOMING_FUNGIBLE_TX alert id watching receivingAddress; deleted
+  // (best-effort) once the deposit closes.
+  gatewaySubscriptionId String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sweeps GatewaySweep[]
 
   // NOTE: the amount-reservation guarantee is enforced by a PARTIAL unique
   // index — unique on (amountInr) ALONE, WHERE status IN ('AWAITING_PAYMENT',
@@ -449,12 +461,67 @@ model Deposit {
   @@index([userId, createdAt])
   @@index([status])
   @@index([claimedTxHash])
+  @@unique([gateway, network, gatewayAddressIndex])
+  @@index([gateway, network, receivingAddress])
   // USDT gets its OWN partial unique index on amountUsdtMinor, hand-written in
   // the same migration as the column additions (Prisma can't express a
   // partial index declaratively) — see
   // <migration>_add_usdt_chain_credit/migration.sql. A separate index from
   // Deposit_live_amount_unique: paise and USDT-cents are different unit
   // spaces and must never collide with each other.
+}
+
+/// Next HD derivation index per network for gateway (Tatum) deposit
+/// addresses. Allocated with one atomic increment so two concurrent deposits
+/// can never be handed the same address. Index 0 is reserved (never issued).
+model GatewayAddressCounter {
+  network   String @id
+  nextIndex Int
+  updatedAt DateTime @updatedAt
+}
+
+enum GatewaySweepStatus {
+  // Row written, nothing broadcast yet.
+  PENDING
+  // Gas wallet's TRX/BNB top-up broadcast (gasTopUpTxHash set).
+  GAS_SENT
+  // Token transfer to the treasury broadcast (sweepTxHash set).
+  SUBMITTED
+  // Token transfer succeeded on-chain.
+  CONFIRMED
+  // Gave up on this attempt; `error` says why. A later run re-plans from the
+  // live on-chain balance, so nothing is lost or double-sent.
+  FAILED
+}
+
+/// One attempt by the offline sweep tool (packages/tatum/scripts/sweep.ts)
+/// to move a gateway deposit address's whole USDT balance to the treasury.
+/// Audit only — the on-chain balance, never this table, decides what to sweep.
+/// See docs/superpowers/specs/2026-10-05-tatum-usdt-sweep-design.md.
+model GatewaySweep {
+  id             String             @id @default(uuid())
+  depositId      String
+  network        String
+  fromAddress    String
+  // Treasury address the token was sent to.
+  toAddress      String
+  tokenContract  String
+  tokenDecimals  Int
+  // Token base units swept (the address's whole balance at plan time).
+  rawAmount      Decimal            @db.Decimal(78, 0)
+  // Native units (sun / wei) the gas wallet sent first; null = no top-up needed.
+  gasTopUpRaw    Decimal?           @db.Decimal(78, 0)
+  gasTopUpTxHash String?
+  sweepTxHash    String?
+  status         GatewaySweepStatus @default(PENDING)
+  error          String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  deposit Deposit @relation(fields: [depositId], references: [id], onDelete: Restrict)
+
+  @@index([depositId])
+  @@index([network, status])
 }
 
 /// Stands in for a bank statement. Populated by whichever BankFeed is configured.

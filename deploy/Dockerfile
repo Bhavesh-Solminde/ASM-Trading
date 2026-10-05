@@ -22,6 +22,7 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/db/package.json ./packages/db/
 COPY packages/logger/package.json ./packages/logger/
 COPY packages/pricing/package.json ./packages/pricing/
+COPY packages/tatum/package.json ./packages/tatum/
 COPY packages/trading/package.json ./packages/trading/
 # `postinstall` in @asm/db runs `prisma generate`, which needs the schema.
 COPY packages/db/prisma ./packages/db/prisma

@@ -13,6 +13,8 @@ import { startBankFeedRunner } from "./bank-feed/runner";
 import { startChainWatcher } from "./chain-watcher/runner";
 import { startBscWatcher } from "./chain-watcher/bsc-runner";
 import { startReconciliationRunner } from "./chain-watcher/reconciliation-runner";
+import { startTatumRunner } from "./tatum-runner";
+import { isTatumProvider } from "@asm/tatum";
 import { ControllerBridge } from "./algo/controller-bridge";
 import { BotCrowd } from "./algo/crowd";
 
@@ -70,8 +72,14 @@ async function main(): Promise<void> {
   await internal.listen();
 
   const bankFeed = await startBankFeedRunner();
-  const chainWatcher = await startChainWatcher();
-  const bscWatcher = await startBscWatcher();
+  // USDT detection: exactly one provider runs. The Tatum gateway (default)
+  // or, with USDT_DEPOSIT_PROVIDER=manual, the original shared-address
+  // TronGrid/BSC watchers — never both, so nothing is double-processed.
+  const idleWatcher = { stop: async () => {} };
+  const gatewayActive = isTatumProvider();
+  const chainWatcher = gatewayActive ? idleWatcher : await startChainWatcher();
+  const bscWatcher = gatewayActive ? idleWatcher : await startBscWatcher();
+  const tatumRunner = startTatumRunner();
   const reconciliationRunner = startReconciliationRunner();
 
   const crowd = new BotCrowd(registry, desk, (Date.now() >>> 1) & 0x7fffffff);
@@ -90,6 +98,7 @@ async function main(): Promise<void> {
     await reconciliationRunner.stop(); // inject no new findings
     await chainWatcher.stop(); // inject no new USDT credits
     await bscWatcher.stop(); // …on either network
+    await tatumRunner.stop(); // …or via the Tatum gateway
     loop.stop(); // collect no new settlements
     await desk?.stop(); // let captured settlements persist (bounded)
     if (feed) await feed.stop();
