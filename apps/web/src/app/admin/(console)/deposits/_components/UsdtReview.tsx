@@ -76,6 +76,8 @@ const REASON_TEXT: Record<string, string> = {
   WRONG_NETWORK: "Wrong network",
   WRONG_DESTINATION: "Not sent to our receiving address",
   EXPIRED_DEPOSIT: "Deposit window expired",
+  UNDERPAID: "Gateway deposit paid less than requested",
+  ADDRESS_ALREADY_USED: "Paid again to a gateway address whose deposit is already closed",
   ADMIN_REVERSED: "Wrongly credited — reversed by an admin and returned here",
 };
 

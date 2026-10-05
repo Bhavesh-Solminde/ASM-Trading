@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { DepositFlow } from "@/components/deposit/DepositFlow";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
-import { listEnabledUsdtNetworks } from "@/lib/usdt-networks";
+import { listEnabledUsdtNetworks, usdtGatewayActive } from "@/lib/usdt-networks";
 
 export default async function DepositPage({
   searchParams,
@@ -23,6 +23,7 @@ export default async function DepositPage({
   // Only networks whose receiving config is complete (i.e. a watcher is on
   // them) are offered — the env is re-read per request.
   const usdtNetworks = listEnabledUsdtNetworks();
+  const usdtGateway = usdtGatewayActive();
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-6 px-6 py-8 phone:px-4 phone:py-5">
@@ -33,11 +34,21 @@ export default async function DepositPage({
 
       {showExpired ? (
         <div className="rounded border border-[var(--color-down)]/30 bg-[var(--color-down)]/10 p-3 text-xs leading-relaxed text-[var(--color-down)]">
-          Your 5-minute payment window ended. If you already sent the exact
-          amount before the timer ran out, it will still be credited
-          automatically — don&rsquo;t send it again. Otherwise, start a new
-          deposit below.
-          {expiredToken ? (
+          {usdtGateway ? (
+            <>
+              Your payment window ended. If you already sent the payment before
+              the timer ran out, it will still be credited automatically —
+              don&rsquo;t send it again. Otherwise, start a new deposit below.
+            </>
+          ) : (
+            <>
+              Your 5-minute payment window ended. If you already sent the exact
+              amount before the timer ran out, it will still be credited
+              automatically — don&rsquo;t send it again. Otherwise, start a new
+              deposit below.
+            </>
+          )}
+          {expiredToken && !usdtGateway ? (
             <a
               href={`/checkout/${expiredToken}/claim`}
               className="mt-2 block font-semibold underline underline-offset-4"
@@ -48,7 +59,7 @@ export default async function DepositPage({
         </div>
       ) : null}
 
-      <DepositFlow usdtNetworks={usdtNetworks} />
+      <DepositFlow usdtNetworks={usdtNetworks} usdtGateway={usdtGateway} />
     </main>
   );
 }

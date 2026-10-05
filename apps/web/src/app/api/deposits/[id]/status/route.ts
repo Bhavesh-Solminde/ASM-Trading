@@ -1,5 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { findChainCreditById, findChainCreditForDepositDisplay, getDepositByToken } from "@asm/db";
+import {
+  findChainCreditById,
+  findChainCreditForDepositDisplay,
+  findLatestChainCreditForGatewayDeposit,
+  getDepositByToken,
+} from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -40,9 +45,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   // Linked only once credited; before that, fall back to the display-only
   // lookup so the poller can show detection/confirmation progress.
+  // A gateway deposit owns its address outright, so the latest transfer to
+  // that address IS this deposit's payment — no amount-based lookup needed.
   const chainCredit = deposit.matchedChainCreditId
     ? await findChainCreditById(deposit.matchedChainCreditId)
-    : deposit.network && deposit.tokenContract && deposit.receivingAddress && deposit.amountUsdtMinor != null
+    : deposit.gateway
+      ? await findLatestChainCreditForGatewayDeposit(deposit)
+      : deposit.network && deposit.tokenContract && deposit.receivingAddress && deposit.amountUsdtMinor != null
       ? await findChainCreditForDepositDisplay({
           network: deposit.network,
           tokenContract: deposit.tokenContract,

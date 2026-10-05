@@ -15,6 +15,7 @@
     "@asm/contracts": "workspace:*",
     "@asm/db": "workspace:*",
     "@asm/logger": "workspace:*",
+    "@asm/tatum": "workspace:*",
     "@asm/trading": "workspace:*",
     "argon2": "0.45.1",
     "cloudinary": "^2.11.0",

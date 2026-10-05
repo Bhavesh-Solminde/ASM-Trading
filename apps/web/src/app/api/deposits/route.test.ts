@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@asm/db";
 import { redis } from "@/lib/redis";
 import { SESSION_COOKIE, createSession } from "@/lib/session";
@@ -29,7 +29,14 @@ afterAll(async () => {
 // tests pin it explicitly with vi.stubEnv rather than depending on whatever
 // this machine's own .env happens to have — the USDT tests must pass the
 // same way locally and in CI regardless of ambient chain-watcher config.
+// The suites below exercise the MANUAL provider (shared address + unique
+// amount); the Tatum gateway describe re-stubs it to "tatum" itself.
+beforeEach(() => {
+  vi.stubEnv("USDT_DEPOSIT_PROVIDER", "manual");
+});
+
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
 
@@ -170,6 +177,92 @@ describe("POST /api/deposits", () => {
     vi.stubEnv("USDT_BSC_TOKEN_DECIMALS", "");
     const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 1600 }, cookie);
     expect(res.status).toBe(503);
+  });
+});
+
+describe("POST /api/deposits — Tatum gateway provider", () => {
+  const TRON_CONTRACT = "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs";
+  const DERIVED = "TDTGBGVwuKQ6G3zPDhPCqqGvdfGgVdQREr";
+  let tatumCalls: string[] = [];
+  // Own user: the route rate-limits deposits per user (10 / 5 min), and the
+  // manual-provider suite above already spends most of that budget.
+  let gwUserId = "";
+  let gwCookie = "";
+
+  beforeAll(async () => {
+    const user = await prisma.user.create({ data: { email: `deposit-route-gw-${RUN}@test.local`, passwordHash: "x" } });
+    gwUserId = user.id;
+    gwCookie = await createSession(gwUserId, {});
+  });
+
+  afterAll(async () => {
+    await prisma.deposit.deleteMany({ where: { userId: gwUserId } });
+    await prisma.user.deleteMany({ where: { id: gwUserId } });
+  });
+
+  function stubGateway(extra: Record<string, string> = {}): void {
+    vi.stubEnv("USDT_DEPOSIT_PROVIDER", "tatum");
+    vi.stubEnv("TATUM_API_KEY", "t-test-key");
+    vi.stubEnv("TATUM_NETWORK", "testnet");
+    vi.stubEnv("TATUM_TRON_XPUB", "xpub-test");
+    vi.stubEnv("TATUM_TRON_USDT_CONTRACT", TRON_CONTRACT);
+    vi.stubEnv("TATUM_BSC_XPUB", "");
+    vi.stubEnv("TATUM_WEBHOOK_URL", "");
+    vi.stubEnv("TATUM_WEBHOOK_HMAC_SECRET", "");
+    for (const [k, v] of Object.entries(extra)) vi.stubEnv(k, v);
+    tatumCalls = [];
+    vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input);
+      tatumCalls.push(`${init?.method ?? "GET"} ${url}`);
+      if (url.startsWith("https://api.tatum.io/v3/tron/address/xpub-test/")) {
+        return new Response(JSON.stringify({ address: DERIVED }), { status: 200 });
+      }
+      if (url.startsWith("https://api.tatum.io/v4/subscription")) {
+        return new Response(JSON.stringify({ id: "sub-123" }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ message: "unexpected" }), { status: 500 });
+    });
+  }
+
+  it("issues a fresh derived address and stores the exact requested amount", async () => {
+    stubGateway();
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 5_000 }, gwCookie);
+    expect(res.status).toBe(201);
+    const { checkoutToken } = (await res.json()) as { checkoutToken: string };
+    const row = await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken } });
+    expect(row).toMatchObject({
+      gateway: "TATUM",
+      network: "tron",
+      tokenContract: TRON_CONTRACT,
+      receivingAddress: DERIVED,
+      amountUsdtMinor: 5_000,
+      gatewaySubscriptionId: null,
+    });
+    expect(row.gatewayAddressIndex).toBeGreaterThanOrEqual(1);
+    expect(tatumCalls).toEqual([`GET https://api.tatum.io/v3/tron/address/xpub-test/${row.gatewayAddressIndex}`]);
+  });
+
+  it("creates a Tatum alert when a webhook URL is configured", async () => {
+    stubGateway({ TATUM_WEBHOOK_URL: "https://example.test/api/webhooks/tatum", TATUM_WEBHOOK_HMAC_SECRET: "s" });
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 5_000 }, gwCookie);
+    expect(res.status).toBe(201);
+    const { checkoutToken } = (await res.json()) as { checkoutToken: string };
+    expect((await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken } })).gatewaySubscriptionId).toBe("sub-123");
+    expect(tatumCalls.some((c) => c.startsWith("POST https://api.tatum.io/v4/subscription?type=testnet"))).toBe(true);
+  });
+
+  it("refuses a network the gateway is not configured for, and out-of-range amounts without calling Tatum", async () => {
+    stubGateway();
+    expect((await post({ method: "USDT", network: "bsc", amountUsdtMinor: 5_000 }, gwCookie)).status).toBe(503);
+    expect((await post({ method: "USDT", network: "tron", amountUsdtMinor: 50 }, gwCookie)).status).toBe(400);
+    expect(tatumCalls).toEqual([]);
+  });
+
+  it("answers 503 (and writes nothing) when Tatum cannot derive an address", async () => {
+    stubGateway({ TATUM_TRON_XPUB: "xpub-broken" });
+    const before = await prisma.deposit.count({ where: { userId: gwUserId } });
+    expect((await post({ method: "USDT", network: "tron", amountUsdtMinor: 5_000 }, gwCookie)).status).toBe(503);
+    expect(await prisma.deposit.count({ where: { userId: gwUserId } })).toBe(before);
   });
 });
 

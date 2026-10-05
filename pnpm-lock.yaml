@@ -170,6 +170,9 @@ importers:
       '@asm/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@asm/tatum':
+        specifier: workspace:*
+        version: link:../../packages/tatum
       '@asm/trading':
         specifier: workspace:*
         version: link:../../packages/trading

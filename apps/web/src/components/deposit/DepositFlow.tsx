@@ -12,12 +12,19 @@ type Method = (typeof DEPOSIT_METHODS)[number];
  * `usdtNetworks` is computed server-side from the live receiving config (only
  * networks a watcher is actually watching); an empty list hides USDT entirely.
  */
-export function DepositFlow({ usdtNetworks }: { usdtNetworks: UsdtNetwork[] }) {
+export function DepositFlow({
+  usdtNetworks,
+  usdtGateway,
+}: {
+  usdtNetworks: UsdtNetwork[];
+  /** Tatum payment gateway active (per-deposit address) vs the manual shared-address flow. */
+  usdtGateway: boolean;
+}) {
   const [method, setMethod] = useState<Method | null>(null);
 
   if (method === null) return <MethodPicker onPick={setMethod} usdtEnabled={usdtNetworks.length > 0} />;
   if (method === "USDT" && usdtNetworks.length > 0) {
-    return <UsdtAmountStep networks={usdtNetworks} onBack={() => setMethod(null)} />;
+    return <UsdtAmountStep networks={usdtNetworks} gateway={usdtGateway} onBack={() => setMethod(null)} />;
   }
   if (method === "USDT") return <MethodPicker onPick={setMethod} usdtEnabled={false} />;
   return <AmountStep method={method} onBack={() => setMethod(null)} />;
