@@ -303,7 +303,7 @@ describe("matchChainCreditToDeposit", () => {
       expect(outcome).toEqual({ kind: "manual_review", reason: "ambiguous_amount", depositId: null });
     } finally {
       await prisma.deposit.deleteMany({ where: { amountUsdtMinor: shared } });
-      await prisma.$executeRaw`CREATE UNIQUE INDEX "Deposit_live_usdt_amount_unique" ON "Deposit" ("amountUsdtMinor") WHERE "status" IN ('AWAITING_PAYMENT', 'PENDING_CONFIRMATION') AND "amountUsdtMinor" IS NOT NULL`;
+      await prisma.$executeRaw`CREATE UNIQUE INDEX "Deposit_live_usdt_amount_unique" ON "Deposit" ("amountUsdtMinor") WHERE "status" IN ('AWAITING_PAYMENT', 'PENDING_CONFIRMATION') AND "amountUsdtMinor" IS NOT NULL AND "gateway" IS NULL`;
     }
   });
 });
