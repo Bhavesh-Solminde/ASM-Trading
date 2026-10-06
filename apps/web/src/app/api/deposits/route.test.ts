@@ -99,12 +99,11 @@ describe("POST /api/deposits", () => {
     expect((await post({ method: "PhonePe", amountInr: 100_000 }, null)).status).toBe(401);
   });
 
-  it("creates a deposit intent and returns a checkout token", async () => {
+  it("refuses UPI deposits while the rail is marked coming-soon", async () => {
+    // UPI rails are temporarily disabled in the picker; the API mirrors that
+    // with a 503 so a crafted request can't still open a deposit intent.
     const res = await post({ method: "PhonePe", amountInr: 100_000 }, cookie);
-    expect(res.status).toBe(201);
-    const body = (await res.json()) as { checkoutToken: string };
-    expect(typeof body.checkoutToken).toBe("string");
-    expect(body.checkoutToken.length).toBeGreaterThan(0);
+    expect(res.status).toBe(503);
   });
 
   it("rejects a payload that doesn't match either branch of the discriminated union", async () => {
@@ -272,6 +271,20 @@ describe("GET /api/deposits", () => {
   });
 
   it("lists the caller's own deposits, with USDT fields null for an INR deposit", async () => {
+    // UPI is API-rejected now, so a historical INR deposit is seeded directly
+    // into the DB to prove the listing still carries null USDT fields for it.
+    await prisma.deposit.create({
+      data: {
+        userId,
+        method: "PhonePe",
+        amountInr: 100_000,
+        amountUsd: 1_200,
+        vpa: "demo@upi",
+        checkoutToken: `historical-${RUN}`,
+        correlationId: RUN,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
     const res = await get(cookie);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = (await res.json()) as {
