@@ -94,7 +94,7 @@ export default async function SettingsPage({
               desc="Wagering required before a bonus converts."
               control={mono(`${TURNOVER_MULTIPLE}×`)}
             />
-            <Row label="Settlement VPA" control={mono(upiCollection().vpa)} />
+            <Row label="Settlement VPAs" control={mono(upiCollection().vpas.join(", "))} />
           </Card>
         ) : null}
 

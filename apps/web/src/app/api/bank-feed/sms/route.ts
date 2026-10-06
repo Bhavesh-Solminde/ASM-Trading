@@ -127,7 +127,9 @@ export async function POST(req: NextRequest) {
     const utr = parsed.utr ?? syntheticUtr(body.sender ?? null, body.body, relayMessage.receivedAt);
 
     let credit: BankCredit | null = await createBankCreditIfNew({
-      vpa: upiCollection().vpa,
+      // Any configured account may have been paid; the linked relay message's
+      // sender says which bank's alert this was.
+      vpa: upiCollection().vpas.join(","),
       amountInr: parsed.amountInr,
       utr,
       receivedAt: relayMessage.receivedAt,

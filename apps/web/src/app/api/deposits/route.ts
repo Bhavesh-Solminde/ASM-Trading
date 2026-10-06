@@ -17,7 +17,7 @@ import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getGatewayUsdtConfig, getUsdtNetworkConfig, usdtGatewayActive } from "@/lib/usdt-networks";
-import { upiCollection, upiDepositsEnabled } from "@/lib/upi-collection";
+import { pickCollectionVpa, upiDepositsEnabled } from "@/lib/upi-collection";
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
       correlationId: ctx.cid,
       ipAddress: ctx.ip,
       userAgent: ctx.userAgent,
-      vpa: upiCollection().vpa,
+      vpa: pickCollectionVpa(),
     });
 
     log.info(
