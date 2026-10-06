@@ -31,9 +31,10 @@ export const MAX_DEPOSIT_INR_MINOR = 100_000_000; // ₹10,00,000.00
 
 /**
  * VPA no longer participates in matching (amount is the sole reconciliation
- * key — see the design doc), so every deposit uses one fixed demo collection
- * identity. It still matters for the QR/UPI deep link, which routes real
- * payment traffic to this address.
+ * key — see the design doc). It still matters for the QR/UPI deep link, which
+ * routes real payment traffic to this address. This is the fallback
+ * collection identity for a caller that doesn't pass its own — the live one
+ * is the web layer's environment config, same as the USDT receiving address.
  */
 export const DEMO_VPA = "ulkasolminde@okhdfcbank";
 
@@ -87,6 +88,8 @@ export async function createDepositIntent(input: {
   correlationId: string;
   ipAddress?: string | null;
   userAgent?: string | null;
+  /** Collection VPA the deposit's QR points at; DEMO_VPA when omitted. */
+  vpa?: string;
 }): Promise<Deposit> {
   if (input.amountInrMinor < MIN_DEPOSIT_INR_MINOR) {
     throw new Error(
@@ -118,7 +121,7 @@ export async function createDepositIntent(input: {
           method: input.method,
           amountUsd,
           amountInr,
-          vpa: DEMO_VPA,
+          vpa: input.vpa ?? DEMO_VPA,
           checkoutToken: randomBytes(24).toString("base64url"),
           status: "AWAITING_PAYMENT",
           correlationId: input.correlationId,

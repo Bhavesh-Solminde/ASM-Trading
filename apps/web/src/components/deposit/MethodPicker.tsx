@@ -8,14 +8,16 @@ const UPI_SET = new Set<string>(UPI_METHODS);
 export function MethodPicker({
   onPick,
   usdtEnabled,
+  upiEnabled,
 }: {
   onPick: (method: (typeof DEPOSIT_METHODS)[number]) => void;
   /** False when no USDT network is configured — the method is hidden, not shown broken. */
   usdtEnabled: boolean;
+  /** False until a relay phone is settling INR deposits (UPI_DEPOSITS_ENABLED). */
+  upiEnabled: boolean;
 }) {
-  // UPI rails are temporarily disabled; USDT is the only live method. The UPI
-  // rows stay visible with a "Coming soon" pill so the user sees that INR
-  // payments are planned, just not open yet.
+  // While UPI rails are closed the rows stay visible with a "Coming soon"
+  // pill, so the user sees that INR payments are planned, just not open yet.
   const methods = DEPOSIT_METHODS.filter((m) => m !== "USDT" || usdtEnabled);
   return (
     <div className="flex flex-col gap-4">
@@ -30,7 +32,7 @@ export function MethodPicker({
         </p>
         <ul className="grid gap-2 sm:grid-cols-2">
           {methods.map((method) => {
-            const comingSoon = UPI_SET.has(method);
+            const comingSoon = UPI_SET.has(method) && !upiEnabled;
             return (
               <li key={method}>
                 <button

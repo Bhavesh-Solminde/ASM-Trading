@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   BONUS_PERCENT,
-  DEMO_VPA,
   DEPOSIT_TTL_MINUTES,
   MAX_DEPOSIT_USD_MINOR,
   MIN_DEPOSIT_USD_MINOR,
@@ -10,6 +9,7 @@ import {
   prisma,
 } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
+import { upiCollection } from "@/lib/upi-collection";
 import { Card } from "../../_components/ui";
 import { ThemeControl } from "../../_components/ThemeControl";
 import { Icon } from "../../_lib/icons";
@@ -94,7 +94,7 @@ export default async function SettingsPage({
               desc="Wagering required before a bonus converts."
               control={mono(`${TURNOVER_MULTIPLE}×`)}
             />
-            <Row label="Settlement VPA" control={mono(DEMO_VPA)} />
+            <Row label="Settlement VPAs" control={mono(upiCollection().vpas.join(", "))} />
           </Card>
         ) : null}
 

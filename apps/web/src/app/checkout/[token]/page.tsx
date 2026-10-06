@@ -5,6 +5,8 @@ import { ClaimForm } from "./ClaimForm";
 import { DepositResult } from "./DepositResult";
 import { UsdtStatusPoller } from "./UsdtStatusPoller";
 import { usdtNetworkDisplay } from "@/lib/usdt-network-display";
+import { buildUpiDeepLink } from "@/lib/upi";
+import { upiCollection } from "@/lib/upi-collection";
 
 export const dynamic = "force-dynamic";
 
@@ -31,18 +33,22 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
   // Every network label/warning comes from the deposit's own stored network.
   const net = usdtNetworkDisplay(deposit.network);
 
-  // A real UPI deep link, pointing at a fictitious demo VPA — only relevant
-  // for the UPI-rail methods. A USDT deposit's QR just encodes the bare
+  // A real UPI deep link to the VPA stored on this deposit (the collection
+  // account configured when it was opened) — only relevant for the UPI-rail
+  // methods. A USDT deposit's QR just encodes the bare
   // receiving address: no crypto deep-link scheme (tron:, etc.) is universal
   // enough across wallets to rely on, whereas a bare address is exactly what
   // any wallet's "scan to fill recipient" expects.
   const rupees = (deposit.amountInr / 100).toFixed(2);
   const usdtAmount = deposit.amountUsdtMinor != null ? (deposit.amountUsdtMinor / 100).toFixed(2) : "0.00";
-  const upiUri =
-    `upi://pay?pa=${encodeURIComponent(deposit.vpa)}` +
-    `&pn=${encodeURIComponent("ASM Trade")}` +
-    `&am=${encodeURIComponent(rupees)}` +
-    `&cu=INR&tn=${encodeURIComponent(`ASM-${deposit.id.slice(0, 8)}`)}`;
+  const collection = upiCollection();
+  const upiUri = buildUpiDeepLink({
+    vpa: deposit.vpa,
+    payeeName: collection.payeeName,
+    amountInr: deposit.amountInr,
+    merchantCode: collection.merchantCode,
+    note: `ASM-${deposit.id.slice(0, 8)}`,
+  });
 
   const qrDataUri = await QRCode.toDataURL(isUsdt ? (deposit.receivingAddress ?? "") : upiUri, {
     width: 260,
