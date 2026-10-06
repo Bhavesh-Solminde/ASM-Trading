@@ -75,7 +75,7 @@ export interface StepPriceOutput {
  * tiny ones, so the market stays as lively, it just steps instead of shimmering.
  * All bias/magnet caps are expressed in these units.
  */
-export const TICK_DT_SEC = 2; // one update per second — change this to taste
+export const TICK_DT_SEC = 5; // one update every 5s — change this to taste
 
 /**
  * Per-tick standard deviation in log-price space.

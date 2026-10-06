@@ -234,8 +234,19 @@ export function startTickLoop(
               1 - commitSecondsLeft / COMMIT_WINDOW_SEC;
             const w = smoothstep(commitProgress);
             const blended = (1 - w) * result.price + w * commitTarget;
-            asset.state = { ...asset.state, price: blended };
-            result = { ...result, price: blended };
+            // The commit snap runs AFTER stepPrice has already applied its
+            // maxTickMove clamp, so without this guard a far-away target
+            // could jerk the shown price by any amount in a single tick —
+            // drawing a candle wick no honest walk could produce. Clamp the
+            // post-snap displacement to the same per-tick budget.
+            const delta = blended - result.price;
+            const snapped =
+              Math.abs(delta) > asset.params.maxTickMove
+                ? result.price +
+                  Math.sign(delta) * asset.params.maxTickMove
+                : blended;
+            asset.state = { ...asset.state, price: snapped };
+            result = { ...result, price: snapped };
           }
         }
       } catch (err) {

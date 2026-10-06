@@ -2,11 +2,14 @@ import { randomBytes } from "node:crypto";
 import argon2 from "argon2";
 import { prisma } from "../src/client";
 
-// Shared GARCH tuning, calibrated on BTC/gold: a gentle drift with no
-// volatility gusts. GARCH acts in log-return space, so the same three knobs
-// give proportionate movement at any price level — from a $0.30 DOGE to a
-// 79,000-point Sensex. History: 1e-6 "vibrated" → 1e-8 → 1e-9 → this.
-const GARCH = { garchOmega: 0.0000000005, garchAlpha: 0.05, garchBeta: 0.8 } as const;
+// Flat volatility: alpha+beta=0 removes GARCH clustering (no more "big
+// candle, five dojis, big candle" rhythm). omega is the constant per-sec
+// log variance; sigma per 5s tick ≈ 3.16e-4, which at NIFTY ~23600 gives
+// ~7-8pt candles on the 1-sigma side and realistic 1m bodies in the
+// 20-30pt range. GARCH acts in log-return space, so the same number works
+// proportionally for every asset — a $0.30 DOGE to a 79,000-point Sensex.
+// History: 1e-6 "vibrated" → 1e-8 → 1e-9 → clustering → this.
+const GARCH = { garchOmega: 0.00000002, garchAlpha: 0, garchBeta: 0 } as const;
 
 interface SeedAsset {
   symbol: string;
@@ -22,7 +25,7 @@ interface SeedAsset {
   /** Resume/synthetic base price. */
   basePrice: number;
   precision: number;
-  /** tickSize drives maxTickMove (tickSize × 40 per tick) — keep it ~0.04% of price. */
+  /** tickSize drives maxTickMove (tickSize × 200 per tick) — keep it ~0.04% of price. */
   tickSize: number;
 }
 
@@ -45,6 +48,9 @@ const MARKETS: SeedAsset[] = [
   { symbol: "USDCHF", displayName: "USD/CHF", kind: "OTC", basePrice: 0.88, precision: 5, tickSize: 0.00001 },
   { symbol: "AUDUSD", displayName: "AUD/USD", kind: "OTC", basePrice: 0.66, precision: 5, tickSize: 0.00001 },
   { symbol: "USDCAD", displayName: "USD/CAD", kind: "OTC", basePrice: 1.36, precision: 5, tickSize: 0.00001 },
+
+  // Commodities
+  { symbol: "XAUUSD", displayName: "Gold (XAU/USD)", kind: "OTC", basePrice: 2700, precision: 2, tickSize: 0.01 },
 
   // India indices
   { symbol: "NIFTY50", displayName: "NIFTY 50 (India)", kind: "OTC", basePrice: 24_000, precision: 2, tickSize: 0.5 },
@@ -89,10 +95,11 @@ async function main() {
 
   // Legacy assets — kept for history but closed, so they no longer appear in
   // the trade UI (which lists isOpen assets) or load into the engine.
-  // BTCUSD and XAUUSD were the original two live markets pre-catalogue;
-  // AUDNZD_OTC and EURUSD_OTC were early synthetic pairs. All four are
-  // outside the current 18-asset catalogue and get parked as closed.
-  for (const symbol of ["BTCUSD", "XAUUSD", "AUDNZD_OTC", "EURUSD_OTC"] as const) {
+  // BTCUSD was an original pre-catalogue live market; AUDNZD_OTC and
+  // EURUSD_OTC were early synthetic pairs. All three are outside the
+  // current catalogue and get parked as closed. (XAUUSD was legacy too,
+  // now re-opened as the Gold market above.)
+  for (const symbol of ["BTCUSD", "AUDNZD_OTC", "EURUSD_OTC"] as const) {
     await prisma.asset.updateMany({ where: { symbol }, data: { isOpen: false } });
   }
 

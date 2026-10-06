@@ -162,7 +162,7 @@ export const SELF_ANCHOR_MODE: boolean =
 /**
  * Per-tick log-space pull toward the honest path on OTC assets, when the
  * market is open. 0.02 = ~2% of the log gap closed per tick — a ~35-tick
- * half-life (~70s at TICK_DT_SEC=2). Gentle enough that the drift bias can
+ * half-life (~175s at TICK_DT_SEC=5). Gentle enough that the drift bias can
  * build a meaningful trend over a 1-minute trade, strong enough to prevent
  * multi-hour unopposed drift during idle stretches.
  */

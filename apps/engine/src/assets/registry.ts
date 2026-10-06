@@ -127,8 +127,10 @@ export class AssetRegistry {
         garch: { omega: row.garchOmega, alpha: row.garchAlpha, beta: row.garchBeta },
         driftPerSec: 0,
         anchorAlpha: row.anchorAlpha,
-        // Two ticks of typical movement is generous but never implausible.
-        maxTickMove: row.tickSize * 40,
+        // Headroom over the flat-vol baseline (~1 sigma ≈ 7-8 pts at NIFTY)
+        // so the clamp is only ever a 10+ sigma backstop against a freak
+        // draw or a far-away commit snap, never the dominant per-tick force.
+        maxTickMove: row.tickSize * 200,
       };
 
       const startPrice = last?.c ?? row.basePrice;
