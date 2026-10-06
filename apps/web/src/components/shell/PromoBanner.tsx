@@ -1,18 +1,16 @@
 import Link from "next/link";
 
-/** Deposit-bonus link. `compact` is the slim full-width strip the phone shell shows under the top bar. */
+/** Deposit-bonus link. `compact` is the slim pill the phone top bar shows beside the logo. */
 export function PromoBanner({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
       <Link
         href="/deposit"
-        className="flex h-6 w-full items-center justify-center gap-2 rounded-[3px] border border-brand/35 bg-brand/10 px-2 text-[11px] text-ink-2 transition-colors hover:border-brand"
+        className="flex h-7 w-full min-w-0 items-center justify-center gap-1.5 rounded-[3px] border border-brand/35 bg-brand/10 px-1.5 text-[11px] text-ink-2 transition-colors hover:border-brand"
       >
-        <span className="led led-lit text-[12px] text-brand">+100%</span>
-        <span className="truncate">
-          <span className="font-semibold text-ink">Deposit bonus</span> on your first top-up
-        </span>
-        <span aria-hidden className="font-bold text-brand">
+        <span className="led led-lit flex-none text-[12px] text-brand">+100%</span>
+        <span className="truncate font-semibold text-ink">Deposit bonus</span>
+        <span aria-hidden className="flex-none font-bold text-brand">
           →
         </span>
       </Link>

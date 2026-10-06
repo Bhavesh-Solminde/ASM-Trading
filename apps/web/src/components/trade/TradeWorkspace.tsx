@@ -25,6 +25,7 @@ import { MarketSelector } from "./MarketSelector";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
 import { AssetIcon } from "./AssetIcon";
+import { grossReturnMinor } from "./pnl-display";
 
 const NO_TRADES: TradeView[] = [];
 
@@ -198,7 +199,8 @@ function ResultPopup() {
   const { trade } = shown;
   const won = trade.status === "WON";
   const refunded = trade.status === "REFUNDED";
-  const amountMinor = won ? trade.pnl : refunded ? 0 : Math.abs(trade.pnl);
+  // A win shows what lands back in the balance: the stake plus the profit.
+  const amountMinor = won ? grossReturnMinor(trade.stake, trade.pnl) : refunded ? 0 : Math.abs(trade.pnl);
   const sign = won ? "+" : refunded ? "" : "−";
   const asset = assets.find((a) => a.symbol === trade.symbol);
   const pair = asset ? splitAssetName(asset.displayName).pair : trade.symbol;
@@ -222,7 +224,7 @@ function ResultPopup() {
           <Icon name="close" className="size-3" />
         </button>
         <span className="text-[8px] font-bold uppercase tracking-[0.14em] opacity-80">
-          Result (P/L) · {pair}
+          {won ? "Payout" : "Result"} · {pair}
         </span>
         <span className="led text-[17px] font-black leading-none">
           {sign}
@@ -244,8 +246,9 @@ const TOOL_BTN =
 
 /**
  * Quotex-style in-chart tool stack for compact widths: a "⋯" button that
- * expands sideways into the market and chart-type pickers, and a briefcase
- * under it that opens trades & history (badge = open trades).
+ * expands downward into the market and chart-type pickers, and a briefcase
+ * under it (pushed down while expanded) that opens trades & history
+ * (badge = open trades).
  */
 function ChartToolCluster({
   assets,
@@ -275,7 +278,7 @@ function ChartToolCluster({
 
   return (
     <div ref={ref} className={`pointer-events-auto w-max flex-col gap-1.5 ${className}`}>
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-col items-center gap-1.5">
         <button
           type="button"
           aria-label={expanded ? "Hide chart tools" : "Chart tools"}
@@ -446,54 +449,58 @@ export function TradeWorkspace() {
               chartType={chartType}
             />
 
-            {/* Top-left overlay: account switcher (focus), the compact tool cluster
-                (phone), then the clock row and the price readout beneath it. */}
+            {/* Top-left overlay: account switcher (focus), then the compact tool
+                cluster (phone) with the clock row and price readout beside it. */}
             <div className={`pointer-events-none absolute left-2 top-2 ${marketPickerOpen ? "z-50" : "z-10"} grid max-w-[calc(100%-16px)] gap-1.5 phone:gap-2`}>
               {focusMode ? <FocusAccountSwitcher /> : null}
-              <ChartToolCluster
-                className="hidden phone:flex"
-                assets={assets}
-                active={asset.symbol}
-                onSelect={selectChartSymbol}
-                onMarketOpenChange={setMarketPickerOpen}
-                chartType={chartType}
-                onChartTypeChange={handleChartTypeChange}
-                openCount={openCount}
-                onOpenHistory={() => setHistoryOpen(true)}
-              />
-              <div className="flex items-center gap-1.5">
-                <ChartClock />
-                <div className={`${controlsClass} pointer-events-auto items-center gap-1.5`}>
-                  <MarketSelector
-                    assets={assets}
-                    active={asset.symbol}
-                    onSelect={selectChartSymbol}
-                    compact
-                    iconOnly
-                    onOpenChange={setMarketPickerOpen}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setHistoryOpen(true)}
-                    aria-label="Trades & history"
-                    title="Trades & history"
-                    className="relative grid size-[34px] place-items-center rounded-[4px] border border-brand/50 bg-brand/15 text-brand backdrop-blur hover:border-brand hover:bg-brand/25 land:hidden"
-                  >
-                    <Icon name="history" className="size-5" />
-                    {openCount > 0 ? (
-                      <span className="absolute -right-1 -top-1 grid size-3.5 place-items-center rounded-full bg-up text-[9px] font-bold text-up-ink">
-                        {openCount}
-                      </span>
-                    ) : null}
-                  </button>
-                </div>
-                <ChartTypeSelector
-                  value={chartType}
-                  onChange={handleChartTypeChange}
-                  className="pointer-events-auto phone:hidden"
+              <div className="flex items-start gap-2 phone:gap-4">
+                <ChartToolCluster
+                  className="hidden phone:flex"
+                  assets={assets}
+                  active={asset.symbol}
+                  onSelect={selectChartSymbol}
+                  onMarketOpenChange={setMarketPickerOpen}
+                  chartType={chartType}
+                  onChartTypeChange={handleChartTypeChange}
+                  openCount={openCount}
+                  onOpenHistory={() => setHistoryOpen(true)}
                 />
+                <div className="grid min-w-0 gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <ChartClock />
+                    <div className={`${controlsClass} pointer-events-auto items-center gap-1.5`}>
+                      <MarketSelector
+                        assets={assets}
+                        active={asset.symbol}
+                        onSelect={selectChartSymbol}
+                        compact
+                        iconOnly
+                        onOpenChange={setMarketPickerOpen}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setHistoryOpen(true)}
+                        aria-label="Trades & history"
+                        title="Trades & history"
+                        className="relative grid size-[34px] place-items-center rounded-[4px] border border-brand/50 bg-brand/15 text-brand backdrop-blur hover:border-brand hover:bg-brand/25 land:hidden"
+                      >
+                        <Icon name="history" className="size-5" />
+                        {openCount > 0 ? (
+                          <span className="absolute -right-1 -top-1 grid size-3.5 place-items-center rounded-full bg-up text-[9px] font-bold text-up-ink">
+                            {openCount}
+                          </span>
+                        ) : null}
+                      </button>
+                    </div>
+                    <ChartTypeSelector
+                      value={chartType}
+                      onChange={handleChartTypeChange}
+                      className="pointer-events-auto phone:hidden"
+                    />
+                  </div>
+                  <ChartReadout symbol={asset.symbol} displayName={asset.displayName} precision={asset.precision} />
+                </div>
               </div>
-              <ChartReadout symbol={asset.symbol} displayName={asset.displayName} precision={asset.precision} />
             </div>
 
             {status === "unauthorised" ? (
@@ -506,9 +513,9 @@ export function TradeWorkspace() {
                 type="button"
                 onClick={focusMode ? exitFocus : enterFocus}
                 aria-label={focusMode ? "Exit fullscreen" : "Fullscreen chart"}
-                className="absolute bottom-2 right-2 z-10 grid size-8 place-items-center rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink"
+                className="absolute bottom-2 right-2 z-10 grid size-8 place-items-center phone:bottom-1 phone:right-1 phone:size-6 rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink"
               >
-                <Icon name={focusMode ? "collapse" : "expand"} className="size-4" />
+                <Icon name={focusMode ? "collapse" : "expand"} className="size-4 phone:size-3.5" />
               </button>
             ) : null}
 

@@ -408,13 +408,18 @@ export function PriceChart({
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Compact layout (same breakpoint as the `phone` variant): smaller axis text
+    // narrows the price scale and shortens the time scale, giving candles room.
+    const compactMq = window.matchMedia("(width < 64rem) or (height < 30rem)");
+    const axisFontSize = () => (compactMq.matches ? 9 : 11);
+
     const chart: IChartApi = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#7d7a72",
         // next/font renames the family, so read it from the token rather than by name.
         fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-ui").trim() || "sans-serif",
-        fontSize: 11,
+        fontSize: axisFontSize(),
         attributionLogo: false,
       },
       grid: {
@@ -480,7 +485,11 @@ export function PriceChart({
     prevChartTypeRef.current = chartType;
     setChartVersion((v) => v + 1);
 
+    const onCompactChange = () => chart.applyOptions({ layout: { fontSize: axisFontSize() } });
+    compactMq.addEventListener("change", onCompactChange);
+
     return () => {
+      compactMq.removeEventListener("change", onCompactChange);
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -906,7 +915,7 @@ export function PriceChart({
       />
       <div
         ref={ohlcRef}
-        className="pointer-events-none absolute bottom-[34px] left-2 whitespace-pre text-[11px] tracking-[0.02em] text-ink-2"
+        className="pointer-events-none absolute bottom-[34px] left-2 whitespace-pre text-[11px] tracking-[0.02em] text-ink-2 phone:bottom-[24px] phone:left-1 phone:text-[9px]"
       />
     </>
   );

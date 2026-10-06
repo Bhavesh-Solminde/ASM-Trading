@@ -48,7 +48,7 @@
 :root {
   color-scheme: dark;
   /* Height of the phone bottom nav (plus the home-indicator inset); the shell grid sizes its last row by it. */
-  --phone-nav-h: calc(32px + env(safe-area-inset-bottom, 0px));
+  --phone-nav-h: calc(38px + env(safe-area-inset-bottom, 0px));
 }
 
 html,
