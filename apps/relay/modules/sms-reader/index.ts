@@ -27,6 +27,12 @@ declare class SmsReaderModule extends NativeModule<Record<string, never>> {
   recordActivity(sender: string, ok: boolean, detail: string): Promise<void>;
   startForegroundService(): Promise<void>;
   stopForegroundService(): Promise<void>;
+  setNotifEnabled(enabled: boolean): Promise<void>;
+  isNotifEnabled(): Promise<boolean>;
+  setListenPackages(packages: string[]): Promise<void>;
+  getListenPackages(): Promise<string[]>;
+  isNotifAccessGranted(): Promise<boolean>;
+  openNotifAccessSettings(): Promise<void>;
   requestIgnoreBatteryOptimizations(): Promise<void>;
 }
 
@@ -75,4 +81,28 @@ export function stopForegroundService(): Promise<void> {
 
 export function requestIgnoreBatteryOptimizations(): Promise<void> {
   return SmsReader.requestIgnoreBatteryOptimizations();
+}
+
+export function setNotifEnabled(enabled: boolean): Promise<void> {
+  return SmsReader.setNotifEnabled(enabled);
+}
+
+export function isNotifEnabled(): Promise<boolean> {
+  return SmsReader.isNotifEnabled();
+}
+
+export function setListenPackages(packages: string[]): Promise<void> {
+  return SmsReader.setListenPackages(packages);
+}
+
+export function getListenPackages(): Promise<string[]> {
+  return SmsReader.getListenPackages();
+}
+
+export function isNotifAccessGranted(): Promise<boolean> {
+  return SmsReader.isNotifAccessGranted();
+}
+
+export function openNotifAccessSettings(): Promise<void> {
+  return SmsReader.openNotifAccessSettings();
 }

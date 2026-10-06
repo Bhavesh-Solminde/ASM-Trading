@@ -48,4 +48,21 @@ describe("parseBankSms", () => {
   it("does not mistake a bare integer for an amount", () => {
     expect(parseBankSms("Your account balance is 5000. No recent transactions.")).toBeNull();
   });
+
+  // Not an SMS, but the same parser handles PhonePe notification text
+  // forwarded from the notification listener. The real format (verified
+  // against a live PhonePe notification screenshot): "Rs" with no decimal,
+  // and the reference is prefixed with the bare word "txn" (no "id" after
+  // it) and runs 23 chars starting with a letter. Both the label widening
+  // ("txn" alone) and the length widening (>22 chars, alphanumeric) are
+  // the specific carve-outs that make this parse at all.
+  it("parses a real PhonePe credit notification (title | big-text) as a credit", () => {
+    const body =
+      "Received Rs 1 | You've received Rs 1 from ******4892 via PhonePe for txn T2610070038436427054415.";
+    expect(parseBankSms(body)).toEqual({
+      amountInr: 100,
+      utr: "T2610070038436427054415",
+      isCredit: true,
+    });
+  });
 });

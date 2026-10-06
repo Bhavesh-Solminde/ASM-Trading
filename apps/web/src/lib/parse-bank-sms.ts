@@ -12,9 +12,14 @@ export interface ParsedBankSms {
 const AMOUNT_RE =
   /(?:(?:rs\.?|inr|₹)\s?([0-9][0-9,]*(?:\.[0-9]{1,2})?))|\b([0-9]+\.[0-9]{2})\b/gi;
 
+// PhonePe's own notifications use the bare word "txn" with no trailing "id"
+// (e.g. "for txn T261007..."), and their references are alphanumeric up to
+// 24+ chars. The old 6-22 digit-only labelled fallback missed those entirely
+// and the whole message's UTR came back null. Widening both the label and
+// the length window picks them up without false-positiving bank SMS text.
 const REF_LABEL_RE =
-  /(?:ref(?:erence)?\s*(?:no\.?|number)?|utr|txn\s*id)\s*[:-]?\s*([a-z0-9]{6,22})/i;
-const BARE_REF_RE = /\b([0-9]{9,22})\b/;
+  /(?:ref(?:erence)?\s*(?:no\.?|number)?|utr|txn(?:\s*id)?)\s*[:-]?\s*([a-z0-9]{6,32})/i;
+const BARE_REF_RE = /\b([0-9]{9,32})\b/;
 
 const CREDIT_RE = /\b(credited|credit|received|deposited)\b/i;
 const DEBIT_RE = /\b(debited|debit|spent|withdrawn|paid|purchase)\b/i;

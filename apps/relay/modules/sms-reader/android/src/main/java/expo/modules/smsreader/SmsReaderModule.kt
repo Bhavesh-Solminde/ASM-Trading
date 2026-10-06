@@ -1,11 +1,13 @@
 package expo.modules.smsreader
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import org.json.JSONArray
@@ -93,6 +95,64 @@ class SmsReaderModule : Module() {
       val context = appContext.reactContext
         ?: throw IllegalStateException("No Android context available")
       context.stopService(Intent(context, RelayForegroundService::class.java))
+      Unit
+    }
+
+    AsyncFunction("setNotifEnabled") { enabled: Boolean ->
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      RelayStore.setNotifEnabled(context, enabled)
+    }
+
+    AsyncFunction("isNotifEnabled") {
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      RelayStore.isNotifEnabled(context)
+    }
+
+    AsyncFunction("setListenPackages") { packages: List<String> ->
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      RelayStore.setNotifPackages(context, packages)
+    }
+
+    AsyncFunction("getListenPackages") {
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      RelayStore.getNotifPackages(context)
+    }
+
+    /** True iff the user has granted this app Notification access in system
+     * settings — the one gate that lets NotificationListener actually
+     * receive anything. Checked by package name since
+     * NotificationManagerCompat.getEnabledListenerPackages is the only
+     * stable, non-reflection API for this. */
+    AsyncFunction("isNotifAccessGranted") {
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      NotificationManagerCompat.getEnabledListenerPackages(context)
+        .contains(context.packageName)
+    }
+
+    AsyncFunction("openNotifAccessSettings") {
+      val context = appContext.reactContext
+        ?: throw IllegalStateException("No Android context available")
+      val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        // On API 30+ the OS deep-links straight to this app's row in the
+        // listener list instead of making the user scroll a long table.
+        Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS).apply {
+          putExtra(
+            Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
+            ComponentName(context, NotificationListener::class.java).flattenToString(),
+          )
+          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+      } else {
+        Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+      }
+      context.startActivity(intent)
       Unit
     }
 

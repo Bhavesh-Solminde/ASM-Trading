@@ -14,7 +14,10 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
 import { upiCollection } from "@/lib/upi-collection";
 
-const SOURCE = "sms-relay";
+const DEFAULT_SOURCE = "sms-relay";
+// Allowlist — the relay can distinguish its own ingestion paths, but we never
+// trust an arbitrary string from the device as a free-text column.
+const ALLOWED_SOURCES = new Set([DEFAULT_SOURCE, "phonepe-notif"]);
 
 // Machine-to-machine and legitimately busier than a human-facing endpoint
 // (register: 5/hour, login: 20/5min) — generous enough for real SMS volume
@@ -54,6 +57,11 @@ interface RelayedSmsBody {
   receivedAt?: string;
   deviceLabel?: string;
   deviceModel?: string;
+  // Which ingestion path on the device captured this message — SMS broadcast
+  // vs. a notification scraped from, say, PhonePe Business. Validated against
+  // ALLOWED_SOURCES; anything unrecognised falls back to DEFAULT_SOURCE so a
+  // stale/malformed relay still ingests rather than 400s.
+  source?: string;
 }
 
 function isRelayedSmsBody(value: unknown): value is RelayedSmsBody {
@@ -102,12 +110,16 @@ export async function POST(req: NextRequest) {
 
   const receivedAt = body.receivedAt ? new Date(body.receivedAt) : new Date();
   const parsed = parseBankSms(body.body);
+  const source =
+    typeof body.source === "string" && ALLOWED_SOURCES.has(body.source)
+      ? body.source
+      : DEFAULT_SOURCE;
 
   let relayMessageId: string | undefined;
 
   try {
     const relayMessage = await createRelayMessage({
-      source: SOURCE,
+      source,
       deviceLabel: body.deviceLabel ?? null,
       deviceModel: body.deviceModel ?? null,
       sender: body.sender ?? null,

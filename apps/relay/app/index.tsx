@@ -13,9 +13,13 @@ import {
   getActivityLog,
   getStats,
   isEnabled,
+  isNotifAccessGranted,
+  isNotifEnabled,
+  openNotifAccessSettings,
   recordActivity,
   requestIgnoreBatteryOptimizations,
   setEnabled,
+  setNotifEnabled,
   startForegroundService,
   stopForegroundService,
   type ActivityEntry,
@@ -27,19 +31,52 @@ export default function Home() {
   const [granted, setGranted] = useState(true);
   const [stats, setStats] = useState({ sent: 0, failed: 0 });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [notifListening, setNotifListening] = useState(false);
+  const [notifAccess, setNotifAccess] = useState(false);
 
   useEffect(() => {
     // The enabled flag lives natively and survives an app restart (or kill),
     // so reflect its real state on mount rather than assuming "stopped".
     void isEnabled().then(setListening);
+    void isNotifEnabled().then(setNotifListening);
+    void isNotifAccessGranted().then(setNotifAccess);
 
     const interval = setInterval(() => {
       void getStats().then(setStats);
       void getActivityLog().then(setActivity);
+      // Access can flip to false any time the user revokes it in settings;
+      // re-poll so the UI reflects the real system state, not a mount-time
+      // snapshot.
+      void isNotifAccessGranted().then(setNotifAccess);
     }, 2_000);
 
     return () => clearInterval(interval);
   }, []);
+
+  async function toggleNotif() {
+    try {
+      if (notifListening) {
+        await setNotifEnabled(false);
+        setNotifListening(false);
+        return;
+      }
+      // Nothing arrives without system-level access, even with our flag on —
+      // bounce the user to the settings panel first and fail softly if they
+      // haven't flipped it yet.
+      if (!(await isNotifAccessGranted())) {
+        await openNotifAccessSettings();
+        return;
+      }
+      await setNotifEnabled(true);
+      setNotifListening(true);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      await recordActivity("system", false, `Notif toggle failed: ${detail}`).catch(
+        () => {},
+      );
+      void getActivityLog().then(setActivity);
+    }
+  }
 
   async function requestPermission(): Promise<boolean> {
     if (Platform.OS !== "android") return false;
@@ -167,6 +204,54 @@ export default function Home() {
         <Text style={styles.warning}>SMS permission was not granted.</Text>
       ) : null}
 
+      <View style={styles.card}>
+        <Text style={styles.cardLabel}>PhonePe notifications</Text>
+        <Text
+          style={[
+            styles.status,
+            { color: notifListening ? "#2fbd85" : "#93a2b4", fontSize: 16 },
+          ]}
+        >
+          {notifListening
+            ? notifAccess
+              ? "Listening"
+              : "Enabled — access revoked"
+            : "Stopped"}
+        </Text>
+        <Text style={styles.meta}>
+          PhonePe merchant QRs don&apos;t trigger a bank SMS. This reads the
+          PhonePe app&apos;s own &quot;Received Rs N&quot; notifications
+          (consumer and Business) so each payment reaches the server at the
+          moment it&apos;s received, not at end-of-day settlement.
+        </Text>
+        <View style={styles.notifButtons}>
+          <Pressable
+            onPress={() => void toggleNotif()}
+            style={[
+              styles.smallButton,
+              { backgroundColor: notifListening ? "#e0526a" : "#2fbd85" },
+            ]}
+          >
+            <Text
+              style={[
+                styles.buttonText,
+                { color: notifListening ? "#ffffff" : "#06231a", fontSize: 13 },
+              ]}
+            >
+              {notifListening ? "Stop" : "Start"}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void openNotifAccessSettings()}
+            style={[styles.smallButton, styles.secondaryButton]}
+          >
+            <Text style={[styles.buttonText, { color: "#e8edf3", fontSize: 13 }]}>
+              {notifAccess ? "Access granted" : "Grant access"}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
       <Text style={styles.footer}>
         Reads only this device&apos;s messages, only from the senders above, and
         sends them only to your own server. Demonstration use. Forwards
@@ -238,6 +323,18 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   button: { borderRadius: 10, paddingVertical: 15, alignItems: "center" },
+  smallButton: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 11,
+    alignItems: "center",
+  },
+  secondaryButton: {
+    backgroundColor: "#1e2a3a",
+    borderColor: "#2f3f55",
+    borderWidth: 1,
+  },
+  notifButtons: { flexDirection: "row", gap: 10, marginTop: 10 },
   buttonText: { fontSize: 15, fontWeight: "700" },
   warning: { color: "#e0ac50", fontSize: 12, textAlign: "center" },
   footer: {
