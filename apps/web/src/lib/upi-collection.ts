@@ -49,3 +49,22 @@ export function pickCollectionVpa(): string {
 export function upiDepositsEnabled(): boolean {
   return process.env["UPI_DEPOSITS_ENABLED"] === "on";
 }
+
+/**
+ * How long after a UPI deposit is initiated to keep the manual "I paid, enter
+ * UTR" form hidden. The SMS pipeline matches most payments in 2-10s; this
+ * delay gives it a chance to win so users see the clean "Deposit credited"
+ * screen instead of a form they didn't need. Configurable via env so an
+ * operator can tune it without a redeploy — raise it if the relay is slow,
+ * lower it if PhonePe SMS quotas are being hit regularly.
+ */
+export function upiManualClaimDelaySec(): number {
+  const raw = process.env["UPI_MANUAL_CLAIM_DELAY_SEC"];
+  if (!raw) return 90;
+  const parsed = Number.parseInt(raw, 10);
+  // Guard against misconfiguration (negative, NaN, or absurdly large) — fall
+  // back to the default rather than letting a bad env value hide the manual
+  // escape hatch forever.
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 3600) return 90;
+  return parsed;
+}

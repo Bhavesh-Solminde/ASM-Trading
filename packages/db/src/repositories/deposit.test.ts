@@ -530,6 +530,28 @@ describe("claimUtr", () => {
     );
     await prisma.user.delete({ where: { id: other.id } });
   });
+
+  it("throws DepositAlreadyResolved — not UtrAlreadyClaimed — when the auto-matcher completed the deposit first", async () => {
+    // Manufactures the live race the fix is for: the SMS pipeline matches
+    // and completes the deposit (status moves off AWAITING_PAYMENT, but
+    // claimedUtr stays null — the matcher never writes a UTR), then the
+    // user tries to submit a manual UTR anyway. The old code lumped this
+    // into UtrAlreadyClaimed ("A reference has already been submitted"),
+    // which is a lie and sent the user to resubmit forever.
+    const deposit = await createDepositIntent({
+      userId,
+      method: "upi",
+      amountInrMinor: 1_800_000,
+      correlationId: randomUUID(),
+    });
+    await prisma.deposit.update({
+      where: { id: deposit.id },
+      data: { status: "COMPLETED" },
+    });
+    await expect(claimUtr(userId, deposit.id, "444444444444")).rejects.toBeInstanceOf(
+      DepositAlreadyResolved,
+    );
+  });
 });
 
 describe("claimUsdtPayment", () => {

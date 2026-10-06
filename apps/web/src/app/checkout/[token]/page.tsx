@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { getDepositByToken } from "@asm/db";
-import { ClaimForm } from "./ClaimForm";
+import { UpiStatusPoller } from "./UpiStatusPoller";
 import { DepositResult } from "./DepositResult";
 import { UsdtStatusPoller } from "./UsdtStatusPoller";
 import { usdtNetworkDisplay } from "@/lib/usdt-network-display";
 import { buildUpiDeepLink } from "@/lib/upi";
-import { upiCollection } from "@/lib/upi-collection";
+import { upiCollection, upiManualClaimDelaySec } from "@/lib/upi-collection";
 
 export const dynamic = "force-dynamic";
 
@@ -214,14 +214,12 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
               </p>
             </section>
 
-            <section className="rounded-xl bg-white p-5 shadow-sm">
-              <div className="mb-3 text-center">
-                <span className="inline-block rounded-full bg-[#5b2d9e] px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                  Step 2
-                </span>
-              </div>
-              <ClaimForm depositId={deposit.id} />
-            </section>
+            <UpiStatusPoller
+              token={token}
+              depositId={deposit.id}
+              createdAtMs={deposit.createdAt.getTime()}
+              revealAfterSec={upiManualClaimDelaySec()}
+            />
           </>
         )}
 

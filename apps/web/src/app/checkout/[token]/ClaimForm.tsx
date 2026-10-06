@@ -18,7 +18,9 @@ export function ClaimForm({ depositId }: { depositId: string }) {
     name: string;
     previewUrl: string;
   } | null>(null);
-  const [state, setState] = useState<"idle" | "uploading" | "busy" | "done">("idle");
+  const [state, setState] = useState<
+    "idle" | "uploading" | "busy" | "done" | "auto_resolved"
+  >("idle");
   const [error, setError] = useState<string | null>(null);
   const previewRef = useRef<string | null>(null);
 
@@ -92,7 +94,17 @@ export function ClaimForm({ depositId }: { depositId: string }) {
       setState("done");
       return;
     }
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      resolved?: boolean;
+    };
+    if (data.resolved) {
+      // The SMS matcher completed this deposit while the form was open —
+      // show success instead of the error so the user doesn't think
+      // something went wrong.
+      setState("auto_resolved");
+      return;
+    }
     setError(data.error ?? "Could not submit that reference.");
     setState("idle");
   }
@@ -107,6 +119,26 @@ export function ClaimForm({ depositId }: { depositId: string }) {
         <a
           href="/trade"
           className="mt-3 inline-block text-xs font-semibold text-[#5b2d9e] underline underline-offset-4"
+        >
+          Back to trading
+        </a>
+      </div>
+    );
+  }
+
+  if (state === "auto_resolved") {
+    return (
+      <div className="rounded-lg bg-[#e4f6ea] p-4 text-center">
+        <p className="text-sm font-semibold text-[#1f6b3a]">
+          Payment already confirmed
+        </p>
+        <p className="mt-1 text-xs text-[#4a7a5b]">
+          Your deposit matched automatically — no further action needed. Your
+          account has already been credited.
+        </p>
+        <a
+          href="/trade"
+          className="mt-3 inline-block text-xs font-semibold text-[#1f6b3a] underline underline-offset-4"
         >
           Back to trading
         </a>

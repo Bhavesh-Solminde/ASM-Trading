@@ -358,11 +358,16 @@ export async function claimUtr(
   });
 
   if (claimed.count !== 1) {
-    // Distinguish "not yours / gone" (404) from "already claimed" (409) so the
-    // checkout page can tell the user which happened.
+    // Distinguish three outcomes so the UI can show the right message:
+    //   - not yours / gone                  → 404
+    //   - genuinely claimed (UTR present)   → 409 UtrAlreadyClaimed
+    //   - already resolved by auto-matcher  → 409 DepositAlreadyResolved
+    //     (the SMS relay completed it between page load and submit — the
+    //     user's correct next action is to reload, not to resubmit.)
     const existing = await prisma.deposit.findFirst({ where: { id: depositId, userId: actorId } });
     if (!existing) throw new DepositNotFound();
-    throw new UtrAlreadyClaimed();
+    if (existing.claimedUtr) throw new UtrAlreadyClaimed();
+    throw new DepositAlreadyResolved();
   }
 
   return prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });

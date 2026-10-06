@@ -21,7 +21,24 @@ import type { RelayConfig } from "./types";
 export const RELAY_CONFIG: RelayConfig = {
   serverUrl: process.env.EXPO_PUBLIC_RELAY_SERVER_URL ?? "https://asmtrader.com",
   secret: process.env.EXPO_PUBLIC_RELAY_SECRET ?? "",
-  senders: (process.env.EXPO_PUBLIC_RELAY_SENDERS ?? "SBI,CANBNK,CANARA,HDFC,INDUS")
+  senders: (
+    process.env.EXPO_PUBLIC_RELAY_SENDERS ??
+    // PHONEPE catches both PhonePe Business ("AX-PHONEPE-S") and the
+    // consumer app's own SMS alerts. Each merchant QR paid to a configured
+    // VPA fires one of these per credit, and the SMS path is faster and
+    // more reliable than the Notification listener (which the OS can
+    // revoke on reboot or battery save).
+    // Substring match (see RelayStore.isAllowedSender), so "IDFC" catches
+    // both "AX-IDFCFB-S" and "VK-IDFC-S" style sender IDs — no need to
+    // enumerate the prefixes.
+    //
+    // PhonePe uses BOTH spellings depending on which SMS operator the
+    // message routes through: "AX-PHONEPE-S" (full) and "JX-PHONPE-S" /
+    // "VK-PHONPE-S" (short, no E between N and P). Both substrings are
+    // needed; neither contains the other. Verified against two live SMS
+    // from the same merchant VPA on the same night.
+    "SBI,CANBNK,CANARA,HDFC,INDUS,IDFC,PHONEPE,PHONPE"
+  )
     .split(",")
     .map((sender: string) => sender.trim())
     .filter((sender: string) => sender.length > 0),
