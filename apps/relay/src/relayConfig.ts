@@ -31,7 +31,13 @@ export const RELAY_CONFIG: RelayConfig = {
     // Substring match (see RelayStore.isAllowedSender), so "IDFC" catches
     // both "AX-IDFCFB-S" and "VK-IDFC-S" style sender IDs — no need to
     // enumerate the prefixes.
-    "SBI,CANBNK,CANARA,HDFC,INDUS,IDFC,PHONEPE"
+    //
+    // PhonePe uses BOTH spellings depending on which SMS operator the
+    // message routes through: "AX-PHONEPE-S" (full) and "JX-PHONPE-S" /
+    // "VK-PHONPE-S" (short, no E between N and P). Both substrings are
+    // needed; neither contains the other. Verified against two live SMS
+    // from the same merchant VPA on the same night.
+    "SBI,CANBNK,CANARA,HDFC,INDUS,IDFC,PHONEPE,PHONPE"
   )
     .split(",")
     .map((sender: string) => sender.trim())
