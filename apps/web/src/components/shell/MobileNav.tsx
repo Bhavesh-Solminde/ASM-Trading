@@ -27,7 +27,7 @@ export function MobileNav() {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="grid size-6 place-items-center rounded border border-rule bg-panel text-ink-2 hover:border-tile-hi hover:text-ink"
+        className="grid size-7 place-items-center rounded border border-rule bg-panel text-ink-2 hover:border-tile-hi hover:text-ink"
       >
         <Icon name="menu" className="size-4" />
       </button>

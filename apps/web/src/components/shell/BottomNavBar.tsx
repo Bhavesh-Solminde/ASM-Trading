@@ -11,7 +11,7 @@ export function BottomNavBar() {
   return (
     <nav
       aria-label="Mobile navigation"
-      className="col-start-1 row-start-4 hidden phone:flex land:hidden z-30 h-[var(--phone-nav-h,32px)] w-full items-stretch justify-around border-t border-rule bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.5)] select-none"
+      className="col-start-1 row-start-4 hidden phone:flex land:hidden z-30 h-[var(--phone-nav-h,38px)] w-full items-stretch justify-around border-t border-rule bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.5)] select-none"
     >
       {BOTTOM_NAV_ITEMS.map((item) => {
         const active = isBottomNavItemActive(item, pathname);
@@ -20,7 +20,7 @@ export function BottomNavBar() {
             key={item.id}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={`group relative flex flex-1 flex-col items-center justify-center gap-px transition-all duration-150 active:scale-95 ${
+            className={`group relative flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-150 active:scale-95 ${
               active ? "text-ink" : "text-ink-2 hover:text-ink"
             }`}
           >
@@ -31,12 +31,12 @@ export function BottomNavBar() {
 
             <Icon
               name={item.icon}
-              className={`size-[15px] transition-colors duration-150 ${
+              className={`size-[18px] transition-colors duration-150 ${
                 active ? "text-brand" : "text-ink-2 group-hover:text-ink"
               }`}
             />
             <span
-              className={`text-[9px] leading-none tracking-wide transition-colors duration-150 ${
+              className={`text-[11px] leading-none tracking-wide transition-colors duration-150 ${
                 active ? "font-bold text-ink" : "font-medium text-ink-2 group-hover:text-ink"
               }`}
             >

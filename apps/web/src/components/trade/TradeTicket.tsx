@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DURATIONS_SEC } from "@asm/trading";
 import type { OpenTradeResult } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { durationForTargetTime, offeredExpirySlots } from "@/lib/expiry-times";
 import { minStakeMinor } from "@/lib/currency";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
-import { clockTime, hms } from "@/lib/format-time";
+import { clockTime, countdown, hms } from "@/lib/format-time";
+import { useDismiss } from "@/lib/use-dismiss";
 import { useMarketClosed, useNowSec } from "@/lib/use-now";
+import { grossReturnMinor } from "./pnl-display";
 
 /** Quick-pick stakes (major units), all at or above the currency's minimum. */
 function stakePresets(currency: string): readonly number[] {
@@ -36,6 +38,17 @@ function nextOccurrenceMs(hhmm: string, nowMs: number): number | null {
   return t;
 }
 
+/**
+ * Seconds from a typed duration: "90", "1:30" (m:ss) or "1:00:00" (h:mm:ss).
+ * Null when it is not a positive duration.
+ */
+function parseDurationInput(text: string): number | null {
+  const parts = text.trim().split(":");
+  if (parts.length > 3 || parts.some((p) => !/^\d+$/.test(p))) return null;
+  const sec = parts.reduce((acc, p) => acc * 60 + Number(p), 0);
+  return sec > 0 ? sec : null;
+}
+
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
   if (seconds < 3600) return `${seconds / 60}m`;
@@ -43,8 +56,13 @@ function formatDuration(seconds: number): string {
 }
 
 const STEP =
-  "grid h-12 place-items-center rounded border border-rule text-ink-2 hover:border-tile-hi hover:bg-panel hover:text-ink phone:h-[26px]";
-const DISPLAY = "grid h-12 place-items-center rounded border border-rule bg-panel phone:h-[26px]";
+  "grid h-12 place-items-center rounded border border-white/40 text-ink-2 hover:border-white/70 hover:bg-panel hover:text-ink phone:h-[26px]";
+const DISPLAY = "grid h-12 place-items-center rounded border border-white/40 bg-panel phone:h-[26px]";
+/** A cell in the expiry picker grid. */
+const PICK =
+  "h-10 rounded-md text-[13px] font-semibold tabular-nums transition-colors phone:h-9 phone:text-[12px]";
+const PICK_IDLE = "bg-white/10 text-ink hover:bg-white/15";
+const PICK_ACTIVE = "bg-brand text-brand-ink";
 /** Stepper glyphs: default size on desktop, 30% smaller in the phone ticket. */
 const STEP_ICON = "size-[18px] phone:size-3";
 
@@ -74,6 +92,14 @@ export function TradeTicket({
   // Absolute expiry chosen in TIME mode; snapped to a valid duration at submit.
   const [targetMs, setTargetMs] = useState<number | null>(null);
   const [gridOpen, setGridOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualInput, setManualInput] = useState("");
+  const expiryRef = useRef<HTMLDivElement | null>(null);
+  const closeGrid = useCallback(() => {
+    setGridOpen(false);
+    setManualOpen(false);
+  }, []);
+  useDismiss(expiryRef, gridOpen, closeGrid);
   const [stakeInput, setStakeInput] = useState(() => defaultStake(currency));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +128,16 @@ export function TradeTicket({
   function switchMode(next: TimeMode): void {
     if (next === "time" && targetMs === null) setTargetMs(Date.now() + durationSec * 1000);
     setMode(next);
-    setGridOpen(false);
+    setManualOpen(false);
+  }
+
+  /** TIMER mode "Set manually": the typed duration, snapped to the nearest offered one. */
+  function applyManualDuration(): void {
+    const sec = parseDurationInput(manualInput);
+    if (sec === null) return;
+    setDurationSec(durationForTargetTime(0, sec * 1000) as (typeof DURATIONS_SEC)[number]);
+    setManualInput("");
+    closeGrid();
   }
 
   /** In TIME mode, +/- move to the neighbouring offered expiry time. */
@@ -166,35 +201,17 @@ export function TradeTicket({
     "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 phone:text-[8px] max-[359px]:hidden";
 
   return (
-    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:gap-0.5 phone:border-b-0 phone:px-2 phone:pb-1 phone:pt-1 land:pb-[max(4px,env(safe-area-inset-bottom))]">
+    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:gap-0.5 phone:border-b-0 phone:px-2 phone:pb-2.5 phone:pt-1 land:pb-[max(4px,env(safe-area-inset-bottom))]">
       <div className="flex items-baseline justify-between phone:hidden">
         <span className="text-[17px] font-bold tracking-[0.03em]">{pair}</span>
         <span className="text-[17px] font-extrabold text-brand">{payoutPct === null ? "—" : `${payoutPct}%`}</span>
       </div>
 
       <div className="grid gap-3 phone:grid-cols-2 phone:gap-x-2 phone:gap-y-1">
-        <div className="grid gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="legend phone:text-[9px]!" id="ticket-time">
-              Time
-            </span>
-            <div role="tablist" aria-label="Expiry mode" className="flex gap-0.5 rounded-[3px] border border-rule p-0.5">
-              {(["timer", "time"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === m}
-                  onClick={() => switchMode(m)}
-                  className={`rounded-[2px] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] phone:px-1.5 phone:py-0 phone:text-[8px] ${
-                    mode === m ? "bg-up text-up-ink" : "text-ink-3 hover:text-ink"
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div ref={expiryRef} className="relative grid gap-1.5">
+          <span className="legend phone:text-[9px]!" id="ticket-time">
+            {mode === "time" ? "Time" : "Timer"}
+          </span>
           <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5 phone:grid-cols-[28px_minmax(0,1fr)_28px] phone:gap-1">
             <button
               type="button"
@@ -233,62 +250,113 @@ export function TradeTicket({
             </button>
           </div>
           {gridOpen ? (
+            /* Quotex-style expiry picker: TIMER / TIME tabs over a 3-column grid.
+               Opens below the field on desktop and above it on phones, where the
+               ticket sits at the bottom of the screen. */
             <div
               id="ticket-durations"
-              className="grid grid-cols-4 gap-1 phone:absolute phone:inset-x-3 phone:z-20 phone:mt-1 phone:gap-1.5 phone:rounded phone:border phone:border-rule phone:bg-[#2c3036] phone:p-2 phone:shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]"
+              role="dialog"
+              aria-label="Choose expiry"
+              className="absolute left-0 top-[calc(100%+8px)] z-40 w-[264px] max-w-[calc(100vw-16px)] rounded-xl border border-white/10 bg-[#262b33] p-2.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.85)] phone:bottom-[calc(100%+8px)] phone:top-auto phone:w-[248px]"
             >
-              {mode === "time"
-                ? offeredExpirySlots(Date.now()).map((slot) => {
-                    const active =
-                      targetMs !== null && durationForTargetTime(Date.now(), targetMs) === slot.durationSec;
-                    return (
+              <div role="tablist" aria-label="Expiry mode" className="mb-2.5 grid grid-cols-2 gap-0.5 rounded-md bg-white/10 p-0.5">
+                {(["timer", "time"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="tab"
+                    aria-selected={mode === m}
+                    onClick={() => switchMode(m)}
+                    className={`h-8 rounded-[5px] text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${
+                      mode === m ? PICK_ACTIVE : "text-ink-2 hover:text-ink"
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {mode === "time"
+                  ? offeredExpirySlots(Date.now()).map((slot) => {
+                      const active =
+                        targetMs !== null && durationForTargetTime(Date.now(), targetMs) === slot.durationSec;
+                      return (
+                        <button
+                          key={slot.durationSec}
+                          type="button"
+                          onClick={() => {
+                            setTargetMs(slot.epochMs);
+                            closeGrid();
+                          }}
+                          className={`${PICK} ${active ? PICK_ACTIVE : PICK_IDLE}`}
+                        >
+                          {clockTime(Math.floor(slot.epochMs / 1000))}
+                        </button>
+                      );
+                    })
+                  : DURATIONS_SEC.map((d) => (
                       <button
-                        key={slot.durationSec}
+                        key={d}
                         type="button"
                         onClick={() => {
-                          setTargetMs(slot.epochMs);
-                          setGridOpen(false);
+                          setDurationSec(d);
+                          closeGrid();
                         }}
-                        className={`h-[30px] rounded-[2px] text-xs font-semibold phone:h-10 phone:text-sm ${
-                          active ? "bg-up text-up-ink" : "bg-tile text-ink-2 hover:bg-tile-hi hover:text-ink"
-                        }`}
+                        className={`${PICK} ${d === durationSec ? PICK_ACTIVE : PICK_IDLE}`}
                       >
-                        {clockTime(Math.floor(slot.epochMs / 1000))}
+                        {countdown(d)}
                       </button>
-                    );
-                  })
-                : DURATIONS_SEC.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => {
-                        setDurationSec(d);
-                        setGridOpen(false);
+                    ))}
+              </div>
+              {manualOpen ? (
+                <div className="mt-1.5 flex h-10 items-center gap-2 rounded-md bg-white/10 px-2.5 phone:h-9">
+                  {mode === "time" ? (
+                    <input
+                      type="time"
+                      autoFocus
+                      aria-label="Set expiry time manually"
+                      onChange={(e) => {
+                        const t = nextOccurrenceMs(e.target.value, Date.now());
+                        if (t !== null) {
+                          setTargetMs(t);
+                          closeGrid();
+                        }
                       }}
-                      className={`h-[30px] rounded-[2px] text-xs font-semibold phone:h-10 phone:text-sm ${
-                        d === durationSec ? "bg-up text-up-ink" : "bg-tile text-ink-2 hover:bg-tile-hi hover:text-ink"
-                      }`}
-                    >
-                      {formatDuration(d)}
-                    </button>
-                  ))}
-              {mode === "time" ? (
-                <label className="col-span-4 mt-0.5 flex items-center justify-between gap-2 rounded-[2px] bg-tile px-2 py-1.5 text-xs text-ink-2">
-                  <span className="font-semibold">Set manually</span>
-                  <input
-                    type="time"
-                    aria-label="Set expiry time manually"
-                    onChange={(e) => {
-                      const t = nextOccurrenceMs(e.target.value, Date.now());
-                      if (t !== null) {
-                        setTargetMs(t);
-                        setGridOpen(false);
-                      }
-                    }}
-                    className="bg-transparent text-ink outline-none [color-scheme:dark]"
-                  />
-                </label>
-              ) : null}
+                      className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none [color-scheme:dark]"
+                    />
+                  ) : (
+                    <>
+                      <input
+                        autoFocus
+                        inputMode="numeric"
+                        placeholder="mm:ss"
+                        aria-label="Set duration manually"
+                        value={manualInput}
+                        onChange={(e) => setManualInput(e.target.value.replace(/[^0-9:]/g, ""))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") applyManualDuration();
+                        }}
+                        className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
+                      />
+                      <button
+                        type="button"
+                        onClick={applyManualDuration}
+                        className="rounded-[4px] bg-brand px-2.5 py-1 text-[11px] font-bold text-brand-ink"
+                      >
+                        Set
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setManualOpen(true)}
+                  className={`${PICK} ${PICK_IDLE} mt-1.5 w-full`}
+                >
+                  Set manually
+                </button>
+              )}
             </div>
           ) : null}
           <div className="flex justify-between text-xs text-ink-3 phone:hidden">
@@ -361,7 +429,7 @@ export function TradeTicket({
       <div className="hidden phone:flex phone:items-center phone:justify-between phone:gap-2 phone:border-t phone:border-dashed phone:border-rule phone:pt-0.5">
         <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-ink-3">Payout</span>
         <span className="led led-lit text-[11px] text-up">
-          {profitMinor === null ? "—" : `+${formatMinor(profitMinor, currency)}`}
+          {profitMinor === null ? "—" : `+${formatMinor(grossReturnMinor(stakeMinor, profitMinor), currency)}`}
         </span>
       </div>
 
@@ -383,7 +451,7 @@ export function TradeTicket({
         </div>
       ) : null}
 
-      <div className="grid gap-2 phone:grid-cols-2 phone:gap-1.5 phone:pt-0 land:grid-cols-1 land:gap-1.5">
+      <div className="grid gap-2 phone:grid-cols-2 phone:gap-3 phone:pt-0 land:grid-cols-1 land:gap-1.5">
         <button
           type="button"
           disabled={busy || closed}
