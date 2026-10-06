@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { OpenTradeSchema, tradeViewFrom } from "@asm/contracts";
-import { getAccountForActor, listTradesForActor, prisma } from "@asm/db";
+import { formatMoney, getAccountForActor, listTradesForActor, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { minStakeMinor } from "@/lib/currency";
 import { EngineRejected, EngineUnavailable, engineOpenTrade } from "@/lib/engine-client";
 
 const REJECTION_MESSAGE: Record<string, string> = {
@@ -48,6 +49,14 @@ export async function POST(req: NextRequest) {
       "account does not belong to actor",
     );
     return NextResponse.json({ error: "Account not found." }, { status: 404 });
+  }
+
+  const minStake = minStakeMinor(account.currency);
+  if (parsed.data.stake < minStake) {
+    return NextResponse.json(
+      { error: `Minimum investment is ${formatMoney(minStake, account.currency)}.` },
+      { status: 400 },
+    );
   }
 
   // Live account is gated server-side, mirroring the TopBar client gate so it

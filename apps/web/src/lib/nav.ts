@@ -63,7 +63,8 @@ export const BOTTOM_NAV_ITEMS: readonly BottomNavItem[] = [
     icon: "wallet",
     matches: ["/deposit", "/withdrawal"],
   },
-  { id: "referral", label: "Referral", href: "/referral", icon: "referral" },
+  // Referral is hidden for now; FAQs + contact live under Support.
+  { id: "support", label: "Support", href: "/support", icon: "help" },
   { id: "account", label: "Account", href: "/account", icon: "user" },
 ];
 

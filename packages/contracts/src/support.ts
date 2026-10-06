@@ -9,7 +9,7 @@ export type CreateTicketInput = z.infer<typeof CreateTicketSchema>;
 export const FAQ = [
   {
     q: "How do I withdraw money from the account?",
-    a: "Open Withdrawal, enter an amount within your available balance, and choose a method you have already deposited with. Requests are processed in 3 business days.",
+    a: "First verify your account (Account → Personal data). Then open Withdrawal, enter an amount within your available balance, and choose a method you have already deposited with. Requests are processed in 3 business days.",
   },
   {
     q: "How long does it take to withdraw funds?",
@@ -29,7 +29,7 @@ export const FAQ = [
   },
   {
     q: "What is account verification?",
-    a: "Identity fields are stored in this build but never verified — there is no identity check and no document upload.",
+    a: "Verification confirms who you are before money leaves the platform. Fill in every field under Account → Personal data and save — your details go to review, and withdrawals unlock once the account shows Verified.",
   },
   {
     q: "Why does my deposit say Processing?",

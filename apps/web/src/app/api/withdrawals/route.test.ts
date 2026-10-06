@@ -13,7 +13,8 @@ let bob = { userId: "", liveId: "", cookie: "" };
 
 async function makeUser(name: string) {
   const user = await prisma.user.create({
-    data: { email: `${name}-withdrawals-${RUN}@test.local`, passwordHash: "x" },
+    // Verified, so the method check below is what refuses — not the KYC gate.
+    data: { email: `${name}-withdrawals-${RUN}@test.local`, passwordHash: "x", kycStatus: "VERIFIED" },
   });
   const accounts = await createAccountsForUser(user.id, 1_000_000);
   return {

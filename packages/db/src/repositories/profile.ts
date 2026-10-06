@@ -45,8 +45,8 @@ export async function loadProfile(actorId: string): Promise<ProfileView> {
  * Writes only the whitelisted profile fields.
  *
  * Fields are picked explicitly rather than spread, so even if the schema
- * changes, `role`, `kycStatus` and `cumulativeDeposits` cannot be reached
- * through this path.
+ * changes, `role` and `cumulativeDeposits` cannot be reached through this
+ * path, and `kycStatus` only ever advances to PENDING (see below).
  */
 export async function updateProfile(
   actorId: string,
@@ -72,7 +72,18 @@ export async function updateProfile(
   if (input.address !== undefined) data.address = input.address;
   if (input.country !== undefined) data.country = input.country;
 
-  await prisma.user.update({ where: { id: actorId }, data });
+  const user = await prisma.user.update({ where: { id: actorId }, data });
+
+  // A complete identity submits the account for review: NOT_STARTED (or a
+  // REJECTED resubmission) moves to PENDING, where an admin sets VERIFIED or
+  // REJECTED from the Users panel. VERIFIED/PENDING are never touched here, so
+  // a user can't un-verify or re-queue themselves by saving again.
+  const complete = [user.firstName, user.lastName, user.dateOfBirth, user.aadhaar, user.address, user.country].every(
+    (v) => v !== null && v !== "",
+  );
+  if (complete && (user.kycStatus === "NOT_STARTED" || user.kycStatus === "REJECTED")) {
+    await prisma.user.update({ where: { id: actorId }, data: { kycStatus: "PENDING" } });
+  }
 }
 
 export async function setTwoFactorPreferences(

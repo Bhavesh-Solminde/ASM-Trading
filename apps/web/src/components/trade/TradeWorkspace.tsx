@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TradeView } from "@asm/contracts";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { SentimentBar } from "@/components/chart/SentimentBar";
@@ -9,7 +9,12 @@ import { ChartTypeSelector } from "@/components/chart/ChartTypeSelector";
 import type { ChartType } from "@/components/chart/chart-types";
 import { Icon } from "@/components/shell/Icon";
 import { useMarket } from "@/components/shell/market-store";
-import { usePlatform, useQuote, type AccountView } from "@/components/shell/PlatformProvider";
+import {
+  usePlatform,
+  useQuote,
+  type AccountView,
+  type PlatformAsset,
+} from "@/components/shell/PlatformProvider";
 import { tickDirection } from "@/components/shell/quotes";
 import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor } from "@/lib/format-money";
@@ -239,6 +244,93 @@ function LiveSentiment() {
   return <SentimentBar upPct={sentiment?.upPct ?? 50} downPct={sentiment?.downPct ?? 50} />;
 }
 
+const TOOL_BTN =
+  "relative grid size-[34px] place-items-center rounded-[6px] border backdrop-blur transition-colors";
+
+/**
+ * Quotex-style in-chart tool stack for compact widths: a "⋯" button that
+ * expands sideways into the market and chart-type pickers, and a briefcase
+ * under it that opens trades & history (badge = open trades).
+ */
+function ChartToolCluster({
+  assets,
+  active,
+  onSelect,
+  onMarketOpenChange,
+  chartType,
+  onChartTypeChange,
+  openCount,
+  onOpenHistory,
+  className = "",
+}: {
+  assets: PlatformAsset[];
+  active: string;
+  onSelect: (symbol: string) => void;
+  onMarketOpenChange: (open: boolean) => void;
+  chartType: ChartType;
+  onChartTypeChange: (type: ChartType) => void;
+  openCount: number;
+  onOpenHistory: () => void;
+  className?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const collapse = useCallback(() => setExpanded(false), []);
+  useDismiss(ref, expanded, collapse);
+
+  return (
+    <div ref={ref} className={`pointer-events-auto w-max flex-col gap-1.5 ${className}`}>
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-label={expanded ? "Hide chart tools" : "Chart tools"}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((e) => !e)}
+          className={`${TOOL_BTN} ${
+            expanded ? "border-brand bg-brand/25 text-brand" : "border-rule bg-tile/85 text-ink hover:border-tile-hi"
+          }`}
+        >
+          <Icon name={expanded ? "close" : "more"} className="size-4" strokeWidth={expanded ? 2 : 3.2} />
+        </button>
+        {expanded ? (
+          <>
+            <MarketSelector
+              assets={assets}
+              active={active}
+              onSelect={(symbol) => {
+                onSelect(symbol);
+                setExpanded(false);
+              }}
+              compact
+              iconOnly
+              onOpenChange={onMarketOpenChange}
+            />
+            <ChartTypeSelector
+              value={chartType}
+              onChange={(type) => {
+                onChartTypeChange(type);
+                setExpanded(false);
+              }}
+            />
+          </>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={onOpenHistory}
+        aria-label={`Trades & history (${openCount} open)`}
+        title="Trades & history"
+        className={`${TOOL_BTN} border-rule bg-tile/85 text-ink hover:border-tile-hi land:hidden`}
+      >
+        <Icon name="briefcase" className="size-4" />
+        <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[9px] font-bold leading-none text-brand-ink">
+          {openCount}
+        </span>
+      </button>
+    </div>
+  );
+}
+
 export function TradeWorkspace() {
   const {
     assets,
@@ -317,9 +409,9 @@ export function TradeWorkspace() {
     );
   }
 
-  // In-chart control row (market switch + history). Shown on compact widths and
-  // whenever fullscreen (focus) mode is on, at any width.
-  const controlsClass = focusMode ? "flex" : "hidden phone:flex";
+  // Desktop fullscreen keeps the inline market + history row; compact widths use
+  // the expandable tool cluster instead (see ChartToolCluster).
+  const controlsClass = focusMode ? "flex phone:hidden" : "hidden";
 
   return (
     <section
@@ -359,10 +451,21 @@ export function TradeWorkspace() {
               chartType={chartType}
             />
 
-            {/* Top-left overlay: account switcher (focus), then a row of the clock
-                plus the compact market + history buttons, then the price readout. */}
-            <div className={`pointer-events-none absolute left-2 top-2 ${marketPickerOpen ? "z-50" : "z-10"} grid max-w-[calc(100%-16px)] gap-1.5`}>
+            {/* Top-left overlay: account switcher (focus), the compact tool cluster
+                (phone), then the clock row and the price readout beneath it. */}
+            <div className={`pointer-events-none absolute left-2 top-2 ${marketPickerOpen ? "z-50" : "z-10"} grid max-w-[calc(100%-16px)] gap-1.5 phone:gap-2`}>
               {focusMode ? <FocusAccountSwitcher /> : null}
+              <ChartToolCluster
+                className="hidden phone:flex"
+                assets={assets}
+                active={asset.symbol}
+                onSelect={selectChartSymbol}
+                onMarketOpenChange={setMarketPickerOpen}
+                chartType={chartType}
+                onChartTypeChange={handleChartTypeChange}
+                openCount={openCount}
+                onOpenHistory={() => setHistoryOpen(true)}
+              />
               <div className="flex items-center gap-1.5">
                 <ChartClock />
                 <div className={`${controlsClass} pointer-events-auto items-center gap-1.5`}>
@@ -392,7 +495,7 @@ export function TradeWorkspace() {
                 <ChartTypeSelector
                   value={chartType}
                   onChange={handleChartTypeChange}
-                  className="pointer-events-auto"
+                  className="pointer-events-auto phone:hidden"
                 />
               </div>
               <ChartReadout symbol={asset.symbol} displayName={asset.displayName} precision={asset.precision} />
@@ -429,7 +532,6 @@ export function TradeWorkspace() {
           payoutPct={payoutPct}
           accountId={activeAccount.id}
           currency={activeAccount.currency}
-          live={activeAccount.type === "LIVE"}
           onOpened={recordOpened}
         />
         {focusMode ? null : (

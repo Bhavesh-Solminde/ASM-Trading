@@ -70,7 +70,7 @@ function get(accountId: string, cookie: string | null): Promise<Response> {
 const order = () => ({
   symbol: "AUDNZD_OTC",
   direction: "UP",
-  stake: 1_000,
+  stake: 10_000, // ₹100 — the INR minimum
   durationSec: 60,
   accountId: alice.demoId,
 });
@@ -90,6 +90,16 @@ describe("POST /api/trades", () => {
     engine.mockClear();
     const res = await post({ ...order(), accountId: alice.demoId }, bob.cookie);
     expect(res.status).toBe(404);
+    expect(engine).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stake under the account currency's minimum without reaching the engine", async () => {
+    engine.mockClear();
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: alice.demoId } });
+    expect(account.currency).toBe("INR");
+    const res = await post({ ...order(), stake: 9_999 }, alice.cookie);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Minimum investment is ₹100.00." });
     expect(engine).not.toHaveBeenCalled();
   });
 

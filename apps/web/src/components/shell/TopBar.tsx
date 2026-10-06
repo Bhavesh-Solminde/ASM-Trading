@@ -34,7 +34,7 @@ function AccountPlate({ type, small = false }: { type: AccountView["type"]; smal
   return (
     <span
       className={`grid auto-cols-max grid-flow-col place-content-center items-center gap-[5px] rounded-[2px] px-[9px] font-extrabold tracking-[0.12em] ${
-        small ? "h-[26px] text-[10px]" : "h-[30px] text-[11px]"
+        small ? "h-[26px] text-[10px]" : "h-[30px] text-[11px] phone:h-[18px] phone:gap-1 phone:px-1.5 phone:text-[9px]"
       } ${live ? "bg-up text-up-ink" : "border border-dotted border-[#555] text-ink-2"}`}
     >
       <span
@@ -113,13 +113,13 @@ export function TopBar() {
 
   return (
     <header
-      className={`col-span-full row-start-1 flex min-w-0 items-center gap-5 border-b border-rule bg-ground pl-3.5 pr-4 phone:gap-2 phone:px-2.5 ${
+      className={`col-span-full row-start-1 flex min-w-0 items-center gap-5 border-b border-rule bg-ground pl-3.5 pr-4 phone:gap-1.5 phone:px-1.5 ${
         live ? "shadow-[inset_0_-2px_0_0_var(--color-up)]" : ""
       }`}
     >
       <MobileNav />
-      <Link href="/trade" aria-label="ASM Trade" className="flex h-11 flex-none items-center gap-2">
-        <LogoEmblem className="h-8 w-8 flex-none [filter:drop-shadow(0_0_8px_rgba(255,176,0,.3))]" />
+      <Link href="/trade" aria-label="ASM Trade" className="flex h-11 flex-none items-center gap-2 phone:h-6">
+        <LogoEmblem className="h-8 w-8 flex-none phone:h-5 phone:w-5 [filter:drop-shadow(0_0_8px_rgba(255,176,0,.3))]" />
         <LogoWordmark className="h-6 flex-none phone:hidden" />
         <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-ink-2 phone:hidden">Trade</span>
       </Link>
@@ -142,29 +142,29 @@ export function TopBar() {
         <PromoBanner />
       </div>
 
-      <div ref={menuRef} className="relative ml-auto flex min-w-0 items-center gap-2.5 phone:gap-1.5">
+      <div ref={menuRef} className="relative ml-auto flex min-w-0 items-center gap-2.5 phone:gap-1">
         <button
           type="button"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((o) => !o)}
-          className={`grid h-11 min-w-0 grid-cols-[auto_minmax(0,1fr)_18px] items-center gap-2.5 rounded border bg-panel pl-1.5 pr-2.5 text-left phone:grid-cols-[auto_auto_18px] phone:gap-1.5 phone:pr-1.5 ${
+          className={`grid h-11 min-w-0 grid-cols-[auto_minmax(0,1fr)_18px] items-center gap-2.5 rounded border bg-panel pl-1.5 pr-2.5 text-left phone:h-6 phone:grid-cols-[auto_auto_12px] phone:gap-1 phone:pl-[3px] phone:pr-1 ${
             live ? "border-up" : "border-rule hover:border-tile-hi"
           }`}
         >
           {activeAccount ? <AccountPlate type={activeAccount.type} /> : null}
           <span className="grid min-w-0 gap-0.5">
             <span className="legend text-[10px]! phone:hidden">{live ? "Live account" : "Demo account"}</span>
-            <span className="led led-lit truncate text-[20px] leading-none phone:text-[17px]">{totalBalance(activeAccount, balances)}</span>
+            <span className="led led-lit truncate text-[20px] leading-none phone:text-[13px]">{totalBalance(activeAccount, balances)}</span>
           </span>
-          <Icon name="caret" />
+          <Icon name="caret" className="size-[18px] phone:size-3" />
         </button>
 
         <Link
           href="/deposit"
-          className="inline-flex h-11 flex-none items-center gap-2 rounded border border-up bg-up px-4 text-xs font-bold uppercase tracking-[0.06em] text-up-ink transition-colors hover:bg-up/90 phone:w-11 phone:justify-center phone:px-0"
+          className="inline-flex h-11 flex-none items-center gap-2 rounded border border-up bg-up px-4 text-xs font-bold uppercase tracking-[0.06em] text-up-ink transition-colors hover:bg-up/90 phone:h-6 phone:w-6 phone:justify-center phone:px-0"
         >
-          <Icon name="plus" />
+          <Icon name="plus" className="size-[18px] phone:size-3.5" />
           <span className="phone:sr-only">Deposit</span>
         </Link>
         <Link

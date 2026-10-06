@@ -17,6 +17,16 @@ const STATUS_LABEL: Record<string, string> = {
   PAID: "Paid",
 };
 
+/**
+ * What a deposit row shows, in USD cents. USDT deposits leave the legacy
+ * amountUsd column at 0 and carry their value in amountUsdtMinor (USDT-cents,
+ * 1 USDT = $1 — see depositCreditMinor), so reading amountUsd alone showed
+ * every USDT deposit as $0.00.
+ */
+function depositAmountUsdMinor(d: { method: string; amountUsd: number; amountUsdtMinor: number | null }): number {
+  return d.method === "USDT" ? (d.amountUsdtMinor ?? 0) : d.amountUsd;
+}
+
 export default async function BalancePage() {
   const store = await cookies();
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
@@ -34,7 +44,7 @@ export default async function BalancePage() {
       status: d.status,
       kind: "Deposit" as const,
       method: d.method,
-      amount: d.amountUsd,
+      amount: depositAmountUsdMinor(d),
       note:
         d.status === "PENDING_CONFIRMATION"
           ? "Payments with this method can take up to 48 hours. The status may appear as “Failed” until the funds are received on our side."

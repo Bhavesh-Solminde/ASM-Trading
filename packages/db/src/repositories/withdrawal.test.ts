@@ -63,6 +63,7 @@ describe("withdrawableBalance", () => {
 
 describe("requestWithdrawal", () => {
   beforeEach(async () => {
+    await prisma.user.update({ where: { id: userId }, data: { kycStatus: "VERIFIED" } });
     await prisma.account.update({ where: { id: accountId }, data: { realBalance: 50_000 } });
     await prisma.deposit.create({
       data: {
@@ -110,6 +111,17 @@ describe("requestWithdrawal", () => {
     expect(rows[0]!.balanceAfter).toBe(30_000);
   });
 
+  it("refuses a withdrawal until the user's KYC is verified", async () => {
+    for (const kycStatus of ["NOT_STARTED", "PENDING", "REJECTED"] as const) {
+      await prisma.user.update({ where: { id: userId }, data: { kycStatus } });
+      await expect(
+        requestWithdrawal({ actorId: userId, accountId, amount: 10_000, method: "PhonePe" }),
+      ).rejects.toThrow(/verify your account/i);
+    }
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.realBalance).toBe(50_000);
+  });
+
   it("refuses more than the withdrawable balance", async () => {
     await expect(
       requestWithdrawal({ actorId: userId, accountId, amount: 90_000, method: "PhonePe" }),
@@ -142,6 +154,11 @@ describe("requestWithdrawal", () => {
 });
 
 describe("requestWithdrawal — anti-fraud gates", () => {
+  // Verified, so each test reaches the gate it targets rather than the KYC gate.
+  beforeEach(async () => {
+    await prisma.user.update({ where: { id: userId }, data: { kycStatus: "VERIFIED" } });
+  });
+
   it("refuses when the user's status is not ACTIVE", async () => {
     await prisma.account.update({
       where: { id: accountId },
