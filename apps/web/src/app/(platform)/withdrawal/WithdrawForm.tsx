@@ -12,7 +12,10 @@ export function WithdrawForm({
   withdrawableMinor: number;
 }) {
   const [amountMajor, setAmountMajor] = useState(Math.max(1, Math.floor(withdrawableMinor / 100)));
-  const [method, setMethod] = useState<(typeof DEPOSIT_METHODS)[number]>("PhonePe");
+  // USDT is the only live rail — UPI methods still render in the select for
+  // when they come back, but the default must be the one the user can actually
+  // use today.
+  const [method, setMethod] = useState<(typeof DEPOSIT_METHODS)[number]>("USDT");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [cert, setCert] = useState<CertificateData | null>(null);
