@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ClaimUtrSchema } from "@asm/contracts";
-import { DepositNotFound, UtrAlreadyClaimed, claimUtr } from "@asm/db";
+import {
+  DepositAlreadyResolved,
+  DepositNotFound,
+  UtrAlreadyClaimed,
+  claimUtr,
+} from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
@@ -50,6 +55,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     if (err instanceof UtrAlreadyClaimed) {
       return NextResponse.json({ error: err.message }, { status: 409 });
+    }
+    if (err instanceof DepositAlreadyResolved) {
+      // Not an error from the user's perspective — the SMS pipeline matched
+      // their payment while this page was still open. Client reads
+      // `resolved: true` and takes them to the status screen instead of
+      // showing the submit form again with a scary red message.
+      return NextResponse.json(
+        { error: err.message, resolved: true },
+        { status: 409 },
+      );
     }
     throw err;
   }
