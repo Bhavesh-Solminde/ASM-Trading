@@ -4,6 +4,7 @@ import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { DepositFlow } from "@/components/deposit/DepositFlow";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
 import { listEnabledUsdtNetworks, usdtGatewayActive } from "@/lib/usdt-networks";
+import { upiDepositsEnabled } from "@/lib/upi-collection";
 
 export default async function DepositPage({
   searchParams,
@@ -59,7 +60,7 @@ export default async function DepositPage({
         </div>
       ) : null}
 
-      <DepositFlow usdtNetworks={usdtNetworks} usdtGateway={usdtGateway} />
+      <DepositFlow usdtNetworks={usdtNetworks} usdtGateway={usdtGateway} upiEnabled={upiDepositsEnabled()} />
     </main>
   );
 }

@@ -31,4 +31,22 @@ describe("buildUpiDeepLink", () => {
     expect(link).toContain("pa=user.name%40some-bank");
     expect(link).toContain("pn=ASM%20Trade%20%26%20Co");
   });
+
+  it("adds a merchant code after the payee and a note at the end when given", () => {
+    const link = buildUpiDeepLink({
+      vpa: "shop@indus",
+      payeeName: "Shop",
+      amountInr: 100_347, // ₹1003.47
+      merchantCode: "5411",
+      note: "ASM-1a2b3c4d",
+    });
+    expect(link).toBe(
+      "upi://pay?pa=shop%40indus&pn=Shop&mc=5411&am=1003.47&cu=INR&tn=ASM-1a2b3c4d",
+    );
+  });
+
+  it("leaves out mc entirely when there is no merchant code", () => {
+    const link = buildUpiDeepLink({ vpa: "a@b", payeeName: "X", amountInr: 100, merchantCode: null });
+    expect(link).not.toContain("mc=");
+  });
 });

@@ -1,7 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import {
-  DEMO_VPA,
   createBankCreditIfNew,
   createRelayMessage,
   findBankCreditByUtr,
@@ -13,6 +12,7 @@ import { childLogger } from "@asm/logger";
 import { parseBankSms } from "@/lib/parse-bank-sms";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
+import { upiCollection } from "@/lib/upi-collection";
 
 const SOURCE = "sms-relay";
 
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
     const utr = parsed.utr ?? syntheticUtr(body.sender ?? null, body.body, relayMessage.receivedAt);
 
     let credit: BankCredit | null = await createBankCreditIfNew({
-      vpa: DEMO_VPA,
+      vpa: upiCollection().vpa,
       amountInr: parsed.amountInr,
       utr,
       receivedAt: relayMessage.receivedAt,

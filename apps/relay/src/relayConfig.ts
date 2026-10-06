@@ -1,19 +1,29 @@
 import type { RelayConfig } from "./types";
 
 // There is no Settings screen (Plan 06's original design cut it — see
-// docs/superpowers/plans/README.md). Edit these values and rebuild.
+// docs/superpowers/plans/README.md). Values are baked in at build time.
 //
-// serverUrl now points at apps/web directly (not apps/harness — see
-// docs/superpowers/specs/2026-09-13-bank-feed-deposit-verification-design.md).
-// apps/web is not permanently deployed, so during a test session expose it
-// with a tunnel (e.g. `ngrok http 3000`) and paste the tunnel's https URL
-// here, then rebuild. The path (`/api/bank-feed/sms`) and the
-// Authorization header logic below are unchanged — only this base URL
-// and the shared secret (must match apps/web's SMS_RELAY_SECRET env var)
-// need updating.
+// The shared secret (must match apps/web's SMS_RELAY_SECRET) comes from
+// apps/relay/.env.local, which is gitignored: Expo inlines EXPO_PUBLIC_*
+// variables into the JS bundle when the APK is built, so the real secret
+// lives in the APK but never in git. That also means a built APK must never
+// be published anywhere public — anyone holding it can extract the secret
+// and post forged credit SMS. Hand it to the operator's phones directly.
+//
+// Each env var must be read as a literal `process.env.EXPO_PUBLIC_…` member
+// access — that exact form is what Expo's bundler replaces.
+//
+// senders are case-insensitive substrings of the SMS sender ID (e.g.
+// "JD-INDUSB-S" contains "INDUS"). Kept deliberately broad: a missed credit
+// leaves a paid deposit stuck, whereas an extra forwarded message is only
+// logged and ignored by the parser unless it is a credit for the exact
+// reserved amount of a live deposit.
 export const RELAY_CONFIG: RelayConfig = {
-  serverUrl: "https://REPLACE-WITH-YOUR-TUNNEL-URL.ngrok-free.app",
-  secret: "dev-only-relay-secret-change-me",
-  senders: ["SBI"],
-  deviceLabel: "Bhavesh's phone",
+  serverUrl: process.env.EXPO_PUBLIC_RELAY_SERVER_URL ?? "https://asmtrader.com",
+  secret: process.env.EXPO_PUBLIC_RELAY_SECRET ?? "",
+  senders: (process.env.EXPO_PUBLIC_RELAY_SENDERS ?? "SBI,CANBNK,CANARA,HDFC,INDUS")
+    .split(",")
+    .map((sender: string) => sender.trim())
+    .filter((sender: string) => sender.length > 0),
+  deviceLabel: process.env.EXPO_PUBLIC_RELAY_DEVICE_LABEL ?? "Bhavesh's phone",
 };

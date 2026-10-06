@@ -99,12 +99,14 @@ describe("POST /api/deposits", () => {
     expect((await post({ method: "PhonePe", amountInr: 100_000 }, null)).status).toBe(401);
   });
 
-  it("refuses UPI deposits while the rail is marked coming-soon", async () => {
-    // UPI rails are temporarily disabled in the picker; the API mirrors that
-    // with a 503 so a crafted request can't still open a deposit intent.
+  it("refuses UPI deposits while UPI_DEPOSITS_ENABLED is not on", async () => {
+    // The picker shows UPI as coming-soon; the API mirrors that with a 503 so
+    // a crafted request can't still open a deposit intent.
+    vi.stubEnv("UPI_DEPOSITS_ENABLED", "off");
     const res = await post({ method: "PhonePe", amountInr: 100_000 }, cookie);
     expect(res.status).toBe(503);
   });
+
 
   it("rejects a payload that doesn't match either branch of the discriminated union", async () => {
     const res = await post({ method: "PhonePe", amountUsdtMinor: 1500 }, cookie);
@@ -176,6 +178,37 @@ describe("POST /api/deposits", () => {
     vi.stubEnv("USDT_BSC_TOKEN_DECIMALS", "");
     const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 1600 }, cookie);
     expect(res.status).toBe(503);
+  });
+});
+
+describe("POST /api/deposits — UPI rail enabled", () => {
+  // Own user, same reason as the gateway suite below: the per-user deposit
+  // rate limit (10 / 5 min) is already mostly spent by the suite above.
+  let upiUserId = "";
+  let upiCookie = "";
+
+  beforeAll(async () => {
+    const user = await prisma.user.create({ data: { email: `deposit-route-upi-${RUN}@test.local`, passwordHash: "x" } });
+    upiUserId = user.id;
+    upiCookie = await createSession(upiUserId, {});
+  });
+
+  afterAll(async () => {
+    await prisma.deposit.deleteMany({ where: { userId: upiUserId } });
+    await prisma.user.deleteMany({ where: { id: upiUserId } });
+  });
+
+  it("opens a UPI deposit against the configured collection VPA", async () => {
+    vi.stubEnv("UPI_DEPOSITS_ENABLED", "on");
+    vi.stubEnv("UPI_COLLECTION_VPA", "collect.test@indus");
+    const res = await post({ method: "PhonePe", amountInr: 100_000 }, upiCookie);
+    expect(res.status).toBe(201);
+    const { checkoutToken } = (await res.json()) as { checkoutToken: string };
+    const deposit = await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken } });
+    expect(deposit.vpa).toBe("collect.test@indus");
+    expect(deposit.method).toBe("PhonePe");
+    // The reserved amount sits within -₹9.99/+₹10.00 of the request (see createDepositIntent).
+    expect(Math.abs(deposit.amountInr - 100_000)).toBeLessThanOrEqual(1_000);
   });
 });
 

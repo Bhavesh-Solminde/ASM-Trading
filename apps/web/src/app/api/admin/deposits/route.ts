@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createDepositIntent } from "@asm/db";
 import { randomUUID } from "node:crypto";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
+import { upiCollection } from "@/lib/upi-collection";
 
 /**
  * Admin-only "create a test deposit" tool — lets an operator watch a real
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       method: "upi",
       amountInrMinor,
       correlationId: randomUUID(),
+      vpa: upiCollection().vpa,
     });
     return NextResponse.json(
       { depositId: deposit.id, reservedAmountInr: deposit.amountInr, vpa: deposit.vpa },

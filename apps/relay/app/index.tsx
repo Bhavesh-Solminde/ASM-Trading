@@ -78,6 +78,13 @@ export default function Home() {
         return;
       }
 
+      // A build made without apps/relay/.env.local would send every message
+      // with an empty Bearer token and get a 401 each time — fail loudly here
+      // instead, where the operator can see it in the send log.
+      if (!RELAY_CONFIG.secret) {
+        throw new Error("This build has no relay secret. Rebuild with apps/relay/.env.local.");
+      }
+
       if (!(await requestPermission())) return;
 
       await requestIgnoreBatteryOptimizations().catch(() => {});

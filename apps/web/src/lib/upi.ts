@@ -9,6 +9,10 @@ export function buildUpiDeepLink(input: {
   vpa: string;
   payeeName: string;
   amountInr: number;
+  /** `mc` — a merchant account's category code, copied from its own QR. */
+  merchantCode?: string | null;
+  /** `tn` — the note the payer's app shows against the payment. */
+  note?: string;
 }): string {
   const rupees = (input.amountInr / 100).toFixed(2);
   // `encodeURIComponent`, not `URLSearchParams` — `upi://` is a custom
@@ -20,8 +24,10 @@ export function buildUpiDeepLink(input: {
   const params = [
     `pa=${encodeURIComponent(input.vpa)}`,
     `pn=${encodeURIComponent(input.payeeName)}`,
+    ...(input.merchantCode ? [`mc=${encodeURIComponent(input.merchantCode)}`] : []),
     `am=${encodeURIComponent(rupees)}`,
     `cu=${encodeURIComponent("INR")}`,
+    ...(input.note ? [`tn=${encodeURIComponent(input.note)}`] : []),
   ].join("&");
   return `upi://pay?${params}`;
 }
