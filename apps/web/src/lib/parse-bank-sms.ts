@@ -12,14 +12,19 @@ export interface ParsedBankSms {
 const AMOUNT_RE =
   /(?:(?:rs\.?|inr|₹)\s?([0-9][0-9,]*(?:\.[0-9]{1,2})?))|\b([0-9]+\.[0-9]{2})\b/gi;
 
-// PhonePe's own notifications use the bare word "txn" with no trailing "id"
-// (e.g. "for txn T261007..."), and their references are alphanumeric up to
-// 24+ chars. The old 6-22 digit-only labelled fallback missed those entirely
-// and the whole message's UTR came back null. Widening both the label and
-// the length window picks them up without false-positiving bank SMS text.
+// PhonePe references are alphanumeric with a leading letter (e.g.
+// "T2610070152259856476787", 23 chars). Their SMS and notification both
+// include this ref without any "ref/utr/txn" label — the SMS has "...for
+// T26..." and the notification "...for txn T26...". The old digit-only bare
+// fallback missed them entirely, so credits arrived with null UTR and the
+// matcher fell back to amount-only, which silently misassigns payments
+// between two users at the same stake. The letter-prefix form in BARE_REF_RE
+// is deliberately narrow: a letter followed by ≥11 digits (so ≥12 chars
+// total). That matches PhonePe-shaped refs but not account suffixes like
+// "A/c XX1234" or "X8126", not words, not promotional codes.
 const REF_LABEL_RE =
   /(?:ref(?:erence)?\s*(?:no\.?|number)?|utr|txn(?:\s*id)?)\s*[:-]?\s*([a-z0-9]{6,32})/i;
-const BARE_REF_RE = /\b([0-9]{9,32})\b/;
+const BARE_REF_RE = /\b([0-9]{9,32}|[A-Z][0-9]{11,31})\b/;
 
 const CREDIT_RE = /\b(credited|credit|received|deposited)\b/i;
 const DEBIT_RE = /\b(debited|debit|spent|withdrawn|paid|purchase)\b/i;

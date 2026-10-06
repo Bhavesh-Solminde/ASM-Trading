@@ -65,4 +65,19 @@ describe("parseBankSms", () => {
       isCredit: true,
     });
   });
+
+  // The actual PhonePe Business SMS from sender "AX-PHONEPE-S", verified
+  // against a live message screenshot. Note the reference comes after a
+  // bare "for" (no "txn"/"utr"/"ref" label at all), is 23 chars, starts
+  // with "T", and the amount is "Rs 1" with no decimal. The letter-prefix
+  // branch of BARE_REF_RE is what catches this.
+  it("parses a real PhonePe Business credit SMS as a credit", () => {
+    const body =
+      "Rs 1 received from ******4892 on Oct 07 2026, 1:52 AM for T2610070152259856476787 via PhonePe.";
+    expect(parseBankSms(body)).toEqual({
+      amountInr: 100,
+      utr: "T2610070152259856476787",
+      isCredit: true,
+    });
+  });
 });
