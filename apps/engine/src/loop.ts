@@ -250,6 +250,10 @@ export function startTickLoop(
         continue;
       }
 
+      // Candles are built from the final shown price (after any commit snap),
+      // so a closed bar never holds a high/low the live chart did not draw.
+      const closed = registry.record(asset.symbol, nowSec, result.price);
+
       server.broadcast(asset.symbol, {
         type: "tick",
         symbol: asset.symbol,
@@ -267,7 +271,7 @@ export function startTickLoop(
         });
       }
 
-      for (const { timeframe, candle } of result.closed) {
+      for (const { timeframe, candle } of closed) {
         // Every timeframe's close is broadcast so live subscribers append the
         // bar in real time. Only 1m is PERSISTED, though — higher timeframes
         // are served by resampling the stored 1m candles on read (see

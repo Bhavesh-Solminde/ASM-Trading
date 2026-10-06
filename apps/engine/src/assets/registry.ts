@@ -71,8 +71,6 @@ export interface ClosedCandle {
 export interface TickResult {
   price: number;
   sigma: number;
-  /** Every timeframe whose candle closed on this tick (empty on most ticks). */
-  closed: ClosedCandle[];
 }
 
 // One simulated-time step per tick, from the shared cadence constant so the
@@ -217,16 +215,28 @@ export class AssetRegistry {
     asset.state = out.state;
     asset.honestState = honestOut.state;
 
-    const rounded = Number(out.price.toFixed(asset.precision));
+    return { price: Number(out.price.toFixed(asset.precision)), sigma: out.sigma };
+  }
 
-    // Feed every timeframe's aggregator the same tick; collect whichever closed.
+  /**
+   * Feeds the price actually SHOWN this tick into every timeframe's candle and
+   * returns whichever candles closed. Kept separate from `tick` because the
+   * loop may still move the price after stepping it (the commit-phase snap);
+   * recording before that put highs/lows into candles that no viewer ever saw
+   * as a live price, which drew phantom wicks when the bar closed.
+   */
+  record(symbol: string, nowSec: number, price: number): ClosedCandle[] {
+    const asset = this.assets.get(symbol);
+    if (!asset) {
+      throw new Error(`record called for unknown symbol "${symbol}"`);
+    }
+    const rounded = Number(price.toFixed(asset.precision));
     const closed: ClosedCandle[] = [];
     for (const [timeframe, aggregator] of asset.aggregators) {
       const candle = aggregator.addTick(nowSec, rounded);
       if (candle) closed.push({ timeframe, candle });
     }
-
-    return { price: rounded, sigma: out.sigma, closed };
+    return closed;
   }
 
   /** The in-progress candle for a symbol/timeframe, or null before its first tick. */

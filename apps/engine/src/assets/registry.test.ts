@@ -62,7 +62,8 @@ describe("AssetRegistry", () => {
     const seen = new Set<string>();
     let now = 1_757_600_000;
     for (let i = 0; i < 400; i++) {
-      for (const { timeframe, candle } of registry.tick("EURUSD_OTC", now, NO_BIAS).closed) {
+      const { price } = registry.tick("EURUSD_OTC", now, NO_BIAS);
+      for (const { timeframe, candle } of registry.record("EURUSD_OTC", now, price)) {
         seen.add(timeframe);
         // A closed candle always opens on its own bucket boundary.
         expect(candle.openTs % TIMEFRAME_SEC[timeframe]).toBe(0);
@@ -79,12 +80,26 @@ describe("AssetRegistry", () => {
     // so the aggregator's monotonic clock is not violated.
     let now = 1_757_536_000;
     for (let i = 0; i < 10; i++) {
-      registry.tick("AUDNZD_OTC", now, NO_BIAS);
+      const { price } = registry.tick("AUDNZD_OTC", now, NO_BIAS);
+      registry.record("AUDNZD_OTC", now, price);
       now += 1;
     }
     expect(registry.formingCandle("AUDNZD_OTC", "1m")).not.toBeNull();
     expect(registry.formingCandle("AUDNZD_OTC", "1h")).not.toBeNull();
     expect(registry.formingCandle("UNKNOWN", "1m")).toBeNull();
+  });
+
+  it("builds candles from the recorded (shown) price, not the stepped one", () => {
+    // A later minute than any other AUDNZD_OTC tick in this file, so the
+    // aggregator's monotonic clock holds and this bar starts fresh.
+    const minute = 1_757_540_400;
+    registry.tick("AUDNZD_OTC", minute, NO_BIAS);
+    registry.record("AUDNZD_OTC", minute, 1.2);
+    registry.tick("AUDNZD_OTC", minute + 2, NO_BIAS);
+    // The loop moved the shown price (e.g. a commit snap); only this counts.
+    registry.record("AUDNZD_OTC", minute + 2, 1.25);
+    const forming = registry.formingCandle("AUDNZD_OTC", "1m")!;
+    expect(forming).toMatchObject({ openTs: minute, o: 1.2, h: 1.25, l: 1.2, c: 1.25 });
   });
 
   it("pulls the price toward an anchor once one is set", () => {
