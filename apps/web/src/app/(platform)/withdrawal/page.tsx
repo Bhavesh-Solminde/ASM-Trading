@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
@@ -5,6 +6,7 @@ import {
   formatMoney,
   listAccountsForActor,
   listWithdrawalsForActor,
+  loadProfile,
   withdrawableBalance,
 } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
@@ -19,7 +21,10 @@ export default async function WithdrawalPage() {
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
 
-  const accounts = await listAccountsForActor(session.userId);
+  const [accounts, profile] = await Promise.all([
+    listAccountsForActor(session.userId),
+    loadProfile(session.userId),
+  ]);
   const live = accounts.find((a) => a.type === "LIVE");
   if (!live) redirect("/trade");
 
@@ -77,9 +82,49 @@ export default async function WithdrawalPage() {
 
         <section className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
           <h2 className="mb-3 text-sm font-semibold">Withdraw</h2>
-          <WithdrawForm accountId={live.id} withdrawableMinor={balance.withdrawable} />
+          {profile.kycStatus === "VERIFIED" ? (
+            <WithdrawForm accountId={live.id} withdrawableMinor={balance.withdrawable} />
+          ) : (
+            <VerifyFirst kycStatus={profile.kycStatus} />
+          )}
         </section>
       </div>
     </main>
+  );
+}
+
+const VERIFY_COPY: Record<string, { title: string; body: string; cta: string | null }> = {
+  PENDING: {
+    title: "Verification in review",
+    body: "We have your details and are checking them. Withdrawals unlock as soon as your account is verified.",
+    cta: null,
+  },
+  REJECTED: {
+    title: "Verification not approved",
+    body: "We couldn't verify the details you sent. Check your personal data and save it again to resubmit.",
+    cta: "Update personal data",
+  },
+};
+
+/** Shown in place of the withdraw form until the account's KYC is VERIFIED (the API enforces the same). */
+function VerifyFirst({ kycStatus }: { kycStatus: string }) {
+  const copy = VERIFY_COPY[kycStatus] ?? {
+    title: "Verify your account to withdraw",
+    body: "Withdrawals are available to verified accounts only. Fill in your personal data on the Account page and save it to submit for verification.",
+    cta: "Verify account",
+  };
+  return (
+    <div className="flex flex-col gap-3 rounded border border-caution/30 bg-caution/10 p-4">
+      <p className="text-sm font-semibold text-caution">{copy.title}</p>
+      <p className="text-xs leading-relaxed text-[var(--color-ink-2)]">{copy.body}</p>
+      {copy.cta ? (
+        <Link
+          href="/account"
+          className="self-start rounded bg-[var(--color-brand)] px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)] phone:self-stretch phone:text-center"
+        >
+          {copy.cta}
+        </Link>
+      ) : null}
+    </div>
   );
 }

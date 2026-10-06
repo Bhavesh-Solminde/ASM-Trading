@@ -110,7 +110,7 @@ export async function requestWithdrawal(input: {
   // deliberately vague so a suspended abuser can't map out which check tripped.
   const actor = await prisma.user.findUniqueOrThrow({
     where: { id: input.actorId },
-    select: { status: true },
+    select: { status: true, kycStatus: true },
   });
   if (actor.status !== "ACTIVE") {
     throw new WithdrawalRefused(
@@ -124,6 +124,14 @@ export async function requestWithdrawal(input: {
   if (!account) throw new WithdrawalRefused("Account not found.");
   if (account.type !== "LIVE") {
     throw new WithdrawalRefused("Demo funds cannot be withdrawn.");
+  }
+
+  // Payouts only go to verified identities. Checked after the ownership read so
+  // a foreign account id still reads as "not found", not as a KYC prompt.
+  if (actor.kycStatus !== "VERIFIED") {
+    throw new WithdrawalRefused(
+      "Verify your account before withdrawing — complete your personal data on the Account page.",
+    );
   }
 
   const usedMethod = await prisma.deposit.findFirst({

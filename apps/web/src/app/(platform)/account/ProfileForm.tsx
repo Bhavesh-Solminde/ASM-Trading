@@ -17,6 +17,13 @@ type Profile = {
   twoFaForWithdrawal: boolean;
 };
 
+const KYC_LABEL: Record<string, string> = {
+  VERIFIED: "Verified",
+  PENDING: "In review",
+  REJECTED: "Rejected",
+  NOT_STARTED: "Not verified",
+};
+
 const FIELDS = [
   { key: "nickname", label: "Nickname", type: "text" },
   { key: "firstName", label: "First name", type: "text" },
@@ -49,7 +56,13 @@ export function ProfileForm({ initial }: { initial: Profile }) {
     });
 
     if (res.ok) {
-      setMessage("Saved");
+      const data = (await res.json().catch(() => ({}))) as { profile?: Profile };
+      if (data.profile) setProfile((p) => ({ ...p, kycStatus: data.profile!.kycStatus }));
+      setMessage(
+        data.profile?.kycStatus === "PENDING" && profile.kycStatus !== "PENDING"
+          ? "Saved — your details are submitted for verification"
+          : "Saved",
+      );
       return;
     }
     const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -86,7 +99,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
               color: profile.kycStatus === "VERIFIED" ? "#4fc08d" : "#e0ac50",
             }}
           >
-            {profile.kycStatus === "VERIFIED" ? "Verified" : "Not verified"}
+            {KYC_LABEL[profile.kycStatus] ?? "Not verified"}
           </span>
         </div>
 
@@ -134,8 +147,9 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         </button>
 
         <p className="text-xs text-[var(--color-ink-2)]">
-          Identity fields are stored but never verified in this build — there is no identity check
-          and no document upload.
+          {profile.kycStatus === "VERIFIED"
+            ? "Your account is verified — withdrawals are enabled."
+            : "Fill in every field and save to submit your account for verification. Withdrawals unlock once it is verified."}
         </p>
       </section>
 

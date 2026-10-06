@@ -49,6 +49,12 @@ const PATHS = {
   ),
   more: <path d="M6 12h.01M12 12h.01M18 12h.01" />,
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  briefcase: (
+    <>
+      <rect x="3.5" y="7" width="17" height="12.5" rx="2" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17M12 11.5v2" />
+    </>
+  ),
   plus: <path d="M12 5v14M5 12h14" />,
   minus: <path d="M5 12h14" />,
   caret: <path d="M7 10l5 5 5-5" />,

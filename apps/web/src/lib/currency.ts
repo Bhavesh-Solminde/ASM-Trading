@@ -13,3 +13,12 @@ export function convertMinorBetween(amount: number, from: string, to: string): n
   if (from === "USD" && to === "INR") return amount * USD_INR_RATE;
   return amount;
 }
+
+/**
+ * Smallest stake a trade may open with, in the account's minor units: ₹100 on
+ * an INR account, one whole unit ($1) on any other. The trades route enforces
+ * it; the ticket mirrors it for an inline error before the request.
+ */
+export function minStakeMinor(currency: string): number {
+  return currency === "INR" ? 100_00 : 1_00;
+}
