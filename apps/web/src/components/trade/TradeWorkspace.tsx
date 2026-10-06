@@ -27,7 +27,6 @@ import { TradesPanel } from "./TradesPanel";
 import { AssetIcon } from "./AssetIcon";
 
 const NO_TRADES: TradeView[] = [];
-const LIVE_ACCOUNT_ENABLED = process.env.NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED === "true";
 
 /** Best-effort native fullscreen; the layout's focus mode is the real source of truth. */
 function toggleNativeFullscreen(on: boolean): void {
@@ -110,16 +109,15 @@ function AccountPlateMini({ type }: { type: AccountView["type"] }) {
 /**
  * Balance + account type inside the chart in fullscreen (focus) mode — and a
  * switcher: tapping it opens a menu to move between the DEMO and LIVE accounts
- * without leaving fullscreen. LIVE is disabled unless the user has access.
+ * without leaving fullscreen.
  */
 function FocusAccountSwitcher() {
-  const { accounts, activeAccount, balances, setActiveAccountId, liveAccess } = usePlatform();
+  const { accounts, activeAccount, balances, setActiveAccountId } = usePlatform();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useDismiss(ref, open, () => setOpen(false));
   if (!activeAccount) return null;
 
-  const liveEnabled = LIVE_ACCOUNT_ENABLED || liveAccess;
   const total = (acc: AccountView) => {
     const b = balances[acc.id];
     return b ? formatMinor(b.realBalance + b.bonusBalance, acc.currency) : "—";
@@ -148,7 +146,6 @@ function FocusAccountSwitcher() {
         >
           {ordered.map((acc) => {
             const isLive = acc.type === "LIVE";
-            const disabled = isLive && !liveEnabled;
             const active = acc.id === activeAccount.id;
             return (
               <button
@@ -156,20 +153,18 @@ function FocusAccountSwitcher() {
                 type="button"
                 role="menuitemradio"
                 aria-checked={active}
-                disabled={disabled}
                 onClick={() => {
-                  if (disabled) return;
                   setActiveAccountId(acc.id);
                   setOpen(false);
                 }}
                 className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-2 rounded-[2px] px-2 py-2 text-left ${
                   active ? "bg-tile" : "hover:bg-tile"
-                } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                }`}
               >
                 <AccountPlateMini type={acc.type} />
                 <span className="min-w-0">
                   <span className="block text-xs font-semibold">{isLive ? "Live account" : "Demo account"}</span>
-                  <span className="block text-[11px] text-ink-3">{disabled ? "Coming soon" : total(acc)}</span>
+                  <span className="block text-[11px] text-ink-3">{total(acc)}</span>
                 </span>
                 <span
                   aria-hidden

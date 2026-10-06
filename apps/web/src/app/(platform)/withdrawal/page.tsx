@@ -5,12 +5,14 @@ import {
   BONUS_PERCENT,
   formatMoney,
   listAccountsForActor,
+  listWithdrawalsForActor,
   loadProfile,
   withdrawableBalance,
 } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
 import { WithdrawForm } from "./WithdrawForm";
+import { HeldWithdrawalCard } from "./HeldWithdrawalCard";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +29,23 @@ export default async function WithdrawalPage() {
   if (!live) redirect("/trade");
 
   const balance = await withdrawableBalance(live.id);
+  const recent = await listWithdrawalsForActor(session.userId, 20);
+  const heldWithdrawals = recent.filter((w) => w.status === "HELD");
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 py-8 phone:px-4 phone:py-5">
       <PlatformTabs />
       <h1 className="text-lg font-bold tracking-tight">Withdrawal</h1>
+
+      {heldWithdrawals.map((w) => (
+        <HeldWithdrawalCard
+          key={w.id}
+          id={w.id}
+          amountLabel={formatMoney(w.amount, live.currency)}
+          holdUntilIso={w.holdUntil?.toISOString() ?? null}
+          cancelableUntilIso={w.cancelableUntil?.toISOString() ?? null}
+        />
+      ))}
 
       <div className="grid gap-5 md:grid-cols-2">
         <section className="flex flex-col gap-4 rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">

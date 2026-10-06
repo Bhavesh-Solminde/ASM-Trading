@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { approveWithdrawal } from "@asm/db";
+import { approveWithdrawal, releaseHeldWithdrawal } from "@asm/db";
 import { logger } from "@asm/logger";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
 
@@ -28,6 +28,26 @@ export async function approveWithdrawalAction(formData: FormData): Promise<void>
   logger.info(
     { evt: "admin.action", action: "withdrawal.approve", withdrawalId },
     "withdrawal approved by admin",
+  );
+  revalidatePath("/admin/withdrawals");
+  revalidatePath("/admin");
+}
+
+/**
+ * Admin "Force-release now" for a HELD withdrawal — flip it straight to
+ * REQUESTED so the normal review path can act on it, bypassing the automatic
+ * hold timer. The repo helper writes a `withdrawal.hold_released` audit entry
+ * on every success.
+ */
+export async function releaseHeldWithdrawalAction(formData: FormData): Promise<void> {
+  await requirePanel();
+  const withdrawalId = String(formData.get("withdrawalId") ?? "");
+  if (!withdrawalId) return;
+
+  await releaseHeldWithdrawal({ withdrawalId, adminId: ADMIN_ACTOR });
+  logger.info(
+    { evt: "admin.action", action: "withdrawal.hold_released", withdrawalId },
+    "withdrawal hold released by admin",
   );
   revalidatePath("/admin/withdrawals");
   revalidatePath("/admin");

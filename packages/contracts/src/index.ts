@@ -49,6 +49,7 @@ export {
 } from "./trade";
 export {
   DEPOSIT_METHODS,
+  UPI_METHODS,
   USDT_NETWORKS,
   USDT_NETWORK_INFO,
   isUsdtNetwork,

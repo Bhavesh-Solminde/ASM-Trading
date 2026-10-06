@@ -44,6 +44,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Check the deposit details." }, { status: 400 });
   }
 
+  // UPI rails are temporarily disabled — the picker shows them as "Coming
+  // soon". Reject here so a crafted request can't open an INR deposit intent
+  // the matcher would then have nothing to settle.
+  if (parsed.data.method !== "USDT") {
+    log.warn(
+      { evt: "deposit.upi_disabled", route: "deposits", method: parsed.data.method },
+      "UPI deposit requested while UPI rails are disabled",
+    );
+    return NextResponse.json(
+      { error: `${parsed.data.method} deposits are coming soon. Use USDT for now.` },
+      { status: 503 },
+    );
+  }
+
   try {
     if (parsed.data.method === "USDT" && usdtGatewayActive()) {
       // Payment gateway (Tatum): a fresh receiving address per deposit,
@@ -170,26 +184,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ checkoutToken: deposit.checkoutToken }, { status: 201 });
     }
 
-    const deposit = await createDepositIntent({
-      userId: session.userId,
-      method: parsed.data.method,
-      amountInrMinor: parsed.data.amountInr,
-      correlationId: ctx.cid,
-      ipAddress: ctx.ip,
-      userAgent: ctx.userAgent,
-    });
-
-    log.info(
-      {
-        evt: "deposit.intent",
-        depositId: deposit.id,
-        method: deposit.method,
-        amountInr: deposit.amountInr,
-      },
-      "deposit intent created",
+    // Unreachable: the UPI 503 above is the only path for a non-USDT method,
+    // and both USDT branches return. Keep an explicit fall-through so if a new
+    // method is ever added, the branch above forces an obvious change here.
+    return NextResponse.json(
+      { error: "Deposit method is not available." },
+      { status: 503 },
     );
-
-    return NextResponse.json({ checkoutToken: deposit.checkoutToken }, { status: 201 });
   } catch (err) {
     if (err instanceof AmountSpaceExhausted) {
       return NextResponse.json({ error: err.message }, { status: 503 });

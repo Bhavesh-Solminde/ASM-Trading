@@ -123,17 +123,18 @@ async function main() {
     console.log("  Admin already exists — password unchanged.");
   }
 
-  // 10 funded LIVE test accounts. These are DEMO-ONLY credentials — a single
-  // shared, well-known password for convenience, so they must never exist in a
-  // real deployment. Balances are integer paise (₹1,00,000 = 10_000_000). The
-  // account update clause re-funds them on every seed, so a re-seed is also a
-  // clean reset of the test accounts to a known state.
+  // One funded LIVE test account (test10@asmtrade.local). The other nine were
+  // retired when live trading opened to every user — the global gate is gone,
+  // so pre-seeded liveAccess bearers are no longer needed. Credentials remain
+  // DEMO-ONLY (shared well-known password) and must never exist in a real
+  // deployment. Balances are integer paise (₹1,00,000 = 10_000_000). The
+  // account update clause re-funds the account on every seed.
   const TEST_PASSWORD = "asm-demo-test-2026";
   const LIVE_BALANCE = 10_000_000; // ₹1,00,000
   const DEMO_BALANCE = 10_000_000; // ₹1,00,000
   const testHash = await argon2.hash(TEST_PASSWORD, { type: argon2.argon2id });
 
-  for (let i = 1; i <= 10; i++) {
+  for (const i of [10]) {
     const email = `test${i}@asmtrade.local`;
     const user = await prisma.user.upsert({
       where: { email },
@@ -185,7 +186,7 @@ async function main() {
     prisma.user.count({ where: { email: { endsWith: "@asmtrade.local", startsWith: "test" } } }),
   ]);
   console.log(`  Seeded. Assets: ${assets} (${openAssets} open).`);
-  console.log(`  Test users: ${testUsers} (test1–test10@asmtrade.local)`);
+  console.log(`  Test users: ${testUsers} (test10@asmtrade.local)`);
   console.log(`  Shared test password: ${TEST_PASSWORD}\n`);
 }
 
