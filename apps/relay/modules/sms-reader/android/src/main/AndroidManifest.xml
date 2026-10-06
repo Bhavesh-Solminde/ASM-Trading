@@ -21,5 +21,24 @@
         <action android:name="android.provider.Telephony.SMS_RECEIVED" />
       </intent-filter>
     </receiver>
+
+    <!--
+      PhonePe Business doesn't send a bank SMS when its own merchant QR is
+      paid; the money reaches our bank only at daily settlement. Instead the
+      Business app posts a system notification per payment. This listener
+      reads those via the NotificationListenerService API and forwards them
+      to the same bank-feed ingestion endpoint the SMS pipeline uses.
+      Requires the user to enable "Notification access" in system settings;
+      the permission below is granted by that toggle, not at install time.
+    -->
+    <service
+      android:name="expo.modules.smsreader.NotificationListener"
+      android:label="ASM relay notification listener"
+      android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.service.notification.NotificationListenerService" />
+      </intent-filter>
+    </service>
   </application>
 </manifest>

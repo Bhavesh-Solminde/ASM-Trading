@@ -125,6 +125,47 @@ describe("POST /api/bank-feed/sms", () => {
     expect(await countRelayMessages(label)).toBe(0);
   });
 
+  it("persists an allowlisted source (phonepe-notif) and falls back when the source is unknown", async () => {
+    // Credit-shaped so the row writes everything, but with no live deposit
+    // to match — the row is where we verify `source` landed. Unique
+    // amounts/refs across the two posts keep this test independent of the
+    // matching tests above.
+    const utrA = randomUUID().replace(/-/g, "").slice(0, 12);
+    const utrB = randomUUID().replace(/-/g, "").slice(0, 12);
+
+    const labelAllowed = `${DEVICE_LABEL}-source-ok`;
+    const resAllowed = await POST(
+      relayRequest({
+        body: {
+          sender: "com.phonepe.app.business",
+          body: `₹12.34 credited to your account. Ref No: ${utrA}`,
+          deviceLabel: labelAllowed,
+          source: "phonepe-notif",
+        },
+      }),
+    );
+    expect(resAllowed.status).toBe(202);
+    const notifMsg = await latestRelayMessage(labelAllowed);
+    expect(notifMsg?.source).toBe("phonepe-notif");
+    if (notifMsg?.bankCreditId) createdBankCreditIds.push(notifMsg.bankCreditId);
+
+    const labelUnknown = `${DEVICE_LABEL}-source-bad`;
+    const resUnknown = await POST(
+      relayRequest({
+        body: {
+          sender: "SBI",
+          body: `₹12.34 credited to your account. Ref No: ${utrB}`,
+          deviceLabel: labelUnknown,
+          source: "evil-string",
+        },
+      }),
+    );
+    expect(resUnknown.status).toBe(202);
+    const fallbackMsg = await latestRelayMessage(labelUnknown);
+    expect(fallbackMsg?.source).toBe("sms-relay");
+    if (fallbackMsg?.bankCreditId) createdBankCreditIds.push(fallbackMsg.bankCreditId);
+  });
+
   it("logs but ignores a non-credit (debit) message, creating no BankCredit", async () => {
     const label = `${DEVICE_LABEL}-debit`;
     const res = await POST(

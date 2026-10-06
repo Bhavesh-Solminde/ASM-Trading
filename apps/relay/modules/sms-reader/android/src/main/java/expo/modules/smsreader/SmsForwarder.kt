@@ -9,7 +9,12 @@ import java.util.Locale
 import java.util.TimeZone
 import org.json.JSONObject
 
-/** Shared by the live receiver and the backlog catch-up scan. */
+/**
+ * Shared by the live receiver, the backlog catch-up scan, and the PhonePe
+ * notification listener. The `source` tag tells the server which ingestion
+ * path captured a message — SMS broadcast vs. notification scrape — so a
+ * single admin log can distinguish the two without reading per-row details.
+ */
 object SmsForwarder {
   private const val MAX_ATTEMPTS = 3
   private val RETRY_DELAYS_MS = longArrayOf(1_500, 3_000)
@@ -21,12 +26,13 @@ object SmsForwarder {
     sender: String,
     body: String,
     receivedAt: Long,
+    source: String = "sms-relay",
   ): Pair<Boolean, String> {
-    var result = post(config, sender, body, receivedAt)
+    var result = post(config, sender, body, receivedAt, source)
     var attempt = 1
     while (!result.first && attempt < MAX_ATTEMPTS) {
       Thread.sleep(RETRY_DELAYS_MS[attempt - 1])
-      result = post(config, sender, body, receivedAt)
+      result = post(config, sender, body, receivedAt, source)
       attempt++
     }
     return result
@@ -37,6 +43,7 @@ object SmsForwarder {
     sender: String,
     body: String,
     receivedAt: Long,
+    source: String,
   ): Pair<Boolean, String> {
     return try {
       val url = URL("${config.serverUrl}/api/bank-feed/sms")
@@ -54,6 +61,7 @@ object SmsForwarder {
         put("receivedAt", isoTimestamp(receivedAt))
         put("deviceLabel", config.deviceLabel)
         put("deviceModel", Build.MODEL ?: "unknown-device")
+        put("source", source)
       }
 
       connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }

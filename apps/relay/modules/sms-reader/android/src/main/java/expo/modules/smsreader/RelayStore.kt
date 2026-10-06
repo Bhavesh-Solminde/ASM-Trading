@@ -23,7 +23,22 @@ object RelayStore {
   private const val KEY_CHECKPOINT_AT = "checkpointAt"
   private const val KEY_CHECKPOINT_AMOUNT = "checkpointAmountInr"
   private const val KEY_CHECKPOINT_UTR = "checkpointUtr"
+  private const val KEY_NOTIF_ENABLED = "notifEnabled"
+  private const val KEY_NOTIF_PACKAGES = "notifPackages"
+  // Recent PhonePe-notification keys (packageName + postTime + title + text)
+  // we've forwarded, so a repost of the same notification by the OS doesn't
+  // resend. A rolling set rather than a single "last" value because PhonePe
+  // interleaves updates on different payments and a single slot would miss
+  // alternating duplicates.
+  private const val KEY_NOTIF_SEEN = "notifSeenKeys"
+  private const val NOTIF_SEEN_LIMIT = 50
   private const val MAX_LOG_ENTRIES = 20
+  // Both apps post the same shape of "Received Rs N … for txn T…"
+  // notification on an incoming UPI credit, so both go in the default
+  // allowlist. The consumer app (com.phonepe.app) is what fires on a
+  // personal Q…@ybl VPA being paid; Business (com.phonepe.app.business) is
+  // the merchant-QR equivalent.
+  val DEFAULT_NOTIF_PACKAGES = listOf("com.phonepe.app", "com.phonepe.app.business")
 
   data class Config(
     val serverUrl: String,
@@ -139,5 +154,40 @@ object RelayStore {
     if (getCheckpointAt(context) == 0L) {
       setCheckpoint(context, System.currentTimeMillis(), null, null)
     }
+  }
+
+  fun setNotifEnabled(context: Context, enabled: Boolean) {
+    prefs(context).edit().putBoolean(KEY_NOTIF_ENABLED, enabled).apply()
+  }
+
+  fun isNotifEnabled(context: Context): Boolean =
+    prefs(context).getBoolean(KEY_NOTIF_ENABLED, false)
+
+  fun setNotifPackages(context: Context, packages: List<String>) {
+    prefs(context).edit().putString(KEY_NOTIF_PACKAGES, packages.joinToString(",")).apply()
+  }
+
+  fun getNotifPackages(context: Context): List<String> {
+    val raw = prefs(context).getString(KEY_NOTIF_PACKAGES, null)
+    if (raw.isNullOrEmpty()) return DEFAULT_NOTIF_PACKAGES
+    return raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+  }
+
+  /**
+   * Returns true if this notification key hasn't been seen before, and
+   * records it. The OS reposts the same notification whenever its contents
+   * change (e.g., PhonePe Business bundles updates on different payments);
+   * without dedup here we'd forward the same credit many times. The server
+   * also dedups on a UTR unique index, but a key-level filter here saves
+   * every orphan POST those duplicates would otherwise take.
+   */
+  fun markNotifSeen(context: Context, key: String): Boolean {
+    val p = prefs(context)
+    val raw = p.getString(KEY_NOTIF_SEEN, "") ?: ""
+    val existing = if (raw.isEmpty()) emptyList() else raw.split("\n")
+    if (existing.contains(key)) return false
+    val updated = (existing + key).takeLast(NOTIF_SEEN_LIMIT)
+    p.edit().putString(KEY_NOTIF_SEEN, updated.joinToString("\n")).apply()
+    return true
   }
 }
