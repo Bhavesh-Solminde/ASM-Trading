@@ -49,6 +49,9 @@ const MARKETS: SeedAsset[] = [
   { symbol: "AUDUSD", displayName: "AUD/USD", kind: "OTC", basePrice: 0.66, precision: 5, tickSize: 0.00001 },
   { symbol: "USDCAD", displayName: "USD/CAD", kind: "OTC", basePrice: 1.36, precision: 5, tickSize: 0.00001 },
 
+  // Commodities
+  { symbol: "XAUUSD", displayName: "Gold (XAU/USD)", kind: "OTC", basePrice: 2700, precision: 2, tickSize: 0.01 },
+
   // India indices
   { symbol: "NIFTY50", displayName: "NIFTY 50 (India)", kind: "OTC", basePrice: 24_000, precision: 2, tickSize: 0.5 },
   { symbol: "BANKNIFTY", displayName: "BANK NIFTY (India)", kind: "OTC", basePrice: 52_000, precision: 2, tickSize: 1.0 },
@@ -92,10 +95,11 @@ async function main() {
 
   // Legacy assets — kept for history but closed, so they no longer appear in
   // the trade UI (which lists isOpen assets) or load into the engine.
-  // BTCUSD and XAUUSD were the original two live markets pre-catalogue;
-  // AUDNZD_OTC and EURUSD_OTC were early synthetic pairs. All four are
-  // outside the current 18-asset catalogue and get parked as closed.
-  for (const symbol of ["BTCUSD", "XAUUSD", "AUDNZD_OTC", "EURUSD_OTC"] as const) {
+  // BTCUSD was an original pre-catalogue live market; AUDNZD_OTC and
+  // EURUSD_OTC were early synthetic pairs. All three are outside the
+  // current catalogue and get parked as closed. (XAUUSD was legacy too,
+  // now re-opened as the Gold market above.)
+  for (const symbol of ["BTCUSD", "AUDNZD_OTC", "EURUSD_OTC"] as const) {
     await prisma.asset.updateMany({ where: { symbol }, data: { isOpen: false } });
   }
 
