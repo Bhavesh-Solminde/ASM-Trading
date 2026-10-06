@@ -43,7 +43,7 @@ function hashSymbol(s: string): number {
   return h;
 }
 
-async function backfill(asset: AssetRow, endBucketSec: number) {
+async function backfill(asset: AssetRow, endBucketSec: number, wipeFirst: boolean) {
   const params: PriceParams = {
     garch: { omega: asset.garchOmega, alpha: asset.garchAlpha, beta: asset.garchBeta },
     driftPerSec: 0,
@@ -51,11 +51,23 @@ async function backfill(asset: AssetRow, endBucketSec: number) {
     maxTickMove: asset.tickSize * 200,
   };
 
-  const latest = await prisma.candle.findFirst({
-    where: { assetId: asset.id, timeframe: "1m" },
-    orderBy: { openTs: "desc" },
-    select: { c: true },
-  });
+  // WIPE_FIRST=1 clears every stored candle for the asset so the backfill
+  // is the sole source of truth. The engine MUST be stopped during this —
+  // otherwise its live writes would race the wipe + reinsert and leave the
+  // chart with the gap this flag exists to prevent.
+  let deletedCount = 0;
+  if (wipeFirst) {
+    const r = await prisma.candle.deleteMany({ where: { assetId: asset.id } });
+    deletedCount = r.count;
+  }
+
+  const latest = wipeFirst
+    ? null
+    : await prisma.candle.findFirst({
+        where: { assetId: asset.id, timeframe: "1m" },
+        orderBy: { openTs: "desc" },
+        select: { c: true },
+      });
   const startPrice = latest?.c ?? asset.basePrice;
 
   const ticksPerMinute = Math.round(60 / TICK_DT_SEC);
@@ -118,8 +130,9 @@ async function backfill(asset: AssetRow, endBucketSec: number) {
     );
   }
 
+  const wipedTag = wipeFirst ? ` (wiped ${deletedCount})` : "";
   console.log(
-    `${asset.symbol.padEnd(16)} ${rows.length} bars → last close ${rows.at(-1)?.c}`,
+    `${asset.symbol.padEnd(16)} ${rows.length} bars${wipedTag}  start ${startPrice} → end ${rows.at(-1)?.c}`,
   );
 }
 
@@ -145,15 +158,18 @@ async function main() {
     process.exit(1);
   }
 
+  const wipeFirst = process.env["WIPE_FIRST"] === "1";
   const nowSec = Math.floor(Date.now() / 1000);
   const endBucketSec = Math.floor(nowSec / 60) * 60 - 60;
 
   console.log(
-    `Backfilling ${HOURS}h (${MINUTES} bars) for ${assets.length} asset(s), ending ${new Date(endBucketSec * 1000).toISOString()}\n`,
+    `Backfilling ${HOURS}h (${MINUTES} bars) for ${assets.length} asset(s), ending ${new Date(endBucketSec * 1000).toISOString()}${
+      wipeFirst ? " (wiping existing candles first — ENGINE MUST BE STOPPED)" : ""
+    }\n`,
   );
 
   for (const asset of assets) {
-    await backfill(asset, endBucketSec);
+    await backfill(asset, endBucketSec, wipeFirst);
   }
 }
 

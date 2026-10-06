@@ -28,12 +28,21 @@ import {
 
 const WEB_BASE = process.env["WEB_BASE"] ?? "http://localhost:3000";
 const DURATION_SEC = Number(process.env["DURATION_SEC"] ?? 30);
-const SEED_USER_EMAIL_FOR_HASH = "deposited-calibrated@algo.asmtrade.local";
-const PASSWORD = "asm-algo-test-2026";
+// Prod seed only creates one test user; dev seeds the algo scenarios too.
+// Try the algo-specific one first, fall back to the shared test user — same
+// password hash in either case, we just need any valid passwordHash to copy
+// onto the trader01-10 accounts. PASSWORD must match whichever seed user we
+// landed on.
+const SEED_USER_CANDIDATES: { email: string; password: string }[] = [
+  { email: "deposited-calibrated@algo.asmtrade.local", password: "asm-algo-test-2026" },
+  { email: "test10@asmtrade.local", password: "asm-demo-test-2026" },
+];
 const N_USERS = 10;
 const LIVE_BALANCE_PAISE = 10_000_000; // ₹1,00,000
 const UP_STAKE = Number(process.env["UP_STAKE"] ?? 50_000);
 const DOWN_STAKE = Number(process.env["DOWN_STAKE"] ?? 100_000);
+
+let PASSWORD = SEED_USER_CANDIDATES[0]!.password;
 
 interface UserContext {
   index: number;
@@ -55,11 +64,24 @@ interface MarketResult {
 }
 
 async function ensureUsers(): Promise<UserContext[]> {
-  const seed = await prisma.user.findUniqueOrThrow({
-    where: { email: SEED_USER_EMAIL_FOR_HASH },
-    select: { passwordHash: true },
-  });
-  const hash = seed.passwordHash;
+  let hash: string | null = null;
+  for (const candidate of SEED_USER_CANDIDATES) {
+    const seed = await prisma.user.findUnique({
+      where: { email: candidate.email },
+      select: { passwordHash: true },
+    });
+    if (seed) {
+      hash = seed.passwordHash;
+      PASSWORD = candidate.password;
+      console.log(`Using seed password hash from ${candidate.email}.`);
+      break;
+    }
+  }
+  if (!hash) {
+    throw new Error(
+      `No seed user found. Expected one of: ${SEED_USER_CANDIDATES.map((c) => c.email).join(", ")}`,
+    );
+  }
   const users: UserContext[] = [];
   for (let i = 1; i <= N_USERS; i++) {
     const email = `trader${String(i).padStart(2, "0")}@live.asmtrade.local`;
