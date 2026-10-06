@@ -2,11 +2,14 @@ import { randomBytes } from "node:crypto";
 import argon2 from "argon2";
 import { prisma } from "../src/client";
 
-// Shared GARCH tuning, calibrated on BTC/gold: a gentle drift with no
-// volatility gusts. GARCH acts in log-return space, so the same three knobs
-// give proportionate movement at any price level — from a $0.30 DOGE to a
-// 79,000-point Sensex. History: 1e-6 "vibrated" → 1e-8 → 1e-9 → this.
-const GARCH = { garchOmega: 0.0000000005, garchAlpha: 0.05, garchBeta: 0.8 } as const;
+// Flat volatility: alpha+beta=0 removes GARCH clustering (no more "big
+// candle, five dojis, big candle" rhythm). omega is the constant per-sec
+// log variance; sigma per 5s tick ≈ 3.16e-4, which at NIFTY ~23600 gives
+// ~7-8pt candles on the 1-sigma side and realistic 1m bodies in the
+// 20-30pt range. GARCH acts in log-return space, so the same number works
+// proportionally for every asset — a $0.30 DOGE to a 79,000-point Sensex.
+// History: 1e-6 "vibrated" → 1e-8 → 1e-9 → clustering → this.
+const GARCH = { garchOmega: 0.00000002, garchAlpha: 0, garchBeta: 0 } as const;
 
 interface SeedAsset {
   symbol: string;
@@ -22,7 +25,7 @@ interface SeedAsset {
   /** Resume/synthetic base price. */
   basePrice: number;
   precision: number;
-  /** tickSize drives maxTickMove (tickSize × 40 per tick) — keep it ~0.04% of price. */
+  /** tickSize drives maxTickMove (tickSize × 200 per tick) — keep it ~0.04% of price. */
   tickSize: number;
 }
 
