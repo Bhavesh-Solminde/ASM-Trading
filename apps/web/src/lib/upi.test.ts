@@ -4,12 +4,12 @@ import { buildUpiDeepLink } from "./upi";
 describe("buildUpiDeepLink", () => {
   it("builds a upi:// deep link with the exact reserved amount pre-filled", () => {
     const link = buildUpiDeepLink({
-      vpa: "asmtrade.demo1@okaxis",
-      payeeName: "ASM Trade",
+      vpa: "indianxtrade.demo1@okaxis",
+      payeeName: "IndianxTrade",
       amountInr: 99101, // ₹991.01
     });
     expect(link).toBe(
-      "upi://pay?pa=asmtrade.demo1%40okaxis&pn=ASM%20Trade&am=991.01&cu=INR",
+      "upi://pay?pa=indianxtrade.demo1%40okaxis&pn=IndianxTrade&am=991.01&cu=INR",
     );
   });
 
@@ -25,11 +25,11 @@ describe("buildUpiDeepLink", () => {
   it("percent-encodes special characters in the VPA and payee name", () => {
     const link = buildUpiDeepLink({
       vpa: "user.name@some-bank",
-      payeeName: "ASM Trade & Co",
+      payeeName: "IndianxTrade & Co",
       amountInr: 100,
     });
     expect(link).toContain("pa=user.name%40some-bank");
-    expect(link).toContain("pn=ASM%20Trade%20%26%20Co");
+    expect(link).toContain("pn=IndianxTrade%20%26%20Co");
   });
 
   it("adds a merchant code after the payee and a note at the end when given", () => {
@@ -38,10 +38,10 @@ describe("buildUpiDeepLink", () => {
       payeeName: "Shop",
       amountInr: 100_347, // ₹1003.47
       merchantCode: "5411",
-      note: "ASM-1a2b3c4d",
+      note: "IXT-1a2b3c4d",
     });
     expect(link).toBe(
-      "upi://pay?pa=shop%40indus&pn=Shop&mc=5411&am=1003.47&cu=INR&tn=ASM-1a2b3c4d",
+      "upi://pay?pa=shop%40indus&pn=Shop&mc=5411&am=1003.47&cu=INR&tn=IXT-1a2b3c4d",
     );
   });
 

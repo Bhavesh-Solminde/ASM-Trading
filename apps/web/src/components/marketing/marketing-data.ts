@@ -94,7 +94,7 @@ export const faqs = [
     a: "Six major forex pairs (EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD), six top crypto pairs (BTC, ETH, SOL, BNB, XRP, DOGE against USDT), and six India indices (NIFTY 50, BANK NIFTY, FINNIFTY, SENSEX, NIFTY IT, NIFTY MIDCAP 100). Every market is live 24/7 except the India indices, which pause overnight to mirror local market hours. Payouts are quoted per-asset and shown before you place a trade.",
   },
   {
-    q: "Is ASM Trade available in my country?",
+    q: "Is IndianxTrade available in my country?",
     a: "We support most jurisdictions but restrict access where local regulation requires it. The full list is in the footer. Your country is checked at sign-up.",
   },
   {

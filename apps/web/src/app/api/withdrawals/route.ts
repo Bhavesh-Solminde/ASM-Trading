@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     try {
       const sent = await sendEmail({
         to: profile.email,
-        subject: "Your ASM Trade withdrawal certificate",
+        subject: "Your IndianxTrade withdrawal certificate",
         html: certificateHtml(certificate),
         cid: ctx.cid,
       });

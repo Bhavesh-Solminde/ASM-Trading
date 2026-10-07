@@ -35,7 +35,7 @@ export function DepositResult({
 }) {
   const isUsdt = deposit.method === "USDT";
   const net = usdtNetworkDisplay(deposit.network);
-  const reference = `ASM-${deposit.id.slice(0, 8)}`;
+  const reference = `IXT-${deposit.id.slice(0, 8)}`;
 
   const amount = isUsdt
     ? deposit.amountUsdtMinor != null && deposit.amountUsdtMinor > 0

@@ -108,10 +108,9 @@ export function TopBar() {
       }`}
     >
       <MobileNav />
-      <Link href="/trade" aria-label="ASM Trade" className="flex h-11 flex-none items-center gap-2 phone:h-7">
+      <Link href="/trade" aria-label="IndianxTrade" className="flex h-11 flex-none items-center gap-2 phone:h-7">
         <LogoEmblem className="h-8 w-8 flex-none phone:h-6 phone:w-6 [filter:drop-shadow(0_0_8px_rgba(255,176,0,.3))]" />
         <LogoWordmark className="h-6 flex-none phone:hidden" />
-        <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-ink-2 phone:hidden">Trade</span>
       </Link>
 
       <div className="ml-1 flex flex-none items-center gap-2.5 text-ink-3 phone:hidden">

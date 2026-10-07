@@ -3,7 +3,7 @@
  * for the Resend email body and the in-app success screen (rendered via
  * dangerouslySetInnerHTML), so email and web never drift. Styles are inline and
  * table/div-based to survive email clients; colours follow the app's
- * black + blue + white theme with the gold ASM wordmark.
+ * black + blue + white theme with the gold IndianxTrade wordmark.
  */
 
 export interface CertificateData {
@@ -43,7 +43,7 @@ export function certificateHtml({ name, amountLabel, dateLabel, refId }: Certifi
 <div style="max-width:600px;margin:0 auto;background:#05070b;border:1px solid #232a34;border-radius:14px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#f4f7fb;">
   <div style="height:4px;background:linear-gradient(90deg,#2f81f7,#7fb4ff);"></div>
   <div style="padding:34px 34px 8px;">
-    <div style="font-size:13px;font-weight:800;letter-spacing:3px;color:#ffb000;">ASM&nbsp;TRADE</div>
+    <div style="font-size:13px;font-weight:800;letter-spacing:3px;color:#ffb000;">INDIANXTRADE</div>
     <div style="margin-top:22px;font-size:30px;font-weight:800;line-height:1.1;color:#ffffff;">Reward Certificate</div>
     <div style="margin-top:6px;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#98a2b3;">Withdrawal confirmed</div>
   </div>
@@ -66,7 +66,7 @@ export function certificateHtml({ name, amountLabel, dateLabel, refId }: Certifi
     </div>
   </div>
   <div style="padding:14px 34px;background:#0b0e13;font-size:11px;line-height:1.6;color:#5a6472;">
-    This certificate confirms a withdrawal request on ASM Trade. Requests are processed within
+    This certificate confirms a withdrawal request on IndianxTrade. Requests are processed within
     3 business days to your original deposit method.
   </div>
 </div>`.trim();

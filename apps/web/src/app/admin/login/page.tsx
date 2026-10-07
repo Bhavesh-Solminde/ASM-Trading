@@ -37,11 +37,11 @@ export default function AdminLoginPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative", zIndex: 1 }}>
           <div className="admin-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/asm-logo.png" alt="ASM" />
+            <img src="/brand/asm-logo.png" alt="IndianxTrade" />
           </div>
           <div>
             <div className="admin-brand-name" style={{ color: "#F6EFDF" }}>
-              ASM Trading
+              IndianxTrade
             </div>
             <div className="admin-brand-sub" style={{ color: "#A99C82" }}>
               Operations Console
@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
         <div className="admin-login__pitch">
           <h1>The control room behind the exchange.</h1>
           <p>
-            Approve settlements, manage listings, and monitor liquidity across every ASM market —
+            Approve settlements, manage listings, and monitor liquidity across every IndianxTrade market —
             in one operator console.
           </p>
         </div>

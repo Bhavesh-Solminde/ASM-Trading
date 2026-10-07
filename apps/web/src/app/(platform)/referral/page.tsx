@@ -12,8 +12,8 @@ export default async function ReferralPage() {
   if (!session) redirect("/login");
 
   const profile = await loadProfile(session.userId);
-  const referralCode = profile?.nickname || `ASM${session.userId.slice(-6).toUpperCase()}`;
-  const origin = process.env.NEXT_PUBLIC_APP_URL || "https://asmtrader.com";
+  const referralCode = profile?.nickname || `IXT${session.userId.slice(-6).toUpperCase()}`;
+  const origin = process.env.NEXT_PUBLIC_APP_URL || "https://indianxtrade.com";
   const referralUrl = `${origin}/register?ref=${referralCode}`;
 
   return (

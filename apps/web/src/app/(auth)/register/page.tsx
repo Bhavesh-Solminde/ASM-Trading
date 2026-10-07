@@ -45,7 +45,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       eyebrow="Get started"
-      title="Open your ASM account."
+      title="Open your IndianxTrade account."
       subtitle="30 seconds. $10,000 in demo funds. No card required."
       imageCaption="Fixed risk. Real prices. From $1."
       footer={

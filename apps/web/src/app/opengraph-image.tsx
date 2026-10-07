@@ -29,11 +29,11 @@ export default function OpengraphImage() {
           style={{
             fontSize: 40,
             fontWeight: 800,
-            letterSpacing: "0.2em",
+            letterSpacing: "0.12em",
             color: "#ffb000",
           }}
         >
-          ASM
+          IndianxTrade
         </div>
         <div
           style={{
