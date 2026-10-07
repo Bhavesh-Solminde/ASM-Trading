@@ -6,7 +6,7 @@ import type { BalancesDto } from "@asm/contracts";
 import { formatMinor } from "@/lib/format-money";
 import { isMuted, setMuted } from "@/lib/sound";
 import { useDismiss } from "@/lib/use-dismiss";
-import { LogoEmblem, LogoWordmark } from "@/components/brand/Logo";
+import { LogoWordmark } from "@/components/brand/Logo";
 import { Icon } from "./Icon";
 import { MobileNav } from "./MobileNav";
 import { PromoBanner } from "./PromoBanner";
@@ -108,9 +108,8 @@ export function TopBar() {
       }`}
     >
       <MobileNav />
-      <Link href="/trade" aria-label="IndianxTrade" className="flex h-11 flex-none items-center gap-2 phone:h-7">
-        <LogoEmblem className="h-8 w-8 flex-none phone:h-6 phone:w-6 [filter:drop-shadow(0_0_8px_rgba(255,176,0,.3))]" />
-        <LogoWordmark className="h-6 flex-none phone:hidden" />
+      <Link href="/trade" aria-label="IndianxTrade" className="flex h-11 flex-none items-center phone:h-7">
+        <LogoWordmark className="h-10 flex-none phone:h-6 [filter:drop-shadow(0_0_10px_rgba(255,176,0,.3))]" />
       </Link>
 
       <div className="ml-1 flex flex-none items-center gap-2.5 text-ink-3 phone:hidden">
