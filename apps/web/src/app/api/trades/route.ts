@@ -7,6 +7,7 @@ import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { minStakeMinor } from "@/lib/currency";
 import { EngineRejected, EngineUnavailable, engineOpenTrade } from "@/lib/engine-client";
+import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 const REJECTION_MESSAGE: Record<string, string> = {
   insufficient_funds: "Not enough balance for that stake.",
@@ -28,6 +29,10 @@ export async function POST(req: NextRequest) {
   const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  if ((await checkNetwork({ ip: ctx.ip, route: "trades", log, userId: session.userId })).blocked) {
+    return vpnBlockedResponse();
   }
 
   if (!(await checkRateLimit(`rl:trade:${session.userId}`, 60, 60))) {

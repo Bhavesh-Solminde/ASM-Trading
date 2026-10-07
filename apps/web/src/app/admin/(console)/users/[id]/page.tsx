@@ -86,6 +86,9 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 ) : (
                   <span className="admin-pill admin-pill--muted">Demo only</span>
                 )}
+                {user.vpnExempt ? (
+                  <span className="admin-pill admin-pill--pos">VPN exempt</span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -167,6 +170,18 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 >
                   <option value="false">Disabled — demo only</option>
                   <option value="true">Enabled — real-money live</option>
+                </select>
+              </div>
+              <div className="admin-field">
+                <label htmlFor="vpnExempt">VPN / proxy block</label>
+                <select
+                  id="vpnExempt"
+                  name="vpnExempt"
+                  className="admin-select"
+                  defaultValue={String(user.vpnExempt)}
+                >
+                  <option value="false">Enforced — VPN users are blocked</option>
+                  <option value="true">Exempt — allowed through a VPN</option>
                 </select>
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>

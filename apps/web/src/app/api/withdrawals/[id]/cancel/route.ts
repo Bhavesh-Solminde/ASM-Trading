@@ -4,6 +4,7 @@ import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 /**
  * Cancels a HELD withdrawal and refunds the money to the user's realBalance.
@@ -24,6 +25,10 @@ export async function POST(
   const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  if ((await checkNetwork({ ip: ctx.ip, route: "withdrawals_cancel", log, userId: session.userId })).blocked) {
+    return vpnBlockedResponse();
   }
 
   if (!(await checkRateLimit(`rl:withdraw-cancel:${session.userId}`, 20, 300))) {

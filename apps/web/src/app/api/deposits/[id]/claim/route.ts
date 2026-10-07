@@ -9,6 +9,7 @@ import {
 import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
+import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = requestContext(req);
@@ -17,6 +18,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  if ((await checkNetwork({ ip: ctx.ip, route: "deposits_claim", log, userId: session.userId })).blocked) {
+    return vpnBlockedResponse();
   }
 
   const { id } = await params;

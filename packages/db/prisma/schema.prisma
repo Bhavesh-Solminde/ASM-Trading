@@ -163,6 +163,9 @@ model User {
   // admin Users panel) so exposure is never global. The client env flag
   // NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED can still open it for everyone at once.
   liveAccess         Boolean    @default(false)
+  // Lets one user through the VPN/proxy block (corporate VPN, false positive).
+  // Set only from the admin Users panel; never by the user's own flow.
+  vpnExempt          Boolean    @default(false)
   twoFaEnabled       Boolean    @default(false)
   twoFaForLogin      Boolean    @default(false)
   twoFaForWithdrawal Boolean    @default(false)

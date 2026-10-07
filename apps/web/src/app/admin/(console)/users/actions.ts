@@ -27,18 +27,24 @@ export async function updateUserAction(formData: FormData): Promise<void> {
   const role = String(formData.get("role") ?? "");
   const kycStatus = String(formData.get("kycStatus") ?? "");
   const liveAccess = String(formData.get("liveAccess") ?? "") === "true";
+  const vpnExempt = String(formData.get("vpnExempt") ?? "") === "true";
   if (!userId || !ROLES.has(role as Role) || !KYCS.has(kycStatus as KycStatus)) return;
 
   const before = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, kycStatus: true, liveAccess: true, email: true },
+    select: { role: true, kycStatus: true, liveAccess: true, vpnExempt: true, email: true },
   });
   if (!before) return;
 
-  if (before.role !== role || before.kycStatus !== kycStatus || before.liveAccess !== liveAccess) {
+  if (
+    before.role !== role ||
+    before.kycStatus !== kycStatus ||
+    before.liveAccess !== liveAccess ||
+    before.vpnExempt !== vpnExempt
+  ) {
     await prisma.user.update({
       where: { id: userId },
-      data: { role: role as Role, kycStatus: kycStatus as KycStatus, liveAccess },
+      data: { role: role as Role, kycStatus: kycStatus as KycStatus, liveAccess, vpnExempt },
     });
     await prisma.auditLog.create({
       data: {
@@ -46,12 +52,25 @@ export async function updateUserAction(formData: FormData): Promise<void> {
         action: "user.updated",
         targetType: "User",
         targetId: userId,
-        before: { role: before.role, kycStatus: before.kycStatus, liveAccess: before.liveAccess },
-        after: { role, kycStatus, liveAccess },
+        before: {
+          role: before.role,
+          kycStatus: before.kycStatus,
+          liveAccess: before.liveAccess,
+          vpnExempt: before.vpnExempt,
+        },
+        after: { role, kycStatus, liveAccess, vpnExempt },
       },
     });
     logger.info(
-      { evt: "admin.action", action: "user.updated", email: before.email, role, kycStatus, liveAccess },
+      {
+        evt: "admin.action",
+        action: "user.updated",
+        email: before.email,
+        role,
+        kycStatus,
+        liveAccess,
+        vpnExempt,
+      },
       "admin updated user",
     );
   }

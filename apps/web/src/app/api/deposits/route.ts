@@ -18,6 +18,7 @@ import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getGatewayUsdtConfig, getUsdtNetworkConfig, usdtGatewayActive } from "@/lib/usdt-networks";
 import { pickCollectionVpa, upiDepositsEnabled } from "@/lib/upi-collection";
+import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -26,6 +27,10 @@ export async function POST(req: NextRequest) {
   const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  if ((await checkNetwork({ ip: ctx.ip, route: "deposits", log, userId: session.userId })).blocked) {
+    return vpnBlockedResponse();
   }
 
   if (!(await checkRateLimit(`rl:deposit:${session.userId}`, 10, 300))) {

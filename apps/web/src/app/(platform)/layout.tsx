@@ -1,15 +1,26 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { tradeViewFrom } from "@asm/contracts";
 import { listAccountsForActor, listTradesForActor, prisma } from "@asm/db";
+import { childLogger, newCorrelationId } from "@asm/logger";
 import { PlatformProvider } from "@/components/shell/PlatformProvider";
 import { PlatformShell } from "@/components/shell/PlatformShell";
+import { checkNetwork } from "@/lib/network-guard/guard";
+import { clientIpFrom } from "@/lib/request-context";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
   const store = await cookies();
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
+
+  const network = await checkNetwork({
+    ip: clientIpFrom(await headers()),
+    route: "platform_layout",
+    log: childLogger(newCorrelationId()),
+    userId: session.userId,
+  });
+  if (network.blocked) redirect("/network-blocked");
 
   const [accounts, assets, user] = await Promise.all([
     listAccountsForActor(session.userId),
