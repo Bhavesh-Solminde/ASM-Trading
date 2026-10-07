@@ -38,6 +38,18 @@ export async function POST(req: NextRequest) {
 
   const user = await findUserByEmail(email);
 
+  // Network check runs BEFORE any credential verdict, so a VPN client gets the
+  // same 403 whether the email is unknown, the password is wrong or both are
+  // right — it cannot use this route as a password-validity oracle. It sits
+  // after the user lookup so a vpnExempt account is still recognised. Two
+  // input shapes because userId is omitted (not undefined) when no user exists.
+  const guardInput = user
+    ? { ip: ctx.ip, route: "login", log, userId: user.id }
+    : { ip: ctx.ip, route: "login", log };
+  if ((await checkNetwork(guardInput)).blocked) {
+    return vpnBlockedResponse();
+  }
+
   // Hash a dummy value on miss so response timing does not reveal whether the
   // account exists.
   if (!user) {
@@ -52,10 +64,6 @@ export async function POST(req: NextRequest) {
       "login failed",
     );
     return NextResponse.json({ error: GENERIC }, { status: 401 });
-  }
-
-  if ((await checkNetwork({ ip: ctx.ip, route: "login", log, userId: user.id })).blocked) {
-    return vpnBlockedResponse();
   }
 
   const token = await createSession(user.id, {

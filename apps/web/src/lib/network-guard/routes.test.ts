@@ -6,8 +6,12 @@ import { prisma } from "@asm/db";
 import { POST as login } from "@/app/api/auth/login/route";
 import { POST as register } from "@/app/api/auth/register/route";
 import { POST as wsTicket } from "@/app/api/auth/ws-ticket/route";
+import { POST as depositClaim } from "@/app/api/deposits/[id]/claim/route";
+import { POST as depositScreenshot } from "@/app/api/deposits/[id]/screenshot/route";
+import { POST as depositUsdtClaim } from "@/app/api/deposits/[id]/usdt-claim/route";
 import { POST as deposit } from "@/app/api/deposits/route";
 import { POST as openTrade } from "@/app/api/trades/route";
+import { POST as cancelWithdraw } from "@/app/api/withdrawals/[id]/cancel/route";
 import { POST as withdraw } from "@/app/api/withdrawals/route";
 import { hashPassword } from "@/lib/password";
 import { redis } from "@/lib/redis";
@@ -83,6 +87,33 @@ describe("VPN guard on auth routes", () => {
     expect(res.cookies.get(SESSION_COOKIE)).toBeUndefined();
   });
 
+  it("refuses a wrong-password login from a VPN as 403 (credential oracle closed)", async () => {
+    const res = await login(post("/api/auth/login", VPN_IP, { email, password: "obviously-wrong" }));
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe("vpn_blocked");
+    expect(res.cookies.get(SESSION_COOKIE)).toBeUndefined();
+  });
+
+  it("refuses an unknown-email login from a VPN as 403 (account-existence oracle closed)", async () => {
+    const res = await login(
+      post("/api/auth/login", VPN_IP, { email: `${NEW_EMAIL_PREFIX}-unknown@test.local`, password: PASSWORD }),
+    );
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe("vpn_blocked");
+  });
+
+  it("still answers a wrong-password login from a clean network with 401", async () => {
+    const res = await login(post("/api/auth/login", CLEAN_IP, { email, password: "obviously-wrong" }));
+    expect(res.status).toBe(401);
+  });
+
+  it("still answers an unknown-email login from a clean network with 401", async () => {
+    const res = await login(
+      post("/api/auth/login", CLEAN_IP, { email: `${NEW_EMAIL_PREFIX}-unknown2@test.local`, password: PASSWORD }),
+    );
+    expect(res.status).toBe(401);
+  });
+
   it("lets an exempt user log in through a VPN", async () => {
     await prisma.user.update({ where: { id: userId }, data: { vpnExempt: true } });
     try {
@@ -115,5 +146,37 @@ describe("VPN guard on signed-in routes", () => {
   it("still issues a WS ticket on a clean network", async () => {
     const res = await wsTicket(post("/api/auth/ws-ticket", CLEAN_IP, {}, session));
     expect(res.status).toBe(200);
+  });
+});
+
+describe("VPN guard on money-moving sub-routes", () => {
+  let session = "";
+  const DUMMY_ID = randomUUID();
+
+  beforeAll(async () => {
+    session = await createSession(userId, {});
+  });
+
+  const CASES = [
+    ["withdrawals/cancel", `/api/withdrawals/${DUMMY_ID}/cancel`, cancelWithdraw],
+    ["deposits/claim", `/api/deposits/${DUMMY_ID}/claim`, depositClaim],
+    ["deposits/usdt-claim", `/api/deposits/${DUMMY_ID}/usdt-claim`, depositUsdtClaim],
+    ["deposits/screenshot", `/api/deposits/${DUMMY_ID}/screenshot`, depositScreenshot],
+  ] as const;
+
+  it.each(CASES)("%s refuses a signed-in user on a VPN before touching the body", async (_name, path, handler) => {
+    const res = await handler(post(path, VPN_IP, {}, session), { params: Promise.resolve({ id: DUMMY_ID }) });
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe("vpn_blocked");
+  });
+
+  // Positive control: the same request from a clean network gets past the
+  // guard and fails body validation instead, so the 403 above is the guard's.
+  it.each([
+    ["deposits/claim", `/api/deposits/${DUMMY_ID}/claim`, depositClaim],
+    ["deposits/usdt-claim", `/api/deposits/${DUMMY_ID}/usdt-claim`, depositUsdtClaim],
+  ] as const)("%s lets a signed-in user on a clean network through to validation", async (_name, path, handler) => {
+    const res = await handler(post(path, CLEAN_IP, {}, session), { params: Promise.resolve({ id: DUMMY_ID }) });
+    expect(res.status).toBe(400);
   });
 });

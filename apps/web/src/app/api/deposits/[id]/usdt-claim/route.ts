@@ -5,6 +5,7 @@ import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 /**
  * USDT "I already paid": the user attaches the transaction hash (and
@@ -20,6 +21,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  if ((await checkNetwork({ ip: ctx.ip, route: "deposits_usdt_claim", log, userId: session.userId })).blocked) {
+    return vpnBlockedResponse();
   }
 
   if (!(await checkRateLimit(`rl:usdt-claim:${session.userId}`, 10, 300))) {
