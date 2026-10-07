@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     icons: [
       { src: "/icon.png", sizes: "512x512", type: "image/png" },
       { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },
-      { src: "/brand/asm-logo.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/brand/indianxtrade-logo-dark.png", sizes: "512x512", type: "image/png", purpose: "any" },
     ],
   };
 }

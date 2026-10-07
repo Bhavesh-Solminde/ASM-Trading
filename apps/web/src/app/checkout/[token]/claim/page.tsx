@@ -51,7 +51,7 @@ export default async function UsdtClaimPage({ params }: { params: Promise<{ toke
         <header className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/asm-logo.png" alt="IndianxTrade" className="h-7 w-7 rounded-lg object-cover" />
+            <img src="/brand/indianxtrade-logo-light.png" alt="IndianxTrade" className="h-7 w-7 rounded-lg object-cover" />
             <span className="text-lg font-bold" style={{ color: "#5b2d9e" }}>
               USDT
             </span>
