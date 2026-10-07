@@ -23,11 +23,11 @@ export const OFFSET_LOW = -999;
 export const OFFSET_SPACE = 2000;
 
 export const DEPOSIT_TTL_MINUTES = 60;
-export const MIN_DEPOSIT_USD_MINOR = 10_000; // $100.00
+export const MIN_DEPOSIT_USD_MINOR = 1_000; // $10.00
 export const MAX_DEPOSIT_USD_MINOR = 96_100; // $961.00
 // Deposits are collected in rupees over UPI. Paise (minor units).
-// ₹100 ≈ $1, so $100 min deposit maps to ₹10,000.
-export const MIN_DEPOSIT_INR_MINOR = 1_000_000; // ₹10,000.00
+// ₹100 ≈ $1, so the $10 min deposit maps to ₹1,000.
+export const MIN_DEPOSIT_INR_MINOR = 100_000; // ₹1,000.00
 export const MAX_DEPOSIT_INR_MINOR = 100_000_000; // ₹10,00,000.00
 
 /**
@@ -157,10 +157,9 @@ export const USDT_OFFSET_SPACE = 198;
 // matcher gets to it (see findLiveDepositByUsdtAmount) — so a payment sent
 // just before the deadline is still credited after it solidifies.
 export const USDT_DEPOSIT_TTL_MINUTES = 5;
-// Placeholder business bounds pending an explicit decision — deliberately
-// conservative and easy to find/change; not derived from any verified
-// requirement.
-export const MIN_DEPOSIT_USDT_MINOR = 10_000; // $100.00
+// The minimum matches the UPI rail's ($10 / ₹1,000) by product decision. The
+// maximum is still a placeholder, deliberately easy to find and change.
+export const MIN_DEPOSIT_USDT_MINOR = 1_000; // $10.00
 export const MAX_DEPOSIT_USDT_MINOR = 1_000_000; // $10,000.00
 
 /**

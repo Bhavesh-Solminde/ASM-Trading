@@ -3,7 +3,7 @@
 import { DEPOSIT_METHODS, UPI_METHODS } from "@asm/contracts";
 import { GatewayIcon } from "./GatewayIcon";
 
-const MIN_USD = 100;
+const MIN_USD = 10;
 const UPI_SET = new Set<string>(UPI_METHODS);
 
 export function MethodPicker({
