@@ -75,8 +75,15 @@ ssh root@187.52.118.185 '
 '
 
 # 6. TLS. Certbot rewrites the site file in place with the :443 block + redirect.
+#    One run covers every hostname that resolves to this box: the canonical
+#    (indianxtrade.com + www), the alt spelling (indiaxtrade.com + www), and
+#    the old brand (asmtrader.com + www). All non-canonical hostnames are
+#    301'd to https://indianxtrade.com by the nginx conf.
 ssh root@187.52.118.185 '
-  certbot --nginx -d indianxtrade.com -d www.indianxtrade.com \
+  certbot --nginx \
+    -d indianxtrade.com -d www.indianxtrade.com \
+    -d indiaxtrade.com -d www.indiaxtrade.com \
+    -d asmtrader.com -d www.asmtrader.com \
     --agree-tos --redirect --email you@example.com
 '
 ```
@@ -86,6 +93,10 @@ ssh root@187.52.118.185 '
 ```bash
 curl -I https://indianxtrade.com                 # expect 200, HTTP/2
 curl -I https://www.indianxtrade.com             # expect 301 -> indianxtrade.com
+curl -I https://indiaxtrade.com                  # expect 301 -> indianxtrade.com
+curl -I https://www.indiaxtrade.com              # expect 301 -> indianxtrade.com
+curl -I https://asmtrader.com                    # expect 301 -> indianxtrade.com
+curl -I https://www.asmtrader.com                # expect 301 -> indianxtrade.com
 curl -s https://indianxtrade.com/api/account -I  # expect 401/403 (auth-gated)
 # Then open the site in a browser and check devtools:
 #   - wss://indianxtrade.com/ws opens
