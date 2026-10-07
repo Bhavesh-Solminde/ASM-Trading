@@ -24,6 +24,8 @@ const SLUG: Record<string, string> = {
   USDT: "usdt",
 };
 
+const BRAND_EXTS = ["svg", "png", "jpg", "webp"] as const;
+
 export function GatewayIcon({ method, className }: Props) {
   const cls = className ?? "h-10 w-10 flex-none rounded-xl";
   const slug = SLUG[method];
@@ -31,20 +33,30 @@ export function GatewayIcon({ method, className }: Props) {
 
   useEffect(() => {
     if (!slug) return;
-    const url = `/brand/${slug}.svg`;
-    const img = new Image();
     let cancelled = false;
-    img.onload = () => {
-      if (!cancelled) setBrandUrl(url);
-    };
-    img.onerror = () => {
-      /* keep the stylised fallback */
-    };
-    img.src = url;
+
+    // Probe each supported extension in order; stop at the first one that
+    // loads. SVG is preferred for crispness, PNG/JPG/WebP are accepted so a
+    // raster asset works until an SVG is sourced.
+    (async () => {
+      for (const ext of BRAND_EXTS) {
+        const url = `/brand/${slug}.${ext}`;
+        const loaded = await new Promise<boolean>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = url;
+        });
+        if (cancelled) return;
+        if (loaded) {
+          setBrandUrl(url);
+          return;
+        }
+      }
+    })();
+
     return () => {
       cancelled = true;
-      img.onload = null;
-      img.onerror = null;
     };
   }, [slug]);
 
