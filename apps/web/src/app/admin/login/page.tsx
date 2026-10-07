@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative", zIndex: 1 }}>
           <div className="admin-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/asm-logo.png" alt="IndianxTrade" />
+            <img src="/brand/indianxtrade-logo-dark.png" alt="IndianxTrade" />
           </div>
           <div>
             <div className="admin-brand-name" style={{ color: "#F6EFDF" }}>

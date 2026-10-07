@@ -25,7 +25,7 @@ export const SITE_DESCRIPTION =
 export const SITE_TAGLINE = "Trade every market. Feel the tick.";
 
 /** Logo used by Organization/ImageObject schema and OG fallbacks. */
-export const SITE_LOGO = `${SITE_URL}/brand/asm-logo.png`;
+export const SITE_LOGO = `${SITE_URL}/brand/indianxtrade-logo-dark.png`;
 
 /** Approximate market focus, surfaced to LLMs and used for hreflang planning. */
 export const SITE_LOCALES = ["en"] as const;
