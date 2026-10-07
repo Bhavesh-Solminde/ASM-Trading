@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { USDT_NETWORK_INFO, type UsdtNetwork } from "@asm/contracts";
 
-const QUICK = [25, 50, 100, 250];
+const QUICK = [100, 250, 500, 1000];
 
 export function UsdtAmountStep({
   networks,
@@ -18,7 +18,7 @@ export function UsdtAmountStep({
 }) {
   const [network, setNetwork] = useState<UsdtNetwork>(networks[0] ?? "tron");
   const info = USDT_NETWORK_INFO[network];
-  const [amountMajor, setAmountMajor] = useState(25);
+  const [amountMajor, setAmountMajor] = useState(100);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,7 +98,7 @@ export function UsdtAmountStep({
         <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--color-ink-2)]">
           <div>
             <dt>Min</dt>
-            <dd className="tabular-nums text-[var(--color-ink)]">$10.00</dd>
+            <dd className="tabular-nums text-[var(--color-ink)]">$100.00</dd>
           </div>
           <div>
             <dt>Max</dt>
@@ -121,7 +121,7 @@ export function UsdtAmountStep({
         <input
           id="usdt-amount"
           type="number"
-          min={10}
+          min={100}
           max={10000}
           step={1}
           value={amountMajor}

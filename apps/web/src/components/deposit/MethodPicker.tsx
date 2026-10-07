@@ -1,8 +1,9 @@
 "use client";
 
 import { DEPOSIT_METHODS, UPI_METHODS } from "@asm/contracts";
+import { GatewayIcon } from "./GatewayIcon";
 
-const MIN_USD = 10;
+const MIN_USD = 100;
 const UPI_SET = new Set<string>(UPI_METHODS);
 
 export function MethodPicker({
@@ -43,13 +44,14 @@ export function MethodPicker({
                     if (comingSoon) return;
                     onPick(method);
                   }}
-                  className={`flex w-full items-center justify-between rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3 text-left ${
+                  className={`flex w-full items-center gap-3 rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3 text-left ${
                     comingSoon
                       ? "cursor-not-allowed opacity-60"
                       : "hover:border-[var(--color-brand)]"
                   }`}
                 >
-                  <span className="flex flex-col">
+                  <GatewayIcon method={method} />
+                  <span className="flex flex-1 flex-col">
                     <span className="text-sm font-semibold">{method}</span>
                     <span className="text-xs text-[var(--color-ink-2)]">
                       {comingSoon ? "Coming soon" : `Min. $${MIN_USD.toFixed(2)}`}

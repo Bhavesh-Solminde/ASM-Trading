@@ -118,36 +118,36 @@ export function UsdtStatusPoller({ token, expiresAtMs }: { token: string; expire
     <div className="rounded-xl bg-white p-5 shadow-sm">
       {detected ? null : (
         <div
-          className={`mb-4 flex items-center justify-between rounded-lg px-4 py-3 ${urgent ? "bg-[#fdecef]" : "bg-[#f6f1ff]"}`}
+          className={`mb-4 flex items-center justify-between rounded-lg px-4 py-3 ${urgent ? "bg-[#fdecef]" : "bg-[var(--ck-soft-bg,#f6f1ff)]"}`}
           role="timer"
           aria-live="off"
         >
-          <span className={`text-xs font-semibold ${urgent ? "text-[#b8384c]" : "text-[#5b2d9e]"}`}>
+          <span className={`text-xs font-semibold ${urgent ? "text-[#b8384c]" : "text-[var(--ck-primary,#5b2d9e)]"}`}>
             {remainingMs === 0 ? "Time's up — returning to deposit options…" : "Send your payment within"}
           </span>
-          <span className={`text-2xl font-bold tabular-nums ${urgent ? "text-[#b8384c]" : "text-[#241436]"}`}>
+          <span className={`text-2xl font-bold tabular-nums ${urgent ? "text-[#b8384c]" : "text-[var(--ck-text,#241436)]"}`}>
             {countdown}
           </span>
         </div>
       )}
-      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#8a7aa8]">
+      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--ck-muted,#8a7aa8)]">
         {["Detected", "Confirmed", "Credited"].map((label, i) => (
-          <span key={label} className={i < step.index ? "text-[#5b2d9e]" : undefined}>
+          <span key={label} className={i < step.index ? "text-[var(--ck-primary,#5b2d9e)]" : undefined}>
             {label}
           </span>
         ))}
       </div>
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#efe7fb]">
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[var(--ck-soft-bg,#efe7fb)]">
         <div
-          className="h-full rounded-full bg-[#5b2d9e] transition-all duration-500"
+          className="h-full rounded-full bg-[var(--ck-primary,#5b2d9e)] transition-all duration-500"
           style={{ width: `${(step.index / 3) * 100}%` }}
         />
       </div>
-      <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#241436]">
-        <span className="inline-block size-2 animate-pulse rounded-full bg-[#5b2d9e]" aria-hidden />
+      <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-[var(--ck-text,#241436)]">
+        <span className="inline-block size-2 animate-pulse rounded-full bg-[var(--ck-primary,#5b2d9e)]" aria-hidden />
         {step.label}
       </p>
-      <p className="mt-1 text-[11px] leading-relaxed text-[#8a7aa8]">
+      <p className="mt-1 text-[11px] leading-relaxed text-[var(--ck-muted,#8a7aa8)]">
         This page updates automatically — no need to refresh. On-chain
         confirmation can take a few minutes depending on network conditions.
       </p>

@@ -96,41 +96,41 @@ function get(sessionCookie: string | null): Promise<Response> {
 
 describe("POST /api/deposits", () => {
   it("requires a session", async () => {
-    expect((await post({ method: "PhonePe", amountInr: 100_000 }, null)).status).toBe(401);
+    expect((await post({ method: "PhonePe", amountInr: 1_000_000 }, null)).status).toBe(401);
   });
 
   it("refuses UPI deposits while UPI_DEPOSITS_ENABLED is not on", async () => {
     // The picker shows UPI as coming-soon; the API mirrors that with a 503 so
     // a crafted request can't still open a deposit intent.
     vi.stubEnv("UPI_DEPOSITS_ENABLED", "off");
-    const res = await post({ method: "PhonePe", amountInr: 100_000 }, cookie);
+    const res = await post({ method: "PhonePe", amountInr: 1_000_000 }, cookie);
     expect(res.status).toBe(503);
   });
 
 
   it("rejects a payload that doesn't match either branch of the discriminated union", async () => {
-    const res = await post({ method: "PhonePe", amountUsdtMinor: 1500 }, cookie);
+    const res = await post({ method: "PhonePe", amountUsdtMinor: 15_000 }, cookie);
     expect(res.status).toBe(400);
   });
 
   it("refuses a USDT deposit when the chain watcher isn't configured", async () => {
     clearTron();
     clearBsc();
-    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 1500 }, cookie);
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 15_000 }, cookie);
     expect(res.status).toBe(503);
   });
 
   it("rejects a USDT deposit without a network", async () => {
     stubTron();
     stubBsc();
-    const res = await post({ method: "USDT", amountUsdtMinor: 1500 }, cookie);
+    const res = await post({ method: "USDT", amountUsdtMinor: 15_000 }, cookie);
     expect(res.status).toBe(400);
   });
 
   it("creates a USDT deposit intent when the chain watcher is configured", async () => {
     stubTron();
     clearBsc();
-    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 1500 }, cookie);
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 15_000 }, cookie);
     expect(res.status).toBe(201);
     const body = (await res.json()) as { checkoutToken: string };
     expect(typeof body.checkoutToken).toBe("string");
@@ -141,14 +141,14 @@ describe("POST /api/deposits", () => {
   it("refuses a USDT deposit whose USDT_TRONGRID_NETWORK is neither mainnet nor nile", async () => {
     stubTron();
     vi.stubEnv("USDT_TRONGRID_NETWORK", "shasta");
-    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 1500 }, cookie);
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 15_000 }, cookie);
     expect(res.status).toBe(503);
   });
 
   it("creates a BSC deposit on the BSC config, with lowercase EVM addresses", async () => {
     clearTron();
     stubBsc();
-    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 1600 }, cookie);
+    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 16_000 }, cookie);
     expect(res.status).toBe(201);
     const body = (await res.json()) as { checkoutToken: string };
     const row = await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken: body.checkoutToken } });
@@ -160,7 +160,7 @@ describe("POST /api/deposits", () => {
   it("refuses a BSC deposit when only TRON is configured", async () => {
     stubTron();
     clearBsc();
-    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 1600 }, cookie);
+    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 16_000 }, cookie);
     expect(res.status).toBe(503);
     const body = (await res.json()) as { error: string };
     expect(body.error).toContain("BNB Smart Chain");
@@ -169,14 +169,14 @@ describe("POST /api/deposits", () => {
   it("refuses a BSC deposit whose chain id is not 56 or 97 (never defaults to mainnet)", async () => {
     stubBsc();
     vi.stubEnv("USDT_BSC_CHAIN_ID", "1");
-    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 1600 }, cookie);
+    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 16_000 }, cookie);
     expect(res.status).toBe(503);
   });
 
   it("refuses a BSC deposit when token decimals are missing", async () => {
     stubBsc();
     vi.stubEnv("USDT_BSC_TOKEN_DECIMALS", "");
-    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 1600 }, cookie);
+    const res = await post({ method: "USDT", network: "bsc", amountUsdtMinor: 16_000 }, cookie);
     expect(res.status).toBe(503);
   });
 });
@@ -201,14 +201,14 @@ describe("POST /api/deposits — UPI rail enabled", () => {
   it("opens a UPI deposit against one of the configured collection VPAs", async () => {
     vi.stubEnv("UPI_DEPOSITS_ENABLED", "on");
     vi.stubEnv("UPI_COLLECTION_VPAS", "collect.one@ybl,collect.two@ybl");
-    const res = await post({ method: "PhonePe", amountInr: 100_000 }, upiCookie);
+    const res = await post({ method: "PhonePe", amountInr: 1_000_000 }, upiCookie);
     expect(res.status).toBe(201);
     const { checkoutToken } = (await res.json()) as { checkoutToken: string };
     const deposit = await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken } });
     expect(["collect.one@ybl", "collect.two@ybl"]).toContain(deposit.vpa);
     expect(deposit.method).toBe("PhonePe");
     // The reserved amount sits within -₹9.99/+₹10.00 of the request (see createDepositIntent).
-    expect(Math.abs(deposit.amountInr - 100_000)).toBeLessThanOrEqual(1_000);
+    expect(Math.abs(deposit.amountInr - 1_000_000)).toBeLessThanOrEqual(1_000);
   });
 });
 
@@ -258,7 +258,7 @@ describe("POST /api/deposits — Tatum gateway provider", () => {
 
   it("issues a fresh derived address and stores the exact requested amount", async () => {
     stubGateway();
-    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 5_000 }, gwCookie);
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 50_000 }, gwCookie);
     expect(res.status).toBe(201);
     const { checkoutToken } = (await res.json()) as { checkoutToken: string };
     const row = await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken } });
@@ -267,7 +267,7 @@ describe("POST /api/deposits — Tatum gateway provider", () => {
       network: "tron",
       tokenContract: TRON_CONTRACT,
       receivingAddress: DERIVED,
-      amountUsdtMinor: 5_000,
+      amountUsdtMinor: 50_000,
       gatewaySubscriptionId: null,
     });
     expect(row.gatewayAddressIndex).toBeGreaterThanOrEqual(1);
@@ -276,7 +276,7 @@ describe("POST /api/deposits — Tatum gateway provider", () => {
 
   it("creates a Tatum alert when a webhook URL is configured", async () => {
     stubGateway({ TATUM_WEBHOOK_URL: "https://example.test/api/webhooks/tatum", TATUM_WEBHOOK_HMAC_SECRET: "s" });
-    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 5_000 }, gwCookie);
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 50_000 }, gwCookie);
     expect(res.status).toBe(201);
     const { checkoutToken } = (await res.json()) as { checkoutToken: string };
     expect((await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken } })).gatewaySubscriptionId).toBe("sub-123");
@@ -285,15 +285,15 @@ describe("POST /api/deposits — Tatum gateway provider", () => {
 
   it("refuses a network the gateway is not configured for, and out-of-range amounts without calling Tatum", async () => {
     stubGateway();
-    expect((await post({ method: "USDT", network: "bsc", amountUsdtMinor: 5_000 }, gwCookie)).status).toBe(503);
-    expect((await post({ method: "USDT", network: "tron", amountUsdtMinor: 50 }, gwCookie)).status).toBe(400);
+    expect((await post({ method: "USDT", network: "bsc", amountUsdtMinor: 50_000 }, gwCookie)).status).toBe(503);
+    expect((await post({ method: "USDT", network: "tron", amountUsdtMinor: 500 }, gwCookie)).status).toBe(400);
     expect(tatumCalls).toEqual([]);
   });
 
   it("answers 503 (and writes nothing) when Tatum cannot derive an address", async () => {
     stubGateway({ TATUM_TRON_XPUB: "xpub-broken" });
     const before = await prisma.deposit.count({ where: { userId: gwUserId } });
-    expect((await post({ method: "USDT", network: "tron", amountUsdtMinor: 5_000 }, gwCookie)).status).toBe(503);
+    expect((await post({ method: "USDT", network: "tron", amountUsdtMinor: 50_000 }, gwCookie)).status).toBe(503);
     expect(await prisma.deposit.count({ where: { userId: gwUserId } })).toBe(before);
   });
 });
@@ -310,7 +310,7 @@ describe("GET /api/deposits", () => {
       data: {
         userId,
         method: "PhonePe",
-        amountInr: 100_000,
+        amountInr: 1_000_000,
         amountUsd: 1_200,
         vpa: "demo@upi",
         checkoutToken: `historical-${RUN}`,

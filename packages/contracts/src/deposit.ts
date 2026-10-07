@@ -2,9 +2,11 @@ import { z } from "zod";
 
 /**
  * The UPI-rail methods. All route to the same simulated UPI collection
- * identity — the label is cosmetic fidelity, not a separate rail.
+ * identity — the label is cosmetic fidelity, not a separate rail. Historical
+ * deposits may carry old method labels (e.g. "UPI Intent"); the admin panel
+ * reads them as-is.
  */
-export const UPI_METHODS = ["PhonePe", "UPI", "PayTM", "UPI Intent"] as const;
+export const UPI_METHODS = ["PhonePe", "Gpay", "PayTM", "UPI"] as const;
 
 /** Every method the deposit screen offers — UPI rails plus the on-chain USDT rail. */
 export const DEPOSIT_METHODS = [...UPI_METHODS, "USDT"] as const;

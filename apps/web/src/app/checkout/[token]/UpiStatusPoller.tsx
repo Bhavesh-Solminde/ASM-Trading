@@ -106,20 +106,20 @@ export function UpiStatusPoller({
           role="status"
           aria-live="polite"
         >
-          <p className="flex items-center justify-center gap-2 text-sm font-semibold text-[#241436]">
+          <p className="flex items-center justify-center gap-2 text-sm font-semibold text-[var(--ck-text,#241436)]">
             <span
-              className="inline-block size-2 animate-pulse rounded-full bg-[#5b2d9e]"
+              className="inline-block size-2 animate-pulse rounded-full bg-[var(--ck-primary,#5b2d9e)]"
               aria-hidden
             />
             Waiting for payment confirmation…
           </p>
-          <p className="mt-2 text-[11px] leading-relaxed text-[#6b5a8a]">
+          <p className="mt-2 text-[11px] leading-relaxed text-[var(--ck-muted,#6b5a8a)]">
             UPI credits usually arrive within a few seconds. This page updates
             automatically — no need to refresh.
           </p>
-          <p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-[#8a7aa8]">
+          <p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-[var(--ck-muted,#8a7aa8)]">
             Manual entry available in{" "}
-            <span className="tabular-nums text-[#5b2d9e]">{countdown}</span>
+            <span className="tabular-nums text-[var(--ck-primary,#5b2d9e)]">{countdown}</span>
           </p>
           {failed ? (
             <p className="mt-2 text-[11px] text-[#b8384c]">
@@ -132,10 +132,10 @@ export function UpiStatusPoller({
       {showManual ? (
         <section className="rounded-xl bg-white p-5 shadow-sm">
           <div className="mb-3 text-center">
-            <span className="inline-block rounded-full bg-[#5b2d9e] px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+            <span className="inline-block rounded-full bg-[var(--ck-primary,#5b2d9e)] px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--ck-primary-ink,#ffffff)]">
               Step 2
             </span>
-            <p className="mt-2 text-[11px] leading-relaxed text-[#6b5a8a]">
+            <p className="mt-2 text-[11px] leading-relaxed text-[var(--ck-muted,#6b5a8a)]">
               Haven&rsquo;t been auto-detected? Enter your UTR below — our team
               will confirm it shortly.
             </p>

@@ -4,9 +4,11 @@ import { getDepositByToken } from "@asm/db";
 import { UpiStatusPoller } from "./UpiStatusPoller";
 import { DepositResult } from "./DepositResult";
 import { UsdtStatusPoller } from "./UsdtStatusPoller";
+import { BackCancelGuard } from "./BackCancelGuard";
 import { usdtNetworkDisplay } from "@/lib/usdt-network-display";
 import { buildUpiDeepLink } from "@/lib/upi";
 import { upiCollection, upiManualClaimDelaySec } from "@/lib/upi-collection";
+import { GatewayIcon, checkoutTheme } from "@/components/deposit/GatewayIcon";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +16,9 @@ export const dynamic = "force-dynamic";
  * Provider-style hosted checkout.
  *
  * Deliberately light-themed and visually unlike the platform — the handoff
- * to a provider-branded page is intentional.
+ * to a provider-branded page is intentional. The palette shifts with the
+ * chosen rail (PhonePe purple, Paytm blue, Gpay Google blue, UPI green,
+ * USDT violet) so the page reads as the app the user picked.
  */
 export default async function CheckoutPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -27,18 +31,10 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
       : null;
 
   const isUsdt = deposit.method === "USDT";
-  // Payment-gateway deposit: a receiving address issued to this deposit
-  // alone, matched by address — any amount at or above the request credits.
   const isGateway = isUsdt && deposit.gateway !== null;
-  // Every network label/warning comes from the deposit's own stored network.
   const net = usdtNetworkDisplay(deposit.network);
+  const theme = checkoutTheme(deposit.method);
 
-  // A real UPI deep link to the VPA stored on this deposit (the collection
-  // account configured when it was opened) — only relevant for the UPI-rail
-  // methods. A USDT deposit's QR just encodes the bare
-  // receiving address: no crypto deep-link scheme (tron:, etc.) is universal
-  // enough across wallets to rely on, whereas a bare address is exactly what
-  // any wallet's "scan to fill recipient" expects.
   const rupees = (deposit.amountInr / 100).toFixed(2);
   const usdtAmount = deposit.amountUsdtMinor != null ? (deposit.amountUsdtMinor / 100).toFixed(2) : "0.00";
   const collection = upiCollection();
@@ -53,45 +49,71 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
   const qrDataUri = await QRCode.toDataURL(isUsdt ? (deposit.receivingAddress ?? "") : upiUri, {
     width: 260,
     margin: 1,
-    color: { dark: "#241436", light: "#ffffff" },
+    color: { dark: theme.qrDark, light: "#ffffff" },
   });
 
   return (
     <main
       className="flex min-h-screen justify-center px-4 py-10"
-      style={{ background: "#f6f4fb", color: "#241436" }}
+      style={
+        {
+          background: theme.bg,
+          color: theme.text,
+          "--ck-primary": theme.primary,
+          "--ck-primary-ink": theme.primaryInk,
+          "--ck-text": theme.text,
+          "--ck-muted": theme.muted,
+          "--ck-surface": theme.surface,
+          "--ck-soft-bg": theme.softBg,
+          "--ck-soft-border": theme.softBorder,
+          "--ck-soft-ink": theme.softInk,
+        } as React.CSSProperties
+      }
     >
+      {resolvedStatus ? null : <BackCancelGuard brand={deposit.method} />}
       <div className="flex w-full max-w-md flex-col gap-5">
         <header className="flex items-center justify-between">
           <span className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/asm-logo.png" alt="IndianxTrade" className="h-7 w-7 rounded-lg object-cover" />
-            <span className="text-lg font-bold" style={{ color: "#5b2d9e" }}>
+            <GatewayIcon method={deposit.method} className="h-8 w-8 flex-none rounded-lg" />
+            <span className="text-lg font-bold" style={{ color: theme.primary }}>
               {deposit.method}
             </span>
           </span>
-          <span className="text-xs font-semibold text-[#6b5a8a]">EN</span>
+          <span className="text-xs font-semibold" style={{ color: theme.muted }}>EN</span>
         </header>
 
         {resolvedStatus ? (
           <DepositResult deposit={deposit} status={resolvedStatus} token={token} />
         ) : isUsdt ? (
           <>
-            <section className="rounded-xl bg-white p-6 text-center shadow-sm phone:p-5">
-              <span className="inline-block rounded-full bg-[#5b2d9e] px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+            <section
+              className="rounded-xl p-6 text-center shadow-sm phone:p-5"
+              style={{ background: theme.surface }}
+            >
+              <span
+                className="inline-block rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                style={{ background: theme.primary, color: theme.primaryInk }}
+              >
                 Step 1
               </span>
-              <h1 className="mt-3 text-sm font-bold" style={{ color: "#5b2d9e" }}>
+              <h1 className="mt-3 text-sm font-bold" style={{ color: theme.primary }}>
                 Send {net.assetLabel} to this address
               </h1>
               <p className="mt-2 text-3xl font-bold tabular-nums">{usdtAmount} USDT</p>
               {isGateway ? (
-                <p className="mt-1 text-[11px] font-semibold text-[#6b5a8a]">
+                <p className="mt-1 text-[11px] font-semibold" style={{ color: theme.muted }}>
                   This address is unique to this deposit
                 </p>
               ) : null}
               <p className="mt-2">
-                <span className="inline-block rounded-full border border-[#5b2d9e]/30 bg-[#5b2d9e]/10 px-3 py-0.5 text-[11px] font-bold text-[#5b2d9e]">
+                <span
+                  className="inline-block rounded-full border px-3 py-0.5 text-[11px] font-bold"
+                  style={{
+                    borderColor: theme.softBorder,
+                    background: theme.softBg,
+                    color: theme.softInk,
+                  }}
+                >
                   Network: {net.shortLabel}
                 </span>
               </p>
@@ -103,6 +125,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
                   {net.warning}
                 </p>
               ) : null}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrDataUri}
                 alt="Receiving address QR code"
@@ -110,40 +133,55 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
               />
             </section>
 
-            <section className="rounded-xl bg-white p-5 shadow-sm">
+            <section className="rounded-xl p-5 shadow-sm" style={{ background: theme.surface }}>
               <div className="mb-3 text-center">
-                <span className="inline-block rounded-full bg-[#5b2d9e] px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                <span
+                  className="inline-block rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                  style={{ background: theme.primary, color: theme.primaryInk }}
+                >
                   Step 2
                 </span>
               </div>
               <UsdtStatusPoller token={token} expiresAtMs={deposit.expiresAt.getTime()} />
             </section>
 
-            <section className="rounded-xl bg-white p-5 text-center shadow-sm">
-              <p className="text-xs font-bold" style={{ color: "#5b2d9e" }}>
+            <section
+              className="rounded-xl p-5 text-center shadow-sm"
+              style={{ background: theme.surface }}
+            >
+              <p className="text-xs font-bold" style={{ color: theme.primary }}>
                 Or copy the address manually
               </p>
               <dl className="mt-3 flex flex-col gap-3 text-sm">
                 <div>
-                  <dt className="text-[10px] font-bold uppercase tracking-wider text-[#6b5a8a]">
+                  <dt
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: theme.muted }}
+                  >
                     Amount
                   </dt>
                   <dd className="tabular-nums">{usdtAmount} USDT</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] font-bold uppercase tracking-wider text-[#6b5a8a]">
+                  <dt
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: theme.muted }}
+                  >
                     Network
                   </dt>
                   <dd>{net.shortLabel}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] font-bold uppercase tracking-wider text-[#6b5a8a]">
+                  <dt
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: theme.muted }}
+                  >
                     Address
                   </dt>
                   <dd className="break-all font-mono text-xs">{deposit.receivingAddress}</dd>
                 </div>
               </dl>
-              <p className="mt-3 text-[11px] leading-relaxed text-[#8a7aa8]">
+              <p className="mt-3 text-[11px] leading-relaxed" style={{ color: theme.muted }}>
                 {isGateway ? (
                   <>
                     Send at least this amount, on the {net.label} network only.
@@ -161,26 +199,34 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
             </section>
 
             {isGateway ? null : (
-            <p className="text-center">
-              <a
-                href={`/checkout/${token}/claim`}
-                className="text-xs font-semibold text-[#5b2d9e] underline underline-offset-4"
-              >
-                Sent a different amount? Submit your transaction &rarr;
-              </a>
-            </p>
+              <p className="text-center">
+                <a
+                  href={`/checkout/${token}/claim`}
+                  className="text-xs font-semibold underline underline-offset-4"
+                  style={{ color: theme.primary }}
+                >
+                  Sent a different amount? Submit your transaction &rarr;
+                </a>
+              </p>
             )}
           </>
         ) : (
           <>
-            <section className="rounded-xl bg-white p-6 text-center shadow-sm phone:p-5">
-              <span className="inline-block rounded-full bg-[#5b2d9e] px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+            <section
+              className="rounded-xl p-6 text-center shadow-sm phone:p-5"
+              style={{ background: theme.surface }}
+            >
+              <span
+                className="inline-block rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                style={{ background: theme.primary, color: theme.primaryInk }}
+              >
                 Step 1
               </span>
-              <h1 className="mt-3 text-sm font-bold" style={{ color: "#5b2d9e" }}>
+              <h1 className="mt-3 text-sm font-bold" style={{ color: theme.primary }}>
                 Scan QR to pay
               </h1>
               <p className="mt-2 text-3xl font-bold tabular-nums">₹ {rupees}</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrDataUri}
                 alt={`UPI payment QR code for ₹${rupees}`}
@@ -188,27 +234,36 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
               />
             </section>
 
-            <p className="text-center text-xs font-semibold text-[#6b5a8a]">OR</p>
+            <p className="text-center text-xs font-semibold" style={{ color: theme.muted }}>OR</p>
 
-            <section className="rounded-xl bg-white p-5 text-center shadow-sm">
-              <p className="text-xs font-bold" style={{ color: "#5b2d9e" }}>
+            <section
+              className="rounded-xl p-5 text-center shadow-sm"
+              style={{ background: theme.surface }}
+            >
+              <p className="text-xs font-bold" style={{ color: theme.primary }}>
                 Open any app that allows UPI payments
               </p>
               <dl className="mt-3 flex flex-col gap-3 text-sm">
                 <div>
-                  <dt className="text-[10px] font-bold uppercase tracking-wider text-[#6b5a8a]">
+                  <dt
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: theme.muted }}
+                  >
                     Amount
                   </dt>
                   <dd className="tabular-nums">{rupees} INR</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] font-bold uppercase tracking-wider text-[#6b5a8a]">
+                  <dt
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: theme.muted }}
+                  >
                     UPI ID
                   </dt>
                   <dd className="break-all">{deposit.vpa}</dd>
                 </div>
               </dl>
-              <p className="mt-3 text-[11px] leading-relaxed text-[#8a7aa8]">
+              <p className="mt-3 text-[11px] leading-relaxed" style={{ color: theme.muted }}>
                 Pay this exact amount. The paise are what identify your payment — a
                 different amount cannot be matched automatically.
               </p>
@@ -223,7 +278,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
           </>
         )}
 
-        <p className="text-center text-[11px] text-[#8a7aa8]">
+        <p className="text-center text-[11px]" style={{ color: theme.muted }}>
           Secure payment processing by IndianxTrade
         </p>
       </div>
