@@ -51,12 +51,11 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer, imageCap
         <section className="relative flex items-center justify-center px-5 py-16 sm:px-8 md:py-12">
           <div className="w-full max-w-sm">
             {/* Large brand lockup */}
-            <Link href="/" className="mb-10 flex items-center gap-5" aria-label="ASM Trade — home">
+            <Link href="/" className="mb-10 flex items-center gap-5" aria-label="IndianxTrade — home">
               <LogoEmblem className="h-28 w-28 flex-none ring-1 ring-white/10 [filter:drop-shadow(0_0_30px_color-mix(in_srgb,var(--color-brand)_35%,transparent))]" />
               <span className="flex flex-col">
-                <span className="flex items-baseline gap-2">
-                  <span className="font-brand text-6xl font-black leading-none tracking-wide text-brand">ASM</span>
-                  <span className="text-xl font-semibold text-ink-2">Trade</span>
+                <span className="font-brand text-4xl font-black leading-none tracking-tight text-brand">
+                  IndianxTrade
                 </span>
                 <span className="mt-2.5 whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.28em] text-ink-3">
                   Trade · Invest · Grow

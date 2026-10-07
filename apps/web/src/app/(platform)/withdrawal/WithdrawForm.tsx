@@ -46,7 +46,7 @@ export function WithdrawForm({
   }
 
   const certDoc = cert
-    ? `<!doctype html><html><head><meta charset="utf-8"><title>ASM Trade certificate</title></head><body style="margin:0;padding:20px;background:#000;">${certificateHtml(cert)}</body></html>`
+    ? `<!doctype html><html><head><meta charset="utf-8"><title>IndianxTrade certificate</title></head><body style="margin:0;padding:20px;background:#000;">${certificateHtml(cert)}</body></html>`
     : "";
 
   function downloadCertificate() {
@@ -55,7 +55,7 @@ export function WithdrawForm({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `asm-certificate-${cert.refId}.html`;
+    a.download = `indianxtrade-certificate-${cert.refId}.html`;
     a.click();
     URL.revokeObjectURL(url);
   }

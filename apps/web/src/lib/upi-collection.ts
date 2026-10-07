@@ -26,7 +26,7 @@ export function upiCollection(): {
     .filter((vpa) => vpa.length > 0);
   return {
     vpas: vpas.length > 0 ? vpas : [DEMO_VPA],
-    payeeName: process.env["UPI_PAYEE_NAME"]?.trim() || "ASM Trade",
+    payeeName: process.env["UPI_PAYEE_NAME"]?.trim() || "IndianxTrade",
     merchantCode: process.env["UPI_MERCHANT_CODE"]?.trim() || null,
   };
 }

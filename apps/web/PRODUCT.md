@@ -56,7 +56,7 @@ Technical constraints that bound any redesign:
 
 ## Brand Commitments
 
-- Name: **ASM** / AMScoins (as used across the repo and commit history).
+- Name: **IndianxTrade** (user-facing brand; the repo and commit history still use the legacy `asm` / `AMScoins` identifiers internally for packages, env vars and infrastructure, pending a separate internal-rename pass).
 - **Binding structural reference:** the 15 screenshots in `reference/` (Quotex web trading platform, captured 2026-09-10). The user has made the *layout* binding — icon rail, center chart, right-hand trade panel, tabbed account pages — and explicitly *not* the visual identity. Palette, typography, iconography, and detailing are to be replaced with an identity of its own.
 - No logo asset, wordmark, or brand palette exists yet.
 

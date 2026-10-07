@@ -11,15 +11,15 @@
 /** Absolute production origin. Overridable per-environment so canonicals and
  * OpenGraph URLs resolve correctly in preview/staging. No trailing slash. */
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://asmtrader.com"
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://indianxtrade.com"
 ).replace(/\/$/, "");
 
-/** Canonical brand/entity name. Do NOT drift to "ASM Trading" / "ASM Trader". */
-export const SITE_NAME = "ASM Trade";
+/** Canonical brand/entity name. Do NOT drift to "Indianx Trade" / "Indian X Trade". */
+export const SITE_NAME = "IndianxTrade";
 
 /** One-line entity description reused across metadata and Organization JSON-LD. */
 export const SITE_DESCRIPTION =
-  "ASM Trade is a fast, mobile-first trading platform — trade forex, crypto and India indices from $1 with fixed risk and up to 95% payout. Free $10,000 demo, no card required.";
+  "IndianxTrade is a fast, mobile-first trading platform — trade forex, crypto and India indices from $1 with fixed risk and up to 95% payout. Free $10,000 demo, no card required.";
 
 /** Short tagline for OG images and hero-style metadata. */
 export const SITE_TAGLINE = "Trade every market. Feel the tick.";
@@ -36,16 +36,16 @@ export const SITE_LOCALES = ["en"] as const;
  * omitted from schema automatically. Keep names/handles identical to SITE_NAME.
  */
 export const SITE_SAME_AS: string[] = [
-  // "https://www.linkedin.com/company/asmtrade",
-  // "https://x.com/asmtrade",
-  // "https://www.crunchbase.com/organization/asmtrade",
-  // "https://www.trustpilot.com/review/asmtrader.com",
+  // "https://www.linkedin.com/company/indianxtrade",
+  // "https://x.com/indianxtrade",
+  // "https://www.crunchbase.com/organization/indianxtrade",
+  // "https://www.trustpilot.com/review/indianxtrade.com",
   // "https://www.wikidata.org/wiki/QXXXXXXX",
 ].filter(Boolean);
 
 /** Support/contact point surfaced in Organization schema. */
 export const SITE_CONTACT = {
-  email: "support@asmtrader.com",
+  email: "support@indianxtrade.com",
   contactType: "customer support",
 } as const;
 

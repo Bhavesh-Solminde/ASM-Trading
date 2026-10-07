@@ -1,8 +1,13 @@
-# asmtrader.com production stack.
+# indianxtrade.com production stack (internal server-side name: asmtrader).
 # Lives at /opt/asmtrader on the VPS. Runs alongside amscoins with no overlap:
 # - own docker network (default, project-scoped)
 # - own volumes (postgres_data, redis_data)
 # - own loopback ports (see `ports:` — amscoins holds 4000/6379/27017)
+#
+# The compose project name, image tag and deploy directory keep the legacy
+# `asmtrader` identifier so the running containers, volumes and nginx
+# upstreams are not disrupted by a rename. The user-visible brand (and the
+# public domain) is IndianxTrade / indianxtrade.com.
 
 name: asmtrader
 

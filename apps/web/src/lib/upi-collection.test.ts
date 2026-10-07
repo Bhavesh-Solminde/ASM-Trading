@@ -7,11 +7,11 @@ afterEach(() => {
 });
 
 describe("upiCollection", () => {
-  it("falls back to the demo VPA and ASM Trade when nothing is configured", () => {
+  it("falls back to the demo VPA and IndianxTrade when nothing is configured", () => {
     vi.stubEnv("UPI_COLLECTION_VPAS", "");
     vi.stubEnv("UPI_PAYEE_NAME", "");
     vi.stubEnv("UPI_MERCHANT_CODE", "");
-    expect(upiCollection()).toEqual({ vpas: [DEMO_VPA], payeeName: "ASM Trade", merchantCode: null });
+    expect(upiCollection()).toEqual({ vpas: [DEMO_VPA], payeeName: "IndianxTrade", merchantCode: null });
   });
 
   it("splits a comma-separated VPA list, trimming blanks and empty entries", () => {

@@ -47,7 +47,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
     payeeName: collection.payeeName,
     amountInr: deposit.amountInr,
     merchantCode: collection.merchantCode,
-    note: `ASM-${deposit.id.slice(0, 8)}`,
+    note: `IXT-${deposit.id.slice(0, 8)}`,
   });
 
   const qrDataUri = await QRCode.toDataURL(isUsdt ? (deposit.receivingAddress ?? "") : upiUri, {
@@ -65,7 +65,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
         <header className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/asm-logo.png" alt="ASM Trade" className="h-7 w-7 rounded-lg object-cover" />
+            <img src="/brand/asm-logo.png" alt="IndianxTrade" className="h-7 w-7 rounded-lg object-cover" />
             <span className="text-lg font-bold" style={{ color: "#5b2d9e" }}>
               {deposit.method}
             </span>
@@ -224,7 +224,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
         )}
 
         <p className="text-center text-[11px] text-[#8a7aa8]">
-          Secure payment processing by ASM Trade
+          Secure payment processing by IndianxTrade
         </p>
       </div>
     </main>

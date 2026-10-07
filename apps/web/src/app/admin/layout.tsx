@@ -23,7 +23,7 @@ const plexMono = IBM_Plex_Mono({
 export const ADMIN_THEME_COOKIE = "asm_admin_theme";
 
 export const metadata: Metadata = {
-  title: "ASM Trading — Admin Console",
+  title: "IndianxTrade — Admin Console",
   robots: { index: false, follow: false },
 };
 

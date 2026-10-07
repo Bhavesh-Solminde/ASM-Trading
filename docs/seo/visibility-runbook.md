@@ -5,23 +5,23 @@ GEO/AEO layer. This runbook is the part that lives outside the codebase: the
 off-site entity work, measurement setup, and the monthly loop.
 
 **Golden rule — one entity, one set of facts.** Every off-site profile below
-MUST match `apps/web/src/lib/site.ts` verbatim: name **ASM Trade**, URL
-`https://asmtrader.com`, the same logo, the same one-line description.
+MUST match `apps/web/src/lib/site.ts` verbatim: name **IndianxTrade**, URL
+`https://indianxtrade.com`, the same logo, the same one-line description.
 Inconsistency is the single biggest reason a Knowledge Panel never appears.
 
 ## 1. One-time entity setup (do once, in this order)
 
-- [ ] **Google Search Console** — add `asmtrader.com`. Verify via **DNS TXT**
+- [ ] **Google Search Console** — add `indianxtrade.com`. Verify via **DNS TXT**
       (preferred) or the HTML-tag method: set `NEXT_PUBLIC_GSC_VERIFICATION` to
       the token and redeploy (renders a `<meta>`, no script, CSP-safe).
-- [ ] Submit `https://asmtrader.com/sitemap.xml` in Search Console.
+- [ ] Submit `https://indianxtrade.com/sitemap.xml` in Search Console.
 - [ ] **Bing Webmaster Tools** — add + verify (can import from GSC).
 - [ ] **Google Business Profile** — only if you have a registered business
       address; otherwise skip (no Local SEO in scope).
 - [ ] Claim social profiles and put the URLs into `SITE_SAME_AS` in
       `apps/web/src/lib/site.ts`, then redeploy: LinkedIn company page, X,
       plus any you actually maintain.
-- [ ] **Trustpilot** — claim the `asmtrader.com` business profile.
+- [ ] **Trustpilot** — claim the `indianxtrade.com` business profile.
 - [ ] **Crunchbase** — create an organization entry.
 - [ ] **Wikidata** — create an item once there are 2–3 independent references
       to cite; add the Q-id to `SITE_SAME_AS`.
@@ -47,13 +47,13 @@ insist on GA4, explicitly add its domains to the CSP in
 ## 4. Monthly loop (~30 min) — the GEO/LLMO feedback mechanism
 
 Run this fixed prompt set against ChatGPT, Gemini, Perplexity and Claude, and
-log whether/how ASM Trade is mentioned and whether the facts are correct:
+log whether/how IndianxTrade is mentioned and whether the facts are correct:
 
 1. "Best trading platform for Bangladesh / Pakistan / India"
-2. "Is asmtrader.com legit?"
+2. "Is indianxtrade.com legit?"
 3. "Quotex alternatives"
 4. "How to deposit on a trading platform with UPI"
-5. "What is ASM Trade?"
+5. "What is IndianxTrade?"
 
 For each: are we mentioned? Accurately? What source is cited? Then:
 
@@ -71,5 +71,5 @@ scaffold) once they rank. Candidate next pages:
 
 - `/guides/trading-strategy-for-beginners`
 - `/guides/otc-pairs-weekend-trading`
-- `/compare/asm-trader-vs-olymp-trade`
+- `/compare/indianxtrade-vs-olymp-trade`
 - Country landing pages once demand is proven per market.

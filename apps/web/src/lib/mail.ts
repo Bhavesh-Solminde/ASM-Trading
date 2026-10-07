@@ -28,7 +28,7 @@ export async function sendEmail(input: {
     return { ok: false, skipped: true };
   }
 
-  const from = process.env.RESEND_FROM ?? "ASM Trade <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM ?? "IndianxTrade <onboarding@resend.dev>";
   try {
     const res = await fetch(RESEND_ENDPOINT, {
       method: "POST",

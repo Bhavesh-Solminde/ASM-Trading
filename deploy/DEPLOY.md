@@ -1,9 +1,15 @@
-# Deploying asmtrader.com
+# Deploying indianxtrade.com
 
 Written after asmcoins.com. Coexists with it on the same VPS
 (`187.52.118.185`) — no shared containers, no shared volumes, no shared
 loopback ports. `nginx` on the host routes by `server_name`; the two sites
 never see each other.
+
+> The user-visible brand is **IndianxTrade** (public domain:
+> `indianxtrade.com`). The on-VPS directory, docker compose project, image
+> tag, container names and nginx conf filename all keep the legacy
+> `asmtrader` identifier so the running infrastructure is not disrupted by
+> the rename — only the public hostnames change.
 
 ## Where things live on the VPS
 
@@ -70,7 +76,7 @@ ssh root@187.52.118.185 '
 
 # 6. TLS. Certbot rewrites the site file in place with the :443 block + redirect.
 ssh root@187.52.118.185 '
-  certbot --nginx -d asmtrader.com -d www.asmtrader.com \
+  certbot --nginx -d indianxtrade.com -d www.indianxtrade.com \
     --agree-tos --redirect --email you@example.com
 '
 ```
@@ -78,11 +84,11 @@ ssh root@187.52.118.185 '
 ## Smoke test
 
 ```bash
-curl -I https://asmtrader.com                    # expect 200, HTTP/2
-curl -I https://www.asmtrader.com                # expect 301 -> asmtrader.com
-curl -s https://asmtrader.com/api/account -I     # expect 401/403 (auth-gated)
+curl -I https://indianxtrade.com                 # expect 200, HTTP/2
+curl -I https://www.indianxtrade.com             # expect 301 -> indianxtrade.com
+curl -s https://indianxtrade.com/api/account -I  # expect 401/403 (auth-gated)
 # Then open the site in a browser and check devtools:
-#   - wss://asmtrader.com/ws opens
+#   - wss://indianxtrade.com/ws opens
 #   - /trade renders live candles
 ```
 

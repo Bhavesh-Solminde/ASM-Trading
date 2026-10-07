@@ -72,7 +72,7 @@ export default async function SettingsPage({
       <div>
         {tab === "general" ? (
           <Card title="Platform parameters" sub="Live operating constants from the deposit & bonus engine.">
-            <Row label="Platform name" control={mono("ASM Trading")} />
+            <Row label="Platform name" control={mono("IndianxTrade")} />
             <Row
               label="USD → INR rate"
               desc="Rate applied when reserving a deposit amount."

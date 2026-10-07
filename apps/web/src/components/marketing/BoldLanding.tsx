@@ -103,7 +103,7 @@ export function BoldLanding() {
             <div className="absolute -left-14 top-10 z-10 -rotate-6 rounded-2xl border border-brand/40 bg-panel/90 px-4 py-3 text-[11px] shadow-2xl backdrop-blur">
               <p className="font-bold uppercase tracking-widest text-brand">Live now</p>
               <p className="mt-1 text-ink">6,204 traders</p>
-              <p className="text-ink-3">on ASM right now</p>
+              <p className="text-ink-3">on IndianxTrade right now</p>
             </div>
             <div className="absolute -right-10 -bottom-4 z-10 rotate-3 rounded-2xl border border-up/50 bg-panel/90 px-4 py-3 text-[11px] shadow-2xl backdrop-blur">
               <p className="font-bold uppercase tracking-widest text-up">Just settled</p>
@@ -124,7 +124,7 @@ export function BoldLanding() {
         <div className="relative mx-auto max-w-6xl px-5 py-16 sm:px-6 md:py-28">
           <Reveal>
             <div className="text-center">
-              <p className="legend text-brand">Why traders switch to ASM</p>
+              <p className="legend text-brand">Why traders switch to IndianxTrade</p>
               <h2 className="mx-auto mt-4 max-w-2xl text-[clamp(30px,7vw,64px)] font-black leading-[0.98] tracking-[-0.02em]">
                 A trading UI that <span className="text-brand">actually feels</span> like the market.
               </h2>
@@ -447,10 +447,10 @@ function BoldFooter() {
           <p className="font-semibold uppercase tracking-widest text-ink-2">Risk disclosure</p>
           <p className="mt-2 max-w-3xl">
             Trading carries substantial risk and can result in the loss of your invested capital. Past
-            performance is not indicative of future results. ASM Trading is not available to residents of certain
+            performance is not indicative of future results. IndianxTrade is not available to residents of certain
             jurisdictions. Please review your local regulation before opening a live account.
           </p>
-          <p className="mt-6">© {new Date().getFullYear()} ASM Trading. All rights reserved.</p>
+          <p className="mt-6">© {new Date().getFullYear()} IndianxTrade. All rights reserved.</p>
         </div>
       </div>
     </footer>

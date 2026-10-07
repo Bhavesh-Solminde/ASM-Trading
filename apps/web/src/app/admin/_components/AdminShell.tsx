@@ -134,10 +134,10 @@ export function AdminShell({
         <div className="admin-sidebar__brand">
           <div className="admin-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/asm-logo.png" alt="ASM" />
+            <img src="/brand/asm-logo.png" alt="IndianxTrade" />
           </div>
           <div>
-            <div className="admin-brand-name">ASM Trading</div>
+            <div className="admin-brand-name">IndianxTrade</div>
             <div className="admin-brand-sub">Console</div>
           </div>
         </div>

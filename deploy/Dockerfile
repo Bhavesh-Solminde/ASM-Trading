@@ -36,7 +36,7 @@ COPY packages ./packages
 COPY apps/web ./apps/web
 COPY apps/engine ./apps/engine
 # Baked into the client bundle. Overridable at build time via compose.
-ARG NEXT_PUBLIC_ENGINE_WS_URL="wss://asmtrader.com/ws"
+ARG NEXT_PUBLIC_ENGINE_WS_URL="wss://indianxtrade.com/ws"
 ENV NEXT_PUBLIC_ENGINE_WS_URL=$NEXT_PUBLIC_ENGINE_WS_URL
 ARG NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED="false"
 ENV NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED=$NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED
