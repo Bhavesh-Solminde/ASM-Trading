@@ -9,11 +9,11 @@ function setup(mode: GuardMode, verdict: LookupResult, exempt = false) {
   const lookup = vi.fn<(ip: string) => Promise<LookupResult>>(async () => verdict);
   const isExempt = vi.fn<(userId: string) => Promise<boolean>>(async () => exempt);
   const log = { warn: vi.fn(), info: vi.fn() };
-  const run = (ip = PUBLIC_IP, userId?: string) =>
-    checkNetwork(
-      { ip, route: "test", log: log as unknown as Logger, userId },
-      { mode: () => mode, lookup, isExempt },
-    );
+  const run = (ip = PUBLIC_IP, userId?: string) => {
+    const base = { ip, route: "test", log: log as unknown as Logger };
+    const input = userId === undefined ? base : { ...base, userId };
+    return checkNetwork(input, { mode: () => mode, lookup, isExempt });
+  };
   return { lookup, isExempt, log, run };
 }
 
