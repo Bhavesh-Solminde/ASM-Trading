@@ -7,6 +7,7 @@ import {
   writeSignupCapture,
 } from "@asm/db";
 import { childLogger } from "@asm/logger";
+import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { hashPassword } from "@/lib/password";
 import {
   SESSION_COOKIE,
@@ -33,6 +34,10 @@ export async function POST(req: NextRequest) {
       { error: "Too many attempts. Wait an hour and try again." },
       { status: 429 },
     );
+  }
+
+  if ((await checkNetwork({ ip: ctx.ip, route: "register", log })).blocked) {
+    return vpnBlockedResponse();
   }
 
   const body: unknown = await req.json().catch(() => null);

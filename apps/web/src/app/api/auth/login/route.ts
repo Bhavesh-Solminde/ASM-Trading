@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { LoginSchema } from "@asm/contracts";
 import { findUserByEmail, updateUserLastSeen } from "@asm/db";
 import { childLogger } from "@asm/logger";
+import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import {
   SESSION_COOKIE,
@@ -51,6 +52,10 @@ export async function POST(req: NextRequest) {
       "login failed",
     );
     return NextResponse.json({ error: GENERIC }, { status: 401 });
+  }
+
+  if ((await checkNetwork({ ip: ctx.ip, route: "login", log, userId: user.id })).blocked) {
+    return vpnBlockedResponse();
   }
 
   const token = await createSession(user.id, {
