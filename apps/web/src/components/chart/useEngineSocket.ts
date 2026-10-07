@@ -14,8 +14,10 @@ type TicketResult =
   | { kind: "unavailable" };
 
 /**
- * Only a 401 means the session is gone. A network error, a 429 or a 5xx is
- * transient, and the caller retries it with backoff rather than giving up.
+ * A 401 means the session is gone and a 403 means the network guard refused
+ * this connection (VPN/proxy); both resolve to "unauthorised" and stop
+ * retrying. A network error, a 429 or a 5xx is transient, and the caller
+ * retries it with backoff rather than giving up.
  */
 async function fetchTicket(): Promise<TicketResult> {
   const res = await fetch("/api/auth/ws-ticket", { method: "POST", cache: "no-store" }).catch(
