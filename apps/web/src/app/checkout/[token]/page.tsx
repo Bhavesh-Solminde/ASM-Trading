@@ -8,7 +8,8 @@ import { BackCancelGuard } from "./BackCancelGuard";
 import { usdtNetworkDisplay } from "@/lib/usdt-network-display";
 import { buildUpiDeepLink } from "@/lib/upi";
 import { upiCollection, upiManualClaimDelaySec } from "@/lib/upi-collection";
-import { GatewayIcon, checkoutTheme } from "@/components/deposit/GatewayIcon";
+import { GatewayIcon } from "@/components/deposit/GatewayIcon";
+import { checkoutTheme } from "@/components/deposit/checkout-theme";
 
 export const dynamic = "force-dynamic";
 
