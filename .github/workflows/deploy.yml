@@ -96,6 +96,13 @@ jobs:
         run: |
           # Two-second grace for containers to answer after restart.
           sleep 5
-          code=$(curl -s -o /dev/null -w "%{http_code}" https://asmtrader.com)
-          echo "HTTPS status: $code"
-          if [ "$code" != "200" ]; then exit 1; fi
+          # Canonical host must answer 200.
+          canonical=$(curl -s -o /dev/null -w "%{http_code}" https://indianxtrade.com)
+          echo "indianxtrade.com: $canonical"
+          if [ "$canonical" != "200" ]; then exit 1; fi
+          # Legacy host must 301 to the canonical. Any 2xx or 4xx here is a
+          # misconfig — either the redirect is missing or the legacy cert
+          # isn't being terminated.
+          legacy=$(curl -s -o /dev/null -w "%{http_code}" https://asmtrader.com)
+          echo "asmtrader.com: $legacy"
+          case "$legacy" in 301|302|308) ;; *) exit 1 ;; esac
