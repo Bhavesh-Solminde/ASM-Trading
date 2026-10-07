@@ -4,6 +4,7 @@ import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
 import { issueWsTicket } from "@/lib/ws-ticket";
+import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 /**
  * Mints a one-time WebSocket ticket for the signed-in caller. POST, not GET:
@@ -16,6 +17,10 @@ export async function POST(req: NextRequest) {
   const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  if ((await checkNetwork({ ip: ctx.ip, route: "ws_ticket", log, userId: session.userId })).blocked) {
+    return vpnBlockedResponse();
   }
 
   // Each reconnect mints one ticket; 30 a minute is generous for backoff and

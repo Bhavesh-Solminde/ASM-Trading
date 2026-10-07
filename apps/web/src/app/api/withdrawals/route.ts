@@ -16,6 +16,7 @@ import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { certificateHtml, certificateName, type CertificateData } from "@/lib/certificate";
 import { sendEmail } from "@/lib/mail";
+import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 const WithdrawSchema = z.strictObject({
   accountId: z.string().uuid(),
@@ -30,6 +31,10 @@ export async function POST(req: NextRequest) {
   const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  if ((await checkNetwork({ ip: ctx.ip, route: "withdrawals", log, userId: session.userId })).blocked) {
+    return vpnBlockedResponse();
   }
 
   // Parity with the deposit route — a money-moving request a human never fires

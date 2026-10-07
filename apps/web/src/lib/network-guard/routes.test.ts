@@ -5,9 +5,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@asm/db";
 import { POST as login } from "@/app/api/auth/login/route";
 import { POST as register } from "@/app/api/auth/register/route";
+import { POST as wsTicket } from "@/app/api/auth/ws-ticket/route";
+import { POST as deposit } from "@/app/api/deposits/route";
+import { POST as openTrade } from "@/app/api/trades/route";
+import { POST as withdraw } from "@/app/api/withdrawals/route";
 import { hashPassword } from "@/lib/password";
 import { redis } from "@/lib/redis";
-import { SESSION_COOKIE } from "@/lib/session";
+import { SESSION_COOKIE, createSession } from "@/lib/session";
 import { verdictCacheKey } from "./lookup";
 
 // Fresh documentation-range IPv6 addresses per run, so per-IP rate-limit keys
@@ -87,5 +91,29 @@ describe("VPN guard on auth routes", () => {
     } finally {
       await prisma.user.update({ where: { id: userId }, data: { vpnExempt: false } });
     }
+  });
+});
+
+describe("VPN guard on signed-in routes", () => {
+  let session = "";
+
+  beforeAll(async () => {
+    session = await createSession(userId, {});
+  });
+
+  it.each([
+    ["ws-ticket", "/api/auth/ws-ticket", wsTicket],
+    ["trades", "/api/trades", openTrade],
+    ["deposits", "/api/deposits", deposit],
+    ["withdrawals", "/api/withdrawals", withdraw],
+  ] as const)("%s refuses a signed-in user on a VPN before touching the body", async (_name, path, handler) => {
+    const res = await handler(post(path, VPN_IP, {}, session));
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe("vpn_blocked");
+  });
+
+  it("still issues a WS ticket on a clean network", async () => {
+    const res = await wsTicket(post("/api/auth/ws-ticket", CLEAN_IP, {}, session));
+    expect(res.status).toBe(200);
   });
 });

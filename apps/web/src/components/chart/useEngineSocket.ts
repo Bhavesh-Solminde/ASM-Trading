@@ -22,6 +22,12 @@ async function fetchTicket(): Promise<TicketResult> {
     () => null,
   );
   if (res?.status === 401) return { kind: "unauthorised" };
+  // The network guard refused this connection (VPN/proxy). Retrying can't
+  // succeed until the user changes network, so show them why instead.
+  if (res?.status === 403) {
+    window.location.assign("/network-blocked");
+    return { kind: "unauthorised" };
+  }
   if (!res || !res.ok) return { kind: "unavailable" };
   const body = (await res.json().catch(() => ({}))) as { ticket?: string };
   return body.ticket ? { kind: "ticket", ticket: body.ticket } : { kind: "unavailable" };
