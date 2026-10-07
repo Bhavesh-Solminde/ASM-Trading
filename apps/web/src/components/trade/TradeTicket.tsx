@@ -415,14 +415,10 @@ export function TradeTicket({
         ))}
       </div>
 
-      <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 border-t border-dashed border-rule pb-0.5 pt-2.5 phone:hidden">
-        <span className="legend self-center">If correct</span>
+      <div className="flex items-center justify-between border-t border-dashed border-rule pb-0.5 pt-2.5 phone:hidden">
+        <span className="legend self-center">Payout</span>
         <span className="led led-lit text-[20px] text-up">
-          {profitMinor === null ? "—" : `+${formatMinor(profitMinor, currency)}`}
-        </span>
-        <span className="text-xs text-ink-3">You get back</span>
-        <span className="text-right text-xs text-ink-3">
-          {profitMinor === null ? "—" : formatMinor(stakeMinor + profitMinor, currency)}
+          {profitMinor === null ? "—" : `+${formatMinor(grossReturnMinor(stakeMinor, profitMinor), currency)}`}
         </span>
       </div>
 

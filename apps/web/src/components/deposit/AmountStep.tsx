@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 
-const QUICK = [2000, 5000, 10000, 25000];
+const QUICK = [10000, 20000, 50000, 100000];
 
 export function AmountStep({ method, onBack }: { method: string; onBack: () => void }) {
-  const [amountMajor, setAmountMajor] = useState(2000);
+  const [amountMajor, setAmountMajor] = useState(10000);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +45,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
         <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--color-ink-2)]">
           <div>
             <dt>Min</dt>
-            <dd className="tabular-nums text-[var(--color-ink)]">₹1,000</dd>
+            <dd className="tabular-nums text-[var(--color-ink)]">₹10,000</dd>
           </div>
           <div>
             <dt>Max</dt>
@@ -68,7 +68,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
         <input
           id="amount"
           type="number"
-          min={1000}
+          min={10000}
           max={1000000}
           value={amountMajor}
           onChange={(e) => setAmountMajor(Number(e.target.value))}

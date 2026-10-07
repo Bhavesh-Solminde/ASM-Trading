@@ -64,9 +64,13 @@ body {
   color: var(--color-brand-ink);
 }
 
+/* Single, flush focus ring. The old 2px offset left a gap outside any
+   element that also had a border, which read as two separate borders on
+   inputs and quick-amount buttons; offset 0 lets the outline sit on the
+   border so the focused state reads as one highlighted edge. */
 :focus-visible {
   outline: 2px solid var(--color-brand);
-  outline-offset: 2px;
+  outline-offset: 0;
 }
 
 /* Stops double-tap zoom on rapid taps (e.g. repeated Up presses). */
