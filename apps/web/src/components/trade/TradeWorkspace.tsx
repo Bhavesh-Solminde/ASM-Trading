@@ -424,15 +424,13 @@ export function TradeWorkspace() {
         }
       >
         {/* Desktop keeps the roomy market selector above the chart; on compact
-            widths and in focus mode the market switch moves inside the chart. */}
+            widths and in focus mode the market switch moves inside the chart.
+            It deliberately doesn't report open/closed: marketPickerOpen lifts the
+            in-chart overlay to z-50 for the in-chart pickers, and lifting it for
+            this one would put the clock and price readout on top of its list. */}
         {focusMode ? null : (
-          <div className="phone:hidden">
-            <MarketSelector
-              assets={assets}
-              active={asset.symbol}
-              onSelect={selectChartSymbol}
-              onOpenChange={setMarketPickerOpen}
-            />
+          <div className="relative z-30 phone:hidden">
+            <MarketSelector assets={assets} active={asset.symbol} onSelect={selectChartSymbol} />
           </div>
         )}
 
