@@ -7,9 +7,21 @@ export const dynamic = "force-dynamic";
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();
 
+  // Affiliate deposits and withdrawals never need admin action — exclude
+  // them from the sidebar-badge counts so the badge reflects real work.
   const [pendingDeposits, requestedWithdrawals, openFlags, reconciliation] = await Promise.all([
-    prisma.deposit.count({ where: { status: "PENDING_CONFIRMATION" } }),
-    prisma.withdrawal.count({ where: { status: "REQUESTED" } }),
+    prisma.deposit.count({
+      where: {
+        status: "PENDING_CONFIRMATION",
+        user: { role: { not: "AFFILIATE" } },
+      },
+    }),
+    prisma.withdrawal.count({
+      where: {
+        status: "REQUESTED",
+        user: { role: { not: "AFFILIATE" } },
+      },
+    }),
     prisma.fraudFlag.count({ where: { status: "OPEN" } }),
     countOpenReconciliationIssues(),
   ]);

@@ -254,12 +254,17 @@ export async function createUsdtDepositIntent(input: {
 /** All live (not yet resolved) deposits that reserved exactly this amount. In
  * practice this is 0 or 1 rows — the partial unique index guarantees at most
  * one — but the caller (the matcher) treats more than one as a bug to flag,
- * not something to silently pick between. */
+ * not something to silently pick between.
+ *
+ * Affiliate deposits are excluded: an affiliate's deposit UI renders through
+ * the whole flow but is never credited, so the matcher must behave as if the
+ * row doesn't exist. See the affiliate design doc. */
 export async function findLiveDepositByAmount(amountInr: number): Promise<Deposit[]> {
   return prisma.deposit.findMany({
     where: {
       amountInr,
       status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
+      user: { role: { not: "AFFILIATE" } },
     },
   });
 }
@@ -269,6 +274,7 @@ export async function findLiveDepositByClaimedUtr(utr: string): Promise<Deposit 
     where: {
       claimedUtr: utr,
       status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
+      user: { role: { not: "AFFILIATE" } },
     },
   });
 }
