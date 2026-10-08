@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { UpdateProfileSchema } from "@asm/contracts";
-import { loadProfile, updateProfile } from "@asm/db";
+import { KycLocked, loadProfile, updateProfile } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
@@ -31,7 +31,12 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  await updateProfile(session.userId, parsed.data);
+  try {
+    await updateProfile(session.userId, parsed.data);
+  } catch (err) {
+    if (err instanceof KycLocked) return NextResponse.json({ error: err.message }, { status: 409 });
+    throw err;
+  }
   log.info({ evt: "account.profile_updated", userId: session.userId }, "profile saved");
 
   return NextResponse.json({ profile: await loadProfile(session.userId) });

@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { tradeViewFrom } from "@asm/contracts";
-import { listAccountsForActor, listTradesForActor, prisma } from "@asm/db";
+import { countCompletedDeposits, listAccountsForActor, listTradesForActor, prisma } from "@asm/db";
 import { childLogger, newCorrelationId } from "@asm/logger";
 import { PlatformProvider } from "@/components/shell/PlatformProvider";
 import { PlatformShell } from "@/components/shell/PlatformShell";
@@ -22,7 +22,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   });
   if (network.blocked) redirect("/network-blocked");
 
-  const [accounts, assets, user] = await Promise.all([
+  const [accounts, assets, user, completedDeposits] = await Promise.all([
     listAccountsForActor(session.userId),
     prisma.asset.findMany({
       where: { isOpen: true },
@@ -30,6 +30,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       select: { id: true, symbol: true, displayName: true, precision: true, payoutPct: true },
     }),
     prisma.user.findUnique({ where: { id: session.userId }, select: { liveAccess: true } }),
+    countCompletedDeposits(session.userId),
   ]);
 
   // History is server-rendered for the default (demo) account; the provider
@@ -56,6 +57,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       initialTrades={recent.map((t) => tradeViewFrom(t, symbolById.get(t.assetId) ?? "UNKNOWN"))}
       defaultSymbol={defaultSymbol}
       liveAccess={user?.liveAccess ?? false}
+      completedDeposits={completedDeposits}
     >
       <PlatformShell>{children}</PlatformShell>
     </PlatformProvider>

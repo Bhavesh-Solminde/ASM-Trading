@@ -78,6 +78,8 @@ interface PlatformContextValue {
   status: SocketStatus;
   /** Whether this user may switch to and trade the real-money LIVE account. */
   liveAccess: boolean;
+  /** Deposits credited so far — drives which bonus tier the next one gets. */
+  completedDeposits: number;
   chartSymbol: string;
   selectChartSymbol: (symbol: string) => void;
   timeframe: Timeframe;
@@ -107,6 +109,7 @@ export function PlatformProvider({
   initialTrades,
   defaultSymbol,
   liveAccess,
+  completedDeposits,
   children,
 }: {
   assets: PlatformAsset[];
@@ -115,6 +118,7 @@ export function PlatformProvider({
   initialTrades: TradeView[];
   defaultSymbol: string;
   liveAccess: boolean;
+  completedDeposits: number;
   children: React.ReactNode;
 }) {
   // Initial values must match the server render (no window reads here) so
@@ -239,6 +243,7 @@ export function PlatformProvider({
       market,
       status,
       liveAccess,
+      completedDeposits,
       chartSymbol,
       selectChartSymbol,
       timeframe,
@@ -257,6 +262,7 @@ export function PlatformProvider({
       market,
       status,
       liveAccess,
+      completedDeposits,
       chartSymbol,
       selectChartSymbol,
       timeframe,

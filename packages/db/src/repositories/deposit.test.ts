@@ -22,6 +22,8 @@ import {
   listDepositsForActor,
   listPendingDeposits,
   rejectDeposit,
+  bonusPercentForDeposit,
+  countCompletedDeposits,
 } from "./deposit";
 import { createAccountsForUser } from "./account";
 
@@ -47,6 +49,15 @@ afterAll(async () => {
   await prisma.account.deleteMany({ where: { userId } });
   await prisma.user.delete({ where: { id: userId } });
 });
+
+/** The bonus a deposit was actually granted (0 when it got none). */
+async function grantFor(depositId: string): Promise<number> {
+  const grant = await prisma.transaction.findFirst({
+    where: { refType: "Deposit", refId: depositId, kind: "BONUS_GRANT" },
+    select: { amount: true },
+  });
+  return grant?.amount ?? 0;
+}
 
 describe("createDepositIntent", () => {
   it("rejects an amount below the minimum", async () => {
@@ -311,7 +322,7 @@ describe("creditDepositToAccount", () => {
 
     // Exactly one DEPOSIT-kind row — not "exactly one Transaction row", since
     // a single successful credit legitimately writes two (DEPOSIT +
-    // BONUS_GRANT, both refId'd to this deposit, per BONUS_PERCENT).
+    // BONUS_GRANT, both refId'd to this deposit, per BONUS_TIERS).
     const depositTxCount = await prisma.transaction.count({
       where: { account: { userId }, refType: "Deposit", refId: deposit.id, kind: "DEPOSIT" },
     });
@@ -341,7 +352,12 @@ describe("creditDepositToAccount", () => {
 
     const after = await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } });
     expect(after.realBalance - before.realBalance).toBe(usdt * 100);
-    expect(after.bonusBalance - before.bonusBalance).toBe(usdt * 100);
+    // The bonus tier depends on how many deposits this shared test user has
+    // already had credited — the bonus tests below cover the tiers themselves.
+    const nth = await prisma.deposit.count({ where: { userId, status: "COMPLETED" } });
+    expect(after.bonusBalance - before.bonusBalance).toBe(
+      Math.floor((usdt * 100 * bonusPercentForDeposit(nth)) / 100),
+    );
     const tx = await prisma.transaction.findFirstOrThrow({
       where: { accountId: after.id, refId: deposit.id, kind: "DEPOSIT" },
     });
@@ -774,8 +790,8 @@ describe("reverseCompletedDeposit", () => {
       where: { userId, type: "LIVE" },
     });
     // Same delta-based check: real drops by the deposit amount, bonus by the
-    // matching 100% grant, and nothing else moves.
-    const grantedBonus = Math.floor((deposit.amountInr * 100) / 100);
+    // grant this deposit actually got (its tier), and nothing else moves.
+    const grantedBonus = await grantFor(deposit.id);
     expect(afterAccount.realBalance).toBe(accountBefore.realBalance - deposit.amountInr);
     expect(afterAccount.bonusBalance).toBe(accountBefore.bonusBalance - grantedBonus);
 
@@ -972,5 +988,74 @@ describe("reverseUsdtDepositAndRequeue", () => {
 
     await prisma.chainCredit.delete({ where: { id: chainCreditId } });
     await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
+  });
+});
+
+describe("deposit bonus tiers", () => {
+  let tierUserId = "";
+
+  beforeAll(async () => {
+    const user = await prisma.user.create({
+      data: { email: `deposit-tiers-${Date.now()}@test.local`, passwordHash: "x" },
+    });
+    tierUserId = user.id;
+    await createAccountsForUser(tierUserId, 0);
+  });
+
+  afterAll(async () => {
+    const deposits = await prisma.deposit.findMany({ where: { userId: tierUserId }, select: { id: true } });
+    await prisma.auditLog.deleteMany({ where: { targetId: { in: deposits.map((d) => d.id) } } });
+    await prisma.transaction.deleteMany({ where: { account: { userId: tierUserId } } });
+    await prisma.bonusGrant.deleteMany({ where: { account: { userId: tierUserId } } });
+    await prisma.deposit.deleteMany({ where: { userId: tierUserId } });
+    await prisma.account.deleteMany({ where: { userId: tierUserId } });
+    await prisma.user.delete({ where: { id: tierUserId } });
+  });
+
+  async function creditOne(amountInrMinor: number) {
+    const deposit = await createDepositIntent({
+      userId: tierUserId,
+      method: "upi",
+      amountInrMinor,
+      correlationId: randomUUID(),
+    });
+    await creditDepositToAccount({ depositId: deposit.id, adminId: "admin-panel", creditId: null });
+    return deposit;
+  }
+
+  it("maps deposit numbers to 100 / 100 / 50 / 50 and nothing after", () => {
+    expect([1, 2, 3, 4, 5, 9].map(bonusPercentForDeposit)).toEqual([100, 100, 50, 50, 0, 0]);
+    expect(bonusPercentForDeposit(0)).toBe(0);
+  });
+
+  it("grants 100% on the 1st and 2nd deposits, 50% on the 3rd and 4th, none on the 5th", async () => {
+    const granted: number[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const deposit = await creditOne(100_000 + i * 10_000);
+      const percent = (await grantFor(deposit.id)) * 100 / deposit.amountInr;
+      granted.push(Math.round(percent));
+    }
+    expect(granted).toEqual([100, 100, 50, 50, 0]);
+    expect(await countCompletedDeposits(tierUserId)).toBe(5);
+
+    const grants = await prisma.bonusGrant.findMany({ where: { account: { userId: tierUserId } } });
+    expect(grants).toHaveLength(4); // no zero-amount grant for the 5th
+  });
+
+  it("a reversal reclaims the tier the deposit actually got, not a flat 100%", async () => {
+    const { reverseCompletedDeposit } = await import("./deposit");
+    const third = (await prisma.deposit.findMany({
+      where: { userId: tierUserId, status: "COMPLETED" },
+      orderBy: { createdAt: "asc" },
+    }))[2]!;
+    const granted = await grantFor(third.id);
+    expect(granted).toBe(Math.floor(third.amountInr / 2));
+
+    const before = await prisma.account.findFirstOrThrow({ where: { userId: tierUserId, type: "LIVE" } });
+    await reverseCompletedDeposit({ depositId: third.id, adminId: "admin-panel", reason: "test" });
+    const after = await prisma.account.findFirstOrThrow({ where: { userId: tierUserId, type: "LIVE" } });
+
+    expect(before.bonusBalance - after.bonusBalance).toBe(granted);
+    expect(before.realBalance - after.realBalance).toBe(third.amountInr);
   });
 });

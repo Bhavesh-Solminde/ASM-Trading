@@ -1,11 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { RegisterSchema } from "@asm/contracts";
-import {
-  createAccountsForUser,
-  findUserByEmail,
-  prisma,
-  writeSignupCapture,
-} from "@asm/db";
+import { findUserByEmail, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { hashPassword } from "@/lib/password";
@@ -16,8 +11,7 @@ import {
 } from "@/lib/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
-
-const DEMO_START_BALANCE = 100_000_000; // ₹10,00,000.00 in paise
+import { provisionNewUser } from "@/lib/signup";
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -55,7 +49,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { email, password } = parsed.data;
+  const { name, email, password } = parsed.data;
 
   if (await findUserByEmail(email)) {
     log.info({ evt: "auth.register_duplicate" }, "email already registered");
@@ -66,22 +60,19 @@ export async function POST(req: NextRequest) {
   }
 
   // role is never set here — it defaults to USER in the schema.
+  // The full name prefills KYC: first word → firstName, the rest → lastName.
+  const [firstName, ...rest] = name.split(/\s+/);
   const user = await prisma.user.create({
-    data: { email, passwordHash: await hashPassword(password) },
+    data: {
+      email,
+      passwordHash: await hashPassword(password),
+      firstName: firstName ?? null,
+      lastName: rest.length > 0 ? rest.join(" ") : null,
+    },
     select: { id: true },
   });
 
-  await createAccountsForUser(user.id, DEMO_START_BALANCE);
-
-  // Forensic capture — separate write so a missing header (dev, local) can't
-  // block the signup. `deviceFp` is a placeholder for a future client-side
-  // fingerprint; the detector treats it as optional and IP + UA carry the
-  // signal on their own.
-  await writeSignupCapture({
-    userId: user.id,
-    ip: ctx.ip,
-    userAgent: ctx.userAgent,
-  });
+  await provisionNewUser(user.id, ctx);
 
   const token = await createSession(user.id, {
     ip: ctx.ip,

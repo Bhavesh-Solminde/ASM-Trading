@@ -4,7 +4,16 @@ import { useState } from "react";
 
 const QUICK = [2000, 5000, 10000, 25000];
 
-export function AmountStep({ method, onBack }: { method: string; onBack: () => void }) {
+export function AmountStep({
+  method,
+  onBack,
+  bonusPercent,
+}: {
+  method: string;
+  onBack: () => void;
+  /** Bonus tier this deposit will get (0 once every tier is used). */
+  bonusPercent: number;
+}) {
   const [amountMajor, setAmountMajor] = useState(2000);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,12 +107,19 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
         <span className="font-semibold tabular-nums">₹{amountMajor.toLocaleString("en-IN")}</span>
       </div>
 
-      <div className="flex items-baseline justify-between text-xs text-[var(--color-ink-2)]">
-        <span>Bonus (100%)</span>
-        <span className="tabular-nums text-[var(--color-up)]">
-          +₹{amountMajor.toLocaleString("en-IN")}
-        </span>
-      </div>
+      {bonusPercent > 0 ? (
+        <>
+          <div className="flex items-baseline justify-between text-xs text-[var(--color-ink-2)]">
+            <span>Bonus ({bonusPercent}%)</span>
+            <span className="tabular-nums text-[var(--color-up)]">
+              +₹{Math.floor((amountMajor * bonusPercent) / 100).toLocaleString("en-IN")}
+            </span>
+          </div>
+          <p className="-mt-2 text-[11px] text-[var(--color-ink-3)]">
+            Bonus is for trading only and can&apos;t be withdrawn.
+          </p>
+        </>
+      ) : null}
 
       {error ? <p className="text-xs text-[var(--color-down)]">{error}</p> : null}
 

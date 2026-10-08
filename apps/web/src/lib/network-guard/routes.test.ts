@@ -69,7 +69,7 @@ function post(path: string, ip: string, body: unknown, session?: string): NextRe
 describe("VPN guard on auth routes", () => {
   it("refuses to create an account from a VPN", async () => {
     const newEmail = `${NEW_EMAIL_PREFIX}-a@test.local`;
-    const res = await register(post("/api/auth/register", VPN_IP, { email: newEmail, password: PASSWORD }));
+    const res = await register(post("/api/auth/register", VPN_IP, { name: "Test User", email: newEmail, password: PASSWORD }));
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code: string }).code).toBe("vpn_blocked");
     expect(await prisma.user.findUnique({ where: { email: newEmail } })).toBeNull();
@@ -77,7 +77,7 @@ describe("VPN guard on auth routes", () => {
 
   it("still registers from a clean network", async () => {
     const newEmail = `${NEW_EMAIL_PREFIX}-b@test.local`;
-    const res = await register(post("/api/auth/register", CLEAN_IP, { email: newEmail, password: PASSWORD }));
+    const res = await register(post("/api/auth/register", CLEAN_IP, { name: "Test User", email: newEmail, password: PASSWORD }));
     expect(res.status).toBe(201);
   });
 

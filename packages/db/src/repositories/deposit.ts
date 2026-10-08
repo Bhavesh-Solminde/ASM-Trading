@@ -444,8 +444,22 @@ export async function claimUsdtPayment(input: {
   });
 }
 
-export const BONUS_PERCENT = 100;
+/**
+ * Deposit bonus by deposit number: the 1st and 2nd completed deposits are
+ * matched 100%, the 3rd and 4th 50%, and every later deposit gets none.
+ */
+export const BONUS_TIERS = [100, 100, 50, 50] as const;
 export const TURNOVER_MULTIPLE = 3;
+
+/** Bonus % for a user's `n`th completed deposit (1-based); 0 past the last tier. */
+export function bonusPercentForDeposit(n: number): number {
+  return BONUS_TIERS[n - 1] ?? 0;
+}
+
+/** How many deposits the user has had credited — the next one is this + 1. */
+export async function countCompletedDeposits(userId: string): Promise<number> {
+  return prisma.deposit.count({ where: { userId, status: "COMPLETED" } });
+}
 
 /**
  * The amount (minor units of `accountCurrency`) a deposit credits to — and a
@@ -583,7 +597,6 @@ export async function creditDepositToAccount(input: {
   // differ from what the deposit reserved.
   const usdtOverride = admin?.usdtMinorOverride ?? received;
   const credit = depositCreditMinor(deposit, account.currency, usdtOverride);
-  const bonus = Math.floor((credit * BONUS_PERCENT) / 100);
 
   await prisma.$transaction(async (tx) => {
     // With an admin resolution the deposit's amounts are rewritten to what
@@ -634,12 +647,25 @@ export async function creditDepositToAccount(input: {
       if (consumed.count !== 1) throw new DepositAlreadyResolved();
     }
 
+    // Lock the LIVE account row before counting, so two of the user's deposits
+    // completing at once can't both see the same deposit number: the second
+    // blocks here until the first commits, and its count then includes it.
+    await tx.account.update({
+      where: { id: account.id },
+      data: { version: { increment: 1 } },
+    });
+    // This deposit is already COMPLETED inside the transaction, so it counts.
+    const depositNumber = await tx.deposit.count({
+      where: { userId: deposit.userId, status: "COMPLETED" },
+    });
+    const bonusPercent = bonusPercentForDeposit(depositNumber);
+    const bonus = Math.floor((credit * bonusPercent) / 100);
+
     const updated = await tx.account.update({
       where: { id: account.id },
       data: {
         realBalance: { increment: credit },
         bonusBalance: { increment: bonus },
-        version: { increment: 1 },
       },
     });
 
@@ -690,6 +716,8 @@ export async function creditDepositToAccount(input: {
               status: "COMPLETED",
               creditId: input.creditId,
               bonus,
+              bonusPercent,
+              depositNumber,
               resolvedByAdmin: true,
               usdtMinorOverride: admin.usdtMinorOverride,
               reservedUsdtMinor: deposit.amountUsdtMinor,
@@ -699,11 +727,13 @@ export async function creditDepositToAccount(input: {
                 status: "COMPLETED",
                 chainCreditId: input.chainCreditId,
                 bonus,
+                bonusPercent,
+                depositNumber,
                 gateway: deposit.gateway,
                 receivedUsdtMinor: received,
                 requestedUsdtMinor: deposit.amountUsdtMinor,
               }
-            : { status: "COMPLETED", creditId: input.creditId, bonus },
+            : { status: "COMPLETED", creditId: input.creditId, bonus, bonusPercent, depositNumber },
       },
     });
   });
@@ -780,7 +810,13 @@ async function performDepositReversal(
   // The same figure creditDepositToAccount added (an admin resolution rewrote
   // amountUsdtMinor to the credited amount, so it is read back here as-is).
   const credit = depositCreditMinor(deposit, account.currency);
-  const bonus = Math.floor((credit * BONUS_PERCENT) / 100);
+  // The bonus actually granted for this deposit — its tier depended on the
+  // deposit number at credit time, so it is read back rather than recomputed.
+  const grant = await prisma.transaction.findFirst({
+    where: { accountId: account.id, refType: "Deposit", refId: deposit.id, kind: "BONUS_GRANT" },
+    select: { amount: true },
+  });
+  const bonus = grant?.amount ?? 0;
 
   await prisma.$transaction(async (tx) => {
     const fresh = await tx.account.findUniqueOrThrow({

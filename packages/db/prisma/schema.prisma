@@ -176,9 +176,14 @@ model User {
   lastName           String?
   dateOfBirth        DateTime?
   aadhaar            String?
+  pan                String?
   address            String?
   country            String?
   kycStatus          KycStatus  @default(NOT_STARTED)
+  // Set when the user submits details + documents for review (PENDING).
+  kycSubmittedAt     DateTime?
+  // Google account id ("sub") once the user has signed in with Google.
+  googleSub          String?    @unique
   cumulativeDeposits Int        @default(0)
   isBot              Boolean    @default(false)
   // Compliance/anti-fraud status. A non-ACTIVE status blocks new trades,
@@ -206,6 +211,7 @@ model User {
   supportTickets SupportTicket[]
   twoFactorCodes TwoFactorCode[]
   fraudFlags     FraudFlag[]
+  kycDocuments   KycDocument[]
 
   @@index([email])
   // The detector queries these hot; a plain btree on a nullable String is
@@ -726,6 +732,31 @@ model Transaction {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId, createdAt])
+}
+
+enum KycDocumentKind {
+  AADHAAR_FRONT
+  AADHAAR_BACK
+  PAN
+  SELFIE
+}
+
+/// One identity document per kind per user; a re-upload replaces the row.
+/// The image itself is stored here, not in object storage: identity documents
+/// never leave our own database, and the only way to view one is the
+/// admin-session-gated /api/admin/kyc-documents/[id] route.
+model KycDocument {
+  id          String          @id @default(uuid())
+  userId      String
+  kind        KycDocumentKind
+  contentType String
+  data        Bytes
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind])
 }
 
 model BonusGrant {

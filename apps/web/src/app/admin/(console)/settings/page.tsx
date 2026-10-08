@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  BONUS_PERCENT,
+  BONUS_TIERS,
   DEPOSIT_TTL_MINUTES,
   MAX_DEPOSIT_USD_MINOR,
   MIN_DEPOSIT_USD_MINOR,
@@ -88,7 +88,11 @@ export default async function SettingsPage({
               desc="How long a reserved amount stays live."
               control={mono(`${DEPOSIT_TTL_MINUTES} min`)}
             />
-            <Row label="First-deposit bonus" control={mono(`${BONUS_PERCENT}%`)} />
+            <Row
+              label="Deposit bonus"
+              desc="By deposit number: 1st, 2nd, 3rd, 4th. Later deposits get none."
+              control={mono(`${BONUS_TIERS.join(" / ")}%`)}
+            />
             <Row
               label="Bonus turnover multiple"
               desc="Wagering required before a bonus converts."

@@ -15,6 +15,12 @@ export const UpdateProfileSchema = z.strictObject({
     .trim()
     .regex(/^[0-9]{12}$/, "Aadhaar is 12 digits")
     .optional(),
+  pan: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "PAN looks like ABCDE1234F")
+    .optional(),
   address: z.string().trim().max(240).optional(),
   country: z.string().trim().max(60).optional(),
 });

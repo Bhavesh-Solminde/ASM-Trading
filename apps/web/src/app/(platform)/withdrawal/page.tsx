@@ -2,7 +2,6 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
-  BONUS_PERCENT,
   formatMoney,
   listAccountsForActor,
   listWithdrawalsForActor,
@@ -73,8 +72,8 @@ export default async function WithdrawalPage() {
                 {formatMoney(balance.lockedBonus, live.currency)} bonus — not withdrawable
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-ink-2)]">
-                Your {BONUS_PERCENT}% first-deposit bonus is for trading only and can&apos;t be
-                cashed out. Only your real balance above is available to withdraw.
+                Your deposit bonus is for trading only and can&apos;t be cashed out. Only
+                your real balance above is available to withdraw.
               </p>
             </div>
           ) : null}
@@ -101,17 +100,17 @@ const VERIFY_COPY: Record<string, { title: string; body: string; cta: string | n
   },
   REJECTED: {
     title: "Verification not approved",
-    body: "We couldn't verify the details you sent. Check your personal data and save it again to resubmit.",
-    cta: "Update personal data",
+    body: "We couldn't verify what you sent. Check your details, replace any unclear photo and submit again.",
+    cta: "Fix and resubmit",
   },
 };
 
 /** Shown in place of the withdraw form until the account's KYC is VERIFIED (the API enforces the same). */
 function VerifyFirst({ kycStatus }: { kycStatus: string }) {
   const copy = VERIFY_COPY[kycStatus] ?? {
-    title: "Verify your account to withdraw",
-    body: "Withdrawals are available to verified accounts only. Fill in your personal data on the Account page and save it to submit for verification.",
-    cta: "Verify account",
+    title: "Verify your identity to withdraw",
+    body: "A one-time check before your first withdrawal: your details, a photo of your Aadhaar and PAN card, and a selfie. It takes about 2 minutes.",
+    cta: "Start verification",
   };
   return (
     <div className="flex flex-col gap-3 rounded border border-caution/30 bg-caution/10 p-4">
@@ -119,7 +118,7 @@ function VerifyFirst({ kycStatus }: { kycStatus: string }) {
       <p className="text-xs leading-relaxed text-[var(--color-ink-2)]">{copy.body}</p>
       {copy.cta ? (
         <Link
-          href="/account"
+          href="/account/verify"
           className="self-start rounded bg-[var(--color-brand)] px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)] phone:self-stretch phone:text-center"
         >
           {copy.cta}

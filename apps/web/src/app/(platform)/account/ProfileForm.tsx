@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 type Profile = {
@@ -10,6 +11,7 @@ type Profile = {
   lastName: string | null;
   dateOfBirth: string | null;
   aadhaar: string | null;
+  pan: string | null;
   address: string | null;
   country: string | null;
   kycStatus: string;
@@ -24,15 +26,16 @@ const KYC_LABEL: Record<string, string> = {
   NOT_STARTED: "Not verified",
 };
 
-const FIELDS = [
-  { key: "nickname", label: "Nickname", type: "text" },
-  { key: "firstName", label: "First name", type: "text" },
-  { key: "lastName", label: "Last name", type: "text" },
-  { key: "dateOfBirth", label: "Date of birth", type: "date" },
-  { key: "aadhaar", label: "Aadhaar", type: "text" },
-  { key: "address", label: "Address", type: "text" },
-  { key: "country", label: "Country", type: "text" },
-] as const;
+// Identity fields (name, DOB, Aadhaar, PAN, address) live in the KYC flow at
+// /account/verify, where they're locked once submitted.
+const FIELDS = [{ key: "nickname", label: "Nickname", type: "text" }] as const;
+
+const KYC_HINT: Record<string, { text: string; cta: string | null }> = {
+  VERIFIED: { text: "Your identity is verified — withdrawals are enabled.", cta: null },
+  PENDING: { text: "Your documents are in review. Withdrawals unlock once you're verified.", cta: "View status" },
+  REJECTED: { text: "Your verification wasn't approved. Fix the details or photos and resubmit.", cta: "Fix and resubmit" },
+  NOT_STARTED: { text: "Verify your identity once to unlock withdrawals: details, Aadhaar + PAN photos and a selfie.", cta: "Verify now" },
+};
 
 export function ProfileForm({ initial }: { initial: Profile }) {
   const [profile, setProfile] = useState(initial);
@@ -58,11 +61,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
     if (res.ok) {
       const data = (await res.json().catch(() => ({}))) as { profile?: Profile };
       if (data.profile) setProfile((p) => ({ ...p, kycStatus: data.profile!.kycStatus }));
-      setMessage(
-        data.profile?.kycStatus === "PENDING" && profile.kycStatus !== "PENDING"
-          ? "Saved — your details are submitted for verification"
-          : "Saved",
-      );
+      setMessage("Saved");
       return;
     }
     const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -146,11 +145,20 @@ export function ProfileForm({ initial }: { initial: Profile }) {
           Save
         </button>
 
-        <p className="text-xs text-[var(--color-ink-2)]">
-          {profile.kycStatus === "VERIFIED"
-            ? "Your account is verified — withdrawals are enabled."
-            : "Fill in every field and save to submit your account for verification. Withdrawals unlock once it is verified."}
-        </p>
+        <div className="flex flex-col gap-2 rounded border border-[var(--color-rule)] bg-[var(--color-tile)] p-3">
+          <p className="text-sm font-semibold">Identity verification (KYC)</p>
+          <p className="text-xs text-[var(--color-ink-2)]">
+            {(KYC_HINT[profile.kycStatus] ?? KYC_HINT.NOT_STARTED!).text}
+          </p>
+          {(KYC_HINT[profile.kycStatus] ?? KYC_HINT.NOT_STARTED!).cta ? (
+            <Link
+              href="/account/verify"
+              className="self-start rounded bg-[var(--color-up)] px-4 py-2 text-sm font-bold text-[var(--color-up-ink)] phone:self-stretch phone:text-center"
+            >
+              {(KYC_HINT[profile.kycStatus] ?? KYC_HINT.NOT_STARTED!).cta}
+            </Link>
+          ) : null}
+        </div>
       </section>
 
       {/* Security section commented out

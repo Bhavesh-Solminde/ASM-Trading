@@ -38,22 +38,22 @@ export function LogoEmblem({
 }
 
 /**
- * The IndianxTrade horizontal wordmark (raster). The source art is silver
- * chrome lettering with an Indian-flag X on a near-black background, so we
- * composite it with `mix-blend-mode: screen`: against the site's dark
- * surfaces the black drops out and only the metallic wordmark + flag colours
- * show, no matter the exact surface colour. Height is set by the caller via
- * className (e.g. `h-6`); width follows the art's aspect ratio (~3.06:1).
+ * The IndianxTrade horizontal wordmark (raster): silver chrome lettering with
+ * an Indian-flag X on a truly transparent background, cropped tight to the
+ * art. It was keyed out of the black-backed source
+ * (/brand/indianxtrade-wordmark-dark.png, still used for the share card), so
+ * it sits on any surface with no box, blend mode or glow. Height is set by the
+ * caller via className (e.g. `h-6`); width follows the art's ~3.96:1 ratio.
  */
 export function LogoWordmark({ className }: { className?: string }) {
   return (
     <Image
-      src="/brand/indianxtrade-wordmark-dark.png"
+      src="/brand/indianxtrade-wordmark.png"
       alt="IndianxTrade"
-      width={1254}
-      height={410}
+      width={1179}
+      height={298}
       priority
-      className={`w-auto [mix-blend-mode:screen] ${className ?? ""}`}
+      className={`w-auto ${className ?? ""}`}
     />
   );
 }

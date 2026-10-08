@@ -113,3 +113,52 @@ export async function setUserStatus(input: {
     });
   });
 }
+
+export class GoogleAccountConflict extends Error {
+  constructor() {
+    super("That email is already linked to a different Google account.");
+    this.name = "GoogleAccountConflict";
+  }
+}
+
+/**
+ * Resolves a verified Google identity to a user: first by Google id, then by
+ * email (linking the Google id to the existing account and marking its email
+ * verified — Google vouched for it), else creates a new user. `passwordHash`
+ * is only used on create; callers pass a hash of random bytes so a Google-only
+ * account can't be signed into with a password. Never writes `role`.
+ */
+export async function findOrCreateGoogleUser(input: {
+  sub: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  passwordHash: string;
+}): Promise<{ userId: string; created: boolean }> {
+  const bySub = await prisma.user.findUnique({ where: { googleSub: input.sub }, select: { id: true } });
+  if (bySub) return { userId: bySub.id, created: false };
+
+  const email = input.email.toLowerCase();
+  const byEmail = await prisma.user.findUnique({ where: { email }, select: { id: true, googleSub: true } });
+  if (byEmail) {
+    if (byEmail.googleSub && byEmail.googleSub !== input.sub) throw new GoogleAccountConflict();
+    await prisma.user.update({
+      where: { id: byEmail.id },
+      data: { googleSub: input.sub, emailVerified: true },
+    });
+    return { userId: byEmail.id, created: false };
+  }
+
+  const user = await prisma.user.create({
+    data: {
+      email,
+      googleSub: input.sub,
+      emailVerified: true,
+      passwordHash: input.passwordHash,
+      firstName: input.firstName,
+      lastName: input.lastName,
+    },
+    select: { id: true },
+  });
+  return { userId: user.id, created: true };
+}

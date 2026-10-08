@@ -103,13 +103,13 @@ export function TopBar() {
 
   return (
     <header
-      className={`col-span-full row-start-1 flex min-w-0 items-center gap-5 border-b border-rule bg-ground pl-3.5 pr-4 phone:gap-1.5 phone:px-1.5 ${
+      className={`col-span-full row-start-1 flex min-w-0 items-center gap-5 border-b border-rule bg-ground pl-3.5 pr-4 phone:gap-1.5 phone:px-2 ${
         live ? "shadow-[inset_0_-2px_0_0_var(--color-up)]" : ""
       }`}
     >
       <MobileNav />
-      <Link href="/trade" aria-label="IndianxTrade" className="flex h-11 flex-none items-center phone:h-7">
-        <LogoWordmark className="h-10 flex-none phone:h-6 [filter:drop-shadow(0_0_10px_rgba(255,176,0,.3))]" />
+      <Link href="/trade" aria-label="IndianxTrade" className="flex h-11 flex-none items-center phone:mx-auto phone:h-10">
+        <LogoWordmark className="h-8 flex-none phone:h-[22px]" />
       </Link>
 
       <div className="ml-1 flex flex-none items-center gap-2.5 text-ink-3 phone:hidden">
@@ -127,35 +127,48 @@ export function TopBar() {
       </div>
 
       <div className="mx-auto hidden xl:block">
-        <PromoBanner />
-      </div>
-      <div className="hidden min-w-0 flex-1 phone:flex [@media(height<30rem)]:hidden">
-        <PromoBanner compact />
+        <PromoBanner variant="bar" />
       </div>
 
-      <div ref={menuRef} className="relative ml-auto flex flex-none items-center gap-2.5 phone:gap-1">
+      <div ref={menuRef} className="relative ml-auto flex min-w-0 items-center gap-2.5 phone:ml-0 phone:gap-1.5">
         <button
           type="button"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((o) => !o)}
-          className={`grid h-11 min-w-0 grid-cols-[auto_minmax(0,1fr)_18px] items-center gap-2.5 rounded border bg-panel pl-1.5 pr-2.5 text-left phone:h-7 phone:grid-cols-[auto_auto_14px] phone:gap-1 phone:pl-[3px] phone:pr-1 ${
+          className={`grid h-11 min-w-0 grid-cols-[auto_minmax(0,1fr)_18px] items-center gap-2.5 rounded border bg-panel pl-1.5 pr-2.5 text-left phone:h-10 phone:grid-cols-[minmax(0,1fr)_16px] phone:gap-1 phone:rounded-lg phone:pl-2 phone:pr-1.5 ${
             live ? "border-up" : "border-rule hover:border-tile-hi"
           }`}
         >
-          {activeAccount ? <AccountPlate type={activeAccount.type} /> : null}
-          <span className="grid min-w-0 gap-0.5">
+          {activeAccount ? (
+            <span className="contents phone:hidden">
+              <AccountPlate type={activeAccount.type} />
+            </span>
+          ) : null}
+          <span className="grid min-w-0 gap-0.5 phone:gap-[3px]">
             <span className="legend text-[10px]! phone:hidden">{live ? "Live account" : "Demo account"}</span>
-            <span className="led led-lit truncate text-[20px] leading-none phone:text-[15px]">{totalBalance(activeAccount, balances)}</span>
+            {/* Phone: the plate becomes a small dot + label above the amount. */}
+            <span
+              className={`hidden items-center gap-1 text-[9px] font-extrabold uppercase leading-none tracking-[0.14em] phone:flex ${
+                live ? "text-up" : "text-ink-3"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`size-[6px] rounded-full ${live ? "bg-up shadow-[0_0_6px_var(--color-up)] live-pulse" : "bg-ink-3"}`}
+              />
+              {live ? "Live" : "Demo"}
+            </span>
+            <span className="led led-lit truncate text-[20px] leading-none phone:text-[clamp(15px,4.4vw,18px)]">{totalBalance(activeAccount, balances)}</span>
           </span>
-          <Icon name="caret" className="size-[18px] phone:size-3.5" />
+          <Icon name="caret" className="size-[18px] phone:size-4" />
         </button>
 
         <Link
           href="/deposit"
-          className="inline-flex h-11 flex-none items-center gap-2 rounded border border-up bg-up px-4 text-xs font-bold uppercase tracking-[0.06em] text-up-ink transition-colors hover:bg-up/90 phone:h-7 phone:w-7 phone:justify-center phone:px-0"
+          className="inline-flex h-11 flex-none items-center gap-2 rounded border border-up bg-up px-4 text-xs font-bold uppercase tracking-[0.06em] text-up-ink transition-colors hover:bg-up/90 phone:h-10 phone:w-10 phone:justify-center phone:rounded-lg phone:px-0"
         >
-          <Icon name="plus" className="size-[18px] phone:size-4" />
+          <Icon name="plus" className="size-[18px] phone:size-5" />
           <span className="phone:sr-only">Deposit</span>
         </Link>
         <Link

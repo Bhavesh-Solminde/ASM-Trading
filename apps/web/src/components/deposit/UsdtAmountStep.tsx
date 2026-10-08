@@ -9,12 +9,15 @@ export function UsdtAmountStep({
   networks,
   onBack,
   gateway,
+  bonusPercent,
 }: {
   /** Enabled networks, server-computed; never empty (DepositFlow guards that). */
   networks: UsdtNetwork[];
   onBack: () => void;
   /** True under the Tatum payment gateway: a unique address per deposit, no unique-cents amount. */
   gateway: boolean;
+  /** Bonus tier this deposit will get (0 once every tier is used). */
+  bonusPercent: number;
 }) {
   const [network, setNetwork] = useState<UsdtNetwork>(networks[0] ?? "tron");
   const info = USDT_NETWORK_INFO[network];
@@ -165,12 +168,19 @@ export function UsdtAmountStep({
         <span className="font-semibold tabular-nums">${amountMajor.toLocaleString("en-US")}</span>
       </div>
 
-      <div className="flex items-baseline justify-between text-xs text-[var(--color-ink-2)]">
-        <span>Bonus (100%)</span>
-        <span className="tabular-nums text-[var(--color-up)]">
-          +${amountMajor.toLocaleString("en-US")}
-        </span>
-      </div>
+      {bonusPercent > 0 ? (
+        <>
+          <div className="flex items-baseline justify-between text-xs text-[var(--color-ink-2)]">
+            <span>Bonus ({bonusPercent}%)</span>
+            <span className="tabular-nums text-[var(--color-up)]">
+              +${Math.floor((amountMajor * bonusPercent) / 100).toLocaleString("en-US")}
+            </span>
+          </div>
+          <p className="-mt-2 text-[11px] text-[var(--color-ink-3)]">
+            Bonus is for trading only and can&apos;t be withdrawn.
+          </p>
+        </>
+      ) : null}
 
       {error ? <p className="text-xs text-[var(--color-down)]">{error}</p> : null}
 

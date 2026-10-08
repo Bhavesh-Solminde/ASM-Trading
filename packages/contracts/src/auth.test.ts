@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LoginSchema, RegisterSchema } from "./auth";
 
 describe("RegisterSchema", () => {
-  const valid = { email: "a@b.com", password: "correct-horse-battery" };
+  const valid = { name: "Asha Rao", email: "a@b.com", password: "correct-horse-battery" };
 
   it("accepts a valid registration", () => {
     expect(RegisterSchema.parse(valid)).toEqual(valid);
@@ -28,6 +28,12 @@ describe("RegisterSchema", () => {
     expect(RegisterSchema.safeParse({ ...valid, email: "nope" }).success).toBe(
       false,
     );
+  });
+
+  it("requires a name of at least two characters, trimmed", () => {
+    expect(RegisterSchema.safeParse({ email: valid.email, password: valid.password }).success).toBe(false);
+    expect(RegisterSchema.safeParse({ ...valid, name: "  A " }).success).toBe(false);
+    expect(RegisterSchema.parse({ ...valid, name: "  Asha Rao  " }).name).toBe("Asha Rao");
   });
 
   it("lowercases and trims the email", () => {

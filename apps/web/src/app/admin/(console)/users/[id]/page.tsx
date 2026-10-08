@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { KycStatus, Role, prisma } from "@asm/db";
+import { KycStatus, Role, listKycDocuments, prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { Avatar, Card, StatusPill, Tag } from "../../../_components/ui";
 import { Icon } from "../../../_lib/icons";
@@ -32,6 +32,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   });
   if (!user) notFound();
 
+  const kycDocs = await listKycDocuments(user.id);
   const name = displayName(user);
   const live = user.accounts.find((a) => a.type === "LIVE");
   const demo = user.accounts.find((a) => a.type === "DEMO");
@@ -195,6 +196,58 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
             </form>
           </Card>
         </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <Card
+          title="KYC review"
+          sub={
+            user.kycSubmittedAt
+              ? `Submitted ${fmtDate(user.kycSubmittedAt)} — approve or reject with the KYC status above.`
+              : "Not submitted yet."
+          }
+        >
+          {detail("Full name", [user.firstName, user.lastName].filter(Boolean).join(" ") || "—")}
+          {detail("Date of birth", user.dateOfBirth ? user.dateOfBirth.toISOString().slice(0, 10) : "—")}
+          {detail("Aadhaar", user.aadhaar || "—")}
+          {detail("PAN", user.pan || "—")}
+          {detail("Address", user.address || "—")}
+          {kycDocs.length > 0 ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                gap: 12,
+                marginTop: 12,
+              }}
+            >
+              {kycDocs.map((doc) => {
+                const url = `/api/admin/kyc-documents/${doc.id}`;
+                return (
+                  <a key={doc.kind} href={url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- admin-gated image route */}
+                    <img
+                      src={url}
+                      alt={doc.kind}
+                      style={{
+                        width: "100%",
+                        height: 150,
+                        objectFit: "cover",
+                        borderRadius: 8,
+                        border: "1px solid var(--admin-border)",
+                      }}
+                    />
+                    <div style={{ color: "var(--admin-muted)", fontSize: 12, marginTop: 4 }}>
+                      {doc.kind.replace("_", " ").toLowerCase()} · {fmtDate(doc.updatedAt)}
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ color: "var(--admin-muted)", fontSize: 13, marginTop: 8 }}>No documents uploaded.</div>
+          )}
+        </Card>
       </div>
     </>
   );

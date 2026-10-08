@@ -16,7 +16,13 @@ const password = z
  * is rejected outright. Stripping would silently accept a privilege-escalation
  * attempt; rejecting makes it visible and loggable.
  */
-export const RegisterSchema = z.strictObject({ email, password });
+const name = z
+  .string()
+  .trim()
+  .min(2, "Enter your full name")
+  .max(80, "Name is too long");
+
+export const RegisterSchema = z.strictObject({ name, email, password });
 export const LoginSchema = z.strictObject({ email, password });
 
 export type RegisterInput = z.infer<typeof RegisterSchema>;

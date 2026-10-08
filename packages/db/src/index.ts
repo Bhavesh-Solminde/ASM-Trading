@@ -21,6 +21,8 @@ export {
   writeSignupCapture,
   updateUserLastSeen,
   setUserStatus,
+  findOrCreateGoogleUser,
+  GoogleAccountConflict,
 } from "./repositories/user";
 export {
   AFFILIATE_DAILY_FLOAT_MINOR,
@@ -78,7 +80,9 @@ export {
   MIN_DEPOSIT_INR_MINOR,
   MAX_DEPOSIT_INR_MINOR,
   DEMO_VPA,
-  BONUS_PERCENT,
+  BONUS_TIERS,
+  bonusPercentForDeposit,
+  countCompletedDeposits,
   TURNOVER_MULTIPLE,
   USDT_OFFSET_LOW,
   USDT_OFFSET_SPACE,
@@ -123,7 +127,14 @@ export {
 export {
   loadProfile,
   updateProfile,
+  saveKycDocument,
+  submitKyc,
+  listKycDocuments,
+  loadKycDocumentImage,
   setTwoFactorPreferences,
+  KycLocked,
+  KYC_DOCUMENT_KINDS,
+  type KycSubmitResult,
   type ProfileView,
 } from "./repositories/profile";
 export { issueTwoFactorCode, verifyTwoFactorCode } from "./repositories/twofa";
