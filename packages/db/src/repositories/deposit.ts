@@ -532,8 +532,23 @@ export async function creditDepositToAccount(input: {
    */
   receivedUsdtMinor?: number;
 }): Promise<void> {
-  const deposit = await prisma.deposit.findUnique({ where: { id: input.depositId } });
+  const deposit = await prisma.deposit.findUnique({
+    where: { id: input.depositId },
+    include: { user: { select: { role: true } } },
+  });
   if (!deposit) throw new DepositNotFound();
+
+  // Defense in depth: an affiliate account's LIVE balance is a daily float
+  // governed by the engine's reset tick — never credited by deposits. The
+  // matchers (findLiveDepositByAmount, findLiveDepositByClaimedUtr) already
+  // exclude affiliate rows, and the admin deposits page hides them from the
+  // review queues; this guard turns any residual path into a loud failure
+  // instead of silently inflating the float.
+  if (deposit.user.role === "AFFILIATE") {
+    throw new Error(
+      `Refusing to credit deposit ${deposit.id}: owner is an affiliate account.`,
+    );
+  }
 
   const account = await prisma.account.findFirstOrThrow({
     where: { userId: deposit.userId, type: "LIVE" },
