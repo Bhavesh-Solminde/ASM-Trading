@@ -60,6 +60,15 @@ export function TopBar() {
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   useDismiss(menuRef, menuOpen, closeMenu);
 
+  // Sign out, then a full document load of /login so every client cache (React
+  // state, RSC cache, the engine socket) drops with the session. The form's
+  // native post stays as the no-JS fallback; the route redirects that to /login.
+  const logOut = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+    window.location.href = "/login";
+  }, []);
+
   const toggleMuted = useCallback(() => {
     setMutedState((prev) => {
       const next = !prev;
@@ -249,7 +258,7 @@ export function TopBar() {
               >
                 Withdraw
               </Link>
-              <form action="/api/auth/logout" method="post">
+              <form action="/api/auth/logout" method="post" onSubmit={(e) => void logOut(e)}>
                 <button type="submit" className="py-2 text-[13px] font-semibold text-ink-3 hover:text-ink">
                   Log out
                 </button>
