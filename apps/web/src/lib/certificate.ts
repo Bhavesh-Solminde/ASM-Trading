@@ -67,7 +67,7 @@ export function certificateHtml({ name, amountLabel, dateLabel, refId }: Certifi
   </div>
   <div style="padding:14px 34px;background:#0b0e13;font-size:11px;line-height:1.6;color:#5a6472;">
     This certificate confirms a withdrawal request on IndianxTrade. Requests are processed within
-    3 business days to your original deposit method.
+    5–10 hours to your original deposit method.
   </div>
 </div>`.trim();
 }

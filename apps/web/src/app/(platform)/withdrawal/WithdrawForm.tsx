@@ -64,7 +64,7 @@ export function WithdrawForm({
     return (
       <div className="grid gap-4">
         <p className="rounded border border-[var(--color-up)] bg-[var(--color-up)]/10 p-3 text-sm text-[var(--color-up)]">
-          Withdrawal requested. Requests are processed in 3 business days.
+          Withdrawal requested. Requests are processed within 5–10 hours.
           {emailed ? " A certificate has been emailed to you." : ""}
         </p>
         {cert ? (
@@ -93,7 +93,7 @@ export function WithdrawForm({
       <div className="rounded border border-[var(--color-down)] bg-[var(--color-warn-bg)] p-4">
         <p className="text-sm text-[var(--color-down)]">
           You can withdraw money from your balance to the method you used for depositing. Requests
-          are processed in 3 business days.
+          are processed within 5–10 hours.
         </p>
         <a
           href="/deposit"

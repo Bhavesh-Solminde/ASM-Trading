@@ -9,11 +9,11 @@ export type CreateTicketInput = z.infer<typeof CreateTicketSchema>;
 export const FAQ = [
   {
     q: "How do I withdraw money from the account?",
-    a: "First verify your account (Account → Personal data). Then open Withdrawal, enter an amount within your available balance, and choose a method you have already deposited with. Requests are processed in 3 business days.",
+    a: "First verify your identity once (Account → Verify now: your details, Aadhaar + PAN photos and a selfie). Then open Withdrawal, enter an amount within your available balance, and choose a method you have already deposited with. Requests are processed within 5–10 hours.",
   },
   {
     q: "How long does it take to withdraw funds?",
-    a: "Three business days from approval.",
+    a: "Within 5–10 hours of your request.",
   },
   {
     q: "What is the minimum withdrawal amount?",
