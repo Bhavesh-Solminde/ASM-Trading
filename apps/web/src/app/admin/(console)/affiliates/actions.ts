@@ -7,6 +7,7 @@ import {
   AffiliateCreationRefused,
   createAffiliate,
   deleteAffiliateById,
+  resetAffiliatePasswordById,
 } from "@asm/db";
 import { logger } from "@asm/logger";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
@@ -54,6 +55,42 @@ export async function createAffiliateAction(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/affiliates");
   redirect("/admin/affiliates");
+}
+
+/** "Reset password" row-action. Admin types a new password; it's hashed
+ *  with argon2 (the same path as create / login verify) and persisted.
+ *  Audited as `affiliate.password_reset`. */
+export async function resetAffiliatePasswordAction(formData: FormData): Promise<void> {
+  await requirePanel();
+
+  const userId = String(formData.get("userId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  if (!userId) return;
+  if (password.length < 8) {
+    redirect(
+      "/admin/affiliates?error=" +
+        encodeURIComponent("New password must be at least 8 characters."),
+    );
+  }
+
+  try {
+    await resetAffiliatePasswordById({
+      userId,
+      passwordHash: await hashPassword(password),
+    });
+    logger.info(
+      { evt: "admin.action", action: "affiliate.password_reset", userId },
+      "affiliate password reset",
+    );
+  } catch (err) {
+    if (err instanceof AffiliateCreationRefused) {
+      redirect("/admin/affiliates?error=" + encodeURIComponent(err.message));
+    }
+    throw err;
+  }
+
+  revalidatePath("/admin/affiliates");
+  redirect("/admin/affiliates?reset=1");
 }
 
 /** Delete button on the list row. One-shot action — the browser form submit
