@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const QUICK = [2000, 5000, 10000, 25000];
+const QUICK = [500, 1000, 4000, 10000];
 
 export function AmountStep({
   method,
