@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  AFFILIATE
 }
 
 enum AccountType {
@@ -133,6 +134,7 @@ enum TxKind {
   BONUS_CONVERT
   DEMO_RESET
   CURRENCY_CONVERT
+  AFFILIATE_RESET
 }
 
 /// House-governor verdict stamped on Trade at open time. WIN/LOSS drive the
@@ -246,6 +248,11 @@ model Account {
   lifecycleOverride LifecycleStage?
   dailyLimit        Int?
   version           Int             @default(0)
+  // Set only on affiliate accounts: the IST timestamp of the last daily reset
+  // to the ₹10,000 play float. Daily-reset job uses this as an idempotency
+  // key — a reset is skipped if the stored value's IST calendar date equals
+  // today's IST date. Null on every regular user account.
+  lastAffiliateResetAt DateTime?
   createdAt         DateTime        @default(now())
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)

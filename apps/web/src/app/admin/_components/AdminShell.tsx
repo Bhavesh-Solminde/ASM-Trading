@@ -14,6 +14,7 @@ const NAV = (badges: Record<string, number>): NavGroup[] => [
     items: [
       { href: "/admin", label: "Overview", icon: "grid" },
       { href: "/admin/users", label: "Users & Accounts", icon: "users" },
+      { href: "/admin/affiliates", label: "Affiliates", icon: "user" },
       { href: "/admin/markets", label: "Markets", icon: "coins" },
       {
         href: "/admin/deposits",
@@ -54,6 +55,8 @@ const NAV = (badges: Record<string, number>): NavGroup[] => [
 const TITLES: Record<string, { title: string; crumb: string }> = {
   "/admin": { title: "Overview", crumb: "Home / Overview" },
   "/admin/users": { title: "Users & Accounts", crumb: "Operations / Users" },
+  "/admin/affiliates": { title: "Affiliates", crumb: "Operations / Affiliates" },
+  "/admin/affiliates/new": { title: "Create affiliate", crumb: "Operations / Affiliates / New" },
   "/admin/markets": { title: "Markets", crumb: "Operations / Markets" },
   "/admin/deposits": { title: "Deposits", crumb: "Operations / Deposits" },
   "/admin/withdrawals": { title: "Withdrawals", crumb: "Operations / Withdrawals" },
