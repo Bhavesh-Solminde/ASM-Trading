@@ -168,6 +168,43 @@ export async function listAffiliates(): Promise<AffiliateListItem[]> {
   });
 }
 
+/** Overwrites an affiliate's passwordHash. The caller (the admin action)
+ *  owns the argon2 hashing — the db package stays password-library-agnostic.
+ *  Refuses on a non-affiliate user so this never becomes a general password
+ *  reset path for regular users or admins. */
+export async function resetAffiliatePasswordById(input: {
+  userId: string;
+  passwordHash: string;
+}): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: input.userId },
+    select: { role: true, email: true },
+  });
+  if (!user) {
+    throw new AffiliateCreationRefused("Affiliate not found.");
+  }
+  if (user.role !== "AFFILIATE") {
+    throw new AffiliateCreationRefused(
+      "This user is not an affiliate — password changes for regular users go through the user flow.",
+    );
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: input.userId },
+      data: { passwordHash: input.passwordHash },
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: ADMIN_AUDIT_ACTOR,
+        action: "affiliate.password_reset",
+        targetType: "User",
+        targetId: input.userId,
+        after: { email: user.email },
+      },
+    });
+  });
+}
+
 /** Permanently removes an affiliate and (via cascade) their accounts, trades
  *  and ledger. Refuses to touch a user who is not an affiliate — the admin
  *  users surface is for everything else. */

@@ -84,7 +84,10 @@ export default async function NewAffiliatePage({
               name="password"
               required
               minLength={8}
-              autoComplete="off"
+              autoComplete="new-password"
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
               className="admin-input"
               style={{
                 padding: "8px 10px",
@@ -98,6 +101,9 @@ export default async function NewAffiliatePage({
             />
             <span className="admin-cell-sub" style={{ fontSize: 11 }}>
               Shown in plain text so you can share it with the streamer.
+              If a password you set here doesn&apos;t work at login, use the{" "}
+              <strong>Set password</strong> button on the list to try again —
+              some browsers autofill this field.
             </span>
           </label>
 

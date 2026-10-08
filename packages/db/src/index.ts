@@ -31,6 +31,7 @@ export {
   createAffiliate,
   listAffiliates,
   deleteAffiliateById,
+  resetAffiliatePasswordById,
   resetAffiliateAccountFloat,
   listAffiliateAccountsNeedingReset,
   istDateOf,

@@ -3,12 +3,22 @@ import { listAffiliates } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { Avatar, EmptyRow } from "../../_components/ui";
 import { fmtDate, inrFromMinor } from "../../_lib/format";
-import { deleteAffiliateAction } from "./actions";
+import {
+  deleteAffiliateAction,
+  resetAffiliatePasswordAction,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function AffiliatesPage() {
+export default async function AffiliatesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   await requireAdmin();
+  const sp = await searchParams;
+  const resetOk = sp.reset === "1";
+  const error = sp.error;
   const rows = await listAffiliates();
 
   return (
@@ -28,6 +38,37 @@ export default async function AffiliatesPage() {
           Create affiliate
         </Link>
       </div>
+
+      {resetOk ? (
+        <div
+          role="status"
+          style={{
+            margin: "0 16px 12px",
+            padding: "10px 12px",
+            borderRadius: 8,
+            background: "rgba(34, 197, 94, 0.08)",
+            color: "#22c55e",
+            fontSize: 13,
+          }}
+        >
+          Password updated. The affiliate can log in with the new password now.
+        </div>
+      ) : null}
+      {error ? (
+        <div
+          role="alert"
+          style={{
+            margin: "0 16px 12px",
+            padding: "10px 12px",
+            borderRadius: 8,
+            background: "rgba(239, 68, 68, 0.08)",
+            color: "#ef4444",
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
+      ) : null}
 
       <div className="admin-table-wrap">
         <table className="admin-table">
@@ -76,8 +117,44 @@ export default async function AffiliatesPage() {
                     <td>
                       <div
                         className="admin-row-actions"
-                        style={{ justifyContent: "flex-end" }}
+                        style={{
+                          justifyContent: "flex-end",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
                       >
+                        <form
+                          action={resetAffiliatePasswordAction}
+                          style={{ display: "flex", gap: 6, alignItems: "center" }}
+                        >
+                          <input type="hidden" name="userId" value={row.id} />
+                          <input
+                            type="text"
+                            name="password"
+                            placeholder="New password"
+                            minLength={8}
+                            required
+                            autoComplete="new-password"
+                            spellCheck={false}
+                            style={{
+                              padding: "4px 8px",
+                              fontSize: 12,
+                              fontFamily:
+                                "ui-monospace, SFMono-Regular, monospace",
+                              borderRadius: 6,
+                              border: "1px solid var(--admin-border)",
+                              background: "var(--admin-bg-input)",
+                              color: "inherit",
+                              width: 140,
+                            }}
+                          />
+                          <button
+                            type="submit"
+                            className="admin-btn admin-btn--sm admin-btn--subtle"
+                          >
+                            Set password
+                          </button>
+                        </form>
                         <form action={deleteAffiliateAction}>
                           <input type="hidden" name="userId" value={row.id} />
                           <button
