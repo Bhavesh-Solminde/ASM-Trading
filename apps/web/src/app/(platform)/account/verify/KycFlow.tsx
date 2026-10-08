@@ -48,10 +48,13 @@ export function KycFlow({
   initialDetails,
   initialStatus,
   initialDocuments,
+  reviewNote,
 }: {
   initialDetails: KycDetails;
   initialStatus: string;
   initialDocuments: DocKind[];
+  /** The admin's reason when the last submission was rejected. */
+  reviewNote: string | null;
 }) {
   const [status, setStatus] = useState(initialStatus);
   const [details, setDetails] = useState(initialDetails);
@@ -133,8 +136,9 @@ export function KycFlow({
     <div className="flex flex-col gap-5">
       {status === "REJECTED" ? (
         <div className="rounded-lg border border-down/40 bg-down/10 p-3 text-sm text-down">
-          Your last verification wasn&apos;t approved. Check your details, replace any unclear photo and
-          submit again.
+          <p className="font-semibold">Your last verification wasn&apos;t approved.</p>
+          {reviewNote ? <p className="mt-1">Reason: {reviewNote}</p> : null}
+          <p className="mt-1 text-ink-2">Fix it below — replace any photo that needs it — and submit again.</p>
         </div>
       ) : null}
 

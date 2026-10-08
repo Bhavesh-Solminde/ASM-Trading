@@ -4,6 +4,8 @@ import { prisma } from "../client";
 import {
   KYC_DOCUMENT_KINDS,
   KycLocked,
+  KycNotPending,
+  reviewKyc,
   listKycDocuments,
   loadKycDocumentImage,
   loadProfile,
@@ -115,6 +117,49 @@ describe("submitKyc", () => {
     await uploadAll();
     await prisma.user.update({ where: { id: userId }, data: { kycStatus: "VERIFIED" } });
     expect(await submitKyc(userId)).toEqual({ ok: false, locked: true });
+    expect((await loadProfile(userId)).kycStatus).toBe("VERIFIED");
+  });
+});
+
+describe("reviewKyc", () => {
+  async function submitted() {
+    await updateProfile(userId, IDENTITY);
+    await uploadAll();
+    expect(await submitKyc(userId)).toEqual({ ok: true });
+  }
+
+  afterEach(async () => {
+    await prisma.auditLog.deleteMany({ where: { targetType: "User", targetId: userId } });
+  });
+
+  it("approves a pending submission and audits it", async () => {
+    await submitted();
+    await reviewKyc({ userId, decision: "VERIFIED", adminId: "admin-panel", note: "ignored on approve" });
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(user.kycStatus).toBe("VERIFIED");
+    expect(user.kycReviewNote).toBeNull();
+    const audit = await prisma.auditLog.findFirst({ where: { targetId: userId, action: "kyc.approved" } });
+    expect(audit).not.toBeNull();
+  });
+
+  it("rejects with a note the user sees, and a resubmission clears it", async () => {
+    await submitted();
+    await reviewKyc({ userId, decision: "REJECTED", adminId: "admin-panel", note: "  PAN photo is blurry  " });
+    expect((await loadProfile(userId)).kycReviewNote).toBe("PAN photo is blurry");
+    expect((await loadProfile(userId)).kycStatus).toBe("REJECTED");
+
+    expect(await submitKyc(userId)).toEqual({ ok: true });
+    const again = await loadProfile(userId);
+    expect(again.kycStatus).toBe("PENDING");
+    expect(again.kycReviewNote).toBeNull();
+  });
+
+  it("refuses to decide a submission that isn't pending (e.g. a second admin)", async () => {
+    await submitted();
+    await reviewKyc({ userId, decision: "VERIFIED", adminId: "admin-panel" });
+    await expect(reviewKyc({ userId, decision: "REJECTED", adminId: "admin-panel" })).rejects.toBeInstanceOf(
+      KycNotPending,
+    );
     expect((await loadProfile(userId)).kycStatus).toBe("VERIFIED");
   });
 });

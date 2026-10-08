@@ -29,6 +29,12 @@ const NAV = (badges: Record<string, number>): NavGroup[] => [
         ...(badges.withdrawals ? { badge: badges.withdrawals } : {}),
       },
       {
+        href: "/admin/kyc",
+        label: "KYC",
+        icon: "shield",
+        ...(badges.kyc ? { badge: badges.kyc } : {}),
+      },
+      {
         href: "/admin/fraud",
         label: "Fraud queue",
         icon: "shield",
@@ -61,12 +67,22 @@ const TITLES: Record<string, { title: string; crumb: string }> = {
   "/admin/deposits": { title: "Deposits", crumb: "Operations / Deposits" },
   "/admin/withdrawals": { title: "Withdrawals", crumb: "Operations / Withdrawals" },
   "/admin/approvals": { title: "Approvals", crumb: "Operations / Approvals" },
+  "/admin/kyc": { title: "KYC", crumb: "Operations / KYC" },
   "/admin/fraud": { title: "Fraud queue", crumb: "Operations / Fraud queue" },
   "/admin/messages": { title: "Messages", crumb: "Operations / Messages" },
   "/admin/audit": { title: "Audit Log", crumb: "Governance / Audit Log" },
   "/admin/reconciliation": { title: "Reconciliation", crumb: "Governance / Reconciliation" },
   "/admin/settings": { title: "Settings", crumb: "Governance / Settings" },
 };
+
+/** Detail pages (/admin/kyc/<id>, /admin/users/<id>) borrow their section's title. */
+function subPageTitle(pathname: string): { title: string; crumb: string } {
+  if (pathname.startsWith("/admin/kyc/")) return { title: "KYC review", crumb: "Operations / KYC / Review" };
+  const parent = Object.keys(TITLES)
+    .filter((k) => k !== "/admin" && pathname.startsWith(k + "/"))
+    .sort((a, b) => b.length - a.length)[0];
+  return parent ? TITLES[parent]! : { title: "Console", crumb: "Admin" };
+}
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/admin") return pathname === "/admin";
@@ -124,7 +140,7 @@ export function AdminShell({
     router.push(v ? `/admin/users?q=${encodeURIComponent(v)}` : "/admin/users");
   }
 
-  const meta = TITLES[pathname] ?? { title: "Console", crumb: "Admin" };
+  const meta = TITLES[pathname] ?? subPageTitle(pathname);
   const groups = NAV(badges);
 
   return (

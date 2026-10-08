@@ -134,6 +134,8 @@ export {
   loadKycDocumentImage,
   setTwoFactorPreferences,
   KycLocked,
+  KycNotPending,
+  reviewKyc,
   KYC_DOCUMENT_KINDS,
   type KycSubmitResult,
   type ProfileView,

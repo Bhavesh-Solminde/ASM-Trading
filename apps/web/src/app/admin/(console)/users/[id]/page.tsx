@@ -201,6 +201,11 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
       <div style={{ marginTop: 16 }}>
         <Card
           title="KYC review"
+          action={
+            <Link href={`/admin/kyc/${user.id}`} className="admin-btn admin-btn--sm admin-btn--ghost" style={{ textDecoration: "none" }}>
+              {user.kycStatus === "PENDING" ? "Review & decide" : "Open KYC"}
+            </Link>
+          }
           sub={
             user.kycSubmittedAt
               ? `Submitted ${fmtDate(user.kycSubmittedAt)} — approve or reject with the KYC status above.`

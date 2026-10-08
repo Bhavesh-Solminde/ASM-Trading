@@ -13,6 +13,8 @@ export interface ProfileView {
   address: string | null;
   country: string | null;
   kycStatus: string;
+  /** Why an admin rejected the last submission (null unless REJECTED). */
+  kycReviewNote: string | null;
   /** Which KYC documents are on file (never the files themselves). */
   kycDocuments: KycDocumentKind[];
   twoFaForLogin: boolean;
@@ -57,6 +59,7 @@ export async function loadProfile(actorId: string): Promise<ProfileView> {
       address: true,
       country: true,
       kycStatus: true,
+      kycReviewNote: true,
       twoFaForLogin: true,
       twoFaForWithdrawal: true,
       kycDocuments: { select: { kind: true } },
@@ -179,9 +182,48 @@ export async function submitKyc(actorId: string): Promise<KycSubmitResult> {
   // Conditional on the status read above, so a concurrent admin decision wins.
   const moved = await prisma.user.updateMany({
     where: { id: actorId, kycStatus: { in: ["NOT_STARTED", "REJECTED"] } },
-    data: { kycStatus: "PENDING", kycSubmittedAt: new Date() },
+    data: { kycStatus: "PENDING", kycSubmittedAt: new Date(), kycReviewNote: null },
   });
   return moved.count === 1 ? { ok: true } : { ok: false, locked: true };
+}
+
+export class KycNotPending extends Error {
+  constructor() {
+    super("This KYC submission is no longer waiting for review.");
+    this.name = "KycNotPending";
+  }
+}
+
+/**
+ * Admin decision on a PENDING submission: VERIFIED unlocks withdrawals,
+ * REJECTED sends the user back to fix and resubmit, with `note` shown to them.
+ * Conditional on PENDING so two admins can't both decide (the loser gets
+ * KycNotPending), and audited like every other admin action.
+ */
+export async function reviewKyc(input: {
+  userId: string;
+  decision: "VERIFIED" | "REJECTED";
+  adminId: string;
+  note?: string | null;
+}): Promise<void> {
+  const note = input.decision === "REJECTED" ? (input.note?.trim() || null) : null;
+  await prisma.$transaction(async (tx) => {
+    const moved = await tx.user.updateMany({
+      where: { id: input.userId, kycStatus: "PENDING" },
+      data: { kycStatus: input.decision, kycReviewNote: note },
+    });
+    if (moved.count !== 1) throw new KycNotPending();
+    await tx.auditLog.create({
+      data: {
+        actorId: input.adminId,
+        action: input.decision === "VERIFIED" ? "kyc.approved" : "kyc.rejected",
+        targetType: "User",
+        targetId: input.userId,
+        before: { kycStatus: "PENDING" },
+        after: { kycStatus: input.decision, ...(note ? { note } : {}) },
+      },
+    });
+  });
 }
 
 /** The user's KYC documents for the admin review page — metadata only, no image bytes. */

@@ -26,6 +26,7 @@ export default async function VerifyPage() {
       <KycFlow
         initialStatus={profile.kycStatus}
         initialDocuments={profile.kycDocuments}
+        reviewNote={profile.kycReviewNote}
         initialDetails={{
           firstName: profile.firstName ?? "",
           lastName: profile.lastName ?? "",

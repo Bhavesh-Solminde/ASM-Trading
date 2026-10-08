@@ -182,6 +182,8 @@ model User {
   kycStatus          KycStatus  @default(NOT_STARTED)
   // Set when the user submits details + documents for review (PENDING).
   kycSubmittedAt     DateTime?
+  // Admin's reason when KYC is REJECTED, shown to the user; cleared on resubmit.
+  kycReviewNote      String?
   // Google account id ("sub") once the user has signed in with Google.
   googleSub          String?    @unique
   cumulativeDeposits Int        @default(0)

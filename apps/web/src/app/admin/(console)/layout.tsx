@@ -9,7 +9,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
 
   // Affiliate deposits and withdrawals never need admin action — exclude
   // them from the sidebar-badge counts so the badge reflects real work.
-  const [pendingDeposits, requestedWithdrawals, openFlags, reconciliation] = await Promise.all([
+  const [pendingDeposits, requestedWithdrawals, openFlags, reconciliation, pendingKyc] = await Promise.all([
     prisma.deposit.count({
       where: {
         status: "PENDING_CONFIRMATION",
@@ -24,6 +24,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
     }),
     prisma.fraudFlag.count({ where: { status: "OPEN" } }),
     countOpenReconciliationIssues(),
+    prisma.user.count({ where: { kycStatus: "PENDING", role: { not: "AFFILIATE" } } }),
   ]);
 
   return (
@@ -32,6 +33,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
         deposits: pendingDeposits,
         withdrawals: requestedWithdrawals,
         fraud: openFlags,
+        kyc: pendingKyc,
         // P1 only: a warning shouldn't carry the same nav urgency as an open
         // fraud flag or a pending deposit — it surfaces on the page itself.
         reconciliation: reconciliation.p1,
