@@ -60,14 +60,11 @@ describe("createDepositIntent", () => {
     ).rejects.toThrow(/minimum/);
   });
 
-  it("accepts exactly ₹1,000 — the minimum deposit", async () => {
-    const deposit = await createDepositIntent({
-      userId,
-      method: "upi",
-      amountInrMinor: 100_000,
-      correlationId: randomUUID(),
-    });
-    expect(deposit.status).toBe("AWAITING_PAYMENT");
+  it("accepts exactly ₹500 — the UPI minimum deposit — and refuses a paisa less", async () => {
+    const intent = (amountInrMinor: number) =>
+      createDepositIntent({ userId, method: "upi", amountInrMinor, correlationId: randomUUID() });
+    await expect(intent(49_999)).rejects.toThrow(/minimum deposit of ₹500/);
+    expect((await intent(50_000)).status).toBe("AWAITING_PAYMENT");
   });
 
   it("accepts exactly $10 of USDT — the minimum deposit — and refuses a cent less", async () => {

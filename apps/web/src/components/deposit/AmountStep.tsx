@@ -45,7 +45,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
         <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--color-ink-2)]">
           <div>
             <dt>Min</dt>
-            <dd className="tabular-nums text-[var(--color-ink)]">₹1,000</dd>
+            <dd className="tabular-nums text-[var(--color-ink)]">₹500</dd>
           </div>
           <div>
             <dt>Max</dt>
@@ -68,7 +68,7 @@ export function AmountStep({ method, onBack }: { method: string; onBack: () => v
         <input
           id="amount"
           type="number"
-          min={1000}
+          min={500}
           max={1000000}
           value={amountMajor}
           onChange={(e) => setAmountMajor(Number(e.target.value))}
