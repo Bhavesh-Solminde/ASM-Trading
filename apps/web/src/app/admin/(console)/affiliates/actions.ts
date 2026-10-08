@@ -32,8 +32,13 @@ export async function createAffiliateAction(formData: FormData): Promise<void> {
   if (!email || !email.includes("@")) {
     redirect("/admin/affiliates/new?error=" + encodeURIComponent("Enter a valid email address."));
   }
-  if (password.length < 8) {
-    redirect("/admin/affiliates/new?error=" + encodeURIComponent("Password must be at least 8 characters."));
+  // Must match the LoginSchema's own min() in packages/contracts/src/auth.ts.
+  // The login route hard-rejects any payload with a shorter password at the
+  // Zod parse step, so a shorter password set here would be unloggable-in
+  // and look like "email or password is incorrect" with no server-side
+  // diagnosis path. Keep this in step with the login/register validator.
+  if (password.length < 12) {
+    redirect("/admin/affiliates/new?error=" + encodeURIComponent("Password must be at least 12 characters."));
   }
 
   try {
@@ -66,10 +71,11 @@ export async function resetAffiliatePasswordAction(formData: FormData): Promise<
   const userId = String(formData.get("userId") ?? "");
   const password = String(formData.get("password") ?? "");
   if (!userId) return;
-  if (password.length < 8) {
+  // Match the login validator (see createAffiliateAction above).
+  if (password.length < 12) {
     redirect(
       "/admin/affiliates?error=" +
-        encodeURIComponent("New password must be at least 8 characters."),
+        encodeURIComponent("New password must be at least 12 characters."),
     );
   }
 

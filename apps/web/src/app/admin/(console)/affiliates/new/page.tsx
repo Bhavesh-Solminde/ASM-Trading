@@ -76,14 +76,14 @@ export default async function NewAffiliatePage({
             <span style={{ fontSize: 13, fontWeight: 600 }}>
               Password{" "}
               <span className="admin-cell-sub" style={{ fontWeight: 400 }}>
-                (min 8 chars)
+                (min 12 chars)
               </span>
             </span>
             <input
               type="text"
               name="password"
               required
-              minLength={8}
+              minLength={12}
               autoComplete="new-password"
               spellCheck={false}
               autoCapitalize="off"

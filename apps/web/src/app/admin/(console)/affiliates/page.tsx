@@ -131,8 +131,8 @@ export default async function AffiliatesPage({
                           <input
                             type="text"
                             name="password"
-                            placeholder="New password"
-                            minLength={8}
+                            placeholder="New password (min 12)"
+                            minLength={12}
                             required
                             autoComplete="new-password"
                             spellCheck={false}
