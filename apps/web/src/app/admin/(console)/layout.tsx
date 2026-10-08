@@ -24,7 +24,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
     }),
     prisma.fraudFlag.count({ where: { status: "OPEN" } }),
     countOpenReconciliationIssues(),
-    prisma.user.count({ where: { kycStatus: "PENDING", role: { not: "AFFILIATE" } } }),
+    prisma.user.count({ where: { kycStatus: "PENDING" } }),
   ]);
 
   return (

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { KYC_DOCUMENT_KINDS, prisma, type Prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
-import { Avatar, Card, EmptyRow, Pager, Pill, StatCard } from "../../_components/ui";
+import { Avatar, Card, EmptyRow, Pager, Pill, StatCard, Tag } from "../../_components/ui";
 import { fmtDate, hrefWith, timeAgo } from "../../_lib/format";
 
 export const dynamic = "force-dynamic";
@@ -58,8 +58,9 @@ export default async function KycQueuePage({
   const q = sp.q?.trim() ?? "";
   const page = Math.max(1, Number(sp.page) || 1);
 
-  // Affiliate accounts are operator-created and never withdraw, so they never need KYC review.
-  const base: Prisma.UserWhereInput = { role: { not: "AFFILIATE" } };
+  // Every submission is listed, affiliates included (tagged) — anyone who sees
+  // "in review" on their verify page must be findable here.
+  const base: Prisma.UserWhereInput = {};
   const [pending, verified, rejected] = await Promise.all(
     (["PENDING", "VERIFIED", "REJECTED"] as const).map((kycStatus) =>
       prisma.user.count({ where: { ...base, kycStatus } }),
@@ -97,6 +98,7 @@ export default async function KycQueuePage({
         email: true,
         firstName: true,
         lastName: true,
+        role: true,
         kycStatus: true,
         kycSubmittedAt: true,
         kycReviewNote: true,
@@ -174,7 +176,9 @@ export default async function KycQueuePage({
                           <div className="admin-cell-user">
                             <Avatar name={name} size={26} />
                             <div>
-                              <div className="admin-cell-strong">{name}</div>
+                              <div className="admin-cell-strong">
+                                {name} {u.role === "AFFILIATE" ? <Tag>Affiliate</Tag> : null}
+                              </div>
                               <div className="admin-cell-sub">{u.email}</div>
                             </div>
                           </div>
