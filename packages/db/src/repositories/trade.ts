@@ -350,7 +350,11 @@ export async function listTradesForActor(
 export async function loadOpenPositions(): Promise<Position[]> {
   const rows = await prisma.trade.findMany({
     where: { status: "OPEN" },
-    include: { account: { select: { type: true } } },
+    include: {
+      account: {
+        select: { type: true, user: { select: { role: true } } },
+      },
+    },
   });
   return rows.map((row): Position => {
     const base: Position = {
@@ -364,6 +368,7 @@ export async function loadOpenPositions(): Promise<Position[]> {
       entrySec: Math.floor(row.entryTs.getTime() / 1000),
       expirySec: expirySecFor(row.expiryTs.getTime()),
       isDemo: row.account.type === "DEMO",
+      isAffiliate: row.account.user.role === "AFFILIATE",
     };
     // exactOptionalPropertyTypes: omit keys rather than assign undefined.
     return {

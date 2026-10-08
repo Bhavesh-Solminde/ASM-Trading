@@ -110,7 +110,7 @@ export async function requestWithdrawal(input: {
   // deliberately vague so a suspended abuser can't map out which check tripped.
   const actor = await prisma.user.findUniqueOrThrow({
     where: { id: input.actorId },
-    select: { status: true, kycStatus: true },
+    select: { status: true, kycStatus: true, role: true },
   });
   if (actor.status !== "ACTIVE") {
     throw new WithdrawalRefused(
@@ -124,6 +124,23 @@ export async function requestWithdrawal(input: {
   if (!account) throw new WithdrawalRefused("Account not found.");
   if (account.type !== "LIVE") {
     throw new WithdrawalRefused("Demo funds cannot be withdrawn.");
+  }
+
+  // Affiliate accounts: the withdrawal form, the "pending" row in history,
+  // and the success toast all render — but the balance is NEVER debited and
+  // the row is never processed. The admin withdrawal queue filters affiliate
+  // rows out separately. See the affiliate design doc.
+  if (actor.role === "AFFILIATE") {
+    return prisma.withdrawal.create({
+      data: {
+        userId: input.actorId,
+        amount: input.amount,
+        method: input.method,
+        status: "REQUESTED",
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      },
+    });
   }
 
   // Payouts only go to verified identities. Checked after the ownership read so

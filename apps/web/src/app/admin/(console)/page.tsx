@@ -36,10 +36,23 @@ export default async function OverviewPage() {
     assets,
     recentAudit,
   ] = await Promise.all([
-    prisma.user.count(),
-    prisma.deposit.aggregate({ where: { status: "COMPLETED" }, _sum: { amountUsd: true } }),
-    prisma.deposit.count({ where: { status: "PENDING_CONFIRMATION" } }),
-    prisma.withdrawal.count({ where: { status: "REQUESTED" } }),
+    // Affiliate accounts don't move real money — exclude them from registered
+    // users, settled-deposit totals, and the pending deposit/withdrawal
+    // queues so the admin overview reflects actual customer activity.
+    prisma.user.count({ where: { role: { not: "AFFILIATE" } } }),
+    prisma.deposit.aggregate({
+      where: { status: "COMPLETED", user: { role: { not: "AFFILIATE" } } },
+      _sum: { amountUsd: true },
+    }),
+    prisma.deposit.count({
+      where: {
+        status: "PENDING_CONFIRMATION",
+        user: { role: { not: "AFFILIATE" } },
+      },
+    }),
+    prisma.withdrawal.count({
+      where: { status: "REQUESTED", user: { role: { not: "AFFILIATE" } } },
+    }),
     prisma.supportTicket.count({ where: { status: "OPEN" } }),
     prisma.asset.count({ where: { isOpen: true } }),
     prisma.asset.count(),

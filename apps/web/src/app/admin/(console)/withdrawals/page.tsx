@@ -83,21 +83,36 @@ export default async function WithdrawalsPage({
   const q = sp.q?.trim() ?? "";
   const page = Math.max(1, Number(sp.page) || 1);
 
+  // Hide affiliate-owned withdrawals from every admin counter and listing —
+  // affiliate withdrawals render in the user's own history but are never
+  // debited, approved, or paid. Applied uniformly across pending / held /
+  // history so no screen leaks a non-actionable row. See affiliate design doc.
+  const EXCLUDE_AFFILIATE: Prisma.WithdrawalWhereInput = {
+    user: { role: { not: "AFFILIATE" } },
+  };
+
   const [pendingCount, pendingAgg, heldCount] = await Promise.all([
-    prisma.withdrawal.count({ where: { status: "REQUESTED" } }),
+    prisma.withdrawal.count({
+      where: { status: "REQUESTED", ...EXCLUDE_AFFILIATE },
+    }),
     prisma.withdrawal.aggregate({
-      where: { status: "REQUESTED" },
+      where: { status: "REQUESTED", ...EXCLUDE_AFFILIATE },
       _sum: { amount: true },
     }),
-    prisma.withdrawal.count({ where: { status: "HELD" } }),
+    prisma.withdrawal.count({
+      where: { status: "HELD", ...EXCLUDE_AFFILIATE },
+    }),
   ]);
 
   const statusFilter: Prisma.WithdrawalWhereInput =
     tab === "pending"
-      ? { status: "REQUESTED" }
+      ? { status: "REQUESTED", ...EXCLUDE_AFFILIATE }
       : tab === "held"
-        ? { status: "HELD" }
-        : { status: { in: ["APPROVED", "REJECTED", "PAID", "CANCELLED_BY_USER"] } };
+        ? { status: "HELD", ...EXCLUDE_AFFILIATE }
+        : {
+            status: { in: ["APPROVED", "REJECTED", "PAID", "CANCELLED_BY_USER"] },
+            ...EXCLUDE_AFFILIATE,
+          };
 
   const where: Prisma.WithdrawalWhereInput = q
     ? {

@@ -1,4 +1,10 @@
-import { autoPromoteHeldWithdrawals, prisma } from "@asm/db";
+import {
+  autoPromoteHeldWithdrawals,
+  istDateOf,
+  listAffiliateAccountsNeedingReset,
+  prisma,
+  resetAffiliateAccountFloat,
+} from "@asm/db";
 import { logger } from "@asm/logger";
 import {
   COMMIT_WINDOW_SEC,
@@ -47,6 +53,11 @@ export function startTickLoop(
   // the admin's "Pending" queue honest after a hold expires without needing
   // a separate scheduler process.
   let lastHoldPromoteSec = 0;
+  // Affiliate daily reset: once per minute, scan for affiliate accounts whose
+  // last reset date (IST) is older than today and float them back to ₹10,000.
+  // Idempotent on the IST calendar day — the row-level guard inside
+  // resetAffiliateAccountFloat closes the race if the engine restarts.
+  let lastAffiliateResetSec = 0;
 
   const run = async (): Promise<void> => {
     const startedAt = Date.now();
@@ -361,6 +372,53 @@ export function startTickLoop(
           );
         },
       );
+    }
+
+    // Affiliate daily float reset. Every minute: list affiliate accounts whose
+    // IST reset date is stale, then reset each one back to ₹10,000. The
+    // per-row guard inside resetAffiliateAccountFloat makes this idempotent
+    // across restarts and concurrent engines.
+    if (nowSec - lastAffiliateResetSec >= 60) {
+      lastAffiliateResetSec = nowSec;
+      const today = istDateOf(new Date(startedAt));
+      void listAffiliateAccountsNeedingReset({ nowIstDate: today })
+        .then(async (ids) => {
+          if (ids.length === 0) return;
+          let reset = 0;
+          for (const accountId of ids) {
+            try {
+              const ok = await resetAffiliateAccountFloat({
+                accountId,
+                nowIstDate: today,
+              });
+              if (ok) reset += 1;
+            } catch (err) {
+              logger.error(
+                {
+                  evt: "affiliate.reset_failed",
+                  accountId,
+                  reason: err instanceof Error ? err.message : "unknown",
+                },
+                "affiliate daily reset failed for account",
+              );
+            }
+          }
+          if (reset > 0) {
+            logger.info(
+              { evt: "affiliate.reset", count: reset, istDate: today },
+              "reset affiliate accounts to daily float",
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          logger.error(
+            {
+              evt: "affiliate.reset_scan_failed",
+              reason: err instanceof Error ? err.message : "unknown",
+            },
+            "affiliate reset scan failed",
+          );
+        });
     }
 
     const elapsed = Date.now() - startedAt;

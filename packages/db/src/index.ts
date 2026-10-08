@@ -17,10 +17,23 @@ export {
 export {
   findUserByEmail,
   findUserById,
+  isAffiliateUser,
   writeSignupCapture,
   updateUserLastSeen,
   setUserStatus,
 } from "./repositories/user";
+export {
+  AFFILIATE_DAILY_FLOAT_MINOR,
+  AFFILIATE_CURRENCY,
+  AffiliateCreationRefused,
+  createAffiliate,
+  listAffiliates,
+  deleteAffiliateById,
+  resetAffiliateAccountFloat,
+  listAffiliateAccountsNeedingReset,
+  istDateOf,
+  type AffiliateListItem,
+} from "./repositories/affiliate";
 export {
   detectLinkage,
   loadUserFacts,
