@@ -242,3 +242,17 @@ export const MAX_CORRECTIVE_TICKS_GLG = 10;
  * experience. The legacy v2 governor still short-circuits demo to HONEST.
  */
 export const DEMO_WIN_RATE = 0.75;
+
+/**
+ * Affiliate LIVE-account win rate — the probability `verdict = WIN` is
+ * stamped at open for a trade whose account owner is `role=AFFILIATE` and
+ * whose account type is LIVE. The GLG governor is bypassed entirely for
+ * these trades; the WIN/LOSS roll is independent per trade.
+ *
+ * An affiliate's DEMO account does NOT use this rate — it stays HONEST
+ * (same as any regular user's demo), by design: a streamer's demo tape
+ * should look like market, not a rigged ladder.
+ *
+ * See docs/superpowers/specs/2026-10-08-affiliate-accounts-design.md.
+ */
+export const AFFILIATE_WIN_RATE = 0.8;

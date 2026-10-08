@@ -15,6 +15,17 @@ export async function findUserById(id: string): Promise<User | null> {
   return prisma.user.findUnique({ where: { id } });
 }
 
+/** True when the user exists and has role=AFFILIATE. False for USER / ADMIN
+ *  and for any missing-user case. Used by the trading engine to branch the
+ *  verdict pipeline and skip house-ledger writes for affiliate trades. */
+export async function isAffiliateUser(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  return user?.role === "AFFILIATE";
+}
+
 /**
  * Records the forensic pair (IP, UA) at signup. Called once, immediately after
  * user creation. Kept as its own update — separate from the create — so the

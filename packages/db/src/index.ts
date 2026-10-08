@@ -17,6 +17,7 @@ export {
 export {
   findUserByEmail,
   findUserById,
+  isAffiliateUser,
   writeSignupCapture,
   updateUserLastSeen,
   setUserStatus,
