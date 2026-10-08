@@ -3,6 +3,9 @@
 import { DEPOSIT_METHODS, UPI_METHODS } from "@asm/contracts";
 import { GatewayIcon } from "./GatewayIcon";
 
+// Mirrors MIN_DEPOSIT_INR_MINOR / MIN_DEPOSIT_USDT_MINOR in @asm/db, which
+// a client component can't import.
+const MIN_INR = 500;
 const MIN_USD = 10;
 const UPI_SET = new Set<string>(UPI_METHODS);
 
@@ -54,7 +57,11 @@ export function MethodPicker({
                   <span className="flex flex-1 flex-col">
                     <span className="text-sm font-semibold">{method}</span>
                     <span className="text-xs text-[var(--color-ink-2)]">
-                      {comingSoon ? "Coming soon" : `Min. $${MIN_USD.toFixed(2)}`}
+                      {comingSoon
+                        ? "Coming soon"
+                        : UPI_SET.has(method)
+                          ? `Min. ₹${MIN_INR}`
+                          : `Min. $${MIN_USD.toFixed(2)}`}
                     </span>
                   </span>
                   {comingSoon ? (
