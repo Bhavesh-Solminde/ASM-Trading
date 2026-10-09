@@ -58,9 +58,10 @@ async function backfill(asset: AssetRow, endBucketSec: number) {
     driftPerSec: 0,
     anchorAlpha: 0,
     maxTickMove: asset.tickSize * 200,
-    // Medium (Wick C) preset from the detached candle-algorithm reference —
-    // AR(1) momentum on the shock so consecutive ticks lean the same way.
-    trendPersistenceSec: 60,
+    // Match the live engine registry — Wick B/light-C blend. phi ≈ 0.847
+    // per tick at the live 5s cadence; bodies ~70-75% of H-L range with
+    // visible 25-30% wicks (vs 60s where wicks nearly disappeared).
+    trendPersistenceSec: 30,
   };
 
   const ticksPerMinute = Math.round(60 / TICK_DT_SEC);
