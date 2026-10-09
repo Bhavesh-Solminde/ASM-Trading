@@ -16,13 +16,13 @@ type Method = (typeof DEPOSIT_METHODS)[number];
  */
 export function DepositFlow({
   usdtNetworks,
-  usdtGateway,
+  gatewayNetworks,
   upiEnabled,
   completedDeposits,
 }: {
   usdtNetworks: UsdtNetwork[];
-  /** Tatum payment gateway active (per-deposit address) vs the manual shared-address flow. */
-  usdtGateway: boolean;
+  /** Networks on the Tatum gateway (per-deposit address); the rest use the manual shared-address flow. */
+  gatewayNetworks: UsdtNetwork[];
   /** INR (UPI) rails open — see upiDepositsEnabled(). */
   upiEnabled: boolean;
   /** Deposits already credited — the next one's bonus tier follows from it. */
@@ -38,7 +38,7 @@ export function DepositFlow({
     step = (
       <UsdtAmountStep
         networks={usdtNetworks}
-        gateway={usdtGateway}
+        gatewayNetworks={gatewayNetworks}
         onBack={() => setMethod(null)}
         bonusPercent={bonusPercent}
       />

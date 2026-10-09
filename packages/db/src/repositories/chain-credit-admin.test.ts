@@ -95,7 +95,7 @@ async function makeUsdtDeposit(requested: number, status?: "EXPIRED" | "COMPLETE
 const config = {
   expectedNetwork: NETWORK,
   expectedTokenContract: CONTRACT,
-  expectedReceivingAddress: RECEIVING_ADDRESS,
+  expectedReceivingAddresses: [RECEIVING_ADDRESS],
 };
 
 async function liveBalance(): Promise<number> {
@@ -162,7 +162,7 @@ describe("resolveChainCreditToDeposit", () => {
   it("refuses when the live config's receiving address differs from the credit's", async () => {
     const deposit = await makeUsdtDeposit(71_500, "EXPIRED");
     const creditId = await makeCredit(deposit.amountUsdtMinor!);
-    await expectRefusedAndUntouched(creditId, deposit.id, { expectedReceivingAddress: "TRotatedAddress11111111111111111" });
+    await expectRefusedAndUntouched(creditId, deposit.id, { expectedReceivingAddresses: ["TRotatedAddress11111111111111111"] });
   });
 
   it("refuses a credit for the wrong token contract", async () => {

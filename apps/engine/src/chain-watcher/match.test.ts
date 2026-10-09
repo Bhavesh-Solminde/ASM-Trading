@@ -8,7 +8,7 @@ const CONTRACT = "TContract111";
 const RECEIVING_ADDRESS = "TReceiving111";
 
 function config() {
-  return { expectedNetwork: NETWORK, expectedTokenContract: CONTRACT, expectedReceivingAddress: RECEIVING_ADDRESS };
+  return { expectedNetwork: NETWORK, expectedTokenContract: CONTRACT, expectedReceivingAddresses: [RECEIVING_ADDRESS] };
 }
 
 async function makeFinalCredit(amountUsdtMinor: number) {

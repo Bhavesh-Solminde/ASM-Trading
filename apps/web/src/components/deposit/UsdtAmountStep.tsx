@@ -4,24 +4,33 @@ import { useState } from "react";
 import { USDT_NETWORK_INFO, type UsdtNetwork } from "@asm/contracts";
 
 const QUICK = [25, 50, 100, 250];
+const RECOMMENDED: UsdtNetwork = "bsc";
 
 export function UsdtAmountStep({
   networks,
   onBack,
-  gateway,
+  gatewayNetworks,
   bonusPercent,
 }: {
   /** Enabled networks, server-computed; never empty (DepositFlow guards that). */
   networks: UsdtNetwork[];
   onBack: () => void;
-  /** True under the Tatum payment gateway: a unique address per deposit, no unique-cents amount. */
-  gateway: boolean;
+  /** Networks on the Tatum payment gateway: a unique address per deposit, no unique-cents amount. */
+  gatewayNetworks: UsdtNetwork[];
   /** Bonus tier this deposit will get (0 once every tier is used). */
   bonusPercent: number;
 }) {
-  const [network, setNetwork] = useState<UsdtNetwork>(networks[0] ?? "tron");
+  // BSC is recommended (fees of cents for the sender and for us), so it is
+  // preselected whenever it is offered.
+  const [network, setNetwork] = useState<UsdtNetwork>(
+    networks.includes(RECOMMENDED) ? RECOMMENDED : (networks[0] ?? "tron"),
+  );
   const info = USDT_NETWORK_INFO[network];
+  const gateway = gatewayNetworks.includes(network);
   const [amountMajor, setAmountMajor] = useState(25);
+  // Optional, shared-address (time-slot) networks only: the wallet the user
+  // will send from. A payment from it is confirmed whatever the amount.
+  const [sender, setSender] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +41,12 @@ export function UsdtAmountStep({
     const res = await fetch("/api/deposits", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method: "USDT", network, amountUsdtMinor: Math.round(amountMajor * 100) }),
+      body: JSON.stringify({
+        method: "USDT",
+        network,
+        amountUsdtMinor: Math.round(amountMajor * 100),
+        ...(!gateway && sender.trim() ? { senderAddress: sender.trim() } : {}),
+      }),
     });
 
     if (res.ok) {
@@ -85,6 +99,11 @@ export function UsdtAmountStep({
                   }`}
                 >
                   {USDT_NETWORK_INFO[n].shortLabel}
+                  {n === RECOMMENDED ? (
+                    <span className="mx-auto mt-1 block w-fit rounded bg-[var(--color-up)]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-up)]">
+                      Recommended
+                    </span>
+                  ) : null}
                 </button>
               );
             })}
@@ -92,6 +111,9 @@ export function UsdtAmountStep({
           <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-ink-2)]">
             Pick the network you will send on. Sending on a different network
             than the one you choose here cannot be credited.
+            {networks.includes(RECOMMENDED) ? (
+              <> {USDT_NETWORK_INFO[RECOMMENDED].label} is recommended: its network fee is only a few cents.</>
+            ) : null}
           </p>
         </div>
       ) : null}
@@ -154,14 +176,41 @@ export function UsdtAmountStep({
           </>
         ) : (
           <>
-            You&rsquo;ll be shown a specific, one-time amount to send on the next
-            page — it may differ slightly (a few cents) from what you enter here.
-            That exact figure is what identifies your payment; sending a
-            different amount cannot be matched automatically. You&rsquo;ll have{" "}
-            <strong>5 minutes</strong> to send it.
+            The next page shows an address reserved for you alone for{" "}
+            <strong>5 minutes</strong>. Send the amount you enter here within that
+            time — anything within 3% of it is credited automatically.
           </>
         )}
       </div>
+
+      {!gateway ? (
+        <div>
+          <label
+            htmlFor="usdt-sender"
+            className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]"
+          >
+            Your wallet address
+          </label>
+          <input
+            id="usdt-sender"
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            placeholder={network === "tron" ? "T…" : "0x…"}
+            value={sender}
+            onChange={(e) => setSender(e.target.value)}
+            className="mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 font-mono text-xs outline-none focus:border-[var(--color-brand)]"
+          />
+          <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-ink-2)]">
+            For faster deposit confirmation, enter the wallet address you&rsquo;ll
+            send from — a payment from it is confirmed automatically even if the
+            amount differs. Sending from an exchange? It pays from its own wallet,
+            so you can leave this empty.
+          </p>
+        </div>
+      ) : null}
 
       <div className="flex items-baseline justify-between border-t border-dashed border-[var(--color-rule)] pt-3 text-sm">
         <span className="text-[var(--color-ink-2)]">You will receive</span>

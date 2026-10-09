@@ -54,6 +54,7 @@ export {
   USDT_NETWORK_INFO,
   isUsdtNetwork,
   CreateDepositSchema,
+  parseUsdtReceivingAddresses,
   ClaimUtrSchema,
   ClaimUsdtPaymentSchema,
   type CreateDepositInput,

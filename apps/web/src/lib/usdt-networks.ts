@@ -1,13 +1,16 @@
 // SERVER ONLY — reads the live receiving config from process.env. Never import
 // this from a "use client" module; client code gets display metadata from
 // USDT_NETWORK_INFO in @asm/contracts and the enabled list as a prop.
-import { USDT_NETWORKS, type UsdtNetwork } from "@asm/contracts";
-import { isTatumProvider, listTatumEnabledNetworks, readTatumConfig, type TatumNetworkConfig } from "@asm/tatum";
+import { USDT_NETWORKS, parseUsdtReceivingAddresses, type UsdtNetwork } from "@asm/contracts";
+import { listTatumEnabledNetworks, readTatumConfig, usdtProviderFor, type TatumNetworkConfig } from "@asm/tatum";
 
 export interface UsdtNetworkConfig {
   network: UsdtNetwork;
   tokenContract: string;
+  /** The first of receivingAddresses (legacy single-address callers). */
   receivingAddress: string;
+  /** Every shared receiving address; TRON rotates time-slot deposits across them. */
+  receivingAddresses: string[];
   testnet: boolean;
 }
 
@@ -29,10 +32,19 @@ function tronConfig(): UsdtNetworkConfig | null {
   const network = process.env["USDT_NETWORK"] ?? "";
   const trongridNetwork = process.env["USDT_TRONGRID_NETWORK"] ?? "";
   const tokenContract = process.env["USDT_TOKEN_CONTRACT"] ?? "";
-  const receivingAddress = process.env["USDT_RECEIVING_ADDRESS"] ?? "";
+  const receivingAddresses = parseUsdtReceivingAddresses(
+    process.env["USDT_RECEIVING_ADDRESSES"],
+    process.env["USDT_RECEIVING_ADDRESS"],
+  );
   const trongridNetworkValid = trongridNetwork === "mainnet" || trongridNetwork === "nile";
-  if (network !== "tron" || !trongridNetworkValid || !tokenContract || !receivingAddress) return null;
-  return { network: "tron", tokenContract, receivingAddress, testnet: trongridNetwork === "nile" };
+  if (network !== "tron" || !trongridNetworkValid || !tokenContract || receivingAddresses.length === 0) return null;
+  return {
+    network: "tron",
+    tokenContract,
+    receivingAddress: receivingAddresses[0]!,
+    receivingAddresses,
+    testnet: trongridNetwork === "nile",
+  };
 }
 
 /**
@@ -60,6 +72,7 @@ function bscConfig(): UsdtNetworkConfig | null {
     network: "bsc",
     tokenContract: tokenContract.toLowerCase(),
     receivingAddress: receivingAddress.toLowerCase(),
+    receivingAddresses: [receivingAddress.toLowerCase()],
     testnet: chainId === "97",
   };
 }
@@ -83,9 +96,13 @@ export function getUsdtNetworkConfig(network: UsdtNetwork): UsdtNetworkConfig | 
  */
 export { getUsdtNetworkConfig as getManualUsdtNetworkConfig };
 
-/** True unless USDT_DEPOSIT_PROVIDER is exactly "manual" — the Tatum gateway is the default. */
-export function usdtGatewayActive(): boolean {
-  return isTatumProvider();
+/**
+ * True when this network's deposits go through the Tatum gateway (a fresh
+ * address per deposit); false = the manual shared-address flow. Per network:
+ * see usdtProviderFor (USDT_TRON_PROVIDER / USDT_BSC_PROVIDER overrides).
+ */
+export function usdtGatewayActive(network: UsdtNetwork): boolean {
+  return usdtProviderFor(network) === "tatum";
 }
 
 /** Tatum gateway config for one network (null when not fully configured). */
@@ -93,11 +110,10 @@ export function getGatewayUsdtConfig(network: UsdtNetwork): TatumNetworkConfig |
   return readTatumConfig(network);
 }
 
-/** Networks a user may deposit on right now, in USDT_NETWORKS order, for the active provider. */
+/** Networks a user may deposit on right now, in USDT_NETWORKS order, each under its own provider. */
 export function listEnabledUsdtNetworks(): UsdtNetwork[] {
-  if (usdtGatewayActive()) {
-    const enabled = new Set<string>(listTatumEnabledNetworks());
-    return USDT_NETWORKS.filter((n) => enabled.has(n));
-  }
-  return USDT_NETWORKS.filter((n) => getUsdtNetworkConfig(n) !== null);
+  const gateway = new Set<string>(listTatumEnabledNetworks());
+  return USDT_NETWORKS.filter((n) =>
+    usdtGatewayActive(n) ? gateway.has(n) : getUsdtNetworkConfig(n) !== null,
+  );
 }

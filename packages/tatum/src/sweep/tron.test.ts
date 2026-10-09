@@ -106,6 +106,31 @@ describe("createTronSweeper", () => {
     expect(q.topUpOverhead).toBe(1_000_000n + 100_000n + 300n * 1000n);
   });
 
+  it("quotes a mainnet-USDT transfer whose simulation returns false (USDT's transfer() returns false on success)", async () => {
+    const f = fakeFetch(
+      routes({
+        "POST /wallet/triggerconstantcontract": { result: { result: true }, energy_used: 64285, constant_result: ["0".padStart(64, "0")] },
+      }),
+    );
+    const q = await createTronSweeper(CFG, f.fetch).quoteSweep(DEPOSIT, TREASURY, 10_000_000n);
+    // ceil(64285 × 1.25) = 80357 energy × 100 sun
+    expect(q.feeLimit).toBe(8_035_700n);
+  });
+
+  it("refuses to quote a transfer whose simulation reverts (result:true, tx ret FAILED)", async () => {
+    const f = fakeFetch(
+      routes({
+        "POST /wallet/triggerconstantcontract": {
+          result: { result: true, message: "REVERT opcode executed" },
+          energy_used: 8624,
+          constant_result: [""],
+          transaction: { ret: [{ ret: "FAILED" }] },
+        },
+      }),
+    );
+    await expect(createTronSweeper(CFG, f.fetch).quoteSweep(DEPOSIT, TREASURY, 10_000_001n)).rejects.toThrow(/reverted/);
+  });
+
   it("adds a bandwidth burn when an activated address has used its free bandwidth", async () => {
     const f = fakeFetch(
       routes({

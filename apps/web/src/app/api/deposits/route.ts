@@ -7,16 +7,22 @@ import {
   allocateGatewayAddressIndex,
   createDepositIntent,
   createGatewayUsdtDeposit,
-  createUsdtDepositIntent,
+  createUsdtSlotDepositIntent,
   listDepositsForActor,
   setGatewaySubscriptionId,
+  UsdtSlotBusy,
 } from "@asm/db";
 import { createGatewayChain, createIncomingTokenSubscription } from "@asm/tatum";
 import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getGatewayUsdtConfig, getUsdtNetworkConfig, usdtGatewayActive } from "@/lib/usdt-networks";
+import {
+  getGatewayUsdtConfig,
+  getUsdtNetworkConfig,
+  listEnabledUsdtNetworks,
+  usdtGatewayActive,
+} from "@/lib/usdt-networks";
 import { pickCollectionVpa, upiDepositsEnabled } from "@/lib/upi-collection";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
@@ -65,7 +71,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (parsed.data.method === "USDT" && usdtGatewayActive()) {
+    if (parsed.data.method === "USDT" && usdtGatewayActive(parsed.data.network)) {
       // Payment gateway (Tatum): a fresh receiving address per deposit,
       // derived from the gateway's xpub; matched by address, not amount.
       const network = parsed.data.network;
@@ -149,9 +155,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (parsed.data.method === "USDT") {
-      // Manual provider. Only the requested network's config is consulted: a deposit created
-      // on a network whose watcher would stay idle could never be detected or
-      // credited, so refuse it rather than hand out an unwatched address.
+      // Manual provider: the user's own amount on a shared receiving address
+      // that this deposit holds alone for its 5-minute slot (rotating across
+      // the configured addresses). Only the requested network's config is
+      // consulted: a deposit on a network whose watcher would stay idle could
+      // never be detected or credited, so refuse it rather than hand out an
+      // unwatched address.
       const network = parsed.data.network;
       const config = getUsdtNetworkConfig(network);
       if (!config) {
@@ -165,16 +174,43 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const deposit = await createUsdtDepositIntent({
-        userId: session.userId,
-        amountUsdtMinorRequested: parsed.data.amountUsdtMinor,
-        network: config.network,
-        tokenContract: config.tokenContract,
-        receivingAddress: config.receivingAddress,
-        correlationId: ctx.cid,
-        ipAddress: ctx.ip,
-        userAgent: ctx.userAgent,
-      });
+      const sender = parsed.data.senderAddress ?? null;
+      if (sender && (network === "tron") !== sender.startsWith("T")) {
+        return NextResponse.json(
+          { error: `That wallet address is not a ${USDT_NETWORK_INFO[network].label} address.` },
+          { status: 400 },
+        );
+      }
+
+      let deposit;
+      try {
+        deposit = await createUsdtSlotDepositIntent({
+          userId: session.userId,
+          amountUsdtMinorRequested: parsed.data.amountUsdtMinor,
+          network: config.network,
+          tokenContract: config.tokenContract,
+          receivingAddresses: config.receivingAddresses,
+          // EVM addresses are stored lowercase, like the watcher's ChainCredit rows.
+          senderAddress: sender && network === "bsc" ? sender.toLowerCase() : sender,
+          correlationId: ctx.cid,
+          ipAddress: ctx.ip,
+          userAgent: ctx.userAgent,
+        });
+      } catch (err) {
+        if (!(err instanceof UsdtSlotBusy)) throw err;
+        const minutes = Math.max(1, Math.ceil((err.retryAt.getTime() - Date.now()) / 60_000));
+        const alternative = listEnabledUsdtNetworks().find((n) => n !== network);
+        log.info({ evt: "deposit.usdt_slot_busy", network, retryAt: err.retryAt.toISOString() }, "every USDT slot is busy");
+        return NextResponse.json(
+          {
+            error:
+              `Other ${USDT_NETWORK_INFO[network].label} deposits are in progress. Try again in about ${minutes} minute${minutes === 1 ? "" : "s"}` +
+              (alternative ? `, or use ${USDT_NETWORK_INFO[alternative].label} (recommended) — no waiting.` : "."),
+            retryAt: err.retryAt.toISOString(),
+          },
+          { status: 409 },
+        );
+      }
 
       log.info(
         {
@@ -183,8 +219,10 @@ export async function POST(req: NextRequest) {
           method: deposit.method,
           network: config.network,
           amountUsdtMinor: deposit.amountUsdtMinor,
+          slotAddress: deposit.receivingAddress,
+          withSender: sender !== null,
         },
-        "USDT deposit intent created",
+        "USDT slot deposit intent created",
       );
 
       return NextResponse.json({ checkoutToken: deposit.checkoutToken }, { status: 201 });
