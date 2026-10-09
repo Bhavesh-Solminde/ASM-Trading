@@ -131,11 +131,12 @@ export class AssetRegistry {
         // so the clamp is only ever a 10+ sigma backstop against a freak
         // draw or a far-away commit snap, never the dominant per-tick force.
         maxTickMove: row.tickSize * 200,
-        // trendPersistenceSec = 30 (Wick B/light-C blend). At the live 5s cadence
-        // phi = exp(-5/30) ≈ 0.847 per tick — half-life ~21s, bodies ~70-75% of
-        // the H-L range so wicks come out ~25-30%. 60 (the Wick C preset) hid
-        // nearly all the wicks and read as "every candle commits hard".
-        trendPersistenceSec: 30,
+        // trendPersistenceSec = 10. phi = exp(-5/10) ≈ 0.607 per tick (half-life
+        // ~7 seconds). 2000-bar NIFTY-ish sim lands at ~70% body / ~30% wick —
+        // the ratio users asked for. Shorter memory means more intra-candle
+        // direction reversals, so the extreme points stick out as visible
+        // retracement wicks instead of being averaged into the body.
+        trendPersistenceSec: 10,
       };
 
       const openedPrice = last?.c ?? row.basePrice;
