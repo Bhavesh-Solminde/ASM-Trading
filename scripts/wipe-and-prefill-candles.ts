@@ -58,10 +58,9 @@ async function backfill(asset: AssetRow, endBucketSec: number) {
     driftPerSec: 0,
     anchorAlpha: 0,
     maxTickMove: asset.tickSize * 200,
-    // Match the live engine registry — Wick B/light-C blend. phi ≈ 0.847
-    // per tick at the live 5s cadence; bodies ~70-75% of H-L range with
-    // visible 25-30% wicks (vs 60s where wicks nearly disappeared).
-    trendPersistenceSec: 30,
+    // Match the live engine registry — phi = exp(-5/10) ≈ 0.607 per tick
+    // (half-life ~7s). ~70% body / ~30% wick.
+    trendPersistenceSec: 10,
   };
 
   const ticksPerMinute = Math.round(60 / TICK_DT_SEC);

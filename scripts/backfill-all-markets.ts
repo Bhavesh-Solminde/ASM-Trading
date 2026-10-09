@@ -49,10 +49,9 @@ async function backfill(asset: AssetRow, endBucketSec: number, wipeFirst: boolea
     driftPerSec: 0,
     anchorAlpha: 0,
     maxTickMove: asset.tickSize * 200,
-    // Match the live engine registry — Wick B/light-C blend. At the live 5s
-    // cadence phi = exp(-5/30) ≈ 0.847 per tick (half-life ~21s), so bodies
-    // land ~70-75% of the H-L range and visible wicks come out ~25-30%.
-    trendPersistenceSec: 30,
+    // Match the live engine registry — phi = exp(-5/10) ≈ 0.607 per tick
+    // (half-life ~7s). ~70% body / ~30% wick.
+    trendPersistenceSec: 10,
   };
 
   // WIPE_FIRST=1 clears every stored candle for the asset so the backfill
