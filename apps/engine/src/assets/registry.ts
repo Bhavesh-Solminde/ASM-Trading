@@ -120,7 +120,7 @@ export class AssetRegistry {
       const last = await prisma.candle.findFirst({
         where: { assetId: row.id, timeframe: "1m" },
         orderBy: { openTs: "desc" },
-        select: { c: true },
+        select: { c: true, openTs: true },
       });
 
       const params: PriceParams = {
@@ -131,13 +131,29 @@ export class AssetRegistry {
         // so the clamp is only ever a 10+ sigma backstop against a freak
         // draw or a far-away commit snap, never the dominant per-tick force.
         maxTickMove: row.tickSize * 200,
-        // Medium (Wick C) preset from the detached candle-algorithm reference —
-        // AR(1) momentum on the shock so consecutive ticks lean the same way
-        // and candles fill with body instead of zig-zagging into pure wick.
-        trendPersistenceSec: 60,
+        // trendPersistenceSec = 30 (Wick B/light-C blend). At the live 5s cadence
+        // phi = exp(-5/30) ≈ 0.847 per tick — half-life ~21s, bodies ~70-75% of
+        // the H-L range so wicks come out ~25-30%. 60 (the Wick C preset) hid
+        // nearly all the wicks and read as "every candle commits hard".
+        trendPersistenceSec: 30,
       };
 
-      const startPrice = last?.c ?? row.basePrice;
+      const openedPrice = last?.c ?? row.basePrice;
+      // Startup catchup backfill. If the latest persisted 1m candle is more
+      // than one minute old (engine was down during a deploy, container was
+      // being rotated, host was rebooted) we would otherwise leave a visible
+      // multi-minute gap on every chart and resume at the stale close. Fill
+      // the missing wall-clock minutes with the same stepPrice algorithm the
+      // live loop uses, upsert them into the Candle table, and resume from
+      // the catchup END price so the live chart carries on seamlessly.
+      const startPrice = await catchupMissingCandles({
+        assetId: row.id,
+        symbol: row.symbol,
+        precision: row.precision,
+        params,
+        last,
+        openedPrice,
+      });
 
       this.assets.set(row.symbol, {
         id: row.id,
@@ -258,4 +274,127 @@ export class AssetRegistry {
     }
     return Number(asset.honestState.price.toFixed(asset.precision));
   }
+}
+
+function hashSymbol(s: string): number {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h;
+}
+
+/**
+ * On engine start, catches up any 1m candles that would otherwise be missing
+ * between the last persisted close and the current wall-clock minute (the
+ * engine was down, the host was rebooted, the container was rotated during a
+ * deploy). Fills each missing minute with 12 ticks of stepPrice using a
+ * per-asset seeded Rng so the catchup is deterministic within one invocation
+ * and does not consume draws from the shared live Rng. Returns the price the
+ * caller should use to initialise the asset's live state — the catchup end
+ * price if we filled anything, otherwise the plain `openedPrice`.
+ *
+ * Separated from the registry so the live-tick path stays unchanged.
+ */
+async function catchupMissingCandles(input: {
+  assetId: string;
+  symbol: string;
+  precision: number;
+  params: PriceParams;
+  last: { c: number; openTs: Date } | null;
+  openedPrice: number;
+}): Promise<number> {
+  const nowSec = Math.floor(Date.now() / 1000);
+  // We only backfill COMPLETED minutes — the current forming bucket is for
+  // the live loop to build out tick by tick. endBucketSec is the latest
+  // completed 1m bucket's openTs.
+  const endBucketSec = Math.floor(nowSec / 60) * 60 - 60;
+
+  if (input.last === null) return input.openedPrice;
+  const lastBucketSec = Math.floor(input.last.openTs.getTime() / 1000);
+  const firstMissingSec = lastBucketSec + 60;
+
+  if (endBucketSec < firstMissingSec) {
+    return input.openedPrice;
+  }
+
+  // Deterministic per-asset Rng seeded on current time + symbol hash. The
+  // shared live Rng is not touched, so replay semantics are preserved.
+  const seed = (nowSec ^ hashSymbol(input.symbol)) & 0x7fffffff;
+  const rng = createRng(seed);
+  const ticksPerMinute = Math.round(60 / TICK_DT_SEC);
+  let state = initPriceState(input.openedPrice, input.params);
+
+  const rows: { openTs: Date; o: number; h: number; l: number; c: number }[] = [];
+  for (let bucketSec = firstMissingSec; bucketSec <= endBucketSec; bucketSec += 60) {
+    const o = state.price;
+    let h = o;
+    let l = o;
+    for (let t = 0; t < ticksPerMinute; t++) {
+      state = stepPrice({
+        state,
+        params: input.params,
+        dtSec: TICK_DT_SEC,
+        z: rng.normal(),
+        driftBias: 0,
+        magnet: 0,
+        anchorTarget: null,
+      }).state;
+      if (state.price > h) h = state.price;
+      if (state.price < l) l = state.price;
+    }
+    rows.push({
+      openTs: new Date(bucketSec * 1000),
+      o: +o.toFixed(input.precision),
+      h: +h.toFixed(input.precision),
+      l: +l.toFixed(input.precision),
+      c: +state.price.toFixed(input.precision),
+    });
+  }
+
+  // Upsert so a parallel engine or a repeat ingest can't double-write the
+  // same bucket. Chunked to keep the transaction small.
+  const chunkSize = 100;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    await prisma.$transaction(
+      chunk.map((r) =>
+        prisma.candle.upsert({
+          where: {
+            assetId_timeframe_openTs: {
+              assetId: input.assetId,
+              timeframe: "1m",
+              openTs: r.openTs,
+            },
+          },
+          create: {
+            assetId: input.assetId,
+            timeframe: "1m",
+            openTs: r.openTs,
+            o: r.o,
+            h: r.h,
+            l: r.l,
+            c: r.c,
+          },
+          update: {},
+        }),
+      ),
+    );
+  }
+
+  logger.info(
+    {
+      evt: "engine.catchup_backfill",
+      symbol: input.symbol,
+      bars: rows.length,
+      fromTs: rows[0]?.openTs.toISOString(),
+      toTs: rows[rows.length - 1]?.openTs.toISOString(),
+      startPrice: input.openedPrice,
+      endPrice: +state.price.toFixed(input.precision),
+    },
+    "backfilled missing candles at engine start",
+  );
+
+  return state.price;
 }
