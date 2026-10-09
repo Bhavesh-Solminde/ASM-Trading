@@ -127,7 +127,7 @@ export async function resolveChainCreditAction(formData: FormData): Promise<void
     ? gatewayConfig && {
         network: gatewayConfig.network,
         tokenContract: gatewayConfig.tokenContract,
-        receivingAddress: credit.toAddress,
+        receivingAddresses: [credit.toAddress],
       }
     : getUsdtNetworkConfig(credit.network);
   if (!config) {
@@ -144,7 +144,7 @@ export async function resolveChainCreditAction(formData: FormData): Promise<void
       adminId: ADMIN_ACTOR,
       expectedNetwork: config.network,
       expectedTokenContract: config.tokenContract,
-      expectedReceivingAddress: config.receivingAddress,
+      expectedReceivingAddresses: config.receivingAddresses,
     });
   } catch (err) {
     if (!isResolutionRefusal(err)) throw err;

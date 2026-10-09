@@ -1,13 +1,16 @@
 // SERVER ONLY — reads the live receiving config from process.env. Never import
 // this from a "use client" module; client code gets display metadata from
 // USDT_NETWORK_INFO in @asm/contracts and the enabled list as a prop.
-import { USDT_NETWORKS, type UsdtNetwork } from "@asm/contracts";
+import { USDT_NETWORKS, parseUsdtReceivingAddresses, type UsdtNetwork } from "@asm/contracts";
 import { listTatumEnabledNetworks, readTatumConfig, usdtProviderFor, type TatumNetworkConfig } from "@asm/tatum";
 
 export interface UsdtNetworkConfig {
   network: UsdtNetwork;
   tokenContract: string;
+  /** The first of receivingAddresses (legacy single-address callers). */
   receivingAddress: string;
+  /** Every shared receiving address; TRON rotates time-slot deposits across them. */
+  receivingAddresses: string[];
   testnet: boolean;
 }
 
@@ -29,10 +32,19 @@ function tronConfig(): UsdtNetworkConfig | null {
   const network = process.env["USDT_NETWORK"] ?? "";
   const trongridNetwork = process.env["USDT_TRONGRID_NETWORK"] ?? "";
   const tokenContract = process.env["USDT_TOKEN_CONTRACT"] ?? "";
-  const receivingAddress = process.env["USDT_RECEIVING_ADDRESS"] ?? "";
+  const receivingAddresses = parseUsdtReceivingAddresses(
+    process.env["USDT_RECEIVING_ADDRESSES"],
+    process.env["USDT_RECEIVING_ADDRESS"],
+  );
   const trongridNetworkValid = trongridNetwork === "mainnet" || trongridNetwork === "nile";
-  if (network !== "tron" || !trongridNetworkValid || !tokenContract || !receivingAddress) return null;
-  return { network: "tron", tokenContract, receivingAddress, testnet: trongridNetwork === "nile" };
+  if (network !== "tron" || !trongridNetworkValid || !tokenContract || receivingAddresses.length === 0) return null;
+  return {
+    network: "tron",
+    tokenContract,
+    receivingAddress: receivingAddresses[0]!,
+    receivingAddresses,
+    testnet: trongridNetwork === "nile",
+  };
 }
 
 /**
@@ -60,6 +72,7 @@ function bscConfig(): UsdtNetworkConfig | null {
     network: "bsc",
     tokenContract: tokenContract.toLowerCase(),
     receivingAddress: receivingAddress.toLowerCase(),
+    receivingAddresses: [receivingAddress.toLowerCase()],
     testnet: chainId === "97",
   };
 }

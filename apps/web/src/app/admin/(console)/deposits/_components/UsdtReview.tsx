@@ -79,6 +79,9 @@ const REASON_TEXT: Record<string, string> = {
   UNDERPAID: "Gateway deposit paid less than requested",
   ADDRESS_ALREADY_USED: "Paid again to a gateway address whose deposit is already closed",
   ADMIN_REVERSED: "Wrongly credited — reversed by an admin and returned here",
+  SLOT_AMOUNT_MISMATCH: "Paid in a customer's 5-minute slot, but more than 3% off their amount and not from their wallet",
+  ABOVE_MAXIMUM: "Paid in a customer's slot, above the maximum deposit",
+  AMBIGUOUS_SLOT: "More than one open slot on this address (should not happen)",
 };
 
 const NEVER_CREDITABLE_REASONS = new Set(["WRONG_TOKEN_CONTRACT", "WRONG_NETWORK", "WRONG_DESTINATION"]);

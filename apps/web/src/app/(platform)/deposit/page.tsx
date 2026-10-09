@@ -51,10 +51,9 @@ export default async function DepositPage({
             </>
           ) : (
             <>
-              Your 5-minute payment window ended. If you already sent the exact
-              amount before the timer ran out, it will still be credited
-              automatically — don&rsquo;t send it again. Otherwise, start a new
-              deposit below.
+              Your 5-minute payment window ended. If you already sent your
+              payment before the timer ran out, it will still be credited —
+              don&rsquo;t send it again. Otherwise, start a new deposit below.
             </>
           )}
           {expiredToken && !usdtGateway ? (

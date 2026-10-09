@@ -223,7 +223,7 @@ describe("matchCreditToDeposit", () => {
       expect(outcome).toEqual({ kind: "manual_review", reason: "ambiguous_amount", depositId: null });
     } finally {
       await prisma.deposit.deleteMany({ where: { amountInr: shared } });
-      await prisma.$executeRaw`CREATE UNIQUE INDEX "Deposit_live_amount_unique" ON "Deposit" ("amountInr") WHERE "status" IN ('AWAITING_PAYMENT', 'PENDING_CONFIRMATION') AND "gateway" IS NULL`;
+      await prisma.$executeRaw`CREATE UNIQUE INDEX "Deposit_live_amount_unique" ON "Deposit" ("amountInr") WHERE "status" IN ('AWAITING_PAYMENT', 'PENDING_CONFIRMATION') AND "gateway" IS NULL AND "usdtMatch" IS NULL`;
     }
   });
 });

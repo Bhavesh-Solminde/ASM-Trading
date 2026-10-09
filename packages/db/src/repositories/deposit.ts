@@ -46,6 +46,14 @@ export class AmountSpaceExhausted extends Error {
   }
 }
 
+/** Every shared USDT receiving address is held by another user's time slot. */
+export class UsdtSlotBusy extends Error {
+  constructor(public readonly retryAt: Date) {
+    super("Another deposit on this network is in progress.");
+    this.name = "UsdtSlotBusy";
+  }
+}
+
 export class DepositNotFound extends Error {
   constructor() {
     super("Deposit not found.");
@@ -249,6 +257,120 @@ export async function createUsdtDepositIntent(input: {
   }
 
   throw new AmountSpaceExhausted();
+}
+
+/**
+ * After a slot ends UNPAID, its address stays closed this long before the
+ * next user's slot opens there, so a payment sent just after the deadline
+ * lands in no slot (admin review) rather than in the next user's.
+ */
+export const USDT_SLOT_GAP_MS = 2 * 60_000;
+
+/**
+ * Time-slot USDT deposit (Deposit.usdtMatch = "SLOT"): the user's own amount
+ * (no unique cents) on a shared receiving address that this deposit holds
+ * ALONE for [createdAt, expiresAt). The matcher credits the amount that
+ * actually arrives there in that window (see matchSlotDeposit).
+ *
+ * `receivingAddresses` rotate: the deposit takes the first address no other
+ * user's slot holds. A slot holds its address until it is credited
+ * (COMPLETED) or until expiresAt + USDT_SLOT_GAP_MS. If every address is
+ * held, throws UsdtSlotBusy with the earliest time one frees up. A
+ * transaction-scoped advisory lock per network serializes allocation, so two
+ * simultaneous requests can never get the same address.
+ *
+ * A user's OWN open slot never blocks them: it is closed at once (expiresAt =
+ * now, status untouched, so a payment already sent inside its window is
+ * still credited to it), and the new slot reuses its address.
+ */
+export async function createUsdtSlotDepositIntent(input: {
+  userId: string;
+  amountUsdtMinorRequested: number;
+  network: string;
+  tokenContract: string;
+  receivingAddresses: readonly string[];
+  senderAddress?: string | null;
+  correlationId: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}): Promise<Deposit> {
+  if (input.receivingAddresses.length === 0) throw new Error("No receiving address configured.");
+  if (input.amountUsdtMinorRequested < MIN_DEPOSIT_USDT_MINOR) {
+    throw new Error(
+      `Below the minimum deposit of $${(MIN_DEPOSIT_USDT_MINOR / 100).toLocaleString("en-US")}.`,
+    );
+  }
+  if (input.amountUsdtMinorRequested > MAX_DEPOSIT_USDT_MINOR) {
+    throw new Error(
+      `Above the maximum deposit of $${(MAX_DEPOSIT_USDT_MINOR / 100).toLocaleString("en-US")}.`,
+    );
+  }
+  const senderAddress = input.senderAddress?.trim() || null;
+
+  return prisma.$transaction(async (tx) => {
+    const lockKey = `usdt-slot:${input.network}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    const now = new Date();
+    // Every not-yet-credited slot on these addresses whose window (plus the
+    // gap) still runs.
+    const holders = await tx.deposit.findMany({
+      where: {
+        method: "USDT",
+        usdtMatch: "SLOT",
+        network: input.network,
+        receivingAddress: { in: [...input.receivingAddresses] },
+        status: { not: "COMPLETED" },
+        expiresAt: { gt: new Date(now.getTime() - USDT_SLOT_GAP_MS) },
+      },
+      select: { id: true, userId: true, status: true, receivingAddress: true, expiresAt: true },
+    });
+
+    const own = holders.filter((h) => h.userId === input.userId && h.status === "AWAITING_PAYMENT" && h.expiresAt > now);
+    const heldByOthers = new Set(holders.filter((h) => h.userId !== input.userId).map((h) => h.receivingAddress));
+    // Prefer the user's own current address (they may already have it open in
+    // their wallet), then the first free one in configured order.
+    const candidates = [...own.map((h) => h.receivingAddress!), ...input.receivingAddresses];
+    const address = candidates.find((a) => !heldByOthers.has(a));
+    if (!address) {
+      const retryAt = Math.min(
+        ...holders.filter((h) => h.userId !== input.userId).map((h) => h.expiresAt.getTime() + USDT_SLOT_GAP_MS),
+      );
+      throw new UsdtSlotBusy(new Date(retryAt));
+    }
+    // Only OTHER users' holds block an address (a user's own lapsed slot in
+    // its gap does not).
+    if (own.length > 0) {
+      await tx.deposit.updateMany({ where: { id: { in: own.map((h) => h.id) } }, data: { expiresAt: now } });
+    }
+
+    return tx.deposit.create({
+      data: {
+        userId: input.userId,
+        method: "USDT",
+        // Legacy required columns — same sentinels as createUsdtDepositIntent.
+        // Slot rows are excluded from Deposit_live_amount_unique, so the
+        // -amountUsdtMinor sentinel never collides here.
+        amountUsd: 0,
+        amountInr: -input.amountUsdtMinorRequested,
+        vpa: address,
+        network: input.network,
+        tokenContract: input.tokenContract,
+        receivingAddress: address,
+        amountUsdtMinor: input.amountUsdtMinorRequested,
+        usdtMatch: "SLOT",
+        senderAddress,
+        checkoutToken: randomBytes(24).toString("base64url"),
+        status: "AWAITING_PAYMENT",
+        correlationId: input.correlationId,
+        // Strictly after any window this user just closed (expiresAt = now).
+        createdAt: new Date(now.getTime() + 1),
+        expiresAt: new Date(now.getTime() + USDT_DEPOSIT_TTL_MINUTES * 60_000),
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      },
+    });
+  });
 }
 
 /** All live (not yet resolved) deposits that reserved exactly this amount. In
@@ -536,13 +658,14 @@ export async function creditDepositToAccount(input: {
    */
   adminResolution?: { usdtMinorOverride: number };
   /**
-   * Payment-gateway (per-deposit address) auto-credit: the USDT-cents that
-   * actually arrived at the deposit's own address, which may exceed what the
-   * user asked for (the gateway matcher never calls this for an underpayment).
+   * Payment-gateway (per-deposit address) or time-matched (Deposit.usdtMatch)
+   * auto-credit: the USDT-cents that actually arrived, which may differ from
+   * what the user asked for (the gateway matcher never calls this for an
+   * underpayment; the time matcher never for less than the minimum deposit).
    * Unlike adminResolution it widens NO guard — the deposit must still be
    * live and the ChainCredit still PENDING — it only credits, and rewrites
    * the deposit's amounts to, the received value. Mutually exclusive with
-   * adminResolution; only valid with chainCreditId on a USDT gateway deposit.
+   * adminResolution; only valid with chainCreditId on such a USDT deposit.
    */
   receivedUsdtMinor?: number;
 }): Promise<void> {
@@ -573,8 +696,8 @@ export async function creditDepositToAccount(input: {
   if (received !== null) {
     if (admin) throw new Error("receivedUsdtMinor and adminResolution are mutually exclusive.");
     if (!input.chainCreditId) throw new Error("receivedUsdtMinor requires a chainCreditId.");
-    if (deposit.method !== "USDT" || !deposit.gateway) {
-      throw new Error("receivedUsdtMinor is only valid for a USDT gateway deposit.");
+    if (deposit.method !== "USDT" || (!deposit.gateway && !deposit.usdtMatch)) {
+      throw new Error("receivedUsdtMinor is only valid for a USDT gateway or time-matched deposit.");
     }
     if (!Number.isInteger(received) || received <= 0) {
       throw new Error("receivedUsdtMinor must be a positive integer.");

@@ -3,6 +3,7 @@ import {
   ClaimUsdtPaymentSchema,
   ClaimUtrSchema,
   CreateDepositSchema,
+  parseUsdtReceivingAddresses,
   USDT_NETWORK_INFO,
   USDT_NETWORKS,
   isUsdtNetwork,
@@ -95,5 +96,23 @@ describe("USDT networks", () => {
     expect(isUsdtNetwork("bsc")).toBe(true);
     expect(isUsdtNetwork("BSC")).toBe(false);
     expect(isUsdtNetwork(null)).toBe(false);
+  });
+});
+
+describe("USDT time slots", () => {
+  it("accepts an optional TRON or EVM sender wallet, trimmed, and rejects anything else", () => {
+    const base = { method: "USDT", network: "tron", amountUsdtMinor: 2_500 };
+    expect(CreateDepositSchema.safeParse(base).success).toBe(true);
+    const tron = CreateDepositSchema.safeParse({ ...base, senderAddress: " TL5cUNhJjPSmyZVDncznin7FrSTtea6zUG " });
+    expect(tron.success && tron.data.method === "USDT" && tron.data.senderAddress).toBe("TL5cUNhJjPSmyZVDncznin7FrSTtea6zUG");
+    expect(CreateDepositSchema.safeParse({ ...base, senderAddress: "0x15e770A42b41f2606538505839042ddFEBACB590" }).success).toBe(true);
+    expect(CreateDepositSchema.safeParse({ ...base, senderAddress: "not-a-wallet" }).success).toBe(false);
+    expect(CreateDepositSchema.safeParse({ ...base, senderAddress: "" }).success).toBe(false);
+  });
+
+  it("reads the rotating address list, falling back to the single address", () => {
+    expect(parseUsdtReceivingAddresses(" TA1, TB2 TA1,,TC3 ", "TZ9")).toEqual(["TA1", "TB2", "TC3"]);
+    expect(parseUsdtReceivingAddresses("", "TZ9")).toEqual(["TZ9"]);
+    expect(parseUsdtReceivingAddresses(undefined, undefined)).toEqual([]);
   });
 });
