@@ -87,20 +87,32 @@ const OpenTradeRow = memo(function OpenTradeRow({
   const winProfit = Math.floor((trade.stake * trade.payoutPct) / 100);
   const progress =
     now === null ? 0 : Math.min(1, Math.max(0, (now - trade.entryTs) / (trade.expiryTs - trade.entryTs)));
-  const settling = now !== null && now >= trade.expiryTs;
+  const expired = now !== null && now >= trade.expiryTs;
 
-  // During the brief "Settling…" window (expired, server settlement write
-  // in flight) the live chart price can snap to the resolver's picked exit,
-  // which would flip the winning/losing calc and bounce the displayed PnL
-  // between +₹X and −₹Y right as the user is watching. Suppress the live
-  // amount during Settling and show the Settling label instead — the final
-  // amount lands with the "trade:settled" WS event, replacing this row with
-  // ClosedTradeRow.
-  const pnlDisplay = settling
-    ? "Settling…"
-    : winning
-      ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
-      : `−${formatMinor(trade.stake, currency)}`;
+  // Freeze the outcome at the moment the countdown hits zero so a late tick
+  // the engine broadcasts after expiry can't flip the chip from WON to LOST
+  // (or vice versa) in the sub-second gap before the WS "trade:settled"
+  // event swaps this row for ClosedTradeRow.
+  const [frozen, setFrozen] = useState<{ winning: boolean; price: number | null } | null>(null);
+  if (expired && frozen === null) {
+    setFrozen({ winning, price });
+  }
+
+  // Instant settle: the second `expired` flips true, show the user WON or
+  // LOST (and the real PnL amount) based on the chart price they're looking
+  // at. No "Settling…" placeholder — the DB catches up asynchronously, and
+  // the engine fix guarantees it'll land on the same side we show here.
+  const displayWinning = expired ? (frozen?.winning ?? winning) : winning;
+  const pnlDisplay = displayWinning
+    ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
+    : `−${formatMinor(trade.stake, currency)}`;
+  const pnlClass = displayWinning ? "text-up" : losing || expired ? "text-down" : "text-ink-2";
+
+  const chipOverride = expired
+    ? displayWinning
+      ? { label: "Won", className: "bg-up text-up-ink" }
+      : { label: "Lost", className: "text-down shadow-[inset_0_0_0_1px_var(--color-down)]" }
+    : undefined;
 
   return (
     <RowShell
@@ -108,15 +120,13 @@ const OpenTradeRow = memo(function OpenTradeRow({
       asset={asset}
       currency={currency}
       time={
-        <span className={`led justify-self-end text-[13px] ${settling ? "text-ink-2" : "text-ink"}`}>
-          {now === null ? "" : settling ? "Settling…" : countdown(trade.expiryTs - now)}
+        <span className="led justify-self-end text-[13px] text-ink">
+          {now === null ? "" : expired ? "0s" : countdown(trade.expiryTs - now)}
         </span>
       }
       pnl={pnlDisplay}
-      pnlClass={settling ? "text-ink-2" : winning ? "text-up" : losing ? "text-down" : "text-ink-2"}
-      {...(settling
-        ? { chipOverride: { label: "Settling", className: "bg-tile text-ink-2" } }
-        : {})}
+      pnlClass={pnlClass}
+      {...(chipOverride ? { chipOverride } : {})}
     >
       <span aria-hidden className="absolute -bottom-px left-0 h-0.5 bg-up" style={{ width: `${progress * 100}%` }} />
     </RowShell>

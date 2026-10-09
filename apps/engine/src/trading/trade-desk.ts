@@ -534,12 +534,23 @@ export class TradeDesk {
       }
 
       const bucketKey = `${symbol}|${bucket.expirySec}`;
-      const preResolved = this.preResolvedByBucket.get(bucketKey);
-      if (preResolved !== undefined) this.preResolvedByBucket.delete(bucketKey);
-      // When pre-settled, the chart was already snapped last tick, so the
-      // exitPrice captured here already matches the resolver's pick.
-      const exitPrice =
-        preResolved ?? Number(asset.state.price.toFixed(asset.precision));
+      // We no longer READ preResolved to settle live trades — the chart is
+      // the source of truth now (see below) — but still clear the cache so
+      // it doesn't leak forever. preSettle keeps writing it; the value is
+      // only used as a chart-aesthetic snap one tick before expiry.
+      this.preResolvedByBucket.delete(bucketKey);
+      // exitPrice is `asset.state.price` at the start of THIS tick, i.e. the
+      // final close broadcast at the end of LAST tick — the number the user
+      // saw on their chart when the countdown hit zero. Previously we
+      // preferred preSettle's resolver pick from last tick, but stepPrice +
+      // commitSnap on that same tick moved the shown price AWAY from the
+      // resolver pick toward the stamped trade's own targetPrice, so the DB
+      // settled at one price while the user watched another — "clear WIN on
+      // the chart, LOST on my account". Trusting the chart ends that
+      // divergence by construction. The stamped verdict still steers the
+      // outcome because the magnet + commitSnap have already pulled the
+      // chart to the trade's targetPrice by the time this tick runs.
+      const exitPrice = Number(asset.state.price.toFixed(asset.precision));
       const honestExitPrice = this.assets.honestPrice(symbol);
       for (const position of bucket.positions) {
         const pending: PendingSettlement = {
@@ -570,10 +581,11 @@ export class TradeDesk {
           pending.resolvedExitPrice = Number(
             position.targetPrice.toFixed(asset.precision),
           );
-        } else if (preResolved !== undefined) {
-          // Pre-settled live trade: skip the async resolver entirely —
-          // the exit price was already chosen last tick.
-          pending.resolvedExitPrice = preResolved;
+        } else {
+          // Live (or honest-grandfathered) trade — the chart IS the exit.
+          // Skip the drain-time bucket resolver entirely so no later pass
+          // can rewrite exitPrice to something the user never saw.
+          pending.resolvedExitPrice = exitPrice;
         }
 
         this.pending.push(pending);
