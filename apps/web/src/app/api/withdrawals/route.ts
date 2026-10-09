@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { z } from "zod";
-import { DEPOSIT_METHODS } from "@asm/contracts";
+import { CreateWithdrawalSchema, payoutDestinationKey } from "@asm/contracts";
 import {
   WithdrawalRefused,
   formatMoney,
@@ -17,12 +16,6 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { certificateHtml, certificateName, type CertificateData } from "@/lib/certificate";
 import { sendEmail } from "@/lib/mail";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
-
-const WithdrawSchema = z.strictObject({
-  accountId: z.string().uuid(),
-  amount: z.number().int().positive().max(100_000_000),
-  method: z.enum(DEPOSIT_METHODS),
-});
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -47,9 +40,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const parsed = WithdrawSchema.safeParse(await req.json().catch(() => null));
+  const parsed = CreateWithdrawalSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "Check the withdrawal details." }, { status: 400 });
+    // Surface the first field message ("Enter a valid IFSC code…") so the user
+    // knows what to fix; the form validates the same rules before submitting.
+    const first = parsed.error.issues[0]?.message;
+    return NextResponse.json(
+      { error: first && !first.startsWith("Invalid") ? first : "Check the withdrawal details." },
+      { status: 400 },
+    );
   }
 
   try {
@@ -57,7 +56,10 @@ export async function POST(req: NextRequest) {
       actorId: session.userId,
       ipAddress: ctx.ip,
       userAgent: ctx.userAgent,
-      ...parsed.data,
+      accountId: parsed.data.accountId,
+      amount: parsed.data.amount,
+      payout: parsed.data.payout,
+      destinationKey: payoutDestinationKey(parsed.data.payout),
     });
 
     // Build the reward certificate and (when Resend is configured) email it.
@@ -90,7 +92,10 @@ export async function POST(req: NextRequest) {
       log.warn({ evt: "withdrawal.mail_failed", err: String(mailErr) }, "certificate email failed");
     }
 
-    return NextResponse.json({ id: withdrawal.id, certificate, emailed }, { status: 201 });
+    return NextResponse.json(
+      { id: withdrawal.id, status: withdrawal.status, certificate, emailed },
+      { status: 201 },
+    );
   } catch (err) {
     if (err instanceof WithdrawalRefused) {
       return NextResponse.json({ error: err.message }, { status: 400 });

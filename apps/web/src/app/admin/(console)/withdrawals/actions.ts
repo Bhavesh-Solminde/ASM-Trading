@@ -2,9 +2,10 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { approveWithdrawal, releaseHeldWithdrawal } from "@asm/db";
+import { approveWithdrawal, markWithdrawalPaid, rejectWithdrawal, releaseHeldWithdrawal } from "@asm/db";
 import { logger } from "@asm/logger";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
+import { WITHDRAWAL_REJECT_REASONS } from "./reasons";
 
 const ADMIN_ACTOR = "admin-panel";
 
@@ -48,6 +49,47 @@ export async function releaseHeldWithdrawalAction(formData: FormData): Promise<v
   logger.info(
     { evt: "admin.action", action: "withdrawal.hold_released", withdrawalId },
     "withdrawal hold released by admin",
+  );
+  revalidatePath("/admin/withdrawals");
+  revalidatePath("/admin");
+}
+
+/**
+ * Records that an APPROVED payout has been sent. markWithdrawalPaid is guarded
+ * to APPROVED and writes its own audit entry.
+ */
+export async function markWithdrawalPaidAction(formData: FormData): Promise<void> {
+  await requirePanel();
+  const withdrawalId = String(formData.get("withdrawalId") ?? "");
+  if (!withdrawalId) return;
+
+  await markWithdrawalPaid({ withdrawalId, adminId: ADMIN_ACTOR });
+  logger.info(
+    { evt: "admin.action", action: "withdrawal.paid", withdrawalId },
+    "withdrawal marked paid by admin",
+  );
+  revalidatePath("/admin/withdrawals");
+  revalidatePath("/admin");
+}
+
+/**
+ * Rejects a pending, held or approved-but-unpaid withdrawal and refunds the
+ * amount to the user's real balance. Only a preset reason is accepted, since
+ * the user sees it verbatim.
+ */
+export async function rejectWithdrawalAction(formData: FormData): Promise<void> {
+  await requirePanel();
+  const withdrawalId = String(formData.get("withdrawalId") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+  if (!withdrawalId) return;
+  const safeReason = (WITHDRAWAL_REJECT_REASONS as readonly string[]).includes(reason)
+    ? reason
+    : WITHDRAWAL_REJECT_REASONS[0];
+
+  await rejectWithdrawal({ withdrawalId, adminId: ADMIN_ACTOR, reason: safeReason });
+  logger.info(
+    { evt: "admin.action", action: "withdrawal.reject", withdrawalId },
+    "withdrawal rejected by admin",
   );
   revalidatePath("/admin/withdrawals");
   revalidatePath("/admin");

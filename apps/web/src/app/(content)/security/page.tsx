@@ -37,8 +37,8 @@ export default function SecurityPage() {
         <h2 className="text-xl font-bold text-ink md:text-2xl">Your funds</h2>
         <ul className="mt-4 list-disc space-y-2 pl-5 text-ink-2">
           <li>
-            Withdrawals go to verified destinations, usually the method you
-            deposited with &mdash; standard anti-fraud practice.
+            Withdrawals go to your own bank account, UPI ID or USDT wallet, and
+            every request is checked against your verified identity first.
           </li>
           <li>
             A one-time identity check (KYC) may apply to your first withdrawal to

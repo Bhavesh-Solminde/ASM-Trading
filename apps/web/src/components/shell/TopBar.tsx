@@ -164,7 +164,7 @@ export function TopBar() {
             >
               <span
                 aria-hidden
-                className={`size-[6px] rounded-full ${live ? "bg-up shadow-[0_0_6px_var(--color-up)] live-pulse" : "bg-ink-3"}`}
+                className={`size-[6px] rounded-full ${live ? "bg-down shadow-[0_0_6px_var(--color-down)] live-pulse" : "bg-ink-3"}`}
               />
               {live ? "Live" : "Demo"}
             </span>

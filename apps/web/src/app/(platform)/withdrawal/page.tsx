@@ -8,9 +8,10 @@ import {
   loadProfile,
   withdrawableBalance,
 } from "@asm/db";
+import { PAYOUT_METHOD_LABEL, isUsdtNetwork, payoutDestinationLabel } from "@asm/contracts";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
-import { WithdrawForm } from "./WithdrawForm";
+import { WithdrawForm, type LastPayouts } from "./WithdrawForm";
 import { HeldWithdrawalCard } from "./HeldWithdrawalCard";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,20 @@ export default async function WithdrawalPage() {
   const balance = await withdrawableBalance(live.id);
   const recent = await listWithdrawalsForActor(session.userId, 20);
   const heldWithdrawals = recent.filter((w) => w.status === "HELD");
+
+  // Prefill each payout method with the details the user last withdrew to
+  // (rows are newest-first, so the first match per method wins).
+  const lastPayouts: LastPayouts = {};
+  for (const w of recent) {
+    if (w.method === "BANK" && !lastPayouts.BANK && w.accountHolder && w.accountNumber && w.ifsc) {
+      lastPayouts.BANK = { accountHolder: w.accountHolder, accountNumber: w.accountNumber, ifsc: w.ifsc };
+    } else if (w.method === "UPI" && !lastPayouts.UPI && w.upiId) {
+      lastPayouts.UPI = { upiId: w.upiId };
+    } else if (w.method === "USDT" && !lastPayouts.USDT && w.usdtAddress && isUsdtNetwork(w.usdtNetwork)) {
+      lastPayouts.USDT = { usdtNetwork: w.usdtNetwork, usdtAddress: w.usdtAddress };
+    }
+  }
+  const kycName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 py-8 phone:px-4 phone:py-5">
@@ -82,15 +97,77 @@ export default async function WithdrawalPage() {
         <section className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
           <h2 className="mb-3 text-sm font-semibold">Withdraw</h2>
           {profile.kycStatus === "VERIFIED" ? (
-            <WithdrawForm accountId={live.id} withdrawableMinor={balance.withdrawable} />
+            <WithdrawForm
+              accountId={live.id}
+              currency={live.currency}
+              withdrawableMinor={balance.withdrawable}
+              lastPayouts={lastPayouts}
+              kycName={kycName}
+            />
           ) : (
             <VerifyFirst kycStatus={profile.kycStatus} />
           )}
         </section>
       </div>
+
+      <section className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)]">
+        <h2 className="border-b border-[var(--color-rule)] px-4 py-3 text-sm font-semibold">
+          Your withdrawals
+        </h2>
+        {recent.length === 0 ? (
+          <p className="px-4 py-6 text-center text-xs text-[var(--color-ink-2)]">
+            No withdrawals yet. Your requests and their status will show here.
+          </p>
+        ) : (
+          <ul className="divide-y divide-[var(--color-rule)]">
+            {recent.map((w) => {
+              const pill = STATUS_PILL[w.status] ?? STATUS_PILL.REQUESTED!;
+              const method = PAYOUT_METHOD_LABEL[w.method as keyof typeof PAYOUT_METHOD_LABEL] ?? w.method;
+              const dest = payoutDestinationLabel(w);
+              return (
+                <li key={w.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold tabular-nums">{formatMoney(w.amount, w.currency)}</p>
+                    <p className="truncate text-[11px] text-[var(--color-ink-2)]">
+                      {method}
+                      {dest ? <span className="font-mono"> · {dest}</span> : null}
+                    </p>
+                    <p className="text-[11px] text-[var(--color-ink-3)]">{DATE_FMT.format(w.createdAt)}</p>
+                    {w.status === "REJECTED" && w.reason ? (
+                      <p className="mt-1 text-[11px] text-[var(--color-down)]">
+                        {w.reason} — the amount is back in your balance.
+                      </p>
+                    ) : null}
+                  </div>
+                  <span className={`flex-none rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${pill.cls}`}>
+                    {pill.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }
+
+const DATE_FMT = new Intl.DateTimeFormat("en-IN", {
+  day: "2-digit",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Asia/Kolkata",
+});
+
+const STATUS_PILL: Record<string, { label: string; cls: string }> = {
+  REQUESTED: { label: "Pending", cls: "bg-caution/15 text-caution" },
+  HELD: { label: "On hold", cls: "bg-caution/15 text-caution" },
+  APPROVED: { label: "Processing", cls: "bg-[var(--color-brand)]/15 text-[var(--color-brand)]" },
+  PAID: { label: "Paid", cls: "bg-[var(--color-up)]/15 text-[var(--color-up)]" },
+  REJECTED: { label: "Rejected", cls: "bg-[var(--color-down)]/15 text-[var(--color-down)]" },
+  CANCELLED_BY_USER: { label: "Cancelled", cls: "bg-[var(--color-tile)] text-[var(--color-ink-2)]" },
+};
 
 const VERIFY_COPY: Record<string, { title: string; body: string; cta: string | null }> = {
   PENDING: {

@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../client";
 import { createAccountsForUser } from "./account";
 import {
+  approveWithdrawal,
   autoPromoteHeldWithdrawals,
+  markWithdrawalPaid,
+  rejectWithdrawal,
   cancelHeldWithdrawal,
   listWithdrawalsForActor,
   requestWithdrawal,
@@ -15,12 +18,19 @@ import {
 let userId = "";
 let accountId = "";
 
+const UPI = {
+  payout: { method: "UPI", upiId: "me@okaxis" },
+  destinationKey: "upi:me@okaxis",
+} as const;
+
 beforeEach(async () => {
   const user = await prisma.user.create({
     data: { email: `w-${randomUUID()}@test.local`, passwordHash: "x" },
   });
   userId = user.id;
-  const accounts = await createAccountsForUser(userId, 0);
+  // USD account: the $7 – $500 per-request limits keep these cent amounts valid.
+  // The INR limits (₹700 – ₹50,000) have their own tests below.
+  const accounts = await createAccountsForUser(userId, 0, "USD");
   accountId = accounts.find((a) => a.type === "LIVE")!.id;
 });
 
@@ -95,7 +105,7 @@ describe("requestWithdrawal", () => {
       actorId: userId,
       accountId,
       amount: 20_000,
-      method: "PhonePe",
+      ...UPI,
     });
     expect(withdrawal.status).toBe("REQUESTED");
 
@@ -111,7 +121,7 @@ describe("requestWithdrawal", () => {
       actorId: userId,
       accountId,
       amount: 20_000,
-      method: "PhonePe",
+      ...UPI,
     });
     const rows = await prisma.transaction.findMany({
       where: { refType: "Withdrawal", refId: withdrawal.id },
@@ -125,23 +135,79 @@ describe("requestWithdrawal", () => {
     for (const kycStatus of ["NOT_STARTED", "PENDING", "REJECTED"] as const) {
       await prisma.user.update({ where: { id: userId }, data: { kycStatus } });
       await expect(
-        requestWithdrawal({ actorId: userId, accountId, amount: 10_000, method: "PhonePe" }),
-      ).rejects.toThrow(/verify your account/i);
+        requestWithdrawal({ actorId: userId, accountId, amount: 10_000, ...UPI }),
+      ).rejects.toThrow(/verify your identity/i);
     }
     const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
     expect(account.realBalance).toBe(50_000);
   });
 
   it("refuses more than the withdrawable balance", async () => {
+    await prisma.account.update({ where: { id: accountId }, data: { realBalance: 30_000 } });
     await expect(
-      requestWithdrawal({ actorId: userId, accountId, amount: 90_000, method: "PhonePe" }),
+      requestWithdrawal({ actorId: userId, accountId, amount: 40_000, ...UPI }),
     ).rejects.toThrow(/balance/i);
   });
 
-  it("refuses a method never used for a completed deposit", async () => {
+  it("pays out to a method the user never deposited with", async () => {
+    // The user deposited by PhonePe (beforeEach) and withdraws to a bank account.
+    const withdrawal = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 10_000,
+      payout: { method: "BANK", accountHolder: "Test User", accountNumber: "123456789012", ifsc: "HDFC0001234" },
+      destinationKey: "bank:HDFC0001234:123456789012",
+    });
+    expect(withdrawal).toMatchObject({
+      method: "BANK",
+      currency: "USD",
+      accountHolder: "Test User",
+      accountNumber: "123456789012",
+      ifsc: "HDFC0001234",
+      upiId: null,
+      usdtAddress: null,
+      destinationKey: "bank:HDFC0001234:123456789012",
+    });
+  });
+
+  it("stores the USDT network and address", async () => {
+    const addr = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
+    const withdrawal = await requestWithdrawal({
+      actorId: userId,
+      accountId,
+      amount: 10_000,
+      payout: { method: "USDT", usdtNetwork: "tron", usdtAddress: addr },
+      destinationKey: `usdt:tron:${addr}`,
+    });
+    expect(withdrawal).toMatchObject({ method: "USDT", usdtNetwork: "tron", usdtAddress: addr });
+  });
+
+  it("refuses less than the $7 minimum on a USD account", async () => {
     await expect(
-      requestWithdrawal({ actorId: userId, accountId, amount: 10_000, method: "PayTM" }),
-    ).rejects.toThrow(/method/i);
+      requestWithdrawal({ actorId: userId, accountId, amount: 699, ...UPI }),
+    ).rejects.toThrow(/minimum withdrawal is \$7/i);
+  });
+
+  it("refuses more than the $500 maximum on a USD account", async () => {
+    await prisma.account.update({ where: { id: accountId }, data: { realBalance: 100_000 } });
+    await expect(
+      requestWithdrawal({ actorId: userId, accountId, amount: 50_001, ...UPI }),
+    ).rejects.toThrow(/maximum withdrawal is \$500/i);
+  });
+
+  it("enforces ₹700 – ₹50,000 on an INR account", async () => {
+    await prisma.account.update({
+      where: { id: accountId },
+      data: { currency: "INR", realBalance: 10_000_000 },
+    });
+    await expect(
+      requestWithdrawal({ actorId: userId, accountId, amount: 699_99, ...UPI }),
+    ).rejects.toThrow(/minimum withdrawal is ₹700/i);
+    await expect(
+      requestWithdrawal({ actorId: userId, accountId, amount: 50_000_01, ...UPI }),
+    ).rejects.toThrow(/maximum withdrawal is ₹50,000/i);
+    const ok = await requestWithdrawal({ actorId: userId, accountId, amount: 700_00, ...UPI });
+    expect(ok.currency).toBe("INR");
   });
 
   it("refuses another user's account", async () => {
@@ -149,7 +215,7 @@ describe("requestWithdrawal", () => {
       data: { email: `ow-${randomUUID()}@test.local`, passwordHash: "x" },
     });
     await expect(
-      requestWithdrawal({ actorId: other.id, accountId, amount: 10_000, method: "PhonePe" }),
+      requestWithdrawal({ actorId: other.id, accountId, amount: 10_000, ...UPI }),
     ).rejects.toThrow(/not found/i);
     await prisma.user.delete({ where: { id: other.id } });
   });
@@ -158,7 +224,7 @@ describe("requestWithdrawal", () => {
     const demo = await prisma.account.findFirstOrThrow({ where: { userId, type: "DEMO" } });
     await prisma.account.update({ where: { id: demo.id }, data: { realBalance: 50_000 } });
     await expect(
-      requestWithdrawal({ actorId: userId, accountId: demo.id, amount: 10_000, method: "PhonePe" }),
+      requestWithdrawal({ actorId: userId, accountId: demo.id, amount: 10_000, ...UPI }),
     ).rejects.toThrow(/demo/i);
   });
 });
@@ -196,12 +262,14 @@ describe("requestWithdrawal — anti-fraud gates", () => {
         actorId: userId,
         accountId,
         amount: 10_000,
-        method: "PhonePe",
+        ...UPI,
       }),
     ).rejects.toThrow(/paused/i);
   });
 
-  it("refuses when the payment method belongs to a different user", async () => {
+  // Regression: the old check compared method *labels* ("PhonePe", "USDT")
+  // across users, so one user's deposit blocked everyone else's withdrawal.
+  it("allows a withdrawal when another user deposited with the same method", async () => {
     // The primary user completes a deposit on PhonePe.
     await prisma.account.update({
       where: { id: accountId },
@@ -220,9 +288,8 @@ describe("requestWithdrawal — anti-fraud gates", () => {
         status: "COMPLETED",
       },
     });
-    // A second user has ALSO used PhonePe with a completed deposit — that
-    // makes the method shared, so withdrawing to it from the primary user
-    // is a hedging/laundering path and must be refused.
+    // A second user has ALSO deposited with PhonePe — a shared rail, not a
+    // shared destination, so it must not block the primary user.
     const foreigner = await prisma.user.create({
       data: { email: `fx-${randomUUID()}@t.local`, passwordHash: "x" },
     });
@@ -242,14 +309,14 @@ describe("requestWithdrawal — anti-fraud gates", () => {
         },
       });
 
-      await expect(
-        requestWithdrawal({
-          actorId: userId,
-          accountId,
-          amount: 10_000,
-          method: "PhonePe",
-        }),
-      ).rejects.toThrow(/another account/i);
+      const w = await requestWithdrawal({
+        actorId: userId,
+        accountId,
+        amount: 10_000,
+        ...UPI,
+      });
+      // First withdrawal right after a deposit lands on the hold path.
+      expect(["REQUESTED", "HELD"]).toContain(w.status);
     } finally {
       await prisma.transaction.deleteMany({ where: { account: { userId: foreigner.id } } });
       await prisma.deposit.deleteMany({ where: { userId: foreigner.id } });
@@ -280,7 +347,7 @@ describe("requestWithdrawal — anti-fraud gates", () => {
       actorId: userId,
       accountId,
       amount: 1_000,
-      method: "PhonePe",
+      ...UPI,
       ipAddress: "203.0.113.7",
       userAgent: "Mozilla-test",
     });
@@ -324,7 +391,7 @@ describe("requestWithdrawal — first-withdrawal hold", () => {
       actorId: userId,
       accountId,
       amount: 10_000,
-      method: "PhonePe",
+      ...UPI,
     });
     expect(w.status).toBe("HELD");
     expect(w.holdUntil).toBeInstanceOf(Date);
@@ -358,7 +425,7 @@ describe("requestWithdrawal — first-withdrawal hold", () => {
       actorId: userId,
       accountId,
       amount: 5_000,
-      method: "PhonePe",
+      ...UPI,
     });
     expect(w.status).toBe("REQUESTED");
     expect(w.holdUntil).toBeNull();
@@ -371,7 +438,7 @@ describe("requestWithdrawal — first-withdrawal hold", () => {
       actorId: userId,
       accountId,
       amount: 5_000,
-      method: "PhonePe",
+      ...UPI,
     });
     expect(w.status).toBe("REQUESTED");
     expect(w.holdUntil).toBeNull();
@@ -383,7 +450,7 @@ describe("requestWithdrawal — first-withdrawal hold", () => {
       actorId: userId,
       accountId,
       amount: 7_000,
-      method: "PhonePe",
+      ...UPI,
     });
     expect(w.status).toBe("HELD");
     const before = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
@@ -411,7 +478,7 @@ describe("requestWithdrawal — first-withdrawal hold", () => {
       actorId: userId,
       accountId,
       amount: 3_000,
-      method: "PhonePe",
+      ...UPI,
     });
     // Rewind the cancel window into the past so the gate trips.
     await prisma.withdrawal.update({
@@ -430,7 +497,7 @@ describe("requestWithdrawal — first-withdrawal hold", () => {
       actorId: userId,
       accountId,
       amount: 2_000,
-      method: "PhonePe",
+      ...UPI,
     });
     await cancelHeldWithdrawal({ actorId: userId, withdrawalId: w.id });
     await expect(
@@ -444,7 +511,7 @@ describe("requestWithdrawal — first-withdrawal hold", () => {
       actorId: userId,
       accountId,
       amount: 2_000,
-      method: "PhonePe",
+      ...UPI,
     });
     const other = await prisma.user.create({
       data: { email: `cx-${randomUUID()}@test.local`, passwordHash: "x" },
@@ -464,7 +531,7 @@ describe("requestWithdrawal — first-withdrawal hold", () => {
       actorId: userId,
       accountId,
       amount: 1_500,
-      method: "PhonePe",
+      ...UPI,
     });
     // Still in the future — no-op.
     const first = await autoPromoteHeldWithdrawals();
@@ -483,5 +550,46 @@ describe("requestWithdrawal — first-withdrawal hold", () => {
     // A second call does nothing — nothing is HELD any more.
     const third = await autoPromoteHeldWithdrawals();
     expect(third).toBe(0);
+  });
+});
+
+describe("admin payout lifecycle", () => {
+  beforeEach(async () => {
+    await prisma.user.update({ where: { id: userId }, data: { kycStatus: "VERIFIED" } });
+    await prisma.account.update({ where: { id: accountId }, data: { realBalance: 50_000 } });
+  });
+
+  it("marks an approved withdrawal paid, and only an approved one", async () => {
+    const w = await requestWithdrawal({ actorId: userId, accountId, amount: 10_000, ...UPI });
+    await expect(markWithdrawalPaid({ withdrawalId: w.id, adminId: "t" })).rejects.toThrow(/approved/i);
+
+    await approveWithdrawal({ withdrawalId: w.id, adminId: "t" });
+    await markWithdrawalPaid({ withdrawalId: w.id, adminId: "t" });
+    const row = await prisma.withdrawal.findUniqueOrThrow({ where: { id: w.id } });
+    expect(row.status).toBe("PAID");
+    // Paying moves no money: the debit happened at request time.
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.realBalance).toBe(40_000);
+    await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
+  });
+
+  it("rejects an approved-but-unpaid withdrawal and refunds it with the reason", async () => {
+    const w = await requestWithdrawal({ actorId: userId, accountId, amount: 10_000, ...UPI });
+    await approveWithdrawal({ withdrawalId: w.id, adminId: "t" });
+    await rejectWithdrawal({ withdrawalId: w.id, adminId: "t", reason: "Wrong account" });
+
+    const row = await prisma.withdrawal.findUniqueOrThrow({ where: { id: w.id } });
+    expect(row).toMatchObject({ status: "REJECTED", reason: "Wrong account" });
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.realBalance).toBe(50_000);
+    await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
+  });
+
+  it("refuses to reject a paid withdrawal", async () => {
+    const w = await requestWithdrawal({ actorId: userId, accountId, amount: 10_000, ...UPI });
+    await approveWithdrawal({ withdrawalId: w.id, adminId: "t" });
+    await markWithdrawalPaid({ withdrawalId: w.id, adminId: "t" });
+    await expect(rejectWithdrawal({ withdrawalId: w.id, adminId: "t" })).rejects.toThrow(/already been reviewed/i);
+    await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
   });
 });

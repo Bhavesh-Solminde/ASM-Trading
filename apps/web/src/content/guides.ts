@@ -191,13 +191,13 @@ export const guides: Article[] = [
         blocks: [
           {
             kind: "p",
-            text: "You can request a withdrawal of your available balance at any time. Funds are returned to a verified method — usually the same rail you deposited with, which is standard anti-fraud practice across regulated finance.",
+            text: "You can request a withdrawal of your available balance at any time. Choose a bank account, UPI ID or USDT wallet, enter the details once, and every request is checked against your verified identity before it is paid.",
           },
           {
             kind: "list",
             items: [
-              "Bank and card withdrawals typically settle within one business day of approval.",
-              "Crypto withdrawals are usually confirmed within an hour once approved.",
+              "Withdraw from ₹700 up to ₹50,000 per request.",
+              "Requests are processed within 5–10 hours, to bank, UPI or USDT.",
               "Nothing is locked — unspent deposits can be withdrawn without trading first.",
             ],
           },

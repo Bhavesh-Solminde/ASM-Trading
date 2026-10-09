@@ -54,6 +54,40 @@ export const FIRST_WITHDRAWAL_WINDOW_HOURS = readPositiveIntEnv(
 );
 
 /**
+ * Where a user wants to be paid. Validated at the API boundary by the
+ * contracts `PayoutDetailsSchema`; only the chosen method's fields are stored.
+ */
+export type WithdrawalPayout =
+  | { method: "BANK"; accountHolder: string; accountNumber: string; ifsc: string }
+  | { method: "UPI"; upiId: string }
+  | { method: "USDT"; usdtNetwork: string; usdtAddress: string };
+
+function payoutColumns(p: WithdrawalPayout) {
+  return {
+    accountHolder: p.method === "BANK" ? p.accountHolder : null,
+    accountNumber: p.method === "BANK" ? p.accountNumber : null,
+    ifsc: p.method === "BANK" ? p.ifsc : null,
+    upiId: p.method === "UPI" ? p.upiId : null,
+    usdtNetwork: p.method === "USDT" ? p.usdtNetwork : null,
+    usdtAddress: p.method === "USDT" ? p.usdtAddress : null,
+  };
+}
+
+/**
+ * Per-request limits in the account's minor units: ₹700 – ₹50,000, or $7 –
+ * $500 on a USD account (fixed ₹100 = $1). Mirrors contracts
+ * `withdrawalLimitsMinor`; apps/web keeps a drift test on the pair.
+ */
+export function withdrawalLimitsMinor(currency: string): { min: number; max: number } {
+  return currency === "INR" ? { min: 700_00, max: 50_000_00 } : { min: 7_00, max: 500_00 };
+}
+
+function formatLimit(minor: number, currency: string): string {
+  const major = (minor / 100).toLocaleString(currency === "INR" ? "en-IN" : "en-US");
+  return currency === "INR" ? `₹${major}` : `$${major}`;
+}
+
+/**
  * Only the real balance is withdrawable. The 100% first-deposit bonus — and
  * anything won while staking it, which settles back into the bonus balance —
  * is sticky: it exists to trade with and can never be cashed out. So the
@@ -79,8 +113,9 @@ export async function withdrawableBalance(accountId: string): Promise<{
 }
 
 /**
- * Withdrawals go only to a method already used for a COMPLETED deposit, which
- * is the rule the original states and a standard anti-laundering control.
+ * Requests a payout of real balance to a bank account, UPI ID or USDT wallet
+ * the user names. Limits are ₹700 – ₹50,000 per request (USD accounts at the
+ * fixed ₹100 = $1 rate) and the account's KYC must be VERIFIED.
  *
  * The debit is optimistic-concurrency guarded exactly like a trade stake: the
  * balance is re-read and version-checked inside the transaction, so two
@@ -97,7 +132,9 @@ export async function requestWithdrawal(input: {
   actorId: string;
   accountId: string;
   amount: number;
-  method: string;
+  payout: WithdrawalPayout;
+  /** Normalised destination (contracts `payoutDestinationKey`), for the admin's shared-destination flag. */
+  destinationKey: string;
   ipAddress?: string | null;
   userAgent?: string | null;
 }): Promise<Withdrawal> {
@@ -126,6 +163,21 @@ export async function requestWithdrawal(input: {
     throw new WithdrawalRefused("Demo funds cannot be withdrawn.");
   }
 
+  const limits = withdrawalLimitsMinor(account.currency);
+  if (input.amount < limits.min) {
+    throw new WithdrawalRefused(`The minimum withdrawal is ${formatLimit(limits.min, account.currency)}.`);
+  }
+  if (input.amount > limits.max) {
+    throw new WithdrawalRefused(`The maximum withdrawal is ${formatLimit(limits.max, account.currency)} per request.`);
+  }
+
+  const details = {
+    method: input.payout.method,
+    currency: account.currency,
+    destinationKey: input.destinationKey,
+    ...payoutColumns(input.payout),
+  };
+
   // Affiliate accounts: the withdrawal form, the "pending" row in history,
   // and the success toast all render — but the balance is NEVER debited and
   // the row is never processed. The admin withdrawal queue filters affiliate
@@ -135,7 +187,7 @@ export async function requestWithdrawal(input: {
       data: {
         userId: input.actorId,
         amount: input.amount,
-        method: input.method,
+        ...details,
         status: "REQUESTED",
         ipAddress: input.ipAddress ?? null,
         userAgent: input.userAgent ?? null,
@@ -143,51 +195,13 @@ export async function requestWithdrawal(input: {
     });
   }
 
-  // Payouts only go to verified identities. Checked after the ownership read so
-  // a foreign account id still reads as "not found", not as a KYC prompt.
+  // Payouts only go to verified identities — KYC is what establishes the
+  // person is real and holds a single account. The payout destination is the
+  // user's choice (bank, UPI or USDT) and need not match how they deposited;
+  // the admin sees it next to the KYC name and the user's deposit history.
   if (actor.kycStatus !== "VERIFIED") {
     throw new WithdrawalRefused(
-      "Verify your account before withdrawing — complete your personal data on the Account page.",
-    );
-  }
-
-  const usedMethod = await prisma.deposit.findFirst({
-    where: { userId: input.actorId, method: input.method, status: "COMPLETED" },
-  });
-  if (!usedMethod) {
-    throw new WithdrawalRefused(
-      "You can only withdraw to a method you have already deposited with.",
-    );
-  }
-
-  // Cross-user method dedup: a payment method (UPI ID / card / bank rail
-  // identifier) that has ever completed a deposit or withdrawal for a
-  // DIFFERENT user is a laundering / hedging enabler and is refused. Same-user
-  // history is fine — that is exactly what the check above requires. We look
-  // at both Deposit and Withdrawal so a colluding pair can't pass by opening
-  // the loop from either direction.
-  const foreignDeposit = await prisma.deposit.findFirst({
-    where: {
-      method: input.method,
-      status: "COMPLETED",
-      userId: { not: input.actorId },
-    },
-    select: { id: true },
-  });
-  const foreignWithdrawal = await prisma.withdrawal.findFirst({
-    where: {
-      method: input.method,
-      userId: { not: input.actorId },
-      // Anything past REQUESTED means the operator or the bank has already
-      // touched it — refuse. A stale REQUESTED (never reviewed) is not enough
-      // signal on its own.
-      status: { in: ["APPROVED", "PAID"] },
-    },
-    select: { id: true },
-  });
-  if (foreignDeposit || foreignWithdrawal) {
-    throw new WithdrawalRefused(
-      "This payment method is registered to another account. Contact support.",
+      "Verify your identity before withdrawing — it takes about 2 minutes on the Account page.",
     );
   }
 
@@ -255,7 +269,7 @@ export async function requestWithdrawal(input: {
           data: {
             userId: input.actorId,
             amount: input.amount,
-            method: input.method,
+            ...details,
             status: holdFields?.status ?? "REQUESTED",
             holdUntil: holdFields?.holdUntil ?? null,
             cancelableUntil: holdFields?.cancelableUntil ?? null,
@@ -419,9 +433,11 @@ export async function releaseHeldWithdrawal(input: {
 }
 
 /**
- * Admin reject of a withdrawal. Works on REQUESTED and on HELD (the spec
- * explicitly allows reject-while-held). Refunds the money, writes a ledger
- * row, and sets status=REJECTED. Idempotent via the status guard.
+ * Admin reject of a withdrawal. Works on REQUESTED, on HELD (the spec
+ * explicitly allows reject-while-held) and on APPROVED (the payout failed —
+ * e.g. a wrong account number — before it was marked paid). Refunds the
+ * money, writes a ledger row, and sets status=REJECTED with the reason the
+ * user sees. Idempotent via the status guard.
  */
 export async function rejectWithdrawal(input: {
   withdrawalId: string;
@@ -433,7 +449,7 @@ export async function rejectWithdrawal(input: {
     select: { id: true, userId: true, amount: true, status: true },
   });
   if (!row) throw new WithdrawalRefused("Withdrawal not found.");
-  if (row.status !== "REQUESTED" && row.status !== "HELD") {
+  if (row.status !== "REQUESTED" && row.status !== "HELD" && row.status !== "APPROVED") {
     throw new WithdrawalRefused("That withdrawal has already been reviewed.");
   }
 
@@ -446,7 +462,7 @@ export async function rejectWithdrawal(input: {
     try {
       await prisma.$transaction(async (tx) => {
         const claimed = await tx.withdrawal.updateMany({
-          where: { id: row.id, status: { in: ["REQUESTED", "HELD"] } },
+          where: { id: row.id, status: { in: ["REQUESTED", "HELD", "APPROVED"] } },
           data: { status: "REJECTED", reviewedBy: input.adminId, reason: input.reason ?? null },
         });
         if (claimed.count !== 1) {
@@ -522,6 +538,33 @@ export async function approveWithdrawal(input: {
       targetType: "Withdrawal",
       targetId: input.withdrawalId,
       after: { status: "APPROVED" },
+    },
+  });
+}
+
+/**
+ * Records that the operator has sent an APPROVED payout. No funds move — the
+ * balance was debited at request time. Guarded to APPROVED, so idempotent.
+ */
+export async function markWithdrawalPaid(input: {
+  withdrawalId: string;
+  adminId: string;
+}): Promise<void> {
+  const claimed = await prisma.withdrawal.updateMany({
+    where: { id: input.withdrawalId, status: "APPROVED" },
+    data: { status: "PAID", reviewedBy: input.adminId },
+  });
+  if (claimed.count !== 1) {
+    throw new WithdrawalRefused("Only an approved withdrawal can be marked paid.");
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: input.adminId,
+      action: "withdrawal.paid",
+      targetType: "Withdrawal",
+      targetId: input.withdrawalId,
+      after: { status: "PAID" },
     },
   });
 }

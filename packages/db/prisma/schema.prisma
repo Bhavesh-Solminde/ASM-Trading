@@ -709,15 +709,28 @@ model Withdrawal {
   // skipped the hold path and on historical rows (nullable backfill).
   holdUntil        DateTime?
   cancelableUntil  DateTime?
+  // Minor units of `amount` are this currency's (the LIVE account's at request
+  // time). Historical rows were backfilled from the account in the migration.
+  currency         String           @default("INR")
+  // Where the user wants the money. `method` is BANK | UPI | USDT on rows
+  // created since 2026-10-09; older rows carry a deposit-method label and no
+  // details. Only the fields of the chosen method are set.
+  accountHolder    String?
+  accountNumber    String?
+  ifsc             String?
+  upiId            String?
+  usdtNetwork      String?
+  usdtAddress      String?
+  // Normalised destination ("bank:IFSC:number", "upi:id", "usdt:net:addr") so
+  // the admin can see when two users withdraw to the same place.
+  destinationKey   String?
   createdAt  DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
-  // Cross-user dedup query: "has any other user withdrawn to this method?"
-  // The predicate hits (method, userId) so a composite covers both the
-  // dedup lookup and any per-user history filter.
   @@index([method, userId])
+  @@index([destinationKey])
 }
 
 /// Append-only ledger. Every balance change writes exactly one row.

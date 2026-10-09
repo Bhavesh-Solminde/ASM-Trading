@@ -123,7 +123,10 @@ export {
   autoPromoteHeldWithdrawals,
   releaseHeldWithdrawal,
   rejectWithdrawal,
+  markWithdrawalPaid,
   listWithdrawalsForActor,
+  withdrawalLimitsMinor,
+  type WithdrawalPayout,
 } from "./repositories/withdrawal";
 export {
   loadProfile,

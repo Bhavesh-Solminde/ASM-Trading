@@ -13,7 +13,7 @@ let bob = { userId: "", liveId: "", cookie: "" };
 
 async function makeUser(name: string) {
   const user = await prisma.user.create({
-    // Verified, so the method check below is what refuses — not the KYC gate.
+    // Verified, so the POST tests reach the payout and limit checks — not the KYC gate.
     data: { email: `${name}-withdrawals-${RUN}@test.local`, passwordHash: "x", kycStatus: "VERIFIED" },
   });
   const accounts = await createAccountsForUser(user.id, 1_000_000);
@@ -81,21 +81,49 @@ describe("GET /api/withdrawals", () => {
 });
 
 describe("POST /api/withdrawals", () => {
+  const UPI = { method: "UPI", upiId: "alice@okaxis" };
+
   it("requires a session", async () => {
-    const res = await post(
-      { accountId: alice.liveId, amount: 1_000, method: "PhonePe" },
-      null,
-    );
+    const res = await post({ accountId: alice.liveId, amount: 1_000_00, payout: UPI }, null);
     expect(res.status).toBe(401);
   });
 
-  it("refuses a method never used for a completed deposit", async () => {
+  it("refuses the old method-label body shape", async () => {
+    const res = await post({ accountId: alice.liveId, amount: 1_000_00, method: "PhonePe" }, alice.cookie);
+    expect(res.status).toBe(400);
+  });
+
+  it("names the field to fix when payout details are invalid", async () => {
     const res = await post(
-      { accountId: alice.liveId, amount: 1_000, method: "PhonePe" },
+      {
+        accountId: alice.liveId,
+        amount: 1_000_00,
+        payout: { method: "BANK", accountHolder: "Alice", accountNumber: "123456789", ifsc: "BAD" },
+      },
       alice.cookie,
     );
     expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toMatch(/already deposited/i);
+    expect(((await res.json()) as { error: string }).error).toMatch(/IFSC/);
+  });
+
+  it("refuses less than the ₹700 minimum", async () => {
+    const res = await post({ accountId: alice.liveId, amount: 699_00, payout: UPI }, alice.cookie);
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toMatch(/minimum withdrawal is ₹700/i);
+  });
+
+  it("creates a withdrawal to a UPI ID the user never deposited with", async () => {
+    await prisma.account.update({ where: { id: alice.liveId }, data: { realBalance: 5_000_00 } });
+    const res = await post({ accountId: alice.liveId, amount: 1_000_00, payout: UPI }, alice.cookie);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { id: string; status: string };
+    expect(body.status).toBe("REQUESTED");
+    const row = await prisma.withdrawal.findUniqueOrThrow({ where: { id: body.id } });
+    expect(row).toMatchObject({
+      method: "UPI",
+      upiId: "alice@okaxis",
+      currency: "INR",
+      destinationKey: "upi:alice@okaxis",
+    });
   });
 });
