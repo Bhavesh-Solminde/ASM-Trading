@@ -85,6 +85,15 @@ interface PlatformContextValue {
   timeframe: Timeframe;
   selectTimeframe: (timeframe: Timeframe) => void;
   recordOpened: (result: OpenTradeResult) => void;
+  /**
+   * Non-WebSocket balance push, used by routes the engine isn't involved
+   * in (withdrawals, their cancel, future off-engine credits). The engine
+   * broadcasts `balance:update` on every trade; off-engine mutations have
+   * nothing to broadcast, so callers hand us the fresh row and we fan it
+   * into the same reducer the socket uses. Keeps the TopBar balance in
+   * step with the server without waiting for the next trade to settle.
+   */
+  applyBalanceUpdate: (accountId: string, balances: BalancesDto) => void;
   /** Distraction-free phone trading view: chart + ticket only, chrome hidden. */
   focusMode: boolean;
   setFocusMode: (on: boolean) => void;
@@ -232,6 +241,15 @@ export function PlatformProvider({
     [status],
   );
 
+  const applyBalanceUpdate = useCallback(
+    (accountId: string, balances: BalancesDto) =>
+      dispatch({
+        kind: "message",
+        message: { type: "balance:update", accountId, ...balances },
+      }),
+    [],
+  );
+
   const value = useMemo<PlatformContextValue>(
     () => ({
       assets,
@@ -249,6 +267,7 @@ export function PlatformProvider({
       timeframe,
       selectTimeframe,
       recordOpened,
+      applyBalanceUpdate,
       focusMode,
       setFocusMode,
       settlement,
@@ -268,6 +287,7 @@ export function PlatformProvider({
       timeframe,
       selectTimeframe,
       recordOpened,
+      applyBalanceUpdate,
       focusMode,
       settlement,
       clearSettlement,
