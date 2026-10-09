@@ -131,6 +131,10 @@ export class AssetRegistry {
         // so the clamp is only ever a 10+ sigma backstop against a freak
         // draw or a far-away commit snap, never the dominant per-tick force.
         maxTickMove: row.tickSize * 200,
+        // Medium (Wick C) preset from the detached candle-algorithm reference —
+        // AR(1) momentum on the shock so consecutive ticks lean the same way
+        // and candles fill with body instead of zig-zagging into pure wick.
+        trendPersistenceSec: 60,
       };
 
       const startPrice = last?.c ?? row.basePrice;

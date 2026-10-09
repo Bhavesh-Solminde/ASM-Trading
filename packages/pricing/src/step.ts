@@ -20,11 +20,26 @@ export interface PriceParams {
   readonly anchorAlpha: number;
   /** Hard cap on absolute price movement in one tick. */
   readonly maxTickMove: number;
+  /**
+   * How long, in simulated SECONDS, a push in one direction tends to persist.
+   * With independent ticks (0 / omitted — the default) the price zig-zags
+   * inside every candle and the wicks end up about as long as the body —
+   * bodies average only ~50-57% of the high-low range. Persistence makes
+   * consecutive ticks lean the same way via an AR(1) on the shock, so candles
+   * fill with body while long-run variance is preserved (trending ticks
+   * redistribute volatility, they don't add it). At the live 5s cadence 15
+   * gives 1m bodies ~74%; 60 lands near phi=0.92 per tick, strongly directional.
+   * Expressed in time rather than per tick so retuning TICK_DT_SEC keeps the
+   * same candle shape.
+   */
+  readonly trendPersistenceSec?: number;
 }
 
 export interface PriceState {
   readonly price: number;
   readonly garch: GarchState;
+  /** Unit-variance shock carried from the previous tick (the momentum term). */
+  readonly momentum: number;
 }
 
 export interface StepPriceInput {
@@ -92,7 +107,11 @@ export function initPriceState(
   if (!(basePrice > 0)) {
     throw new Error(`basePrice must be positive, received ${basePrice}`);
   }
-  return { price: basePrice, garch: initGarch(params.garch) };
+  const persistence = params.trendPersistenceSec ?? 0;
+  if (!(persistence >= 0)) {
+    throw new Error(`trendPersistenceSec must be >= 0, received ${persistence}`);
+  }
+  return { price: basePrice, garch: initGarch(params.garch), momentum: 0 };
 }
 
 export function stepPrice(input: StepPriceInput): StepPriceOutput {
@@ -110,9 +129,19 @@ export function stepPrice(input: StepPriceInput): StepPriceOutput {
 
   const { state: garch, sigma } = stepGarch(state.garch, params.garch, z);
 
+  // Momentum: an AR(1) on the shock so a move tends to continue for about
+  // trendPersistenceSec. `momentum` stays unit-variance; `shock` is scaled by
+  // sqrt((1 - phi) / (1 + phi)) so the long-run variance of the summed moves is
+  // still sigma²·t — trending ticks redistribute volatility, they don't add it.
+  // phi = 0 collapses this back to the plain independent-z random walk.
+  const persistence = params.trendPersistenceSec ?? 0;
+  const phi = persistence > 0 ? Math.exp(-dtSec / persistence) : 0;
+  const momentum = phi * state.momentum + Math.sqrt(1 - phi * phi) * z;
+  const shock = momentum * Math.sqrt((1 - phi) / (1 + phi));
+
   // L1 + L2 + L3 in log space.
   let logMove =
-    params.driftPerSec * dtSec + sigma * Math.sqrt(dtSec) * z + driftBias + magnet;
+    params.driftPerSec * dtSec + sigma * Math.sqrt(dtSec) * shock + driftBias + magnet;
 
   // L4: anchoring is a proportional pull expressed in log space so it composes
   // with the others rather than fighting them.
@@ -145,5 +174,5 @@ export function stepPrice(input: StepPriceInput): StepPriceOutput {
 
   const price = clamped > 0 ? clamped : state.price;
 
-  return { state: { price, garch }, price, sigma };
+  return { state: { price, garch, momentum }, price, sigma };
 }
