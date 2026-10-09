@@ -49,6 +49,11 @@ async function backfill(asset: AssetRow, endBucketSec: number, wipeFirst: boolea
     driftPerSec: 0,
     anchorAlpha: 0,
     maxTickMove: asset.tickSize * 200,
+    // Match the live engine registry — medium (Wick C) preset from the
+    // detached candle-algorithm reference. Without this, backfilled candles
+    // would be the pre-momentum shape and the chart would show a visible
+    // seam where history meets live.
+    trendPersistenceSec: 60,
   };
 
   // WIPE_FIRST=1 clears every stored candle for the asset so the backfill
