@@ -16,6 +16,7 @@ import {
 import { certificateHtml, type CertificateData } from "@/lib/certificate";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
 import { IconTether } from "@/components/trade/AssetIcon";
+import { usePlatform } from "@/components/shell/PlatformProvider";
 
 /** The user's most recent details per payout method, used to prefill the form. */
 export interface LastPayouts {
@@ -52,6 +53,7 @@ export function WithdrawForm({
   kycName: string;
 }) {
   const router = useRouter();
+  const { applyBalanceUpdate } = usePlatform();
   const limits = withdrawalLimitsMinor(currency);
   const maxMinor = Math.min(limits.max, withdrawableMinor);
   const sym = currencySymbol(currency);
@@ -119,12 +121,16 @@ export function WithdrawForm({
         status?: string;
         certificate?: CertificateData;
         emailed?: boolean;
+        balance?: { realBalance: number; bonusBalance: number } | null;
         error?: string;
       };
       if (!res.ok) {
         setError(data.error ?? "Could not request that withdrawal.");
         return;
       }
+      // Debit landed server-side; push the fresh balance into the platform
+      // context so the TopBar drops in the same tick as the receipt.
+      if (data.balance) applyBalanceUpdate(accountId, data.balance);
       setReceipt({
         id: data.id ?? "",
         status: data.status ?? "REQUESTED",

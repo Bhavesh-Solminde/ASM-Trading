@@ -63,8 +63,11 @@ export async function POST(req: NextRequest) {
     });
 
     // Build the reward certificate and (when Resend is configured) email it.
-    // Currency comes from the account; email/name from the profile. A mail
-    // failure never fails the withdrawal — the request is already recorded.
+    // Currency comes from the account; email/name from the profile. The
+    // post-debit account snapshot also feeds the live-balance push below,
+    // so the TopBar drops immediately instead of waiting for the next trade
+    // settlement to carry a `balance:update`. A mail failure never fails
+    // the withdrawal — the request is already recorded.
     const [account, profile] = await Promise.all([
       getAccountForActor(session.userId, parsed.data.accountId),
       loadProfile(session.userId),
@@ -93,7 +96,20 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { id: withdrawal.id, status: withdrawal.status, certificate, emailed },
+      {
+        id: withdrawal.id,
+        status: withdrawal.status,
+        certificate,
+        emailed,
+        // Fresh balance from the just-committed debit. The client pushes
+        // this straight into PlatformProvider so the TopBar updates in
+        // the same tick as the receipt — the engine doesn't know about
+        // withdrawals, so there is no WebSocket `balance:update` coming
+        // on its own.
+        balance: account
+          ? { realBalance: account.realBalance, bonusBalance: account.bonusBalance }
+          : null,
+      },
       { status: 201 },
     );
   } catch (err) {

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { WithdrawalRefused, cancelHeldWithdrawal } from "@asm/db";
+import { WithdrawalRefused, cancelHeldWithdrawal, listAccountsForActor } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
@@ -49,7 +49,23 @@ export async function POST(
       actorId: session.userId,
       withdrawalId: id,
     });
-    return NextResponse.json({ withdrawal }, { status: 200 });
+    // Live-balance push — the engine isn't involved in a cancel, so there
+    // is no `balance:update` coming on the socket. Return the LIVE
+    // account's fresh balance so the client re-seeds PlatformProvider
+    // state and the TopBar reflects the refund immediately.
+    const liveAccount = (await listAccountsForActor(session.userId)).find(
+      (a) => a.type === "LIVE",
+    );
+    return NextResponse.json(
+      {
+        withdrawal,
+        accountId: liveAccount?.id ?? null,
+        balance: liveAccount
+          ? { realBalance: liveAccount.realBalance, bonusBalance: liveAccount.bonusBalance }
+          : null,
+      },
+      { status: 200 },
+    );
   } catch (err) {
     if (err instanceof WithdrawalRefused) {
       // The two "found but not actionable" messages are 409 (state conflict);
