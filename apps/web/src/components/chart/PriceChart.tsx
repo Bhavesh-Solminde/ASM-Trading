@@ -696,10 +696,23 @@ export function PriceChart({
 
       if (formingBar) {
         if (formingBar.time !== bucketTime) {
-          // New candle: seed its envelope at the bucket's open/extremes.
+          // New candle: snap the glide. Without this, the previous bucket's
+          // lingering `displayed` keeps easing toward its old target and gets
+          // folded into THIS bar's high/low envelope below — painting a
+          // phantom wick back to the prior candle's close on every new bar.
+          // At a bucket boundary the first tick's price is both the engine's
+          // open and (so far) its close, so jumping straight to it is the
+          // honest "ticks are discrete at the boundary" behaviour; within-bar
+          // smoothness is preserved by the glide code above on subsequent
+          // ticks. Seed the envelope from the engine's own extremes, which
+          // already fold in every tick that has landed in this bucket.
           bucketTime = formingBar.time;
-          dispHigh = Math.max(formingBar.open, formingBar.high);
-          dispLow = Math.min(formingBar.open, formingBar.low);
+          displayed = formingBar.close;
+          tweenFrom = formingBar.close;
+          tweenTo = formingBar.close;
+          tweenStart = performance.now();
+          dispHigh = formingBar.high;
+          dispLow = formingBar.low;
         }
         dispHigh = Math.max(dispHigh, displayed, formingBar.open, formingBar.high);
         dispLow = Math.min(dispLow, displayed, formingBar.open, formingBar.low);
