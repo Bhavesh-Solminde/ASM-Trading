@@ -10,6 +10,7 @@ import {
   COMMIT_WINDOW_SEC,
   MAGNET_CAP,
   MAGNET_WINDOW_SEC,
+  MAX_COMMIT_SNAP_MOVE_TICKS,
   SELF_ANCHOR_ALPHA,
   SELF_ANCHOR_ALPHA_CLOSED,
   SELF_ANCHOR_MODE,
@@ -246,15 +247,21 @@ export function startTickLoop(
             const w = smoothstep(commitProgress);
             const blended = (1 - w) * result.price + w * commitTarget;
             // The commit snap runs AFTER stepPrice has already applied its
-            // maxTickMove clamp, so without this guard a far-away target
-            // could jerk the shown price by any amount in a single tick —
-            // drawing a candle wick no honest walk could produce. Clamp the
-            // post-snap displacement to the same per-tick budget.
+            // maxTickMove clamp. Clamp the post-snap displacement to a
+            // tighter visual budget (MAX_COMMIT_SNAP_MOVE_TICKS ticks)
+            // rather than to the stepPrice backstop (`maxTickMove`,
+            // typically tickSize × 200), so a far-away target can't jerk
+            // the shown price by up to 100 points in a single tick —
+            // drawing the breakout wicks that read as mechanical, not
+            // market. Trades whose chart has drifted beyond what this
+            // tighter budget can rescue become de-facto HONEST at
+            // settlement (chart-as-source-of-truth from PR #49 means the
+            // DB settles at whatever price the chart ended at).
+            const snapCap = asset.tickSize * MAX_COMMIT_SNAP_MOVE_TICKS;
             const delta = blended - result.price;
             const snapped =
-              Math.abs(delta) > asset.params.maxTickMove
-                ? result.price +
-                  Math.sign(delta) * asset.params.maxTickMove
+              Math.abs(delta) > snapCap
+                ? result.price + Math.sign(delta) * snapCap
                 : blended;
             asset.state = { ...asset.state, price: snapped };
             result = { ...result, price: snapped };
