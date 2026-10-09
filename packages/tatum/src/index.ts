@@ -4,9 +4,11 @@ export {
   listTatumEnabledNetworks,
   readTatumConfig,
   tatumChainId,
+  usdtProviderFor,
   type Env,
   type GatewayNetwork,
   type TatumNetworkConfig,
+  type UsdtProvider,
 } from "./config";
 export { TatumError, resetTatumPacing } from "./http";
 export { checkTatumKeyNetwork } from "./network-check";

@@ -4,23 +4,29 @@ import { useState } from "react";
 import { USDT_NETWORK_INFO, type UsdtNetwork } from "@asm/contracts";
 
 const QUICK = [25, 50, 100, 250];
+const RECOMMENDED: UsdtNetwork = "bsc";
 
 export function UsdtAmountStep({
   networks,
   onBack,
-  gateway,
+  gatewayNetworks,
   bonusPercent,
 }: {
   /** Enabled networks, server-computed; never empty (DepositFlow guards that). */
   networks: UsdtNetwork[];
   onBack: () => void;
-  /** True under the Tatum payment gateway: a unique address per deposit, no unique-cents amount. */
-  gateway: boolean;
+  /** Networks on the Tatum payment gateway: a unique address per deposit, no unique-cents amount. */
+  gatewayNetworks: UsdtNetwork[];
   /** Bonus tier this deposit will get (0 once every tier is used). */
   bonusPercent: number;
 }) {
-  const [network, setNetwork] = useState<UsdtNetwork>(networks[0] ?? "tron");
+  // BSC is recommended (fees of cents for the sender and for us), so it is
+  // preselected whenever it is offered.
+  const [network, setNetwork] = useState<UsdtNetwork>(
+    networks.includes(RECOMMENDED) ? RECOMMENDED : (networks[0] ?? "tron"),
+  );
   const info = USDT_NETWORK_INFO[network];
+  const gateway = gatewayNetworks.includes(network);
   const [amountMajor, setAmountMajor] = useState(25);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +91,11 @@ export function UsdtAmountStep({
                   }`}
                 >
                   {USDT_NETWORK_INFO[n].shortLabel}
+                  {n === RECOMMENDED ? (
+                    <span className="mx-auto mt-1 block w-fit rounded bg-[var(--color-up)]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-up)]">
+                      Recommended
+                    </span>
+                  ) : null}
                 </button>
               );
             })}
@@ -92,6 +103,9 @@ export function UsdtAmountStep({
           <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-ink-2)]">
             Pick the network you will send on. Sending on a different network
             than the one you choose here cannot be credited.
+            {networks.includes(RECOMMENDED) ? (
+              <> {USDT_NETWORK_INFO[RECOMMENDED].label} is recommended: its network fee is only a few cents.</>
+            ) : null}
           </p>
         </div>
       ) : null}

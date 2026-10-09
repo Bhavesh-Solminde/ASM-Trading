@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { countCompletedDeposits } from "@asm/db";
+import { countCompletedDeposits, getDepositByToken } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { DepositFlow } from "@/components/deposit/DepositFlow";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
@@ -25,7 +25,13 @@ export default async function DepositPage({
   // Only networks whose receiving config is complete (i.e. a watcher is on
   // them) are offered — the env is re-read per request.
   const usdtNetworks = listEnabledUsdtNetworks();
-  const usdtGateway = usdtGatewayActive();
+  // Each network has its own provider (e.g. TRON on the shared treasury
+  // address, BSC on per-deposit gateway addresses).
+  const gatewayNetworks = usdtNetworks.filter((n) => usdtGatewayActive(n));
+  // The expired notice follows the flow that deposit actually used. Only the
+  // gateway flag is read, and only for the signed-in user's own deposit.
+  const expiredDeposit = expiredToken ? await getDepositByToken(expiredToken) : null;
+  const usdtGateway = expiredDeposit?.userId === session.userId && expiredDeposit.gateway !== null;
   const completedDeposits = await countCompletedDeposits(session.userId);
 
   return (
@@ -64,7 +70,7 @@ export default async function DepositPage({
 
       <DepositFlow
         usdtNetworks={usdtNetworks}
-        usdtGateway={usdtGateway}
+        gatewayNetworks={gatewayNetworks}
         upiEnabled={upiDepositsEnabled()}
         completedDeposits={completedDeposits}
       />

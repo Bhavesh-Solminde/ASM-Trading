@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (parsed.data.method === "USDT" && usdtGatewayActive()) {
+    if (parsed.data.method === "USDT" && usdtGatewayActive(parsed.data.network)) {
       // Payment gateway (Tatum): a fresh receiving address per deposit,
       // derived from the gateway's xpub; matched by address, not amount.
       const network = parsed.data.network;

@@ -290,6 +290,19 @@ describe("POST /api/deposits — Tatum gateway provider", () => {
     expect(tatumCalls).toEqual([]);
   });
 
+  it("sends TRON to the shared receiving address when USDT_TRON_PROVIDER=manual, without calling Tatum", async () => {
+    stubGateway({ USDT_TRON_PROVIDER: "manual" });
+    stubTron();
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 50_000 }, gwCookie);
+    expect(res.status).toBe(201);
+    const { checkoutToken } = (await res.json()) as { checkoutToken: string };
+    const row = await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken } });
+    expect(row).toMatchObject({ gateway: null, network: "tron", receivingAddress: "TTestReceiving111111111111111111" });
+    // Unique-cents amount within ±$0.99 of the request, as the manual flow matches by amount.
+    expect(Math.abs(row.amountUsdtMinor! - 50_000)).toBeLessThan(100);
+    expect(tatumCalls).toEqual([]);
+  });
+
   it("answers 503 (and writes nothing) when Tatum cannot derive an address", async () => {
     stubGateway({ TATUM_TRON_XPUB: "xpub-broken" });
     const before = await prisma.deposit.count({ where: { userId: gwUserId } });

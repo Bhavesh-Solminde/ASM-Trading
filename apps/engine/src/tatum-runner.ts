@@ -10,7 +10,6 @@ import {
   checkTatumKeyNetwork,
   closedDepositIds,
   createGatewayChain,
-  isTatumProvider,
   listTatumEnabledNetworks,
   readTatumConfig,
   recheckDetectedCredits,
@@ -37,15 +36,14 @@ export interface TatumRunner {
 /**
  * The Tatum gateway's poller — the safety net under the webhook, and the only
  * detector when no public webhook URL exists (localhost). Idle (no timer, no
- * network call) unless the provider is "tatum" and at least one network is
- * fully configured; the manual watchers are started instead otherwise.
+ * network call) unless at least one network's provider is "tatum" and fully
+ * configured; the manual watchers serve the other networks.
  *
  * Each full tick: scan watched deposit addresses for incoming transfers,
  * advance not-yet-final credits to FINAL and settle them, then expire
  * deposits past the grace window and release their Tatum alerts.
  */
 export function startTatumRunner(): TatumRunner {
-  if (!isTatumProvider()) return { stop: async () => {} };
   const configs = new Map<string, TatumNetworkConfig>();
   for (const n of listTatumEnabledNetworks()) {
     const cfg = readTatumConfig(n);

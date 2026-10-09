@@ -2,7 +2,7 @@
 // this from a "use client" module; client code gets display metadata from
 // USDT_NETWORK_INFO in @asm/contracts and the enabled list as a prop.
 import { USDT_NETWORKS, type UsdtNetwork } from "@asm/contracts";
-import { isTatumProvider, listTatumEnabledNetworks, readTatumConfig, type TatumNetworkConfig } from "@asm/tatum";
+import { listTatumEnabledNetworks, readTatumConfig, usdtProviderFor, type TatumNetworkConfig } from "@asm/tatum";
 
 export interface UsdtNetworkConfig {
   network: UsdtNetwork;
@@ -83,9 +83,13 @@ export function getUsdtNetworkConfig(network: UsdtNetwork): UsdtNetworkConfig | 
  */
 export { getUsdtNetworkConfig as getManualUsdtNetworkConfig };
 
-/** True unless USDT_DEPOSIT_PROVIDER is exactly "manual" — the Tatum gateway is the default. */
-export function usdtGatewayActive(): boolean {
-  return isTatumProvider();
+/**
+ * True when this network's deposits go through the Tatum gateway (a fresh
+ * address per deposit); false = the manual shared-address flow. Per network:
+ * see usdtProviderFor (USDT_TRON_PROVIDER / USDT_BSC_PROVIDER overrides).
+ */
+export function usdtGatewayActive(network: UsdtNetwork): boolean {
+  return usdtProviderFor(network) === "tatum";
 }
 
 /** Tatum gateway config for one network (null when not fully configured). */
@@ -93,11 +97,10 @@ export function getGatewayUsdtConfig(network: UsdtNetwork): TatumNetworkConfig |
   return readTatumConfig(network);
 }
 
-/** Networks a user may deposit on right now, in USDT_NETWORKS order, for the active provider. */
+/** Networks a user may deposit on right now, in USDT_NETWORKS order, each under its own provider. */
 export function listEnabledUsdtNetworks(): UsdtNetwork[] {
-  if (usdtGatewayActive()) {
-    const enabled = new Set<string>(listTatumEnabledNetworks());
-    return USDT_NETWORKS.filter((n) => enabled.has(n));
-  }
-  return USDT_NETWORKS.filter((n) => getUsdtNetworkConfig(n) !== null);
+  const gateway = new Set<string>(listTatumEnabledNetworks());
+  return USDT_NETWORKS.filter((n) =>
+    usdtGatewayActive(n) ? gateway.has(n) : getUsdtNetworkConfig(n) !== null,
+  );
 }
