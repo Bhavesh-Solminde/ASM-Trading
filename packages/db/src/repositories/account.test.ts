@@ -234,6 +234,86 @@ describe("convertAccountCurrency", () => {
       convertAccountCurrency({ actorId: bob, accountId: daveDemoId, currency: "INR" }),
     ).rejects.toBeInstanceOf(CurrencyChangeRefused);
   });
+
+  it("converts each trade's stake/stakeFromBonus/pnl in the same transaction", async () => {
+    // Open an INR account and seed trades on it. Trade rows have no currency
+    // column — their minor units are read in the account's current currency —
+    // so a convert must rewrite them, or ₹1,000 stakes would render as $1,000
+    // after an INR→USD convert (and the gross return on a 92%-payout win as
+    // "$1,920" instead of "₹1,920" ↔ "$19.20"). Regression for that bug.
+    const u = await prisma.user.create({
+      data: { email: `tradeconv-${Date.now()}@test.local`, passwordHash: "x" },
+    });
+    const accounts = await createAccountsForUser(u.id, 100_000_000, "INR");
+    const liveId = accounts.find((a) => a.type === "LIVE")!.id;
+    await prisma.account.update({
+      where: { id: liveId },
+      data: { realBalance: 200_000, bonusBalance: 0 }, // ₹2,000 live
+    });
+    const asset = await prisma.asset.findFirstOrThrow();
+    const openT = await prisma.trade.create({
+      data: {
+        accountId: liveId,
+        assetId: asset.id,
+        direction: "UP",
+        stake: 100_000, // ₹1,000
+        stakeFromBonus: 20_000, // ₹200 from bonus
+        payoutPct: 92,
+        entryPrice: 1,
+        entryTs: new Date(),
+        expiryTs: new Date(Date.now() + 60_000),
+        status: "OPEN",
+        pnl: 0,
+      },
+    });
+    const wonT = await prisma.trade.create({
+      data: {
+        accountId: liveId,
+        assetId: asset.id,
+        direction: "UP",
+        stake: 100_000, // ₹1,000
+        payoutPct: 92,
+        entryPrice: 1,
+        entryTs: new Date(),
+        expiryTs: new Date(Date.now() + 60_000),
+        exitPrice: 1.1,
+        status: "WON",
+        pnl: 92_000, // ₹920 profit
+      },
+    });
+    const lostT = await prisma.trade.create({
+      data: {
+        accountId: liveId,
+        assetId: asset.id,
+        direction: "UP",
+        stake: 50_000, // ₹500
+        payoutPct: 92,
+        entryPrice: 1,
+        entryTs: new Date(),
+        expiryTs: new Date(Date.now() + 60_000),
+        exitPrice: 0.9,
+        status: "LOST",
+        pnl: -50_000, // −₹500 loss
+      },
+    });
+
+    await convertAccountCurrency({ actorId: u.id, accountId: liveId, currency: "USD" });
+
+    const openAfter = await prisma.trade.findUniqueOrThrow({ where: { id: openT.id } });
+    expect(openAfter.stake).toBe(1_000); // ₹1,000 paise → 1,000 cents = $10
+    expect(openAfter.stakeFromBonus).toBe(200); // ₹200 → $2
+    expect(openAfter.pnl).toBe(0);
+
+    const wonAfter = await prisma.trade.findUniqueOrThrow({ where: { id: wonT.id } });
+    expect(wonAfter.stake).toBe(1_000);
+    expect(wonAfter.pnl).toBe(920); // ₹920 → $9.20 (gross return: $19.20, not $1,920)
+
+    const lostAfter = await prisma.trade.findUniqueOrThrow({ where: { id: lostT.id } });
+    expect(lostAfter.stake).toBe(500);
+    expect(lostAfter.pnl).toBe(-500); // negative round-trip still exact
+
+    await prisma.user.delete({ where: { id: u.id } });
+  });
 });
 
 describe("setDemoBalance", () => {

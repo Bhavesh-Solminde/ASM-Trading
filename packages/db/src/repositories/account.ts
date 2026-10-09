@@ -146,8 +146,13 @@ export async function changeAccountCurrency(input: {
  * Converts an account's balances to another currency at the fixed rate
  * (`convertMinorBetween`). Unlike `changeAccountCurrency` this performs a real
  * cross-currency conversion of `realBalance` and `bonusBalance` — for DEMO and
- * LIVE alike, funded or not — and ledgers it as a CURRENCY_CONVERT. Ownership is
- * enforced by `actorId`.
+ * LIVE alike, funded or not — and ledgers it as a CURRENCY_CONVERT. Trades on
+ * this account carry stake/stakeFromBonus/pnl in integer minor units with NO
+ * currency column — the account's current currency is what the UI renders them
+ * in — so they must be converted in the same transaction. Otherwise a ₹1,000
+ * trade (stake=100,000 paise) rendered after an INR→USD convert reads as
+ * "$1,000" and its 92%-payout gross return as "$1,920". Ownership is enforced
+ * by `actorId`.
  */
 export async function convertAccountCurrency(input: {
   actorId: string;
@@ -165,14 +170,32 @@ export async function convertAccountCurrency(input: {
   if (!account) throw new CurrencyChangeRefused("Account not found.");
   if (account.currency === currency) return account;
 
-  const newReal = convertMinorBetween(account.realBalance, account.currency, currency);
-  const newBonus = convertMinorBetween(account.bonusBalance, account.currency, currency);
+  const fromCurrency = account.currency;
+  const newReal = convertMinorBetween(account.realBalance, fromCurrency, currency);
+  const newBonus = convertMinorBetween(account.bonusBalance, fromCurrency, currency);
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.account.update({
       where: { id: account.id },
       data: { currency, realBalance: newReal, bonusBalance: newBonus, version: { increment: 1 } },
     });
+    // Convert every trade's integer-minor amounts in-place so the UI (which
+    // reads trade.stake/pnl in the account's current currency) stays honest
+    // across the convert — open trades, settled wins and settled losses alike.
+    const trades = await tx.trade.findMany({
+      where: { accountId: account.id },
+      select: { id: true, stake: true, stakeFromBonus: true, pnl: true },
+    });
+    for (const t of trades) {
+      await tx.trade.update({
+        where: { id: t.id },
+        data: {
+          stake: convertMinorBetween(t.stake, fromCurrency, currency),
+          stakeFromBonus: convertMinorBetween(t.stakeFromBonus, fromCurrency, currency),
+          pnl: convertMinorBetween(t.pnl, fromCurrency, currency),
+        },
+      });
+    }
     await tx.transaction.create({
       data: {
         accountId: account.id,
