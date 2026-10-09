@@ -19,7 +19,7 @@ import type { RelayConfig } from "./types";
 // logged and ignored by the parser unless it is a credit for the exact
 // reserved amount of a live deposit.
 export const RELAY_CONFIG: RelayConfig = {
-  serverUrl: process.env.EXPO_PUBLIC_RELAY_SERVER_URL ?? "https://asmtrader.com",
+  serverUrl: process.env.EXPO_PUBLIC_RELAY_SERVER_URL ?? "https://indianxtrade.com",
   secret: process.env.EXPO_PUBLIC_RELAY_SECRET ?? "",
   senders: (
     process.env.EXPO_PUBLIC_RELAY_SENDERS ??
