@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { RegisterSchema } from "@asm/contracts";
-import { findUserByEmail, prisma } from "@asm/db";
+import { bonusPercentForDeposit, findUserByEmail, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
+import { sendWelcomeEmail } from "@asm/mail";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { hashPassword } from "@/lib/password";
 import {
@@ -80,6 +81,15 @@ export async function POST(req: NextRequest) {
   });
 
   log.info({ evt: "auth.register", userId: user.id }, "account created");
+
+  // Not awaited: signup must not wait on, or fail because of, mail.
+  void sendWelcomeEmail({
+    to: email,
+    cid: ctx.cid,
+    userId: user.id,
+    name: firstName ?? name,
+    firstDepositBonusPercent: bonusPercentForDeposit(1),
+  });
 
   const response = NextResponse.json({ userId: user.id }, { status: 201 });
   response.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);
