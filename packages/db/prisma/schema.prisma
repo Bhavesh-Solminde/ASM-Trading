@@ -214,6 +214,7 @@ model User {
   twoFactorCodes TwoFactorCode[]
   fraudFlags     FraudFlag[]
   kycDocuments   KycDocument[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([email])
   // The detector queries these hot; a plain btree on a nullable String is
@@ -867,6 +868,22 @@ model TwoFactorCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, purpose])
+}
+
+/// Self-service "forgot password": one row per emailed reset link. Only the
+/// sha256 of the token is stored; the raw token lives only in the email.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// USDT reconciliation (Phase 7): a read-only background check that verifies
