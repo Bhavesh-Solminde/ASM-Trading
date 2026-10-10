@@ -61,7 +61,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         imageCaption="Every tick settles on a real ledger."
         footer={footer}
       >
-        <Link href="/forgot-password" className={PRIMARY}>
+        <Link href="/forgot-password" className={`${PRIMARY} px-6`}>
           Request a new link <span aria-hidden>→</span>
         </Link>
       </AuthShell>
