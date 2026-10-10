@@ -379,7 +379,7 @@ function WithdrawReceipt({
         {held
           ? "Your first withdrawal sits on a short safety hold, then goes to review. You can cancel it from this page while the cancel window is open."
           : "Our team reviews it and sends the money within 5–10 hours. You can follow its status below."}
-        {receipt.emailed ? " A certificate has been emailed to you." : ""}
+        {receipt.emailed ? " We've emailed you a confirmation. Your certificate follows once it's paid." : ""}
       </p>
 
       {cert ? (

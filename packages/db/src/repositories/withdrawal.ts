@@ -579,3 +579,28 @@ export async function listWithdrawalsForActor(
     take: Math.min(Math.max(limit, 1), 100),
   });
 }
+
+/**
+ * What the withdrawal emails need: amount, currency, payout destination and
+ * who to write to. Read-only; the status is returned so a caller can refuse
+ * to send a "paid" email for a row that isn't PAID.
+ */
+export async function getWithdrawalNotice(withdrawalId: string) {
+  return prisma.withdrawal.findUnique({
+    where: { id: withdrawalId },
+    select: {
+      id: true,
+      amount: true,
+      currency: true,
+      status: true,
+      reason: true,
+      method: true,
+      accountNumber: true,
+      ifsc: true,
+      upiId: true,
+      usdtNetwork: true,
+      usdtAddress: true,
+      user: { select: { email: true, firstName: true, lastName: true, nickname: true } },
+    },
+  });
+}

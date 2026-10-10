@@ -124,6 +124,7 @@ export {
   releaseHeldWithdrawal,
   rejectWithdrawal,
   markWithdrawalPaid,
+  getWithdrawalNotice,
   listWithdrawalsForActor,
   withdrawalLimitsMinor,
   type WithdrawalPayout,

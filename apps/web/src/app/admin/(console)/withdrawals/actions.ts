@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { approveWithdrawal, markWithdrawalPaid, rejectWithdrawal, releaseHeldWithdrawal } from "@asm/db";
 import { logger } from "@asm/logger";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
+import { emailWithdrawalPaid, emailWithdrawalRejected } from "@/lib/withdrawal-mail";
 import { WITHDRAWAL_REJECT_REASONS } from "./reasons";
 
 const ADMIN_ACTOR = "admin-panel";
@@ -68,6 +69,8 @@ export async function markWithdrawalPaidAction(formData: FormData): Promise<void
     { evt: "admin.action", action: "withdrawal.paid", withdrawalId },
     "withdrawal marked paid by admin",
   );
+  // The reward certificate goes out now that the money has actually been sent.
+  await emailWithdrawalPaid(withdrawalId);
   revalidatePath("/admin/withdrawals");
   revalidatePath("/admin");
 }
@@ -91,6 +94,7 @@ export async function rejectWithdrawalAction(formData: FormData): Promise<void> 
     { evt: "admin.action", action: "withdrawal.reject", withdrawalId },
     "withdrawal rejected by admin",
   );
+  await emailWithdrawalRejected(withdrawalId);
   revalidatePath("/admin/withdrawals");
   revalidatePath("/admin");
 }

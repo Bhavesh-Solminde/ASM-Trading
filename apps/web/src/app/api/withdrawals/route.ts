@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CreateWithdrawalSchema, payoutDestinationKey } from "@asm/contracts";
+import { CreateWithdrawalSchema, payoutDestinationKey, payoutDestinationLabel } from "@asm/contracts";
 import {
   WithdrawalRefused,
   formatMoney,
@@ -13,8 +13,8 @@ import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { certificateHtml, displayName, type CertificateData } from "@asm/mail/templates";
-import { sendEmail } from "@asm/mail";
+import { displayName, formatDateLabel, payToLabel, shortRef, type CertificateData } from "@asm/mail/templates";
+import { sendWithdrawalRequestedEmail } from "@asm/mail";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 export async function POST(req: NextRequest) {
@@ -62,38 +62,34 @@ export async function POST(req: NextRequest) {
       destinationKey: payoutDestinationKey(parsed.data.payout),
     });
 
-    // Build the reward certificate and (when Resend is configured) email it.
-    // Currency comes from the account; email/name from the profile. The
-    // post-debit account snapshot also feeds the live-balance push below,
-    // so the TopBar drops immediately instead of waiting for the next trade
-    // settlement to carry a `balance:update`. A mail failure never fails
-    // the withdrawal — the request is already recorded.
+    // The in-app receipt still shows the certificate now. By email the user
+    // gets a "request received" note, and the certificate follows when the
+    // admin marks it paid (admin withdrawals actions). The post-debit account
+    // snapshot also feeds the live-balance push below, so the TopBar drops
+    // immediately instead of waiting for the next trade settlement. A mail
+    // failure never fails the withdrawal: the request is already recorded.
     const [account, profile] = await Promise.all([
       getAccountForActor(session.userId, parsed.data.accountId),
       loadProfile(session.userId),
     ]);
+    const name = displayName(profile);
+    const amountLabel = formatMoney(parsed.data.amount, account?.currency ?? "INR");
     const certificate: CertificateData = {
-      name: displayName(profile),
-      amountLabel: formatMoney(parsed.data.amount, account?.currency ?? "INR"),
-      dateLabel: new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }).format(new Date()),
-      refId: withdrawal.id,
+      name,
+      amountLabel,
+      dateLabel: formatDateLabel(new Date()),
+      refId: shortRef(withdrawal.id),
     };
-    let emailed = false;
-    try {
-      const sent = await sendEmail({
-        to: profile.email,
-        subject: "Your IndianxTrade withdrawal certificate",
-        html: certificateHtml(certificate),
-        cid: ctx.cid,
-      });
-      emailed = sent.ok;
-    } catch (mailErr) {
-      log.warn({ evt: "withdrawal.mail_failed", err: String(mailErr) }, "certificate email failed");
-    }
+    const sent = await sendWithdrawalRequestedEmail({
+      to: profile.email,
+      cid: ctx.cid,
+      withdrawalId: withdrawal.id,
+      name,
+      amountLabel,
+      payToLabel: payToLabel(parsed.data.payout.method, payoutDestinationLabel(parsed.data.payout)),
+      held: withdrawal.status === "HELD",
+    });
+    const emailed = sent.ok;
 
     return NextResponse.json(
       {
