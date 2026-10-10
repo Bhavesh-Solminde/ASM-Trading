@@ -116,7 +116,7 @@ export default async function HousePnlDashboard() {
                 name="treasuryTargetRupees"
                 type="number"
                 min={1}
-                step={100}
+                step={1}
                 defaultValue={
                   treasuryTargetMinor > 0
                     ? Math.round(treasuryTargetMinor / 100)
