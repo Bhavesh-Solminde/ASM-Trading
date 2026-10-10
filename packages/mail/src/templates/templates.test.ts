@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   certificateHtml,
+  depositCreditedEmail,
+  passwordChangedEmail,
+  passwordResetEmail,
+  welcomeEmail,
+  withdrawalPaidEmail,
+  withdrawalRejectedEmail,
+  withdrawalRequestedEmail,
   details,
   displayName,
   emailLayout,
@@ -96,5 +103,87 @@ describe("certificateHtml", () => {
     expect(certificateHtml(data)).toContain("confirms a withdrawal request");
     expect(certificateHtml(data, "paid")).toContain("paid out by IndianxTrade");
     expect(certificateHtml(data)).not.toContain("original deposit method");
+  });
+});
+
+describe("welcomeEmail", () => {
+  it("greets by name and pitches the first-deposit bonus without wagering terms", () => {
+    const { subject, html } = welcomeEmail({ name: "Asha", firstDepositBonusPercent: 100 });
+    expect(subject).toBe("Welcome to IndianxTrade");
+    expect(html).toContain("Hi Asha");
+    expect(html).toContain("100% bonus");
+    expect(html).not.toMatch(/wager|turnover|withdrawable/i);
+  });
+  it("leaves the bonus line out when there is no first-deposit bonus", () => {
+    expect(welcomeEmail({ name: "Asha", firstDepositBonusPercent: 0 }).html).not.toContain("bonus");
+  });
+});
+
+describe("password emails", () => {
+  it("puts the reset link in the button and as plain text", () => {
+    const url = "https://indianxtrade.com/reset-password?token=abc123";
+    const { subject, html } = passwordResetEmail({ name: "Asha", resetUrl: url, ttlMinutes: 30 });
+    expect(subject).toBe("Reset your IndianxTrade password");
+    expect(html.split(url).length - 1).toBe(3); // button href, plain-link href, plain-link text
+    expect(html).toContain("30 minutes");
+  });
+  it("tells the user when the password changed", () => {
+    const { subject, html } = passwordChangedEmail({
+      name: "Asha",
+      changedAtLabel: "11 Oct 2026, 01:30 IST",
+      resetUrl: "https://indianxtrade.com/forgot-password",
+    });
+    expect(subject).toBe("Your IndianxTrade password was changed");
+    expect(html).toContain("11 Oct 2026, 01:30 IST");
+    expect(html).toContain("signed you out");
+  });
+});
+
+describe("depositCreditedEmail", () => {
+  const base = { name: "Asha", creditLabel: "₹5,000.00", totalLabel: "₹10,000.00", dateLabel: "11 Oct 2026", refId: "D41C09AA" };
+  it("shows the deposit, the bonus and the total", () => {
+    const { subject, html } = depositCreditedEmail({ ...base, bonusLabel: "₹5,000.00" });
+    expect(subject).toBe("₹5,000.00 added to your IndianxTrade account");
+    expect(html).toContain("Bonus");
+    expect(html).toContain("₹10,000.00");
+    expect(html).not.toMatch(/wager|turnover|withdrawable/i);
+  });
+  it("has no bonus rows when no bonus was granted", () => {
+    const { html } = depositCreditedEmail({ ...base, bonusLabel: null, totalLabel: "₹5,000.00" });
+    expect(html).not.toContain("Bonus");
+  });
+});
+
+describe("withdrawal emails", () => {
+  it("confirms a request and promises the certificate on payout", () => {
+    const { subject, html } = withdrawalRequestedEmail({
+      name: "Asha", amountLabel: "₹2,500.00", payToLabel: "UPI · asha@okhdfc", held: false, refId: "8F3A21C9",
+    });
+    expect(subject).toBe("We've received your withdrawal request");
+    expect(html).toContain("UPI · asha@okhdfc");
+    expect(html).toContain("certificate");
+    expect(html).toContain("Under review");
+  });
+  it("explains the first-withdrawal hold", () => {
+    const { html } = withdrawalRequestedEmail({
+      name: "Asha", amountLabel: "₹2,500.00", payToLabel: "UPI", held: true, refId: "8F3A21C9",
+    });
+    expect(html).toContain("On security hold");
+  });
+  it("embeds the paid-stage certificate", () => {
+    const { subject, html } = withdrawalPaidEmail({
+      certificate: { name: "Asha Rao", amountLabel: "₹2,500.00", dateLabel: "11 Oct 2026", refId: "8F3A21C9" },
+      payToLabel: "UPI · asha@okhdfc",
+    });
+    expect(subject).toBe("Your withdrawal is paid. Here's your certificate");
+    expect(html).toContain("Proudly presented to");
+    expect(html).toContain("paid out by IndianxTrade");
+  });
+  it("gives the rejection reason and says the money is back", () => {
+    const { html } = withdrawalRejectedEmail({
+      name: "Asha", amountLabel: "₹2,500.00", reason: "The UPI ID couldn't receive the payment", refId: "8F3A21C9",
+    });
+    expect(html).toContain("The UPI ID couldn&#39;t receive the payment");
+    expect(html).toContain("back in your balance");
   });
 });
