@@ -2,11 +2,17 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   getHouseDay,
+  getTreasury,
   houseDateForInstant,
   listHouseDays,
 } from "@asm/db";
+import {
+  DEFAULT_GLG_CONFIG,
+  glgLadder,
+  treasuryHealth,
+} from "@asm/algo";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
-import { setTargetAction } from "./actions";
+import { setTargetAction, setTreasuryTargetAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,20 +40,27 @@ export default async function HousePnlDashboard() {
   if (!authed) redirect("/admin/login");
 
   const today = houseDateForInstant(new Date());
-  const [todayRow, history] = await Promise.all([
+  const [todayRow, history, treasury] = await Promise.all([
     getHouseDay(today),
     listHouseDays(30),
+    getTreasury(),
   ]);
 
   const target = todayRow?.targetProfitMinor ?? 0;
   const realized = todayRow?.realizedProfitMinor ?? 0;
   const gap = target - realized;
 
+  const treasuryMinor = treasury?.treasuryMinor ?? 0;
+  const treasuryTargetMinor = treasury?.treasuryTargetMinor ?? 0;
+  const health = treasuryHealth(treasuryMinor, treasuryTargetMinor);
+  const basePwin = glgLadder(health, DEFAULT_GLG_CONFIG.basePwinLadder);
+  const pwinCapped = Math.min(basePwin, DEFAULT_GLG_CONFIG.pwinCeiling);
+
   return (
     <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-6 py-10">
       <div className="flex items-baseline justify-between">
         <h1 className="text-xl font-semibold tracking-tight">
-          House Governor · Today
+          Treasury &amp; Daily P&amp;L
         </h1>
         <a
           href="/admin"
@@ -57,52 +70,131 @@ export default async function HousePnlDashboard() {
         </a>
       </div>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card label="Target (IST day)" value={target > 0 ? inr(target) : "—"} />
-        <Card
-          label="Realized"
-          value={inr(realized)}
-          tone={realized >= target ? "good" : "warn"}
-        />
-        <Card
-          label="Gap"
-          value={gap > 0 ? inr(gap) : "cleared"}
-          tone={gap <= 0 ? "good" : "warn"}
-        />
-        <Card
-          label="Progress"
-          value={target > 0 ? pct(realized, target) : "—"}
-        />
-      </section>
+      <section className="flex flex-col gap-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-2)]">
+            Treasury (controls win probability)
+          </h2>
+          <span className="text-[11px] text-[var(--color-ink-2)]">
+            Growth-Loop Governor · live
+          </span>
+        </div>
 
-      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3">
-        <form action={setTargetAction} className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col text-xs uppercase tracking-wide text-[var(--color-ink-2)]">
-            Today's target (INR)
-            <input
-              name="targetRupees"
-              type="number"
-              min={0}
-              step={100}
-              defaultValue={target > 0 ? Math.round(target / 100) : 10000}
-              className="mt-1 w-40 rounded border border-[var(--color-border)] bg-[var(--color-surface-3)] px-2 py-1 font-mono text-sm text-[var(--color-ink-0)]"
-            />
-          </label>
-          <button
-            type="submit"
-            className="rounded bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-white"
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <Card
+            label="Treasury balance"
+            value={inr(treasuryMinor)}
+            tone={treasuryMinor >= treasuryTargetMinor ? "good" : "warn"}
+          />
+          <Card
+            label="Treasury target"
+            value={treasuryTargetMinor > 0 ? inr(treasuryTargetMinor) : "—"}
+          />
+          <Card
+            label="Health"
+            value={
+              treasuryTargetMinor > 0
+                ? `${(health * 100).toFixed(0)}%`
+                : "—"
+            }
+            tone={health >= 1 ? "good" : "warn"}
+          />
+          <Card
+            label="Base win prob."
+            value={`${(pwinCapped * 100).toFixed(1)}%`}
+          />
+        </div>
+
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3">
+          <form
+            action={setTreasuryTargetAction}
+            className="flex flex-wrap items-end gap-3"
           >
-            Save
-          </button>
-        </form>
+            <label className="flex flex-col text-xs uppercase tracking-wide text-[var(--color-ink-2)]">
+              Treasury target (INR)
+              <input
+                name="treasuryTargetRupees"
+                type="number"
+                min={1}
+                step={100}
+                defaultValue={
+                  treasuryTargetMinor > 0
+                    ? Math.round(treasuryTargetMinor / 100)
+                    : 10000
+                }
+                className="mt-1 w-48 rounded border border-[var(--color-border)] bg-[var(--color-surface-3)] px-2 py-1 font-mono text-sm text-[var(--color-ink-0)]"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-white"
+            >
+              Save target
+            </button>
+            <p className="basis-full text-[11px] leading-relaxed text-[var(--color-ink-2)]">
+              Health = balance ÷ target feeds the pWin ladder. Lower target →
+              higher health → higher win rate (capped at{" "}
+              {(DEFAULT_GLG_CONFIG.pwinCeiling * 100).toFixed(0)}%). Higher
+              target → lower health → lower win rate (floor{" "}
+              {(DEFAULT_GLG_CONFIG.basePwinLadder[0]![1] * 100).toFixed(0)}%).
+              Per-asset edge and giveback clamps may still pull pWin lower at
+              trade time.
+            </p>
+          </form>
+        </div>
       </section>
 
-      {!todayRow && (
-        <p className="rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-sm text-[var(--color-ink-2)]">
-          No row for today yet. Default fallback is INR 10,000
-          (FALLBACK_DAILY_TARGET_MINOR). First save creates it.
-        </p>
-      )}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-2)]">
+          Today&apos;s earnings (IST)
+        </h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <Card label="Target" value={target > 0 ? inr(target) : "—"} />
+          <Card
+            label="Realized"
+            value={inr(realized)}
+            tone={realized >= target ? "good" : "warn"}
+          />
+          <Card
+            label="Gap"
+            value={gap > 0 ? inr(gap) : "cleared"}
+            tone={gap <= 0 ? "good" : "warn"}
+          />
+          <Card
+            label="Progress"
+            value={target > 0 ? pct(realized, target) : "—"}
+          />
+        </div>
+
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3">
+          <form action={setTargetAction} className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col text-xs uppercase tracking-wide text-[var(--color-ink-2)]">
+              Today's target (INR)
+              <input
+                name="targetRupees"
+                type="number"
+                min={0}
+                step={100}
+                defaultValue={target > 0 ? Math.round(target / 100) : 10000}
+                className="mt-1 w-40 rounded border border-[var(--color-border)] bg-[var(--color-surface-3)] px-2 py-1 font-mono text-sm text-[var(--color-ink-0)]"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-white"
+            >
+              Save
+            </button>
+          </form>
+        </div>
+
+        {!todayRow && (
+          <p className="rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-sm text-[var(--color-ink-2)]">
+            No row for today yet. Default fallback is INR 10,000
+            (FALLBACK_DAILY_TARGET_MINOR). First save creates it.
+          </p>
+        )}
+      </section>
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-2)]">
