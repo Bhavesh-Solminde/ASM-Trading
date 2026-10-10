@@ -65,8 +65,11 @@ export function siteUrl(path = "/"): string {
 
 /**
  * Images must load from a public host, so they always point at production even
- * when links (siteUrl) point at a local dev server.
+ * when links (siteUrl) point at a local dev server. Two versions of the IXT
+ * mark: black I/T for light backgrounds (the default, and what Gmail always
+ * shows), white I/T swapped in by the dark-mode CSS.
  */
+export const LOGO_URL_LIGHT = "https://indianxtrade.com/brand/indianxtrade-mark-light.png";
 export const LOGO_URL = "https://indianxtrade.com/brand/indianxtrade-mark.png";
 
 const isHttpUrl = (url: string) => /^https?:\/\//i.test(url);
@@ -126,6 +129,8 @@ const DARK_CSS = `
   .x-ink3{color:${D.ink3}!important;}
   .x-link{color:${D.link}!important;}
   .x-amount{color:${D.link}!important;}
+  .x-logo-light{display:none!important;}
+  .x-logo-dark{display:block!important;max-height:none!important;}
 }
 [data-ogsb] .x-page{background:${D.page}!important;}
 [data-ogsb] .x-card{background:${D.card}!important;}
@@ -158,7 +163,10 @@ export function emailLayout(input: {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
 <tr><td style="padding:0 4px 20px;">
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-<td style="vertical-align:middle;background:#111318;border-radius:10px;padding:7px 8px;"><img src="${LOGO_URL}" width="44" height="30" alt="IndianxTrade" style="display:block;border:0;outline:none;"></td>
+<td style="vertical-align:middle;">
+<img class="x-logo-light" src="${LOGO_URL_LIGHT}" width="54" height="37" alt="IndianxTrade" style="display:block;border:0;outline:none;">
+<!--[if !mso]><!--><img class="x-logo-dark" src="${LOGO_URL}" width="54" height="37" alt="IndianxTrade" style="display:none;max-height:0;overflow:hidden;border:0;outline:none;"><!--<![endif]-->
+</td>
 <td class="x-ink" style="vertical-align:middle;padding-left:12px;font-size:19px;font-weight:700;letter-spacing:-0.2px;color:${L.ink};">IndianxTrade</td>
 </tr></table>
 </td></tr>

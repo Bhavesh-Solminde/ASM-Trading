@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { sendEmail } from "../src/send";
 import {
   LOGO_URL,
+  LOGO_URL_LIGHT,
   depositCreditedEmail,
   formatDateLabel,
   formatDateTimeLabel,
@@ -40,15 +41,16 @@ const samples: Array<[string, RenderedEmail]> = [
   ["withdrawal_rejected", withdrawalRejectedEmail({ name: "Asha", amountLabel: "₹2,500.00", reason: "The UPI ID couldn't receive the payment", refId: "8F3A21C9" })],
 ];
 
-const logo = {
-  filename: "indianxtrade-mark.png",
-  content: readFileSync(new URL("../../../apps/web/public/brand/indianxtrade-mark.png", import.meta.url)).toString("base64"),
-  contentId: "ixt-logo",
-};
+const brand = (file: string) =>
+  readFileSync(new URL(`../../../apps/web/public/brand/${file}`, import.meta.url)).toString("base64");
+const logos = [
+  { filename: "indianxtrade-mark-light.png", content: brand("indianxtrade-mark-light.png"), contentId: "ixt-logo-light" },
+  { filename: "indianxtrade-mark.png", content: brand("indianxtrade-mark.png"), contentId: "ixt-logo" },
+];
 
 for (const [tag, email] of samples) {
-  const html = email.html.replace(LOGO_URL, "cid:ixt-logo");
-  const result = await sendEmail({ to, subject: `[sample] ${email.subject}`, html, tag, attachments: [logo] });
+  const html = email.html.replace(LOGO_URL_LIGHT, "cid:ixt-logo-light").replace(LOGO_URL, "cid:ixt-logo");
+  const result = await sendEmail({ to, subject: `[sample] ${email.subject}`, html, tag, attachments: logos });
   console.log(tag.padEnd(22), JSON.stringify(result));
   // Stay under Resend's per-second rate limit.
   await new Promise((resolve) => setTimeout(resolve, 600));

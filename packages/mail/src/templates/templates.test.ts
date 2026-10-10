@@ -204,8 +204,10 @@ describe("light and dark", () => {
     expect(html).toContain("background:#fffffe");
     expect(html).not.toMatch(/background:#(000000|05070b)/);
   });
-  it("loads the logo from the public site", () => {
-    expect(html).toContain('src="https://indianxtrade.com/brand/indianxtrade-mark.png"');
+  it("shows the black-letter logo by default and swaps in the white one for dark mode", () => {
+    expect(html).toContain('class="x-logo-light" src="https://indianxtrade.com/brand/indianxtrade-mark-light.png"');
+    expect(html).toContain('class="x-logo-dark" src="https://indianxtrade.com/brand/indianxtrade-mark.png"');
+    expect(html).toContain(".x-logo-light{display:none!important;}");
   });
   it("renders the emailed certificate in the adaptive theme, the in-app one dark", () => {
     const data = { name: "Asha", amountLabel: "₹1.00", dateLabel: "11 Oct 2026", refId: "X" };
