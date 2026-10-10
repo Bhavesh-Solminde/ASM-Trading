@@ -4,7 +4,8 @@ import { logger } from "@asm/logger";
 export interface MatchConfig {
   expectedNetwork: string;
   expectedTokenContract: string;
-  expectedReceivingAddress: string;
+  /** Every address this watcher receives on (rotating slot addresses). */
+  expectedReceivingAddresses: readonly string[];
 }
 
 export interface MatchResult {
@@ -46,7 +47,7 @@ export async function runMatchTick(config: MatchConfig, limit = 200): Promise<Ma
         chainCreditId: row.id,
         expectedNetwork: config.expectedNetwork,
         expectedTokenContract: config.expectedTokenContract,
-        expectedReceivingAddress: config.expectedReceivingAddress,
+        expectedReceivingAddresses: config.expectedReceivingAddresses,
       });
 
       if (outcome.kind === "auto_approved") {

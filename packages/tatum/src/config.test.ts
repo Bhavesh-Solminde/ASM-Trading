@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTatumProvider, listTatumEnabledNetworks, readTatumConfig } from "./config";
+import { isTatumProvider, listTatumEnabledNetworks, readTatumConfig, usdtProviderFor } from "./config";
 
 const BASE = {
   TATUM_API_KEY: "t-abc",
@@ -17,6 +17,22 @@ describe("isTatumProvider", () => {
     expect(isTatumProvider({ USDT_DEPOSIT_PROVIDER: "tatum" })).toBe(true);
     expect(isTatumProvider({ USDT_DEPOSIT_PROVIDER: "bogus" })).toBe(true);
     expect(isTatumProvider({ USDT_DEPOSIT_PROVIDER: "manual" })).toBe(false);
+  });
+});
+
+describe("usdtProviderFor", () => {
+  it("follows USDT_DEPOSIT_PROVIDER unless the network has its own override", () => {
+    expect(usdtProviderFor("tron", {})).toBe("tatum");
+    expect(usdtProviderFor("bsc", { USDT_DEPOSIT_PROVIDER: "manual" })).toBe("manual");
+    const split = { USDT_DEPOSIT_PROVIDER: "tatum", USDT_TRON_PROVIDER: "manual" };
+    expect(usdtProviderFor("tron", split)).toBe("manual");
+    expect(usdtProviderFor("bsc", split)).toBe("tatum");
+    expect(usdtProviderFor("bsc", { USDT_DEPOSIT_PROVIDER: "manual", USDT_BSC_PROVIDER: "tatum" })).toBe("tatum");
+  });
+
+  it("ignores an unrecognised override value and falls back to the global provider", () => {
+    expect(usdtProviderFor("tron", { USDT_DEPOSIT_PROVIDER: "manual", USDT_TRON_PROVIDER: "Manual " })).toBe("manual");
+    expect(usdtProviderFor("tron", { USDT_TRON_PROVIDER: "bogus" })).toBe("tatum");
   });
 });
 
@@ -78,5 +94,10 @@ describe("listTatumEnabledNetworks", () => {
     expect(listTatumEnabledNetworks(BASE)).toEqual(["tron", "bsc"]);
     expect(listTatumEnabledNetworks({ ...BASE, TATUM_BSC_XPUB: "" })).toEqual(["tron"]);
     expect(listTatumEnabledNetworks({ ...BASE, USDT_DEPOSIT_PROVIDER: "manual" })).toEqual([]);
+  });
+
+  it("drops a network whose own provider is manual (TRON direct, BSC on the gateway)", () => {
+    expect(listTatumEnabledNetworks({ ...BASE, USDT_TRON_PROVIDER: "manual" })).toEqual(["bsc"]);
+    expect(listTatumEnabledNetworks({ ...BASE, USDT_DEPOSIT_PROVIDER: "manual", USDT_BSC_PROVIDER: "tatum" })).toEqual(["bsc"]);
   });
 });

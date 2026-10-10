@@ -153,7 +153,12 @@ export function createTronSweeper(
 
     async quoteSweep(from, to, amount): Promise<SweepQuote> {
       const p = await chainParams();
-      const est = await post<{ result?: { result?: boolean; message?: string }; energy_used?: number; constant_result?: string[] }>(
+      const est = await post<{
+        result?: { result?: boolean; message?: string };
+        energy_used?: number;
+        constant_result?: string[];
+        transaction?: { ret?: { ret?: string }[] };
+      }>(
         "/wallet/triggerconstantcontract",
         {
           owner_address: tronBase58ToHex(from),
@@ -163,9 +168,16 @@ export function createTronSweeper(
         },
       );
       if (est.result?.result !== true) throw new TatumError(`TRON transfer simulation failed: ${hexMessage(est.result?.message)}`, null);
-      if (est.constant_result?.[0] && decodeUintWord(est.constant_result[0]) !== 1n) {
-        throw new TatumError("TRON transfer simulation returned false (balance moved?)", null);
+      // A revert (e.g. amount above the balance) still answers result:true;
+      // only the simulated tx's ret says FAILED.
+      if (est.transaction?.ret?.[0]?.ret === "FAILED") {
+        throw new TatumError(`TRON transfer simulation reverted (balance moved?): ${hexMessage(est.result?.message)}`, null);
       }
+      // The return value is deliberately NOT checked: mainnet USDT
+      // (TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t) returns false from transfer() even
+      // when it succeeds (verified 2026-10-09 against TronGrid: a full-balance
+      // transfer simulates with ret 0 and 64,285 energy; one unit more reverts).
+      // Confirmation reads the receipt (SUCCESS), never the return value.
       const energy = BigInt(est.energy_used ?? 0);
       if (energy <= 0n) throw new TatumError("TRON transfer simulation reported no energy use", null);
       const feeLimit = ((energy * ENERGY_MARGIN_PCT + 99n) / 100n) * p["getEnergyFee"]!;

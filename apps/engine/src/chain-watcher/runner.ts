@@ -1,4 +1,5 @@
 import { logger } from "@asm/logger";
+import { parseUsdtReceivingAddresses } from "@asm/contracts";
 import { USDT_RESERVATION_QUARANTINE_MS, expireStaleUsdtDeposits, hasActiveUsdtWork } from "@asm/db";
 import { createTronProvider } from "./providers/tron";
 import { runIngestTick } from "./ingest";
@@ -12,7 +13,11 @@ import type { ChainProvider } from "./types";
 // (see .env.example), since these are specific to this one feature.
 const USDT_NETWORK = process.env["USDT_NETWORK"] ?? "";
 const USDT_TRONGRID_NETWORK = process.env["USDT_TRONGRID_NETWORK"] ?? "";
-const USDT_RECEIVING_ADDRESS = process.env["USDT_RECEIVING_ADDRESS"] ?? "";
+// One or more shared receiving addresses (rotated between time-slot deposits).
+const USDT_RECEIVING_ADDRESSES = parseUsdtReceivingAddresses(
+  process.env["USDT_RECEIVING_ADDRESSES"],
+  process.env["USDT_RECEIVING_ADDRESS"],
+);
 const USDT_TOKEN_CONTRACT = process.env["USDT_TOKEN_CONTRACT"] ?? "";
 const USDT_TRONGRID_API_KEY = process.env["USDT_TRONGRID_API_KEY"];
 
@@ -86,10 +91,10 @@ export async function startChainWatcher(provider?: ChainProvider): Promise<Chain
   // happened to inject a stub.
   const tronGridFullHost = resolveTronGridFullHost(USDT_TRONGRID_NETWORK);
 
-  if (USDT_NETWORK !== "tron" || !USDT_RECEIVING_ADDRESS || !USDT_TOKEN_CONTRACT || !tronGridFullHost) {
+  if (USDT_NETWORK !== "tron" || USDT_RECEIVING_ADDRESSES.length === 0 || !USDT_TOKEN_CONTRACT || !tronGridFullHost) {
     const reason = !tronGridFullHost
       ? `USDT_TRONGRID_NETWORK is ${USDT_TRONGRID_NETWORK ? `invalid ("${USDT_TRONGRID_NETWORK}")` : "unset"} — must be exactly "mainnet" or "nile"; refusing to guess a host rather than risk silently using mainnet`
-      : "not configured (only 'tron' is implemented; USDT_RECEIVING_ADDRESS/USDT_TOKEN_CONTRACT required)";
+      : "not configured (only 'tron' is implemented; USDT_RECEIVING_ADDRESS(ES)/USDT_TOKEN_CONTRACT required)";
     logger.info(
       {
         evt: "chain.watcher.idle",
@@ -116,16 +121,17 @@ export async function startChainWatcher(provider?: ChainProvider): Promise<Chain
   const matchConfig = {
     expectedNetwork: USDT_NETWORK,
     expectedTokenContract: USDT_TOKEN_CONTRACT,
-    expectedReceivingAddress: USDT_RECEIVING_ADDRESS,
+    expectedReceivingAddresses: USDT_RECEIVING_ADDRESSES,
   };
-  const ingestConfig = {
+  // One ingest config per address — each keeps its own scan cursor.
+  const ingestConfigs = USDT_RECEIVING_ADDRESSES.map((receivingAddress) => ({
     network: USDT_NETWORK,
     tokenContract: USDT_TOKEN_CONTRACT,
-    receivingAddress: USDT_RECEIVING_ADDRESS,
+    receivingAddress,
     tokenDecimals: EXPECTED_USDT_DECIMALS,
     overlapMs: USDT_OVERLAP_MS,
     maxPagesPerTick: USDT_MAX_PAGES_PER_TICK,
-  };
+  }));
   const scope = { network: USDT_NETWORK, tokenContract: USDT_TOKEN_CONTRACT };
 
   let decimalsVerified = false;
@@ -163,12 +169,17 @@ export async function startChainWatcher(provider?: ChainProvider): Promise<Chain
 
     // Each stage is isolated: one stage's unexpected failure never kills the
     // whole tick, let alone the timer loop.
-    await runStage(USDT_NETWORK, "ingest", async () => {
-      const ingestResult = await runIngestTick(activeProvider, ingestConfig);
-      if (ingestResult.rowsSkipped > 0 || ingestResult.stoppedReason === "provider_error") {
-        logger.info({ evt: "chain.watcher.tick", stage: "ingest", ...ingestResult }, "ingest tick complete");
-      }
-    });
+    for (const ingestConfig of ingestConfigs) {
+      await runStage(USDT_NETWORK, "ingest", async () => {
+        const ingestResult = await runIngestTick(activeProvider, ingestConfig);
+        if (ingestResult.rowsSkipped > 0 || ingestResult.stoppedReason === "provider_error") {
+          logger.info(
+            { evt: "chain.watcher.tick", stage: "ingest", receivingAddress: ingestConfig.receivingAddress, ...ingestResult },
+            "ingest tick complete",
+          );
+        }
+      });
+    }
 
     await runStage(USDT_NETWORK, "finality", async () => {
       const finalityResult = await runFinalityTick(activeProvider, scope);
@@ -200,15 +211,21 @@ export async function startChainWatcher(provider?: ChainProvider): Promise<Chain
     network: USDT_NETWORK,
     tickIntervalMs: USDT_TICK_INTERVAL_MS,
     idleIntervalMs: USDT_IDLE_INTERVAL_MS,
-    isActive: (now) =>
-      hasActiveUsdtWork({
-        network: USDT_NETWORK,
-        tokenContract: USDT_TOKEN_CONTRACT,
-        receivingAddress: USDT_RECEIVING_ADDRESS,
-        now,
-        lateGraceMs: USDT_LATE_PAYMENT_GRACE_MS,
-        includePendingMatches: USDT_AUTO_CONFIRM_ENABLED,
-      }),
+    isActive: async (now) =>
+      (
+        await Promise.all(
+          USDT_RECEIVING_ADDRESSES.map((receivingAddress) =>
+            hasActiveUsdtWork({
+              network: USDT_NETWORK,
+              tokenContract: USDT_TOKEN_CONTRACT,
+              receivingAddress,
+              now,
+              lateGraceMs: USDT_LATE_PAYMENT_GRACE_MS,
+              includePendingMatches: USDT_AUTO_CONFIRM_ENABLED,
+            }),
+          ),
+        )
+      ).some(Boolean),
     tick,
   });
 

@@ -181,6 +181,67 @@ describe("POST /api/deposits", () => {
   });
 });
 
+describe("POST /api/deposits — TRON time slots", () => {
+  const extraUsers: string[] = [];
+
+  afterAll(async () => {
+    await prisma.deposit.deleteMany({ where: { userId: { in: extraUsers } } });
+    await prisma.user.deleteMany({ where: { id: { in: extraUsers } } });
+  });
+
+  async function otherCookie(): Promise<string> {
+    const user = await prisma.user.create({ data: { email: `deposit-route-slot-${randomUUID()}@test.local`, passwordHash: "x" } });
+    extraUsers.push(user.id);
+    return createSession(user.id, {});
+  }
+
+  /** Fresh addresses so no other test's slot can be holding them. */
+  function stubSlotAddresses(count: number): string[] {
+    const list = Array.from({ length: count }, () => `TSlot${randomUUID().replace(/-/g, "")}`.slice(0, 34));
+    stubTron();
+    vi.stubEnv("USDT_RECEIVING_ADDRESS", "");
+    vi.stubEnv("USDT_RECEIVING_ADDRESSES", list.join(","));
+    return list;
+  }
+
+  async function rowFor(res: Response) {
+    const { checkoutToken } = (await res.json()) as { checkoutToken: string };
+    return prisma.deposit.findUniqueOrThrow({ where: { checkoutToken } });
+  }
+
+  it("keeps the user's own amount and stores the wallet they will send from", async () => {
+    const [address] = stubSlotAddresses(1);
+    clearBsc();
+    const wallet = "TL5cUNhJjPSmyZVDncznin7FrSTtea6zUG";
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 2_500, senderAddress: ` ${wallet} ` }, await otherCookie());
+    expect(res.status).toBe(201);
+    expect(await rowFor(res)).toMatchObject({ usdtMatch: "SLOT", amountUsdtMinor: 2_500, receivingAddress: address, senderAddress: wallet });
+  });
+
+  it("rejects a wallet address from the other network", async () => {
+    stubSlotAddresses(1);
+    const res = await post(
+      { method: "USDT", network: "tron", amountUsdtMinor: 2_500, senderAddress: "0xAbCdEf0123456789aBcDeF0123456789AbCdEf01" },
+      await otherCookie(),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("rotates users across the configured addresses, then answers 409 with a wait time and suggests BSC", async () => {
+    const [a1, a2] = stubSlotAddresses(2);
+    stubBsc();
+    const r1 = await post({ method: "USDT", network: "tron", amountUsdtMinor: 2_500 }, await otherCookie());
+    const r2 = await post({ method: "USDT", network: "tron", amountUsdtMinor: 2_500 }, await otherCookie());
+    expect([(await rowFor(r1)).receivingAddress, (await rowFor(r2)).receivingAddress]).toEqual([a1, a2]);
+
+    const busy = await post({ method: "USDT", network: "tron", amountUsdtMinor: 2_500 }, await otherCookie());
+    expect(busy.status).toBe(409);
+    const body = (await busy.json()) as { error: string; retryAt: string };
+    expect(body.error).toMatch(/Try again in about 7 minutes, or use BNB Smart Chain \(recommended\)/);
+    expect(Number.isNaN(Date.parse(body.retryAt))).toBe(false);
+  });
+});
+
 describe("POST /api/deposits — UPI rail enabled", () => {
   // Own user, same reason as the gateway suite below: the per-user deposit
   // rate limit (10 / 5 min) is already mostly spent by the suite above.
@@ -287,6 +348,20 @@ describe("POST /api/deposits — Tatum gateway provider", () => {
     stubGateway();
     expect((await post({ method: "USDT", network: "bsc", amountUsdtMinor: 50_000 }, gwCookie)).status).toBe(503);
     expect((await post({ method: "USDT", network: "tron", amountUsdtMinor: 500 }, gwCookie)).status).toBe(400);
+    expect(tatumCalls).toEqual([]);
+  });
+
+  it("sends TRON to a shared-address time slot when USDT_TRON_PROVIDER=manual, without calling Tatum", async () => {
+    stubGateway({ USDT_TRON_PROVIDER: "manual" });
+    stubTron();
+    const slotAddress = `TSplit${randomUUID().replace(/-/g, "")}`.slice(0, 34);
+    vi.stubEnv("USDT_RECEIVING_ADDRESS", slotAddress);
+    const res = await post({ method: "USDT", network: "tron", amountUsdtMinor: 50_000 }, gwCookie);
+    expect(res.status).toBe(201);
+    const { checkoutToken } = (await res.json()) as { checkoutToken: string };
+    const row = await prisma.deposit.findUniqueOrThrow({ where: { checkoutToken } });
+    // The user's own amount — no unique cents on a time slot.
+    expect(row).toMatchObject({ gateway: null, network: "tron", receivingAddress: slotAddress, usdtMatch: "SLOT", amountUsdtMinor: 50_000 });
     expect(tatumCalls).toEqual([]);
   });
 

@@ -1,6 +1,6 @@
 import { prisma } from "../client";
-import { creditDepositToAccount } from "./deposit";
-import type { Deposit } from "../../generated/prisma/client";
+import { MAX_DEPOSIT_USDT_MINOR, creditDepositToAccount } from "./deposit";
+import type { ChainCredit, Deposit } from "../../generated/prisma/client";
 
 export type ChainMatchOutcome =
   | { kind: "auto_approved"; depositId: string }
@@ -12,7 +12,8 @@ export type ChainMatchOutcome =
         | "wrong_network"
         | "wrong_destination"
         | "not_final"
-        | "already_processed";
+        | "already_processed"
+        | "slot_review";
       depositId: string | null;
     }
   | { kind: "unmatched" };
@@ -48,6 +49,8 @@ export async function findLiveDepositByUsdtAmount(
     where: {
       method: "USDT",
       amountUsdtMinor,
+      // Slot deposits are paid by time, never by amount.
+      usdtMatch: null,
       status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
       expiresAt: { gt: paidAt },
       ...(scope
@@ -80,7 +83,8 @@ export async function matchChainCreditToDeposit(input: {
   chainCreditId: string;
   expectedNetwork: string;
   expectedTokenContract: string;
-  expectedReceivingAddress: string;
+  /** Every address this watcher receives on (rotating slot addresses). */
+  expectedReceivingAddresses: readonly string[];
 }): Promise<ChainMatchOutcome> {
   const credit = await prisma.chainCredit.findUniqueOrThrow({ where: { id: input.chainCreditId } });
 
@@ -104,7 +108,7 @@ export async function matchChainCreditToDeposit(input: {
     await markManualReview(credit.id, "WRONG_TOKEN_CONTRACT");
     return { kind: "manual_review", reason: "wrong_token_contract", depositId: null };
   }
-  if (credit.toAddress !== input.expectedReceivingAddress) {
+  if (!input.expectedReceivingAddresses.includes(credit.toAddress)) {
     await markManualReview(credit.id, "WRONG_DESTINATION");
     return { kind: "manual_review", reason: "wrong_destination", depositId: null };
   }
@@ -116,6 +120,9 @@ export async function matchChainCreditToDeposit(input: {
     await markManualReview(credit.id, "PRECISION_NOT_REPRESENTABLE");
     return { kind: "manual_review", reason: "not_final", depositId: null };
   }
+
+  const slot = await matchSlotDeposit(credit, credit.normalizedAmountMinor);
+  if (slot) return slot;
 
   // Scoped to the credit's own network/contract/destination (already checked
   // equal to live config above): a same-amount deposit on the OTHER network
@@ -151,6 +158,77 @@ export async function matchChainCreditToDeposit(input: {
     return { kind: "manual_review", reason: "already_processed", depositId: null };
   }
   return { kind: "unmatched" };
+}
+
+function sameAddress(a: string | null, b: string): boolean {
+  if (!a) return false;
+  // EVM hex is case-insensitive; TRON base58 is not.
+  return a.startsWith("0x") ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+
+/** Auto-credit tolerance for a slot payment NOT from the user's named wallet: ±3% of the amount entered. */
+export const USDT_SLOT_AMOUNT_TOLERANCE_PCT = 3;
+
+/** Whether `received` is within ±USDT_SLOT_AMOUNT_TOLERANCE_PCT of `requested` (integer math, edges inclusive). */
+export function withinSlotTolerance(received: number, requested: number): boolean {
+  return Math.abs(received - requested) * 100 <= requested * USDT_SLOT_AMOUNT_TOLERANCE_PCT;
+}
+
+/**
+ * Time-slot deposits (Deposit.usdtMatch = "SLOT"): the deposit holding the
+ * credit's destination address for a window [createdAt, expiresAt) that
+ * covers the transfer's block timestamp. At most one exists — creation
+ * hands an address to one slot at a time — so more than one is a bug to
+ * flag (AMBIGUOUS_SLOT), never something to guess between.
+ *
+ * The slot holder is credited the amount that actually arrived when the
+ * transfer comes from the wallet they named (senderAddress), or when it is
+ * within ±3% of what they entered. Anything else goes to admin review and
+ * leaves the deposit open — TRON address-poisoning spam (tiny transfers from
+ * look-alike addresses) must never consume someone's slot.
+ *
+ * Returns null when no slot covers the transfer, so the caller falls through
+ * to legacy unique-amount matching.
+ */
+async function matchSlotDeposit(credit: ChainCredit, amount: number): Promise<ChainMatchOutcome | null> {
+  const slots = await prisma.deposit.findMany({
+    where: {
+      method: "USDT",
+      usdtMatch: "SLOT",
+      network: credit.network,
+      tokenContract: credit.tokenContract,
+      receivingAddress: credit.toAddress,
+      status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
+      createdAt: { lte: credit.blockTimestamp },
+      expiresAt: { gt: credit.blockTimestamp },
+      user: { role: { not: "AFFILIATE" } },
+    },
+  });
+  if (slots.length === 0) return null;
+  if (slots.length > 1) {
+    await markManualReview(credit.id, "AMBIGUOUS_SLOT");
+    return { kind: "manual_review", reason: "slot_review", depositId: null };
+  }
+
+  const deposit = slots[0]!;
+  const fromNamedWallet = sameAddress(deposit.senderAddress, credit.fromAddress);
+  const requested = deposit.amountUsdtMinor ?? 0;
+  if (amount <= 0 || amount > MAX_DEPOSIT_USDT_MINOR) {
+    await markManualReview(credit.id, amount <= 0 ? "SLOT_AMOUNT_MISMATCH" : "ABOVE_MAXIMUM");
+    return { kind: "manual_review", reason: "slot_review", depositId: deposit.id };
+  }
+  if (!fromNamedWallet && !withinSlotTolerance(amount, requested)) {
+    await markManualReview(credit.id, "SLOT_AMOUNT_MISMATCH");
+    return { kind: "manual_review", reason: "slot_review", depositId: deposit.id };
+  }
+
+  await creditDepositToAccount({
+    depositId: deposit.id,
+    adminId: null,
+    chainCreditId: credit.id,
+    receivedUsdtMinor: amount,
+  });
+  return { kind: "auto_approved", depositId: deposit.id };
 }
 
 async function markManualReview(chainCreditId: string, reason: string): Promise<void> {

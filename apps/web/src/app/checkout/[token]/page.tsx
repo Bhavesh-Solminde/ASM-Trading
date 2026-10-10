@@ -33,6 +33,8 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
 
   const isUsdt = deposit.method === "USDT";
   const isGateway = isUsdt && deposit.gateway !== null;
+  // Time-slot deposit: a shared address held by this deposit alone for its window.
+  const isSlot = isUsdt && deposit.usdtMatch === "SLOT";
   const net = usdtNetworkDisplay(deposit.network);
   const theme = checkoutTheme(deposit.method);
 
@@ -101,9 +103,9 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
                 Send {net.assetLabel} to this address
               </h1>
               <p className="mt-2 text-3xl font-bold tabular-nums">{usdtAmount} USDT</p>
-              {isGateway ? (
+              {isGateway || isSlot ? (
                 <p className="mt-1 text-[11px] font-semibold" style={{ color: theme.muted }}>
-                  This address is unique to this deposit
+                  {isGateway ? "This address is unique to this deposit" : "This address is reserved for you until the timer ends"}
                 </p>
               ) : null}
               <p className="mt-2">
@@ -188,6 +190,14 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
                     Send at least this amount, on the {net.label} network only.
                     Anything above it is credited too. A transfer on any other
                     network, or of a token other than USDT, may be unrecoverable.
+                  </>
+                ) : isSlot ? (
+                  <>
+                    Send this amount before the timer ends, on the {net.label}{" "}
+                    network only. Anything within 3% of it is credited automatically
+                    {deposit.senderAddress ? <>, and any amount sent from your wallet {deposit.senderAddress.slice(0, 6)}…{deposit.senderAddress.slice(-4)}</> : null}
+                    . A transfer on any other network, or of a token other than USDT,
+                    may be unrecoverable.
                   </>
                 ) : (
                   <>

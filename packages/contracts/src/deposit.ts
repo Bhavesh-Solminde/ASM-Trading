@@ -57,6 +57,16 @@ export const CreateDepositSchema = z.discriminatedUnion("method", [
     network: z.enum(USDT_NETWORKS),
     /** USDT-cents (2dp). Bounds are enforced again server-side. */
     amountUsdtMinor: z.number().int().positive().max(1_000_000_000),
+    /**
+     * Optional: the wallet the user will send FROM. On a shared (time-slot)
+     * address a payment from it is credited whatever the amount; the server
+     * checks it belongs to the chosen network. Omit when unknown.
+     */
+    senderAddress: z
+      .string()
+      .trim()
+      .regex(/^(T[1-9A-HJ-NP-Za-km-z]{33}|0x[0-9a-fA-F]{40})$/, "Enter a valid wallet address.")
+      .optional(),
   }),
 ]);
 export type CreateDepositInput = z.infer<typeof CreateDepositSchema>;
@@ -117,4 +127,15 @@ export interface DepositView {
   /** USDT only: the tx hash the user claimed paid this deposit (evidence, not a match). */
   claimedTxHash: string | null;
   createdAt: number;
+}
+
+/**
+ * The shared USDT receiving addresses from env: USDT_RECEIVING_ADDRESSES
+ * (comma/space separated, rotated between time-slot deposits) or, when that
+ * is empty, the single USDT_RECEIVING_ADDRESS. Trimmed, de-duplicated, order
+ * kept (the first free one is handed out first).
+ */
+export function parseUsdtReceivingAddresses(list: string | undefined, single: string | undefined): string[] {
+  const raw = (list ?? "").trim() ? (list ?? "") : (single ?? "");
+  return [...new Set(raw.split(/[\s,]+/).map((a) => a.trim()).filter(Boolean))];
 }

@@ -39,6 +39,21 @@ export function isTatumProvider(env: Env = process.env): boolean {
   return v(env, "USDT_DEPOSIT_PROVIDER") !== "manual";
 }
 
+export type UsdtProvider = "tatum" | "manual";
+
+/**
+ * Which provider serves one network. USDT_TRON_PROVIDER / USDT_BSC_PROVIDER
+ * ("tatum" | "manual") override USDT_DEPOSIT_PROVIDER for that network alone —
+ * e.g. TRON on the shared treasury address (a per-deposit TRON address costs
+ * ≈9.5 TRX to sweep) while BSC keeps per-deposit gateway addresses. Any other
+ * value is ignored, so a typo falls back to the global provider.
+ */
+export function usdtProviderFor(network: GatewayNetwork, env: Env = process.env): UsdtProvider {
+  const override = v(env, `USDT_${network.toUpperCase()}_PROVIDER`);
+  if (override === "tatum" || override === "manual") return override;
+  return isTatumProvider(env) ? "tatum" : "manual";
+}
+
 export function readTatumConfig(network: GatewayNetwork, env: Env = process.env): TatumNetworkConfig | null {
   const apiKey = v(env, "TATUM_API_KEY");
   const tatumNetwork = v(env, "TATUM_NETWORK");
@@ -80,10 +95,9 @@ export function readTatumConfig(network: GatewayNetwork, env: Env = process.env)
   };
 }
 
-/** Networks the gateway can take deposits on right now (empty under the manual provider). */
+/** Networks the gateway can take deposits on right now (only those whose provider is "tatum"). */
 export function listTatumEnabledNetworks(env: Env = process.env): GatewayNetwork[] {
-  if (!isTatumProvider(env)) return [];
-  return GATEWAY_NETWORKS.filter((n) => readTatumConfig(n, env) !== null);
+  return GATEWAY_NETWORKS.filter((n) => usdtProviderFor(n, env) === "tatum" && readTatumConfig(n, env) !== null);
 }
 
 /** Tatum's chain id for a network, as used by alerts and webhooks. */

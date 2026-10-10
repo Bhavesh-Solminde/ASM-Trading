@@ -920,7 +920,7 @@ describe("reverseUsdtDepositAndRequeue", () => {
       adminId: "admin-panel",
       expectedNetwork: NETWORK,
       expectedTokenContract: CONTRACT,
-      expectedReceivingAddress: RECEIVING,
+      expectedReceivingAddresses: [RECEIVING],
     });
 
     const finalDeposit = await prisma.deposit.findUniqueOrThrow({ where: { id: rightDeposit.id } });

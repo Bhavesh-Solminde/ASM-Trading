@@ -10,7 +10,9 @@ Design details: [`docs/superpowers/specs/2026-10-05-tatum-usdt-sweep-design.md`]
 
 ## 1. Why sweeping exists
 
-Every USDT deposit gets **its own address**, derived from the deposit HD wallet (the 24 words). The website credits the customer as soon as the payment is final, but the USDT itself **stays on that deposit address** until it's swept. Tatum never holds funds; it's only the API the server uses to create addresses and watch the chain.
+> **Since 2026-10-09 only BSC deposits get their own address.** TRON deposits go straight to the client's own wallets (`USDT_TRON_PROVIDER=manual`: each deposit holds one of the `USDT_RECEIVING_ADDRESSES` alone for a 5-minute slot, see docs/superpowers/plans/2026-10-09-tron-time-slots.md), because sweeping one TRON address costs ≈ 9.5 TRX. TRON sweeps are now only for the gateway addresses paid before that date.
+
+Every gateway USDT deposit gets **its own address**, derived from the deposit HD wallet (the 24 words). The website credits the customer as soon as the payment is final, but the USDT itself **stays on that deposit address** until it's swept. Tatum never holds funds; it's only the API the server uses to create addresses and watch the chain.
 
 ```
 customer ──USDT──▶ deposit address #N  ──sweep (owner runs)──▶ treasury

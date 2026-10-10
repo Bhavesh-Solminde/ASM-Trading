@@ -1,4 +1,5 @@
 import { logger } from "@asm/logger";
+import { parseUsdtReceivingAddresses } from "@asm/contracts";
 import { runUsdtReconciliation } from "@asm/db";
 import { resolveTronGridFullHost } from "./runner";
 import { resolveBscConfig } from "./bsc-runner";
@@ -9,7 +10,10 @@ import { resolveBscConfig } from "./bsc-runner";
 // shared schema.
 const USDT_NETWORK = process.env["USDT_NETWORK"] ?? "";
 const USDT_TRONGRID_NETWORK = process.env["USDT_TRONGRID_NETWORK"] ?? "";
-const USDT_RECEIVING_ADDRESS = process.env["USDT_RECEIVING_ADDRESS"] ?? "";
+const USDT_RECEIVING_ADDRESSES = parseUsdtReceivingAddresses(
+  process.env["USDT_RECEIVING_ADDRESSES"],
+  process.env["USDT_RECEIVING_ADDRESS"],
+);
 const USDT_TOKEN_CONTRACT = process.env["USDT_TOKEN_CONTRACT"] ?? "";
 
 /** The "network" value this runner logs under — it isn't itself a chain, it watches both. */
@@ -18,14 +22,14 @@ const RECONCILIATION_NETWORK = "reconciliation";
 /**
  * Would the TRON watcher actually be configured? Mirrors runner.ts's own
  * idle branch exactly (runner.ts's `startChainWatcher`, the
- * `if (USDT_NETWORK !== "tron" || !USDT_RECEIVING_ADDRESS || !USDT_TOKEN_CONTRACT || !tronGridFullHost)`
+ * `if (USDT_NETWORK !== "tron" || USDT_RECEIVING_ADDRESSES.length === 0 || !USDT_TOKEN_CONTRACT || !tronGridFullHost)`
  * check) rather than re-implementing env parsing by hand — runner.ts doesn't
  * expose that check as its own function, so this reads the same four env
  * vars the same way and calls the same exported `resolveTronGridFullHost`.
  */
 function isTronConfigured(): boolean {
   const tronGridFullHost = resolveTronGridFullHost(USDT_TRONGRID_NETWORK);
-  return USDT_NETWORK === "tron" && !!USDT_RECEIVING_ADDRESS && !!USDT_TOKEN_CONTRACT && !!tronGridFullHost;
+  return USDT_NETWORK === "tron" && USDT_RECEIVING_ADDRESSES.length > 0 && !!USDT_TOKEN_CONTRACT && !!tronGridFullHost;
 }
 
 /** Would the BSC watcher actually be configured? Reuses bsc-runner.ts's own exported check directly. */

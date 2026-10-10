@@ -234,7 +234,8 @@ export async function resolveChainCreditToDeposit(input: {
   adminId: string;
   expectedNetwork: string;
   expectedTokenContract: string;
-  expectedReceivingAddress: string;
+  /** Every address the server receives on for this network (rotating slot addresses). */
+  expectedReceivingAddresses: readonly string[];
 }): Promise<void> {
   const credit = await prisma.chainCredit.findUnique({ where: { id: input.chainCreditId } });
   if (!credit) throw new ChainCreditResolutionRefused("Payment not found.");
@@ -257,7 +258,7 @@ export async function resolveChainCreditToDeposit(input: {
   if (credit.tokenContract !== input.expectedTokenContract) {
     throw new ChainCreditResolutionRefused("Payment is for the wrong token contract.");
   }
-  if (credit.toAddress !== input.expectedReceivingAddress) {
+  if (!input.expectedReceivingAddresses.includes(credit.toAddress)) {
     throw new ChainCreditResolutionRefused("Payment was sent to a different address.");
   }
 

@@ -132,7 +132,7 @@ export async function startBscWatcher(provider?: EvmChainProvider): Promise<Chai
   const matchConfig = {
     expectedNetwork: BSC_NETWORK,
     expectedTokenContract: cfg.tokenContract,
-    expectedReceivingAddress: cfg.receivingAddress,
+    expectedReceivingAddresses: [cfg.receivingAddress],
   };
 
   let verified = false;

@@ -14,7 +14,7 @@ import { startChainWatcher } from "./chain-watcher/runner";
 import { startBscWatcher } from "./chain-watcher/bsc-runner";
 import { startReconciliationRunner } from "./chain-watcher/reconciliation-runner";
 import { startTatumRunner } from "./tatum-runner";
-import { isTatumProvider } from "@asm/tatum";
+import { usdtProviderFor } from "@asm/tatum";
 import { ControllerBridge } from "./algo/controller-bridge";
 import { BotCrowd } from "./algo/crowd";
 
@@ -72,13 +72,13 @@ async function main(): Promise<void> {
   await internal.listen();
 
   const bankFeed = await startBankFeedRunner();
-  // USDT detection: exactly one provider runs. The Tatum gateway (default)
-  // or, with USDT_DEPOSIT_PROVIDER=manual, the original shared-address
-  // TronGrid/BSC watchers — never both, so nothing is double-processed.
+  // USDT detection: exactly one provider runs PER NETWORK. The Tatum gateway
+  // (default) or, when that network's provider is "manual", the original
+  // shared-address TronGrid/BSC watcher — never both on one network, so
+  // nothing is double-processed. The Tatum runner only polls its own networks.
   const idleWatcher = { stop: async () => {} };
-  const gatewayActive = isTatumProvider();
-  const chainWatcher = gatewayActive ? idleWatcher : await startChainWatcher();
-  const bscWatcher = gatewayActive ? idleWatcher : await startBscWatcher();
+  const chainWatcher = usdtProviderFor("tron") === "manual" ? await startChainWatcher() : idleWatcher;
+  const bscWatcher = usdtProviderFor("bsc") === "manual" ? await startBscWatcher() : idleWatcher;
   const tatumRunner = startTatumRunner();
   const reconciliationRunner = startReconciliationRunner();
 

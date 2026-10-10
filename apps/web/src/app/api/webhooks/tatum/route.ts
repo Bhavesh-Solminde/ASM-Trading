@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
 
   const event = parseTatumWebhook(JSON.parse(raw) as unknown);
-  if (!event || !event.network || !usdtGatewayActive()) {
+  if (!event || !event.network || !usdtGatewayActive(event.network)) {
     return NextResponse.json({ ok: true, ignored: "unsupported" });
   }
 
