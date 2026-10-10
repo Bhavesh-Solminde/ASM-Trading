@@ -13,7 +13,7 @@ import {
   type PayoutMethod,
   type UsdtNetwork,
 } from "@asm/contracts";
-import { certificateHtml, type CertificateData } from "@/lib/certificate";
+import { certificateHtml, type CertificateData } from "@asm/mail/templates";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
 import { IconTether } from "@/components/trade/AssetIcon";
 import { usePlatform } from "@/components/shell/PlatformProvider";

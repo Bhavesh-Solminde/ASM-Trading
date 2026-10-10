@@ -13,7 +13,7 @@ import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { certificateHtml, certificateName, type CertificateData } from "@/lib/certificate";
+import { certificateHtml, displayName, type CertificateData } from "@asm/mail/templates";
 import { sendEmail } from "@asm/mail";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       loadProfile(session.userId),
     ]);
     const certificate: CertificateData = {
-      name: certificateName(profile),
+      name: displayName(profile),
       amountLabel: formatMoney(parsed.data.amount, account?.currency ?? "INR"),
       dateLabel: new Intl.DateTimeFormat("en-GB", {
         day: "2-digit",
