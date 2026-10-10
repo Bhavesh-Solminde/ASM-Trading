@@ -38,7 +38,7 @@ describe("notify senders", () => {
     expect(last()).toMatchObject({ idempotencyKey: "withdrawal-requested/w1", tag: "withdrawal_requested" });
 
     await sendWithdrawalPaidEmail({
-      to: "a@gmail.com", withdrawalId: "w1", payToLabel: "UPI",
+      to: "a@gmail.com", withdrawalId: "w1", name: "Asha", payToLabel: "UPI",
       certificate: { name: "Asha", amountLabel: "₹1.00", dateLabel: "11 Oct 2026", refId: "W1" },
     });
     expect(last()).toMatchObject({ idempotencyKey: "withdrawal-paid/w1", tag: "withdrawal_paid" });

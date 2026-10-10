@@ -24,6 +24,8 @@ export interface EmailMessage {
   idempotencyKey?: string | undefined;
   /** ASCII category shown in the Resend dashboard, e.g. "deposit_credited". */
   tag?: string | undefined;
+  /** Inline images referenced as `cid:<contentId>` (used by the sample sender). */
+  attachments?: Array<{ filename: string; content: string; contentId: string }> | undefined;
   cid?: string | undefined;
 }
 
@@ -83,6 +85,9 @@ export async function sendEmail(msg: EmailMessage, deps: SendDeps = defaultDeps)
     html: msg.html,
     ...(replyTo ? { reply_to: replyTo } : {}),
     ...(msg.tag ? { tags: [{ name: "category", value: msg.tag }] } : {}),
+    ...(msg.attachments?.length
+      ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, content: a.content, content_id: a.contentId })) }
+      : {}),
   });
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,

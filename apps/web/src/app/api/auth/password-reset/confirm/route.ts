@@ -3,7 +3,7 @@ import { PasswordResetConfirmSchema } from "@asm/contracts";
 import { resetPasswordWithToken } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { sendPasswordChangedEmail } from "@asm/mail";
-import { displayName } from "@asm/mail/templates";
+import { personName } from "@asm/mail/templates";
 import { hashPassword } from "@/lib/password";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     to: user.email,
     cid: ctx.cid,
     userId: user.userId,
-    name: displayName(user),
+    name: personName(user),
     changedAt: new Date(),
   });
 

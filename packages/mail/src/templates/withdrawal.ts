@@ -1,8 +1,8 @@
 import { certificateHtml, type CertificateData } from "./certificate";
-import { details, emailLayout, p, siteUrl, type RenderedEmail } from "./layout";
+import { details, emailLayout, greeting, p, siteUrl, type RenderedEmail } from "./layout";
 
 export function withdrawalRequestedEmail(input: {
-  name: string;
+  name: string | null;
   amountLabel: string;
   payToLabel: string;
   /** First withdrawal inside the hold window: status HELD. */
@@ -15,7 +15,8 @@ export function withdrawalRequestedEmail(input: {
       preheader: `${input.amountLabel} to ${input.payToLabel}.`,
       heading: "Withdrawal requested",
       bodyHtml: [
-        p(`Hi ${input.name}, we've received your request to withdraw ${input.amountLabel}.`),
+        greeting(input.name),
+        p(`We've received your request to withdraw ${input.amountLabel}.`),
         details([
           { label: "Amount", value: input.amountLabel },
           { label: "Pay to", value: input.payToLabel },
@@ -34,7 +35,12 @@ export function withdrawalRequestedEmail(input: {
   };
 }
 
-export function withdrawalPaidEmail(input: { certificate: CertificateData; payToLabel: string }): RenderedEmail {
+export function withdrawalPaidEmail(input: {
+  /** Greeting name; the certificate carries its own display name. */
+  name: string | null;
+  certificate: CertificateData;
+  payToLabel: string;
+}): RenderedEmail {
   const c = input.certificate;
   return {
     subject: "Your withdrawal is paid. Here's your certificate",
@@ -42,15 +48,16 @@ export function withdrawalPaidEmail(input: { certificate: CertificateData; payTo
       preheader: `${c.amountLabel} is on its way to ${input.payToLabel}.`,
       heading: "Withdrawal paid",
       bodyHtml: [
-        p(`Hi ${c.name}, we've sent ${c.amountLabel} to ${input.payToLabel}. Depending on your bank or network, it can take a little while to show up.`),
-        `<div style="margin:18px 0 6px;">${certificateHtml(c, "paid")}</div>`,
+        greeting(input.name),
+        p(`We've sent ${c.amountLabel} to ${input.payToLabel}. Depending on your bank or network, it can take a little while to show up.`),
+        `<div style="margin:4px 0 24px;">${certificateHtml(c, "paid", "adaptive")}</div>`,
       ].join(""),
     }),
   };
 }
 
 export function withdrawalRejectedEmail(input: {
-  name: string;
+  name: string | null;
   amountLabel: string;
   reason: string;
   refId: string;
@@ -61,7 +68,8 @@ export function withdrawalRejectedEmail(input: {
       preheader: `${input.amountLabel} is back in your balance.`,
       heading: "Withdrawal not completed",
       bodyHtml: [
-        p(`Hi ${input.name}, we couldn't pay your withdrawal of ${input.amountLabel}.`),
+        greeting(input.name),
+        p(`We couldn't pay your withdrawal of ${input.amountLabel}.`),
         details([
           { label: "Reason", value: input.reason },
           { label: "Refunded", value: input.amountLabel },

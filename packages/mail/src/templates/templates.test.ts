@@ -10,6 +10,8 @@ import {
   withdrawalRequestedEmail,
   details,
   displayName,
+  greeting,
+  personName,
   emailLayout,
   escapeHtml,
   formatDateLabel,
@@ -25,14 +27,15 @@ describe("escapeHtml", () => {
 });
 
 describe("emailLayout", () => {
-  it("renders the wordmark, heading, body and button", () => {
+  it("renders the logo, brand name, heading, body and button", () => {
     const html = emailLayout({
       preheader: "Preview line",
       heading: "Deposit credited",
       bodyHtml: "<p>Body</p>",
       cta: { label: "Start trading", url: "https://indianxtrade.com/trade" },
     });
-    expect(html).toContain("INDIANXTRADE");
+    expect(html).toContain('alt="IndianxTrade"');
+    expect(html).toContain(">IndianxTrade</td>");
     expect(html).toContain("Deposit credited");
     expect(html).toContain("Preview line");
     expect(html).toContain('href="https://indianxtrade.com/trade"');
@@ -172,6 +175,7 @@ describe("withdrawal emails", () => {
   });
   it("embeds the paid-stage certificate", () => {
     const { subject, html } = withdrawalPaidEmail({
+      name: "Asha",
       certificate: { name: "Asha Rao", amountLabel: "₹2,500.00", dateLabel: "11 Oct 2026", refId: "8F3A21C9" },
       payToLabel: "UPI · asha@okhdfc",
     });
@@ -185,5 +189,44 @@ describe("withdrawal emails", () => {
     });
     expect(html).toContain("The UPI ID couldn&#39;t receive the payment");
     expect(html).toContain("back in your balance");
+  });
+});
+
+describe("light and dark", () => {
+  const html = welcomeEmail({ name: "Asha", firstDepositBonusPercent: 100 }).html;
+  it("declares both colour schemes and ships a dark-mode stylesheet", () => {
+    expect(html).toContain('<meta name="color-scheme" content="light dark">');
+    expect(html).toContain("@media (prefers-color-scheme: dark)");
+    expect(html).toContain("[data-ogsc]");
+  });
+  it("is light by default and avoids pure white", () => {
+    expect(html).toContain("background:#f3f4f6");
+    expect(html).toContain("background:#fffffe");
+    expect(html).not.toMatch(/background:#(000000|05070b)/);
+  });
+  it("loads the logo from the public site", () => {
+    expect(html).toContain('src="https://indianxtrade.com/brand/indianxtrade-mark.png"');
+  });
+  it("renders the emailed certificate in the adaptive theme, the in-app one dark", () => {
+    const data = { name: "Asha", amountLabel: "₹1.00", dateLabel: "11 Oct 2026", refId: "X" };
+    expect(certificateHtml(data, "paid", "adaptive")).not.toContain("#05070b");
+    expect(certificateHtml(data)).toContain("#05070b");
+  });
+});
+
+describe("greeting", () => {
+  it("greets by name, or says 'Hi there' when we only have an email", () => {
+    expect(greeting("Asha")).toContain("Hi Asha,");
+    expect(greeting(null)).toContain("Hi there,");
+    expect(greeting("  ")).toContain("Hi there,");
+  });
+  it("personName never falls back to the email username", () => {
+    expect(personName({ firstName: null, lastName: null, nickname: null })).toBeNull();
+    expect(personName({ firstName: "Asha", lastName: "Rao" })).toBe("Asha Rao");
+    expect(personName({ nickname: " Ace " })).toBe("Ace");
+  });
+  it("reset email for a nameless account says 'Hi there'", () => {
+    const { html } = passwordResetEmail({ name: null, resetUrl: "https://indianxtrade.com/r", ttlMinutes: 30 });
+    expect(html).toContain("Hi there,");
   });
 });

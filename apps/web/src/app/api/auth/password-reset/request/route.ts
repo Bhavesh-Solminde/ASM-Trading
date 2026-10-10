@@ -3,7 +3,7 @@ import { PasswordResetRequestSchema } from "@asm/contracts";
 import { PASSWORD_RESET_TTL_MS, findUserByEmail, issuePasswordResetToken } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { sendPasswordResetEmail } from "@asm/mail";
-import { displayName } from "@asm/mail/templates";
+import { personName } from "@asm/mail/templates";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     to: user.email,
     cid: ctx.cid,
     tokenId: issued.id,
-    name: displayName(user),
+    name: personName(user),
     resetUrl: absoluteUrl(`/reset-password?token=${issued.token}`),
     ttlMinutes: PASSWORD_RESET_TTL_MS / 60_000,
   });

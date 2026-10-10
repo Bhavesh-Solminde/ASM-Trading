@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { sendDepositCreditedEmail } from "@asm/mail";
-import { displayName } from "@asm/mail/templates";
+import { personName } from "@asm/mail/templates";
 import { prisma } from "../client";
 import { formatMoney } from "../money";
 import { flagLinkageForUser } from "./fraud";
@@ -759,7 +759,7 @@ export async function creditDepositToAccount(input: {
   // The idempotency key (deposit id) stops a duplicate if this ever re-runs.
   sendDepositCreditedEmail({
     to: deposit.user.email,
-    name: displayName(deposit.user),
+    name: personName(deposit.user),
     depositId: deposit.id,
     creditLabel: formatMoney(credit, account.currency),
     bonusLabel: grantedBonus > 0 ? formatMoney(grantedBonus, account.currency) : null,

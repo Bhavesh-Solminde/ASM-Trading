@@ -3,7 +3,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { bonusPercentForDeposit, findOrCreateGoogleUser, findUserByEmail, updateUserLastSeen } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { sendWelcomeEmail } from "@asm/mail";
-import { displayName } from "@asm/mail/templates";
 import {
   GOOGLE_OAUTH_COOKIE,
   appOrigin,
@@ -91,7 +90,7 @@ export async function GET(req: NextRequest) {
       to: profile.email,
       cid: ctx.cid,
       userId: result.userId,
-      name: profile.givenName ?? displayName({ email: profile.email }),
+      name: profile.givenName || null,
       firstDepositBonusPercent: bonusPercentForDeposit(1),
     });
   } else {
