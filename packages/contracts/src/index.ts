@@ -1,6 +1,8 @@
 export {
   RegisterSchema,
   LoginSchema,
+  PasswordResetRequestSchema,
+  PasswordResetConfirmSchema,
   type RegisterInput,
   type LoginInput,
 } from "./auth";

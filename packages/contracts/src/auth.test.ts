@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LoginSchema, RegisterSchema } from "./auth";
+import { LoginSchema, PasswordResetConfirmSchema, PasswordResetRequestSchema, RegisterSchema } from "./auth";
 
 describe("RegisterSchema", () => {
   const valid = { name: "Asha Rao", email: "a@b.com", password: "correct-horse-battery" };
@@ -50,5 +50,20 @@ describe("LoginSchema", () => {
       impersonate: "someone-else",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("password reset schemas", () => {
+  it("normalises the email on a reset request", () => {
+    const r = PasswordResetRequestSchema.safeParse({ email: "  Asha@Gmail.com " });
+    expect(r.success && r.data.email).toBe("asha@gmail.com");
+  });
+  it("applies the signup password rule on confirm", () => {
+    const token = "x".repeat(43);
+    expect(PasswordResetConfirmSchema.safeParse({ token, password: "short" }).success).toBe(false);
+    expect(PasswordResetConfirmSchema.safeParse({ token, password: "correct-horse-battery" }).success).toBe(true);
+  });
+  it("rejects extra keys", () => {
+    expect(PasswordResetRequestSchema.safeParse({ email: "a@b.com", role: "ADMIN" }).success).toBe(false);
   });
 });
