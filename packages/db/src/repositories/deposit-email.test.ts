@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { sendDepositCreditedEmail } = vi.hoisted(() => ({
-  sendDepositCreditedEmail: vi.fn(async (_input: Record<string, unknown>) => ({ ok: true as const, id: "em_1" })),
+  sendDepositCreditedEmail: vi.fn<(input: Record<string, unknown>) => Promise<{ ok: true; id: string }>>(async () => ({ ok: true, id: "em_1" })),
 }));
 vi.mock("@asm/mail", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@asm/mail")>()),
@@ -37,7 +37,7 @@ beforeEach(() => sendDepositCreditedEmail.mockClear());
 
 // A random rupee amount, so the live-amount unique index never collides with
 // another test's open deposit.
-const randomAmount = () => (500 + Math.floor(Math.random() * 40_000)) * 100;
+const randomAmount = () => randomInt(500, 40_500) * 100;
 
 describe("deposit-credited email", () => {
   it("emails the credited amount and the bonus once the deposit commits", async () => {

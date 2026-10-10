@@ -3,13 +3,12 @@ import { NextRequest } from "next/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mail = vi.hoisted(() => ({
-  sendPasswordResetEmail: vi.fn(
-    async (_input: { to: string; tokenId: string; name: string; resetUrl: string; ttlMinutes: number }) => ({ ok: true as const, id: "em" }),
+  sendPasswordResetEmail: vi.fn<
+    (input: { to: string; tokenId: string; name: string; resetUrl: string; ttlMinutes: number }) => Promise<{ ok: true; id: string }>
+  >(async () => ({ ok: true, id: "em" })),
+  sendPasswordChangedEmail: vi.fn<(input: { to: string; userId: string; name: string; changedAt: Date }) => Promise<{ ok: true; id: string }>>(
+    async () => ({ ok: true, id: "em" }),
   ),
-  sendPasswordChangedEmail: vi.fn(async (_input: { to: string; userId: string; name: string; changedAt: Date }) => ({
-    ok: true as const,
-    id: "em",
-  })),
 }));
 // Partial mock: keep the real exports (@asm/db imports other senders from it).
 vi.mock("@asm/mail", async (importOriginal) => ({ ...(await importOriginal<typeof import("@asm/mail")>()), ...mail }));

@@ -12,7 +12,7 @@ const LIVE_ENV = {
 const MSG = { to: "asha@gmail.com", subject: "Hello", html: "<p>Hello</p>" };
 
 function setup(responses: Array<Response | Error>, env: Record<string, string | undefined> = LIVE_ENV) {
-  const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => {
+  const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async () => {
     const next = responses.shift();
     if (!next) throw new Error("unexpected extra fetch");
     if (next instanceof Error) throw next;

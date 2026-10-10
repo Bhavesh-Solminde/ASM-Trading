@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { sendEmail } = vi.hoisted(() => ({
-  sendEmail: vi.fn(async (_msg: { to: string; subject: string; html: string; idempotencyKey?: string; tag?: string }) => ({
-    ok: true as const,
-    id: "em_1",
-  })),
+  sendEmail: vi.fn<
+    (msg: { to: string; subject: string; html: string; idempotencyKey?: string; tag?: string }) => Promise<{ ok: true; id: string }>
+  >(async () => ({ ok: true, id: "em_1" })),
 }));
 vi.mock("./send", () => ({ sendEmail }));
 

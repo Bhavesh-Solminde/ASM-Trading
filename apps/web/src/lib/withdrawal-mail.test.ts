@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mail = vi.hoisted(() => ({
-  sendWithdrawalPaidEmail: vi.fn(async (_input: Record<string, unknown>) => ({ ok: true as const, id: "em" })),
-  sendWithdrawalRejectedEmail: vi.fn(async (_input: Record<string, unknown>) => ({ ok: true as const, id: "em" })),
+  sendWithdrawalPaidEmail: vi.fn<(input: Record<string, unknown>) => Promise<{ ok: true; id: string }>>(async () => ({ ok: true, id: "em" })),
+  sendWithdrawalRejectedEmail: vi.fn<(input: Record<string, unknown>) => Promise<{ ok: true; id: string }>>(async () => ({ ok: true, id: "em" })),
 }));
 // Partial mock: keep the real exports (@asm/db imports other senders from it).
 vi.mock("@asm/mail", async (importOriginal) => ({ ...(await importOriginal<typeof import("@asm/mail")>()), ...mail }));
