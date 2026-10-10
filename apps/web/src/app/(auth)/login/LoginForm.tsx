@@ -7,10 +7,19 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { EmailInput } from "@/components/auth/EmailInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
+import { Spinner } from "@/components/auth/Spinner";
 
 const GOOGLE_ERROR = "Google sign-in didn't go through. Try again, or log in with your email.";
 
-export function LoginForm({ googleEnabled, googleError }: { googleEnabled: boolean; googleError: boolean }) {
+export function LoginForm({
+  googleEnabled,
+  googleError,
+  notice,
+}: {
+  googleEnabled: boolean;
+  googleError: boolean;
+  notice: string | null;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,6 +80,12 @@ export function LoginForm({ googleEnabled, googleError }: { googleEnabled: boole
           showForgot
         />
 
+        {notice && !error ? (
+          <div role="status" className="rounded-lg border border-up/40 bg-up/10 px-3 py-2.5 text-sm text-up">
+            {notice}
+          </div>
+        ) : null}
+
         {error ? (
           <div
             role="alert"
@@ -97,23 +112,5 @@ export function LoginForm({ googleEnabled, googleError }: { googleEnabled: boole
         </button>
       </form>
     </AuthShell>
-  );
-}
-
-function Spinner() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      className="animate-spin"
-      aria-hidden
-    >
-      <path d="M12 3a9 9 0 1 0 9 9" />
-    </svg>
   );
 }

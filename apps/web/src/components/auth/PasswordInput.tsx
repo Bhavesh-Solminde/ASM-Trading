@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { forwardRef, useId, useState, type KeyboardEvent } from "react";
 
 type Props = {
@@ -39,9 +40,9 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
           {label}
         </label>
         {showForgot ? (
-          <a href="#" className="text-[11px] font-semibold text-ink-3 hover:text-brand">
+          <Link href="/forgot-password" className="text-[11px] font-semibold text-ink-3 hover:text-brand">
             Forgot password?
-          </a>
+          </Link>
         ) : null}
       </div>
       <div className="relative mt-2">
