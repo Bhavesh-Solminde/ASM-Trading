@@ -124,6 +124,7 @@ export {
   releaseHeldWithdrawal,
   rejectWithdrawal,
   markWithdrawalPaid,
+  getWithdrawalNotice,
   listWithdrawalsForActor,
   withdrawalLimitsMinor,
   type WithdrawalPayout,
@@ -144,6 +145,11 @@ export {
   type ProfileView,
 } from "./repositories/profile";
 export { issueTwoFactorCode, verifyTwoFactorCode } from "./repositories/twofa";
+export {
+  PASSWORD_RESET_TTL_MS,
+  issuePasswordResetToken,
+  resetPasswordWithToken,
+} from "./repositories/password-reset";
 export { createTicket, listTicketsForActor } from "./repositories/support";
 export {
   createRelayMessage,

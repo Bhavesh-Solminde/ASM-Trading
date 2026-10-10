@@ -173,6 +173,9 @@ importers:
       '@asm/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@asm/mail':
+        specifier: workspace:*
+        version: link:../../packages/mail
       '@asm/tatum':
         specifier: workspace:*
         version: link:../../packages/tatum
@@ -255,6 +258,9 @@ importers:
       '@asm/logger':
         specifier: workspace:*
         version: link:../logger
+      '@asm/mail':
+        specifier: workspace:*
+        version: link:../mail
       '@asm/trading':
         specifier: workspace:*
         version: link:../trading
@@ -289,6 +295,19 @@ importers:
       pino:
         specifier: 10.3.1
         version: 10.3.1
+
+  packages/mail:
+    dependencies:
+      '@asm/logger':
+        specifier: workspace:*
+        version: link:../logger
+    devDependencies:
+      dotenv-cli:
+        specifier: 10.0.0
+        version: 10.0.0
+      tsx:
+        specifier: 4.20.6
+        version: 4.20.6
 
   packages/pricing: {}
 

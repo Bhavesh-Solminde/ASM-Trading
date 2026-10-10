@@ -24,6 +24,12 @@ const name = z
 
 export const RegisterSchema = z.strictObject({ name, email, password });
 export const LoginSchema = z.strictObject({ email, password });
+export const PasswordResetRequestSchema = z.strictObject({ email });
+// A base64url 32-byte token is 43 characters; the bounds only reject junk.
+export const PasswordResetConfirmSchema = z.strictObject({
+  token: z.string().min(32).max(128),
+  password,
+});
 
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;

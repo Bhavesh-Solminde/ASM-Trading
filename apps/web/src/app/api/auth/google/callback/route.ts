@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { findOrCreateGoogleUser, findUserByEmail, updateUserLastSeen } from "@asm/db";
+import { bonusPercentForDeposit, findOrCreateGoogleUser, findUserByEmail, updateUserLastSeen } from "@asm/db";
 import { childLogger } from "@asm/logger";
+import { sendWelcomeEmail } from "@asm/mail";
+import { displayName } from "@asm/mail/templates";
 import {
   GOOGLE_OAUTH_COOKIE,
   appOrigin,
@@ -85,6 +87,13 @@ export async function GET(req: NextRequest) {
   if (result.created) {
     await provisionNewUser(result.userId, ctx);
     log.info({ evt: "auth.register", userId: result.userId, via: "google" }, "account created");
+    void sendWelcomeEmail({
+      to: profile.email,
+      cid: ctx.cid,
+      userId: result.userId,
+      name: profile.givenName ?? displayName({ email: profile.email }),
+      firstDepositBonusPercent: bonusPercentForDeposit(1),
+    });
   } else {
     updateUserLastSeen({ userId: result.userId, ip: ctx.ip, userAgent: ctx.userAgent }).catch(() => {
       /* best-effort, as on the password login route */

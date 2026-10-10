@@ -1,5 +1,8 @@
 import { randomBytes } from "node:crypto";
+import { sendDepositCreditedEmail } from "@asm/mail";
+import { displayName } from "@asm/mail/templates";
 import { prisma } from "../client";
+import { formatMoney } from "../money";
 import { flagLinkageForUser } from "./fraud";
 import { convertMinorBetween } from "./account";
 import type { Deposit, Prisma } from "../../generated/prisma/client";
@@ -548,7 +551,7 @@ export async function creditDepositToAccount(input: {
 }): Promise<void> {
   const deposit = await prisma.deposit.findUnique({
     where: { id: input.depositId },
-    include: { user: { select: { role: true } } },
+    include: { user: { select: { role: true, email: true, firstName: true, lastName: true, nickname: true } } },
   });
   if (!deposit) throw new DepositNotFound();
 
@@ -597,6 +600,9 @@ export async function creditDepositToAccount(input: {
   // differ from what the deposit reserved.
   const usdtOverride = admin?.usdtMinorOverride ?? received;
   const credit = depositCreditMinor(deposit, account.currency, usdtOverride);
+
+  // Set inside the transaction; read after commit for the email.
+  let grantedBonus = 0;
 
   await prisma.$transaction(async (tx) => {
     // With an admin resolution the deposit's amounts are rewritten to what
@@ -660,6 +666,7 @@ export async function creditDepositToAccount(input: {
     });
     const bonusPercent = bonusPercentForDeposit(depositNumber);
     const bonus = Math.floor((credit * bonusPercent) / 100);
+    grantedBonus = bonus;
 
     const updated = await tx.account.update({
       where: { id: account.id },
@@ -745,6 +752,20 @@ export async function creditDepositToAccount(input: {
   // advisory (admin decides), not a hold on the credit.
   flagLinkageForUser({ userId: deposit.userId }).catch(() => {
     /* the detector logs its own failures via the prisma client */
+  });
+
+  // Tell the user once the money is really there. Outside the transaction and
+  // not awaited: Resend being slow or down must never delay or undo a credit.
+  // The idempotency key (deposit id) stops a duplicate if this ever re-runs.
+  sendDepositCreditedEmail({
+    to: deposit.user.email,
+    name: displayName(deposit.user),
+    depositId: deposit.id,
+    creditLabel: formatMoney(credit, account.currency),
+    bonusLabel: grantedBonus > 0 ? formatMoney(grantedBonus, account.currency) : null,
+    totalLabel: formatMoney(credit + grantedBonus, account.currency),
+  }).catch(() => {
+    /* sendEmail never throws; this guards a template bug */
   });
 }
 

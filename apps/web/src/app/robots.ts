@@ -21,6 +21,8 @@ export default function robots(): MetadataRoute.Robots {
         "/checkout",
         "/login",
         "/register",
+        "/forgot-password",
+        "/reset-password",
       ],
     },
     sitemap: absoluteUrl("/sitemap.xml"),

@@ -7,8 +7,14 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; reset?: string }>;
 }) {
-  const { error } = await searchParams;
-  return <LoginForm googleEnabled={googleSignInEnabled()} googleError={error === "google"} />;
+  const { error, reset } = await searchParams;
+  return (
+    <LoginForm
+      googleEnabled={googleSignInEnabled()}
+      googleError={error === "google"}
+      notice={reset === "1" ? "Password updated. Log in with your new password." : null}
+    />
+  );
 }

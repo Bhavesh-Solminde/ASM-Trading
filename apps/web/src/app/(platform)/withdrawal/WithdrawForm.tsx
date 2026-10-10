@@ -13,7 +13,7 @@ import {
   type PayoutMethod,
   type UsdtNetwork,
 } from "@asm/contracts";
-import { certificateHtml, type CertificateData } from "@/lib/certificate";
+import { certificateHtml, type CertificateData } from "@asm/mail/templates";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
 import { IconTether } from "@/components/trade/AssetIcon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
@@ -379,7 +379,7 @@ function WithdrawReceipt({
         {held
           ? "Your first withdrawal sits on a short safety hold, then goes to review. You can cancel it from this page while the cancel window is open."
           : "Our team reviews it and sends the money within 5–10 hours. You can follow its status below."}
-        {receipt.emailed ? " A certificate has been emailed to you." : ""}
+        {receipt.emailed ? " We've emailed you a confirmation. Your certificate follows once it's paid." : ""}
       </p>
 
       {cert ? (

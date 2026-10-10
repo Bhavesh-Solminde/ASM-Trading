@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+const mail = vi.hoisted(() => ({
+  sendWithdrawalRequestedEmail: vi.fn<(input: Record<string, unknown>) => Promise<{ ok: true; id: string }>>(async () => ({ ok: true, id: "em" })),
+}));
+// Partial mock: keep the real exports (@asm/db imports other senders from it).
+vi.mock("@asm/mail", async (importOriginal) => ({ ...(await importOriginal<typeof import("@asm/mail")>()), ...mail }));
 import { createAccountsForUser, prisma } from "@asm/db";
 import { redis } from "@/lib/redis";
 import { SESSION_COOKIE, createSession } from "@/lib/session";
@@ -116,6 +122,9 @@ describe("POST /api/withdrawals", () => {
     await prisma.account.update({ where: { id: alice.liveId }, data: { realBalance: 5_000_00 } });
     const res = await post({ accountId: alice.liveId, amount: 1_000_00, payout: UPI }, alice.cookie);
     expect(res.status).toBe(201);
+    expect(mail.sendWithdrawalRequestedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ amountLabel: "₹1,000.00", payToLabel: expect.stringContaining("UPI") }),
+    );
     const body = (await res.json()) as { id: string; status: string };
     expect(body.status).toBe("REQUESTED");
     const row = await prisma.withdrawal.findUniqueOrThrow({ where: { id: body.id } });
