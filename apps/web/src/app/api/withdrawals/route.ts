@@ -14,7 +14,7 @@ import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { certificateHtml, certificateName, type CertificateData } from "@/lib/certificate";
-import { sendEmail } from "@/lib/mail";
+import { sendEmail } from "@asm/mail";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 export async function POST(req: NextRequest) {
