@@ -13,7 +13,7 @@ import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { displayName, formatDateLabel, payToLabel, shortRef, type CertificateData } from "@asm/mail/templates";
+import { displayName, formatDateLabel, payToLabel, personName, shortRef, type CertificateData } from "@asm/mail/templates";
 import { sendWithdrawalRequestedEmail } from "@asm/mail";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       to: profile.email,
       cid: ctx.cid,
       withdrawalId: withdrawal.id,
-      name,
+      name: personName(profile),
       amountLabel,
       payToLabel: payToLabel(parsed.data.payout.method, payoutDestinationLabel(parsed.data.payout)),
       held: withdrawal.status === "HELD",

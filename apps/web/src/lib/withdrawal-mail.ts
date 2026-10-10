@@ -2,7 +2,7 @@ import { payoutDestinationLabel } from "@asm/contracts";
 import { formatMoney, getWithdrawalNotice } from "@asm/db";
 import { logger } from "@asm/logger";
 import { sendWithdrawalPaidEmail, sendWithdrawalRejectedEmail } from "@asm/mail";
-import { displayName, formatDateLabel, payToLabel, shortRef } from "@asm/mail/templates";
+import { displayName, formatDateLabel, payToLabel, personName, shortRef } from "@asm/mail/templates";
 
 /**
  * Emails for the admin's withdrawal decisions. Both run after the decision is
@@ -17,6 +17,7 @@ export async function emailWithdrawalPaid(withdrawalId: string): Promise<void> {
     await sendWithdrawalPaidEmail({
       to: w.user.email,
       withdrawalId: w.id,
+      name: personName(w.user),
       payToLabel: payToLabel(w.method, payoutDestinationLabel(w)),
       certificate: {
         name: displayName(w.user),
@@ -37,7 +38,7 @@ export async function emailWithdrawalRejected(withdrawalId: string): Promise<voi
     await sendWithdrawalRejectedEmail({
       to: w.user.email,
       withdrawalId: w.id,
-      name: displayName(w.user),
+      name: personName(w.user),
       amountLabel: formatMoney(w.amount, w.currency),
       reason: w.reason ?? "We couldn't send this payout",
     });

@@ -1,6 +1,6 @@
-import { emailLayout, p, siteUrl, type RenderedEmail } from "./layout";
+import { emailLayout, greeting, p, siteUrl, type RenderedEmail } from "./layout";
 
-export function welcomeEmail(input: { name: string; firstDepositBonusPercent: number }): RenderedEmail {
+export function welcomeEmail(input: { name: string | null; firstDepositBonusPercent: number }): RenderedEmail {
   const pct = input.firstDepositBonusPercent;
   // Bonus copy follows the marketing posture: "Bonus", no wagering wording.
   const bonusLine =
@@ -15,8 +15,8 @@ export function welcomeEmail(input: { name: string; firstDepositBonusPercent: nu
       preheader: "Your account is ready. Start with the DEMO account.",
       heading: "Welcome to IndianxTrade",
       bodyHtml: [
-        p(`Hi ${input.name}, your IndianxTrade account is ready.`),
-        p("Your DEMO account comes loaded with practice money, so you can learn the platform without risking a rupee."),
+        greeting(input.name),
+        p("Your account is ready. Your DEMO account comes loaded with practice money, so you can learn the platform without risking a rupee."),
         bonusLine,
       ].join(""),
       cta: { label: "Start trading", url: siteUrl("/trade") },

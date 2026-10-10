@@ -1,7 +1,7 @@
-import { details, emailLayout, p, siteUrl, type EmailDetail, type RenderedEmail } from "./layout";
+import { details, emailLayout, greeting, p, siteUrl, type EmailDetail, type RenderedEmail } from "./layout";
 
 export function depositCreditedEmail(input: {
-  name: string;
+  name: string | null;
   creditLabel: string;
   /** Null when this deposit earned no bonus (5th deposit onwards). */
   bonusLabel: string | null;
@@ -21,7 +21,7 @@ export function depositCreditedEmail(input: {
         ? `Bonus ${input.bonusLabel} added too. Trade with ${input.totalLabel}.`
         : "Your money is in your LIVE account.",
       heading: "Deposit credited",
-      bodyHtml: [p(`Hi ${input.name}, your deposit is in your LIVE account and ready to trade.`), details(rows)].join(""),
+      bodyHtml: [greeting(input.name), p("Your deposit is in your LIVE account and ready to trade."), details(rows)].join(""),
       cta: { label: "Start trading", url: siteUrl("/trade") },
     }),
   };
