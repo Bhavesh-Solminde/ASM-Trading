@@ -76,10 +76,11 @@ export function startTickLoop(
     for (const asset of registry.all()) {
       let result;
       try {
-        // Sigma read from the pre-tick GARCH state — the same conditional
-        // volatility stepPrice is about to use for this tick's z draw, so the
-        // bias is scaled to the move that's actually about to happen.
-        const sigma = Math.sqrt(asset.state.garch.sigma2);
+        // Sigma read from the pre-tick MSM state — the MSM layers advance
+        // inside registry.tick() this same tick, but layer flips are rare
+        // and smooth, so this is a tight-enough approximation of the sigma
+        // stepPrice is about to use. Used to scale the bias cap only.
+        const sigma = registry.sigmaNow(asset.symbol, nowSec);
         const openPositions = desk.openFor(asset.id);
         const livePositions = openPositions.filter((p) => !p.isDemo);
         // Every asset is house-first now. India symbols observe a nightly

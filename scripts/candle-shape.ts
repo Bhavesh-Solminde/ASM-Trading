@@ -15,7 +15,21 @@
  */
 
 import { prisma } from "../packages/db/src/client";
-import { createRng, initPriceState, stepPrice, TICK_DT_SEC, type PriceParams } from "../packages/pricing/src/index";
+import {
+  INTRADAY_PROFILES,
+  MARKET_NEWS,
+  createRng,
+  initMsm,
+  initPriceState,
+  intradayFactor,
+  marketMsm,
+  msmMultiplier,
+  stepMsm,
+  stepPrice,
+  TICK_DT_SEC,
+  type IntradayProfileName,
+  type PriceParams,
+} from "../packages/pricing/src/index";
 
 interface Shape {
   count: number;
@@ -43,21 +57,33 @@ function shapeOf(candles: { o: number; h: number; l: number; c: number }[]): Sha
 }
 
 /** Honest random-walk baseline: the asset's own params, 1m candles, no steering. */
-function baseline(params: PriceParams, startPrice: number, minutes: number): Shape {
+function baseline(
+  params: PriceParams,
+  intraday: readonly number[],
+  startPrice: number,
+  minutes: number,
+): Shape {
   const rng = createRng(20261006);
   let state = initPriceState(startPrice, params);
+  let vol = initMsm(params.msm, rng.next);
   const ticksPerMinute = Math.round(60 / TICK_DT_SEC);
   const candles: { o: number; h: number; l: number; c: number }[] = [];
+  const baseSec = Math.floor(Date.now() / 1000);
   for (let m = 0; m < minutes; m++) {
     const o = state.price;
     let h = o;
     let l = o;
     for (let t = 0; t < ticksPerMinute; t++) {
+      vol = stepMsm(vol, params.msm, TICK_DT_SEC, rng.next);
+      const volScale =
+        msmMultiplier(vol) *
+        intradayFactor(intraday, baseSec + m * 60 + t * TICK_DT_SEC);
       state = stepPrice({
         state,
         params,
         dtSec: TICK_DT_SEC,
         z: rng.normal(),
+        volScale,
         driftBias: 0,
         magnet: 0,
         anchorTarget: null,
@@ -85,7 +111,14 @@ const hours = Number(process.argv[3] ?? 6);
 
 const asset = await prisma.asset.findUniqueOrThrow({
   where: { symbol },
-  select: { id: true, basePrice: true, tickSize: true, garchOmega: true, garchAlpha: true, garchBeta: true },
+  select: {
+    id: true,
+    basePrice: true,
+    tickSize: true,
+    msmSigma: true,
+    msmM0: true,
+    intradayProfile: true,
+  },
 });
 const stored = await prisma.candle.findMany({
   where: { assetId: asset.id, timeframe: "1m", openTs: { gt: new Date(Date.now() - hours * 3600_000) } },
@@ -93,8 +126,11 @@ const stored = await prisma.candle.findMany({
   orderBy: { openTs: "asc" },
 });
 
+const intraday = INTRADAY_PROFILES[asset.intradayProfile as IntradayProfileName];
 const params: PriceParams = {
-  garch: { omega: asset.garchOmega, alpha: asset.garchAlpha, beta: asset.garchBeta },
+  msm: marketMsm(asset.msmSigma, asset.msmM0),
+  intraday,
+  news: MARKET_NEWS,
   driftPerSec: 0,
   anchorAlpha: 0,
   maxTickMove: asset.tickSize * 40, // same cap the engine registry applies
@@ -102,6 +138,6 @@ const params: PriceParams = {
 
 console.log(`${symbol} · last ${hours}h of 1m candles vs an unsteered random walk (TICK_DT_SEC=${TICK_DT_SEC})\n`);
 print("stored candles", shapeOf(stored));
-print("random-walk baseline", baseline(params, stored.at(-1)?.c ?? asset.basePrice, 20_000));
+print("random-walk baseline", baseline(params, intraday, stored.at(-1)?.c ?? asset.basePrice, 20_000));
 
 await prisma.$disconnect();

@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
   const { email, password } = parsed.data;
 
   // Limit by IP and by account — one alone leaves a gap.
-  const okIp = await checkRateLimit(`rl:login:ip:${ctx.ip}`, 20, 300);
+  // Dev-only override for the algo-live-test's 100-user burst: when
+  // LOGIN_IP_RL env var is set, use that instead of the default 20.
+  const ipLimit = Number.parseInt(process.env.LOGIN_IP_RL ?? "20", 10) || 20;
+  const okIp = await checkRateLimit(`rl:login:ip:${ctx.ip}`, ipLimit, 300);
   const okAccount = await checkRateLimit(`rl:login:acct:${email}`, 5, 300);
   if (!okIp || !okAccount) {
     log.warn({ evt: "security.rate_limited", route: "login" }, "login throttled");

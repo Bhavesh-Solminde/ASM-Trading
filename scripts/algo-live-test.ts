@@ -1,15 +1,15 @@
 /**
- * End-to-end algorithm test with 10 concurrent traders.
+ * End-to-end algorithm test with 100 concurrent traders.
  *
- * Scenario: 5 users place ₹100 UP, 5 users place ₹300 DOWN, all on BTCUSDT
- * with a 60-second duration. DOWN has 3× the money at stake → the algorithm
+ * Scenario: 50 users place UP, 50 users place DOWN on NIFTY50 with a
+ * 30-second duration. DOWN carries 2× the money at stake → the algorithm
  * should push the shown chart UP (making DOWN lose), gradually across the
  * trade lifetime, then decay back toward the honest feed after expiry.
  *
- * The script seeds the 10 users if they don't already exist, logs each in
- * via HTTP, opens their trade in parallel, then polls the chart via the
- * `/api/candles` endpoint plus the live WebSocket ticker to record the
- * price trajectory. Results print at the end.
+ * The script seeds the 100 users if they don't already exist, logs each in
+ * via HTTP, opens their trades in chunked parallel batches, then polls the
+ * chart via Prisma + the API to record the price trajectory. Results print
+ * at the end.
  *
  * Requires the local dev servers (web on :3000, engine on :4001) to be up.
  * Run with:  pnpm tsx scripts/algo-live-test.ts
@@ -32,27 +32,51 @@ const DURATION_SEC = 30;
 // on argon2 being installed at the repo root.
 const SEED_USER_EMAIL_FOR_HASH = "deposited-calibrated@algo.asmtrade.local";
 const PASSWORD = "asm-algo-test-2026";
-const N_USERS = 10;
+const N_USERS = Number(process.env["N_USERS"] ?? 100);
 const LIVE_BALANCE_PAISE = 10_000_000; // ₹1,00,000
+// Chunk size for parallel HTTP calls — 100 users opening a trade in one
+// Promise.all melts the dev web server's connection pool, so we open in
+// chunks with a tiny delay in between.
+const OPEN_CHUNK = Number(process.env["OPEN_CHUNK"] ?? 20);
+const OPEN_CHUNK_DELAY_MS = Number(process.env["OPEN_CHUNK_DELAY_MS"] ?? 100);
 
-// The algorithm.md canonical scenario: 5×₹500 UP vs 5×₹1000 DOWN. DOWN
-// has 2× the money at stake, so under house-first mode DOWN must lose
-// every single trade in the bucket. The stakes are amplified 100× via env
-// override in bot-heavy environments; the ratio (2×) is what matters.
+// Canonical scenario — 50% UP, 50% DOWN. UP_STAKE and DOWN_STAKE are per
+// trade; DOWN carries 2× the liability per trader, so with equal counts the
+// book-side ratio is 2× DOWN. Under house-first the chart should push UP.
 const UP_STAKE = Number(process.env["UP_STAKE"] ?? 50_000); // ₹500
 const DOWN_STAKE = Number(process.env["DOWN_STAKE"] ?? 100_000); // ₹1000
+const UP_COUNT = Math.floor(N_USERS / 2);
+const DOWN_COUNT = N_USERS - UP_COUNT;
 const TRADES = [
-  ...Array.from({ length: 5 }, (_, i) => ({
+  ...Array.from({ length: UP_COUNT }, (_, i) => ({
     direction: "UP" as const,
     stakePaise: UP_STAKE,
     userIndex: i + 1,
   })),
-  ...Array.from({ length: 5 }, (_, i) => ({
+  ...Array.from({ length: DOWN_COUNT }, (_, i) => ({
     direction: "DOWN" as const,
     stakePaise: DOWN_STAKE,
-    userIndex: i + 6,
+    userIndex: UP_COUNT + i + 1,
   })),
 ];
+
+async function chunkedParallel<T, R>(
+  items: T[],
+  size: number,
+  delayMs: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += size) {
+    const slice = items.slice(i, i + size);
+    const results = await Promise.all(slice.map(fn));
+    out.push(...results);
+    if (i + size < items.length && delayMs > 0) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  return out;
+}
 
 interface UserContext {
   index: number;
@@ -71,7 +95,10 @@ async function ensureUsers(): Promise<UserContext[]> {
   const users: UserContext[] = [];
 
   for (let i = 1; i <= N_USERS; i++) {
-    const email = `trader${String(i).padStart(2, "0")}@live.asmtrade.local`;
+    // 3-digit padding supports N_USERS up to 999. Pre-existing trader01..10
+    // rows from older 2-digit runs stay orphaned in the DB but do not affect
+    // this test (we only touch our own padded emails).
+    const email = `trader${String(i).padStart(3, "0")}@live.asmtrade.local`;
     const user = await prisma.user.upsert({
       where: { email },
       update: {
@@ -195,36 +222,42 @@ async function main(): Promise<void> {
   const t0 = Math.floor(Date.now() / 1000);
   console.log(`\n[T-0] Seeding + logging in ${N_USERS} users...`);
   const users = await ensureUsers();
-  await Promise.all(users.map((u) => login(u)));
+  await chunkedParallel(users, OPEN_CHUNK, OPEN_CHUNK_DELAY_MS, (u) => login(u));
   console.log(`      Done. Sessions established for ${users.length} traders.`);
 
-  console.log(`\n[T-0] Opening trades — 5 × ₹100 UP + 5 × ₹300 DOWN`);
-  const opens = await Promise.all(
-    TRADES.map(async (t) => {
-      const user = users[t.userIndex - 1]!;
-      const result = await openTrade(user, t.direction, t.stakePaise);
-      return { user, trade: t, result };
-    }),
+  console.log(
+    `\n[T-0] Opening trades — ${UP_COUNT} × ₹${UP_STAKE / 100} UP + ${DOWN_COUNT} × ₹${DOWN_STAKE / 100} DOWN ` +
+      `(chunked ${OPEN_CHUNK} at a time)`,
   );
+  const opens = await chunkedParallel(TRADES, OPEN_CHUNK, OPEN_CHUNK_DELAY_MS, async (t) => {
+    const user = users[t.userIndex - 1]!;
+    const result = await openTrade(user, t.direction, t.stakePaise);
+    return { user, trade: t, result };
+  });
   const okOpens = opens.filter((o) => o.result.ok);
   console.log(`      ${okOpens.length}/${opens.length} trades opened successfully.`);
   for (const o of opens) {
     if (!o.result.ok) {
       console.log(
-        `      FAIL trader${String(o.user.index).padStart(2, "0")}: ` +
+        `      FAIL trader${String(o.user.index).padStart(3, "0")}: ` +
           `${o.result.status} ${o.result.body.slice(0, 100)}`,
       );
     }
   }
-  if (okOpens.length < 10) {
+  // Accept small open-side flakiness on 100-user runs: a few 429/503s under
+  // load would otherwise fail an otherwise-good imbalance signal. Need at
+  // least 80% of each side to see the effect clearly.
+  const upOk = okOpens.filter((o) => o.trade.direction === "UP").length;
+  const downOk = okOpens.filter((o) => o.trade.direction === "DOWN").length;
+  if (upOk < UP_COUNT * 0.8 || downOk < DOWN_COUNT * 0.8) {
     console.log(
-      "\n  Aborting — need all 10 opens to see the full imbalance effect.",
+      `\n  Aborting — opens too thin to measure (${upOk}/${UP_COUNT} UP, ${downOk}/${DOWN_COUNT} DOWN).`,
     );
     return;
   }
 
-  const upLiability = 5 * UP_STAKE * 0.87;
-  const downLiability = 5 * DOWN_STAKE * 0.87;
+  const upLiability = upOk * UP_STAKE * 0.87;
+  const downLiability = downOk * DOWN_STAKE * 0.87;
   console.log(`\n[T-0] Book imbalance recorded:`);
   console.log(`         UP  liability = ${upLiability.toLocaleString()} paise (${(upLiability / 100).toLocaleString()} ₹)`);
   console.log(`         DOWN liability = ${downLiability.toLocaleString()} paise (${(downLiability / 100).toLocaleString()} ₹)`);

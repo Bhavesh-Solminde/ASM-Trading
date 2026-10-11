@@ -1,15 +1,14 @@
 import { randomBytes } from "node:crypto";
 import argon2 from "argon2";
+import { MARKET_CALIBRATIONS } from "@asm/pricing";
 import { prisma } from "../src/client";
 
-// Flat volatility: alpha+beta=0 removes GARCH clustering (no more "big
-// candle, five dojis, big candle" rhythm). omega is the constant per-sec
-// log variance; sigma per 5s tick ≈ 3.16e-4, which at NIFTY ~23600 gives
-// ~7-8pt candles on the 1-sigma side and realistic 1m bodies in the
-// 20-30pt range. GARCH acts in log-return space, so the same number works
-// proportionally for every asset — a $0.30 DOGE to a 79,000-point Sensex.
-// History: 1e-6 "vibrated" → 1e-8 → 1e-9 → clustering → this.
-const GARCH = { garchOmega: 0.00000002, garchAlpha: 0, garchBeta: 0 } as const;
+// MSM volatility calibration per symbol. The canonical table lives in
+// packages/pricing/src/markets.ts (one source of truth with the engine).
+// Seeding reads it directly so there is no second place to keep in sync.
+const MSM_BY_SYMBOL = new Map(
+  MARKET_CALIBRATIONS.map((c) => [c.symbol, c] as const),
+);
 
 interface SeedAsset {
   symbol: string;
@@ -67,6 +66,17 @@ async function main() {
   // truth for market shape — but leaves payout* untouched so admin payout edits
   // survive a re-seed, matching the two originals above.
   for (const m of MARKETS) {
+    const calibration = MSM_BY_SYMBOL.get(m.symbol);
+    if (!calibration) {
+      throw new Error(
+        `seed: no MSM calibration in packages/pricing/src/markets.ts for symbol "${m.symbol}"`,
+      );
+    }
+    const msm = {
+      msmSigma: calibration.sigma,
+      msmM0: calibration.m0,
+      intradayProfile: calibration.profile,
+    } as const;
     await prisma.asset.upsert({
       where: { symbol: m.symbol },
       update: {
@@ -76,7 +86,7 @@ async function main() {
         precision: m.precision,
         tickSize: m.tickSize,
         isOpen: true,
-        ...GARCH,
+        ...msm,
       },
       create: {
         symbol: m.symbol,
@@ -88,7 +98,7 @@ async function main() {
         basePrice: m.basePrice,
         precision: m.precision,
         tickSize: m.tickSize,
-        ...GARCH,
+        ...msm,
       },
     });
   }

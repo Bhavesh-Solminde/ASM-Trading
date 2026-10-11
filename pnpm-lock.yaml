@@ -261,6 +261,9 @@ importers:
       '@asm/mail':
         specifier: workspace:*
         version: link:../mail
+      '@asm/pricing':
+        specifier: workspace:*
+        version: link:../pricing
       '@asm/trading':
         specifier: workspace:*
         version: link:../trading

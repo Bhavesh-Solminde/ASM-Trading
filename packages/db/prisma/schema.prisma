@@ -63,6 +63,14 @@ enum AssetKind {
   OTC
 }
 
+enum IntradayProfile {
+  FX_MAJOR
+  FX_PACIFIC
+  METAL
+  INDEX
+  CRYPTO
+}
+
 enum Direction {
   UP
   DOWN
@@ -274,22 +282,27 @@ model Account {
 }
 
 model Asset {
-  id          String    @id @default(uuid())
-  symbol      String    @unique
-  displayName String
-  kind        AssetKind
-  payoutPct   Int       @default(100)
-  payoutMin   Int       @default(100)
-  payoutMax   Int       @default(100)
-  isOpen      Boolean   @default(true)
-  tickSize    Float     @default(0.00001)
-  precision   Int       @default(5)
-  basePrice   Float     @default(1.0)
-  garchOmega  Float     @default(0.00000001)
-  garchAlpha  Float     @default(0.08)
-  garchBeta   Float     @default(0.90)
-  anchorAlpha Float     @default(0.08)
-  createdAt   DateTime  @default(now())
+  id              String          @id @default(uuid())
+  symbol          String          @unique
+  displayName     String
+  kind            AssetKind
+  payoutPct       Int             @default(100)
+  payoutMin       Int             @default(100)
+  payoutMax       Int             @default(100)
+  isOpen          Boolean         @default(true)
+  tickSize        Float           @default(0.00001)
+  precision       Int             @default(5)
+  basePrice       Float           @default(1.0)
+  // MSM volatility model (packages/pricing/src/msm.ts). msmSigma is the
+  // long-run log-price volatility per √second; msmM0 is the layer strength;
+  // intradayProfile picks one of five calibrated hour-of-day curves. These
+  // superseded GARCH on 2026-10-11; see packages/pricing/src/markets.ts for
+  // the canonical per-symbol calibration.
+  msmSigma        Float           @default(0.00001)
+  msmM0           Float           @default(1.5)
+  intradayProfile IntradayProfile @default(FX_MAJOR)
+  anchorAlpha     Float           @default(0.08)
+  createdAt       DateTime        @default(now())
 
   candles Candle[]
   trades  Trade[]
