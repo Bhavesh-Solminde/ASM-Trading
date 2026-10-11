@@ -30,6 +30,15 @@ export function usdCompactFromMinor(minor: number): string {
   return "$" + n.toFixed(0);
 }
 
+export function inrCompactFromMinor(minor: number): string {
+  const n = minor / 100;
+  const a = Math.abs(n);
+  if (a >= 1e9) return "₹" + (n / 1e9).toFixed(2) + "B";
+  if (a >= 1e6) return "₹" + (n / 1e6).toFixed(2) + "M";
+  if (a >= 1e3) return "₹" + (n / 1e3).toFixed(1) + "K";
+  return "₹" + n.toFixed(0);
+}
+
 export function num(n: number): string {
   return Number(n).toLocaleString("en-US");
 }

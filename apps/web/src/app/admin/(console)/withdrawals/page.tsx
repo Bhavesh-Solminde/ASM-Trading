@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
 import { Avatar, Card, EmptyRow, Pager, StatCard, StatusPill } from "../../_components/ui";
 import { PAYOUT_METHOD_LABEL, USDT_NETWORK_INFO, isUsdtNetwork } from "@asm/contracts";
-import { hrefWith, fmtDate, inrFromMinor, timeAgo, usdFromMinor } from "../../_lib/format";
+import { hrefWith, fmtDate, inrFromMinor, timeAgo } from "../../_lib/format";
 import {
   approveWithdrawalAction,
   markWithdrawalPaidAction,
@@ -20,7 +20,7 @@ const PER_PAGE = 20;
 type Tab = "pending" | "approved" | "held" | "history";
 
 function money(minor: number, currency: string): string {
-  return currency === "INR" ? inrFromMinor(minor) : usdFromMinor(minor);
+  return currency === "INR" ? inrFromMinor(minor) : inrFromMinor(minor);
 }
 
 function userName(u: { firstName: string | null; lastName: string | null; email: string }): string {
