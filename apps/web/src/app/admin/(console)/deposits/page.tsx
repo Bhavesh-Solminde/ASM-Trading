@@ -13,7 +13,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
 import { Avatar, Card, EmptyRow, Pager, StatCard, StatusPill } from "../../_components/ui";
 import { Icon } from "../../_lib/icons";
-import { hrefWith, fmtDate, fmtDateTime, inrFromMinor, timeAgo, inrCompactFromMinor } from "../../_lib/format";
+import { hrefWith, fmtDate, fmtDateTime, inrFromMinor, timeAgo, inrCompactFromMinor, usdFromMinor } from "../../_lib/format";
 import { approveDepositAction, rejectDepositAction, reverseUsdtDepositAction } from "./actions";
 import {
   EMPTY_EVIDENCE,
@@ -105,7 +105,7 @@ export default async function DepositsPage({
     }),
     prisma.deposit.aggregate({
       where: { AND: [{ status: "PENDING_CONFIRMATION" }, notAffiliate] },
-      _sum: { amountUsd: true },
+      _sum: { amountInr: true },
     }),
     countUsdtReviewQueue(),
   ]);
@@ -119,7 +119,7 @@ export default async function DepositsPage({
         value={String(pendingCount)}
         icon="inbox"
         warn={pendingCount > 0}
-        foot={<span>{inrCompactFromMinor(pendingAgg._sum.amountUsd ?? 0)} awaiting vouch</span>}
+        foot={<span>{inrCompactFromMinor(pendingAgg._sum.amountInr ?? 0)} awaiting vouch</span>}
       />
       <StatCard
         label="Withdrawals"
@@ -317,7 +317,7 @@ export default async function DepositsPage({
                         {/* USDT deposits carry a negative sentinel in amountInr and 0 in
                             amountUsd — their real amount lives in amountUsdtMinor. */}
                         <td className="num admin-num-right admin-cell-strong">
-                          {d.method === "USDT" ? usdtFromMinor(d.amountUsdtMinor) : inrFromMinor(d.amountUsd)}
+                          {d.method === "USDT" ? usdtFromMinor(d.amountUsdtMinor) : usdFromMinor(d.amountUsd)}
                           {d.method === "USDT" ? (
                             <div className="admin-cell-sub" style={{ fontSize: 11, fontWeight: 400 }}>
                               on {usdtNetworkLabel(d.network)}

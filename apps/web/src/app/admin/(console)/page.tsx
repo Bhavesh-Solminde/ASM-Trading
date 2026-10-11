@@ -42,7 +42,7 @@ export default async function OverviewPage() {
     prisma.user.count({ where: { role: { not: "AFFILIATE" } } }),
     prisma.deposit.aggregate({
       where: { status: "COMPLETED", user: { role: { not: "AFFILIATE" } } },
-      _sum: { amountUsd: true },
+      _sum: { amountInr: true },
     }),
     prisma.deposit.count({
       where: {
@@ -121,7 +121,7 @@ export default async function OverviewPage() {
         })()
       : [];
 
-  const completedSum = completedDeposits._sum.amountUsd ?? 0;
+  const completedSum = completedDeposits._sum.amountInr ?? 0;
   const pendingApprovals = pendingDeposits + requestedWithdrawals;
 
   return (
