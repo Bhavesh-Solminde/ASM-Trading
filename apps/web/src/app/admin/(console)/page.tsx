@@ -3,7 +3,7 @@ import { prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { AreaChart, Card, Donut, StatCard } from "../_components/ui";
 import { Icon, type IconName } from "../_lib/icons";
-import { avatarColor, num, timeAgo, usdCompactFromMinor } from "../_lib/format";
+import { avatarColor, num, timeAgo, inrCompactFromMinor } from "../_lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -135,7 +135,7 @@ export default async function OverviewPage() {
         />
         <StatCard
           label="Settled deposits"
-          value={usdCompactFromMinor(completedSum)}
+          value={inrCompactFromMinor(completedSum)}
           icon="dollar"
           foot={<span>{openMarkets} of {totalMarkets} markets open</span>}
         />
@@ -165,7 +165,7 @@ export default async function OverviewPage() {
           <div className="admin-chart-head">
             <div>
               <h3>30-day trade volume</h3>
-              <div className="big">{usdCompactFromMinor(totalVolume)}</div>
+              <div className="big">{inrCompactFromMinor(totalVolume)}</div>
               <div className="admin-stat__foot">
                 <span>total staked across all markets</span>
               </div>

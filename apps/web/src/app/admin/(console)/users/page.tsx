@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
 import { Avatar, EmptyRow, Pager, SortableTh, StatusPill, Tag } from "../../_components/ui";
 import { Icon } from "../../_lib/icons";
-import { fmtDate, usdFromMinor } from "../../_lib/format";
+import { fmtDate, inrFromMinor } from "../../_lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -156,9 +156,9 @@ export default async function UsersPage({
                       <StatusPill status={u.kycStatus} />
                     </td>
                     <td className="num admin-num-right">
-                      {bal ? usdFromMinor(bal) : <span style={{ color: "var(--admin-muted)" }}>—</span>}
+                      {bal ? inrFromMinor(bal) : <span style={{ color: "var(--admin-muted)" }}>—</span>}
                     </td>
-                    <td className="num admin-num-right">{usdFromMinor(u.cumulativeDeposits)}</td>
+                    <td className="num admin-num-right">{inrFromMinor(u.cumulativeDeposits)}</td>
                     <td className="num admin-num-right">{fmtDate(u.createdAt)}</td>
                     <td>
                       <div className="admin-row-actions">

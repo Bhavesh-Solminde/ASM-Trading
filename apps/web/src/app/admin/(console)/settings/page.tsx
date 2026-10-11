@@ -13,7 +13,7 @@ import { upiCollection } from "@/lib/upi-collection";
 import { Card } from "../../_components/ui";
 import { ThemeControl } from "../../_components/ThemeControl";
 import { Icon } from "../../_lib/icons";
-import { num, usdFromMinor } from "../../_lib/format";
+import { num, inrFromMinor } from "../../_lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +81,7 @@ export default async function SettingsPage({
             <Row
               label="Deposit range"
               desc="Minimum and maximum per deposit."
-              control={mono(`${usdFromMinor(MIN_DEPOSIT_USD_MINOR, 0)} – ${usdFromMinor(MAX_DEPOSIT_USD_MINOR, 0)}`)}
+              control={mono(`${inrFromMinor(MIN_DEPOSIT_USD_MINOR, 0)} – ${inrFromMinor(MAX_DEPOSIT_USD_MINOR, 0)}`)}
             />
             <Row
               label="Deposit hold window"

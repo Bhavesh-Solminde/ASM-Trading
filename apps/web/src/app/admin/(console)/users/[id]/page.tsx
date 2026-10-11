@@ -4,7 +4,7 @@ import { KycStatus, Role, listKycDocuments, prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { Avatar, Card, StatusPill, Tag } from "../../../_components/ui";
 import { Icon } from "../../../_lib/icons";
-import { fmtDate, usdFromMinor } from "../../../_lib/format";
+import { fmtDate, inrFromMinor } from "../../../_lib/format";
 import { updateUserAction } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -111,7 +111,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 <div className="desc">Real + bonus balance</div>
               </div>
               <div className="num" style={{ fontWeight: 600, fontSize: 15 }}>
-                {live ? usdFromMinor(live.realBalance + live.bonusBalance) : "—"}
+                {live ? inrFromMinor(live.realBalance + live.bonusBalance) : "—"}
               </div>
             </div>
             <div className="admin-set-row">
@@ -120,7 +120,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 <div className="desc">Practice balance</div>
               </div>
               <div className="num" style={{ fontWeight: 600, fontSize: 15 }}>
-                {demo ? usdFromMinor(demo.realBalance) : "—"}
+                {demo ? inrFromMinor(demo.realBalance) : "—"}
               </div>
             </div>
             <div className="admin-set-row">
@@ -129,7 +129,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
             </div>
             <div className="admin-set-row">
               <div className="lbl">Lifetime deposited</div>
-              <div className="num">{usdFromMinor(user.cumulativeDeposits)}</div>
+              <div className="num">{inrFromMinor(user.cumulativeDeposits)}</div>
             </div>
           </Card>
 
