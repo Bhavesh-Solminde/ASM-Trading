@@ -1,10 +1,22 @@
 import {
   CandleAggregator,
+  INTRADAY_PROFILES,
+  MARKET_NEWS,
+  baseSigma,
   createRng,
+  initMsm,
   initPriceState,
+  intradayFactor,
+  marketMsm,
+  msmMultiplier,
+  stepMsm,
+  stepNews,
   stepPrice,
+  withNews,
   TICK_DT_SEC,
   type Candle,
+  type IntradayProfileName,
+  type MsmState,
   type PriceParams,
   type PriceState,
   type Rng,
@@ -40,6 +52,12 @@ export interface LiveAsset {
    * this is "what the market would have done" for the shadow ledger.
    */
   honestState: PriceState;
+  /** MSM layer state, shared by shown and honest paths (volatility is exogenous). */
+  vol: MsmState;
+  /** Current news-shock level (0 = calm), shared by both paths. */
+  news: number;
+  /** Cached intraday profile reference so each tick can read it without a map lookup. */
+  intraday: readonly number[];
   /** Latest real quote, or null until the feed delivers one. */
   anchor: number | null;
   /** One candle aggregator per offered timeframe, all fed the same tick stream. */
@@ -79,8 +97,9 @@ const DT_SEC = TICK_DT_SEC;
 
 /**
  * Holds live per-asset price state in memory. This is why the engine is a
- * separate long-lived process rather than a Next.js route — GARCH state and a
- * forming candle cannot survive a serverless request model.
+ * separate long-lived process rather than a Next.js route — MSM layers,
+ * news-shock levels and in-progress candles cannot survive a serverless
+ * request model.
  */
 export class AssetRegistry {
   private assets = new Map<string, LiveAsset>();
@@ -102,9 +121,9 @@ export class AssetRegistry {
   /**
    * Loads exactly the named assets, ignoring the `isOpen` filter that `load()`
    * applies. For tests and tooling that must exercise the price engine against
-   * a specific market regardless of whether it is currently open — it reads the
-   * existing rows and never changes their open state, so it neither depends on
-   * nor mutates which markets users can trade.
+   * a specific market regardless of whether it is currently open — it reads
+   * the existing rows and never changes their open state, so it neither
+   * depends on nor mutates which markets users can trade.
    */
   async loadSymbols(symbols: string[]): Promise<void> {
     await this.ingest(await prisma.asset.findMany({ where: { symbol: { in: symbols } } }));
@@ -123,30 +142,32 @@ export class AssetRegistry {
         select: { c: true, openTs: true },
       });
 
+      const intradayProfile = INTRADAY_PROFILES[row.intradayProfile as IntradayProfileName];
       const params: PriceParams = {
-        garch: { omega: row.garchOmega, alpha: row.garchAlpha, beta: row.garchBeta },
+        msm: marketMsm(row.msmSigma, row.msmM0),
+        intraday: intradayProfile,
+        news: MARKET_NEWS,
         driftPerSec: 0,
         anchorAlpha: row.anchorAlpha,
-        // Headroom over the flat-vol baseline (~1 sigma ≈ 7-8 pts at NIFTY)
-        // so the clamp is only ever a 10+ sigma backstop against a freak
-        // draw or a far-away commit snap, never the dominant per-tick force.
+        // Headroom over the per-tick sigma so the clamp stays a 10+ sigma
+        // backstop against a freak draw or a far-away commit snap, never
+        // the dominant per-tick force. (tickSize × 200 kept the previous
+        // GARCH-era behavior and continues to work with MSM.)
         maxTickMove: row.tickSize * 200,
-        // trendPersistenceSec = 10. phi = exp(-5/10) ≈ 0.607 per tick (half-life
-        // ~7 seconds). 2000-bar NIFTY-ish sim lands at ~70% body / ~30% wick —
-        // the ratio users asked for. Shorter memory means more intra-candle
-        // direction reversals, so the extreme points stick out as visible
-        // retracement wicks instead of being averaged into the body.
+        // 10s momentum half-life — at the live 5s cadence this lands 1m
+        // bodies around 70% body / 30% wick, the ratio we want visually.
         trendPersistenceSec: 10,
       };
 
       const openedPrice = last?.c ?? row.basePrice;
       // Startup catchup backfill. If the latest persisted 1m candle is more
       // than one minute old (engine was down during a deploy, container was
-      // being rotated, host was rebooted) we would otherwise leave a visible
-      // multi-minute gap on every chart and resume at the stale close. Fill
-      // the missing wall-clock minutes with the same stepPrice algorithm the
-      // live loop uses, upsert them into the Candle table, and resume from
-      // the catchup END price so the live chart carries on seamlessly.
+      // being rotated, host was rebooted) we would otherwise leave a
+      // visible multi-minute gap on every chart and resume at the stale
+      // close. Fill the missing wall-clock minutes with the same
+      // stepPrice algorithm the live loop uses, upsert them into the
+      // Candle table, and resume from the catchup END price so the live
+      // chart carries on seamlessly.
       const startPrice = await catchupMissingCandles({
         assetId: row.id,
         symbol: row.symbol,
@@ -166,6 +187,9 @@ export class AssetRegistry {
         params,
         state: initPriceState(startPrice, params),
         honestState: initPriceState(startPrice, params),
+        vol: initMsm(params.msm, this.rng.next),
+        news: 0,
+        intraday: intradayProfile,
         anchor: null,
         aggregators: new Map(
           TIMEFRAMES.map((tf) => [tf, new CandleAggregator(TIMEFRAME_SEC[tf])]),
@@ -192,21 +216,59 @@ export class AssetRegistry {
   }
 
   /**
+   * Volatility per √second right now, before this tick's MSM switches —
+   * what the next tick will roughly use. The algo scales the magnet cap
+   * from this.
+   */
+  sigmaNow(symbol: string, nowSec?: number): number {
+    const asset = this.assets.get(symbol);
+    if (!asset) throw new Error(`unknown symbol "${symbol}"`);
+    return baseSigma(asset.state, asset.params) * this.volScale(asset, nowSec);
+  }
+
+  private volScale(asset: LiveAsset, nowSec: number | undefined): number {
+    let scale = msmMultiplier(asset.vol);
+    if (nowSec !== undefined) scale *= intradayFactor(asset.intraday, nowSec);
+    return withNews(scale, asset.news, MARKET_NEWS);
+  }
+
+  /**
    * Advances one asset by a single tick.
    *
    * `bias` steers the SHOWN path (driftBias from book imbalance, magnet from
    * expiry convergence — both supplied by the caller, since only the tick
    * loop and trade desk know the current book). The HONEST path advances
    * from the exact same `z` draw with driftBias and magnet hard zero, so it
-   * always reflects what the market would have done unbiased. Diverging the
-   * two paths only here, from one shared random draw, is what keeps them a
-   * true counterfactual pair rather than two independent simulations.
+   * always reflects what the market would have done unbiased. Diverging
+   * the two paths only here, from one shared random draw, is what keeps
+   * them a true counterfactual pair rather than two independent
+   * simulations.
    */
   tick(symbol: string, nowSec: number, bias: TickBias): TickResult {
     const asset = this.assets.get(symbol);
     if (!asset) {
       throw new Error(`tick called for unknown symbol "${symbol}"`);
     }
+
+    // Step MSM once per tick: the layers advance, and the new multiplier
+    // flows into both paths through volScale. Each step consumes a few
+    // uniforms from the shared RNG, so replay-by-seed stays intact.
+    asset.vol = stepMsm(asset.vol, asset.params.msm, DT_SEC, this.rng.next);
+    // News shocks arrive more often in busy hours.
+    const intradayRate = intradayFactor(asset.intraday, nowSec);
+    asset.news = stepNews(
+      asset.news,
+      MARKET_NEWS,
+      DT_SEC,
+      intradayRate,
+      this.rng.next,
+      this.rng.normal,
+    );
+    const volScale = withNews(
+      msmMultiplier(asset.vol) * intradayRate,
+      asset.news,
+      MARKET_NEWS,
+    );
 
     const z = this.rng.normal();
 
@@ -215,6 +277,7 @@ export class AssetRegistry {
       params: asset.params,
       dtSec: DT_SEC,
       z,
+      volScale,
       driftBias: bias.driftBias,
       magnet: bias.magnet,
       anchorTarget: asset.anchor,
@@ -227,6 +290,7 @@ export class AssetRegistry {
       params: asset.params,
       dtSec: DT_SEC,
       z,
+      volScale,
       driftBias: 0,
       magnet: 0,
       anchorTarget: asset.anchor,
@@ -242,11 +306,11 @@ export class AssetRegistry {
   }
 
   /**
-   * Feeds the price actually SHOWN this tick into every timeframe's candle and
-   * returns whichever candles closed. Kept separate from `tick` because the
-   * loop may still move the price after stepping it (the commit-phase snap);
-   * recording before that put highs/lows into candles that no viewer ever saw
-   * as a live price, which drew phantom wicks when the bar closed.
+   * Feeds the price actually SHOWN this tick into every timeframe's candle
+   * and returns whichever candles closed. Kept separate from `tick` because
+   * the loop may still move the price after stepping it (the commit-phase
+   * snap); recording before that put highs/lows into candles that no viewer
+   * ever saw as a live price, which drew phantom wicks when the bar closed.
    */
   record(symbol: string, nowSec: number, price: number): ClosedCandle[] {
     const asset = this.assets.get(symbol);
@@ -288,15 +352,16 @@ function hashSymbol(s: string): number {
 
 /**
  * On engine start, catches up any 1m candles that would otherwise be missing
- * between the last persisted close and the current wall-clock minute (the
- * engine was down, the host was rebooted, the container was rotated during a
- * deploy). Fills each missing minute with 12 ticks of stepPrice using a
- * per-asset seeded Rng so the catchup is deterministic within one invocation
- * and does not consume draws from the shared live Rng. Returns the price the
- * caller should use to initialise the asset's live state — the catchup end
- * price if we filled anything, otherwise the plain `openedPrice`.
+ * between the last persisted close and the current wall-clock minute. Fills
+ * each missing minute with 12 ticks of stepPrice using a per-asset seeded
+ * Rng so the catchup is deterministic within one invocation and does not
+ * consume draws from the shared live Rng. Returns the price the caller
+ * should use to initialise the asset's live state — the catchup end price
+ * if we filled anything, otherwise the plain `openedPrice`.
  *
- * Separated from the registry so the live-tick path stays unchanged.
+ * MSM volatility is advanced inside the catchup too, so a long gap doesn't
+ * all run at the flat long-run sigma. News shocks are deliberately omitted
+ * here — a backfill shouldn't invent headlines.
  */
 async function catchupMissingCandles(input: {
   assetId: string;
@@ -314,10 +379,20 @@ async function catchupMissingCandles(input: {
 
   if (input.last === null) return input.openedPrice;
   const lastBucketSec = Math.floor(input.last.openTs.getTime() / 1000);
-  const firstMissingSec = lastBucketSec + 60;
+  let firstMissingSec = lastBucketSec + 60;
 
   if (endBucketSec < firstMissingSec) {
     return input.openedPrice;
+  }
+
+  // Optional cap for test environments where the gap can be days: an
+  // uncapped backfill issues one Prisma transaction per 100 bars through
+  // the shared pooler, so a 3-day gap × 19 assets runs for an hour. Set
+  // CATCHUP_MAX_BARS to clamp the oldest end of the backfill window.
+  const maxBars = Number.parseInt(process.env.CATCHUP_MAX_BARS ?? "0", 10);
+  if (maxBars > 0) {
+    const earliestAllowed = endBucketSec - (maxBars - 1) * 60;
+    if (firstMissingSec < earliestAllowed) firstMissingSec = earliestAllowed;
   }
 
   // Deterministic per-asset Rng seeded on current time + symbol hash. The
@@ -326,6 +401,7 @@ async function catchupMissingCandles(input: {
   const rng = createRng(seed);
   const ticksPerMinute = Math.round(60 / TICK_DT_SEC);
   let state = initPriceState(input.openedPrice, input.params);
+  let vol = initMsm(input.params.msm, rng.next);
 
   const rows: { openTs: Date; o: number; h: number; l: number; c: number }[] = [];
   for (let bucketSec = firstMissingSec; bucketSec <= endBucketSec; bucketSec += 60) {
@@ -333,11 +409,17 @@ async function catchupMissingCandles(input: {
     let h = o;
     let l = o;
     for (let t = 0; t < ticksPerMinute; t++) {
+      vol = stepMsm(vol, input.params.msm, TICK_DT_SEC, rng.next);
+      const intraday = input.params.intraday
+        ? intradayFactor(input.params.intraday, bucketSec + t * TICK_DT_SEC)
+        : 1;
+      const volScale = msmMultiplier(vol) * intraday;
       state = stepPrice({
         state,
         params: input.params,
         dtSec: TICK_DT_SEC,
         z: rng.normal(),
+        volScale,
         driftBias: 0,
         magnet: 0,
         anchorTarget: null,

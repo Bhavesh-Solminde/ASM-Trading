@@ -20,6 +20,7 @@
     "@asm/config": "workspace:*",
     "@asm/logger": "workspace:*",
     "@asm/mail": "workspace:*",
+    "@asm/pricing": "workspace:*",
     "@asm/trading": "workspace:*",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",

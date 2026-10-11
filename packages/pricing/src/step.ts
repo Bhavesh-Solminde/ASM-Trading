@@ -1,43 +1,61 @@
-import { initGarch, stepGarch, type GarchParams, type GarchState } from "./garch";
+import type { MsmParams } from "./msm";
+import type { NewsParams } from "./news";
 
 /**
- * The four-layer tick composer.
+ * The five-layer tick composer.
  *
- *   L1 base      GBM with GARCH volatility — the honest random walk
- *   L2 drift     a small bounded bias (Plan 04 supplies it; 0 here)
- *   L3 magnet    expiry convergence pull (Plan 04 supplies it; 0 here)
- *   L4 anchor    weak pull toward a real market price
+ *   L1 base         GBM with MSM volatility and short-term momentum —
+ *                   the honest random walk
+ *   L2 drift        a small bounded bias
+ *   L3 magnet       expiry convergence pull
+ *   L4 anchor       weak pull toward a real market price
+ *   L5 self-anchor  optional pull toward an internal reference (the
+ *                   asset's own honest path)
  *
- * All four combine in log space so the price can never go negative, then the
- * total move is clamped so no single tick can draw an implausible candle.
+ * All layers combine in log space so the price can never go negative, then
+ * the total move is clamped so no single tick can draw an implausible
+ * candle.
+ *
+ * MSM volatility (`params.msm`) is EXOGENOUS: the asset owns an MsmState
+ * that advances independently of the price, and the caller folds its
+ * current layers × intraday × news into a single `volScale` scalar passed
+ * each tick. Keeping that computation outside `stepPrice` means the shown
+ * and honest paths see the exact same volatility, so divergence between
+ * them reflects only the bias/magnet layers.
  */
 
 export interface PriceParams {
-  readonly garch: GarchParams;
+  /** MSM volatility (src/msm.ts). Required — this engine is MSM-only. */
+  readonly msm: MsmParams;
+  /**
+   * 24 UTC-hour volatility multipliers (src/intraday.ts). Applied via
+   * `volScale` by the caller when the tick's wall-clock time is known.
+   */
+  readonly intraday?: readonly number[];
+  /** Rare volatility spikes (src/news.ts). Applied via `volScale`. */
+  readonly news?: NewsParams;
   /** Deterministic drift per second, in log space. Usually 0. */
   readonly driftPerSec: number;
-  /** Anchor strength per tick. 0 disables anchoring entirely. */
+  /** Anchor strength per tick (Layer 4). 0 disables anchoring entirely. */
   readonly anchorAlpha: number;
   /** Hard cap on absolute price movement in one tick. */
   readonly maxTickMove: number;
   /**
    * How long, in simulated SECONDS, a push in one direction tends to persist.
    * With independent ticks (0 / omitted — the default) the price zig-zags
-   * inside every candle and the wicks end up about as long as the body —
-   * bodies average only ~50-57% of the high-low range. Persistence makes
-   * consecutive ticks lean the same way via an AR(1) on the shock, so candles
-   * fill with body while long-run variance is preserved (trending ticks
-   * redistribute volatility, they don't add it). At the live 5s cadence 15
-   * gives 1m bodies ~74%; 60 lands near phi=0.92 per tick, strongly directional.
-   * Expressed in time rather than per tick so retuning TICK_DT_SEC keeps the
-   * same candle shape.
+   * inside every candle and the wicks end up about as long as the body
+   * (bodies average only ~50-57% of the high-low range). Persistence makes
+   * consecutive ticks lean the same way via an AR(1) on the shock, so
+   * candles fill with body while long-run variance is preserved (trending
+   * ticks redistribute volatility, they don't add it). At the live 5s
+   * cadence 10–15 gives 1m bodies ~70-74%. Expressed in time rather than
+   * per tick so retuning TICK_DT_SEC keeps the same candle shape.
    */
   readonly trendPersistenceSec?: number;
 }
 
 export interface PriceState {
   readonly price: number;
-  readonly garch: GarchState;
   /** Unit-variance shock carried from the previous tick (the momentum term). */
   readonly momentum: number;
 }
@@ -48,21 +66,24 @@ export interface StepPriceInput {
   readonly dtSec: number;
   /** Standard normal draw for this tick. */
   readonly z: number;
-  /** Layer 2. Log-space bias. Plan 04 bounds this to ±0.25·sigma. */
+  /**
+   * Exogenous volatility multiplier for this tick — MSM layers × intraday
+   * factor, optionally combined with the current news-shock level. Computed
+   * once per asset by the caller so the shown and honest paths share it.
+   * Defaults to 1.
+   */
+  readonly volScale?: number;
+  /** Layer 2. Log-space bias; the algo package bounds this to ±0.25·sigma. */
   readonly driftBias: number;
   /** Layer 3. Log-space pull toward an expiry target. */
   readonly magnet: number;
   /** Layer 4 target, or null when no real quote is available. */
   readonly anchorTarget: number | null;
   /**
-   * Layer 5 (Phase 2A). Optional pull toward an INTERNAL reference — the
-   * asset's own honest path — for OTC assets that have no external anchor.
-   * Same log-space proportional-pull shape as Layer 4 so it composes cleanly
-   * with the others.
-   *
-   * When present, `selfAnchorAlpha` controls the pull rate per tick. Passing
-   * null (or omitting both fields) disables the layer entirely — the
-   * pre-Phase-2 four-layer behavior.
+   * Layer 5. Optional pull toward an INTERNAL reference — the asset's own
+   * honest path. Same log-space proportional-pull shape as Layer 4 so it
+   * composes cleanly with the others. Pass null (or omit both fields) to
+   * disable the layer.
    */
   readonly selfAnchorTarget?: number | null;
   readonly selfAnchorAlpha?: number;
@@ -71,39 +92,41 @@ export interface StepPriceInput {
 export interface StepPriceOutput {
   readonly state: PriceState;
   readonly price: number;
-  /** The conditional volatility used for this tick — Plan 04 needs it to scale bias. */
+  /** The conditional volatility used for this tick — the algo scales bias from it. */
   readonly sigma: number;
 }
 
 /**
- * SECONDS BETWEEN PRICE UPDATES — the single source of truth for how often the
- * chart moves. This is the one number to change: set it to 1 for one update per
- * second, 0.5 for two per second, 2 for one every two seconds. The engine loop
- * emits exactly one new price every TICK_DT_SEC (loop.ts derives its setTimeout
- * from this) and each update advances the price by this much simulated time.
+ * SECONDS BETWEEN PRICE UPDATES — the single source of truth for how often
+ * the chart moves. The engine loop emits exactly one new price every
+ * TICK_DT_SEC (loop.ts derives its setTimeout from this) and each update
+ * advances the price by this much simulated time.
  *
- * At ~1s the price makes one decisive move and then HOLDS until the next update
- * (the client's brief easing glide settles well inside the interval), instead
- * of the constant sub-second "vibration" you get at small values. Because the
- * per-update move is `sigma·√dt·z`, per-SECOND volatility is unchanged when you
- * retune this — a 1s update simply moves in one larger step rather than many
- * tiny ones, so the market stays as lively, it just steps instead of shimmering.
- * All bias/magnet caps are expressed in these units.
+ * At ~1s the price makes one decisive move and then HOLDS until the next
+ * update (the client's brief easing glide settles well inside the interval),
+ * instead of the constant sub-second "vibration" you get at small values.
+ * Because the per-update move is `sigma·√dt·z`, per-SECOND volatility is
+ * unchanged when you retune this — a 1s update simply moves in one larger
+ * step rather than many tiny ones.
  */
-export const TICK_DT_SEC = 5; // one update every 5s — change this to taste
+export const TICK_DT_SEC = 5;
 
-/**
- * Per-tick standard deviation in log-price space.
- * Use this whenever you need sigmaTick for bias/magnet capping.
- */
+/** Per-tick standard deviation in log-price space. */
 export function perTickSigma(sigma: number, dtSec: number = TICK_DT_SEC): number {
   return sigma * Math.sqrt(dtSec);
 }
 
-export function initPriceState(
-  basePrice: number,
-  params: PriceParams,
-): PriceState {
+/** The volatility per √second this asset settles at in the long run. */
+export function longRunSigma(params: PriceParams): number {
+  return params.msm.sigma;
+}
+
+/** Volatility per √second before `volScale` — MSM's sigma. */
+export function baseSigma(_state: PriceState, params: PriceParams): number {
+  return params.msm.sigma;
+}
+
+export function initPriceState(basePrice: number, params: PriceParams): PriceState {
   if (!(basePrice > 0)) {
     throw new Error(`basePrice must be positive, received ${basePrice}`);
   }
@@ -111,7 +134,8 @@ export function initPriceState(
   if (!(persistence >= 0)) {
     throw new Error(`trendPersistenceSec must be >= 0, received ${persistence}`);
   }
-  return { price: basePrice, garch: initGarch(params.garch), momentum: 0 };
+  if (!params.msm) throw new Error("PriceParams.msm is required");
+  return { price: basePrice, momentum: 0 };
 }
 
 export function stepPrice(input: StepPriceInput): StepPriceOutput {
@@ -120,6 +144,7 @@ export function stepPrice(input: StepPriceInput): StepPriceOutput {
     params,
     dtSec,
     z,
+    volScale = 1,
     driftBias,
     magnet,
     anchorTarget,
@@ -127,13 +152,15 @@ export function stepPrice(input: StepPriceInput): StepPriceOutput {
     selfAnchorAlpha,
   } = input;
 
-  const { state: garch, sigma } = stepGarch(state.garch, params.garch, z);
+  // Volatility. MSM is exogenous — the caller already folded its layers,
+  // intraday factor and news level into `volScale`.
+  const sigma = params.msm.sigma * volScale;
 
   // Momentum: an AR(1) on the shock so a move tends to continue for about
-  // trendPersistenceSec. `momentum` stays unit-variance; `shock` is scaled by
-  // sqrt((1 - phi) / (1 + phi)) so the long-run variance of the summed moves is
-  // still sigma²·t — trending ticks redistribute volatility, they don't add it.
-  // phi = 0 collapses this back to the plain independent-z random walk.
+  // trendPersistenceSec. `momentum` stays unit-variance; `shock` is scaled
+  // by sqrt((1 - phi) / (1 + phi)) so the long-run variance of the summed
+  // moves is still sigma²·t — trending ticks redistribute volatility, they
+  // don't add it. phi = 0 collapses this to the plain independent-z walk.
   const persistence = params.trendPersistenceSec ?? 0;
   const phi = persistence > 0 ? Math.exp(-dtSec / persistence) : 0;
   const momentum = phi * state.momentum + Math.sqrt(1 - phi * phi) * z;
@@ -143,16 +170,16 @@ export function stepPrice(input: StepPriceInput): StepPriceOutput {
   let logMove =
     params.driftPerSec * dtSec + sigma * Math.sqrt(dtSec) * shock + driftBias + magnet;
 
-  // L4: anchoring is a proportional pull expressed in log space so it composes
-  // with the others rather than fighting them.
+  // L4: anchoring is a proportional pull expressed in log space so it
+  // composes with the others rather than fighting them.
   if (anchorTarget !== null && params.anchorAlpha > 0 && anchorTarget > 0) {
     logMove += params.anchorAlpha * Math.log(anchorTarget / state.price);
   }
 
-  // L5: OTC self-anchor. Same proportional-pull shape as L4 but the target is
-  // the caller-supplied internal reference (the asset's own honest path). The
-  // per-call `selfAnchorAlpha` is what governs it, not `params.anchorAlpha`,
-  // because L4 and L5 are independent axes.
+  // L5: OTC self-anchor. Same proportional-pull shape as L4 but the target
+  // is the caller-supplied internal reference. The per-call `selfAnchorAlpha`
+  // governs it, not `params.anchorAlpha`, because L4 and L5 are independent
+  // axes.
   if (
     selfAnchorTarget != null &&
     selfAnchorAlpha != null &&
@@ -164,8 +191,8 @@ export function stepPrice(input: StepPriceInput): StepPriceOutput {
 
   const candidate = state.price * Math.exp(logMove);
 
-  // Clamp the realised move. This is the guard that stops a large magnet or a
-  // freak draw from producing a candle nobody would believe.
+  // Clamp the realised move. This is the guard that stops a large magnet or
+  // a freak draw from producing a candle nobody would believe.
   const delta = candidate - state.price;
   const clamped =
     Math.abs(delta) > params.maxTickMove
@@ -174,5 +201,5 @@ export function stepPrice(input: StepPriceInput): StepPriceOutput {
 
   const price = clamped > 0 ? clamped : state.price;
 
-  return { state: { price, garch, momentum }, price, sigma };
+  return { state: { price, momentum }, price, sigma };
 }

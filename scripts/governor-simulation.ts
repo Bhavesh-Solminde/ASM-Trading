@@ -36,7 +36,7 @@ import {
   type Verdict,
 } from "../packages/algo/src/index";
 import {
-  initGarch,
+  initPriceState,
   stepPrice,
   type PriceParams,
   type PriceState,
@@ -71,8 +71,19 @@ const PAYOUT_PCT = 85;
 const DAILY_TARGET_MINOR = 1_000_000;
 const REFERENCE_STAKE_MINOR = 10_000;
 
+// Governor-simulation calibration (MSM-only): a NIFTY-ish long-run sigma
+// with the stock 8-layer stack. Intraday + news are omitted so the chart's
+// behaviour is determined entirely by the governor path — the point of
+// this script is to exercise verdict + magnet + commit-snap logic, not to
+// benchmark realism (that's realism.ts in the reference folder).
 const priceParams: PriceParams = {
-  garch: { mu: 0, omega: 1e-9, alpha: 0.06, beta: 0.92 },
+  msm: {
+    sigma: 2.0e-5,
+    components: 8,
+    m0: 1.5,
+    fastestSec: 1,
+    slowestSec: 3 * 86400,
+  },
   driftPerSec: 0,
   anchorAlpha: 0,
   maxTickMove: 200 * TICK_SIZE,
@@ -123,7 +134,7 @@ function runTickLoopOne(
 
   for (let tick = 1; tick <= TICKS; tick++) {
     const nowSec = position.entrySec + tick * TICK_DT;
-    const sigma = Math.sqrt(state.garch.sigma2);
+    const sigma = priceParams.msm.sigma;
 
     let magnet = 0;
     if (position.verdict !== "HONEST" && !position.isDemo) {
@@ -188,10 +199,7 @@ function runTickLoopMulti(
   perPosition: Record<string, { prices: number[]; times: number[] }>;
   sharedPrice: { prices: number[]; times: number[] };
 } {
-  let state: PriceState = {
-    price: ENTRY_PRICE,
-    garch: initGarch(priceParams.garch, 0.0004),
-  };
+  let state: PriceState = initPriceState(ENTRY_PRICE, priceParams);
   const sharedPrices: number[] = [state.price];
   const sharedTimes: number[] = [0];
   const perPosition: Record<string, { prices: number[]; times: number[] }> = {};
@@ -202,7 +210,7 @@ function runTickLoopMulti(
 
   for (let tick = 1; tick <= totalTicks; tick++) {
     const nowSec = tick * TICK_DT;
-    const sigma = Math.sqrt(state.garch.sigma2);
+    const sigma = priceParams.msm.sigma;
 
     // Per-trade blend across all live non-HONEST open positions.
     let numer = 0;
@@ -296,10 +304,7 @@ function runSequential(opts: {
 }): { trades: TradeRun[]; realizedFinalMinor: number } {
   const { seed, isDemo, count, stake, direction, userId } = opts;
   const rng = mulberry32(seed);
-  let state: PriceState = {
-    price: ENTRY_PRICE,
-    garch: initGarch(priceParams.garch, 0.0004),
-  };
+  let state: PriceState = initPriceState(ENTRY_PRICE, priceParams);
   const trades: TradeRun[] = [];
   let lossStreak = 0;
   let realizedMinor = 0;

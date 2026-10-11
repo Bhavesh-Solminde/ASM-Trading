@@ -1,9 +1,8 @@
 /**
  * Pre-populates every open asset with HOURS hours of synthetic 1m
- * candles using whatever GARCH preset is currently stored on each asset
- * row (flat, in the current tree). Upserts replace any existing rows in
- * that window. The engine continues from the latest close when it next
- * runs.
+ * candles using each asset's stored MSM calibration. Upserts replace any
+ * existing rows in that window. The engine continues from the latest
+ * close when it next runs.
  *
  *   DATABASE_URL=... DIRECT_URL=... pnpm tsx scripts/backfill-all-markets.ts
  *   DATABASE_URL=... DIRECT_URL=... pnpm tsx scripts/backfill-all-markets.ts NIFTY50
@@ -13,10 +12,18 @@
  */
 import { prisma } from "../packages/db/src/client";
 import {
+  INTRADAY_PROFILES,
+  MARKET_NEWS,
   createRng,
+  initMsm,
   initPriceState,
+  intradayFactor,
+  marketMsm,
+  msmMultiplier,
+  stepMsm,
   stepPrice,
   TICK_DT_SEC,
+  type IntradayProfileName,
   type PriceParams,
 } from "../packages/pricing/src/index";
 
@@ -29,9 +36,9 @@ interface AssetRow {
   basePrice: number;
   precision: number;
   tickSize: number;
-  garchOmega: number;
-  garchAlpha: number;
-  garchBeta: number;
+  msmSigma: number;
+  msmM0: number;
+  intradayProfile: IntradayProfileName;
 }
 
 function hashSymbol(s: string): number {
@@ -44,8 +51,11 @@ function hashSymbol(s: string): number {
 }
 
 async function backfill(asset: AssetRow, endBucketSec: number, wipeFirst: boolean) {
+  const intraday = INTRADAY_PROFILES[asset.intradayProfile];
   const params: PriceParams = {
-    garch: { omega: asset.garchOmega, alpha: asset.garchAlpha, beta: asset.garchBeta },
+    msm: marketMsm(asset.msmSigma, asset.msmM0),
+    intraday,
+    news: MARKET_NEWS,
     driftPerSec: 0,
     anchorAlpha: 0,
     maxTickMove: asset.tickSize * 200,
@@ -76,6 +86,7 @@ async function backfill(asset: AssetRow, endBucketSec: number, wipeFirst: boolea
   const ticksPerMinute = Math.round(60 / TICK_DT_SEC);
   const rng = createRng((Date.now() ^ hashSymbol(asset.symbol)) & 0x7fffffff);
   let state = initPriceState(startPrice, params);
+  let vol = initMsm(params.msm, rng.next);
   const startBucketSec = endBucketSec - (MINUTES - 1) * 60;
 
   const rows: { openTs: Date; o: number; h: number; l: number; c: number }[] = [];
@@ -84,11 +95,15 @@ async function backfill(asset: AssetRow, endBucketSec: number, wipeFirst: boolea
     let h = o;
     let l = o;
     for (let t = 0; t < ticksPerMinute; t++) {
+      vol = stepMsm(vol, params.msm, TICK_DT_SEC, rng.next);
+      const tickSec = startBucketSec + m * 60 + t * TICK_DT_SEC;
+      const volScale = msmMultiplier(vol) * intradayFactor(intraday, tickSec);
       state = stepPrice({
         state,
         params,
         dtSec: TICK_DT_SEC,
         z: rng.normal(),
+        volScale,
         driftBias: 0,
         magnet: 0,
         anchorTarget: null,
@@ -151,9 +166,9 @@ async function main() {
       basePrice: true,
       precision: true,
       tickSize: true,
-      garchOmega: true,
-      garchAlpha: true,
-      garchBeta: true,
+      msmSigma: true,
+      msmM0: true,
+      intradayProfile: true,
     },
   });
   if (assets.length === 0) {

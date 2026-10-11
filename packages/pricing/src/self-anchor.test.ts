@@ -7,14 +7,20 @@ import { createRng } from "./rng";
  * pricing-side behaviour; the algo package supplies the concrete alpha
  * constants at runtime (`SELF_ANCHOR_ALPHA`, `SELF_ANCHOR_ALPHA_CLOSED`) and
  * this file mirrors their exact numbers to prove they compose sanely with
- * GARCH + drift.
+ * MSM + drift.
  */
 
 const SELF_ANCHOR_ALPHA = 0.05;
 const SELF_ANCHOR_ALPHA_CLOSED = 0.20;
 
 const params: PriceParams = {
-  garch: { omega: 0.000001, alpha: 0.08, beta: 0.9 },
+  msm: {
+    sigma: 1.0e-3,
+    components: 8,
+    m0: 1.5,
+    fastestSec: 1,
+    slowestSec: 3 * 86400,
+  },
   driftPerSec: 0,
   anchorAlpha: 0,
   maxTickMove: 0.01,
