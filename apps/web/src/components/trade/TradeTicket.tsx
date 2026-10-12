@@ -56,8 +56,8 @@ function formatDuration(seconds: number): string {
 }
 
 const STEP =
-  "relative grid h-12 place-items-center rounded border border-white/40 text-ink-2 hover:border-white/70 hover:bg-panel hover:text-ink phone:h-[26px] phone:after:absolute phone:after:-inset-x-1.5 phone:after:-inset-y-[7px]";
-const DISPLAY = "grid h-12 place-items-center rounded border border-white/40 bg-panel phone:h-[26px]";
+  "relative grid h-12 place-items-center rounded border border-white/40 text-ink-2 hover:border-white/70 hover:bg-panel hover:text-ink phone:h-[34px] phone:after:absolute phone:after:-inset-x-1.5 phone:after:-inset-y-[7px]";
+const DISPLAY = "grid h-12 place-items-center rounded border border-white/40 bg-panel phone:h-[34px]";
 /** A cell in the expiry picker grid. */
 const PICK =
   "h-10 rounded-md text-[13px] font-semibold tabular-nums transition-colors phone:text-[12px]";
@@ -194,7 +194,7 @@ export function TradeTicket({
   }
 
   const slab =
-    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-[31px] phone:pl-2.5 phone:pr-2 phone:text-[11px] phone:leading-none";
+    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-11 phone:pl-2.5 phone:pr-2 phone:text-[11px] phone:leading-none";
   const slabLive = "hover:brightness-110 active:translate-y-px disabled:cursor-wait";
   const slabClosed = "cursor-not-allowed bg-tile text-ink-3";
   const slabNote =
@@ -257,7 +257,7 @@ export function TradeTicket({
               id="ticket-durations"
               role="dialog"
               aria-label="Choose expiry"
-              className="absolute left-0 top-[calc(100%+8px)] z-40 w-[264px] max-w-[calc(100vw-16px)] rounded-xl border border-white/10 bg-[#262b33] p-2.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.85)] phone:bottom-[calc(100%+8px)] phone:top-auto phone:w-[248px]"
+              className="absolute left-0 top-[calc(100%+8px)] z-40 w-[264px] max-w-[calc(100vw-16px)] rounded-xl border border-white/10 bg-tile-hi p-2.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.85)] phone:bottom-[calc(100%+8px)] phone:top-auto phone:w-[248px]"
             >
               <div role="tablist" aria-label="Expiry mode" className="mb-2.5 grid grid-cols-2 gap-0.5 rounded-md bg-white/10 p-0.5">
                 {(["timer", "time"] as const).map((m) => (
@@ -440,7 +440,7 @@ export function TradeTicket({
       ) : error ? (
         <div
           role="alert"
-          className="grid grid-cols-[auto_1fr] items-start gap-2 rounded-[2px] bg-warn-bg px-2.5 py-2 text-xs text-[#ffb3a8] shadow-[inset_0_0_0_1px_rgba(229,65,59,.5)] phone:gap-1.5 phone:px-2 phone:py-1 phone:text-[10px]"
+          className="grid grid-cols-[auto_1fr] items-start gap-2 rounded-[2px] bg-warn-bg px-2.5 py-2 text-xs text-down shadow-[inset_0_0_0_1px_rgba(229,65,59,.5)] phone:gap-1.5 phone:px-2 phone:py-1 phone:text-[10px]"
         >
           <Icon name="alert" className="size-4 phone:size-3" />
           {error}

@@ -20,6 +20,27 @@ const STATUS_LABEL: Record<string, string> = {
   PAID: "Paid",
 };
 
+/** Pill colour by what the status means to the user, not by its raw value. */
+const STATUS_TONE: Record<string, string> = {
+  COMPLETED: "bg-up/10 text-up",
+  APPROVED: "bg-up/10 text-up",
+  PAID: "bg-up/10 text-up",
+  PENDING_CONFIRMATION: "bg-caution/10 text-caution",
+  REQUESTED: "bg-caution/10 text-caution",
+  AWAITING_PAYMENT: "bg-caution/10 text-caution",
+  REJECTED: "bg-down/10 text-down",
+  EXPIRED: "bg-down/10 text-down",
+};
+
+function StatusPill({ status }: { status: string }) {
+  const tone = STATUS_TONE[status] ?? "bg-tile text-ink-2";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone}`}>
+      {STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
+
 /**
  * What a deposit row shows, in USD cents. USDT deposits leave the legacy
  * amountUsd column at 0 and carry their value in amountUsdtMinor (USDT-cents,
@@ -72,7 +93,7 @@ export default async function BalancePage() {
             <Icon name="history" className="size-6" aria-hidden />
           </span>
           <h2 className="text-base font-semibold">No transactions yet</h2>
-          <p className="max-w-[40ch] text-sm text-ink-2">Deposits, withdrawals and bonuses will show up here.</p>
+          <p className="max-w-[48ch] text-balance text-sm text-ink-2">Deposits, withdrawals and bonuses will show up here.</p>
           <Link
             href="/deposit"
             className="mt-2 rounded bg-brand-fill px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-fill-hi phone:py-3"
@@ -126,7 +147,9 @@ export default async function BalancePage() {
                   <span className="text-xs tabular-nums text-ink-2">
                     {row.at.toISOString().slice(0, 16).replace("T", " ")}
                   </span>
-                  <span className="text-right text-xs text-ink-2">{STATUS_LABEL[row.status] ?? row.status}</span>
+                  <span className="justify-self-end">
+                    <StatusPill status={row.status} />
+                  </span>
                   <span className="col-span-2 font-mono text-[11px] text-ink-3">
                     {row.id.slice(0, 8).toUpperCase()}
                   </span>
@@ -161,10 +184,7 @@ export default async function BalancePage() {
                         {row.at.toISOString().slice(0, 16).replace("T", " ")}
                       </td>
                       <td className="py-3">
-                        <span className="flex items-center gap-1.5">
-                          <span aria-hidden>🕐</span>
-                          {STATUS_LABEL[row.status] ?? row.status}
-                        </span>
+                        <StatusPill status={row.status} />
                         {row.note ? (
                           <p className="mt-2 max-w-sm rounded bg-tile p-2 text-[11px] leading-relaxed text-ink-2">
                             {row.note}

@@ -69,8 +69,8 @@ export function LeaderboardView({ result }: { result: LeaderboardResultDto }) {
           <span className="mb-2 grid size-11 place-items-center rounded-full bg-tile text-ink-3">
             <Icon name="cup" className="size-5" />
           </span>
-          <p className="text-base font-semibold">No ranked traders yet today.</p>
-          <p className="text-sm text-ink-2">Close a profitable live trade to get on the board.</p>
+          <p className="text-balance text-base font-semibold">No ranked traders yet today.</p>
+          <p className="text-balance text-sm text-ink-2">Close a profitable live trade to get on the board.</p>
         </div>
       ) : (
         <ol className="m-0 list-none overflow-hidden rounded border border-rule bg-panel">
