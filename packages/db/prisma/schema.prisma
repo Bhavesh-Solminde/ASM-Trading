@@ -63,6 +63,16 @@ enum AssetKind {
   OTC
 }
 
+/// The asset class a market belongs to. Purely presentational: it groups the
+/// catalogue into the trade UI's market-picker tabs and has no effect on
+/// pricing or settlement.
+enum AssetClass {
+  FOREX
+  CRYPTO
+  COMMODITY
+  INDEX
+}
+
 enum IntradayProfile {
   FX_MAJOR
   FX_PACIFIC
@@ -286,6 +296,8 @@ model Asset {
   symbol          String          @unique
   displayName     String
   kind            AssetKind
+  /// Presentational grouping for the trade UI's market-picker tabs.
+  assetClass      AssetClass      @default(FOREX)
   payoutPct       Int             @default(100)
   payoutMin       Int             @default(100)
   payoutMax       Int             @default(100)
