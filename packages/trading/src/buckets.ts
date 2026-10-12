@@ -146,6 +146,38 @@ export class BucketRegistry {
     return this.index.size;
   }
 
+  /**
+   * Update the stamp (verdict / pathStyle / targetPrice) of an already-open
+   * Position in place. Used by the open-time cascading heavy-side override
+   * and the LIVE batch rule to re-stamp earlier trades in the same bucket
+   * when a new open changes the group's majority or value balance. The
+   * magnet reads Position.verdict / .targetPrice live each tick, so the
+   * next tick steers toward the new target automatically.
+   */
+  restamp(
+    tradeId: string,
+    patch: {
+      verdict?: PositionVerdict;
+      pathStyle?: PositionPathStyle;
+      targetPrice?: number;
+    },
+  ): boolean {
+    const key = this.index.get(tradeId);
+    if (!key) return false;
+    const positions = this.buckets.get(key);
+    if (!positions) return false;
+    const idx = positions.findIndex((p) => p.tradeId === tradeId);
+    if (idx < 0) return false;
+    const existing = positions[idx]!;
+    positions[idx] = {
+      ...existing,
+      ...(patch.verdict !== undefined ? { verdict: patch.verdict } : {}),
+      ...(patch.pathStyle !== undefined ? { pathStyle: patch.pathStyle } : {}),
+      ...(patch.targetPrice !== undefined ? { targetPrice: patch.targetPrice } : {}),
+    };
+    return true;
+  }
+
   remove(tradeId: string): boolean {
     const key = this.index.get(tradeId);
     if (!key) return false;

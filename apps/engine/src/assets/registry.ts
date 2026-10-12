@@ -226,6 +226,18 @@ export class AssetRegistry {
     return baseSigma(asset.state, asset.params) * this.volScale(asset, nowSec);
   }
 
+  /**
+   * The MSM × intraday × news multiplier right now, divorced from the
+   * asset's base sigma. 1.0 at long-run average volatility, >1 in busy
+   * stretches, <1 in quiet. The magnet uses this to hide its pull inside
+   * natural noise.
+   */
+  volScaleNow(symbol: string, nowSec?: number): number {
+    const asset = this.assets.get(symbol);
+    if (!asset) throw new Error(`unknown symbol "${symbol}"`);
+    return this.volScale(asset, nowSec);
+  }
+
   private volScale(asset: LiveAsset, nowSec: number | undefined): number {
     let scale = msmMultiplier(asset.vol, asset.params.msm);
     if (nowSec !== undefined) scale *= intradayFactor(asset.intraday, nowSec);
