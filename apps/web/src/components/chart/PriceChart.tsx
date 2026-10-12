@@ -13,6 +13,7 @@ import {
   LineStyle,
   createChart,
   createTextWatermark,
+  type AutoscaleInfo,
   type BarData,
   type CandlestickData,
   type IChartApi,
@@ -137,11 +138,40 @@ function formatOhlc(c: { o: number; h: number; l: number; c: number }, precision
   return `O ${f(c.o)}  H ${f(c.h)}  L ${f(c.l)}  C ${f(c.c)}`;
 }
 
+/**
+ * Share of the auto-fit height the price action is drawn at. Auto-fit stretches
+ * whatever is on screen to fill the plot, so a quiet stretch looks as violent
+ * as a real move. Padding the fitted range by 1/PRICE_FILL keeps the scale
+ * relative but draws every candle at 65% of its auto-fit size, leaving air above
+ * and below.
+ */
+const PRICE_FILL = 0.65;
+
+function shrinkAutoscale(baseImplementation: () => AutoscaleInfo | null): AutoscaleInfo | null {
+  const info = baseImplementation();
+  if (!info?.priceRange) return info;
+  const { minValue, maxValue } = info.priceRange;
+  const mid = (minValue + maxValue) / 2;
+  const half = (maxValue - minValue) / PRICE_FILL / 2;
+  return { ...info, priceRange: { minValue: mid - half, maxValue: mid + half } };
+}
+
 function createSeriesForType(
   chart: IChartApi,
   type: ChartType,
   precision: number,
   basePrice = 0,
+): ISeriesApi<any> {
+  const series = addSeriesForType(chart, type, precision, basePrice);
+  series.applyOptions({ autoscaleInfoProvider: shrinkAutoscale });
+  return series;
+}
+
+function addSeriesForType(
+  chart: IChartApi,
+  type: ChartType,
+  precision: number,
+  basePrice: number,
 ): ISeriesApi<any> {
   const priceFormat = { type: "price" as const, precision, minMove: 10 ** -precision };
 
