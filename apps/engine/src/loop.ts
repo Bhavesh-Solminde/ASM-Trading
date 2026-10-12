@@ -7,22 +7,14 @@ import {
 } from "@asm/db";
 import { logger } from "@asm/logger";
 import {
-  COMMIT_WINDOW_SEC,
   MAGNET_CAP,
-  MAGNET_WINDOW_SEC,
-  MAX_COMMIT_SNAP_MOVE_TICKS,
   SELF_ANCHOR_ALPHA,
   SELF_ANCHOR_ALPHA_CLOSED,
   SELF_ANCHOR_MODE,
   USE_GLG_TREASURY,
   USE_HOUSE_GOVERNOR,
-  driftBias,
-  expiryMagnet,
-  imbalance,
   isSymbolClosedForNight,
   pathBias,
-  smoothstep,
-  totalExposure,
 } from "@asm/algo";
 import { TICK_DT_SEC } from "@asm/pricing";
 import type { AssetRegistry } from "./assets/registry";
@@ -87,112 +79,47 @@ export function startTickLoop(
         // close (23:30–05:00 IST); crypto and forex are 24/7.
         const closedNow = isSymbolClosedForNight(asset.symbol, startedAt);
 
-        // GLG per-trade duration-scaled blend. The chart is steered toward
-        // each open live trade's own targetPrice for the WHOLE trade
-        // duration. If no stamped trades are open, the chart wanders
-        // honestly (magnet=0, bias=0). The pre-GLG aggregate-liability
-        // magnet (`else` branch) is commented out below — DO NOT reactivate
-        // without reviewing algorithm.md Phase 3.
-        const imb = imbalance(livePositions, nowSec);
-        let bias: number;
+        // Vol-aware per-trade magnet. The chart is pulled toward each live
+        // stamped trade's targetPrice, with pull proportional to how busy
+        // MSM is right now — so steering only happens when natural noise
+        // can hide it. If no stamped trades are open, the chart wanders
+        // honestly (magnet=0, bias=0). Verdict overrides (heavy-side
+        // cascade + batch rule) happen at OPEN time in TradeDesk, before
+        // this magnet sees them — so the chart only ever steers toward
+        // final verdicts, and chart-as-source-of-truth at settlement
+        // guarantees no visible contradiction between chart and outcome.
+        const bias = 0;
         let magnetPull = 0;
 
-        if (USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) {
-          // No book-pressure bias between trades. Only per-trade steering.
-          bias = 0;
-
-          if (!closedNow) {
-            const currentPrice = asset.state.price;
-            let numer = 0; // sum of liability * pathBias * gap
-            let denom = 0; // sum of liability
-            for (const p of livePositions) {
-              // A trade without a governor stamp — pre-existing row, or one
-              // opened while the flag was off — grandfathers as HONEST.
-              if (
-                !p.verdict ||
-                p.verdict === "HONEST" ||
-                !p.pathStyle ||
-                p.targetPrice === undefined ||
-                p.entrySec === undefined
-              ) {
-                continue;
-              }
-              const duration = p.expirySec - p.entrySec;
-              if (duration <= 0) continue;
-              const elapsedFrac = Math.max(
-                0,
-                Math.min(1, (nowSec - p.entrySec) / duration),
-              );
-              const pb = pathBias(p.pathStyle, elapsedFrac);
-              if (pb === 0) continue;
-              const gap = Math.log(p.targetPrice / currentPrice);
-              if (!Number.isFinite(gap) || gap === 0) continue;
-              const liability = (p.stake * p.payoutPct) / 100;
-              // Previously the magnet pull doubled across the last
-              // MAGNET_WINDOW_SEC. Removed to keep per-trade steering
-              // flat for the whole trade; the commit-phase snap in the
-              // last COMMIT_WINDOW_SEC still enforces the final
-              // chart == settled invariant.
-              numer += liability * pb * gap;
-              denom += liability;
+        if ((USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) && !closedNow) {
+          const currentPrice = asset.state.price;
+          const msmScale = registry.volScaleNow(asset.symbol, nowSec);
+          for (const p of livePositions) {
+            // A trade without a governor stamp grandfathers as HONEST.
+            if (
+              !p.verdict ||
+              p.verdict === "HONEST" ||
+              !p.pathStyle ||
+              p.targetPrice === undefined ||
+              p.entrySec === undefined
+            ) {
+              continue;
             }
-            if (denom > 0) {
-              const combined = numer / denom;
-              const cap = MAGNET_CAP * sigma;
-              magnetPull =
-                combined > cap ? cap : combined < -cap ? -cap : combined;
-            }
+            const duration = p.expirySec - p.entrySec;
+            if (duration <= 0) continue;
+            const elapsedFrac = Math.max(
+              0,
+              Math.min(1, (nowSec - p.entrySec) / duration),
+            );
+            const pb = pathBias(p.pathStyle, elapsedFrac);
+            if (pb === 0) continue;
+            const gap = Math.log(p.targetPrice / currentPrice);
+            if (!Number.isFinite(gap) || gap === 0) continue;
+            magnetPull += pb * gap * msmScale;
           }
-        } else {
-          // GLG RETIRE 2026-10-05 — the pre-governor aggregate-liability
-          // path is no longer reachable with GLG on. If both governor flags
-          // are OFF (deliberate rollback), the chart wanders honestly: no
-          // book-pressure bias, no last-window magnet. Reactivating the
-          // retired path requires reviewing algorithm.md Phase 3 first.
-          bias = 0;
-
-          /*
-           * // Pre-GLG book-pressure bias + last-window magnet. Preserved
-           * // for history; DO NOT reactivate without reviewing Phase 3.
-           * bias = closedNow
-           *   ? 0
-           *   : driftBias({
-           *       imbalance: imb,
-           *       exposure: totalExposure(livePositions),
-           *       sigma,
-           *     });
-           * if (!closedNow && livePositions.length > 0 && imb !== 0) {
-           *   let soonestExpiry = Infinity;
-           *   for (const p of livePositions) {
-           *     if (p.expirySec < soonestExpiry) soonestExpiry = p.expirySec;
-           *   }
-           *   const secondsLeft = soonestExpiry - nowSec;
-           *   if (secondsLeft > 0 && secondsLeft <= MAGNET_WINDOW_SEC) {
-           *     const bucket = livePositions.filter(
-           *       (p) => p.expirySec === soonestExpiry,
-           *     );
-           *     let upLiab = 0;
-           *     let downLiab = 0;
-           *     for (const p of bucket) {
-           *       const liab = (p.stake * p.payoutPct) / 100;
-           *       if (p.direction === "UP") upLiab += liab;
-           *       else downLiab += liab;
-           *     }
-           *     const wantsDown = upLiab >= downLiab;
-           *     const entries = bucket.map((p) => p.entryPrice);
-           *     const targetPrice = wantsDown
-           *       ? Math.min(...entries) - asset.tickSize
-           *       : Math.max(...entries) + asset.tickSize;
-           *     magnetPull = expiryMagnet({
-           *       currentPrice: asset.state.price,
-           *       targetPrice,
-           *       secondsLeft,
-           *       convergenceWindowSec: MAGNET_WINDOW_SEC,
-           *       sigma,
-           *     });
-           *   }
-           * }
-           */
+          const cap = MAGNET_CAP * sigma;
+          if (magnetPull > cap) magnetPull = cap;
+          else if (magnetPull < -cap) magnetPull = -cap;
         }
 
         const selfAnchorTarget = SELF_ANCHOR_MODE
@@ -210,118 +137,6 @@ export function startTickLoop(
           selfAnchorTarget,
           selfAnchorAlpha,
         });
-
-        // Commit-phase snap. In the last COMMIT_WINDOW_SEC of a stamped live
-        // trade we ease the shown price toward the trade's target with a
-        // smoothstep-weighted blend, so no z draw — however extreme — can
-        // pull the chart back across the target line. This is what makes
-        // "chart == settled" a hard invariant. Applied only when the flag is
-        // on; skipped during nightly close.
-        if ((USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) && !closedNow) {
-          let commitTarget: number | null = null;
-          let commitSecondsLeft = Infinity;
-          let commitWindow = 0;
-          for (const p of livePositions) {
-            if (
-              !p.verdict ||
-              p.verdict === "HONEST" ||
-              p.targetPrice === undefined ||
-              p.entrySec === undefined
-            ) {
-              continue;
-            }
-            const secondsLeft = p.expirySec - nowSec;
-            const perTradeWindow = p.expirySec - p.entrySec;
-            if (
-              secondsLeft >= 0 &&
-              perTradeWindow > 0 &&
-              secondsLeft <= perTradeWindow &&
-              secondsLeft < commitSecondsLeft
-            ) {
-              commitSecondsLeft = secondsLeft;
-              commitTarget = p.targetPrice;
-              commitWindow = perTradeWindow;
-            }
-          }
-          // Majority-verdict override: when the earliest-expiring commit
-          // group contains multiple same-direction trades, replace the
-          // single-trade commitTarget with the group's majority-forced
-          // exit so every member settles on the majority side.
-          if (commitTarget !== null && commitSecondsLeft !== Infinity) {
-            let groupPositions: typeof livePositions = [];
-            let groupDirection: "UP" | "DOWN" | null = null;
-            let groupExpirySec = -1;
-            for (const p of livePositions) {
-              if (
-                !p.verdict ||
-                p.verdict === "HONEST" ||
-                p.entrySec === undefined
-              ) {
-                continue;
-              }
-              if (p.expirySec - nowSec !== commitSecondsLeft) continue;
-              if (groupDirection === null) {
-                groupDirection = p.direction;
-                groupExpirySec = p.expirySec;
-              }
-              if (
-                p.direction === groupDirection &&
-                p.expirySec === groupExpirySec
-              ) {
-                groupPositions.push(p);
-              }
-            }
-            if (groupPositions.length > 1 && groupDirection !== null) {
-              let winCount = 0;
-              for (const p of groupPositions) {
-                if (p.verdict === "WIN") winCount += 1;
-              }
-              const majorityWin = winCount * 2 > groupPositions.length;
-              let minEntry = groupPositions[0]!.entryPrice;
-              let maxEntry = minEntry;
-              for (let i = 1; i < groupPositions.length; i++) {
-                const e = groupPositions[i]!.entryPrice;
-                if (e < minEntry) minEntry = e;
-                if (e > maxEntry) maxEntry = e;
-              }
-              commitTarget =
-                groupDirection === "UP"
-                  ? majorityWin
-                    ? maxEntry + asset.tickSize
-                    : minEntry - asset.tickSize
-                  : majorityWin
-                    ? minEntry - asset.tickSize
-                    : maxEntry + asset.tickSize;
-            }
-          }
-          if (commitTarget !== null && commitWindow > 0) {
-            const commitProgress = 1 - commitSecondsLeft / commitWindow;
-            const w = smoothstep(commitProgress);
-            const blended = (1 - w) * result.price + w * commitTarget;
-            // The commit snap runs AFTER stepPrice has already applied its
-            // maxTickMove clamp. Clamp the post-snap displacement to a
-            // tighter visual budget (MAX_COMMIT_SNAP_MOVE_TICKS ticks)
-            // rather than to the stepPrice backstop (`maxTickMove`,
-            // typically tickSize × 200), so a far-away target can't jerk
-            // the shown price by up to 100 points in a single tick —
-            // drawing the breakout wicks that read as mechanical, not
-            // market. Trades whose chart has drifted beyond what this
-            // tighter budget can rescue become de-facto HONEST at
-            // settlement (chart-as-source-of-truth from PR #49 means the
-            // DB settles at whatever price the chart ended at).
-            const snapCap = asset.tickSize * MAX_COMMIT_SNAP_MOVE_TICKS;
-            const delta = blended - result.price;
-            const snapped =
-              Math.abs(delta) > snapCap
-                ? result.price + Math.sign(delta) * snapCap
-                : blended;
-            asset.state = { ...asset.state, price: snapped };
-            result = { ...result, price: snapped };
-          } else if (asset.state.price !== asset.honestState.price) {
-            asset.state = { ...asset.state, price: asset.honestState.price };
-            result = { ...result, price: asset.honestState.price };
-          }
-        }
       } catch (err) {
         logger.error(
           {
