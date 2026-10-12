@@ -15,11 +15,15 @@ import { shouldReconcile } from "@/components/trade/reconcile";
 import { MarketStore, useMarket } from "./market-store";
 import type { Quote } from "./quotes";
 
+/** Presentational grouping behind the market picker's class tabs. */
+export type AssetClass = "FOREX" | "CRYPTO" | "COMMODITY" | "INDEX";
+
 export interface PlatformAsset {
   symbol: string;
   displayName: string;
   payoutPct: number;
   precision: number;
+  assetClass: AssetClass;
 }
 
 export interface AccountView {

@@ -21,6 +21,11 @@ interface SeedAsset {
    * no external anchor pull. The distinction is not exposed to end users.
    */
   kind: "OTC";
+  /**
+   * Presentational grouping only — it drives the market picker's class tabs
+   * in the trade UI and nothing in pricing or settlement.
+   */
+  assetClass: "FOREX" | "CRYPTO" | "COMMODITY" | "INDEX";
   /** Resume/synthetic base price. */
   basePrice: number;
   precision: number;
@@ -33,31 +38,31 @@ interface SeedAsset {
 // small market qualifier next to the pair.
 const MARKETS: SeedAsset[] = [
   // Crypto
-  { symbol: "BTCUSDT", displayName: "BTC/USDT", kind: "OTC", basePrice: 95_000, precision: 2, tickSize: 1.0 },
-  { symbol: "ETHUSDT", displayName: "ETH/USDT", kind: "OTC", basePrice: 3_500, precision: 2, tickSize: 0.1 },
-  { symbol: "SOLUSDT", displayName: "SOL/USDT", kind: "OTC", basePrice: 180, precision: 2, tickSize: 0.01 },
-  { symbol: "BNBUSDT", displayName: "BNB/USDT", kind: "OTC", basePrice: 600, precision: 2, tickSize: 0.05 },
-  { symbol: "XRPUSDT", displayName: "XRP/USDT", kind: "OTC", basePrice: 1.5, precision: 4, tickSize: 0.0001 },
-  { symbol: "DOGEUSDT", displayName: "DOGE/USDT", kind: "OTC", basePrice: 0.3, precision: 5, tickSize: 0.00001 },
+  { symbol: "BTCUSDT", displayName: "BTC/USDT", kind: "OTC", assetClass: "CRYPTO", basePrice: 95_000, precision: 2, tickSize: 1.0 },
+  { symbol: "ETHUSDT", displayName: "ETH/USDT", kind: "OTC", assetClass: "CRYPTO", basePrice: 3_500, precision: 2, tickSize: 0.1 },
+  { symbol: "SOLUSDT", displayName: "SOL/USDT", kind: "OTC", assetClass: "CRYPTO", basePrice: 180, precision: 2, tickSize: 0.01 },
+  { symbol: "BNBUSDT", displayName: "BNB/USDT", kind: "OTC", assetClass: "CRYPTO", basePrice: 600, precision: 2, tickSize: 0.05 },
+  { symbol: "XRPUSDT", displayName: "XRP/USDT", kind: "OTC", assetClass: "CRYPTO", basePrice: 1.5, precision: 4, tickSize: 0.0001 },
+  { symbol: "DOGEUSDT", displayName: "DOGE/USDT", kind: "OTC", assetClass: "CRYPTO", basePrice: 0.3, precision: 5, tickSize: 0.00001 },
 
   // Forex
-  { symbol: "EURUSD", displayName: "EUR/USD", kind: "OTC", basePrice: 1.08, precision: 5, tickSize: 0.00001 },
-  { symbol: "GBPUSD", displayName: "GBP/USD", kind: "OTC", basePrice: 1.27, precision: 5, tickSize: 0.00001 },
-  { symbol: "USDJPY", displayName: "USD/JPY", kind: "OTC", basePrice: 150.0, precision: 3, tickSize: 0.001 },
-  { symbol: "USDCHF", displayName: "USD/CHF", kind: "OTC", basePrice: 0.88, precision: 5, tickSize: 0.00001 },
-  { symbol: "AUDUSD", displayName: "AUD/USD", kind: "OTC", basePrice: 0.66, precision: 5, tickSize: 0.00001 },
-  { symbol: "USDCAD", displayName: "USD/CAD", kind: "OTC", basePrice: 1.36, precision: 5, tickSize: 0.00001 },
+  { symbol: "EURUSD", displayName: "EUR/USD", kind: "OTC", assetClass: "FOREX", basePrice: 1.08, precision: 5, tickSize: 0.00001 },
+  { symbol: "GBPUSD", displayName: "GBP/USD", kind: "OTC", assetClass: "FOREX", basePrice: 1.27, precision: 5, tickSize: 0.00001 },
+  { symbol: "USDJPY", displayName: "USD/JPY", kind: "OTC", assetClass: "FOREX", basePrice: 150.0, precision: 3, tickSize: 0.001 },
+  { symbol: "USDCHF", displayName: "USD/CHF", kind: "OTC", assetClass: "FOREX", basePrice: 0.88, precision: 5, tickSize: 0.00001 },
+  { symbol: "AUDUSD", displayName: "AUD/USD", kind: "OTC", assetClass: "FOREX", basePrice: 0.66, precision: 5, tickSize: 0.00001 },
+  { symbol: "USDCAD", displayName: "USD/CAD", kind: "OTC", assetClass: "FOREX", basePrice: 1.36, precision: 5, tickSize: 0.00001 },
 
   // Commodities
-  { symbol: "XAUUSD", displayName: "Gold (XAU/USD)", kind: "OTC", basePrice: 2700, precision: 2, tickSize: 0.01 },
+  { symbol: "XAUUSD", displayName: "Gold (XAU/USD)", kind: "OTC", assetClass: "COMMODITY", basePrice: 2700, precision: 2, tickSize: 0.01 },
 
   // India indices
-  { symbol: "NIFTY50", displayName: "NIFTY 50 (India)", kind: "OTC", basePrice: 24_000, precision: 2, tickSize: 0.5 },
-  { symbol: "BANKNIFTY", displayName: "BANK NIFTY (India)", kind: "OTC", basePrice: 52_000, precision: 2, tickSize: 1.0 },
-  { symbol: "FINNIFTY", displayName: "FINNIFTY (India)", kind: "OTC", basePrice: 24_500, precision: 2, tickSize: 0.5 },
-  { symbol: "SENSEX", displayName: "SENSEX (India)", kind: "OTC", basePrice: 79_000, precision: 2, tickSize: 1.0 },
-  { symbol: "NIFTYIT", displayName: "NIFTY IT (India)", kind: "OTC", basePrice: 42_000, precision: 2, tickSize: 1.0 },
-  { symbol: "NIFTYMIDCAP100", displayName: "NIFTY MIDCAP 100 (India)", kind: "OTC", basePrice: 57_000, precision: 2, tickSize: 1.0 },
+  { symbol: "NIFTY50", displayName: "NIFTY 50 (India)", kind: "OTC", assetClass: "INDEX", basePrice: 24_000, precision: 2, tickSize: 0.5 },
+  { symbol: "BANKNIFTY", displayName: "BANK NIFTY (India)", kind: "OTC", assetClass: "INDEX", basePrice: 52_000, precision: 2, tickSize: 1.0 },
+  { symbol: "FINNIFTY", displayName: "FINNIFTY (India)", kind: "OTC", assetClass: "INDEX", basePrice: 24_500, precision: 2, tickSize: 0.5 },
+  { symbol: "SENSEX", displayName: "SENSEX (India)", kind: "OTC", assetClass: "INDEX", basePrice: 79_000, precision: 2, tickSize: 1.0 },
+  { symbol: "NIFTYIT", displayName: "NIFTY IT (India)", kind: "OTC", assetClass: "INDEX", basePrice: 42_000, precision: 2, tickSize: 1.0 },
+  { symbol: "NIFTYMIDCAP100", displayName: "NIFTY MIDCAP 100 (India)", kind: "OTC", assetClass: "INDEX", basePrice: 57_000, precision: 2, tickSize: 1.0 },
 ];
 
 async function main() {
@@ -82,6 +87,7 @@ async function main() {
       update: {
         displayName: m.displayName,
         kind: m.kind,
+        assetClass: m.assetClass,
         basePrice: m.basePrice,
         precision: m.precision,
         tickSize: m.tickSize,
@@ -92,6 +98,7 @@ async function main() {
         symbol: m.symbol,
         displayName: m.displayName,
         kind: m.kind,
+        assetClass: m.assetClass,
         payoutPct: 93,
         payoutMin: 60,
         payoutMax: 93,

@@ -62,6 +62,13 @@ const PATHS = {
   down: <path d="M12 5v14M6 13l6 6 6-6" />,
   arrow: <path d="M12 18V6M7 11l5-5 5 5" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M16 16l4.5 4.5" />
+    </>
+  ),
+  star: <path d="M12 3.6l2.6 5.3 5.9.86-4.25 4.14 1 5.86L12 17l-5.25 2.76 1-5.86L3.5 9.76l5.9-.86z" />,
   expand: <path d="M15 3h6v6M21 3l-7 7M9 21H3v-6M3 21l7-7" />,
   collapse: <path d="M20 10h-6V4M14 10l7-7M4 14h6v6M10 14l-7 7" />,
   history: (
