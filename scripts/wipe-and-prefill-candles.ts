@@ -37,11 +37,17 @@
  * form the seed command uses. Plain `pnpm tsx scripts/...` fails with
  * "Command tsx not found".
  *
+ * The production image ships apps/ and packages/ but NOT scripts/, so the
+ * host copy has to be bind-mounted in. And env vars go inside `sh -c`:
+ * `docker compose run` treats a leading VAR=x as part of the service name.
+ *
  *   docker compose --env-file ../.env.production stop engine
- *   docker compose --env-file ../.env.production run --rm web \
- *     pnpm --filter @asm/db exec tsx ../../scripts/wipe-and-prefill-candles.ts
- *   docker compose --env-file ../.env.production run --rm web \
- *     sh -c 'APPLY=1 pnpm --filter @asm/db exec tsx ../../scripts/wipe-and-prefill-candles.ts'
+ *   docker compose --env-file ../.env.production run --rm \
+ *     -v /opt/asmtrader/scripts:/app/scripts web \
+ *     sh -c 'TRADES=none pnpm --filter @asm/db exec tsx ../../scripts/wipe-and-prefill-candles.ts'
+ *   docker compose --env-file ../.env.production run --rm \
+ *     -v /opt/asmtrader/scripts:/app/scripts web \
+ *     sh -c 'APPLY=1 TRADES=none pnpm --filter @asm/db exec tsx ../../scripts/wipe-and-prefill-candles.ts'
  *   docker compose --env-file ../.env.production start engine
  *
  * The engine stays stopped for the whole sequence. If any step fails, START
