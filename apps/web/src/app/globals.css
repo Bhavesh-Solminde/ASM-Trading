@@ -28,9 +28,16 @@
   --color-rule: #232a34;
   --color-ink: #f4f7fb;
   --color-ink-2: #98a2b3;
-  --color-ink-3: #5a6472;
+  /* Muted text. Lifted from #5a6472 (3.0:1 on tile) so helper copy, captions
+     and timestamps clear WCAG AA (≥4.5:1) on every surface up to tile. */
+  --color-ink-3: #7d8797;
   --color-brand: #2f81f7;
   --color-brand-ink: #ffffff;
+  /* Solid brand fill for buttons that carry white text. #2f81f7 reads well as
+     text/accent on black (5.6:1) but white on it is only 3.75:1; this deeper
+     blue clears AA (4.6:1) for button labels. Accents stay on --color-brand. */
+  --color-brand-fill: #1f6feb;
+  --color-brand-fill-hi: #1a66d9; /* hover: deepens, keeps white ≥5:1 */
   --color-brand-dim: #10233f;
   --color-up: #3be584;
   --color-up-ink: #03170b;

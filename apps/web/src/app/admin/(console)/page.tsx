@@ -94,6 +94,7 @@ export default async function OverviewPage() {
         symbol: a.symbol,
         name: a.displayName,
         price: a.basePrice,
+        precision: a.precision,
         isOpen: a.isOpen,
         vol: agg?._sum.stake ?? 0,
         trades: agg?._count._all ?? 0,
@@ -249,12 +250,12 @@ export default async function OverviewPage() {
                           {m.symbol.slice(0, 3)}
                         </span>
                         <div>
-                          <div className="admin-cell-strong">{m.symbol}/USD</div>
-                          <div className="admin-cell-sub">{m.name}</div>
+                          <div className="admin-cell-strong">{m.name}</div>
+                          <div className="admin-cell-sub">{m.symbol}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="num admin-num-right">{m.price.toFixed(5)}</td>
+                    <td className="num admin-num-right">{m.price.toFixed(m.precision)}</td>
                     <td className="num admin-num-right">{num(m.trades)}</td>
                     <td style={{ textAlign: "right" }}>
                       <span className={`admin-pill admin-pill--${m.isOpen ? "pos" : "warn"}`}>

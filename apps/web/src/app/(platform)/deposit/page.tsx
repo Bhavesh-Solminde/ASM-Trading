@@ -4,6 +4,7 @@ import { countCompletedDeposits, getDepositByToken } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { DepositFlow } from "@/components/deposit/DepositFlow";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
+import { PageFrame } from "@/components/shell/PageFrame";
 import { listEnabledUsdtNetworks, usdtGatewayActive } from "@/lib/usdt-networks";
 import { upiDepositsEnabled } from "@/lib/upi-collection";
 
@@ -35,14 +36,10 @@ export default async function DepositPage({
   const completedDeposits = await countCompletedDeposits(session.userId);
 
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-6 px-6 py-8 phone:px-4 phone:py-5">
-      <PlatformTabs />
-      <header>
-        <h1 className="text-xl font-bold tracking-tight">Deposit</h1>
-      </header>
+    <PageFrame width="wide" nav={<PlatformTabs />} title="Deposit">
 
       {showExpired ? (
-        <div className="rounded border border-[var(--color-down)]/30 bg-[var(--color-down)]/10 p-3 text-xs leading-relaxed text-[var(--color-down)]">
+        <div className="rounded border border-down/30 bg-down/10 p-3 text-sm leading-relaxed text-down">
           {usdtGateway ? (
             <>
               Your payment window ended. If you already sent the payment before
@@ -73,6 +70,6 @@ export default async function DepositPage({
         upiEnabled={upiDepositsEnabled()}
         completedDeposits={completedDeposits}
       />
-    </main>
+    </PageFrame>
   );
 }

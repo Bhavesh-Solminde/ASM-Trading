@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { loadProfile } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { PageFrame } from "@/components/shell/PageFrame";
 import { KycFlow } from "./KycFlow";
 
 export const dynamic = "force-dynamic";
@@ -15,14 +15,12 @@ export default async function VerifyPage() {
   const profile = await loadProfile(session.userId);
 
   return (
-    <main className="mx-auto w-full max-w-xl px-6 py-8 phone:px-4 phone:py-5">
-      <Link href="/account" className="text-xs font-semibold text-ink-2 underline underline-offset-4">
-        &lsaquo; My account
-      </Link>
-      <h1 className="mb-1 mt-3 text-xl font-semibold tracking-tight">Verify your identity</h1>
-      <p className="mb-6 text-sm text-ink-2">
-        Required once before your first withdrawal. Takes about 2 minutes — keep your Aadhaar and PAN card handy.
-      </p>
+    <PageFrame
+      width="narrow"
+      title="Verify your identity"
+      back={{ href: "/account", label: "My account" }}
+      description="Required once before your first withdrawal. Takes about 2 minutes — keep your Aadhaar and PAN card handy."
+    >
       <KycFlow
         initialStatus={profile.kycStatus}
         initialDocuments={profile.kycDocuments}
@@ -37,6 +35,6 @@ export default async function VerifyPage() {
           country: profile.country ?? "India",
         }}
       />
-    </main>
+    </PageFrame>
   );
 }

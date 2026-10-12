@@ -45,7 +45,7 @@ export function MobileNav() {
                 type="button"
                 aria-label="Close menu"
                 onClick={close}
-                className="grid size-8 place-items-center rounded text-ink-2 hover:bg-panel hover:text-ink"
+                className="grid size-10 place-items-center rounded text-ink-2 hover:bg-panel hover:text-ink"
               >
                 <Icon name="close" className="size-[18px]" />
               </button>

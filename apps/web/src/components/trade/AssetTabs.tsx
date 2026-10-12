@@ -57,7 +57,7 @@ export function AssetTabs({
           <Icon name="plus" />
         </button>
         {picking ? (
-          <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-60 rounded border border-rule bg-[#2c3036] p-1.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]">
+          <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-60 rounded border border-tile-hi bg-tile p-1.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]">
             {closed.map((asset) => (
               <button
                 key={asset.symbol}
@@ -67,7 +67,7 @@ export function AssetTabs({
                   onSelect(asset.symbol);
                   setPicking(false);
                 }}
-                className="flex w-full items-center justify-between gap-2.5 rounded-[2px] px-2.5 py-2 text-left hover:bg-tile"
+                className="flex w-full items-center justify-between gap-2.5 rounded-[2px] px-2.5 py-2 text-left hover:bg-tile-hi"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <AssetIcon symbol={asset.symbol} size="sm" />

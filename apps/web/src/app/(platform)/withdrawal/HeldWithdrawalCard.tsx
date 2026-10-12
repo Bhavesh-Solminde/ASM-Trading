@@ -80,7 +80,7 @@ export function HeldWithdrawalCard({
   }
 
   return (
-    <section className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
+    <section className="rounded border border-rule bg-panel p-4">
       <h2 className="text-sm font-semibold">Withdrawal on hold</h2>
       <p className="mt-1 text-sm">
         Your withdrawal of {amountLabel} is pending. It will be processed on {holdLabel}.
@@ -98,9 +98,9 @@ export function HeldWithdrawalCard({
             type="button"
             onClick={submit}
             disabled={working}
-            className="rounded bg-[var(--color-brand)] px-4 py-2.5 text-sm font-bold text-[var(--color-brand-ink)] disabled:opacity-60"
+            className="rounded bg-brand-fill px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Cancel withdrawal
+            {working ? "Cancelling…" : "Cancel withdrawal"}
           </button>
           <span className="tabular-nums text-xs text-[var(--color-ink-2)]">
             Cancel window: {formatHms(msLeft)}
@@ -112,7 +112,11 @@ export function HeldWithdrawalCard({
         </p>
       )}
 
-      {error ? <p className="mt-2 text-xs text-[var(--color-down)]">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-2 text-xs text-down">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }

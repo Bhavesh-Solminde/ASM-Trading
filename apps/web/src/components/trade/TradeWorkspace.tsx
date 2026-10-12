@@ -93,7 +93,7 @@ function AccountPlateMini({ type }: { type: AccountView["type"] }) {
   return (
     <span
       className={`grid grid-flow-col items-center gap-1 rounded-[2px] px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.12em] ${
-        live ? "bg-up text-up-ink" : "border border-dotted border-[#555] text-ink-2"
+        live ? "bg-up text-up-ink" : "border border-dotted border-ink-3 text-ink-2"
       }`}
     >
       <span
@@ -169,7 +169,7 @@ function FocusAccountSwitcher() {
                 </span>
                 <span
                   aria-hidden
-                  className={`size-3.5 rounded-full ${active ? "border-[4px] border-up" : "border-[1.5px] border-[#4a4f55]"}`}
+                  className={`size-3.5 rounded-full ${active ? "border-[4px] border-up" : "border-[1.5px] border-ink-3"}`}
                 />
               </button>
             );
@@ -242,7 +242,7 @@ function LiveSentiment() {
 }
 
 const TOOL_BTN =
-  "relative grid size-[34px] place-items-center rounded-[6px] border backdrop-blur transition-colors";
+  "relative grid size-[34px] phone:size-10 place-items-center rounded-[6px] border backdrop-blur transition-colors";
 
 /**
  * Quotex-style in-chart tool stack for compact widths: a "⋯" button that
@@ -321,7 +321,7 @@ function ChartToolCluster({
         className={`${TOOL_BTN} border-rule bg-tile/85 text-ink hover:border-tile-hi land:hidden`}
       >
         <Icon name="briefcase" className="size-4" />
-        <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[9px] font-bold leading-none text-brand-ink">
+        <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand-fill px-1 text-[9px] font-bold leading-none text-white">
           {openCount}
         </span>
       </button>
@@ -480,7 +480,7 @@ export function TradeWorkspace() {
                         onClick={() => setHistoryOpen(true)}
                         aria-label="Trades & history"
                         title="Trades & history"
-                        className="relative grid size-[34px] place-items-center rounded-[4px] border border-brand/50 bg-brand/15 text-brand backdrop-blur hover:border-brand hover:bg-brand/25 land:hidden"
+                        className="relative grid size-[34px] phone:size-10 place-items-center rounded-[4px] border border-brand/50 bg-brand/15 text-brand backdrop-blur hover:border-brand hover:bg-brand/25 land:hidden"
                       >
                         <Icon name="history" className="size-5" />
                         {openCount > 0 ? (
@@ -511,7 +511,7 @@ export function TradeWorkspace() {
                 type="button"
                 onClick={focusMode ? exitFocus : enterFocus}
                 aria-label={focusMode ? "Exit fullscreen" : "Fullscreen chart"}
-                className="absolute bottom-2 right-2 z-10 grid size-8 place-items-center phone:bottom-1 phone:right-1 phone:size-6 rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink"
+                className="absolute bottom-2 right-2 z-10 grid size-8 place-items-center phone:bottom-1 phone:right-1 phone:size-6 phone:after:absolute phone:after:-inset-2 rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink"
               >
                 <Icon name={focusMode ? "collapse" : "expand"} className="size-4 phone:size-3.5" />
               </button>
@@ -553,7 +553,7 @@ export function TradeWorkspace() {
                 type="button"
                 aria-label="Close trades"
                 onClick={() => setHistoryOpen(false)}
-                className="grid size-8 place-items-center rounded text-ink-2 hover:bg-tile hover:text-ink"
+                className="grid size-8 place-items-center rounded text-ink-2 hover:bg-tile hover:text-ink phone:size-10"
               >
                 <Icon name="close" className="size-[18px]" />
               </button>

@@ -37,7 +37,7 @@ export function ReferralClient({ referralCode, referralUrl }: ReferralClientProp
             </span>
           </div>
 
-          <h2 className="text-xl font-bold tracking-tight text-ink phone:text-lg">
+          <h2 className="text-lg font-bold tracking-tight text-ink">
             Invite friends & earn continuous commission
           </h2>
           <p className="max-w-xl text-xs text-ink-2">
@@ -53,7 +53,7 @@ export function ReferralClient({ referralCode, referralUrl }: ReferralClientProp
           <button
             type="button"
             onClick={() => void copyToClipboard()}
-            className="flex items-center justify-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-xs font-semibold text-brand-ink transition-transform active:scale-95 phone:py-3"
+            className="flex items-center justify-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-xs font-semibold text-white transition-transform hover:bg-brand-fill-hi active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 phone:py-3"
           >
             {copied ? (
               <>

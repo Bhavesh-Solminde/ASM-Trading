@@ -20,7 +20,7 @@ export function PlatformTabs() {
   }, [pathname]);
 
   return (
-    <div className="flex gap-1 overflow-x-auto rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-1 [scrollbar-width:none]">
+    <div className="flex gap-1 overflow-x-auto rounded border border-rule bg-panel p-1 [scrollbar-width:none]">
       {TABS.map((tab) => {
         const active = pathname === tab.href || pathname.startsWith(tab.href + "/");
         return (
@@ -31,8 +31,8 @@ export function PlatformTabs() {
             aria-current={active ? "page" : undefined}
             className={`shrink-0 rounded px-4 py-2 text-sm font-semibold phone:px-3 phone:py-3 phone:text-[13px] ${
               active
-                ? "bg-[var(--color-tile)] text-[var(--color-ink)]"
-                : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]"
+                ? "bg-tile text-ink shadow-[inset_0_0_0_1px_var(--color-tile-hi)]"
+                : "text-ink-2 hover:text-ink"
             }`}
           >
             {tab.label}

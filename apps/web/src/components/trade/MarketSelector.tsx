@@ -107,10 +107,10 @@ export function MarketSelector({
   const { pair, market } = splitAssetName(activeAsset.displayName);
 
   const tabClass = (selected: boolean): string =>
-    `flex-none rounded-[3px] border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] transition-colors ${
+    `flex-none rounded-[3px] border px-2.5 py-1.5 text-[10px] phone:min-h-10 font-bold uppercase tracking-[0.08em] transition-colors ${
       selected
         ? "border-brand bg-brand/20 text-brand"
-        : "border-rule bg-panel text-ink-2 hover:border-tile-hi hover:text-ink-1"
+        : "border-rule bg-panel text-ink-2 hover:border-tile-hi hover:text-ink"
     }`;
 
   return (
@@ -123,7 +123,7 @@ export function MarketSelector({
           aria-label="Change market"
           title="Change market"
           onClick={toggleOpen}
-          className={`grid size-[34px] place-items-center rounded-[4px] border backdrop-blur ${
+          className={`grid size-[34px] phone:size-10 place-items-center rounded-[4px] border backdrop-blur ${
             open
               ? "border-brand bg-brand/25 text-brand"
               : "border-brand/50 bg-brand/15 text-brand hover:border-brand hover:bg-brand/25"
@@ -168,7 +168,7 @@ export function MarketSelector({
             role="dialog"
             aria-modal="true"
             aria-label="Select trade pair"
-            className="absolute left-0 top-[calc(100%+6px)] z-50 flex w-[320px] max-w-[calc(100vw-20px)] flex-col overflow-hidden rounded border border-rule bg-[#2c3036] shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-0 phone:left-0 phone:top-0 phone:z-[60] phone:w-auto phone:max-w-none phone:rounded-none phone:border-0"
+            className="absolute left-0 top-[calc(100%+6px)] z-50 flex w-[320px] max-w-[calc(100vw-20px)] flex-col overflow-hidden rounded border border-tile-hi bg-tile shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-0 phone:left-0 phone:top-0 phone:z-[60] phone:w-auto phone:max-w-none phone:rounded-none phone:border-0"
           >
             {/* Title bar — phone only; on desktop the trigger button is the title. */}
             <div className="hidden items-center justify-between gap-3 border-b border-rule px-3.5 pb-2.5 pt-[max(12px,env(safe-area-inset-top))] phone:flex">
@@ -177,7 +177,7 @@ export function MarketSelector({
                 type="button"
                 onClick={close}
                 aria-label="Close market list"
-                className="grid size-8 place-items-center rounded-[3px] text-ink-2 hover:bg-tile hover:text-ink-1"
+                className="grid size-8 place-items-center rounded-[3px] text-ink-2 hover:bg-tile-hi hover:text-ink phone:size-10"
               >
                 <Icon name="close" className="size-4" strokeWidth={2} />
               </button>
@@ -191,10 +191,10 @@ export function MarketSelector({
                   aria-label="Show favourites only"
                   title="Favourites"
                   onClick={() => setFilter((f) => (f === "FAV" ? "ALL" : "FAV"))}
-                  className={`flex flex-none items-center gap-1 rounded-[3px] border px-2 py-[7px] ${
+                  className={`flex flex-none items-center gap-1 rounded-[3px] border px-2 py-[7px] phone:min-h-10 ${
                     filter === "FAV"
                       ? "border-brand bg-brand/20 text-brand"
-                      : "border-rule bg-panel text-ink-2 hover:border-tile-hi hover:text-ink-1"
+                      : "border-rule bg-panel text-ink-2 hover:border-tile-hi hover:text-ink"
                   }`}
                 >
                   <Icon name="star" className="size-4" fill={favourites.size ? "currentColor" : "none"} />
@@ -257,8 +257,8 @@ export function MarketSelector({
                     <div
                       key={asset.symbol}
                       role="listitem"
-                      className={`flex w-full items-center gap-1 rounded-[3px] transition-colors hover:bg-tile ${
-                        selected ? "bg-tile shadow-[inset_0_0_0_1px_var(--color-tile-hi)]" : ""
+                      className={`flex w-full items-center gap-1 rounded-[3px] transition-colors hover:bg-tile-hi ${
+                        selected ? "bg-tile-hi shadow-[inset_0_0_0_1px_var(--color-rule)]" : ""
                       }`}
                     >
                       <button
@@ -291,7 +291,7 @@ export function MarketSelector({
                         aria-label={`${starred ? "Remove" : "Add"} ${parts.pair} ${starred ? "from" : "to"} favourites`}
                         onClick={() => toggleFavourite(asset.symbol)}
                         className={`grid size-8 flex-none place-items-center rounded-[3px] phone:size-10 ${
-                          starred ? "text-brand" : "text-ink-3 hover:text-ink-1"
+                          starred ? "text-brand" : "text-ink-3 hover:text-ink"
                         }`}
                       >
                         <Icon name="star" className="size-4" fill={starred ? "currentColor" : "none"} />

@@ -65,7 +65,7 @@ export function DemoBalanceForm({
   }
 
   return (
-    <section className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
+    <section className="rounded border border-rule bg-panel p-4">
       <h2 className="text-sm font-semibold">Demo account</h2>
       <p className="mt-1 text-[13px] text-ink-2">
         Current balance <span className="font-semibold text-ink">{currentLabel}</span>. Virtual funds only — set any
@@ -79,20 +79,20 @@ export function DemoBalanceForm({
           onChange={(e) => setAmount(e.target.value)}
           placeholder={`Amount in ${currency}`}
           aria-label={`Demo balance amount in ${currency}`}
-          className="h-9 w-40 rounded border border-[var(--color-rule)] bg-[var(--color-ground)] px-3 text-sm outline-none focus:border-brand"
+          className="h-9 min-w-0 flex-1 rounded border border-rule bg-ground px-3 text-sm outline-none focus:border-brand sm:w-40 sm:flex-none"
         />
         <button
           type="submit"
           disabled={busy}
-          className="h-9 rounded bg-brand px-3 text-[13px] font-bold text-brand-ink disabled:opacity-60"
+          className="h-9 rounded bg-brand-fill px-3 text-[13px] font-bold text-white hover:bg-brand-fill-hi disabled:opacity-60 phone:h-10"
         >
-          Set balance
+          {busy ? "Updating…" : "Set balance"}
         </button>
         <button
           type="button"
           disabled={busy}
           onClick={() => void submit(null)}
-          className="h-9 rounded border border-[var(--color-rule)] px-3 text-[13px] font-semibold text-ink-2 hover:text-ink disabled:opacity-60"
+          className="h-9 rounded border border-rule px-3 text-[13px] font-semibold text-ink-2 hover:text-ink disabled:opacity-60 phone:h-10"
         >
           Reset to {capLabel}
         </button>
@@ -105,14 +105,14 @@ export function DemoBalanceForm({
             type="button"
             disabled={busy}
             onClick={() => setAmount(String(p))}
-            className="rounded border border-[var(--color-rule)] px-2 py-1 text-[11px] font-semibold text-ink-2 hover:text-ink disabled:opacity-60"
+            className="rounded border border-rule px-2 py-1 text-[11px] font-semibold text-ink-2 hover:text-ink disabled:opacity-60"
           >
             {p.toLocaleString()}
           </button>
         ))}
       </div>
 
-      {error ? <p className="mt-2 text-[12px] text-down">{error}</p> : null}
+      {error ? <p role="alert" className="mt-2 text-[12px] text-down">{error}</p> : null}
     </section>
   );
 }

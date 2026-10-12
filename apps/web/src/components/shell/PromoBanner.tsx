@@ -115,7 +115,7 @@ export function BonusOfferSheet({
             type="button"
             aria-label="Close"
             onClick={close}
-            className="grid size-9 flex-none place-items-center rounded text-ink-2 hover:bg-panel hover:text-ink"
+            className="grid size-10 flex-none place-items-center rounded text-ink-2 hover:bg-panel hover:text-ink"
           >
             <Icon name="close" className="size-[18px]" />
           </button>

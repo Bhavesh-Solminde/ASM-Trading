@@ -148,6 +148,7 @@ export default async function WinRateDashboard() {
                       <input type="hidden" name="accountId" value={acc.id} />
                       <select
                         name="stage"
+                        aria-label="Lifecycle stage override"
                         className="rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] px-1 py-0.5 text-xs"
                         defaultValue={acc.lifecycleOverride ?? ""}
                       >

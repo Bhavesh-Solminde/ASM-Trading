@@ -1,6 +1,7 @@
 "use client";
 
 import { DEPOSIT_METHODS, UPI_METHODS } from "@asm/contracts";
+import { Icon } from "@/components/shell/Icon";
 import { GatewayIcon } from "./GatewayIcon";
 
 // Mirrors MIN_DEPOSIT_INR_MINOR / MIN_DEPOSIT_USDT_MINOR in @asm/db, which
@@ -25,16 +26,16 @@ export function MethodPicker({
   const methods = DEPOSIT_METHODS.filter((m) => m !== "USDT" || usdtEnabled);
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 text-sm">
-        <span aria-hidden>🌐</span>
+      <div className="flex items-center gap-2 rounded border border-rule bg-tile px-4 py-2.5 text-sm">
+        <Icon name="globe" className="size-4 text-ink-2" aria-hidden />
         <span>India</span>
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-semibold text-[var(--color-ink-2)]">
+        <p className="mb-2 text-xs font-semibold text-ink-2">
           Popular in your region ({methods.length})
         </p>
-        <ul className="grid gap-2 sm:grid-cols-2">
+        <ul className="grid grid-cols-2 gap-2 phone:grid-cols-1">
           {methods.map((method) => {
             const comingSoon = UPI_SET.has(method) && !upiEnabled;
             return (
@@ -47,16 +48,16 @@ export function MethodPicker({
                     if (comingSoon) return;
                     onPick(method);
                   }}
-                  className={`flex w-full items-center gap-3 rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3 text-left ${
+                  className={`flex w-full items-center gap-3 rounded border border-rule bg-panel px-4 py-3 text-left ${
                     comingSoon
                       ? "cursor-not-allowed opacity-60"
-                      : "hover:border-[var(--color-brand)]"
+                      : "hover:border-brand"
                   }`}
                 >
                   <GatewayIcon method={method} />
                   <span className="flex flex-1 flex-col">
                     <span className="text-sm font-semibold">{method}</span>
-                    <span className="text-xs text-[var(--color-ink-2)]">
+                    <span className="text-xs text-ink-2">
                       {comingSoon
                         ? "Coming soon"
                         : UPI_SET.has(method)
@@ -65,11 +66,11 @@ export function MethodPicker({
                     </span>
                   </span>
                   {comingSoon ? (
-                    <span className="rounded-full border border-[var(--color-rule)] bg-[var(--color-tile)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--color-ink-2)]">
+                    <span className="rounded-full border border-rule bg-tile px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ink-2">
                       Soon
                     </span>
                   ) : (
-                    <span aria-hidden className="text-[var(--color-ink-2)]">
+                    <span aria-hidden className="text-ink-2">
                       &rsaquo;
                     </span>
                   )}

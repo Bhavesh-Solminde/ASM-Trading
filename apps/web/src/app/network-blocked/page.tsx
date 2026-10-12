@@ -27,7 +27,7 @@ export default function NetworkBlockedPage() {
         <p>Switch off the VPN or proxy app, then press retry.</p>
         <Link
           href="/trade"
-          className="mt-1 inline-flex h-12 items-center justify-center rounded-full bg-brand text-sm font-black text-brand-ink transition hover:brightness-110"
+          className="mt-1 inline-flex h-12 items-center justify-center rounded-full bg-brand-fill text-sm font-black text-white transition hover:bg-brand-fill-hi"
         >
           Retry <span aria-hidden>→</span>
         </Link>

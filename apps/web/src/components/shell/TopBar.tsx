@@ -34,7 +34,7 @@ function AccountPlate({ type, small = false }: { type: AccountView["type"]; smal
     <span
       className={`grid auto-cols-max grid-flow-col place-content-center items-center gap-[5px] rounded-[2px] px-[9px] font-extrabold tracking-[0.12em] ${
         small ? "h-[26px] text-[10px]" : "h-[30px] text-[11px] phone:h-[21px] phone:gap-1 phone:px-1.5 phone:text-[10px]"
-      } ${live ? "bg-up text-up-ink" : "border border-dotted border-[#555] text-ink-2"}`}
+      } ${live ? "bg-up text-up-ink" : "border border-dotted border-ink-3 text-ink-2"}`}
     >
       <span
         aria-hidden
@@ -192,7 +192,7 @@ export function TopBar() {
             <div aria-hidden onClick={closeMenu} className="fixed inset-0 z-30 hidden bg-black/60 phone:block" />
             <div
               role="menu"
-              className="absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-rule bg-[#2c3036] p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0 phone:pb-[max(12px,env(safe-area-inset-bottom))]"
+              className="absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-tile-hi bg-tile p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0 phone:pb-[max(12px,env(safe-area-inset-bottom))]"
             >
             {[...accounts]
               .sort((a, b) => (a.type === b.type ? 0 : a.type === "LIVE" ? -1 : 1))
@@ -205,8 +205,8 @@ export function TopBar() {
                     role="menuitemradio"
                     aria-checked={active}
                     onClick={() => handleSelectAccount(account)}
-                    className={`grid w-full grid-cols-[58px_1fr_auto] items-center gap-3 rounded-[2px] px-2.5 py-3 text-left hover:bg-tile ${
-                      active ? "bg-tile shadow-[inset_0_0_0_1px_var(--color-tile-hi)]" : ""
+                    className={`grid w-full grid-cols-[58px_1fr_auto] items-center gap-3 rounded-[2px] px-2.5 py-3 text-left hover:bg-tile-hi ${
+                      active ? "bg-tile-hi shadow-[inset_0_0_0_1px_var(--color-rule)]" : ""
                     }`}
                   >
                     <AccountPlate type={account.type} small />
@@ -218,7 +218,7 @@ export function TopBar() {
                     </span>
                     <span
                       aria-hidden
-                      className={`size-[18px] rounded-full ${active ? "border-[5px] border-up" : "border-[1.5px] border-[#4a4f55]"}`}
+                      className={`size-[18px] rounded-full ${active ? "border-[5px] border-up" : "border-[1.5px] border-ink-3"}`}
                     />
                   </button>
                 );
@@ -235,8 +235,8 @@ export function TopBar() {
                         disabled={curBusy}
                         aria-pressed={activeAccount.currency === cur}
                         onClick={() => void changeCurrency(cur)}
-                        className={`rounded-[2px] px-2.5 py-0.5 text-[11px] font-bold tracking-[0.06em] disabled:opacity-60 ${
-                          activeAccount.currency === cur ? "bg-brand text-brand-ink" : "text-ink-3 hover:text-ink"
+                        className={`rounded-[2px] px-2.5 py-0.5 text-[11px] font-bold tracking-[0.06em] phone:min-h-10 phone:px-4 disabled:opacity-60 ${
+                          activeAccount.currency === cur ? "bg-brand-fill text-white" : "text-ink-3 hover:text-ink"
                         }`}
                       >
                         {cur}
@@ -248,18 +248,18 @@ export function TopBar() {
               </div>
             ) : null}
             <div className="mt-1.5 flex items-center justify-between gap-4 border-t border-rule px-2.5 pb-1 pt-2.5">
-              <Link href="/account" onClick={closeMenu} className="py-2 text-[13px] font-semibold text-brand hover:underline">
+              <Link href="/account" onClick={closeMenu} className="py-2 text-[13px] font-semibold text-brand hover:underline phone:py-3">
                 My account
               </Link>
               <Link
                 href="/withdrawal"
                 onClick={closeMenu}
-                className="hidden py-2 text-[13px] font-semibold text-ink-2 hover:text-ink phone:inline"
+                className="hidden py-2 text-[13px] font-semibold text-ink-2 hover:text-ink phone:inline phone:py-3"
               >
                 Withdraw
               </Link>
               <form action="/api/auth/logout" method="post" onSubmit={(e) => void logOut(e)}>
-                <button type="submit" className="py-2 text-[13px] font-semibold text-ink-3 hover:text-ink">
+                <button type="submit" className="py-2 text-[13px] font-semibold text-ink-3 hover:text-ink phone:py-3">
                   Log out
                 </button>
               </form>

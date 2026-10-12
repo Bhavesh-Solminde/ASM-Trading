@@ -49,10 +49,13 @@ export function DepositFlow({
     step = <AmountStep method={method} onBack={() => setMethod(null)} bonusPercent={bonusPercent} />;
   }
 
+  // The method grid spans the frame; the amount forms read better at form width.
+  const picking = method === null || (method === "USDT" && usdtNetworks.length === 0);
+
   return (
     <>
       <DepositBonusStrip completedDeposits={completedDeposits} />
-      {step}
+      <div className={picking ? undefined : "max-w-xl"}>{step}</div>
     </>
   );
 }

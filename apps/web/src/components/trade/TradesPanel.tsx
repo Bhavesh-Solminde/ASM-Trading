@@ -54,9 +54,9 @@ function RowShell({
         <span className="font-bold tracking-[0.03em] truncate">{asset ? splitAssetName(asset.displayName).pair : trade.symbol}</span>
       </div>
       {time}
-      <span className="text-xs text-ink-2">{formatMinor(trade.stake, currency)}</span>
-      <span className={`justify-self-end font-bold ${pnlClass}`}>{pnl}</span>
-      <span className="text-[11px] text-ink-3">
+      <span className="text-xs tabular-nums text-ink-2">{formatMinor(trade.stake, currency)}</span>
+      <span className={`justify-self-end font-bold tabular-nums ${pnlClass}`}>{pnl}</span>
+      <span className="text-[11px] tabular-nums text-ink-3">
         {trade.entryPrice.toFixed(precision)}
         {trade.exitPrice !== null ? ` → ${trade.exitPrice.toFixed(precision)}` : ""}
       </span>
@@ -196,7 +196,7 @@ export function TradesPanel({
         {shown.length === 0 ? (
           <li className="grid gap-1.5 px-[18px] py-7 text-center text-ink-3">
             <strong className="font-semibold text-ink-2">No {tab} trades on this account</strong>
-            <span>Set a time and investment above, then choose Up or Down.</span>
+            <span>Set a time and investment above, then choose Buy or Sell.</span>
           </li>
         ) : (
           shown.map((trade) => (

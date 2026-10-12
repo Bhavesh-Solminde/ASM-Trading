@@ -25,12 +25,12 @@
   --admin-accent-soft: rgba(154, 107, 31, 0.12);
   --admin-on-accent: #ffffff;
 
-  --admin-pos: #157f52;
-  --admin-pos-soft: rgba(21, 127, 82, 0.12);
+  --admin-pos: #127a4e;
+  --admin-pos-soft: rgba(18, 122, 78, 0.12);
   --admin-neg: #c0392e;
   --admin-neg-soft: rgba(192, 57, 46, 0.12);
-  --admin-warn: #a9741a;
-  --admin-warn-soft: rgba(169, 116, 26, 0.14);
+  --admin-warn: #8a5d0f;
+  --admin-warn-soft: rgba(138, 93, 15, 0.14);
   --admin-info: #2c5a8a;
   --admin-info-soft: rgba(44, 90, 138, 0.12);
 
@@ -630,6 +630,12 @@
   display: grid;
   gap: 16px;
 }
+/* Grid items default to min-width:auto, so a wide table/svg inside a card
+   would blow the track out past the viewport. Let tracks shrink instead and
+   let the inner .admin-table-wrap scroll. */
+.admin-grid > * {
+  min-width: 0;
+}
 .admin-stat-grid {
   grid-template-columns: repeat(4, 1fr);
 }
@@ -654,8 +660,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
 }
 .admin-stat__label {
+  min-width: 0;
+  flex: 1;
   font-size: 11.5px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -663,6 +672,7 @@
   font-weight: 600;
 }
 .admin-stat__ic {
+  flex: none;
   width: 30px;
   height: 30px;
   border-radius: 8px;
@@ -797,6 +807,7 @@
 }
 .admin-table-wrap {
   overflow-x: auto;
+  container-type: inline-size;
 }
 .admin-table {
   width: 100%;
@@ -875,10 +886,21 @@
   color: var(--admin-muted);
 }
 .admin-empty svg {
+  display: block;
   width: 34px;
   height: 34px;
   opacity: 0.5;
-  margin-bottom: 10px;
+  margin: 0 auto 10px;
+}
+/* Empty block inside a horizontally scrolling table: pin it to the visible
+   scrollport so the message is never clipped or scrolled off-screen. */
+.admin-table td > .admin-empty {
+  position: sticky;
+  left: 0;
+  width: min(100%, calc(100vw - 64px));
+  width: min(100%, 100cqw);
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .admin-pager {
   display: flex;
@@ -1161,7 +1183,7 @@
 }
 .admin-banner {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 11px 14px;
   border-radius: var(--admin-radius-sm);
@@ -1174,6 +1196,7 @@
   width: 17px;
   height: 17px;
   flex: none;
+  margin-top: 1px;
 }
 .admin-scrim {
   position: fixed;
@@ -1237,8 +1260,39 @@
     padding: 16px 16px 50px;
   }
   .admin-topbar {
-    padding: 0 16px;
-    gap: 10px;
+    height: auto;
+    min-height: var(--admin-topbar-h);
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    gap: 8px 10px;
+  }
+  .admin-topbar__title {
+    flex: 1;
+    min-width: 0;
+  }
+  .admin-topbar__title h1,
+  .admin-topbar__title .bc {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .admin-topbar__title .bc {
+    display: block;
+  }
+  .admin-topbar .admin-search {
+    order: 10;
+    flex: 1 1 100%;
+    width: 100%;
+    margin-left: 0;
+  }
+  .admin-icon-btn,
+  .admin-hamburger {
+    width: 40px;
+    height: 40px;
+  }
+  .admin-page-btn {
+    min-width: 40px;
+    height: 40px;
   }
   .admin-stat-grid {
     grid-template-columns: 1fr 1fr;
@@ -1246,6 +1300,9 @@
   }
 }
 @media (max-width: 400px) {
+  .admin-topbar__title .bc {
+    display: none;
+  }
   .admin-stat-grid {
     grid-template-columns: 1fr;
   }
@@ -1275,11 +1332,11 @@
   transition: color 0.15s, background 0.15s;
 }
 .admin-tab:hover {
-  color: var(--admin-text);
+  color: var(--admin-ink);
 }
 .admin-tab.active {
   background: var(--admin-surface);
-  color: var(--admin-text);
+  color: var(--admin-ink);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 .admin-tab__badge {

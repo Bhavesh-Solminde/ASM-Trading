@@ -56,13 +56,13 @@ function formatDuration(seconds: number): string {
 }
 
 const STEP =
-  "grid h-12 place-items-center rounded border border-white/40 text-ink-2 hover:border-white/70 hover:bg-panel hover:text-ink phone:h-[26px]";
-const DISPLAY = "grid h-12 place-items-center rounded border border-white/40 bg-panel phone:h-[26px]";
+  "relative grid h-12 place-items-center rounded border border-white/40 text-ink-2 hover:border-white/70 hover:bg-panel hover:text-ink phone:h-[34px] phone:after:absolute phone:after:-inset-x-1.5 phone:after:-inset-y-[7px]";
+const DISPLAY = "grid h-12 place-items-center rounded border border-white/40 bg-panel phone:h-[34px]";
 /** A cell in the expiry picker grid. */
 const PICK =
-  "h-10 rounded-md text-[13px] font-semibold tabular-nums transition-colors phone:h-9 phone:text-[12px]";
+  "h-10 rounded-md text-[13px] font-semibold tabular-nums transition-colors phone:text-[12px]";
 const PICK_IDLE = "bg-white/10 text-ink hover:bg-white/15";
-const PICK_ACTIVE = "bg-brand text-brand-ink";
+const PICK_ACTIVE = "bg-brand-fill text-white";
 /** Stepper glyphs: default size on desktop, 30% smaller in the phone ticket. */
 const STEP_ICON = "size-[18px] phone:size-3";
 
@@ -194,7 +194,7 @@ export function TradeTicket({
   }
 
   const slab =
-    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-[31px] phone:pl-2.5 phone:pr-2 phone:text-[11px] phone:leading-none";
+    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-11 phone:pl-2.5 phone:pr-2 phone:text-[11px] phone:leading-none";
   const slabLive = "hover:brightness-110 active:translate-y-px disabled:cursor-wait";
   const slabClosed = "cursor-not-allowed bg-tile text-ink-3";
   const slabNote =
@@ -227,7 +227,7 @@ export function TradeTicket({
               aria-expanded={gridOpen}
               aria-controls="ticket-durations"
               onClick={() => setGridOpen((o) => !o)}
-              className={`${DISPLAY} hover:border-tile-hi`}
+              className={`${DISPLAY} relative hover:border-tile-hi phone:after:absolute phone:after:inset-x-0 phone:after:-inset-y-[7px]`}
             >
               {mode === "time" ? (
                 <span className="led led-lit text-[22px] phone:text-[13px]">
@@ -257,7 +257,7 @@ export function TradeTicket({
               id="ticket-durations"
               role="dialog"
               aria-label="Choose expiry"
-              className="absolute left-0 top-[calc(100%+8px)] z-40 w-[264px] max-w-[calc(100vw-16px)] rounded-xl border border-white/10 bg-[#262b33] p-2.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.85)] phone:bottom-[calc(100%+8px)] phone:top-auto phone:w-[248px]"
+              className="absolute left-0 top-[calc(100%+8px)] z-40 w-[264px] max-w-[calc(100vw-16px)] rounded-xl border border-white/10 bg-tile-hi p-2.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.85)] phone:bottom-[calc(100%+8px)] phone:top-auto phone:w-[248px]"
             >
               <div role="tablist" aria-label="Expiry mode" className="mb-2.5 grid grid-cols-2 gap-0.5 rounded-md bg-white/10 p-0.5">
                 {(["timer", "time"] as const).map((m) => (
@@ -267,7 +267,7 @@ export function TradeTicket({
                     role="tab"
                     aria-selected={mode === m}
                     onClick={() => switchMode(m)}
-                    className={`h-8 rounded-[5px] text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${
+                    className={`h-8 rounded-[5px] text-[11px] font-bold uppercase tracking-[0.08em] transition-colors phone:h-10 ${
                       mode === m ? PICK_ACTIVE : "text-ink-2 hover:text-ink"
                     }`}
                   >
@@ -309,7 +309,7 @@ export function TradeTicket({
                     ))}
               </div>
               {manualOpen ? (
-                <div className="mt-1.5 flex h-10 items-center gap-2 rounded-md bg-white/10 px-2.5 phone:h-9">
+                <div className="mt-1.5 flex h-10 items-center gap-2 rounded-md bg-white/10 px-2.5">
                   {mode === "time" ? (
                     <input
                       type="time"
@@ -341,7 +341,7 @@ export function TradeTicket({
                       <button
                         type="button"
                         onClick={applyManualDuration}
-                        className="rounded-[4px] bg-brand px-2.5 py-1 text-[11px] font-bold text-brand-ink"
+                        className="h-8 rounded-[4px] bg-brand-fill px-3 text-[11px] font-bold text-white hover:bg-brand-fill-hi phone:h-9"
                       >
                         Set
                       </button>
@@ -405,12 +405,12 @@ export function TradeTicket({
             key={value}
             type="button"
             onClick={() => setStakeInput(String(value))}
-            className={`h-7 rounded-[2px] border bg-panel text-xs font-semibold phone:h-10 phone:text-sm ${
+            className={`h-7 min-w-0 whitespace-nowrap rounded-[2px] border bg-panel text-xs font-semibold tabular-nums ${
               stakeMajor === value ? "border-up text-up" : "border-rule text-ink-2 hover:text-ink"
             }`}
           >
             {currencySymbol(currency)}
-            {value}
+            {value.toLocaleString("en-US")}
           </button>
         ))}
       </div>
@@ -440,7 +440,7 @@ export function TradeTicket({
       ) : error ? (
         <div
           role="alert"
-          className="grid grid-cols-[auto_1fr] items-start gap-2 rounded-[2px] bg-warn-bg px-2.5 py-2 text-xs text-[#ffb3a8] shadow-[inset_0_0_0_1px_rgba(229,65,59,.5)] phone:gap-1.5 phone:px-2 phone:py-1 phone:text-[10px]"
+          className="grid grid-cols-[auto_1fr] items-start gap-2 rounded-[2px] bg-warn-bg px-2.5 py-2 text-xs text-down shadow-[inset_0_0_0_1px_rgba(229,65,59,.5)] phone:gap-1.5 phone:px-2 phone:py-1 phone:text-[10px]"
         >
           <Icon name="alert" className="size-4 phone:size-3" />
           {error}
