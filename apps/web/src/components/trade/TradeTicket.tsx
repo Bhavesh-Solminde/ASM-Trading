@@ -56,13 +56,13 @@ function formatDuration(seconds: number): string {
 }
 
 const STEP =
-  "grid h-12 place-items-center rounded border border-white/40 text-ink-2 hover:border-white/70 hover:bg-panel hover:text-ink phone:h-[26px]";
+  "relative grid h-12 place-items-center rounded border border-white/40 text-ink-2 hover:border-white/70 hover:bg-panel hover:text-ink phone:h-[26px] phone:after:absolute phone:after:-inset-x-1.5 phone:after:-inset-y-[7px]";
 const DISPLAY = "grid h-12 place-items-center rounded border border-white/40 bg-panel phone:h-[26px]";
 /** A cell in the expiry picker grid. */
 const PICK =
-  "h-10 rounded-md text-[13px] font-semibold tabular-nums transition-colors phone:h-9 phone:text-[12px]";
+  "h-10 rounded-md text-[13px] font-semibold tabular-nums transition-colors phone:text-[12px]";
 const PICK_IDLE = "bg-white/10 text-ink hover:bg-white/15";
-const PICK_ACTIVE = "bg-brand text-brand-ink";
+const PICK_ACTIVE = "bg-brand-fill text-white";
 /** Stepper glyphs: default size on desktop, 30% smaller in the phone ticket. */
 const STEP_ICON = "size-[18px] phone:size-3";
 
@@ -227,7 +227,7 @@ export function TradeTicket({
               aria-expanded={gridOpen}
               aria-controls="ticket-durations"
               onClick={() => setGridOpen((o) => !o)}
-              className={`${DISPLAY} hover:border-tile-hi`}
+              className={`${DISPLAY} relative hover:border-tile-hi phone:after:absolute phone:after:inset-x-0 phone:after:-inset-y-[7px]`}
             >
               {mode === "time" ? (
                 <span className="led led-lit text-[22px] phone:text-[13px]">
@@ -267,7 +267,7 @@ export function TradeTicket({
                     role="tab"
                     aria-selected={mode === m}
                     onClick={() => switchMode(m)}
-                    className={`h-8 rounded-[5px] text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${
+                    className={`h-8 rounded-[5px] text-[11px] font-bold uppercase tracking-[0.08em] transition-colors phone:h-10 ${
                       mode === m ? PICK_ACTIVE : "text-ink-2 hover:text-ink"
                     }`}
                   >
@@ -309,7 +309,7 @@ export function TradeTicket({
                     ))}
               </div>
               {manualOpen ? (
-                <div className="mt-1.5 flex h-10 items-center gap-2 rounded-md bg-white/10 px-2.5 phone:h-9">
+                <div className="mt-1.5 flex h-10 items-center gap-2 rounded-md bg-white/10 px-2.5">
                   {mode === "time" ? (
                     <input
                       type="time"
@@ -341,7 +341,7 @@ export function TradeTicket({
                       <button
                         type="button"
                         onClick={applyManualDuration}
-                        className="rounded-[4px] bg-brand px-2.5 py-1 text-[11px] font-bold text-brand-ink"
+                        className="h-8 rounded-[4px] bg-brand-fill px-3 text-[11px] font-bold text-white hover:bg-brand-fill-hi phone:h-9"
                       >
                         Set
                       </button>
@@ -405,12 +405,12 @@ export function TradeTicket({
             key={value}
             type="button"
             onClick={() => setStakeInput(String(value))}
-            className={`h-7 rounded-[2px] border bg-panel text-xs font-semibold phone:h-10 phone:text-sm ${
+            className={`h-7 min-w-0 whitespace-nowrap rounded-[2px] border bg-panel text-xs font-semibold tabular-nums ${
               stakeMajor === value ? "border-up text-up" : "border-rule text-ink-2 hover:text-ink"
             }`}
           >
             {currencySymbol(currency)}
-            {value}
+            {value.toLocaleString("en-US")}
           </button>
         ))}
       </div>

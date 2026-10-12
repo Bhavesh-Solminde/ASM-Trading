@@ -92,24 +92,20 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-semibold">Personal data</h2>
           <span
-            className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-            style={{
-              background: profile.kycStatus === "VERIFIED" ? "#14301f" : "#2a2213",
-              color: profile.kycStatus === "VERIFIED" ? "#4fc08d" : "#e0ac50",
-            }}
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+              profile.kycStatus === "VERIFIED" ? "bg-up/15 text-up" : "bg-caution/15 text-caution"
+            }`}
           >
             {KYC_LABEL[profile.kycStatus] ?? "Not verified"}
           </span>
         </div>
 
         <div>
-          <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]">
-            Email
-          </label>
+          <p className="legend">Email</p>
           <p className="mt-1 flex items-center gap-2 text-sm">
             {profile.email}
             {!profile.emailVerified ? (
-              <span className="text-[10px] font-semibold text-[#e0ac50]">Unverified</span>
+              <span className="text-[10px] font-semibold text-caution">Unverified</span>
             ) : null}
           </p>
         </div>
@@ -117,10 +113,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         <div className="grid gap-3 sm:grid-cols-2">
           {FIELDS.map((field) => (
             <div key={field.key}>
-              <label
-                htmlFor={field.key}
-                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]"
-              >
+              <label htmlFor={field.key} className="legend">
                 {field.label}
               </label>
               <input
@@ -128,32 +121,32 @@ export function ProfileForm({ initial }: { initial: Profile }) {
                 type={field.type}
                 value={profile[field.key] ?? ""}
                 onChange={(e) => setProfile({ ...profile, [field.key]: e.target.value })}
-                className="mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+                className="mt-1 h-10 w-full rounded border border-rule bg-tile px-3 text-sm outline-none focus:border-brand"
               />
             </div>
           ))}
         </div>
 
-        {error ? <p className="text-xs text-[var(--color-down)]">{error}</p> : null}
-        {message ? <p className="text-xs text-[var(--color-up)]">{message}</p> : null}
+        {error ? <p role="alert" className="text-xs text-down">{error}</p> : null}
+        {message ? <p role="status" className="text-xs text-up">{message}</p> : null}
 
         <button
           type="button"
           onClick={() => void save()}
-          className="self-start rounded bg-[var(--color-brand)] px-5 py-2.5 text-sm font-semibold text-[var(--color-brand-ink)] phone:self-stretch phone:py-3"
+          className="self-start rounded bg-brand-fill px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-fill-hi phone:self-stretch phone:py-3"
         >
           Save
         </button>
 
-        <div className="flex flex-col gap-2 rounded border border-[var(--color-rule)] bg-[var(--color-tile)] p-3">
+        <div className="flex flex-col gap-2 rounded border border-rule bg-tile p-3">
           <p className="text-sm font-semibold">Identity verification (KYC)</p>
-          <p className="text-xs text-[var(--color-ink-2)]">
+          <p className="text-xs text-ink-2">
             {(KYC_HINT[profile.kycStatus] ?? KYC_HINT.NOT_STARTED!).text}
           </p>
           {(KYC_HINT[profile.kycStatus] ?? KYC_HINT.NOT_STARTED!).cta ? (
             <Link
               href="/account/verify"
-              className="self-start rounded bg-[var(--color-up)] px-4 py-2 text-sm font-bold text-[var(--color-up-ink)] phone:self-stretch phone:text-center"
+              className="self-start rounded bg-up px-4 py-2 text-sm font-bold text-up-ink phone:self-stretch phone:text-center"
             >
               {(KYC_HINT[profile.kycStatus] ?? KYC_HINT.NOT_STARTED!).cta}
             </Link>

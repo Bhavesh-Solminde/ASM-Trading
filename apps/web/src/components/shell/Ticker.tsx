@@ -55,10 +55,13 @@ export function Ticker() {
       aria-label="Live prices"
       className="ticker col-span-full row-start-2 min-w-0 overflow-hidden border-b border-rule bg-panel phone:hidden"
     >
-      <div className="ticker-track flex h-full w-max items-stretch">
-        {items.map((asset, i) => (
-          <TickerItem key={`${asset.symbol}-${i}`} asset={asset} hidden={i >= assets.length} />
-        ))}
+      {/* Edge fade on the scrolling viewport only, so the bar's bottom rule stays solid. */}
+      <div className="h-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_32px,#000_calc(100%-32px),transparent)]">
+        <div className="ticker-track flex h-full w-max items-stretch">
+          {items.map((asset, i) => (
+            <TickerItem key={`${asset.symbol}-${i}`} asset={asset} hidden={i >= assets.length} />
+          ))}
+        </div>
       </div>
     </div>
   );

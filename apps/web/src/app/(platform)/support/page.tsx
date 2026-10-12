@@ -3,9 +3,17 @@ import { redirect } from "next/navigation";
 import { FAQ } from "@asm/contracts";
 import { listTicketsForActor } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { PageFrame } from "@/components/shell/PageFrame";
+import { Icon } from "@/components/shell/Icon";
 import { TicketForm } from "./TicketForm";
 
 export const dynamic = "force-dynamic";
+
+const STATUS_PILL: Record<string, { label: string; cls: string }> = {
+  OPEN: { label: "Open", cls: "bg-brand/10 text-brand" },
+  ANSWERED: { label: "Answered", cls: "bg-up/10 text-up" },
+  CLOSED: { label: "Closed", cls: "bg-tile text-ink-2" },
+};
 
 export default async function SupportPage() {
   const store = await cookies();
@@ -15,45 +23,53 @@ export default async function SupportPage() {
   const tickets = await listTicketsForActor(session.userId, 20);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-8 phone:px-4 phone:py-5">
-      <section>
-        <h1 className="mb-4 text-lg font-semibold tracking-tight">Frequently asked questions</h1>
-        <div className="flex flex-col gap-1">
+    <PageFrame width="base" title="Help & support">
+      <section className="flex flex-col gap-3">
+        <h2 className="text-base font-semibold tracking-tight">Frequently asked questions</h2>
+        <div className="flex flex-col gap-1.5">
           {FAQ.map((entry) => (
-            <details
-              key={entry.q}
-              className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3"
-            >
-              <summary className="cursor-pointer text-sm font-semibold">{entry.q}</summary>
-              <p className="mt-2 text-sm text-[var(--color-ink-2)]">{entry.a}</p>
+            <details key={entry.q} className="group rounded border border-rule bg-panel">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                <span>{entry.q}</span>
+                <Icon
+                  name="caret"
+                  className="size-4 flex-none text-ink-2 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+                />
+              </summary>
+              <p className="px-4 pb-4 text-sm leading-relaxed text-ink-2">{entry.a}</p>
             </details>
           ))}
         </div>
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">Contact support</h2>
+        <h2 className="text-base font-semibold tracking-tight">Contact support</h2>
         <TicketForm />
       </section>
 
       {tickets.length > 0 ? (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold">Your requests</h2>
+        <section className="flex flex-col gap-3">
+          <h2 className="text-base font-semibold tracking-tight">Your requests</h2>
           <ul className="flex flex-col gap-2">
-            {tickets.map((t) => (
-              <li
-                key={t.id}
-                className="flex items-center justify-between rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3 text-sm"
-              >
-                <span className="font-semibold">{t.subject}</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-2)]">
-                  {t.status}
-                </span>
-              </li>
-            ))}
+            {tickets.map((t) => {
+              const pill = STATUS_PILL[t.status] ?? { label: t.status, cls: "bg-tile text-ink-2" };
+              return (
+                <li
+                  key={t.id}
+                  className="flex items-center justify-between gap-3 rounded border border-rule bg-panel px-4 py-3 text-sm"
+                >
+                  <span className="min-w-0 truncate font-semibold">{t.subject}</span>
+                  <span
+                    className={`flex-none rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${pill.cls}`}
+                  >
+                    {pill.label}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}
-    </main>
+    </PageFrame>
   );
 }

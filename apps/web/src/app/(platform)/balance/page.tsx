@@ -1,8 +1,11 @@
 import { cookies } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { formatMoney, listDepositsForActor, listWithdrawalsForActor } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
+import { PageFrame } from "@/components/shell/PageFrame";
+import { Icon } from "@/components/shell/Icon";
 
 export const dynamic = "force-dynamic";
 
@@ -62,12 +65,21 @@ export default async function BalancePage() {
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-6 py-8 phone:px-4 phone:py-5">
-      <PlatformTabs />
-      <h1 className="text-lg font-bold tracking-tight">History</h1>
-
+    <PageFrame width="wide" nav={<PlatformTabs />} title="History">
       {rows.length === 0 ? (
-        <p className="text-sm text-[var(--color-ink-2)]">No transactions yet.</p>
+        <div className="flex flex-col items-center gap-3 rounded border border-rule bg-panel px-6 py-12 text-center">
+          <span className="grid size-12 place-items-center rounded-full bg-tile text-ink-2">
+            <Icon name="history" className="size-6" aria-hidden />
+          </span>
+          <h2 className="text-base font-semibold">No transactions yet</h2>
+          <p className="max-w-[40ch] text-sm text-ink-2">Deposits, withdrawals and bonuses will show up here.</p>
+          <Link
+            href="/deposit"
+            className="mt-2 rounded bg-brand-fill px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-fill-hi phone:py-3"
+          >
+            Make a deposit
+          </Link>
+        </div>
       ) : (
         <>
           <ul className="hidden flex-col phone:flex">
@@ -76,7 +88,7 @@ export default async function BalancePage() {
               return (
                 <li
                   key={row.id}
-                  className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 border-t border-[var(--color-rule)] py-3 text-sm"
+                  className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 border-t border-rule py-3 text-sm"
                 >
                   <div className="flex items-center gap-2.5">
                     <span
@@ -111,15 +123,15 @@ export default async function BalancePage() {
                     <span>{isDeposit ? "+" : "−"}</span>
                     <span>{formatMoney(Math.abs(row.amount), "USD")}</span>
                   </span>
-                  <span className="text-xs tabular-nums text-[var(--color-ink-2)]">
+                  <span className="text-xs tabular-nums text-ink-2">
                     {row.at.toISOString().slice(0, 16).replace("T", " ")}
                   </span>
                   <span className="text-right text-xs text-ink-2">{STATUS_LABEL[row.status] ?? row.status}</span>
-                  <span className="col-span-2 font-mono text-[11px] text-[var(--color-ink-3)]">
+                  <span className="col-span-2 font-mono text-[11px] text-ink-3">
                     {row.id.slice(0, 8).toUpperCase()}
                   </span>
                   {row.note ? (
-                    <p className="col-span-2 mt-1 rounded bg-[var(--color-tile)] p-2 text-[11px] leading-relaxed text-[var(--color-ink-2)]">
+                    <p className="col-span-2 mt-1 rounded bg-tile p-2 text-[11px] leading-relaxed text-ink-2">
                       {row.note}
                     </p>
                   ) : null}
@@ -130,7 +142,7 @@ export default async function BalancePage() {
           <div className="overflow-x-auto phone:hidden">
             <table className="w-full min-w-[680px] text-sm">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-[0.1em] text-[var(--color-ink-2)]">
+                <tr className="text-left text-[10px] uppercase tracking-[0.1em] text-ink-2">
                   <th className="pb-2">Transaction ID</th>
                   <th className="pb-2">Date and time</th>
                   <th className="pb-2">Status</th>
@@ -143,9 +155,9 @@ export default async function BalancePage() {
                 {rows.map((row) => {
                   const isDeposit = row.kind === "Deposit";
                   return (
-                    <tr key={row.id} className="border-t border-[var(--color-rule)] align-top">
+                    <tr key={row.id} className="border-t border-rule align-top">
                       <td className="py-3 font-mono text-xs">{row.id.slice(0, 8).toUpperCase()}</td>
-                      <td className="py-3 tabular-nums text-[var(--color-ink-2)]">
+                      <td className="py-3 tabular-nums text-ink-2">
                         {row.at.toISOString().slice(0, 16).replace("T", " ")}
                       </td>
                       <td className="py-3">
@@ -154,7 +166,7 @@ export default async function BalancePage() {
                           {STATUS_LABEL[row.status] ?? row.status}
                         </span>
                         {row.note ? (
-                          <p className="mt-2 max-w-sm rounded bg-[var(--color-tile)] p-2 text-[11px] leading-relaxed text-[var(--color-ink-2)]">
+                          <p className="mt-2 max-w-sm rounded bg-tile p-2 text-[11px] leading-relaxed text-ink-2">
                             {row.note}
                           </p>
                         ) : null}
@@ -196,6 +208,6 @@ export default async function BalancePage() {
           </div>
         </>
       )}
-    </main>
+    </PageFrame>
   );
 }

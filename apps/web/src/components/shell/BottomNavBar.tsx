@@ -20,7 +20,7 @@ export function BottomNavBar() {
             key={item.id}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={`group relative flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-150 active:scale-95 ${
+            className={`group relative flex flex-1 flex-col after:absolute after:inset-x-0 after:-top-1 after:bottom-0 items-center justify-center gap-0.5 transition-all duration-150 active:scale-95 ${
               active ? "text-ink" : "text-ink-2 hover:text-ink"
             }`}
           >

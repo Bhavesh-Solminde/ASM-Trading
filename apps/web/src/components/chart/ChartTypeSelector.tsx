@@ -34,7 +34,7 @@ export function ChartTypeSelector({
         aria-label={`Chart style: ${activeOption.label}`}
         title={`Chart style: ${activeOption.label}`}
         onClick={() => setOpen((o) => !o)}
-        className={`relative grid size-[34px] place-items-center rounded-[4px] border backdrop-blur transition-colors ${
+        className={`relative grid size-[34px] phone:size-10 place-items-center rounded-[4px] border backdrop-blur transition-colors ${
           open
             ? "border-brand bg-brand/25 text-brand shadow-[0_0_8px_rgba(47,129,247,0.3)]"
             : "border-brand/50 bg-brand/15 text-brand hover:border-brand hover:bg-brand/25"
@@ -69,7 +69,7 @@ export function ChartTypeSelector({
                       onChange(opt.id);
                       setOpen(false);
                     }}
-                    className={`grid w-full grid-cols-[20px_1fr_auto] items-center gap-2.5 rounded-[4px] px-2.5 py-2 text-left transition-colors ${
+                    className={`grid w-full grid-cols-[20px_1fr_auto] items-center gap-2.5 rounded-[4px] px-2.5 py-2 text-left transition-colors phone:py-2.5 ${
                       active
                         ? "bg-brand/15 text-brand border border-brand/40 font-semibold"
                         : "text-ink hover:bg-tile hover:text-white border border-transparent"

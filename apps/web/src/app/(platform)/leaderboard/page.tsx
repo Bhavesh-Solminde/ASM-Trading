@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { dailyLeaderboard } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { startOfDayMs } from "@/lib/day";
+import { PageFrame } from "@/components/shell/PageFrame";
 import { LeaderboardView } from "@/components/leaderboard/LeaderboardView";
 
 export const dynamic = "force-dynamic";
@@ -21,5 +22,13 @@ export default async function LeaderboardPage() {
     includeBots: INCLUDE_BOTS,
   });
 
-  return <LeaderboardView result={result} />;
+  return (
+    <PageFrame
+      width="narrow"
+      title="Leaderboard"
+      description="Ranked by today's realized profit and loss across live accounts. Resets at midnight IST."
+    >
+      <LeaderboardView result={result} />
+    </PageFrame>
+  );
 }

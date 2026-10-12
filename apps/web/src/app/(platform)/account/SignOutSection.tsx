@@ -24,16 +24,16 @@ export function SignOutSection() {
   }
 
   return (
-    <section className="flex flex-col gap-3 border-t border-[var(--color-rule)] pt-5">
+    <section className="flex flex-col gap-3 border-t border-rule pt-5">
       <h2 className="text-sm font-semibold">Sign out</h2>
-      <p className="text-xs text-[var(--color-ink-2)]">
+      <p className="text-xs text-ink-2">
         Signing out ends this session. Signing out everywhere revokes every
         active session on every device.
       </p>
 
-      {error ? <p className="text-xs text-[var(--color-down)]">{error}</p> : null}
+      {error ? <p className="text-xs text-down">{error}</p> : null}
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 phone:flex-col">
         <button
           type="button"
           onClick={() => void signOut("one")}

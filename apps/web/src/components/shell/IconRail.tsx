@@ -21,7 +21,8 @@ export function IconRail() {
         const gap = item.pinBottom ? <span className="flex-1 phone:hidden" /> : null;
         const inner = (
           <>
-            <Icon name={item.icon} className="size-[22px]" />
+            {/* "more" is three zero-length dashes: a heavier stroke keeps the dots as legible as the other glyphs. */}
+            <Icon name={item.icon} className="size-[22px]" {...(item.icon === "more" ? { strokeWidth: 3.2 } : {})} />
             {item.label}
             {!item.available && !item.pinBottom ? (
               <span className="-mt-1 text-[8px] tracking-[0.1em] text-ink-3">Soon</span>

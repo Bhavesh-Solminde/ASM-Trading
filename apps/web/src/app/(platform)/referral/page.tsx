@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { loadProfile } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { PageFrame } from "@/components/shell/PageFrame";
 import { ReferralClient } from "./ReferralClient";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +18,8 @@ export default async function ReferralPage() {
   const referralUrl = `${origin}/register?ref=${referralCode}`;
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-8 phone:px-4 phone:py-5">
-      <h1 className="mb-6 text-xl font-semibold tracking-tight">Referral Program</h1>
+    <PageFrame width="base" title="Referral program">
       <ReferralClient referralCode={referralCode} referralUrl={referralUrl} />
-    </main>
+    </PageFrame>
   );
 }

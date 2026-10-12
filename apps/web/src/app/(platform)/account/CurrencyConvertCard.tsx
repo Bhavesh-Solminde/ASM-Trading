@@ -59,7 +59,7 @@ export function CurrencyConvertCard({ accounts }: { accounts: AccountBalance[] }
   return (
     <section className="rounded border border-rule bg-panel p-4">
       <h2 className="mb-1 text-sm font-semibold">Balances &amp; currency</h2>
-      <p className="mb-4 flex items-center gap-1.5 text-xs text-ink-2">
+      <p className="mb-4 flex items-start gap-1.5 text-xs leading-relaxed text-ink-2">
         <span
           role="img"
           aria-label="Conversion rate notice"
@@ -68,8 +68,9 @@ export function CurrencyConvertCard({ accounts }: { accounts: AccountBalance[] }
         >
           <Icon name="alert" className="size-4" />
         </span>
-        Convert your whole balance between rupees and dollars at a fixed{" "}
-        <b className="text-ink">₹100 = $1</b>.
+        <span className="min-w-0">
+          Convert your whole balance between rupees and dollars at a fixed <strong className="text-ink">₹100 = $1</strong>.
+        </span>
       </p>
 
       <div className="grid gap-3">
@@ -119,7 +120,7 @@ export function CurrencyConvertCard({ accounts }: { accounts: AccountBalance[] }
                   type="button"
                   disabled={busy}
                   onClick={() => void convert(acct.id, target)}
-                  className="ml-auto inline-flex h-9 items-center rounded border border-brand bg-brand px-3.5 text-xs font-bold uppercase tracking-[0.06em] text-brand-ink disabled:opacity-60 phone:h-10"
+                  className="ml-auto inline-flex h-9 items-center justify-center rounded border border-brand-fill bg-brand-fill px-3.5 text-xs font-bold uppercase tracking-[0.06em] text-white hover:bg-brand-fill-hi disabled:opacity-60 phone:ml-0 phone:h-10 phone:w-full"
                 >
                   {busy ? "Converting…" : `Convert to ${target}`}
                 </button>
@@ -129,7 +130,7 @@ export function CurrencyConvertCard({ accounts }: { accounts: AccountBalance[] }
         })}
       </div>
 
-      {error ? <p className="mt-3 text-xs text-down">{error}</p> : null}
+      {error ? <p role="alert" className="mt-3 text-xs text-down">{error}</p> : null}
     </section>
   );
 }

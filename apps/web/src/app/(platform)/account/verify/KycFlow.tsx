@@ -25,7 +25,7 @@ const ID_DOCS: { kind: DocKind; label: string; hint: string }[] = [
 
 const FIELD =
   "mt-1 h-11 w-full rounded-lg border border-rule bg-tile px-3 text-sm outline-none focus:border-brand";
-const LABEL = "text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-2";
+const LABEL = "legend";
 
 function detailsProblem(d: KycDetails): string | null {
   if (!d.firstName.trim() || !d.lastName.trim()) return "Enter your first and last name as on your Aadhaar.";

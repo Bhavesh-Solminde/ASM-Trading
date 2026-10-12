@@ -36,7 +36,7 @@ interface Receipt {
 
 const LABEL = "text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]";
 const INPUT =
-  "mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-3 py-2.5 text-sm outline-none focus:border-[var(--color-brand)] phone:text-base";
+  "mt-1 w-full rounded border border-rule bg-tile px-3 py-2.5 text-sm focus:border-brand phone:text-base";
 
 export function WithdrawForm({
   accountId,
@@ -68,6 +68,8 @@ export function WithdrawForm({
   const [usdtNetwork, setUsdtNetwork] = useState<UsdtNetwork>(lastPayouts.USDT?.usdtNetwork ?? "tron");
   const [usdtAddress, setUsdtAddress] = useState(lastPayouts.USDT?.usdtAddress ?? "");
   const [error, setError] = useState<string | null>(null);
+  /** Amount problems sit under the amount field; everything else shows above the submit button. */
+  const [amountError, setAmountError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
@@ -104,8 +106,9 @@ export function WithdrawForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const amountError = validateAmount();
-    if (amountError) return setError(amountError);
+    setAmountError(null);
+    const amountProblem = validateAmount();
+    if (amountProblem) return setAmountError(amountProblem);
     const payout = payoutDetails();
     if (typeof payout === "string") return setError(payout);
 
@@ -181,19 +184,25 @@ export function WithdrawForm({
   }
 
   return (
-    <form onSubmit={submit} onChange={() => setError(null)} noValidate className="flex flex-col gap-5">
+    <form onSubmit={submit} onChange={() => {
+        setError(null);
+        setAmountError(null);
+      }}
+      noValidate className="flex flex-col gap-5">
       {/* 1 — Amount */}
       <div>
         <label htmlFor="wamount" className={LABEL}>
           Amount to withdraw
         </label>
-        <div className="mt-1 flex items-center gap-2 rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-3 focus-within:border-[var(--color-brand)]">
+        <div className="mt-1 flex items-center gap-2 rounded border border-rule bg-tile px-3 focus-within:border-brand focus-within:outline focus-within:outline-2 focus-within:outline-brand">
           <span className="text-base font-semibold text-[var(--color-ink-2)]">{sym}</span>
           <input
             id="wamount"
             inputMode="decimal"
             autoComplete="off"
             placeholder="0"
+            aria-invalid={amountError ? true : undefined}
+            aria-describedby={amountError ? "wamount-error" : undefined}
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
             className="min-w-0 flex-1 bg-transparent py-3 text-lg font-semibold tabular-nums outline-none"
@@ -213,6 +222,11 @@ export function WithdrawForm({
             {formatMinor(withdrawableMinor, currency)}
           </span>
         </p>
+        {amountError ? (
+          <p id="wamount-error" role="alert" className="mt-2 text-xs text-down">
+            {amountError}
+          </p>
+        ) : null}
       </div>
 
       {/* 2 — Method */}
@@ -313,7 +327,7 @@ export function WithdrawForm({
       </div>
 
       {error ? (
-        <p role="alert" className="text-xs text-[var(--color-down)]">
+        <p role="alert" className="text-xs text-down">
           {error}
         </p>
       ) : null}
@@ -321,7 +335,7 @@ export function WithdrawForm({
       <button
         type="submit"
         disabled={busy}
-        className="rounded bg-[var(--color-brand)] px-4 py-3 text-sm font-bold text-[var(--color-brand-ink)] disabled:opacity-60"
+        className="rounded bg-brand-fill px-4 py-3 text-sm font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? "Sending request…" : "Request withdrawal"}
       </button>
@@ -412,7 +426,7 @@ function WithdrawReceipt({
       <button
         type="button"
         onClick={onDone}
-        className="rounded bg-[var(--color-brand)] px-4 py-3 text-sm font-bold text-[var(--color-brand-ink)]"
+        className="rounded bg-brand-fill px-4 py-3 text-sm font-bold text-white hover:bg-brand-fill-hi"
       >
         Done
       </button>

@@ -8,6 +8,7 @@ import {
   withdrawableBalance,
 } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { PageFrame } from "@/components/shell/PageFrame";
 import { ProfileForm } from "./ProfileForm";
 import { DemoBalanceForm } from "./DemoBalanceForm";
 import { SignOutSection } from "./SignOutSection";
@@ -38,22 +39,19 @@ export default async function AccountPage() {
   }));
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-8 phone:px-4 phone:py-5">
-      <h1 className="mb-6 text-xl font-semibold tracking-tight">My account</h1>
-      <div className="grid gap-6">
-        <CurrencyConvertCard accounts={balances} />
-        <ProfileForm initial={profile} />
-        {demo ? (
-          <DemoBalanceForm
-            accountId={demo.id}
-            currency={demo.currency}
-            currentLabel={formatMoney(demo.realBalance, demo.currency)}
-            capMinor={demoBalanceCap(demo.currency)}
-            capLabel={formatMoney(demoBalanceCap(demo.currency), demo.currency)}
-          />
-        ) : null}
-        <SignOutSection />
-      </div>
-    </main>
+    <PageFrame width="base" title="My account">
+      <CurrencyConvertCard accounts={balances} />
+      <ProfileForm initial={profile} />
+      {demo ? (
+        <DemoBalanceForm
+          accountId={demo.id}
+          currency={demo.currency}
+          currentLabel={formatMoney(demo.realBalance, demo.currency)}
+          capMinor={demoBalanceCap(demo.currency)}
+          capLabel={formatMoney(demoBalanceCap(demo.currency), demo.currency)}
+        />
+      ) : null}
+      <SignOutSection />
+    </PageFrame>
   );
 }

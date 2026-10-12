@@ -81,7 +81,7 @@ export function AmountStep({
           max={1000000}
           value={amountMajor}
           onChange={(e) => setAmountMajor(Number(e.target.value))}
-          className="mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 text-sm tabular-nums outline-none focus:border-[var(--color-brand)]"
+          className="mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 text-sm tabular-nums focus:border-brand"
         />
         <div className="mt-2 flex gap-2">
           {QUICK.map((q) => (
@@ -121,13 +121,17 @@ export function AmountStep({
         </>
       ) : null}
 
-      {error ? <p className="text-xs text-[var(--color-down)]">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="text-sm text-down">
+          {error}
+        </p>
+      ) : null}
 
       <button
         type="button"
         disabled={busy}
         onClick={() => void proceed()}
-        className="rounded bg-[var(--color-brand)] px-4 py-3 text-sm font-bold text-[var(--color-brand-ink)] disabled:opacity-50"
+        className="rounded bg-brand-fill px-4 py-3 text-sm font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? "Starting…" : "Proceed to Pay"}
       </button>
