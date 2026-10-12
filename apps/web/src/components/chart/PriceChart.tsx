@@ -42,6 +42,15 @@ const WATERMARK = "rgba(47, 129, 247, 0.045)";
 const CANDLE_SEC = TIMEFRAME_SEC["1m"];
 /** Fetch older history once the left edge is within this many bars of the start. */
 const LOAD_OLDER_TRIGGER_BARS = 12;
+
+/**
+ * How many real candles must stay on screen. Without this the user can drag the
+ * history off to the left until one or two bars are left hugging the price
+ * scale, which reads as a broken chart. Enforced two ways: the time scale is
+ * capped so eight bars always fit across the plot (zoom), and the visible range
+ * is pushed back whenever a drag would leave fewer than eight (pan).
+ */
+const MIN_VISIBLE_BARS = 8;
 /**
  * How long, in milliseconds, the displayed price takes to glide to each new
  * value from the engine. This is a real time-based transition (frame-rate
@@ -85,18 +94,36 @@ function toSingleValue(c: CandleDto): LineData {
 }
 
 /**
- * The candle width the chart opens at, chosen so a fresh chart looks right on
- * each screen size — wider candles on phones (fewer, legible bars), tighter on
- * desktop (more history in view). This is only the DEFAULT: zoom stays enabled,
- * so the user can pinch/scroll to any spacing from here.
+ * The candle width the chart opens at: a close-in view (~12 candles on a phone)
+ * that stays the same apparent size on every screen, so bigger displays show
+ * more history rather than fatter candles. This is only the DEFAULT: zoom stays
+ * enabled, so the user can pinch/scroll to any spacing from here.
  */
 function defaultBarSpacing(): number {
   const w = typeof window === "undefined" ? 1280 : window.innerWidth;
-  if (w < 640) return 10; // phone
-  if (w < 1024) return 12; // tablet
-  if (w < 1920) return 14; // standard desktop
-  if (w < 2560) return 18; // wide / 2K+
-  return 22; // ultrawide / 4K
+  if (w < 640) return 26; // phone
+  if (w < 1024) return 26; // tablet
+  if (w < 1920) return 26; // standard desktop
+  if (w < 2560) return 30; // wide / 2K+
+  return 34; // ultrawide / 4K
+}
+
+/**
+ * Empty space kept to the right of the newest candle, in bars. Derived from the
+ * candle width so the gap stays a roughly constant ~130px at every zoom default
+ * instead of growing with the candles.
+ */
+function defaultRightOffset(barSpacing: number): number {
+  return Math.max(3, Math.round(130 / barSpacing));
+}
+
+/**
+ * Widest candle the user may zoom to, so MIN_VISIBLE_BARS still fit across the
+ * plot. `width` is the chart element's width; the price scale eats ~56px of it,
+ * so subtract that before dividing.
+ */
+function maxBarSpacingFor(width: number): number {
+  return Math.max(8, (Math.max(120, width) - 56) / MIN_VISIBLE_BARS);
 }
 
 /** The forming candle when it is newer than history, else the last closed one. */
@@ -431,8 +458,9 @@ export function PriceChart({
         borderVisible: false,
         timeVisible: true,
         secondsVisible: true,
-        rightOffset: 14,
+        rightOffset: defaultRightOffset(defaultBarSpacing()),
         barSpacing: defaultBarSpacing(),
+        maxBarSpacing: maxBarSpacingFor(containerRef.current.clientWidth),
       },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -488,8 +516,17 @@ export function PriceChart({
     const onCompactChange = () => chart.applyOptions({ layout: { fontSize: axisFontSize() } });
     compactMq.addEventListener("change", onCompactChange);
 
+    // The zoom cap is width-derived, so it has to follow the element (sidebar
+    // open/close, rotate, fullscreen) and not just the initial layout.
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      const width = entry?.contentRect.width ?? 0;
+      if (width > 0) chart.timeScale().applyOptions({ maxBarSpacing: maxBarSpacingFor(width) });
+    });
+    resizeObserver.observe(containerRef.current);
+
     return () => {
       compactMq.removeEventListener("change", onCompactChange);
+      resizeObserver.disconnect();
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -859,16 +896,36 @@ export function PriceChart({
       if (range && range.from < LOAD_OLDER_TRIGGER_BARS) market.loadOlder();
     };
 
+    // Pan clamp: dragging the chart to the right walks the history off screen.
+    // Once fewer than MIN_VISIBLE_BARS real bars remain, shift the range back
+    // by the overshoot so the drag stops dead at eight candles. Re-entrant by
+    // design — the range change this fires already satisfies the guard.
+    const clampRightEdge = (range: { from: number; to: number } | null) => {
+      if (!range) return;
+      const state = market.getSnapshot().chart;
+      const hasForming = state.forming !== null && latestCandle(state) === state.forming;
+      const barCount = state.candles.length + (hasForming ? 1 : 0);
+      if (barCount < MIN_VISIBLE_BARS) return;
+      const maxFrom = barCount - MIN_VISIBLE_BARS;
+      const overshoot = range.from - maxFrom;
+      if (overshoot <= 0) return;
+      chart
+        .timeScale()
+        .setVisibleLogicalRange({ from: range.from - overshoot, to: range.to - overshoot });
+    };
+
     draw();
     raf = requestAnimationFrame(paintPrice);
     const unsubscribe = market.subscribe(draw);
     const timer = setInterval(placeCountdown, 1000);
+    chart.timeScale().subscribeVisibleLogicalRangeChange(clampRightEdge);
     chart.timeScale().subscribeVisibleLogicalRangeChange(placeCountdown);
     chart.timeScale().subscribeVisibleLogicalRangeChange(maybeLoadOlder);
     return () => {
       cancelAnimationFrame(raf);
       unsubscribe();
       clearInterval(timer);
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(clampRightEdge);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(placeCountdown);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(maybeLoadOlder);
     };
