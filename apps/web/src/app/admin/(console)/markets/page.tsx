@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
 import { EmptyRow, Pager, SortableTh, StatusPill } from "../../_components/ui";
 import { avatarColor } from "../../_lib/format";
+import { Icon } from "../../_lib/icons";
 import { setAssetPayoutAction, toggleAssetOpenAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -82,7 +83,7 @@ export default async function MarketsPage({
       </div>
 
       <div className="admin-banner" style={{ margin: "14px 16px 0" }}>
-        <StatusPill status="COMPLETED" />
+        <Icon name="info" />
         <span>
           Payout changes apply to new trades only — every open position settles on the terms it was
           opened at.

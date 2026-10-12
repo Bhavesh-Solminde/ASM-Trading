@@ -132,6 +132,7 @@ export default async function AffiliatesPage({
                             type="text"
                             name="password"
                             placeholder="New password"
+                            aria-label={`New password for ${row.email}`}
                             minLength={8}
                             required
                             autoComplete="new-password"
@@ -143,7 +144,7 @@ export default async function AffiliatesPage({
                                 "ui-monospace, SFMono-Regular, monospace",
                               borderRadius: 6,
                               border: "1px solid var(--admin-border)",
-                              background: "var(--admin-bg-input)",
+                              background: "var(--admin-surface)",
                               color: "inherit",
                               width: 140,
                             }}

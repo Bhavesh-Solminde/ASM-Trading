@@ -41,6 +41,7 @@ export default async function AlgorithmPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">Realised versus target</h2>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[10px] uppercase tracking-[0.1em] text-[var(--color-ink-2)]">
@@ -73,6 +74,7 @@ export default async function AlgorithmPage() {
             })}
           </tbody>
         </table>
+        </div>
         <p className="text-xs text-[var(--color-ink-2)]">
           Hard ceiling {(HARD_CEILING * 100).toFixed(0)}%.
         </p>

@@ -65,7 +65,7 @@ export default async function NewAffiliatePage({
                 padding: "8px 10px",
                 borderRadius: 8,
                 border: "1px solid var(--admin-border)",
-                background: "var(--admin-bg-input)",
+                background: "var(--admin-surface)",
                 color: "inherit",
                 fontSize: 14,
               }}
@@ -93,7 +93,7 @@ export default async function NewAffiliatePage({
                 padding: "8px 10px",
                 borderRadius: 8,
                 border: "1px solid var(--admin-border)",
-                background: "var(--admin-bg-input)",
+                background: "var(--admin-surface)",
                 color: "inherit",
                 fontSize: 14,
                 fontFamily: "ui-monospace, SFMono-Regular, monospace",
@@ -123,7 +123,7 @@ export default async function NewAffiliatePage({
                 padding: "8px 10px",
                 borderRadius: 8,
                 border: "1px solid var(--admin-border)",
-                background: "var(--admin-bg-input)",
+                background: "var(--admin-surface)",
                 color: "inherit",
                 fontSize: 14,
               }}

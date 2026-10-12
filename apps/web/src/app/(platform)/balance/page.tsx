@@ -93,7 +93,7 @@ export default async function BalancePage() {
             <Icon name="history" className="size-6" aria-hidden />
           </span>
           <h2 className="text-base font-semibold">No transactions yet</h2>
-          <p className="max-w-[48ch] text-balance text-sm text-ink-2">Deposits, withdrawals and bonuses will show up here.</p>
+          <p className="max-w-[48ch] text-balance text-sm text-ink-2">Deposits and withdrawals will show up here.</p>
           <Link
             href="/deposit"
             className="mt-2 rounded bg-brand-fill px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-fill-hi phone:py-3"

@@ -399,6 +399,7 @@ export default async function DepositsPage({
                                   name="reason"
                                   required
                                   placeholder="Reason (e.g. wrong user)"
+                                  aria-label="Reason for reversing this deposit"
                                   className="admin-input"
                                   style={{ width: 180, fontSize: 12, padding: "4px 6px" }}
                                 />

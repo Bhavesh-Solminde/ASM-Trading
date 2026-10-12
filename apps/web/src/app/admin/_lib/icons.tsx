@@ -37,6 +37,7 @@ const PATHS: Record<string, string> = {
   search: "M11 18a7 7 0 100-14 7 7 0 000 14M21 21l-4.3-4.3",
   activity: "M22 12h-4l-3 9L9 3l-3 9H2",
   message: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z",
+  info: "M12 21a9 9 0 100-18 9 9 0 000 18M12 16v-5M12 8h.01",
   external: "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3",
 };
 

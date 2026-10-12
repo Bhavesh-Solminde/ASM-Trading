@@ -274,6 +274,7 @@ export default async function FraudQueuePage() {
                         <input
                           name="note"
                           placeholder="Optional review note"
+                          aria-label="Review note"
                           className="admin-input"
                           style={{ minWidth: 220 }}
                           maxLength={500}

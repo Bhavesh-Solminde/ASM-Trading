@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   PAYOUT_METHOD_LABEL,
@@ -70,6 +70,7 @@ export function WithdrawForm({
   const [error, setError] = useState<string | null>(null);
   /** Amount problems sit under the amount field; everything else shows above the submit button. */
   const [amountError, setAmountError] = useState<string | null>(null);
+  const amountRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
@@ -108,7 +109,13 @@ export function WithdrawForm({
     setError(null);
     setAmountError(null);
     const amountProblem = validateAmount();
-    if (amountProblem) return setAmountError(amountProblem);
+    if (amountProblem) {
+      // The amount field sits at the top of a long form; on a phone it is
+      // scrolled out of view when Request is tapped, so bring it back.
+      amountRef.current?.focus();
+      amountRef.current?.scrollIntoView({ block: "center" });
+      return setAmountError(amountProblem);
+    }
     const payout = payoutDetails();
     if (typeof payout === "string") return setError(payout);
 
@@ -194,9 +201,10 @@ export function WithdrawForm({
         <label htmlFor="wamount" className={LABEL}>
           Amount to withdraw
         </label>
-        <div className="mt-1 flex items-center gap-2 rounded border border-rule bg-tile px-3 focus-within:border-brand focus-within:outline focus-within:outline-2 focus-within:outline-brand">
+        <div className="mt-1 flex items-center gap-2 rounded border border-rule bg-tile px-3 focus-within:border-brand">
           <span className="text-base font-semibold text-[var(--color-ink-2)]">{sym}</span>
           <input
+            ref={amountRef}
             id="wamount"
             inputMode="decimal"
             autoComplete="off"
