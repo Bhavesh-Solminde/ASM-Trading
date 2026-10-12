@@ -1,5 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/session-cookie";
+import {
+  MAINTENANCE_PATH,
+  MAINTENANCE_RETRY_AFTER,
+  isAllowedDuringMaintenance,
+  isApiPath,
+  isMaintenanceMode,
+} from "@/lib/maintenance";
 
 /**
  * Security headers set centrally so no route can omit them. Asserted by an
@@ -10,8 +17,34 @@ import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/session-cookie";
  * (which readSession refreshes on the server). This is the client half of
  * the sliding "refresh token" behavior — an active user never falls off the
  * 7-day cliff.
+ *
+ * Named `proxy` rather than `middleware`: Next 16 deprecated the
+ * middleware.ts convention in favour of proxy.ts (same behaviour, new file
+ * and export name). The rename is also what makes maintenance mode work —
+ * proxy runs on the Node.js runtime, so process.env is read per request
+ * instead of being inlined at build time.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Maintenance gate runs before anything else — a request that is being
+  // turned away should not also be renewing its session cookie.
+  if (isMaintenanceMode() && !isAllowedDuringMaintenance(pathname)) {
+    if (isApiPath(pathname)) {
+      return NextResponse.json(
+        { error: "MAINTENANCE", message: "Service temporarily unavailable." },
+        {
+          status: 503,
+          headers: { "Retry-After": String(MAINTENANCE_RETRY_AFTER) },
+        },
+      );
+    }
+    return NextResponse.rewrite(new URL(MAINTENANCE_PATH, request.url), {
+      status: 503,
+      headers: { "Retry-After": String(MAINTENANCE_RETRY_AFTER) },
+    });
+  }
+
   const response = NextResponse.next();
 
   response.headers.set("X-Frame-Options", "DENY");
@@ -38,10 +71,8 @@ export function middleware(request: NextRequest) {
   );
 
   // Skip re-issuing the cookie on auth routes so a logout's clearing
-  // Set-Cookie isn't racing a middleware-issued renewal in the same
-  // response.
-  const path = request.nextUrl.pathname;
-  const isAuthRoute = path.startsWith("/api/auth/");
+  // Set-Cookie isn't racing a proxy-issued renewal in the same response.
+  const isAuthRoute = pathname.startsWith("/api/auth/");
   if (!isAuthRoute) {
     const sessionToken = request.cookies.get(SESSION_COOKIE)?.value;
     if (sessionToken) {
