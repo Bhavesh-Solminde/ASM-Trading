@@ -1,24 +1,55 @@
 /**
- * One-shot VPS procedure that:
- *   1. Wipes every row from Trade (TradeShadow cascades).
- *   2. Wipes every row from Candle.
- *   3. Prefills HOURS hours of 1m candles per open asset with the new
- *      medium-persistence (Wick C) price algorithm.
+ * One-shot VPS procedure that rebuilds every chart from scratch:
+ *   1. Refunds every OPEN trade (both account types).
+ *   2. Deletes trade history — demo accounts only by default.
+ *   3. Resets the per-account counters derived from the deleted trades.
+ *   4. Wipes every row from Candle.
+ *   5. Prefills HOURS hours of 1m candles per open asset at the asset's
+ *      current `precision`.
+ *
+ * DRY RUN BY DEFAULT. It reports exactly what it would touch and changes
+ * nothing until you pass APPLY=1.
+ *
+ * Why step 1 is not optional: wiping candles replaces the price path an open
+ * trade was entered against, and the backfill restarts each asset from its
+ * basePrice rather than its last close. An open trade left in place would
+ * settle against an unrelated path — a win or a loss decided by the rebuild
+ * rather than by the market. `voidTrade` records each one REFUNDED with no
+ * exit price and credits the stake back on the same real/bonus split it was
+ * taken on, so no balance moves on net.
+ *
+ * Why step 3 matters: tradesCount / rollingWinRate / streaks /
+ * turnoverProgress / medianStake are stored on Account, not derived. Left
+ * alone after a wipe they describe trades that no longer exist, and the
+ * algo keeps steering from them.
+ *
+ * NOT touched: HouseDay, HouseTreasury and ShadowTick keep their totals, and
+ * Transaction rows for deleted trades keep their refType/refId. Both are
+ * deliberate — the ledger stays append-only and the house P&L history stays
+ * continuous. Pass RESET_HOUSE=1 only if you want the house aggregates
+ * zeroed as well.
  *
  * The engine MUST be stopped before running this — otherwise its live
  * writes race the wipe + reinsert and the chart ends up with a gap.
  *
  *   docker compose --env-file ../.env.production stop engine
  *   docker compose --env-file ../.env.production run --rm web \
- *     pnpm tsx scripts/wipe-and-prefill-candles.ts
+ *     pnpm tsx scripts/wipe-and-prefill-candles.ts            # dry run
+ *   docker compose --env-file ../.env.production run --rm web \
+ *     APPLY=1 pnpm tsx scripts/wipe-and-prefill-candles.ts    # for real
  *   docker compose --env-file ../.env.production start engine
  *
  * Overrides:
+ *   APPLY=1           actually write    (default: dry run, no writes)
  *   HOURS=50          hours of 1m history to produce  (default 50)
- *   KEEP_TRADES=1     skip the Trade wipe             (default: wipe)
+ *   TRADES=demo       delete demo-account trades only (default)
+ *   TRADES=all        delete every trade, real money included
+ *   TRADES=none       keep all trade rows; open trades are still refunded
+ *   RESET_HOUSE=1     also zero HouseDay / HouseTreasury / ShadowTick
  *   SYMBOL=NIFTY50    only backfill that one symbol   (default: every open asset)
  */
 import { prisma } from "../packages/db/src/client";
+import { voidTrade } from "../packages/db/src/repositories/trade";
 import {
   INTRADAY_PROFILES,
   MARKET_NEWS,
@@ -37,7 +68,27 @@ import {
 
 const HOURS = Number(process.env["HOURS"] ?? 50);
 const MINUTES = HOURS * 60;
-const KEEP_TRADES = process.env["KEEP_TRADES"] === "1";
+const APPLY = process.env["APPLY"] === "1";
+const RESET_HOUSE = process.env["RESET_HOUSE"] === "1";
+
+const TRADES = (process.env["TRADES"] ?? "demo").toLowerCase();
+if (!["demo", "all", "none"].includes(TRADES)) {
+  console.error(`TRADES must be one of demo | all | none, received "${TRADES}"`);
+  process.exit(1);
+}
+
+/**
+ * The counter values a fresh account carries. Mirrors the defaults on
+ * Account in schema.prisma; `medianStake` defaults to 100 paise there, not 0.
+ */
+const FRESH_COUNTERS = {
+  tradesCount: 0,
+  rollingWinRate: 0,
+  medianStake: 100,
+  lossStreak: 0,
+  winStreak: 0,
+  turnoverProgress: 0,
+} as const;
 const SYMBOL_FILTER = process.env["SYMBOL"] || process.argv[2] || null;
 
 interface AssetRow {
@@ -157,21 +208,97 @@ async function main() {
   const nowSec = Math.floor(Date.now() / 1000);
   const endBucketSec = Math.floor(nowSec / 60) * 60 - 60;
 
+  // Survey first, and print it whether or not we are going to write. On a dry
+  // run this is the whole output; on a real run it is the record of what the
+  // database looked like immediately before it changed.
+  const demoAccountIds = (
+    await prisma.account.findMany({ where: { type: "DEMO" }, select: { id: true } })
+  ).map((a) => a.id);
+  const deleteWhere =
+    TRADES === "all" ? {} : { accountId: { in: demoAccountIds } };
+
+  const [openAll, openReal, tradesToDelete, candleCount] = await Promise.all([
+    prisma.trade.count({ where: { status: "OPEN" } }),
+    prisma.trade.count({
+      where: { status: "OPEN", account: { type: { not: "DEMO" } } },
+    }),
+    TRADES === "none" ? Promise.resolve(0) : prisma.trade.count({ where: deleteWhere }),
+    prisma.candle.count(),
+  ]);
+  const openStake = await prisma.trade.aggregate({
+    where: { status: "OPEN" },
+    _sum: { stake: true },
+  });
+
   console.log(
     `=== wipe-and-prefill-candles ===\n` +
-      `  assets:     ${assets.length}${SYMBOL_FILTER ? ` (${SYMBOL_FILTER} only)` : ""}\n` +
-      `  hours:      ${HOURS}  (${MINUTES} 1m bars per asset)\n` +
-      `  trade wipe: ${KEEP_TRADES ? "SKIPPED (KEEP_TRADES=1)" : "YES"}\n` +
-      `  ending:     ${new Date(endBucketSec * 1000).toISOString()}\n`,
+      `  mode:        ${APPLY ? "APPLY — writing to the database" : "DRY RUN — no writes (pass APPLY=1 to execute)"}\n` +
+      `  assets:      ${assets.length}${SYMBOL_FILTER ? ` (${SYMBOL_FILTER} only)` : ""}\n` +
+      `  hours:       ${HOURS}  (${MINUTES} 1m bars per asset)\n` +
+      `  ending:      ${new Date(endBucketSec * 1000).toISOString()}\n` +
+      `\n` +
+      `  open trades to refund:  ${openAll}  (${openReal} on real-money accounts)\n` +
+      `  stake being returned:   ${((openStake._sum.stake ?? 0) / 100).toFixed(2)} INR\n` +
+      `  trades to delete:       ${tradesToDelete}  (TRADES=${TRADES})\n` +
+      `  demo accounts to reset: ${TRADES === "none" ? 0 : demoAccountIds.length}\n` +
+      `  candles to delete:      ${candleCount}\n` +
+      `  house aggregates:       ${RESET_HOUSE ? "RESET" : "left alone"}\n`,
   );
 
-  if (!KEEP_TRADES) {
-    // TradeShadow cascades on delete. HouseTreasury / HouseDay are not touched
-    // here — they're global ledgers, not per-trade.
-    const trades = await prisma.trade.deleteMany({});
-    console.log(`Trade wipe:  deleted ${trades.count} rows (TradeShadow cascaded)`);
+  if (!APPLY) {
+    console.log("Dry run — nothing written. Re-run with APPLY=1 to execute.");
+    return;
   }
 
+  // 1. Refund every open position before the path under it disappears. One
+  //    transaction each (voidTrade owns that), so a failure part-way leaves
+  //    the trades it already refunded correctly settled rather than half-done.
+  let refunded = 0;
+  const openIds = await prisma.trade.findMany({
+    where: { status: "OPEN" },
+    select: { id: true },
+  });
+  for (const { id } of openIds) {
+    try {
+      await voidTrade(id);
+      refunded += 1;
+    } catch (err) {
+      console.error(`  refund failed for trade ${id}:`, err);
+      throw err;
+    }
+  }
+  console.log(`Refunds:     ${refunded} open trades voided, stakes returned`);
+
+  // 2. Delete the trade history that is being discarded. TradeShadow cascades.
+  if (TRADES !== "none") {
+    const deleted = await prisma.trade.deleteMany({ where: deleteWhere });
+    console.log(
+      `Trade wipe:  deleted ${deleted.count} rows (TradeShadow cascaded, TRADES=${TRADES})`,
+    );
+
+    // 3. The counters describe trades that no longer exist. Scope the reset to
+    //    the accounts we actually emptied — a real account that kept its
+    //    history keeps counters that are still true of it.
+    const resetWhere = TRADES === "all" ? {} : { type: "DEMO" as const };
+    const reset = await prisma.account.updateMany({
+      where: resetWhere,
+      data: { ...FRESH_COUNTERS, version: { increment: 1 } },
+    });
+    console.log(`Counters:    reset on ${reset.count} accounts`);
+  }
+
+  if (RESET_HOUSE) {
+    const [days, ticks] = await Promise.all([
+      prisma.houseDay.deleteMany({}),
+      prisma.shadowTick.deleteMany({}),
+    ]);
+    await prisma.houseTreasury.updateMany({ data: { treasuryMinor: 0 } });
+    console.log(
+      `House reset: ${days.count} HouseDay rows, ${ticks.count} ShadowTick rows, treasury zeroed`,
+    );
+  }
+
+  // 4. Charts.
   const candles = await prisma.candle.deleteMany({});
   console.log(`Candle wipe: deleted ${candles.count} rows\n`);
 
