@@ -203,8 +203,9 @@ export function MarketSelector({
                 />
               </div>
 
-              {/* One scrollable row, faded at the ends so a clipped chip reads as "more". */}
-              <div className="edge-fade-x -mx-2 mt-2 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none]">
+              {/* Desktop popover: chips wrap so none hides. Phone: one scrollable row,
+                  faded at the ends so a clipped chip reads as "more". */}
+              <div className="edge-fade-x mt-2 flex flex-wrap gap-2 [scrollbar-width:none] phone:-mx-2 phone:flex-nowrap phone:overflow-x-auto phone:px-3">
                 <button
                   type="button"
                   aria-pressed={filter === "FAV"}

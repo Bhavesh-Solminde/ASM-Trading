@@ -26,7 +26,7 @@ export function Reveal({ children, delay = 0 }: { children: ReactNode; delay?: n
           }
         }
       },
-      { threshold: 0, rootMargin: "0px 0px -10% 0px" },
+      { threshold: 0, rootMargin: "0px 0px -48px 0px" },
     );
     io.observe(el);
     return () => io.disconnect();

@@ -19,9 +19,9 @@ export interface AccountBalance {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-2">{label}</p>
-      <p className="led mt-0.5 text-lg text-ink">{value}</p>
+      <p className="led mt-0.5 truncate text-lg text-ink phone:text-base">{value}</p>
     </div>
   );
 }

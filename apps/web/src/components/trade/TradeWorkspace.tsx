@@ -546,10 +546,14 @@ export function TradeWorkspace() {
       {historyOpen ? (
         <div className="fixed inset-0 z-50">
           <div aria-hidden onClick={() => setHistoryOpen(false)} className="absolute inset-0 bg-black/60" />
-          <div className="sheet sheet-in absolute inset-x-0 bottom-0 grid max-h-[72vh] grid-rows-[auto_auto_minmax(0,1fr)]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="trades-sheet-title"
+            className="sheet sheet-in absolute inset-x-0 bottom-0 grid max-h-[72vh] grid-rows-[auto_auto_minmax(0,1fr)]">
             <div aria-hidden className="sheet-handle" />
             <div className="flex items-center justify-between pl-4 pr-2">
-              <h2 className="text-sm font-semibold text-ink">Trades &amp; history</h2>
+              <h2 id="trades-sheet-title" className="text-sm font-semibold text-ink">Trades &amp; history</h2>
               <button
                 type="button"
                 aria-label="Close trades"

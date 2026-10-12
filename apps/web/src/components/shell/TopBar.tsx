@@ -195,7 +195,8 @@ export function TopBar() {
             <div aria-hidden onClick={closeMenu} className="fixed inset-0 z-30 hidden bg-black/60 phone:block" />
             <div
               role="menu"
-              className="sheet-phone absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-tile-hi bg-tile p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:border-x-0 phone:border-b-0 phone:px-3 phone:pt-0"
+              aria-label="Accounts"
+              className="sheet-phone absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-tile-hi bg-tile p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:max-h-[calc(100dvh-16px)] phone:overflow-y-auto phone:border-x-0 phone:border-b-0 phone:px-3 phone:pt-0"
             >
               <div aria-hidden className="sheet-handle hidden phone:block" />
               <div className="hidden items-center justify-between pl-1 phone:flex">
@@ -209,7 +210,7 @@ export function TopBar() {
                   <Icon name="close" className="size-[18px]" />
                 </button>
               </div>
-              <div className="grid gap-1 phone:gap-1.5">
+              <div className="grid phone:gap-1.5">
                 {[...accounts]
                   .sort((a, b) => (a.type === b.type ? 0 : a.type === "LIVE" ? -1 : 1))
                   .map((account) => {

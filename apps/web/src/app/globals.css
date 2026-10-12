@@ -286,5 +286,7 @@ button,
 
 /* Fade the ends of a horizontally scrolling chip row. */
 .edge-fade-x {
-  mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 20px), transparent 100%);
+  @variant phone {
+    mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  }
 }

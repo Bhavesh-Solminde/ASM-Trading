@@ -29,7 +29,7 @@ export default async function SupportPage() {
         <div className="divide-y divide-rule overflow-hidden rounded-xl border border-rule bg-panel">
           {FAQ.map((entry) => (
             <details key={entry.q} className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer focus-visible:outline-offset-[-2px] list-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold [&::-webkit-details-marker]:hidden">
                 <span>{entry.q}</span>
                 <Icon
                   name="caret"
