@@ -24,7 +24,7 @@ export function ReferralClient({ referralCode, referralUrl }: ReferralClientProp
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 phone:gap-4">
       {/* Referral Link Hero Box */}
       <section className="relative overflow-hidden rounded-xl border border-rule bg-gradient-to-br from-panel via-tile to-ground p-6 phone:p-4">
         <div className="flex flex-col gap-2">
@@ -47,13 +47,13 @@ export function ReferralClient({ referralCode, referralUrl }: ReferralClientProp
 
         {/* Link Bar */}
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-rule bg-ground/80 px-3.5 py-2.5 text-xs">
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-rule bg-ground/80 px-3.5 py-2.5 text-xs phone:min-h-11">
             <span className="font-mono text-ink-2 truncate select-all">{referralUrl}</span>
           </div>
           <button
             type="button"
             onClick={() => void copyToClipboard()}
-            className="flex items-center justify-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-xs font-semibold text-white transition-transform hover:bg-brand-fill-hi active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 phone:py-3"
+            className="flex items-center justify-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-xs font-semibold text-white transition-transform hover:bg-brand-fill-hi active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 phone:h-11 phone:py-0"
           >
             {copied ? (
               <>
@@ -82,22 +82,22 @@ export function ReferralClient({ referralCode, referralUrl }: ReferralClientProp
 
       {/* Stats Bento Grid */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="flex flex-col gap-1 rounded-lg border border-rule bg-panel p-4">
+        <div className="flex flex-col gap-1 rounded-xl border border-rule bg-panel p-4">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Total Referrals</span>
           <span className="text-xl font-bold tracking-tight text-ink">0</span>
           <span className="text-[10px] text-ink-3">Registered users</span>
         </div>
-        <div className="flex flex-col gap-1 rounded-lg border border-rule bg-panel p-4">
+        <div className="flex flex-col gap-1 rounded-xl border border-rule bg-panel p-4">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Active Traders</span>
           <span className="text-xl font-bold tracking-tight text-ink">0</span>
           <span className="text-[10px] text-ink-3">Funded accounts</span>
         </div>
-        <div className="flex flex-col gap-1 rounded-lg border border-rule bg-panel p-4">
+        <div className="flex flex-col gap-1 rounded-xl border border-rule bg-panel p-4">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Total Earned</span>
           <span className="text-xl font-bold tracking-tight text-up">$0.00</span>
           <span className="text-[10px] text-ink-3">All-time earnings</span>
         </div>
-        <div className="flex flex-col gap-1 rounded-lg border border-rule bg-panel p-4">
+        <div className="flex flex-col gap-1 rounded-xl border border-rule bg-panel p-4">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Current Tier</span>
           <span className="text-xl font-bold tracking-tight text-brand">50%</span>
           <span className="text-[10px] text-ink-3">Top VIP tier</span>
@@ -105,7 +105,7 @@ export function ReferralClient({ referralCode, referralUrl }: ReferralClientProp
       </section>
 
       {/* How It Works */}
-      <section className="flex flex-col gap-3 rounded-lg border border-rule bg-panel p-5">
+      <section className="flex flex-col gap-3 rounded-xl border border-rule bg-panel p-5 phone:p-4">
         <h3 className="text-sm font-semibold tracking-tight text-ink">How the referral program works</h3>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">

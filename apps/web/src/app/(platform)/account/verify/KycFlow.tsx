@@ -73,7 +73,7 @@ export function KycFlow({
   if (status === "VERIFIED") {
     return (
       <StatusCard tone="up" title="You're verified" body="Your identity is confirmed — withdrawals are enabled.">
-        <Link href="/withdrawal" className="self-start rounded-lg bg-up px-5 py-2.5 text-sm font-bold text-up-ink phone:self-stretch phone:text-center">
+        <Link href="/withdrawal" className="self-start rounded-lg bg-up px-5 py-2.5 text-sm font-bold text-up-ink phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0">
           Go to withdrawal →
         </Link>
       </StatusCard>
@@ -306,7 +306,7 @@ function UploadTile({
           uploaded ? "border-up/50 bg-up/[0.06]" : "border-dashed border-rule bg-panel hover:border-tile-hi"
         }`}
       >
-        <span className="grid size-14 place-items-center overflow-hidden rounded-md bg-tile text-ink-3">
+        <span className="grid size-14 place-items-center overflow-hidden rounded-lg bg-tile text-ink-3">
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element -- local object URL preview
             <img src={preview} alt="" className="size-full object-cover" />
@@ -348,7 +348,7 @@ function StatusCard({
 }) {
   const toneCls = tone === "up" ? "border-up/40 bg-up/10 [&_h2]:text-up" : "border-caution/30 bg-caution/10 [&_h2]:text-caution";
   return (
-    <section className={`flex flex-col gap-3 rounded-lg border p-4 ${toneCls}`}>
+    <section className={`flex flex-col gap-3 rounded-xl border p-4 ${toneCls}`}>
       <h2 className="text-base font-bold">{title}</h2>
       <p className="text-sm leading-relaxed text-ink-2">{body}</p>
       {children}

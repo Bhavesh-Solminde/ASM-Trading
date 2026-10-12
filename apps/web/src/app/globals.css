@@ -250,3 +250,41 @@ button,
     animation: none !important;
   }
 }
+
+/* Shared bottom-sheet vocabulary: one surface + grabber for the trades sheet,
+   the account sheet and the bonus offer. `.sheet` is always a sheet; `.sheet-phone`
+   only turns into one under `phone:` (desktop keeps its popover / dialog). */
+.sheet {
+  background: var(--color-panel);
+  border-top: 1px solid var(--color-rule);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -24px 48px -12px rgb(0 0 0 / 0.7);
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+.sheet-phone {
+  @variant phone {
+    background: var(--color-panel);
+    border-top: 1px solid var(--color-rule);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -24px 48px -12px rgb(0 0 0 / 0.7);
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    animation: sheet-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  margin: 8px auto 0;
+  border-radius: 9999px;
+  background: var(--color-tile-hi);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-phone {
+    animation: none !important;
+  }
+}
+
+/* Fade the ends of a horizontally scrolling chip row. */
+.edge-fade-x {
+  mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 20px), transparent 100%);
+}

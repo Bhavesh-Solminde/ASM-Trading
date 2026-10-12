@@ -44,12 +44,12 @@ export function AmountStep({
       <button
         type="button"
         onClick={onBack}
-        className="self-start text-xs font-semibold text-[var(--color-ink-2)] underline underline-offset-4"
+        className="self-start text-xs font-semibold text-[var(--color-ink-2)] underline underline-offset-4 phone:py-3"
       >
         &lsaquo; Change method
       </button>
 
-      <div className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
+      <div className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
         <p className="text-sm font-semibold">{method}</p>
         <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--color-ink-2)]">
           <div>
@@ -81,7 +81,7 @@ export function AmountStep({
           max={1000000}
           value={amountMajor}
           onChange={(e) => setAmountMajor(Number(e.target.value))}
-          className="mt-1 w-full rounded border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 text-sm tabular-nums focus:border-brand"
+          className="mt-1 w-full rounded-lg border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 text-sm tabular-nums focus:border-brand phone:h-11 phone:py-0 phone:text-base"
         />
         <div className="mt-2 flex gap-2">
           {QUICK.map((q) => (
@@ -89,7 +89,7 @@ export function AmountStep({
               key={q}
               type="button"
               onClick={() => setAmountMajor(q)}
-              className="flex-1 rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-2 py-1.5 text-xs font-semibold phone:py-2.5 phone:text-sm"
+              className="flex-1 rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] px-2 py-1.5 text-xs font-semibold phone:min-h-11 phone:py-2.5 phone:text-sm"
             >
               ₹{q.toLocaleString("en-IN")}
             </button>
@@ -97,7 +97,7 @@ export function AmountStep({
         </div>
       </div>
 
-      <div className="rounded border border-[var(--color-brand)]/30 bg-[var(--color-brand)]/10 p-3 text-xs leading-relaxed text-[var(--color-brand)]">
+      <div className="rounded-lg border border-[var(--color-brand)]/30 bg-[var(--color-brand)]/10 p-3 text-xs leading-relaxed text-[var(--color-brand)]">
         Payments with this method can take up to 48 hours to process. The status
         may appear as &ldquo;Failed&rdquo; until the funds are received on our side.
       </div>
@@ -131,7 +131,7 @@ export function AmountStep({
         type="button"
         disabled={busy}
         onClick={() => void proceed()}
-        className="rounded bg-brand-fill px-4 py-3 text-sm font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-lg bg-brand-fill px-4 py-3 text-sm font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? "Starting…" : "Proceed to Pay"}
       </button>

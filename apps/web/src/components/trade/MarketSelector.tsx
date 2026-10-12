@@ -73,6 +73,12 @@ export function MarketSelector({
   }, [onOpenChange]);
   useDismiss(rootRef, open, close);
 
+  // Focus the search box on open only where there's a hardware keyboard; on
+  // touch it would pop the on-screen keyboard over the list.
+  const focusSearch = useCallback((el: HTMLInputElement | null) => {
+    if (el && window.matchMedia("(pointer: fine)").matches) el.focus();
+  }, []);
+
   // The phone panel covers the whole screen, so Escape is the only way out for
   // a keyboard user — the backdrop isn't reachable.
   useEffect(() => {
@@ -106,11 +112,9 @@ export function MarketSelector({
   if (!activeAsset) return null;
   const { pair, market } = splitAssetName(activeAsset.displayName);
 
-  const tabClass = (selected: boolean): string =>
-    `flex-none rounded-[3px] border px-2.5 py-1.5 text-[10px] phone:min-h-10 font-bold uppercase tracking-[0.08em] transition-colors ${
-      selected
-        ? "border-brand bg-brand/20 text-brand"
-        : "border-rule bg-panel text-ink-2 hover:border-tile-hi hover:text-ink"
+  const pillClass = (selected: boolean): string =>
+    `inline-flex h-9 flex-none items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
+      selected ? "bg-brand-fill text-white" : "bg-tile-hi text-ink-2 hover:text-ink"
     }`;
 
   return (
@@ -172,7 +176,7 @@ export function MarketSelector({
           >
             {/* Title bar — phone only; on desktop the trigger button is the title. */}
             <div className="hidden items-center justify-between gap-3 border-b border-rule px-3.5 pb-2.5 pt-[max(12px,env(safe-area-inset-top))] phone:flex">
-              <h2 className="text-sm font-bold tracking-[0.04em]">Select trade pair</h2>
+              <h2 className="text-sm font-semibold text-ink">Select trade pair</h2>
               <button
                 type="button"
                 onClick={close}
@@ -184,42 +188,35 @@ export function MarketSelector({
             </div>
 
             <div className="flex-none border-b border-rule p-2">
-              <div className="flex items-center gap-2">
+              <div className="relative">
+                <Icon
+                  name="search"
+                  className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-ink-3"
+                />
+                <input
+                  ref={focusSearch}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search markets…"
+                  aria-label="Search markets"
+                  className="h-9 w-full rounded-lg border border-rule bg-panel pl-8 pr-3 text-sm outline-none placeholder:text-ink-3 focus:border-brand phone:h-11"
+                />
+              </div>
+
+              {/* One scrollable row, faded at the ends so a clipped chip reads as "more". */}
+              <div className="edge-fade-x -mx-2 mt-2 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none]">
                 <button
                   type="button"
                   aria-pressed={filter === "FAV"}
                   aria-label="Show favourites only"
-                  title="Favourites"
                   onClick={() => setFilter((f) => (f === "FAV" ? "ALL" : "FAV"))}
-                  className={`flex flex-none items-center gap-1 rounded-[3px] border px-2 py-[7px] phone:min-h-10 ${
-                    filter === "FAV"
-                      ? "border-brand bg-brand/20 text-brand"
-                      : "border-rule bg-panel text-ink-2 hover:border-tile-hi hover:text-ink"
-                  }`}
+                  className={pillClass(filter === "FAV")}
                 >
                   <Icon name="star" className="size-4" fill={favourites.size ? "currentColor" : "none"} />
-                  <span className="text-[11px] font-bold tabular-nums">{favourites.size}</span>
+                  Favourites
+                  <span className="tabular-nums opacity-80">{favourites.size}</span>
                 </button>
-                <div className="relative min-w-0 flex-1">
-                  <Icon
-                    name="search"
-                    className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-ink-3"
-                  />
-                  <input
-                    autoFocus
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search markets…"
-                    aria-label="Search markets"
-                    className="h-9 w-full rounded-[2px] border border-rule bg-panel pl-8 pr-3 text-sm outline-none placeholder:text-ink-3 focus:border-brand phone:h-10"
-                  />
-                </div>
-              </div>
-
-              {/* Wraps rather than scrolls sideways: a clipped last tab reads as
-                  "that's all of them" with nothing hinting it can be scrolled. */}
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <button type="button" onClick={() => setFilter("ALL")} className={tabClass(filter === "ALL")}>
+                <button type="button" onClick={() => setFilter("ALL")} className={pillClass(filter === "ALL")}>
                   All
                 </button>
                 {tabs.map((t) => (
@@ -227,7 +224,7 @@ export function MarketSelector({
                     key={t.key}
                     type="button"
                     onClick={() => setFilter(t.key)}
-                    className={tabClass(filter === t.key)}
+                    className={pillClass(filter === t.key)}
                   >
                     {t.label}
                   </button>
@@ -257,8 +254,8 @@ export function MarketSelector({
                     <div
                       key={asset.symbol}
                       role="listitem"
-                      className={`flex w-full items-center gap-1 rounded-[3px] transition-colors hover:bg-tile-hi ${
-                        selected ? "bg-tile-hi shadow-[inset_0_0_0_1px_var(--color-rule)]" : ""
+                      className={`flex w-full items-center gap-1 rounded-[3px] transition-colors phone:min-h-[52px] phone:rounded-lg hover:bg-tile-hi ${
+                        selected ? "bg-tile-hi text-ink" : ""
                       }`}
                     >
                       <button
@@ -281,7 +278,7 @@ export function MarketSelector({
                             ) : null}
                           </span>
                         </span>
-                        <span className="shrink-0 text-xs font-bold text-brand">
+                        <span className="shrink-0 text-[13px] font-bold tabular-nums leading-none text-brand">
                           <LivePayout asset={asset} />
                         </span>
                       </button>

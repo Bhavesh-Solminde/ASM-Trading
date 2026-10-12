@@ -26,9 +26,9 @@ export default async function SupportPage() {
     <PageFrame width="base" title="Help & support">
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold tracking-tight">Frequently asked questions</h2>
-        <div className="flex flex-col gap-1.5">
+        <div className="divide-y divide-rule overflow-hidden rounded-xl border border-rule bg-panel">
           {FAQ.map((entry) => (
-            <details key={entry.q} className="group rounded border border-rule bg-panel">
+            <details key={entry.q} className="group">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold [&::-webkit-details-marker]:hidden">
                 <span>{entry.q}</span>
                 <Icon
@@ -50,13 +50,13 @@ export default async function SupportPage() {
       {tickets.length > 0 ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-base font-semibold tracking-tight">Your requests</h2>
-          <ul className="flex flex-col gap-2">
+          <ul className="divide-y divide-rule overflow-hidden rounded-xl border border-rule bg-panel">
             {tickets.map((t) => {
               const pill = STATUS_PILL[t.status] ?? { label: t.status, cls: "bg-tile text-ink-2" };
               return (
                 <li
                   key={t.id}
-                  className="flex items-center justify-between gap-3 rounded border border-rule bg-panel px-4 py-3 text-sm"
+                  className="flex min-h-14 items-center justify-between gap-3 px-4 py-3 text-sm"
                 >
                   <span className="min-w-0 truncate font-semibold">{t.subject}</span>
                   <span

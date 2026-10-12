@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { LogoEmblem } from "@/components/brand/Logo";
+import { LogoWordmark } from "@/components/brand/Logo";
 
 type Props = {
   /** Small eyebrow above the title, e.g. "Welcome back". */
@@ -15,8 +15,8 @@ type Props = {
   imageCaption: string;
 };
 
-/** Charcoal background for the auth pages, matching the site ground (#1e2024). */
-const AUTH_BG = "#1e2024";
+/** Auth pages sit on the same true-black ground as the rest of the site. */
+const AUTH_BG = "#000000";
 
 /** Split-screen auth shell — editorial photo left, form right, with a large
  *  brand lockup at the top of the form. Mobile: form-only, image hidden. */
@@ -51,15 +51,10 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer, imageCap
         <section className="relative flex items-center justify-center px-5 py-16 sm:px-8 md:py-12">
           <div className="w-full max-w-sm">
             {/* Large brand lockup */}
-            <Link href="/" className="mb-10 flex items-center gap-5" aria-label="IndianxTrade — home">
-              <LogoEmblem className="h-28 w-28 flex-none ring-1 ring-white/10 [filter:drop-shadow(0_0_30px_color-mix(in_srgb,var(--color-brand)_35%,transparent))]" />
-              <span className="flex flex-col">
-                <span className="font-brand text-4xl font-black leading-none tracking-tight text-brand">
-                  IndianxTrade
-                </span>
-                <span className="mt-2.5 whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.28em] text-ink-3">
-                  Trade · Invest · Grow
-                </span>
+            <Link href="/" className="mb-10 flex flex-col items-start gap-3" aria-label="IndianxTrade — home">
+              <LogoWordmark className="h-12 sm:h-14" />
+              <span className="text-[11px] font-bold uppercase tracking-[0.28em] text-ink-3">
+                Trade · Invest · Grow
               </span>
             </Link>
 

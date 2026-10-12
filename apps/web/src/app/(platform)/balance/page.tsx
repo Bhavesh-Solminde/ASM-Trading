@@ -88,7 +88,7 @@ export default async function BalancePage() {
   return (
     <PageFrame width="wide" nav={<PlatformTabs />} title="History">
       {rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded border border-rule bg-panel px-6 py-12 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-rule bg-panel px-6 py-12 text-center">
           <span className="grid size-12 place-items-center rounded-full bg-tile text-ink-2">
             <Icon name="history" className="size-6" aria-hidden />
           </span>
@@ -96,20 +96,20 @@ export default async function BalancePage() {
           <p className="max-w-[48ch] text-balance text-sm text-ink-2">Deposits and withdrawals will show up here.</p>
           <Link
             href="/deposit"
-            className="mt-2 rounded bg-brand-fill px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-fill-hi phone:py-3"
+            className="mt-2 rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-fill-hi phone:grid phone:h-11 phone:place-items-center phone:py-0"
           >
             Make a deposit
           </Link>
         </div>
       ) : (
         <>
-          <ul className="hidden flex-col phone:flex">
+          <ul className="hidden flex-col divide-y divide-rule overflow-hidden rounded-xl border border-rule bg-panel phone:flex">
             {rows.map((row) => {
               const isDeposit = row.kind === "Deposit";
               return (
                 <li
                   key={row.id}
-                  className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 border-t border-rule py-3 text-sm"
+                  className="grid min-h-14 grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 px-4 py-3 text-sm"
                 >
                   <div className="flex items-center gap-2.5">
                     <span
@@ -154,7 +154,7 @@ export default async function BalancePage() {
                     {row.id.slice(0, 8).toUpperCase()}
                   </span>
                   {row.note ? (
-                    <p className="col-span-2 mt-1 rounded bg-tile p-2 text-[11px] leading-relaxed text-ink-2">
+                    <p className="col-span-2 mt-1 rounded-lg bg-tile p-2 text-[11px] leading-relaxed text-ink-2">
                       {row.note}
                     </p>
                   ) : null}
@@ -186,7 +186,7 @@ export default async function BalancePage() {
                       <td className="py-3">
                         <StatusPill status={row.status} />
                         {row.note ? (
-                          <p className="mt-2 max-w-sm rounded bg-tile p-2 text-[11px] leading-relaxed text-ink-2">
+                          <p className="mt-2 max-w-sm rounded-lg bg-tile p-2 text-[11px] leading-relaxed text-ink-2">
                             {row.note}
                           </p>
                         ) : null}

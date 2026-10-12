@@ -22,14 +22,14 @@ export function MethodPicker({
   upiEnabled: boolean;
 }) {
   // While UPI rails are closed the rows stay visible with a "Coming soon"
-  // pill, so the user sees that INR payments are planned, just not open yet.
+  // subtitle, so the user sees that INR payments are planned, just not open yet.
   const methods = DEPOSIT_METHODS.filter((m) => m !== "USDT" || usdtEnabled);
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 rounded border border-rule bg-tile px-4 py-2.5 text-sm">
-        <Icon name="globe" className="size-4 text-ink-2" aria-hidden />
-        <span>India</span>
-      </div>
+      <p className="flex items-center gap-2 text-sm text-ink-2">
+        <Icon name="globe" className="size-4 flex-none" aria-hidden />
+        <span>Showing methods for India</span>
+      </p>
 
       <div>
         <p className="mb-2 text-xs font-semibold text-ink-2">
@@ -48,7 +48,7 @@ export function MethodPicker({
                     if (comingSoon) return;
                     onPick(method);
                   }}
-                  className={`flex w-full items-center gap-3 rounded border border-rule bg-panel px-4 py-3 text-left ${
+                  className={`flex min-h-14 w-full items-center gap-3 rounded-lg border border-rule bg-panel px-4 py-3 text-left ${
                     comingSoon
                       ? "cursor-not-allowed opacity-60"
                       : "hover:border-brand"
@@ -57,7 +57,7 @@ export function MethodPicker({
                   <GatewayIcon method={method} />
                   <span className="flex flex-1 flex-col">
                     <span className="text-sm font-semibold">{method}</span>
-                    <span className="text-xs text-ink-2">
+                    <span className={`text-xs ${comingSoon ? "text-ink-3" : "text-ink-2"}`}>
                       {comingSoon
                         ? "Coming soon"
                         : UPI_SET.has(method)
@@ -65,11 +65,7 @@ export function MethodPicker({
                           : `Min. $${MIN_USD.toFixed(2)}`}
                     </span>
                   </span>
-                  {comingSoon ? (
-                    <span className="rounded-full border border-rule bg-tile px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ink-2">
-                      Soon
-                    </span>
-                  ) : (
+                  {comingSoon ? null : (
                     <span aria-hidden className="text-ink-2">
                       &rsaquo;
                     </span>

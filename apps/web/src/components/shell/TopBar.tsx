@@ -28,6 +28,9 @@ function totalBalance(account: AccountView | undefined, balances: Readonly<Recor
   return account && b ? formatMinor(b.realBalance + b.bonusBalance, account.currency) : "—";
 }
 
+const ACTION_TILE =
+  "flex h-14 flex-col items-center justify-center gap-1 rounded-xl bg-tile text-xs font-semibold text-ink-2 transition-colors hover:bg-tile-hi hover:text-ink";
+
 function AccountPlate({ type, small = false }: { type: AccountView["type"]; small?: boolean }) {
   const live = type === "LIVE";
   return (
@@ -192,78 +195,105 @@ export function TopBar() {
             <div aria-hidden onClick={closeMenu} className="fixed inset-0 z-30 hidden bg-black/60 phone:block" />
             <div
               role="menu"
-              className="absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-tile-hi bg-tile p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0 phone:pb-[max(12px,env(safe-area-inset-bottom))]"
+              className="sheet-phone absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-tile-hi bg-tile p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:border-x-0 phone:border-b-0 phone:px-3 phone:pt-0"
             >
-            {[...accounts]
-              .sort((a, b) => (a.type === b.type ? 0 : a.type === "LIVE" ? -1 : 1))
-              .map((account) => {
-                const active = account.id === activeAccount?.id;
-                return (
-                  <button
-                    key={account.id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={active}
-                    onClick={() => handleSelectAccount(account)}
-                    className={`grid w-full grid-cols-[58px_1fr_auto] items-center gap-3 rounded-[2px] px-2.5 py-3 text-left hover:bg-tile-hi ${
-                      active ? "bg-tile-hi shadow-[inset_0_0_0_1px_var(--color-rule)]" : ""
-                    }`}
-                  >
-                    <AccountPlate type={account.type} small />
-                    <span>
-                      <strong className="block font-semibold">
-                        {account.type === "LIVE" ? "Live account" : "Demo account"}
-                      </strong>
-                      <small className="text-ink-3">{totalBalance(account, balances)}</small>
-                    </span>
-                    <span
-                      aria-hidden
-                      className={`size-[18px] rounded-full ${active ? "border-[5px] border-up" : "border-[1.5px] border-ink-3"}`}
-                    />
-                  </button>
-                );
-              })}
-            {activeAccount ? (
-              <div className="mt-1.5 grid gap-1.5 border-t border-rule px-2.5 pb-1 pt-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="legend text-[10px]!">Currency</span>
-                  <div className="flex gap-0.5 rounded-[3px] border border-rule p-0.5">
-                    {["INR", "USD"].map((cur) => (
+              <div aria-hidden className="sheet-handle hidden phone:block" />
+              <div className="hidden items-center justify-between pl-1 phone:flex">
+                <h2 className="text-sm font-semibold text-ink">Accounts</h2>
+                <button
+                  type="button"
+                  aria-label="Close accounts"
+                  onClick={closeMenu}
+                  className="grid size-10 place-items-center rounded-lg text-ink-2 hover:bg-tile hover:text-ink"
+                >
+                  <Icon name="close" className="size-[18px]" />
+                </button>
+              </div>
+              <div className="grid gap-1 phone:gap-1.5">
+                {[...accounts]
+                  .sort((a, b) => (a.type === b.type ? 0 : a.type === "LIVE" ? -1 : 1))
+                  .map((account) => {
+                    const active = account.id === activeAccount?.id;
+                    return (
                       <button
-                        key={cur}
+                        key={account.id}
                         type="button"
-                        disabled={curBusy}
-                        aria-pressed={activeAccount.currency === cur}
-                        onClick={() => void changeCurrency(cur)}
-                        className={`rounded-[2px] px-2.5 py-0.5 text-[11px] font-bold tracking-[0.06em] phone:min-h-10 phone:px-4 disabled:opacity-60 ${
-                          activeAccount.currency === cur ? "bg-brand-fill text-white" : "text-ink-3 hover:text-ink"
+                        role="menuitemradio"
+                        aria-checked={active}
+                        onClick={() => handleSelectAccount(account)}
+                        className={`grid w-full grid-cols-[58px_1fr_auto] items-center gap-3 rounded-[2px] px-2.5 py-3 text-left hover:bg-tile-hi phone:min-h-16 phone:rounded-xl ${
+                          active ? "bg-tile-hi shadow-[inset_0_0_0_1px_var(--color-rule)]" : "phone:bg-tile"
                         }`}
                       >
-                        {cur}
+                        <AccountPlate type={account.type} small />
+                        <span>
+                          <strong className="block font-semibold">
+                            {account.type === "LIVE" ? "Live account" : "Demo account"}
+                          </strong>
+                          <small className="tabular-nums text-ink-3 phone:text-ink-2">{totalBalance(account, balances)}</small>
+                        </span>
+                        <span
+                          aria-hidden
+                          className={`size-[18px] rounded-full ${active ? "border-[5px] border-up" : "border-[1.5px] border-ink-3"}`}
+                        />
                       </button>
-                    ))}
-                  </div>
-                </div>
-                {curError ? <p className="text-[11px] text-down">{curError}</p> : null}
+                    );
+                  })}
               </div>
-            ) : null}
-            <div className="mt-1.5 flex items-center justify-between gap-4 border-t border-rule px-2.5 pb-1 pt-2.5">
-              <Link href="/account" onClick={closeMenu} className="py-2 text-[13px] font-semibold text-brand hover:underline phone:py-3">
-                My account
-              </Link>
-              <Link
-                href="/withdrawal"
-                onClick={closeMenu}
-                className="hidden py-2 text-[13px] font-semibold text-ink-2 hover:text-ink phone:inline phone:py-3"
-              >
-                Withdraw
-              </Link>
-              <form action="/api/auth/logout" method="post" onSubmit={(e) => void logOut(e)}>
-                <button type="submit" className="py-2 text-[13px] font-semibold text-ink-3 hover:text-ink phone:py-3">
-                  Log out
-                </button>
-              </form>
-            </div>
+              {activeAccount ? (
+                <div className="mt-1.5 grid gap-1.5 border-t border-rule px-2.5 pb-1 pt-2.5 phone:px-1 phone:pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="legend text-[10px]! phone:text-sm! phone:font-normal! phone:normal-case! phone:tracking-normal! phone:text-ink-2!">
+                      Currency
+                    </span>
+                    <div className="flex gap-0.5 rounded-[3px] border border-rule p-0.5 phone:h-9 phone:rounded-lg">
+                      {["INR", "USD"].map((cur) => (
+                        <button
+                          key={cur}
+                          type="button"
+                          disabled={curBusy}
+                          aria-pressed={activeAccount.currency === cur}
+                          onClick={() => void changeCurrency(cur)}
+                          className={`rounded-[2px] px-2.5 py-0.5 text-[11px] font-bold tracking-[0.06em] phone:rounded-md phone:px-4 disabled:opacity-60 ${
+                            activeAccount.currency === cur ? "bg-brand-fill text-white" : "text-ink-3 hover:text-ink"
+                          }`}
+                        >
+                          {cur}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {curError ? <p className="text-[11px] text-down">{curError}</p> : null}
+                </div>
+              ) : null}
+              {/* Desktop: compact text-link row. */}
+              <div className="mt-1.5 flex items-center justify-between gap-4 border-t border-rule px-2.5 pb-1 pt-2.5 phone:hidden">
+                <Link href="/account" onClick={closeMenu} className="py-2 text-[13px] font-semibold text-brand hover:underline">
+                  My account
+                </Link>
+                <form action="/api/auth/logout" method="post" onSubmit={(e) => void logOut(e)}>
+                  <button type="submit" className="py-2 text-[13px] font-semibold text-ink-3 hover:text-ink">
+                    Log out
+                  </button>
+                </form>
+              </div>
+              {/* Phone: three equal action tiles. */}
+              <div className="mt-3 hidden grid-cols-3 gap-2 border-t border-rule pt-3 phone:grid">
+                <Link href="/account" onClick={closeMenu} className={ACTION_TILE}>
+                  <Icon name="user" className="size-5" />
+                  My account
+                </Link>
+                <Link href="/withdrawal" onClick={closeMenu} className={ACTION_TILE}>
+                  <Icon name="wallet" className="size-5" />
+                  Withdraw
+                </Link>
+                <form action="/api/auth/logout" method="post" onSubmit={(e) => void logOut(e)} className="contents">
+                  <button type="submit" className={ACTION_TILE}>
+                    <Icon name="arrow" className="size-5 rotate-90" />
+                    Log out
+                  </button>
+                </form>
+              </div>
             </div>
           </>
         ) : null}

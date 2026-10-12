@@ -61,27 +61,31 @@ export default async function WithdrawalPage() {
       ))}
 
       <div className="grid grid-cols-2 gap-5 phone:grid-cols-1">
-        <section className="sticky top-6 flex flex-col gap-4 self-start rounded border border-rule bg-panel p-4 phone:static">
-          <h2 className="text-sm font-semibold">Account</h2>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]">
-              In the account
-            </p>
-            <p className="text-lg font-semibold tabular-nums">
-              {formatMoney(live.realBalance + live.bonusBalance, live.currency)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]">
-              Available for withdrawal
-            </p>
-            <p className="text-lg font-semibold tabular-nums">
-              {formatMoney(balance.withdrawable, live.currency)}
-            </p>
+        <section className="sticky top-6 flex flex-col gap-4 self-start rounded-xl border border-rule bg-panel p-4 phone:static phone:gap-0 phone:p-0">
+          <h2 className="text-sm font-semibold phone:sr-only">Account</h2>
+          <div className="contents phone:grid phone:grid-cols-2 phone:divide-x phone:divide-rule">
+            <div className="phone:px-4 phone:py-3.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]">
+                <span className="phone:hidden">In the account</span>
+                <span className="hidden phone:inline">Balance</span>
+              </p>
+              <p className="text-lg font-semibold tabular-nums phone:font-bold">
+                {formatMoney(live.realBalance + live.bonusBalance, live.currency)}
+              </p>
+            </div>
+            <div className="phone:px-4 phone:py-3.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]">
+                <span className="phone:hidden">Available for withdrawal</span>
+                <span className="hidden phone:inline">Withdrawable</span>
+              </p>
+              <p className="text-lg font-semibold tabular-nums phone:font-bold">
+                {formatMoney(balance.withdrawable, live.currency)}
+              </p>
+            </div>
           </div>
 
           {balance.lockedBonus > 0 ? (
-            <div className="rounded bg-tile p-3">
+            <div className="rounded-lg bg-tile p-3 phone:mx-3 phone:mb-3">
               <p className="text-xs font-semibold">
                 {formatMoney(balance.lockedBonus, live.currency)} bonus — not withdrawable
               </p>
@@ -93,8 +97,8 @@ export default async function WithdrawalPage() {
           ) : null}
         </section>
 
-        <section className="rounded border border-rule bg-panel p-4">
-          <h2 className="mb-3 text-sm font-semibold">Withdraw</h2>
+        <section className="rounded-xl border border-rule bg-panel p-4">
+          <h2 className="mb-3 text-[15px] font-semibold">Withdraw</h2>
           {profile.kycStatus === "VERIFIED" ? (
             <WithdrawForm
               accountId={live.id}
@@ -109,12 +113,12 @@ export default async function WithdrawalPage() {
         </section>
       </div>
 
-      <section className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)]">
-        <h2 className="border-b border-[var(--color-rule)] px-4 py-3 text-sm font-semibold">
+      <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)]">
+        <h2 className="border-b border-[var(--color-rule)] px-4 py-3 text-[15px] font-semibold">
           Your withdrawals
         </h2>
         {recent.length === 0 ? (
-          <p className="px-4 py-6 text-center text-xs text-[var(--color-ink-2)]">
+          <p className="text-balance px-4 py-6 text-center text-xs text-ink-2">
             No withdrawals yet. Your requests and their status will show here.
           </p>
         ) : (
@@ -124,7 +128,7 @@ export default async function WithdrawalPage() {
               const method = PAYOUT_METHOD_LABEL[w.method as keyof typeof PAYOUT_METHOD_LABEL] ?? w.method;
               const dest = payoutDestinationLabel(w);
               return (
-                <li key={w.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                <li key={w.id} className="flex min-h-14 items-start justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold tabular-nums">{formatMoney(w.amount, w.currency)}</p>
                     <p className="truncate text-[11px] text-[var(--color-ink-2)]">
@@ -138,7 +142,7 @@ export default async function WithdrawalPage() {
                       </p>
                     ) : null}
                   </div>
-                  <span className={`flex-none rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${pill.cls}`}>
+                  <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${pill.cls}`}>
                     {pill.label}
                   </span>
                 </li>
@@ -189,13 +193,13 @@ function VerifyFirst({ kycStatus }: { kycStatus: string }) {
     cta: "Start verification",
   };
   return (
-    <div className="flex flex-col gap-3 rounded border border-caution/30 bg-caution/10 p-4">
+    <div className="flex flex-col gap-3 rounded-xl border border-caution/30 bg-caution/10 p-4">
       <p className="text-sm font-semibold text-caution">{copy.title}</p>
       <p className="text-xs leading-relaxed text-[var(--color-ink-2)]">{copy.body}</p>
       {copy.cta ? (
         <Link
           href="/account/verify"
-          className="self-start rounded bg-brand-fill px-4 py-2 text-sm font-semibold text-white hover:bg-brand-fill-hi phone:self-stretch phone:text-center"
+          className="self-start rounded-lg bg-brand-fill px-4 py-2 text-sm font-semibold text-white hover:bg-brand-fill-hi phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0"
         >
           {copy.cta}
         </Link>

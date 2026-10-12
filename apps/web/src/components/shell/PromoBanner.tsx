@@ -101,9 +101,10 @@ export function BonusOfferSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="bonus-offer-title"
-        className="w-[420px] max-w-[calc(100vw-24px)] rounded-xl border border-rule bg-ground p-5 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)] phone:w-full phone:max-w-none phone:rounded-b-none phone:border-x-0 phone:border-b-0 phone:pb-[max(20px,env(safe-area-inset-bottom))]"
+        className="sheet-phone w-[420px] max-w-[calc(100vw-24px)] rounded-xl border border-rule bg-ground p-5 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)] phone:w-full phone:max-w-none phone:border-x-0 phone:border-b-0 phone:px-4 phone:pt-0"
       >
-        <div className="flex items-start gap-3">
+        <div aria-hidden className="sheet-handle hidden phone:block" />
+        <div className="flex items-start gap-3 phone:mt-3">
           <GiftIcon className="size-11 flex-none" />
           <div className="min-w-0 flex-1">
             <h2 id="bonus-offer-title" className="text-lg font-black uppercase tracking-[0.02em]">
@@ -115,7 +116,7 @@ export function BonusOfferSheet({
             type="button"
             aria-label="Close"
             onClick={close}
-            className="grid size-10 flex-none place-items-center rounded text-ink-2 hover:bg-panel hover:text-ink"
+            className="grid size-10 flex-none place-items-center rounded-lg text-ink-2 hover:bg-tile hover:text-ink"
           >
             <Icon name="close" className="size-[18px]" />
           </button>
@@ -133,8 +134,8 @@ export function BonusOfferSheet({
                   isNext
                     ? "border-up bg-up/10 shadow-[0_0_0_1px_var(--color-up)]"
                     : claimed
-                      ? "border-rule bg-panel/40 opacity-70"
-                      : "border-rule bg-panel"
+                      ? "border-rule bg-panel/40 opacity-70 phone:bg-tile/40"
+                      : "border-rule bg-panel phone:bg-tile"
                 }`}
               >
                 <span className={`led text-[22px] leading-none ${claimed ? "text-ink-3" : "text-up"}`}>{pct}%</span>
