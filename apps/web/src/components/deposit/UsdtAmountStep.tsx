@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { USDT_NETWORK_INFO, type UsdtNetwork } from "@asm/contracts";
 import { SummaryCard } from "@/components/payments/SummaryCard";
-import { formatInr, inrToUsdt } from "./limits";
+import { bonusMinor, formatInr, formatMinorCompact, inrToUsdt } from "./limits";
 
 const RECOMMENDED: UsdtNetwork = "bsc";
 
@@ -46,25 +46,29 @@ export function UsdtAmountStep({
     setBusy(true);
     setError(null);
 
-    const res = await fetch("/api/deposits", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        method: "USDT",
-        network,
-        amountUsdtMinor: Math.round(amountMajor * 100),
-        ...(!gateway && sender.trim() ? { senderAddress: sender.trim() } : {}),
-      }),
-    });
+    try {
+      const res = await fetch("/api/deposits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          method: "USDT",
+          network,
+          amountUsdtMinor: Math.round(amountMajor * 100),
+          ...(!gateway && sender.trim() ? { senderAddress: sender.trim() } : {}),
+        }),
+      });
 
-    if (res.ok) {
-      const data = (await res.json()) as { checkoutToken: string };
-      window.location.href = `/checkout/${data.checkoutToken}`;
-      return;
+      if (res.ok) {
+        const data = (await res.json()) as { checkoutToken: string };
+        window.location.href = `/checkout/${data.checkoutToken}`;
+        return;
+      }
+
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      setError(data.error ?? "Could not start that deposit.");
+    } catch {
+      setError("Could not reach the server. Try again.");
     }
-
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    setError(data.error ?? "Could not start that deposit.");
     setBusy(false);
   }
 
@@ -187,7 +191,7 @@ export function UsdtAmountStep({
           <div className="flex items-baseline justify-between text-xs text-[var(--color-ink-2)]">
             <span>Bonus ({bonusPercent}%)</span>
             <span className="tabular-nums text-[var(--color-up)]">
-              +${Math.floor((amountMajor * bonusPercent) / 100).toLocaleString("en-US")}
+              +{formatMinorCompact(bonusMinor(Math.round(amountMajor * 100), bonusPercent), "USD")}
             </span>
           </div>
           <p className="-mt-2 text-[11px] text-[var(--color-ink-3)]">

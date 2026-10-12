@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/Icon";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
+import { useScrollLock } from "@/lib/use-scroll-lock";
 import { grossReturnMinor } from "./pnl-display";
 import { groupAmount, profitForStake, stakePresets, stakeToMinor } from "./stake";
 
@@ -74,6 +75,7 @@ export function StakeSheet({
 
   // Focus the dialog on open (no input is focused, so no native keyboard) and
   // trap Tab inside it; the parent returns focus to the investment tile.
+  useScrollLock();
   useEffect(() => {
     dialogRef.current?.focus();
   }, []);
@@ -116,7 +118,7 @@ export function StakeSheet({
         aria-labelledby="stake-title"
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className="sheet sheet-in absolute inset-x-0 bottom-0 mx-auto grid max-h-dvh w-full max-w-[560px] gap-3.5 overflow-y-auto px-4 outline-none land:gap-2"
+        className="sheet sheet-in absolute inset-x-0 bottom-0 mx-auto grid max-h-dvh w-full max-w-[560px] gap-3.5 overflow-y-auto overscroll-contain px-4 outline-none land:gap-2"
       >
         <div aria-hidden className="sheet-handle" />
         <div className="-mt-1 flex items-center justify-between">

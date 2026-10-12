@@ -210,7 +210,13 @@ export function HistoryList({
 
   const visible = useMemo(() => items.filter((i) => itemMatchesFilter(i, filter)), [items, filter]);
   const groups = useMemo(() => (now ? groupByDay(visible, now) : []), [visible, now]);
-  const selected = txKey ? (items.find((i) => i.key === txKey) ?? null) : null;
+  // Resolved only after mount: the sheet renders Date.now() countdowns, which
+  // must never be part of the server HTML for a `?tx=` deep link.
+  const selected = now && txKey ? (items.find((i) => i.key === txKey) ?? null) : null;
+  // `?tx=` names a row that isn't in the loaded list (older than the window, or
+  // not this account's). Wait for trades to load before saying so.
+  const awaitingTrade = txKey?.startsWith("t:") === true && includeTrades && accountTrades === undefined && status === "connecting";
+  const missingTx = now !== null && txKey !== null && txKey !== "" && !selected && !tradesLoading && !awaitingTrade;
 
   const setFilter = useCallback((next: HistoryFilter) => {
     replaceQuery((p) => {
@@ -253,6 +259,19 @@ export function HistoryList({
           );
         })}
       </div>
+
+      {missingTx ? (
+        <div role="status" className="mb-2 flex items-center gap-3 rounded-xl bg-tile px-4 py-3 text-sm text-ink-2">
+          <span className="min-w-0 flex-1">That transaction isn&apos;t in your recent history.</span>
+          <button
+            type="button"
+            onClick={close}
+            className="relative h-9 shrink-0 rounded-lg px-3 text-[13px] font-bold text-ink hover:bg-tile-hi after:absolute after:-inset-y-1 after:inset-x-0 after:content-['']"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
 
       {showSkeleton ? (
         <Skeleton />

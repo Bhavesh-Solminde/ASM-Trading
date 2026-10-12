@@ -16,6 +16,7 @@ import {
 } from "@asm/contracts";
 import { certificateHtml, type CertificateData } from "@asm/mail/templates";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
+import { focusStep } from "@/lib/focus-step";
 import { IconTether } from "@/components/trade/AssetIcon";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
@@ -121,8 +122,7 @@ export function WithdrawForm({
       firstRender.current = false;
       return;
     }
-    stepLabelRef.current?.focus({ preventScroll: true });
-    window.scrollTo({ top: 0 });
+    focusStep(stepLabelRef.current);
   }, [step]);
 
   function amountProblem(minor: number): string | null {
@@ -540,8 +540,7 @@ function WithdrawReceipt({
   const trackHref = receipt.id ? `/history?tx=w:${receipt.id}` : "/history?filter=withdrawals";
 
   useEffect(() => {
-    headingRef.current?.focus({ preventScroll: true });
-    window.scrollTo({ top: 0 });
+    focusStep(headingRef.current);
   }, []);
 
   function downloadCertificate() {

@@ -1,5 +1,6 @@
 import type { DEPOSIT_METHODS } from "@asm/contracts";
 import { USD_INR_RATE } from "@/lib/currency";
+import { currencySymbol, formatMinor } from "@/lib/format-money";
 
 type Method = (typeof DEPOSIT_METHODS)[number];
 
@@ -33,6 +34,19 @@ export function inrToUsdt(inr: number): number {
 }
 
 export const formatInr = (n: number) => `₹${n.toLocaleString("en-US")}`;
+
+/** Bonus in minor units, computed exactly like the server (floor of credit * pct / 100). */
+export function bonusMinor(amountMinor: number, percent: number): number {
+  return Math.floor((amountMinor * percent) / 100);
+}
+
+/** Money in minor units: whole when it has no fraction, otherwise two decimals. */
+export function formatMinorCompact(minor: number, currency: string): string {
+  const whole = minor % 100 === 0;
+  const symbol = currencySymbol(currency);
+  if (whole) return `${symbol}${(minor / 100).toLocaleString("en-US")}`;
+  return formatMinor(minor, currency);
+}
 
 /** Why a method can't take `amountInr`, or null when it can. */
 export function methodAmountProblem(method: Method, amountInr: number): string | null {

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Icon } from "@/components/shell/Icon";
+import { useScrollLock } from "@/lib/use-scroll-lock";
 import { captureFrame, useCamera, type Facing } from "./use-camera";
 
 export type CaptureGuide = "oval" | "card";
@@ -239,14 +240,12 @@ export function CaptureDialog({
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  useScrollLock();
 
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeRef.current?.focus();
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = prev;
       opener?.focus?.();
     };
   }, []);
@@ -272,7 +271,7 @@ export function CaptureDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-ground">
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-ground">
       <div
         ref={panelRef}
         role="dialog"

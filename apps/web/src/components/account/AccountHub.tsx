@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { USD_INR_RATE } from "@/lib/currency";
 import { formatMinor } from "@/lib/format-money";
 import { isMuted, setMuted } from "@/lib/sound";
@@ -69,7 +69,6 @@ export function AccountHub({
   const [pick, setPick] = useState<"LIVE" | "DEMO">(live ? "LIVE" : "DEMO");
   const shown = (pick === "LIVE" ? live : demo) ?? live ?? demo;
   const isLive = shown?.type === "LIVE";
-  const tabsId = useId();
 
   const [soundOn, setSoundOn] = useState(true);
   useEffect(() => setSoundOn(!isMuted()), []);
@@ -105,17 +104,14 @@ export function AccountHub({
       {shown ? (
         <div className="grid gap-2.5">
           {live && demo ? (
-            <div role="tablist" aria-label="Accounts" className="flex gap-1.5">
+            <div role="group" aria-label="Accounts" className="flex gap-1.5">
               {(["LIVE", "DEMO"] as const).map((t) => {
                 const on = pick === t;
                 return (
                   <button
                     key={t}
                     type="button"
-                    role="tab"
-                    id={`${tabsId}-${t}`}
-                    aria-selected={on}
-                    aria-controls={`${tabsId}-panel`}
+                    aria-pressed={on}
                     onClick={() => setPick(t)}
                     className={`relative h-9 rounded-full px-4 text-[13px] font-bold after:absolute after:-inset-y-1 after:inset-x-0 after:content-[''] ${
                       on ? "bg-ink text-ground" : "bg-tile text-ink-2 hover:text-ink"
@@ -129,9 +125,6 @@ export function AccountHub({
           ) : null}
 
           <div
-            id={`${tabsId}-panel`}
-            role={live && demo ? "tabpanel" : undefined}
-            aria-labelledby={live && demo ? `${tabsId}-${shown.type}` : undefined}
             className={`rounded-[20px] p-[18px] ${cardTint}`}
           >
             <div className="flex items-center justify-between">

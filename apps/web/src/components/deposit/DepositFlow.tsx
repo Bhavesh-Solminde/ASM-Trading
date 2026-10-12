@@ -12,6 +12,7 @@ import { StepHeader } from "@/components/payments/StepHeader";
 import { SummaryCard } from "@/components/payments/SummaryCard";
 import { Icon } from "@/components/shell/Icon";
 import { bonusPercentForDeposit } from "@/lib/bonus";
+import { focusStep } from "@/lib/focus-step";
 
 type Method = (typeof DEPOSIT_METHODS)[number];
 type Step = 1 | 2 | 3;
@@ -77,8 +78,7 @@ export function DepositFlow({
       firstRender.current = false;
       return;
     }
-    stepLabelRef.current?.focus({ preventScroll: true });
-    window.scrollTo({ top: 0 });
+    focusStep(stepLabelRef.current);
   }, [step]);
 
   function setAmountValue(next: string) {

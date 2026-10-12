@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { BONUS_TIERS, bonusPercentForDeposit, ordinal } from "@/lib/bonus";
 import { BonusOfferSheet } from "@/components/shell/PromoBanner";
+import { bonusMinor, formatMinorCompact } from "./limits";
 
 /**
  * What this deposit is worth: the bonus tier it falls in, the total trading
@@ -22,8 +23,10 @@ export function BonusPreview({
   const pct = bonusPercentForDeposit(next);
   if (pct === 0) return null;
 
-  const bonus = Math.floor((amountInr * pct) / 100);
-  const money = (n: number) => `₹${n.toLocaleString("en-US")}`;
+  // Minor units, floored exactly as the server credits it.
+  const amountMinor = Math.round(amountInr * 100);
+  const bonus = bonusMinor(amountMinor, pct);
+  const money = (minor: number) => formatMinorCompact(minor, "INR");
 
   return (
     <section aria-labelledby="bonus-preview-title" className="rounded-2xl bg-[#0d1a12] p-[18px] ring-1 ring-up/20">
@@ -36,10 +39,10 @@ export function BonusPreview({
 
       <p className="mt-3 text-[13px] text-ink-2">You will trade with</p>
       <p className="text-[34px] font-extrabold leading-tight tracking-[-0.02em] text-up tabular-nums">
-        {money(amountInr + bonus)}
+        {money(amountMinor + bonus)}
       </p>
       <p className="mt-1 text-[13px] text-ink-2 tabular-nums">
-        {money(amountInr)} your money + {money(bonus)} bonus
+        {money(amountMinor)} your money + {money(bonus)} bonus
       </p>
 
       <ol className="mt-4 grid grid-cols-4 gap-1.5" aria-label="Bonus tiers">

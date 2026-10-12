@@ -297,7 +297,7 @@ function PhoneTimeframeTabs() {
   const { timeframe, selectTimeframe } = usePlatform();
   return (
     <div
-      role="tablist"
+      role="group"
       aria-label="Candle timeframe"
       className="pointer-events-auto mt-1 flex flex-none gap-0.5 rounded-[10px] bg-tile/94 p-[3px]"
     >
@@ -305,8 +305,7 @@ function PhoneTimeframeTabs() {
         <button
           key={tf}
           type="button"
-          role="tab"
-          aria-selected={tf === timeframe}
+          aria-pressed={tf === timeframe}
           onClick={() => selectTimeframe(tf)}
           className={`relative h-7 rounded-lg px-2 text-xs font-bold transition-colors after:absolute after:inset-x-0 after:-inset-y-2 min-[380px]:px-[9px] ${
             tf === timeframe ? "bg-tile-hi text-ink" : "text-ink-2 hover:text-ink"

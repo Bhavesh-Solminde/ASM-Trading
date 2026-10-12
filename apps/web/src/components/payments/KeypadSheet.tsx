@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
+import { useScrollLock } from "@/lib/use-scroll-lock";
 import { applyKey, groupAmount, type AmountOpts } from "./amount-input";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"] as const;
@@ -30,6 +31,7 @@ export function KeypadSheet({
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const doneRef = useRef<HTMLButtonElement | null>(null);
+  useScrollLock();
 
   useEffect(() => {
     doneRef.current?.focus();
@@ -63,7 +65,7 @@ export function KeypadSheet({
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={onKeyDown}
-        className="sheet sheet-in w-full max-w-[34rem] px-4 pb-3"
+        className="sheet sheet-in w-full max-w-[34rem] overflow-y-auto overscroll-contain px-4 pb-3"
       >
         <div aria-hidden className="sheet-handle" />
         <p id={titleId} className="mt-3 text-center text-[13px] text-ink-2">

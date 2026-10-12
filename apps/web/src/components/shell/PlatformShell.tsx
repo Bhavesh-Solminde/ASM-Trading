@@ -79,7 +79,7 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
         {onTrade ? <TradeStatusRow /> : <PromoBanner variant="card" />}
       </div>
       <IconRail />
-      <div className="col-start-2 row-start-3 min-h-0 min-w-0 overflow-auto overscroll-contain phone:col-start-1 phone:row-start-3">
+      <div data-scroll-root className="col-start-2 row-start-3 min-h-0 min-w-0 overflow-auto overscroll-contain phone:col-start-1 phone:row-start-3">
         {children}
       </div>
       <BottomNavBar />

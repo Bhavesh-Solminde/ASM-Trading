@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { formatMinor } from "@/lib/format-money";
+import { useScrollLock } from "@/lib/use-scroll-lock";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import {
@@ -270,7 +271,7 @@ function TradeBody({ item, now }: { item: Extract<HistoryItem, { kind: "trade" }
         </Row>
         <Row label="Asset">{pair}</Row>
         <Row label="Stake">{formatMinor(trade.stake, currency)}</Row>
-        <Row label="Payout">
+        <Row label={trade.status === "LOST" ? "Payout if right" : "Payout"}>
           {trade.payoutPct}% · {formatMinor(trade.stake + profit, currency)}
         </Row>
         <Row label="Entry price">{trade.entryPrice.toFixed(precision)}</Row>
@@ -300,15 +301,12 @@ export function TransactionDetailSheet({ item, onClose }: { item: HistoryItem; o
   const panelRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const [now] = useState(() => new Date());
+  useScrollLock();
 
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeRef.current?.focus();
-    const body = document.body;
-    const prevOverflow = body.style.overflow;
-    body.style.overflow = "hidden";
     return () => {
-      body.style.overflow = prevOverflow;
       opener?.focus?.();
     };
   }, []);
@@ -363,7 +361,7 @@ export function TransactionDetailSheet({ item, onClose }: { item: HistoryItem; o
             <Icon name="close" className="size-5" />
           </button>
         </div>
-        <div className="grid gap-3.5 overflow-y-auto px-4 pb-5 pt-2">
+        <div className="grid gap-3.5 overflow-y-auto overscroll-contain px-4 pb-5 pt-2">
           {item.kind === "trade" ? (
             <TradeBody item={item} now={now} />
           ) : (

@@ -79,9 +79,10 @@ export function AmountField({
           placeholder="0"
           aria-invalid={invalid}
           aria-describedby={describedBy}
-          value={value}
+          // Shown grouped ("1,000") like the chips; sanitizeAmount strips the commas back out.
+          value={value === "" ? "" : groupAmount(value)}
           onChange={(e) => onChange(sanitizeAmount(e.target.value, opts))}
-          style={{ width: `${Math.max(value.length, 1) + 0.3}ch` }}
+          style={{ width: `${Math.max(value === "" ? 1 : groupAmount(value).length, 1) + 0.3}ch` }}
           className="min-w-[1ch] max-w-full bg-transparent text-center text-6xl font-extrabold tabular-nums tracking-[-0.035em] outline-none placeholder:text-ink-3"
         />
       </div>

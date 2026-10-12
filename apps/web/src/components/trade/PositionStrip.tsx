@@ -42,10 +42,15 @@ const StripBody = memo(function StripBody({
 
   const winning = shownSide === "winning";
   const profit = Math.floor((trade.stake * trade.payoutPct) / 100);
-  const plText = winning
-    ? `+${formatMinor(grossReturnMinor(trade.stake, profit), currency)}`
-    : `−${formatMinor(trade.stake, currency)}`;
-  const plClass = winning ? "text-up" : shownSide === "losing" || expired ? "text-down" : "text-ink-2";
+  // No quote yet, or price exactly at the entry: there is no result to show, so
+  // a dash in neutral ink instead of a red loss.
+  const undecided = shownSide === null || shownSide === "flat";
+  const plText = undecided
+    ? "—"
+    : winning
+      ? `+${formatMinor(grossReturnMinor(trade.stake, profit), currency)}`
+      : `−${formatMinor(trade.stake, currency)}`;
+  const plClass = undecided ? "text-ink-2" : winning ? "text-up" : "text-down";
 
   const total = trade.expiryTs - trade.entryTs;
   const remaining = now === null ? total : trade.expiryTs - now;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { SummaryCard } from "@/components/payments/SummaryCard";
-import { formatInr } from "./limits";
+import { bonusMinor, formatInr, formatMinorCompact } from "./limits";
 
 /**
  * Last step for a UPI-rail deposit. The amount was chosen on step 1 and the
@@ -33,20 +33,24 @@ export function AmountStep({
     setBusy(true);
     setError(null);
 
-    const res = await fetch("/api/deposits", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method, amountInr: Math.round(amountInr * 100) }),
-    });
+    try {
+      const res = await fetch("/api/deposits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method, amountInr: Math.round(amountInr * 100) }),
+      });
 
-    if (res.ok) {
-      const data = (await res.json()) as { checkoutToken: string };
-      window.location.href = `/checkout/${data.checkoutToken}`;
-      return;
+      if (res.ok) {
+        const data = (await res.json()) as { checkoutToken: string };
+        window.location.href = `/checkout/${data.checkoutToken}`;
+        return;
+      }
+
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      setError(data.error ?? "Could not start that deposit.");
+    } catch {
+      setError("Could not reach the server. Try again.");
     }
-
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    setError(data.error ?? "Could not start that deposit.");
     setBusy(false);
   }
 
@@ -74,7 +78,7 @@ export function AmountStep({
           <div className="flex items-baseline justify-between text-xs text-[var(--color-ink-2)]">
             <span>Bonus ({bonusPercent}%)</span>
             <span className="tabular-nums text-[var(--color-up)]">
-              +{formatInr(Math.floor((amountInr * bonusPercent) / 100))}
+              +{formatMinorCompact(bonusMinor(Math.round(amountInr * 100), bonusPercent), "INR")}
             </span>
           </div>
           <p className="-mt-2 text-[11px] text-[var(--color-ink-3)]">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { shrinkImage } from "@/lib/shrink-image";
 import { Icon } from "@/components/shell/Icon";
 import { CaptureDialog, PhotoCapture } from "@/components/account/PhotoCapture";
@@ -284,6 +284,16 @@ function usePhotoUpload(kind: DocKind, onUploaded: (kind: DocKind) => void) {
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The live object URL, tracked outside state so it can be revoked on
+  // replace and on unmount (state updaters must stay pure).
+  const urlRef = useRef<string | null>(null);
+  useEffect(
+    () => () => {
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    },
+    [],
+  );
 
   async function upload(file: File | undefined): Promise<boolean> {
     if (!file) return false;
@@ -296,10 +306,10 @@ function usePhotoUpload(kind: DocKind, onUploaded: (kind: DocKind) => void) {
     const res = await fetch("/api/account/kyc/documents", { method: "POST", body: form }).catch(() => null);
     setBusy(false);
     if (res?.ok) {
-      setPreview((old) => {
-        if (old) URL.revokeObjectURL(old);
-        return URL.createObjectURL(blob);
-      });
+      const next = URL.createObjectURL(blob);
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = next;
+      setPreview(next);
       onUploaded(kind);
       return true;
     }

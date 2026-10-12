@@ -19,7 +19,7 @@ export function middleware(request: NextRequest) {
   response.headers.set("Referrer-Policy", "no-referrer");
   response.headers.set(
     "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=()",
+    "camera=(self), microphone=(), geolocation=()",
   );
   response.headers.set(
     "Content-Security-Policy",
