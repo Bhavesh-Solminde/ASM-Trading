@@ -11,6 +11,7 @@ import {
   withOpenResult,
   type TradeState,
 } from "@/components/trade/trade-state";
+import { shouldReconcile } from "@/components/trade/reconcile";
 import { MarketStore, useMarket } from "./market-store";
 import type { Quote } from "./quotes";
 
@@ -49,6 +50,9 @@ const TRADE_MESSAGES = new Set<ServerMessage["type"]>(["trade:opened", "trade:se
 /** Keys for the per-tab prefs we persist so a refresh lands you back where you were. */
 const LS_ACTIVE_ACCOUNT = "asm_active_account_id";
 const LS_CHART_SYMBOL = "asm_chart_symbol";
+
+/** Stable empty list so the settlement watchdog never allocates per tick. */
+const NO_TRADES: readonly TradeView[] = [];
 
 function readLS(key: string): string | null {
   if (typeof window === "undefined") return null;
@@ -220,21 +224,67 @@ export function PlatformProvider({
     writeLS(LS_CHART_SYMBOL, chartSymbol);
   }, [chartSymbol]);
 
-  // The layout rendered history for the default account only; fetch on switch.
-  useEffect(() => {
-    if (!activeAccountId) return;
-    const controller = new AbortController();
-    void fetch(`/api/trades?accountId=${encodeURIComponent(activeAccountId)}`, {
-      signal: controller.signal,
+  // Re-reads one account's trades from the database, which is the only place a
+  // settlement delivered to a socket that was already gone still exists.
+  // `withFetchedTrades` merges without letting a stale OPEN overwrite a
+  // settled trade, so this is safe to call at any moment.
+  const lastReconcileRef = useRef<number | null>(null);
+  const refetchTrades = useCallback((accountId: string, signal?: AbortSignal) => {
+    lastReconcileRef.current = Math.floor(Date.now() / 1000);
+    void fetch(`/api/trades?accountId=${encodeURIComponent(accountId)}`, {
       cache: "no-store",
+      ...(signal ? { signal } : {}),
     })
       .then((res) => (res.ok ? (res.json() as Promise<{ trades: TradeView[] }>) : null))
       .then((body) => {
-        if (body) dispatch({ kind: "fetched", accountId: activeAccountId, trades: body.trades });
+        if (body) dispatch({ kind: "fetched", accountId, trades: body.trades });
       })
       .catch(() => {});
+  }, []);
+
+  // The layout rendered history for the default account only; fetch on switch,
+  // and again on every (re)connection. A trade always runs its full duration
+  // on the engine — losing the connection at 4s of a 10s trade does not stop
+  // the remaining 6s — but `trade:settled` is pushed to the owner's live
+  // socket exactly once and never replayed, so a reconnect must re-read what
+  // it missed. `connecting` is skipped so one page load fetches once.
+  useEffect(() => {
+    if (!activeAccountId || status === "connecting") return;
+    const controller = new AbortController();
+    refetchTrades(activeAccountId, controller.signal);
     return () => controller.abort();
-  }, [activeAccountId]);
+  }, [activeAccountId, status, refetchTrades]);
+
+  // Holds the current trades for the watchdog below without putting them in
+  // its deps — they change on every settlement, which would restart the timer.
+  const tradesByAccountRef = useRef(trades.tradesByAccount);
+  useEffect(() => {
+    tradesByAccountRef.current = trades.tradesByAccount;
+  }, [trades.tradesByAccount]);
+
+  // Settlement watchdog. A dropped `trade:settled` (socket down at the expiry
+  // second, phone backgrounded, message lost on a live socket) leaves this tab
+  // holding an OPEN trade whose countdown has run out — it reads as a trade
+  // that resumed instead of ending on its timer. Any OPEN trade still past its
+  // expiry means we missed the push, so go and ask; `shouldReconcile`
+  // throttles so a trade the engine abandoned can't hammer the API.
+  useEffect(() => {
+    if (!activeAccountId) return;
+    const timer = setInterval(() => {
+      const accountTrades = tradesByAccountRef.current[activeAccountId] ?? NO_TRADES;
+      if (
+        !shouldReconcile({
+          trades: accountTrades,
+          nowSec: Math.floor(Date.now() / 1000),
+          lastAttemptSec: lastReconcileRef.current,
+        })
+      ) {
+        return;
+      }
+      refetchTrades(activeAccountId);
+    }, 1_000);
+    return () => clearInterval(timer);
+  }, [activeAccountId, refetchTrades]);
 
   const recordOpened = useCallback(
     (result: OpenTradeResult) => dispatch({ kind: "opened", result, socketLive: status === "open" }),
