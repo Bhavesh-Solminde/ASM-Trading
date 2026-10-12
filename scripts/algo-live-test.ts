@@ -18,7 +18,7 @@
 import {
   createAccountsForUser,
   prisma,
-} from "../packages/db/src/index";
+} from "@asm/db";
 
 const WEB_BASE = process.env["WEB_BASE"] ?? "http://localhost:3000";
 // Fully synthetic OTC market — no external anchor, so the algo's bias has
@@ -29,9 +29,11 @@ const SYMBOL = process.env["SYMBOL"] ?? "NIFTY50";
 const DURATION_SEC = 30;
 // Reuses the algo-seed password already hashed on the seeded users — we
 // copy that user's passwordHash into every test user rather than depending
-// on argon2 being installed at the repo root.
-const SEED_USER_EMAIL_FOR_HASH = "deposited-calibrated@algo.asmtrade.local";
-const PASSWORD = "asm-algo-test-2026";
+// on argon2 being installed at the repo root. Env-overridable so the same
+// script can target prod with a user whose password is known at runtime.
+const SEED_USER_EMAIL_FOR_HASH =
+  process.env["SEED_USER_EMAIL_FOR_HASH"] ?? "deposited-calibrated@algo.asmtrade.local";
+const PASSWORD = process.env["PASSWORD"] ?? "asm-algo-test-2026";
 const N_USERS = Number(process.env["N_USERS"] ?? 100);
 const LIVE_BALANCE_PAISE = 10_000_000; // ₹1,00,000
 // Chunk size for parallel HTTP calls — 100 users opening a trade in one

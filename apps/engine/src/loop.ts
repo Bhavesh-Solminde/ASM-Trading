@@ -223,6 +223,7 @@ export function startTickLoop(
         if ((USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) && !closedNow) {
           let commitTarget: number | null = null;
           let commitSecondsLeft = Infinity;
+          let commitWindow = 0;
           for (const p of livePositions) {
             if (
               !p.verdict ||
@@ -233,18 +234,71 @@ export function startTickLoop(
               continue;
             }
             const secondsLeft = p.expirySec - nowSec;
+            const perTradeWindow = p.expirySec - p.entrySec;
             if (
               secondsLeft >= 0 &&
-              secondsLeft <= COMMIT_WINDOW_SEC &&
+              perTradeWindow > 0 &&
+              secondsLeft <= perTradeWindow &&
               secondsLeft < commitSecondsLeft
             ) {
               commitSecondsLeft = secondsLeft;
               commitTarget = p.targetPrice;
+              commitWindow = perTradeWindow;
             }
           }
-          if (commitTarget !== null) {
-            const commitProgress =
-              1 - commitSecondsLeft / COMMIT_WINDOW_SEC;
+          // Majority-verdict override: when the earliest-expiring commit
+          // group contains multiple same-direction trades, replace the
+          // single-trade commitTarget with the group's majority-forced
+          // exit so every member settles on the majority side.
+          if (commitTarget !== null && commitSecondsLeft !== Infinity) {
+            let groupPositions: typeof livePositions = [];
+            let groupDirection: "UP" | "DOWN" | null = null;
+            let groupExpirySec = -1;
+            for (const p of livePositions) {
+              if (
+                !p.verdict ||
+                p.verdict === "HONEST" ||
+                p.entrySec === undefined
+              ) {
+                continue;
+              }
+              if (p.expirySec - nowSec !== commitSecondsLeft) continue;
+              if (groupDirection === null) {
+                groupDirection = p.direction;
+                groupExpirySec = p.expirySec;
+              }
+              if (
+                p.direction === groupDirection &&
+                p.expirySec === groupExpirySec
+              ) {
+                groupPositions.push(p);
+              }
+            }
+            if (groupPositions.length > 1 && groupDirection !== null) {
+              let winCount = 0;
+              for (const p of groupPositions) {
+                if (p.verdict === "WIN") winCount += 1;
+              }
+              const majorityWin = winCount * 2 > groupPositions.length;
+              let minEntry = groupPositions[0]!.entryPrice;
+              let maxEntry = minEntry;
+              for (let i = 1; i < groupPositions.length; i++) {
+                const e = groupPositions[i]!.entryPrice;
+                if (e < minEntry) minEntry = e;
+                if (e > maxEntry) maxEntry = e;
+              }
+              commitTarget =
+                groupDirection === "UP"
+                  ? majorityWin
+                    ? maxEntry + asset.tickSize
+                    : minEntry - asset.tickSize
+                  : majorityWin
+                    ? minEntry - asset.tickSize
+                    : maxEntry + asset.tickSize;
+            }
+          }
+          if (commitTarget !== null && commitWindow > 0) {
+            const commitProgress = 1 - commitSecondsLeft / commitWindow;
             const w = smoothstep(commitProgress);
             const blended = (1 - w) * result.price + w * commitTarget;
             // The commit snap runs AFTER stepPrice has already applied its
@@ -266,6 +320,9 @@ export function startTickLoop(
                 : blended;
             asset.state = { ...asset.state, price: snapped };
             result = { ...result, price: snapped };
+          } else if (asset.state.price !== asset.honestState.price) {
+            asset.state = { ...asset.state, price: asset.honestState.price };
+            result = { ...result, price: asset.honestState.price };
           }
         }
       } catch (err) {
