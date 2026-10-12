@@ -22,4 +22,10 @@ describe("security headers", () => {
   it("sends no referrer", () => {
     expect(res.headers.get("Referrer-Policy")).toBe("no-referrer");
   });
+
+  it("allows the camera for same-origin only (KYC capture), nothing else", () => {
+    expect(res.headers.get("Permissions-Policy")).toBe(
+      "camera=(self), microphone=(), geolocation=()",
+    );
+  });
 });

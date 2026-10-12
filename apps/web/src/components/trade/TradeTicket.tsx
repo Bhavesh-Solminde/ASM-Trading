@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DURATIONS_SEC } from "@asm/trading";
 import type { OpenTradeResult } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
+import { usePlatform } from "@/components/shell/PlatformProvider";
 import { durationForTargetTime, offeredExpirySlots } from "@/lib/expiry-times";
 import { minStakeMinor } from "@/lib/currency";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
@@ -11,16 +12,15 @@ import { clockTime, countdown, hms } from "@/lib/format-time";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useMarketClosed, useNowSec } from "@/lib/use-now";
 import { grossReturnMinor } from "./pnl-display";
-
-/** Quick-pick stakes (major units), all at or above the currency's minimum. */
-function stakePresets(currency: string): readonly number[] {
-  return currency === "INR" ? [100, 250, 500, 1000, 2500] : [1, 5, 10, 25, 100];
-}
-
-/** Opening stake for a fresh ticket: the INR minimum, or $10. */
-function defaultStake(currency: string): string {
-  return currency === "INR" ? "100" : "10";
-}
+import { StakeSheet } from "./StakeSheet";
+import {
+  EXPIRY_CHIPS,
+  defaultStake,
+  formatDuration,
+  groupAmount,
+  isChipExpiry,
+  stakePresets,
+} from "./stake";
 
 type TimeMode = "timer" | "time";
 
@@ -49,15 +49,11 @@ function parseDurationInput(text: string): number | null {
   return sec > 0 ? sec : null;
 }
 
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${seconds / 60}m`;
-  return `${seconds / 3600}h`;
-}
-
 const STEP =
   "relative grid h-12 place-items-center rounded border border-white/40 text-ink-2 hover:border-white/70 hover:bg-panel hover:text-ink phone:h-[34px] phone:after:absolute phone:after:-inset-x-1.5 phone:after:-inset-y-[7px]";
 const DISPLAY = "grid h-12 place-items-center rounded border border-white/40 bg-panel phone:h-[34px]";
+/** A one-tap expiry chip in the phone dock. */
+const CHIP = "h-10 min-w-0 rounded-xl text-[13px] font-bold tabular-nums transition-colors land:h-9";
 /** A cell in the expiry picker grid. */
 const PICK =
   "h-10 rounded-md text-[13px] font-semibold tabular-nums transition-colors phone:text-[12px]";
@@ -101,6 +97,10 @@ export function TradeTicket({
   }, []);
   useDismiss(expiryRef, gridOpen, closeGrid);
   const [stakeInput, setStakeInput] = useState(() => defaultStake(currency));
+  // Phone dock: the keypad sheet, and the tile that opened it (focus returns there).
+  const [stakeOpen, setStakeOpen] = useState(false);
+  const tileRef = useRef<HTMLButtonElement | null>(null);
+  const { balances, accounts } = usePlatform();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fired, setFired] = useState<"UP" | "DOWN" | null>(null);
@@ -118,6 +118,9 @@ export function TradeTicket({
   const stakeMinor = Number.isFinite(stakeMajor) && stakeMajor > 0 ? Math.round(stakeMajor * 100) : 0;
   const profitMinor =
     payoutPct === null || stakeMinor === 0 ? null : Math.floor((stakeMinor * payoutPct) / 100);
+  const accountBalance = balances[accountId];
+  const balanceMinor = accountBalance ? accountBalance.realBalance + accountBalance.bonusBalance : null;
+  const accountLabel = accounts.find((a) => a.id === accountId)?.type === "LIVE" ? "Live" : "Demo";
   const durationIndex = DURATIONS_SEC.indexOf(durationSec as (typeof DURATIONS_SEC)[number]);
 
   function stepDuration(delta: number): void {
@@ -162,6 +165,11 @@ export function TradeTicket({
     setStakeInput(String(Math.max(minMajor, current + delta * step)));
   }
 
+  function closeStake(): void {
+    setStakeOpen(false);
+    tileRef.current?.focus();
+  }
+
   async function place(direction: "UP" | "DOWN"): Promise<void> {
     if (stakeMinor === 0) {
       setError("Enter an investment amount.");
@@ -194,25 +202,30 @@ export function TradeTicket({
   }
 
   const slab =
-    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-11 phone:pl-2.5 phone:pr-2 phone:text-[11px] phone:leading-none";
+    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-16 phone:rounded-2xl phone:pl-3.5 phone:pr-3.5 phone:text-lg phone:font-extrabold phone:leading-none land:h-12";
   const slabLive = "hover:brightness-110 active:translate-y-px disabled:cursor-wait";
   const slabClosed = "cursor-not-allowed bg-tile text-ink-3";
   const slabNote =
-    "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 phone:text-[8px] max-[359px]:hidden";
+    "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 max-[359px]:hidden";
+  // Phone sub-label under BUY / SELL: what a win pays back (stake + profit).
+  const winText = profitMinor === null ? null : `+${formatMinor(grossReturnMinor(stakeMinor, profitMinor), currency)}`;
+  const phoneNote = (side: "higher" | "lower") =>
+    closed ? "Market closed" : winText === null ? `Price ends ${side}` : `${winText} if ${side}`;
+  const customExpiry = !isChipExpiry(effectiveDurationSec);
 
   return (
-    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:gap-0.5 phone:border-b-0 phone:px-2 phone:pb-2.5 phone:pt-1 land:pb-[max(4px,env(safe-area-inset-bottom))]">
+    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:mx-auto phone:w-full phone:max-w-[560px] phone:gap-2.5 phone:border-b-0 phone:pb-3 phone:pt-3 land:max-w-none land:gap-1.5 land:px-2 land:pb-[max(4px,env(safe-area-inset-bottom))] land:pt-2">
       <div className="flex items-baseline justify-between phone:hidden">
         <span className="text-[17px] font-bold tracking-[0.03em]">{pair}</span>
         <span className="text-[17px] font-extrabold text-brand">{payoutPct === null ? "—" : `${payoutPct}%`}</span>
       </div>
 
-      <div className="grid gap-3 phone:grid-cols-2 phone:gap-x-2 phone:gap-y-1">
+      <div className="grid gap-3 phone:flex phone:flex-col phone:gap-2.5 land:gap-1.5">
         <div ref={expiryRef} className="relative grid gap-1.5">
-          <span className="legend phone:text-[9px]!" id="ticket-time">
+          <span className="legend phone:hidden" id="ticket-time">
             {mode === "time" ? "Time" : "Timer"}
           </span>
-          <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5 phone:grid-cols-[28px_minmax(0,1fr)_28px] phone:gap-1">
+          <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5 phone:hidden">
             <button
               type="button"
               aria-label={mode === "time" ? "Earlier" : "Shorter"}
@@ -257,7 +270,7 @@ export function TradeTicket({
               id="ticket-durations"
               role="dialog"
               aria-label="Choose expiry"
-              className="absolute left-0 top-[calc(100%+8px)] z-40 w-[264px] max-w-[calc(100vw-16px)] rounded-xl border border-white/10 bg-tile-hi p-2.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.85)] phone:bottom-[calc(100%+8px)] phone:top-auto phone:w-[248px]"
+              className="absolute left-0 top-[calc(100%+8px)] z-40 w-[264px] max-w-[calc(100vw-16px)] rounded-xl border border-white/10 bg-tile-hi p-2.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.85)] phone:bottom-[calc(100%+8px)] phone:top-auto phone:w-full"
             >
               <div role="tablist" aria-label="Expiry mode" className="mb-2.5 grid grid-cols-2 gap-0.5 rounded-md bg-white/10 p-0.5">
                 {(["timer", "time"] as const).map((m) => (
@@ -369,13 +382,79 @@ export function TradeTicket({
               <ExpiresAt durationSec={durationSec} />
             )}
           </div>
+          {/* Phone dock: one-tap expiries; "More" opens the same picker as the
+              desktop stepper (every other offered duration, TIME mode, manual). */}
+          <div role="group" aria-label="Expiry" className="hidden grid-cols-5 gap-1.5 phone:grid">
+            {EXPIRY_CHIPS.map((chip) => (
+              <button
+                key={chip.sec}
+                type="button"
+                aria-pressed={effectiveDurationSec === chip.sec}
+                onClick={() => {
+                  setMode("timer");
+                  setDurationSec(chip.sec);
+                  closeGrid();
+                }}
+                className={`${CHIP} ${effectiveDurationSec === chip.sec ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"}`}
+              >
+                {chip.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={gridOpen}
+              aria-controls="ticket-durations"
+              aria-label={customExpiry ? `More expiries, ${formatDuration(effectiveDurationSec)} selected` : "More expiries"}
+              onClick={() => {
+                setGridOpen((o) => !o);
+                setManualOpen(false);
+              }}
+              className={`${CHIP} ${customExpiry ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"}`}
+            >
+              {customExpiry ? formatDuration(effectiveDurationSec) : "More"}
+            </button>
+          </div>
         </div>
 
-        <div className="grid gap-1.5">
-          <label htmlFor="stake" className="legend phone:text-[9px]!">
+        <div className="grid gap-1.5 phone:order-first">
+          <label htmlFor="stake" className="legend phone:hidden">
             Investment
           </label>
-          <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5 phone:grid-cols-[28px_minmax(0,1fr)_28px] phone:gap-1">
+          {/* Phone dock: the investment tile opens the keypad sheet (no native keyboard). */}
+          <button
+            ref={tileRef}
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={stakeOpen}
+            aria-label={`Investment ${formatMinor(stakeMinor, currency)}${
+              payoutPct === null ? "" : `, payout ${payoutPct}%`
+            }. Change investment`}
+            onClick={() => setStakeOpen(true)}
+            className="hidden h-14 w-full items-center gap-3 rounded-[14px] bg-tile px-3.5 text-left transition-colors active:bg-tile-hi phone:flex land:h-12"
+          >
+            <span className="grid gap-0.5">
+              <span className="text-[11px] leading-none text-ink-2">Investment</span>
+              <span
+                className={`text-[22px] font-extrabold leading-none tracking-[-0.02em] tabular-nums ${
+                  stakeMinor < minStake ? "text-down" : "text-ink"
+                }`}
+              >
+                {currencySymbol(currency)}
+                {groupAmount(stakeInput === "" ? "0" : stakeInput)}
+              </span>
+            </span>
+            <span className="ml-auto grid justify-items-end gap-0.5">
+              <span className="text-[11px] leading-none text-ink-2">
+                Payout {payoutPct === null ? "—" : `${payoutPct}%`}
+              </span>
+              <span className="text-[15px] font-bold leading-none tabular-nums text-up">
+                {profitMinor === null ? "—" : formatMinor(grossReturnMinor(stakeMinor, profitMinor), currency)}
+              </span>
+            </span>
+            <Icon name="chevron" className="size-[18px] flex-none text-ink-3" strokeWidth={2} />
+          </button>
+          <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5 phone:hidden">
             <button type="button" aria-label="Decrease investment" onClick={() => nudge(-1)} className={STEP}>
               <Icon name="minus" className={STEP_ICON} />
             </button>
@@ -422,32 +501,25 @@ export function TradeTicket({
         </span>
       </div>
 
-      <div className="hidden phone:flex phone:items-center phone:justify-between phone:gap-2 phone:border-t phone:border-dashed phone:border-rule phone:pt-0.5">
-        <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-ink-3">Payout</span>
-        <span className="led led-lit text-[11px] text-up">
-          {profitMinor === null ? "—" : `+${formatMinor(grossReturnMinor(stakeMinor, profitMinor), currency)}`}
-        </span>
-      </div>
-
       {closed ? (
         <div
           role="status"
-          className="flex items-center gap-2 rounded-[2px] border border-rule bg-panel px-2.5 py-2 text-xs font-semibold text-ink-2 phone:gap-1.5 phone:px-2 phone:py-1 phone:text-[10px]"
+          className="flex items-center gap-2 rounded-[2px] border border-rule bg-panel px-2.5 py-2 text-xs font-semibold text-ink-2 phone:rounded-xl phone:px-3 phone:py-2.5"
         >
-          <Icon name="alert" className="size-4 flex-none phone:size-3" />
+          <Icon name="alert" className="size-4 flex-none" />
           <span>{pair} is closed for the night. Trading resumes at 5:00 AM IST.</span>
         </div>
       ) : error ? (
         <div
           role="alert"
-          className="grid grid-cols-[auto_1fr] items-start gap-2 rounded-[2px] bg-warn-bg px-2.5 py-2 text-xs text-down shadow-[inset_0_0_0_1px_rgba(229,65,59,.5)] phone:gap-1.5 phone:px-2 phone:py-1 phone:text-[10px]"
+          className="grid grid-cols-[auto_1fr] items-start gap-2 rounded-[2px] bg-warn-bg px-2.5 py-2 text-xs text-down shadow-[inset_0_0_0_1px_rgba(229,65,59,.5)] phone:rounded-xl phone:px-3 phone:py-2.5"
         >
-          <Icon name="alert" className="size-4 phone:size-3" />
+          <Icon name="alert" className="size-4" />
           {error}
         </div>
       ) : null}
 
-      <div className="grid gap-2 phone:grid-cols-2 phone:gap-3 phone:pt-0 land:grid-cols-1 land:gap-1.5">
+      <div className="grid gap-2 phone:grid-cols-2 phone:gap-2.5 land:grid-cols-1 land:gap-1.5">
         <button
           type="button"
           disabled={busy || closed}
@@ -455,10 +527,14 @@ export function TradeTicket({
           onAnimationEnd={() => setFired(null)}
           className={`${slab} ${closed ? slabClosed : `${slabLive} bg-up text-up-ink`} ${fired === "UP" ? "slab-fired" : ""}`}
         >
-          <span>
+          <span className="phone:hidden">
             Buy<small className={slabNote}>{closed ? "Market closed" : "Price ends higher"}</small>
           </span>
-          <Icon name="up" className="size-[26px] phone:size-[18px]" strokeWidth={2.4} />
+          <span className="hidden min-w-0 gap-1 text-left phone:grid">
+            <span className="tracking-[0.04em]">Buy</span>
+            <span className="truncate text-[11px] font-semibold normal-case tracking-normal">{phoneNote("higher")}</span>
+          </span>
+          <Icon name="up" className="size-[26px] phone:size-[22px]" strokeWidth={2.6} />
         </button>
         <button
           type="button"
@@ -467,12 +543,33 @@ export function TradeTicket({
           onAnimationEnd={() => setFired(null)}
           className={`${slab} ${closed ? slabClosed : `${slabLive} bg-down text-down-ink`} ${fired === "DOWN" ? "slab-fired" : ""}`}
         >
-          <span>
+          <span className="phone:hidden">
             Sell<small className={slabNote}>{closed ? "Market closed" : "Price ends lower"}</small>
           </span>
-          <Icon name="down" className="size-[26px] phone:size-[18px]" strokeWidth={2.4} />
+          <span className="hidden min-w-0 gap-1 text-left phone:grid">
+            <span className="tracking-[0.04em]">Sell</span>
+            <span className="truncate text-[11px] font-semibold normal-case tracking-normal">{phoneNote("lower")}</span>
+          </span>
+          <Icon name="down" className="size-[26px] phone:size-[22px]" strokeWidth={2.6} />
         </button>
       </div>
+
+      {stakeOpen ? (
+        <StakeSheet
+          currency={currency}
+          initial={stakeInput}
+          balanceMinor={balanceMinor}
+          minStakeMinor={minStake}
+          payoutPct={payoutPct}
+          accountLabel={accountLabel}
+          onSet={(stake) => {
+            setStakeInput(stake);
+            setError(null);
+            closeStake();
+          }}
+          onClose={closeStake}
+        />
+      ) : null}
     </div>
   );
 }

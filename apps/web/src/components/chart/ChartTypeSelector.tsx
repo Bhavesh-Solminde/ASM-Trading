@@ -9,10 +9,16 @@ export function ChartTypeSelector({
   value,
   onChange,
   className = "",
+  tool = false,
 }: {
   value: ChartType;
   onChange: (type: ChartType) => void;
   className?: string;
+  /**
+   * Phone chart-tool style: a 40px neutral tile that sits at the chart's
+   * bottom-left, so the list opens upward instead of off the bottom edge.
+   */
+  tool?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -34,11 +40,17 @@ export function ChartTypeSelector({
         aria-label={`Chart style: ${activeOption.label}`}
         title={`Chart style: ${activeOption.label}`}
         onClick={() => setOpen((o) => !o)}
-        className={`relative grid size-[34px] phone:size-10 place-items-center rounded-[4px] border backdrop-blur transition-colors ${
-          open
-            ? "border-brand bg-brand/25 text-brand shadow-[0_0_8px_rgba(47,129,247,0.3)]"
-            : "border-brand/50 bg-brand/15 text-brand hover:border-brand hover:bg-brand/25"
-        }`}
+        className={
+          tool
+            ? `relative grid size-10 place-items-center rounded-xl transition-colors ${
+                open ? "bg-tile-hi text-brand" : "bg-tile/94 text-ink-2 hover:bg-tile-hi hover:text-ink"
+              }`
+            : `relative grid size-[34px] phone:size-10 place-items-center rounded-[4px] border backdrop-blur transition-colors ${
+                open
+                  ? "border-brand bg-brand/25 text-brand shadow-[0_0_8px_rgba(47,129,247,0.3)]"
+                  : "border-brand/50 bg-brand/15 text-brand hover:border-brand hover:bg-brand/25"
+              }`
+        }
       >
         <Icon name={activeOption.icon} className="size-5" />
       </button>
@@ -47,7 +59,9 @@ export function ChartTypeSelector({
         <div
           role="listbox"
           aria-label="Select chart display"
-          className="absolute left-0 top-[calc(100%+6px)] z-40 max-h-[380px] w-[215px] overflow-y-auto overscroll-contain rounded-md border border-rule bg-panel/95 p-1.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.85)] backdrop-blur-md"
+          className={`absolute left-0 z-40 w-[215px] ${
+            tool ? "bottom-[calc(100%+8px)] max-h-[min(380px,55dvh)]" : "top-[calc(100%+6px)] max-h-[380px]"
+          } overflow-y-auto overscroll-contain rounded-md border border-rule bg-panel/95 p-1.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.85)] backdrop-blur-md`}
         >
           <div className="sticky top-0 z-10 bg-panel/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3 backdrop-blur-md">
             Chart Display

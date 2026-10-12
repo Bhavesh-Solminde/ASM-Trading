@@ -39,6 +39,7 @@ export function MarketSelector({
   onSelect,
   compact = false,
   iconOnly = false,
+  pill = false,
   onOpenChange,
 }: {
   assets: PlatformAsset[];
@@ -48,6 +49,8 @@ export function MarketSelector({
   compact?: boolean;
   /** Square, icon-only trigger (the selected market still shows in the chart readout). */
   iconOnly?: boolean;
+  /** Phone chart pill: asset icon + name + live payout + chevron, 40px tall, one tap to the picker. */
+  pill?: boolean;
   /** Called when markets picker opens or closes */
   onOpenChange?: (open: boolean) => void;
 }) {
@@ -118,8 +121,24 @@ export function MarketSelector({
     }`;
 
   return (
-    <div ref={rootRef} className="relative flex min-w-0 flex-none">
-      {iconOnly ? (
+    <div ref={rootRef} className={`relative flex min-w-0 ${pill ? "shrink" : "flex-none"}`}>
+      {pill ? (
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label={`Change market, ${pair}`}
+          onClick={toggleOpen}
+          className="flex h-10 min-w-0 items-center gap-1.5 rounded-xl bg-tile/94 pl-2 pr-2.5 text-left shadow-[0_8px_20px_-8px_rgba(0,0,0,.8)] transition-colors hover:bg-tile-hi active:bg-tile-hi min-[380px]:gap-2 min-[380px]:pr-3"
+        >
+          <AssetIcon symbol={activeAsset.symbol} size="md" />
+          <span className="min-w-0 truncate text-[15px] font-bold leading-none">{pair}</span>
+          <span className="flex-none text-[13px] font-bold leading-none tabular-nums text-brand">
+            <LivePayout asset={activeAsset} />
+          </span>
+          <Icon name="caret" className={`size-3.5 flex-none text-ink-2 transition-transform ${open ? "rotate-180" : ""}`} strokeWidth={2.4} />
+        </button>
+      ) : iconOnly ? (
         <button
           type="button"
           aria-haspopup="dialog"
@@ -172,7 +191,7 @@ export function MarketSelector({
             role="dialog"
             aria-modal="true"
             aria-label="Select trade pair"
-            className="absolute left-0 top-[calc(100%+6px)] z-50 flex w-[320px] max-w-[calc(100vw-20px)] flex-col overflow-hidden rounded border border-tile-hi bg-tile shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-0 phone:left-0 phone:top-0 phone:z-[60] phone:w-auto phone:max-w-none phone:rounded-none phone:border-0"
+            className="absolute left-0 top-[calc(100%+6px)] z-50 flex w-[320px] max-w-[calc(100vw-20px)] flex-col overflow-hidden rounded border border-tile-hi bg-tile shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-0 phone:left-0 phone:top-0 phone:z-[60] phone:mx-auto phone:w-auto phone:max-w-[560px] phone:rounded-none phone:border-0"
           >
             {/* Title bar — phone only; on desktop the trigger button is the title. */}
             <div className="hidden items-center justify-between gap-3 border-b border-rule px-3.5 pb-2.5 pt-[max(12px,env(safe-area-inset-top))] phone:flex">

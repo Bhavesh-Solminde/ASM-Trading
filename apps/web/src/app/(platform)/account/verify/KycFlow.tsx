@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { shrinkImage } from "@/lib/shrink-image";
+import { Icon } from "@/components/shell/Icon";
+import { CaptureDialog, PhotoCapture } from "@/components/account/PhotoCapture";
+import { cameraSupported } from "@/components/account/use-camera";
 
 type DocKind = "AADHAAR_FRONT" | "AADHAAR_BACK" | "PAN" | "SELFIE";
 
@@ -17,6 +20,15 @@ export type KycDetails = {
 };
 
 const STEPS = ["Details", "ID proof", "Selfie", "Submit"] as const;
+const STEP_COPY: { title: string; sub: string }[] = [
+  {
+    title: "Your details",
+    sub: "Exactly as they appear on your Aadhaar and PAN card. Required once before your first withdrawal; it takes about 2 minutes.",
+  },
+  { title: "ID proof", sub: "Clear photos, no glare, all four corners in the frame." },
+  { title: "Take a selfie", sub: "We match it to your Aadhaar and PAN photos. It's only used for verification." },
+  { title: "Review & submit", sub: "We'll check everything and verify your account, usually within 24 hours." },
+];
 const ID_DOCS: { kind: DocKind; label: string; hint: string }[] = [
   { kind: "AADHAAR_FRONT", label: "Aadhaar — front", hint: "Side with your photo and name" },
   { kind: "AADHAAR_BACK", label: "Aadhaar — back", hint: "Side with your address" },
@@ -73,8 +85,12 @@ export function KycFlow({
   if (status === "VERIFIED") {
     return (
       <StatusCard tone="up" title="You're verified" body="Your identity is confirmed — withdrawals are enabled.">
-        <Link href="/withdrawal" className="self-start rounded-lg bg-up px-5 py-2.5 text-sm font-bold text-up-ink phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0">
-          Go to withdrawal →
+        <Link
+          href="/withdrawal"
+          className="inline-flex h-12 items-center justify-center gap-1.5 self-start rounded-xl bg-brand-fill px-5 text-sm font-bold text-white hover:bg-brand-fill-hi phone:self-stretch"
+        >
+          Go to withdrawal
+          <Icon name="chevron" className="size-4" strokeWidth={2.4} />
         </Link>
       </StatusCard>
     );
@@ -135,41 +151,52 @@ export function KycFlow({
   return (
     <div className="flex flex-col gap-5">
       {status === "REJECTED" ? (
-        <div className="rounded-lg border border-down/40 bg-down/10 p-3 text-sm text-down">
+        <div className="rounded-xl border border-down/40 bg-down/10 p-3 text-sm text-down">
           <p className="font-semibold">Your last verification wasn&apos;t approved.</p>
           {reviewNote ? <p className="mt-1">Reason: {reviewNote}</p> : null}
           <p className="mt-1 text-ink-2">Fix it below — replace any photo that needs it — and submit again.</p>
         </div>
       ) : null}
 
-      <ol className="grid grid-cols-4 gap-1.5">
-        {STEPS.map((label, i) => {
-          const active = i === step;
-          const done = i < step;
-          return (
-            <li key={label}>
-              <button
-                type="button"
-                disabled={!reachable[i] || busy}
-                onClick={() => {
-                  setError(null);
-                  setStep(i);
-                }}
-                className={`w-full border-t-[3px] pt-1.5 text-left text-[11px] font-semibold uppercase tracking-wider disabled:cursor-default ${
-                  active ? "border-up text-ink" : done ? "border-up/50 text-ink-2" : "border-rule text-ink-3"
-                }`}
-              >
-                <span className="block text-[10px] text-ink-3">Step {i + 1}</span>
-                {label}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+      <nav aria-label="Verification progress" className="grid gap-2.5">
+        <p className="flex items-baseline justify-between text-[13px]">
+          <span className="font-semibold text-ink">{STEPS[step]}</span>
+          <span className="text-ink-2">
+            {step + 1} of {STEPS.length}
+          </span>
+        </p>
+        <ol className="grid grid-cols-4 gap-1.5">
+          {STEPS.map((label, i) => {
+            const reached = i <= step;
+            return (
+              <li key={label}>
+                <button
+                  type="button"
+                  disabled={!reachable[i] || busy}
+                  aria-label={`Step ${i + 1}: ${label}`}
+                  aria-current={i === step ? "step" : undefined}
+                  onClick={() => {
+                    setError(null);
+                    setStep(i);
+                  }}
+                  className="relative block h-1 w-full rounded-full after:absolute after:-inset-y-3 after:inset-x-0 after:content-[''] disabled:cursor-default"
+                >
+                  <span
+                    className={`absolute inset-0 rounded-full transition-colors motion-reduce:transition-none ${
+                      reached ? "bg-brand" : "bg-tile-hi"
+                    }`}
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
+
+      <StepTitle title={STEP_COPY[step]!.title} sub={STEP_COPY[step]!.sub} />
 
       {step === 0 ? (
         <section className="flex flex-col gap-3">
-          <StepTitle title="Your details" sub="Exactly as they appear on your Aadhaar and PAN card." />
           <div className="grid gap-3 sm:grid-cols-2">
             <TextField label="First name" value={details.firstName} autoComplete="given-name" onChange={(v) => setDetails({ ...details, firstName: v })} />
             <TextField label="Last name" value={details.lastName} autoComplete="family-name" onChange={(v) => setDetails({ ...details, lastName: v })} />
@@ -201,9 +228,8 @@ export function KycFlow({
 
       {step === 1 ? (
         <section className="flex flex-col gap-3">
-          <StepTitle title="ID proof" sub="Clear photos, no glare, all four corners in the frame." />
           {ID_DOCS.map((d) => (
-            <UploadTile key={d.kind} kind={d.kind} label={d.label} hint={d.hint} uploaded={docs.has(d.kind)} onUploaded={onUploaded} />
+            <DocTile key={d.kind} doc={d} uploaded={docs.has(d.kind)} onUploaded={onUploaded} />
           ))}
           <PrimaryButton disabled={!idDone} onClick={() => setStep(2)}>
             Continue
@@ -213,8 +239,7 @@ export function KycFlow({
 
       {step === 2 ? (
         <section className="flex flex-col gap-3">
-          <StepTitle title="Selfie" sub="Face the camera in good light — no cap, mask or sunglasses." />
-          <UploadTile kind="SELFIE" label="Your selfie" hint="Opens your front camera" uploaded={docs.has("SELFIE")} onUploaded={onUploaded} selfie />
+          <SelfieStep uploaded={docs.has("SELFIE")} onUploaded={onUploaded} />
           <PrimaryButton disabled={!docs.has("SELFIE")} onClick={() => setStep(3)}>
             Continue
           </PrimaryButton>
@@ -223,7 +248,6 @@ export function KycFlow({
 
       {step === 3 ? (
         <section className="flex flex-col gap-3">
-          <StepTitle title="Review & submit" sub="We'll check everything and verify your account, usually within 24 hours." />
           <Checklist
             rows={[
               ["Personal details", detailsProblem(details) === null],
@@ -231,12 +255,12 @@ export function KycFlow({
               ["Selfie", docs.has("SELFIE")],
             ]}
           />
-          <label className="flex cursor-pointer items-start gap-3 text-sm text-ink-2">
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-ink-2">
             <input
               type="checkbox"
               checked={confirmed}
               onChange={(e) => setConfirmed(e.target.checked)}
-              className="mt-0.5 h-4 w-4 flex-none accent-[var(--color-up)]"
+              className="mt-0.5 size-5 flex-none accent-[var(--color-brand-fill)]"
             />
             <span>These documents are mine and the details are correct.</span>
           </label>
@@ -250,28 +274,29 @@ export function KycFlow({
   );
 }
 
-function UploadTile({
-  kind,
-  label,
-  hint,
-  uploaded,
-  onUploaded,
-  selfie = false,
-}: {
-  kind: DocKind;
-  label: string;
-  hint: string;
-  uploaded: boolean;
-  onUploaded: (kind: DocKind) => void;
-  selfie?: boolean;
-}) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+/**
+ * Uploads one KYC photo. The picked or captured file is compressed under the
+ * proxy's body limit (`shrinkImage`) and POSTed to /api/account/kyc/documents,
+ * exactly as the plain file input always did; the camera is just another
+ * source of that File.
+ */
+function usePhotoUpload(kind: DocKind, onUploaded: (kind: DocKind) => void) {
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The live object URL, tracked outside state so it can be revoked on
+  // replace and on unmount (state updaters must stay pure).
+  const urlRef = useRef<string | null>(null);
+  useEffect(
+    () => () => {
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    },
+    [],
+  );
 
-  async function onPick(file: File | undefined) {
-    if (!file) return;
+  async function upload(file: File | undefined): Promise<boolean> {
+    if (!file) return false;
     setBusy(true);
     setError(null);
     const blob = await shrinkImage(file);
@@ -280,20 +305,49 @@ function UploadTile({
     form.set("file", blob, blob === file ? file.name : `${kind.toLowerCase()}.jpg`);
     const res = await fetch("/api/account/kyc/documents", { method: "POST", body: form }).catch(() => null);
     setBusy(false);
-    if (inputRef.current) inputRef.current.value = "";
     if (res?.ok) {
-      setPreview((old) => {
-        if (old) URL.revokeObjectURL(old);
-        return URL.createObjectURL(blob);
-      });
+      const next = URL.createObjectURL(blob);
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = next;
+      setPreview(next);
       onUploaded(kind);
-      return;
+      return true;
     }
     const data = (await res?.json().catch(() => ({}))) as { error?: string } | undefined;
     setError(
       data?.error ??
         (res?.status === 413 ? "That photo is too large. Try a smaller one." : "Upload failed. Try again."),
     );
+    return false;
+  }
+
+  return { preview, busy, error, upload };
+}
+
+/** One Aadhaar / PAN photo: a tile that opens the card-framing camera. */
+function DocTile({
+  doc,
+  uploaded,
+  onUploaded,
+}: {
+  doc: { kind: DocKind; label: string; hint: string };
+  uploaded: boolean;
+  onUploaded: (kind: DocKind) => void;
+}) {
+  const { preview, busy, error, upload } = usePhotoUpload(doc.kind, onUploaded);
+  const [open, setOpen] = useState(false);
+  const nativeRef = useRef<HTMLInputElement | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  function start() {
+    setNote(null);
+    // No live camera in this browser/context: go straight to the system camera / picker.
+    if (!cameraSupported()) {
+      setNote("Live camera isn't available here, so we opened your camera app instead.");
+      nativeRef.current?.click();
+      return;
+    }
+    setOpen(true);
   }
 
   return (
@@ -301,37 +355,105 @@ function UploadTile({
       <button
         type="button"
         disabled={busy}
-        onClick={() => inputRef.current?.click()}
-        className={`grid w-full grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-2.5 text-left transition-colors ${
-          uploaded ? "border-up/50 bg-up/[0.06]" : "border-dashed border-rule bg-panel hover:border-tile-hi"
+        onClick={start}
+        className={`grid min-h-[72px] w-full grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl p-2.5 text-left transition-colors ${
+          uploaded ? "border border-up/40 bg-up/[0.07]" : "border border-dashed border-rule bg-panel hover:border-tile-hi"
         }`}
       >
-        <span className="grid size-14 place-items-center overflow-hidden rounded-lg bg-tile text-ink-3">
+        <span className="grid size-14 place-items-center overflow-hidden rounded-xl bg-tile text-ink-3">
           {preview ? (
-            // eslint-disable-next-line @next/next/no-img-element -- local object URL preview
             <img src={preview} alt="" className="size-full object-cover" />
           ) : (
-            <CameraGlyph />
+            <Icon name="camera" className="size-6" />
           )}
         </span>
         <span className="min-w-0">
-          <span className="block text-sm font-semibold">{label}</span>
-          <span className="block truncate text-[12px] text-ink-3">{busy ? "Uploading…" : hint}</span>
+          <span className="block text-sm font-semibold">{doc.label}</span>
+          <span className="block truncate text-xs text-ink-3">{busy ? "Uploading…" : doc.hint}</span>
         </span>
-        <span className={`text-[12px] font-bold ${uploaded ? "text-up" : "text-brand"}`}>
-          {busy ? "…" : uploaded ? "✓ Replace" : selfie ? "Take photo" : "Upload"}
+        <span className={`inline-flex items-center gap-1 pr-1 text-xs font-bold ${uploaded ? "text-up" : "text-brand"}`}>
+          {uploaded ? <Icon name="check" className="size-3.5" strokeWidth={3} /> : null}
+          {busy ? "…" : uploaded ? "Retake" : "Take photo"}
         </span>
       </button>
+      {note ? <p className="mt-1.5 text-xs text-ink-2">{note}</p> : null}
+      <ErrorLine error={open ? null : error} />
       <input
-        ref={inputRef}
+        ref={nativeRef}
         type="file"
         accept="image/*"
-        {...(selfie ? { capture: "user" as const } : {})}
+        capture="environment"
         className="hidden"
-        onChange={(e) => void onPick(e.target.files?.[0])}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          void upload(file);
+        }}
       />
-      <ErrorLine error={error} />
+      {open ? (
+        <CaptureDialog title={doc.label} onClose={() => setOpen(false)}>
+          <PhotoCapture
+            fileBase={doc.kind.toLowerCase()}
+            facing="environment"
+            guide="card"
+            hint="Fit the card inside the frame"
+            tips={["All four corners visible", "No glare or shadows"]}
+            busy={busy}
+            error={error}
+            onFile={(file) => void upload(file).then((ok) => ok && setOpen(false))}
+          />
+        </CaptureDialog>
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * The selfie step: the front camera sits right in the page with an oval guide
+ * (nothing to tap first). Once a selfie is uploaded it collapses to a summary
+ * with Retake.
+ */
+function SelfieStep({ uploaded, onUploaded }: { uploaded: boolean; onUploaded: (kind: DocKind) => void }) {
+  const { preview, busy, error, upload } = usePhotoUpload("SELFIE", onUploaded);
+  const [retaking, setRetaking] = useState(false);
+
+  if (uploaded && !retaking) {
+    return (
+      <div className="grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-up/40 bg-up/[0.07] p-2.5">
+        <span className="grid size-14 place-items-center overflow-hidden rounded-xl bg-tile text-ink-3">
+          {preview ? (
+            <img src={preview} alt="" className="size-full object-cover" />
+          ) : (
+            <Icon name="user" className="size-6" />
+          )}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold">Your selfie</span>
+          <span className="block truncate text-xs text-ink-3">Uploaded</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => setRetaking(true)}
+          className="inline-flex h-11 items-center gap-1 rounded-xl px-3 text-xs font-bold text-up hover:bg-tile"
+        >
+          <Icon name="check" className="size-3.5" strokeWidth={3} />
+          Retake
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <PhotoCapture
+      fileBase="selfie"
+      facing="user"
+      guide="oval"
+      hint="Hold still, face in the oval"
+      tips={["Good light, face fills the oval", "No glasses, cap or mask"]}
+      busy={busy}
+      error={error}
+      onFile={(file) => void upload(file).then((ok) => ok && setRetaking(false))}
+    />
   );
 }
 
@@ -348,7 +470,7 @@ function StatusCard({
 }) {
   const toneCls = tone === "up" ? "border-up/40 bg-up/10 [&_h2]:text-up" : "border-caution/30 bg-caution/10 [&_h2]:text-caution";
   return (
-    <section className={`flex flex-col gap-3 rounded-xl border p-4 ${toneCls}`}>
+    <section className={`flex flex-col gap-3 rounded-2xl border p-4 ${toneCls}`}>
       <h2 className="text-base font-bold">{title}</h2>
       <p className="text-sm leading-relaxed text-ink-2">{body}</p>
       {children}
@@ -358,11 +480,14 @@ function StatusCard({
 
 function Checklist({ rows }: { rows: [string, boolean][] }) {
   return (
-    <ul className="grid gap-1.5 rounded-lg border border-rule bg-panel p-3">
+    <ul className="grid divide-y divide-rule rounded-2xl bg-panel px-4">
       {rows.map(([label, ok]) => (
-        <li key={label} className="flex items-center justify-between text-sm">
+        <li key={label} className="flex min-h-12 items-center justify-between text-sm">
           <span>{label}</span>
-          <span className={`text-[12px] font-bold ${ok ? "text-up" : "text-down"}`}>{ok ? "✓ Done" : "Missing"}</span>
+          <span className={`inline-flex items-center gap-1 text-xs font-bold ${ok ? "text-up" : "text-down"}`}>
+            {ok ? <Icon name="check" className="size-3.5" strokeWidth={3} /> : null}
+            {ok ? "Done" : "Missing"}
+          </span>
         </li>
       ))}
     </ul>
@@ -372,8 +497,8 @@ function Checklist({ rows }: { rows: [string, boolean][] }) {
 function StepTitle({ title, sub }: { title: string; sub: string }) {
   return (
     <div>
-      <h2 className="text-base font-bold">{title}</h2>
-      <p className="text-[13px] text-ink-2">{sub}</p>
+      <h2 className="text-[26px] font-extrabold leading-tight tracking-[-0.02em]">{title}</h2>
+      <p className="mt-1.5 text-sm leading-relaxed text-ink-2">{sub}</p>
     </div>
   );
 }
@@ -418,7 +543,7 @@ function PrimaryButton({
       type="button"
       disabled={busy || disabled}
       onClick={onClick}
-      className="mt-1 h-12 rounded-lg bg-up text-sm font-black text-up-ink transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
+      className="mt-1 h-12 rounded-xl bg-brand-fill text-[15px] font-bold text-white transition hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-45"
     >
       {busy ? "Please wait…" : children}
     </button>
@@ -431,13 +556,4 @@ function ErrorLine({ error }: { error: string | null }) {
       {error}
     </p>
   ) : null;
-}
-
-function CameraGlyph() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
-      <circle cx="12" cy="13" r="3.5" />
-    </svg>
-  );
 }

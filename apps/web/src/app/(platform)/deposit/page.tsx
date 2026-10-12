@@ -36,7 +36,7 @@ export default async function DepositPage({
   const completedDeposits = await countCompletedDeposits(session.userId);
 
   return (
-    <PageFrame width="wide" nav={<PlatformTabs />} title="Deposit">
+    <PageFrame width="narrow" nav={<PlatformTabs />} title="Deposit">
 
       {showExpired ? (
         <div className="rounded-lg border border-down/30 bg-down/10 p-3 text-sm leading-relaxed text-down">

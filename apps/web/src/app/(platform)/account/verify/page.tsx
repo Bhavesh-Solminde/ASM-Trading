@@ -17,9 +17,8 @@ export default async function VerifyPage() {
   return (
     <PageFrame
       width="narrow"
-      title="Verify your identity"
-      back={{ href: "/account", label: "My account" }}
-      description="Required once before your first withdrawal. Takes about 2 minutes — keep your Aadhaar and PAN card handy."
+      title="Verify identity"
+      back={{ href: "/account", label: "Account" }}
     >
       <KycFlow
         initialStatus={profile.kycStatus}

@@ -19,10 +19,11 @@ function offerSubline(next: number): string {
 
 /**
  * Deposit-bonus offer: `card` is the phone banner row under the top bar,
- * `bar` the slim desktop pill. Both open the offer sheet with every tier and
+ * `bar` the slim desktop pill, `chip` the "+N% bonus" pill in the phone trade
+ * screen's status row. All open the offer sheet with every tier and
  * where the user is. Renders nothing once every tier has been used.
  */
-export function PromoBanner({ variant }: { variant: "card" | "bar" }) {
+export function PromoBanner({ variant }: { variant: "card" | "bar" | "chip" }) {
   const { completedDeposits } = usePlatform();
   const [open, setOpen] = useState(false);
   const next = completedDeposits + 1;
@@ -30,6 +31,27 @@ export function PromoBanner({ variant }: { variant: "card" | "bar" }) {
   if (pct === 0) return null;
 
   const sheet = open ? <BonusOfferSheet completedDeposits={completedDeposits} onClose={() => setOpen(false)} /> : null;
+
+  if (variant === "chip") {
+    return (
+      <>
+        {/* The row is 32px tall, so the button fills it (full-height tap area)
+            around a 24px visual pill. */}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-haspopup="dialog"
+          className="group -mr-1 flex h-8 flex-none items-center px-1"
+        >
+          <span className="flex h-6 items-center gap-1.5 rounded-full bg-up/12 pl-2.5 pr-2 text-xs font-bold text-up transition-colors group-hover:bg-up/20 group-active:bg-up/20">
+            +{pct}% bonus
+            <Icon name="chevron" className="size-3" strokeWidth={2.4} />
+          </span>
+        </button>
+        {sheet}
+      </>
+    );
+  }
 
   if (variant === "card") {
     return (
@@ -101,7 +123,7 @@ export function BonusOfferSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="bonus-offer-title"
-        className="sheet-phone w-[420px] max-w-[calc(100vw-24px)] rounded-xl border border-rule bg-ground p-5 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)] phone:w-full phone:max-w-none phone:border-x-0 phone:border-b-0 phone:px-4 phone:pt-0"
+        className="sheet-phone w-[420px] max-w-[calc(100vw-24px)] rounded-xl border border-rule bg-ground p-5 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)] phone:w-full phone:max-w-[560px] phone:border-x-0 phone:border-b-0 phone:px-4 phone:pt-0"
       >
         <div aria-hidden className="sheet-handle hidden phone:block" />
         <div className="flex items-start gap-3 phone:mt-3">

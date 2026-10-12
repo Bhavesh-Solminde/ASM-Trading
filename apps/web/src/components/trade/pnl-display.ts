@@ -35,3 +35,20 @@ export function closedRowDisplay(trade: Pick<TradeView, "status" | "stake" | "pn
   // LOST: pnl is negative (−stake); show the magnitude lost.
   return { sign: "−", amountMinor: Math.abs(trade.pnl), className: "text-ink-3" };
 }
+
+/**
+ * Where an open trade stands against the live price: "winning" when the price
+ * is on the trade's side of the entry, "losing" when it is against it, "flat"
+ * when equal, null while there is no price yet. The trades list and the phone
+ * position strip both read this, so they never disagree.
+ */
+export function openSide(
+  direction: TradeView["direction"],
+  entryPrice: number,
+  price: number | null,
+): "winning" | "losing" | "flat" | null {
+  if (price === null) return null;
+  if (price === entryPrice) return "flat";
+  const above = price > entryPrice;
+  return (direction === "UP") === above ? "winning" : "losing";
+}
