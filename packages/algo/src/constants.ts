@@ -112,15 +112,6 @@ export const FALLBACK_DAILY_TARGET_MINOR: number = (() => {
 })();
 
 /**
- * Commit-phase window (seconds). In the last COMMIT_WINDOW_SEC of a
- * governor-stamped live trade the shown price is deterministically eased
- * toward the trade's targetPrice, so a freak GARCH z draw cannot pull the
- * chart back across the target line. Guarantees the "chart == settled"
- * invariant that removes the fraud-report vector.
- */
-export const COMMIT_WINDOW_SEC = 4;
-
-/**
  * Undetectability cap. In house-first mode the resolver may pick an exit
  * price that differs from the honest live feed by AT MOST this many ticks.
  * Beyond this bound the manipulation would be visible against an external
@@ -233,24 +224,6 @@ export const MAX_CORRECTIVE_TICKS = 5;
  */
 export const MAX_CORRECTIVE_TICKS_GLG = 10;
 
-/**
- * How far the commit-phase snap in the tick loop may shift the shown price in
- * a single tick, in units of the asset's own tickSize. The commit snap runs
- * in the last COMMIT_WINDOW_SEC of a stamped live trade and eases the shown
- * price toward the trade's targetPrice via smoothstep. Previously it reused
- * `asset.params.maxTickMove = tickSize × 200` as its backstop, which meant a
- * trade whose chart had drifted far from target could pull the chart up to
- * 100 points per tick at NIFTY — the breakout bars users reported seeing on
- * the live chart. 10 ticks gives the magnet enough budget to rescue a typical
- * trade (which was within normal magnet-envelope drift) while bounding a
- * single-tick displacement to a value that reads as a plausible candle wick
- * instead of a mechanical jump. Trades whose chart has drifted more than
- * roughly ceil(COMMIT_WINDOW_SEC / TICK_DT_SEC) * MAX_COMMIT_SNAP_MOVE_TICKS
- * ticks from target won't fully rescue; the chart-as-source-of-truth settlement
- * (DB == chart close) means those become de-facto HONEST at settlement, just
- * like the resolver-corrective shrink above.
- */
-export const MAX_COMMIT_SNAP_MOVE_TICKS = 3;
 
 /**
  * Demo account win probability — GLG only. Demo trades under the Growth-Loop

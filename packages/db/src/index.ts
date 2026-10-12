@@ -240,6 +240,7 @@ export {
   openTrade,
   openTradeRecord,
   settleTrade,
+  updateTradeStamp,
   voidTrade,
   listTradesForActor,
   loadOpenPositions,

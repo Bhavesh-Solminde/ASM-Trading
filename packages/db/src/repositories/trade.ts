@@ -333,6 +333,35 @@ export async function voidTrade(tradeId: string): Promise<SettledTrade> {
   });
 }
 
+/**
+ * Update the governor-stamped verdict/pathStyle/targetPrice of an open Trade
+ * in place. Called by the open-time cascading heavy-side override and the
+ * LIVE batch rule when a new open changes which existing trades should be
+ * steered to LOSS. The in-memory Book is updated in lock-step via
+ * `BucketRegistry.restamp`.
+ *
+ * No-op for CLOSED trades (settlement already happened), so a race between
+ * a late restamp and a tick that collected the bucket cannot corrupt a
+ * settled row.
+ */
+export async function updateTradeStamp(
+  tradeId: string,
+  patch: {
+    verdict?: TradeVerdict;
+    pathStyle?: PathStyle;
+    targetPrice?: number;
+  },
+): Promise<void> {
+  await prisma.trade.updateMany({
+    where: { id: tradeId, status: "OPEN" },
+    data: {
+      ...(patch.verdict !== undefined ? { verdict: patch.verdict } : {}),
+      ...(patch.pathStyle !== undefined ? { pathStyle: patch.pathStyle } : {}),
+      ...(patch.targetPrice !== undefined ? { targetPrice: patch.targetPrice } : {}),
+    },
+  });
+}
+
 /** Ownership is in the predicate — a caller cannot read another account's trades. */
 export async function listTradesForActor(
   actorId: string,

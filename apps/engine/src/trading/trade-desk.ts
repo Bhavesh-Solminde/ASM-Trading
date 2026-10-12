@@ -16,6 +16,7 @@ import {
   recentLossStreakStatsForAccount,
   recordSettledTrade,
   settleTrade,
+  updateTradeStamp,
   voidTrade,
   type SettledTrade,
   type ShadowInput,
@@ -51,6 +52,13 @@ import { logger } from "@asm/logger";
 import type { AssetRegistry } from "../assets/registry";
 import type { ControllerBridge } from "../algo/controller-bridge";
 import { DeskRejection } from "./errors";
+import {
+  applyOpenTimeOverrides,
+  expiryTickBucket,
+  targetPriceFor,
+  type Flip,
+  type PendingTrade,
+} from "./open-time-overrides";
 
 /** Reverses `desiredWinProb`'s target back to the lifecycle stage that produced
  *  it — cheaper than a second query, since `target` is copied from TARGETS
@@ -253,73 +261,85 @@ export class TradeDesk {
          * }, Math.random);
          */
 
-        // Open-time value-imbalance override (2026-10-05, option (a)).
-        // Settlement-time force-LOSS alone can be defeated by natural GARCH
-        // drift when the chart has already moved past the 10-tick corrective
-        // window by expiry. The per-trade magnet uses the stamped verdict's
-        // targetPrice for the whole trade duration, so a heavy-side WIN
-        // stamp actively PULLS the chart toward its target — then
-        // settlement rescue can't fight both the drift and the magnet.
-        //
-        // Fix: at open, peek the current bucket (same asset + expirySec).
-        // If joining this trade makes its direction the heavier side AND
-        // there is already a counter-direction trade in the bucket, flip a
-        // WIN verdict to LOSS so the magnet steers against this trade for
-        // the full duration. Demos are excluded (they never contribute to
-        // the live chart). HONEST stamps also pass through unchanged.
-        if (!isDemo && verdict === "WIN") {
-          const bucketExpirySec = expirySecFor(expiryTs.getTime());
-          const existing = this.book.positionsAt(asset.id, bucketExpirySec);
-          let upStake = 0;
-          let downStake = 0;
-          for (const p of existing) {
-            if (p.isDemo) continue;
-            if (p.verdict == null || p.verdict === "HONEST") continue;
-            if (p.direction === "UP") upStake += p.stake;
-            else downStake += p.stake;
-          }
-          const futureMyDir =
-            input.direction === "UP"
-              ? upStake + input.stake
-              : downStake + input.stake;
-          const futureOtherDir =
-            input.direction === "UP" ? downStake : upStake;
-          if (futureMyDir > futureOtherDir && futureOtherDir > 0) {
+        // Open-time overrides. The pending trade starts with its GLG
+        // verdict; applyOpenTimeOverrides may flip it in place AND
+        // return a map of flips to apply to earlier trades in the same
+        // bucket. The chart's magnet starts steering toward the final
+        // targets on the next tick, so chart-as-source-of-truth holds.
+        const pending: PendingTrade = {
+          direction: input.direction,
+          stake: input.stake,
+          durationSec: input.durationSec,
+          entryPrice,
+          expirySec: expirySecFor(expiryTs.getTime()),
+          isDemo,
+          accountId: input.accountId,
+          verdict,
+          pathStyle: pickStyle(input.durationSec, verdict, Math.random),
+          targetPrice: targetPriceFor(
+            verdict,
+            input.direction,
+            entryPrice,
+            asset.tickSize,
+          ),
+        };
+
+        let openTimeFlips: Map<string, Flip> = new Map();
+        if (!isDemo) {
+          const bucketPositions = this.book.positionsAt(
+            asset.id,
+            pending.expirySec,
+          );
+          const userPositionsOnAsset = this.book.openFor(asset.id);
+          openTimeFlips = applyOpenTimeOverrides({
+            pending,
+            bucketPositions,
+            userPositionsOnAsset,
+            tickSize: asset.tickSize,
+          });
+          if (openTimeFlips.size > 0 || pending.verdict !== verdict) {
             logger.info(
               {
-                evt: "glg.open_value_imbalance_override",
+                evt: "glg.open_time_overrides_applied",
                 symbol: asset.symbol,
-                direction: input.direction,
-                bucketExpirySec,
-                futureMyDir,
-                futureOtherDir,
+                flipped: openTimeFlips.size,
+                pendingVerdict: pending.verdict,
+                bucket: expiryTickBucket(pending.expirySec),
               },
-              "flipped WIN → LOSS at open to protect the heavier side",
+              "open-time overrides applied",
             );
-            verdict = "LOSS";
           }
         }
 
-        const pathStyle = pickStyle(input.durationSec, verdict, Math.random);
-
-        // Target price: for WIN we want the user's side, for LOSS the house side.
-        // For UP direction: user wins if price rises → LOSS target is below entry.
-        // For DOWN direction: user wins if price falls → LOSS target is above entry.
-        // HONEST: no target used but we stamp entryPrice as a harmless default.
-        const tick = asset.tickSize;
-        const userWins =
-          verdict === "WIN" ||
-          (verdict === "HONEST" && input.direction === "UP");
-        let target: number;
-        if (verdict === "HONEST") {
-          target = entryPrice;
-        } else if (input.direction === "UP") {
-          target = userWins ? entryPrice + tick : entryPrice - tick;
-        } else {
-          target = userWins ? entryPrice - tick : entryPrice + tick;
+        // Apply flips to the in-memory Book now so the next tick reads
+        // the updated stamps when computing the magnet pull.
+        for (const [tradeId, flip] of openTimeFlips) {
+          this.book.restamp(tradeId, flip);
         }
 
-        governorStamp = { verdict, pathStyle, targetPrice: target };
+        // Persist flips to the DB — fire-and-forget. A failed update
+        // leaves the DB with the pre-flip stamp, which hydrate() would
+        // reload on restart; acceptable because the in-memory Book is
+        // the live source of truth while the engine is running.
+        for (const [tradeId, flip] of openTimeFlips) {
+          void updateTradeStamp(tradeId, flip).catch((err) => {
+            logger.warn(
+              {
+                evt: "glg.open_time_flip_persist_failed",
+                tradeId,
+                reason: err instanceof Error ? err.message : "unknown",
+              },
+              "open-time flip DB update failed",
+            );
+          });
+        }
+
+        verdict = pending.verdict;
+        governorStamp = {
+          verdict: pending.verdict,
+          pathStyle: pending.pathStyle,
+          targetPrice: pending.targetPrice,
+        };
       } catch (err) {
         logger.warn(
           {
@@ -573,7 +593,7 @@ export class TradeDesk {
         for (const [direction, group] of demoByDir) {
           let lossCount = 0;
           for (const p of group) if (p.verdict === "LOSS") lossCount += 1;
-          const majorityLoss = lossCount * 2 > group.length;
+          const majorityLoss = group.length >= 5 && lossCount / group.length >= 0.6;
           let minE = group[0]!.entryPrice;
           let maxE = minE;
           for (let i = 1; i < group.length; i++) {
