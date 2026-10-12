@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
-import { middleware } from "../middleware";
+import { proxy } from "../proxy";
 
 describe("security headers", () => {
-  const res = middleware(new NextRequest("http://localhost:3000/"));
+  const res = proxy(new NextRequest("http://localhost:3000/"));
 
   it("denies framing", () => {
     expect(res.headers.get("X-Frame-Options")).toBe("DENY");

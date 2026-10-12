@@ -13,14 +13,36 @@ type Props = {
   footer: ReactNode;
   /** Overlay caption for the editorial image on desktop. */
   imageCaption: string;
+  /**
+   * The fine print under the form. Defaults to the sign-in assurance, which
+   * is what every auth page wants. Pass `null` on a page that is not a sign-in
+   * — the maintenance screen, for one, where "by continuing you agree…" is
+   * asking the reader to agree to something they cannot do.
+   */
+  legal?: ReactNode;
 };
+
+const DEFAULT_LEGAL = (
+  <>
+    Protected by session cookies, rate limits and audited login logs. By continuing you
+    agree to the terms of service and risk disclosure.
+  </>
+);
 
 /** Auth pages sit on the same true-black ground as the rest of the site. */
 const AUTH_BG = "#000000";
 
 /** Split-screen auth shell — editorial photo left, form right, with a large
  *  brand lockup at the top of the form. Mobile: form-only, image hidden. */
-export function AuthShell({ eyebrow, title, subtitle, children, footer, imageCaption }: Props) {
+export function AuthShell({
+  eyebrow,
+  title,
+  subtitle,
+  children,
+  footer,
+  imageCaption,
+  legal = DEFAULT_LEGAL,
+}: Props) {
   return (
     <main className="relative min-h-dvh text-ink" style={{ background: AUTH_BG }}>
       <div className="grid min-h-dvh grid-cols-1 md:grid-cols-2">
@@ -66,10 +88,9 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer, imageCap
 
             <p className="mt-8 text-sm text-ink-2">{footer}</p>
 
-            <p className="mt-10 text-[11px] leading-relaxed text-ink-3">
-              Protected by session cookies, rate limits and audited login logs. By continuing you
-              agree to the terms of service and risk disclosure.
-            </p>
+            {legal === null ? null : (
+              <p className="mt-10 text-[11px] leading-relaxed text-ink-3">{legal}</p>
+            )}
           </div>
         </section>
       </div>

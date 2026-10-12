@@ -32,12 +32,21 @@
  * The engine MUST be stopped before running this — otherwise its live
  * writes race the wipe + reinsert and the chart ends up with a gap.
  *
+ * `tsx` is a devDependency of @asm/db and is not on the root bin path in the
+ * production image, so it has to be invoked through that workspace — the same
+ * form the seed command uses. Plain `pnpm tsx scripts/...` fails with
+ * "Command tsx not found".
+ *
  *   docker compose --env-file ../.env.production stop engine
  *   docker compose --env-file ../.env.production run --rm web \
- *     pnpm tsx scripts/wipe-and-prefill-candles.ts            # dry run
+ *     pnpm --filter @asm/db exec tsx ../../scripts/wipe-and-prefill-candles.ts
  *   docker compose --env-file ../.env.production run --rm web \
- *     APPLY=1 pnpm tsx scripts/wipe-and-prefill-candles.ts    # for real
+ *     sh -c 'APPLY=1 pnpm --filter @asm/db exec tsx ../../scripts/wipe-and-prefill-candles.ts'
  *   docker compose --env-file ../.env.production start engine
+ *
+ * The engine stays stopped for the whole sequence. If any step fails, START
+ * THE ENGINE AGAIN before debugging — a failed run leaves it down and the
+ * live charts frozen.
  *
  * Overrides:
  *   APPLY=1           actually write    (default: dry run, no writes)
