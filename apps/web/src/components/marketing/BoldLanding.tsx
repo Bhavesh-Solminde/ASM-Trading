@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Logo, LogoEmblem } from "@/components/brand/Logo";
+import { LogoEmblem, LogoWordmark } from "@/components/brand/Logo";
 import { LiveCandleBand } from "./LiveCandleBand";
 import { MarketingTicker } from "./MarketingTicker";
 import { CountUp, Reveal } from "./motion";
@@ -388,7 +388,9 @@ function BoldNav() {
   return (
     <header className="sticky top-0 z-30 border-b border-rule bg-ground/70 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Logo />
+        <Link href="/" aria-label="IndianxTrade — home" className="flex items-center">
+          <LogoWordmark className="h-7" />
+        </Link>
         <div className="hidden items-center gap-8 text-sm text-ink-2 md:flex">
           <a href="#markets" className="hover:text-ink">Markets</a>
           <a href="#how" className="hover:text-ink">How it works</a>

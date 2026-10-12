@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 
 const FIELD =
-  "mt-1 w-full rounded border border-rule bg-tile px-3 text-sm outline-none placeholder:text-ink-3 focus:border-brand";
+  "mt-1 w-full rounded-lg border border-rule bg-tile px-3 text-sm outline-none placeholder:text-ink-3 focus:border-brand phone:text-base";
 
 export function TicketForm() {
   const uid = useId();
@@ -56,7 +56,7 @@ export function TicketForm() {
           onChange={(e) => setSubject(e.target.value)}
           placeholder="What do you need help with?"
           required
-          className={`${FIELD} h-10`}
+          className={`${FIELD} h-10 phone:h-11`}
         />
       </div>
       <div>
@@ -79,14 +79,14 @@ export function TicketForm() {
         </p>
       ) : null}
       {done ? (
-        <p role="status" className="rounded border border-up/30 bg-up/10 px-3 py-2 text-xs text-up">
+        <p role="status" className="rounded-lg border border-up/30 bg-up/10 px-3 py-2 text-xs text-up">
           Ticket submitted. There is no support team in this build.
         </p>
       ) : null}
       <button
         type="submit"
         disabled={busy}
-        className="self-start rounded bg-brand-fill px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-60 phone:self-stretch phone:py-3"
+        className="self-start rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-60 phone:h-11 phone:self-stretch phone:py-0"
       >
         {busy ? "Sending…" : "Create request"}
       </button>

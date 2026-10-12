@@ -11,7 +11,7 @@ export function DepositBonusStrip({ completedDeposits }: { completedDeposits: nu
   if (pct === 0) return null;
 
   return (
-    <section className="rounded-lg border border-[var(--color-up)]/45 bg-[var(--color-up)]/[0.07] p-3.5">
+    <section className="rounded-xl border border-[var(--color-up)]/45 bg-[var(--color-up)]/[0.07] p-3.5">
       <p className="text-sm font-semibold">
         Your {ordinal(next)} deposit gets{" "}
         <span className="font-black text-[var(--color-up)]">+{pct}% bonus</span>
@@ -24,7 +24,7 @@ export function DepositBonusStrip({ completedDeposits }: { completedDeposits: nu
           return (
             <li
               key={n}
-              className={`rounded-md border px-1 py-1.5 text-center ${
+              className={`rounded-lg border px-1 py-1.5 text-center ${
                 isNext
                   ? "border-[var(--color-up)] bg-[var(--color-up)]/15"
                   : "border-[var(--color-rule)] bg-[var(--color-panel)]"

@@ -86,11 +86,13 @@ export function ProfileForm({ initial }: { initial: Profile }) {
     setMessage("Code written to the server log");
   }
 
+  const kycHint = KYC_HINT[profile.kycStatus] ?? KYC_HINT.NOT_STARTED!;
+
   return (
-    <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold">Personal data</h2>
+    <>
+      <section className="rounded-xl border border-rule bg-panel">
+        <div className="flex items-center justify-between gap-3 border-b border-rule px-4 py-3">
+          <h2 className="text-[15px] font-semibold">Personal data</h2>
           <span
             className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
               profile.kycStatus === "VERIFIED" ? "bg-up/15 text-up" : "bg-caution/15 text-caution"
@@ -100,55 +102,57 @@ export function ProfileForm({ initial }: { initial: Profile }) {
           </span>
         </div>
 
-        <div>
-          <p className="legend">Email</p>
-          <p className="mt-1 flex items-center gap-2 text-sm">
-            {profile.email}
-            {!profile.emailVerified ? (
-              <span className="text-[10px] font-semibold text-caution">Unverified</span>
-            ) : null}
-          </p>
+        <div className="flex flex-col gap-3 p-4">
+          <div>
+            <p className="legend">Email</p>
+            <p className="mt-1 flex min-w-0 items-center gap-2 text-sm">
+              <span className="min-w-0 break-all">{profile.email}</span>
+              {!profile.emailVerified ? (
+                <span className="flex-none text-[10px] font-semibold text-caution">Unverified</span>
+              ) : null}
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {FIELDS.map((field) => (
+              <div key={field.key}>
+                <label htmlFor={field.key} className="legend">
+                  {field.label}
+                </label>
+                <input
+                  id={field.key}
+                  type={field.type}
+                  value={profile[field.key] ?? ""}
+                  onChange={(e) => setProfile({ ...profile, [field.key]: e.target.value })}
+                  className="mt-1 h-10 w-full rounded-lg border border-rule bg-tile px-3 text-sm outline-none focus:border-brand phone:h-11 phone:text-base"
+                />
+              </div>
+            ))}
+          </div>
+
+          {error ? <p role="alert" className="text-xs text-down">{error}</p> : null}
+          {message ? <p role="status" className="text-xs text-up">{message}</p> : null}
+
+          <button
+            type="button"
+            onClick={() => void save()}
+            className="self-start rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-fill-hi phone:h-11 phone:self-stretch phone:py-0"
+          >
+            Save
+          </button>
         </div>
+      </section>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          {FIELDS.map((field) => (
-            <div key={field.key}>
-              <label htmlFor={field.key} className="legend">
-                {field.label}
-              </label>
-              <input
-                id={field.key}
-                type={field.type}
-                value={profile[field.key] ?? ""}
-                onChange={(e) => setProfile({ ...profile, [field.key]: e.target.value })}
-                className="mt-1 h-10 w-full rounded border border-rule bg-tile px-3 text-sm outline-none focus:border-brand"
-              />
-            </div>
-          ))}
-        </div>
-
-        {error ? <p role="alert" className="text-xs text-down">{error}</p> : null}
-        {message ? <p role="status" className="text-xs text-up">{message}</p> : null}
-
-        <button
-          type="button"
-          onClick={() => void save()}
-          className="self-start rounded bg-brand-fill px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-fill-hi phone:self-stretch phone:py-3"
-        >
-          Save
-        </button>
-
-        <div className="flex flex-col gap-2 rounded border border-rule bg-tile p-3">
-          <p className="text-sm font-semibold">Identity verification (KYC)</p>
-          <p className="text-xs text-ink-2">
-            {(KYC_HINT[profile.kycStatus] ?? KYC_HINT.NOT_STARTED!).text}
-          </p>
-          {(KYC_HINT[profile.kycStatus] ?? KYC_HINT.NOT_STARTED!).cta ? (
+      <section className="rounded-xl border border-rule bg-panel">
+        <h2 className="border-b border-rule px-4 py-3 text-[15px] font-semibold">Identity verification (KYC)</h2>
+        <div className="flex flex-col gap-3 p-4">
+          <p className="text-xs leading-relaxed text-ink-2">{kycHint.text}</p>
+          {kycHint.cta ? (
             <Link
               href="/account/verify"
-              className="self-start rounded bg-up px-4 py-2 text-sm font-bold text-up-ink phone:self-stretch phone:text-center"
+              className="self-start rounded-lg bg-up px-4 py-2 text-sm font-bold text-up-ink phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0"
             >
-              {(KYC_HINT[profile.kycStatus] ?? KYC_HINT.NOT_STARTED!).cta}
+              {kycHint.cta}
             </Link>
           ) : null}
         </div>
@@ -187,6 +191,6 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         </p>
       </section>
       */}
-    </div>
+    </>
   );
 }

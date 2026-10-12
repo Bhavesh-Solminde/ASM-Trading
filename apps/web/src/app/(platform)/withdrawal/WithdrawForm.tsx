@@ -36,7 +36,7 @@ interface Receipt {
 
 const LABEL = "text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]";
 const INPUT =
-  "mt-1 w-full rounded border border-rule bg-tile px-3 py-2.5 text-sm focus:border-brand phone:text-base";
+  "mt-1 w-full rounded-lg border border-rule bg-tile px-3 py-2.5 text-sm focus:border-brand phone:text-base";
 
 export function WithdrawForm({
   accountId,
@@ -173,7 +173,7 @@ export function WithdrawForm({
 
   if (withdrawableMinor < limits.min) {
     return (
-      <div className="flex flex-col gap-2 rounded border border-[var(--color-rule)] bg-[var(--color-tile)] p-4">
+      <div className="flex flex-col gap-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-tile)] p-4">
         <p className="text-sm font-semibold">Not enough to withdraw yet</p>
         <p className="text-xs leading-relaxed text-[var(--color-ink-2)]">
           The minimum withdrawal is {whole(limits.min)}. You have{" "}
@@ -201,7 +201,7 @@ export function WithdrawForm({
         <label htmlFor="wamount" className={LABEL}>
           Amount to withdraw
         </label>
-        <div className="mt-1 flex items-center gap-2 rounded border border-rule bg-tile px-3 focus-within:border-brand">
+        <div className="mt-1 flex items-center gap-2 rounded-lg border border-rule bg-tile px-3 focus-within:border-brand">
           <span className="text-base font-semibold text-[var(--color-ink-2)]">{sym}</span>
           <input
             ref={amountRef}
@@ -251,7 +251,7 @@ export function WithdrawForm({
                 setMethod(m);
                 setError(null);
               }}
-              className={`flex flex-col items-center gap-1.5 rounded border px-2 py-3 text-xs font-semibold transition-colors ${
+              className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-xs font-semibold transition-colors ${
                 method === m
                   ? "border-[var(--color-brand)] bg-[var(--color-brand)]/10 text-[var(--color-ink)]"
                   : "border-[var(--color-rule)] bg-[var(--color-tile)] text-[var(--color-ink-2)] hover:border-[var(--color-ink-3)]"
@@ -286,7 +286,7 @@ export function WithdrawForm({
                     type="button"
                     aria-pressed={usdtNetwork === n}
                     onClick={() => setUsdtNetwork(n)}
-                    className={`flex-1 rounded border px-3 py-2 text-xs font-semibold phone:py-2.5 phone:text-sm ${
+                    className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold phone:min-h-11 phone:py-2.5 phone:text-sm ${
                       usdtNetwork === n
                         ? "border-[var(--color-brand)] bg-[var(--color-brand)]/10"
                         : "border-[var(--color-rule)] bg-[var(--color-tile)] text-[var(--color-ink-2)]"
@@ -314,7 +314,7 @@ export function WithdrawForm({
       </div>
 
       {/* 4 — Summary */}
-      <div className="flex flex-col gap-1.5 rounded border border-dashed border-[var(--color-rule)] p-3 text-xs">
+      <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-[var(--color-rule)] p-3 text-xs">
         <div className="flex justify-between text-[var(--color-ink-2)]">
           <span>Withdrawal amount</span>
           <span className="tabular-nums">{formatMinor(amountMinor, currency)}</span>
@@ -343,7 +343,7 @@ export function WithdrawForm({
       <button
         type="submit"
         disabled={busy}
-        className="rounded bg-brand-fill px-4 py-3 text-sm font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-lg bg-brand-fill px-4 py-3 text-sm font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? "Sending request…" : "Request withdrawal"}
       </button>
@@ -390,7 +390,7 @@ function WithdrawReceipt({
         <p className="text-2xl font-bold tabular-nums">{formatMinor(receipt.amount, currency)}</p>
       </div>
 
-      <dl className="grid gap-2 rounded border border-[var(--color-rule)] bg-[var(--color-tile)] p-3 text-xs">
+      <dl className="grid gap-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-tile)] p-3 text-xs">
         <Row label="Method" value={PAYOUT_METHOD_LABEL[receipt.payout.method]} />
         <Row label="To" value={payoutDestinationLabel(receipt.payout) ?? "—"} mono />
         <Row label="Status" value={held ? "On hold (first withdrawal)" : "Pending review"} />
@@ -409,14 +409,14 @@ function WithdrawReceipt({
           <button
             type="button"
             onClick={() => setShowCert((v) => !v)}
-            className="rounded border border-[var(--color-rule)] px-3 py-2 text-xs font-semibold"
+            className="rounded-lg border border-[var(--color-rule)] px-3 py-2 text-xs font-semibold phone:min-h-11 phone:flex-1"
           >
             {showCert ? "Hide certificate" : "View certificate"}
           </button>
           <button
             type="button"
             onClick={downloadCertificate}
-            className="rounded border border-[var(--color-brand)] px-3 py-2 text-xs font-semibold text-[var(--color-brand)]"
+            className="rounded-lg border border-[var(--color-brand)] px-3 py-2 text-xs font-semibold text-[var(--color-brand)] phone:min-h-11 phone:flex-1"
           >
             Download certificate
           </button>
@@ -427,14 +427,14 @@ function WithdrawReceipt({
           title="Withdrawal certificate"
           srcDoc={certDoc}
           sandbox=""
-          className="h-[360px] w-full rounded border border-[var(--color-rule)] bg-black"
+          className="h-[360px] w-full rounded-lg border border-[var(--color-rule)] bg-black"
         />
       ) : null}
 
       <button
         type="button"
         onClick={onDone}
-        className="rounded bg-brand-fill px-4 py-3 text-sm font-bold text-white hover:bg-brand-fill-hi"
+        className="rounded-lg bg-brand-fill px-4 py-3 text-sm font-bold text-white hover:bg-brand-fill-hi"
       >
         Done
       </button>
@@ -446,7 +446,7 @@ function Row({ label, value, mono = false }: { label: string; value: string; mon
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="text-[var(--color-ink-2)]">{label}</dt>
-      <dd className={`min-w-0 truncate text-right font-semibold ${mono ? "font-mono" : ""}`}>{value}</dd>
+      <dd className={`min-w-0 text-right font-semibold ${mono ? "break-all font-mono" : "truncate"}`}>{value}</dd>
     </div>
   );
 }
@@ -456,7 +456,7 @@ function Chip({ onClick, children }: { onClick: () => void; children: React.Reac
     <button
       type="button"
       onClick={onClick}
-      className="rounded border border-[var(--color-rule)] bg-[var(--color-panel)] px-1 py-1.5 text-xs font-semibold tabular-nums hover:border-[var(--color-brand)] phone:py-2.5"
+      className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] px-1 py-1.5 text-xs font-semibold tabular-nums hover:border-[var(--color-brand)] phone:min-h-11 phone:py-2.5"
     >
       {children}
     </button>

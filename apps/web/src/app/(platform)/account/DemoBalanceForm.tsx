@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { currencySymbol } from "@/lib/format-money";
 
 /**
  * Lets the user set their DEMO balance to any amount up to the currency's cap,
@@ -64,55 +65,73 @@ export function DemoBalanceForm({
     void submit(minor);
   }
 
+  const symbol = currencySymbol(currency);
+
   return (
-    <section className="rounded border border-rule bg-panel p-4">
-      <h2 className="text-sm font-semibold">Demo account</h2>
-      <p className="mt-1 text-[13px] text-ink-2">
-        Current balance <span className="font-semibold text-ink">{currentLabel}</span>. Virtual funds only — set any
-        amount up to {capLabel}.
-      </p>
+    <section className="rounded-xl border border-rule bg-panel">
+      <h2 className="border-b border-rule px-4 py-3 text-[15px] font-semibold">Demo account</h2>
+      <div className="p-4">
+        <p className="text-[13px] leading-relaxed text-ink-2">
+          Current balance <span className="font-semibold text-ink">{currentLabel}</span>. Virtual funds only — set any
+          amount up to {capLabel}.
+        </p>
 
-      <form onSubmit={onSet} className="mt-3 flex flex-wrap items-center gap-2">
-        <input
-          inputMode="decimal"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder={`Amount in ${currency}`}
-          aria-label={`Demo balance amount in ${currency}`}
-          className="h-9 min-w-0 flex-1 rounded border border-rule bg-ground px-3 text-sm outline-none focus:border-brand sm:w-40 sm:flex-none"
-        />
-        <button
-          type="submit"
-          disabled={busy}
-          className="h-9 rounded bg-brand-fill px-3 text-[13px] font-bold text-white hover:bg-brand-fill-hi disabled:opacity-60 phone:h-10"
-        >
-          {busy ? "Updating…" : "Set balance"}
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void submit(null)}
-          className="h-9 rounded border border-rule px-3 text-[13px] font-semibold text-ink-2 hover:text-ink disabled:opacity-60 phone:h-10"
-        >
-          Reset to {capLabel}
-        </button>
-      </form>
-
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
-        {presets.map((p) => (
+        <form onSubmit={onSet} className="mt-3 flex flex-wrap items-center gap-2 phone:grid phone:grid-cols-2">
+          <div className="relative w-44 phone:col-span-2 phone:w-auto">
+            {symbol ? (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-3 grid place-items-center text-sm text-ink-3"
+              >
+                {symbol}
+              </span>
+            ) : null}
+            <input
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder={`Amount in ${currency}`}
+              aria-label={`Demo balance amount in ${currency}`}
+              className={`h-9 w-full min-w-0 rounded-lg border border-rule bg-ground pr-3 text-sm tabular-nums outline-none focus:border-brand phone:h-11 phone:text-base ${
+                symbol ? "pl-7" : "pl-3"
+              }`}
+            />
+          </div>
           <button
-            key={p}
+            type="submit"
+            disabled={busy}
+            className="h-9 rounded-lg bg-brand-fill px-3 text-[13px] font-bold text-white hover:bg-brand-fill-hi disabled:opacity-60 phone:h-11"
+          >
+            {busy ? "Updating…" : "Set balance"}
+          </button>
+          <button
             type="button"
             disabled={busy}
-            onClick={() => setAmount(String(p))}
-            className="rounded border border-rule px-2 py-1 text-[11px] font-semibold text-ink-2 hover:text-ink disabled:opacity-60"
+            onClick={() => void submit(null)}
+            aria-label={`Reset to ${capLabel}`}
+            className="h-9 rounded-lg border border-rule px-3 text-[13px] font-semibold text-ink-2 hover:text-ink disabled:opacity-60 phone:h-11 phone:border-transparent phone:bg-tile"
           >
-            {p.toLocaleString()}
+            Reset<span className="phone:hidden"> to {capLabel}</span>
           </button>
-        ))}
-      </div>
+        </form>
 
-      {error ? <p role="alert" className="mt-2 text-[12px] text-down">{error}</p> : null}
+        <div className="mt-2.5 flex flex-wrap gap-1.5 phone:mt-3 phone:grid phone:grid-cols-3 phone:gap-2">
+          {presets.map((p) => (
+            <button
+              key={p}
+              type="button"
+              disabled={busy}
+              onClick={() => setAmount(String(p))}
+              className="rounded-lg border border-rule px-2 py-1 text-[11px] font-semibold tabular-nums text-ink-2 hover:text-ink disabled:opacity-60 phone:h-11 phone:text-[13px]"
+            >
+              {symbol}
+              {p.toLocaleString("en-US")}
+            </button>
+          ))}
+        </div>
+
+        {error ? <p role="alert" className="mt-2 text-[12px] text-down">{error}</p> : null}
+      </div>
     </section>
   );
 }

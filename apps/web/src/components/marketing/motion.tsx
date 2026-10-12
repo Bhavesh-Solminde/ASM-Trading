@@ -3,36 +3,35 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import gsap from "gsap";
 
-/** Section entrance: 8px translate + fade, once, when 20% into view.
- *  Skips animation entirely when prefers-reduced-motion is set. */
+/** Section entrance: 8px translate + fade, once, when it scrolls into view.
+ *  Content is visible by default (no inline hiding style), so it never stays
+ *  blank before hydration or if JS fails. Only content that starts below the
+ *  fold is hidden and animated in. Skips animation when prefers-reduced-motion is set. */
 export function Reveal({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!ref.current) return;
+    const el = ref.current;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      gsap.set(ref.current, { opacity: 1, y: 0 });
-      return;
-    }
+    if (reduce) return;
+    // Already on screen at mount: leave it visible, no animation.
+    if (el.getBoundingClientRect().top < window.innerHeight) return;
+    gsap.set(el, { opacity: 0, y: 8 });
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
-            gsap.to(ref.current, { opacity: 1, y: 0, duration: 0.6, delay, ease: "power2.out" });
+            gsap.to(el, { opacity: 1, y: 0, duration: 0.6, delay, ease: "power2.out" });
             io.disconnect();
           }
         }
       },
-      { threshold: 0.2 },
+      { threshold: 0, rootMargin: "0px 0px -48px 0px" },
     );
-    io.observe(ref.current);
+    io.observe(el);
     return () => io.disconnect();
   }, [delay]);
-  return (
-    <div ref={ref} style={{ opacity: 0, transform: "translateY(8px)" }}>
-      {children}
-    </div>
-  );
+  return <div ref={ref}>{children}</div>;
 }
 
 /** A number that tweens up to `to` when it scrolls into view. Used for stats.

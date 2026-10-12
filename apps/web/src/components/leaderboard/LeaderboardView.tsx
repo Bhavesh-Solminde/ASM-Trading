@@ -30,7 +30,7 @@ function Row({ rank, entry, highlight }: { rank: number; entry: LeaderboardEntry
   const badge = RANK_BADGE[rank - 1] ?? "bg-tile text-ink-2";
   return (
     <li
-      className={`grid grid-cols-[34px_28px_minmax(0,1fr)_auto] items-center gap-3 border-b border-rule px-3.5 py-3 ${
+      className={`grid grid-cols-[34px_28px_minmax(0,1fr)_auto] items-center gap-3 border-b border-rule px-3.5 py-3 last:border-b-0 phone:min-h-14 ${
         highlight ? "bg-brand/10" : ""
       }`}
     >
@@ -52,7 +52,7 @@ export function LeaderboardView({ result }: { result: LeaderboardResultDto }) {
   const { entries, you } = result;
   return (
     <section aria-label="Daily standings" className="grid gap-4">
-      <div className="grid grid-cols-[1fr_auto] items-center gap-2 rounded border border-rule bg-panel px-3.5 py-3">
+      <div className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-xl border border-rule bg-panel px-3.5 py-3">
         <div>
           <div className="font-semibold">
             {you.entry ? displayName(you.entry) : "You"}
@@ -65,7 +65,7 @@ export function LeaderboardView({ result }: { result: LeaderboardResultDto }) {
       </div>
 
       {entries.length === 0 ? (
-        <div className="grid justify-items-center gap-1 rounded border border-rule bg-panel px-4 py-10 text-center">
+        <div className="grid justify-items-center gap-1 rounded-xl border border-rule bg-panel px-4 py-10 text-center">
           <span className="mb-2 grid size-11 place-items-center rounded-full bg-tile text-ink-3">
             <Icon name="cup" className="size-5" />
           </span>
@@ -73,7 +73,7 @@ export function LeaderboardView({ result }: { result: LeaderboardResultDto }) {
           <p className="text-balance text-sm text-ink-2">Settle a live trade to get on the board.</p>
         </div>
       ) : (
-        <ol className="m-0 list-none overflow-hidden rounded border border-rule bg-panel">
+        <ol className="m-0 list-none overflow-hidden rounded-xl border border-rule bg-panel">
           {entries.map((entry, i) => (
             <Row key={entry.accountId} rank={i + 1} entry={entry} highlight={entry.userId === you.entry?.userId} />
           ))}

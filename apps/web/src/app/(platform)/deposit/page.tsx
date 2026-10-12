@@ -39,7 +39,7 @@ export default async function DepositPage({
     <PageFrame width="wide" nav={<PlatformTabs />} title="Deposit">
 
       {showExpired ? (
-        <div className="rounded border border-down/30 bg-down/10 p-3 text-sm leading-relaxed text-down">
+        <div className="rounded-lg border border-down/30 bg-down/10 p-3 text-sm leading-relaxed text-down">
           {usdtGateway ? (
             <>
               Your payment window ended. If you already sent the payment before

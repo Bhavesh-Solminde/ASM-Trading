@@ -196,7 +196,7 @@ export function TradesPanel({
         {shown.length === 0 ? (
           <li className="grid gap-1.5 px-[18px] py-7 text-center text-ink-3">
             <strong className="font-semibold text-ink-2">No {tab} trades on this account</strong>
-            <span>Set a time and investment above, then choose Buy or Sell.</span>
+            <span>Set a time and investment, then choose Buy or Sell.</span>
           </li>
         ) : (
           shown.map((trade) => (

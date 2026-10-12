@@ -34,9 +34,13 @@ type Props = {
 
 export function PageFrame({ title, description, back, nav, actions, width = "base", children }: Props) {
   return (
-    <main className={`mx-auto flex w-full ${WIDTH[width]} flex-col gap-6 px-6 pb-12 pt-8 phone:gap-5 phone:px-4 phone:pb-8 phone:pt-5`}>
+    <main className={`mx-auto flex w-full ${WIDTH[width]} flex-col gap-6 px-6 pb-12 pt-8 phone:gap-4 phone:px-4 phone:pb-8 phone:pt-5`}>
       {nav}
-      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <header
+        className={`flex flex-wrap items-end justify-between gap-x-6 gap-y-3 ${
+          nav && !description && !back && !actions ? "phone:sr-only" : ""
+        }`}
+      >
         <div className="grid min-w-0 gap-1.5">
           {back ? (
             <Link
@@ -47,7 +51,13 @@ export function PageFrame({ title, description, back, nav, actions, width = "bas
               {back.label}
             </Link>
           ) : null}
-          <h1 className="text-[22px] font-bold leading-tight tracking-[-0.02em] text-balance phone:text-xl">{title}</h1>
+          <h1
+            className={`text-[22px] font-bold leading-tight tracking-[-0.02em] text-balance phone:text-xl ${
+              nav ? "phone:sr-only" : ""
+            }`}
+          >
+            {title}
+          </h1>
           {description ? <p className="max-w-[60ch] text-sm leading-relaxed text-ink-2">{description}</p> : null}
         </div>
         {actions ? <div className="flex flex-none items-center gap-2">{actions}</div> : null}

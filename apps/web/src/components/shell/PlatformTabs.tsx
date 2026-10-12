@@ -20,7 +20,7 @@ export function PlatformTabs() {
   }, [pathname]);
 
   return (
-    <div className="flex gap-1 overflow-x-auto rounded border border-rule bg-panel p-1 [scrollbar-width:none]">
+    <div className="flex gap-1 overflow-x-auto rounded-lg border border-rule bg-panel p-1 [scrollbar-width:none] phone:grid phone:grid-cols-3">
       {TABS.map((tab) => {
         const active = pathname === tab.href || pathname.startsWith(tab.href + "/");
         return (
@@ -29,7 +29,7 @@ export function PlatformTabs() {
             ref={active ? activeRef : undefined}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={`shrink-0 rounded px-4 py-2 text-sm font-semibold phone:px-3 phone:py-3 phone:text-[13px] ${
+            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold phone:inline-flex phone:h-10 phone:items-center phone:justify-center phone:px-2 phone:py-0 phone:text-[13px] ${
               active
                 ? "bg-tile text-ink shadow-[inset_0_0_0_1px_var(--color-tile-hi)]"
                 : "text-ink-2 hover:text-ink"
