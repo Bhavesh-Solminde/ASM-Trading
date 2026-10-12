@@ -118,7 +118,7 @@ export const FALLBACK_DAILY_TARGET_MINOR: number = (() => {
  * chart back across the target line. Guarantees the "chart == settled"
  * invariant that removes the fraud-report vector.
  */
-export const COMMIT_WINDOW_SEC = 6;
+export const COMMIT_WINDOW_SEC = 4;
 
 /**
  * Undetectability cap. In house-first mode the resolver may pick an exit
@@ -211,7 +211,7 @@ export const CONFIDENCE_THRESHOLD = 30;
 export const DEPOSIT_THRESHOLD_MINOR = 50_000;
 
 export const MAGNET_WINDOW_SEC = 30;
-export const MAGNET_CAP = 1.5;
+export const MAGNET_CAP = 0.5;
 export const TARGET_MARGIN_SIGMA = 3;
 
 export const MAX_CORRECTIVE_TICKS = 5;
@@ -250,7 +250,7 @@ export const MAX_CORRECTIVE_TICKS_GLG = 10;
  * (DB == chart close) means those become de-facto HONEST at settlement, just
  * like the resolver-corrective shrink above.
  */
-export const MAX_COMMIT_SNAP_MOVE_TICKS = 10;
+export const MAX_COMMIT_SNAP_MOVE_TICKS = 3;
 
 /**
  * Demo account win probability — GLG only. Demo trades under the Growth-Loop

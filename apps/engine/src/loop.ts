@@ -128,15 +128,12 @@ export function startTickLoop(
               const gap = Math.log(p.targetPrice / currentPrice);
               if (!Number.isFinite(gap) || gap === 0) continue;
               const liability = (p.stake * p.payoutPct) / 100;
-              // Extra tightening in the last MAGNET_WINDOW_SEC so the last
-              // ticks can't drift the price back across the target.
-              const secondsLeft = p.expirySec - nowSec;
-              const tighten =
-                secondsLeft > 0 && secondsLeft <= MAGNET_WINDOW_SEC
-                  ? 1 +
-                    (MAGNET_WINDOW_SEC - secondsLeft) / MAGNET_WINDOW_SEC
-                  : 1;
-              numer += liability * pb * gap * tighten;
+              // Previously the magnet pull doubled across the last
+              // MAGNET_WINDOW_SEC. Removed to keep per-trade steering
+              // flat for the whole trade; the commit-phase snap in the
+              // last COMMIT_WINDOW_SEC still enforces the final
+              // chart == settled invariant.
+              numer += liability * pb * gap;
               denom += liability;
             }
             if (denom > 0) {
