@@ -1,4 +1,4 @@
-export type RailIcon = "trade" | "wallet" | "help" | "user" | "cup" | "globe" | "more" | "referral";
+export type RailIcon = "trade" | "wallet" | "help" | "user" | "cup" | "globe" | "more" | "referral" | "history";
 
 export interface RailItem {
   readonly id: string;
@@ -38,6 +38,24 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   { id: "more", label: "More", href: "/more", icon: "more", available: false, pinBottom: true },
 ];
 
+/**
+ * The phone side menu. Same destinations as the rail plus History, which the
+ * desktop rail leaves out (its vertical space is spent, and desktop reaches
+ * History through the Payments tab strip). Support sits here and in the
+ * Account hub because it no longer has a slot in the bottom bar.
+ */
+const HISTORY_ITEM: RailItem = {
+  id: "history",
+  label: "History",
+  href: "/history",
+  icon: "history",
+  available: true,
+};
+
+export const DRAWER_ITEMS: readonly RailItem[] = RAIL_ITEMS.flatMap((item) =>
+  item.id === "payments" ? [item, HISTORY_ITEM] : [item],
+);
+
 export function availableRailItems(): RailItem[] {
   return RAIL_ITEMS.filter((item) => item.available);
 }
@@ -54,17 +72,21 @@ export interface BottomNavItem {
   readonly matches?: readonly string[];
 }
 
+/**
+ * Phone bottom bar: Trade · Payments · History · Account. Support lives in the
+ * Account hub and the side menu. Payments covers the whole money area
+ * (deposit, withdrawal and its payments-only history at /balance).
+ */
 export const BOTTOM_NAV_ITEMS: readonly BottomNavItem[] = [
-  { id: "trade", label: "Trades", href: "/trade", icon: "trade" },
+  { id: "trade", label: "Trade", href: "/trade", icon: "trade" },
   {
     id: "payments",
     label: "Payments",
-    href: "/balance",
+    href: "/deposit",
     icon: "wallet",
-    matches: ["/deposit", "/withdrawal"],
+    matches: ["/withdrawal", "/balance"],
   },
-  // Referral is hidden for now; FAQs + contact live under Support.
-  { id: "support", label: "Support", href: "/support", icon: "help" },
+  { id: "history", label: "History", href: "/history", icon: "history" },
   { id: "account", label: "Account", href: "/account", icon: "user" },
 ];
 

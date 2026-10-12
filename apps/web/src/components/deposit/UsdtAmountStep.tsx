@@ -2,19 +2,27 @@
 
 import { useState } from "react";
 import { USDT_NETWORK_INFO, type UsdtNetwork } from "@asm/contracts";
+import { SummaryCard } from "@/components/payments/SummaryCard";
+import { formatInr, inrToUsdt } from "./limits";
 
-const QUICK = [25, 50, 100, 250];
 const RECOMMENDED: UsdtNetwork = "bsc";
 
 export function UsdtAmountStep({
   networks,
+  amountInr,
   onBack,
+  onChangeAmount,
   gatewayNetworks,
   bonusPercent,
 }: {
   /** Enabled networks, server-computed; never empty (DepositFlow guards that). */
   networks: UsdtNetwork[];
+  /** The amount chosen on step 1, in whole rupees (USDT is worth ₹100 each). */
+  amountInr: number;
+  /** Back to the method list (step 2). */
   onBack: () => void;
+  /** Back to the amount (step 1). */
+  onChangeAmount: () => void;
   /** Networks on the Tatum payment gateway: a unique address per deposit, no unique-cents amount. */
   gatewayNetworks: UsdtNetwork[];
   /** Bonus tier this deposit will get (0 once every tier is used). */
@@ -27,7 +35,7 @@ export function UsdtAmountStep({
   );
   const info = USDT_NETWORK_INFO[network];
   const gateway = gatewayNetworks.includes(network);
-  const [amountMajor, setAmountMajor] = useState(25);
+  const amountMajor = inrToUsdt(amountInr);
   // Optional, shared-address (time-slot) networks only: the wallet the user
   // will send from. A payment from it is confirmed whatever the amount.
   const [sender, setSender] = useState("");
@@ -62,13 +70,19 @@ export function UsdtAmountStep({
 
   return (
     <div className="flex flex-col gap-4">
-      <button
-        type="button"
-        onClick={onBack}
-        className="self-start text-xs font-semibold text-[var(--color-ink-2)] underline underline-offset-4 phone:py-3"
-      >
-        &lsaquo; Change method
-      </button>
+      <SummaryCard
+        rows={[
+          { label: "Method", value: `USDT (${info.standard})`, change: { label: "Change method", onClick: onBack } },
+          {
+            label: "Amount",
+            value: `$${amountMajor.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            change: { label: "Change amount", onClick: onChangeAmount },
+          },
+        ]}
+      />
+      <p className="-mt-2 text-xs text-ink-2">
+        {formatInr(amountInr)} at the fixed rate of ₹100 = $1. Min $10, max $10,000 per deposit.
+      </p>
 
       {networks.length > 1 ? (
         <div>
@@ -118,56 +132,7 @@ export function UsdtAmountStep({
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
-        <p className="text-sm font-semibold">USDT ({info.standard})</p>
-        <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--color-ink-2)]">
-          <div>
-            <dt>Min</dt>
-            <dd className="tabular-nums text-[var(--color-ink)]">$10.00</dd>
-          </div>
-          <div>
-            <dt>Max</dt>
-            <dd className="tabular-nums text-[var(--color-ink)]">$10,000.00</dd>
-          </div>
-          <div>
-            <dt>Network</dt>
-            <dd className="text-[var(--color-ink)]">{info.label}</dd>
-          </div>
-        </dl>
-      </div>
-
-      <div>
-        <label
-          htmlFor="usdt-amount"
-          className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]"
-        >
-          Deposit amount
-        </label>
-        <input
-          id="usdt-amount"
-          type="number"
-          min={10}
-          max={10000}
-          step={1}
-          value={amountMajor}
-          onChange={(e) => setAmountMajor(Number(e.target.value))}
-          className="mt-1 w-full rounded-lg border border-[var(--color-rule)] bg-[var(--color-tile)] px-4 py-2.5 text-sm tabular-nums focus:border-brand phone:h-11 phone:py-0 phone:text-base"
-        />
-        <div className="mt-2 flex gap-2">
-          {QUICK.map((q) => (
-            <button
-              key={q}
-              type="button"
-              onClick={() => setAmountMajor(q)}
-              className="flex-1 rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] px-2 py-1.5 text-xs font-semibold phone:min-h-11 phone:py-2.5 phone:text-sm"
-            >
-              ${q.toLocaleString("en-US")}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-[var(--color-brand)]/30 bg-[var(--color-brand)]/10 p-3 text-xs leading-relaxed text-[var(--color-brand)]">
+      <div className="rounded-2xl border border-[var(--color-brand)]/30 bg-[var(--color-brand)]/10 p-3.5 text-xs leading-relaxed text-[var(--color-brand)]">
         {gateway ? (
           <>
             You&rsquo;ll get a deposit address created just for this payment.
@@ -241,7 +206,7 @@ export function UsdtAmountStep({
         type="button"
         disabled={busy}
         onClick={() => void proceed()}
-        className="rounded-lg bg-brand-fill px-4 py-3 text-sm font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-14 rounded-2xl bg-brand-fill px-4 text-base font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? "Starting…" : "Proceed to Pay"}
       </button>

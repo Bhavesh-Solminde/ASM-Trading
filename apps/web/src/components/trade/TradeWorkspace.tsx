@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { TradeView } from "@asm/contracts";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { TIMEFRAMES, type TradeView } from "@asm/contracts";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { SentimentBar } from "@/components/chart/SentimentBar";
 import { TimeframeTabs } from "@/components/chart/TimeframeTabs";
@@ -13,9 +13,8 @@ import {
   usePlatform,
   useQuote,
   type AccountView,
-  type PlatformAsset,
 } from "@/components/shell/PlatformProvider";
-import { tickDirection } from "@/components/shell/quotes";
+import { changePct, tickDirection } from "@/components/shell/quotes";
 import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor } from "@/lib/format-money";
 import { clockTime } from "@/lib/format-time";
@@ -26,6 +25,7 @@ import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
 import { AssetIcon } from "./AssetIcon";
 import { grossReturnMinor } from "./pnl-display";
+import { PositionStrip } from "./PositionStrip";
 
 const NO_TRADES: TradeView[] = [];
 
@@ -235,93 +235,127 @@ function ResultPopup() {
   );
 }
 
+/**
+ * Trader sentiment. Desktop keeps the labelled column beside the chart; on
+ * phones it is a thin overlay on the chart's left edge (labels live in the
+ * aria-label) so the chart can run edge to edge.
+ */
 function LiveSentiment() {
   const { market } = usePlatform();
   const sentiment = useMarket(market, (s) => s.chart.sentiment);
-  return <SentimentBar upPct={sentiment?.upPct ?? 50} downPct={sentiment?.downPct ?? 50} />;
+  const upPct = sentiment?.upPct ?? 50;
+  const downPct = sentiment?.downPct ?? 50;
+  return (
+    <>
+      <div className="contents phone:hidden">
+        <SentimentBar upPct={upPct} downPct={downPct} />
+      </div>
+      <div
+        role="img"
+        aria-label={`Trader sentiment: ${upPct}% up, ${downPct}% down`}
+        className="pointer-events-none absolute bottom-24 left-1.5 top-24 z-[5] hidden w-[3px] flex-col overflow-hidden rounded-sm bg-down phone:flex land:bottom-20 land:top-16"
+      >
+        <div className="mt-auto bg-up transition-[height] duration-[600ms] ease-[cubic-bezier(.2,.8,.2,1)]" style={{ height: `${upPct}%` }} />
+      </div>
+    </>
+  );
 }
 
-const TOOL_BTN =
-  "relative grid size-[34px] phone:size-10 place-items-center rounded-[6px] border backdrop-blur transition-colors";
+/** Phone price readout under the market pill: last price (blue, ticks green/red) and the move since the history started. */
+function PhoneReadout({ symbol, precision }: { symbol: string; precision: number }) {
+  const { market } = usePlatform();
+  const lastPrice = useMarket(
+    market,
+    (s) => (s.chart.symbol === symbol ? s.chart.lastPrice : null) ?? s.quotes[symbol]?.price ?? null,
+  );
+  const quote = useQuote(symbol);
+  const direction = quote ? tickDirection(quote) : null;
+  const change = quote ? changePct(quote) : null;
+
+  return (
+    <div className="pointer-events-none flex items-baseline gap-2 pl-0.5">
+      <span
+        key={lastPrice ?? "none"}
+        className={`led led-lit text-[26px] font-extrabold leading-none tracking-[-0.02em] text-brand land:text-[20px] ${
+          direction ? `tick-${direction}` : ""
+        }`}
+      >
+        {lastPrice === null ? "—" : lastPrice.toFixed(precision)}
+      </span>
+      {change !== null ? (
+        <span className={`text-xs font-bold tabular-nums ${change >= 0 ? "text-up" : "text-down"}`}>
+          {change >= 0 ? "+" : "−"}
+          {Math.abs(change).toFixed(2)}%
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Phone candle-timeframe switch, top-right of the chart: a tile with 44px-tall hit areas around 28px buttons. */
+function PhoneTimeframeTabs() {
+  const { timeframe, selectTimeframe } = usePlatform();
+  return (
+    <div
+      role="tablist"
+      aria-label="Candle timeframe"
+      className="pointer-events-auto mt-1 flex flex-none gap-0.5 rounded-[10px] bg-tile/94 p-[3px]"
+    >
+      {TIMEFRAMES.map((tf) => (
+        <button
+          key={tf}
+          type="button"
+          role="tab"
+          aria-selected={tf === timeframe}
+          onClick={() => selectTimeframe(tf)}
+          className={`relative h-7 rounded-lg px-2 text-xs font-bold transition-colors after:absolute after:inset-x-0 after:-inset-y-2 min-[380px]:px-[9px] ${
+            tf === timeframe ? "bg-tile-hi text-ink" : "text-ink-2 hover:text-ink"
+          }`}
+        >
+          {tf}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const TOOL_TILE =
+  "relative grid size-10 place-items-center rounded-xl bg-tile/94 text-ink-2 transition-colors hover:bg-tile-hi hover:text-ink active:bg-tile-hi";
 
 /**
- * Quotex-style in-chart tool stack for compact widths: a "⋯" button that
- * expands downward into the market and chart-type pickers, and a briefcase
- * under it (pushed down while expanded) that opens trades & history
- * (badge = open trades).
+ * Phone chart tools, bottom-left of the chart (secondary: the market pill and
+ * timeframes are the primary controls up top): chart style, and the trades &
+ * history sheet with a badge for the open-trade count.
  */
-function ChartToolCluster({
-  assets,
-  active,
-  onSelect,
-  onMarketOpenChange,
+function ChartTools({
   chartType,
   onChartTypeChange,
   openCount,
   onOpenHistory,
   className = "",
 }: {
-  assets: PlatformAsset[];
-  active: string;
-  onSelect: (symbol: string) => void;
-  onMarketOpenChange: (open: boolean) => void;
   chartType: ChartType;
   onChartTypeChange: (type: ChartType) => void;
   openCount: number;
   onOpenHistory: () => void;
   className?: string;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-  const collapse = useCallback(() => setExpanded(false), []);
-  useDismiss(ref, expanded, collapse);
-
   return (
-    <div ref={ref} className={`pointer-events-auto w-max flex-col gap-1.5 ${className}`}>
-      <div className="flex flex-col items-center gap-1.5">
-        <button
-          type="button"
-          aria-label={expanded ? "Hide chart tools" : "Chart tools"}
-          aria-expanded={expanded}
-          onClick={() => setExpanded((e) => !e)}
-          className={`${TOOL_BTN} ${
-            expanded ? "border-brand bg-brand/25 text-brand" : "border-rule bg-tile/85 text-ink hover:border-tile-hi"
-          }`}
-        >
-          <Icon name={expanded ? "close" : "more"} className="size-4" strokeWidth={expanded ? 2 : 3.2} />
-        </button>
-        {expanded ? (
-          <>
-            <MarketSelector
-              assets={assets}
-              active={active}
-              onSelect={(symbol) => {
-                onSelect(symbol);
-                setExpanded(false);
-              }}
-              compact
-              iconOnly
-              onOpenChange={onMarketOpenChange}
-            />
-            <ChartTypeSelector
-              value={chartType}
-              onChange={(type) => {
-                onChartTypeChange(type);
-                setExpanded(false);
-              }}
-            />
-          </>
-        ) : null}
-      </div>
+    <div className={`flex gap-2 ${className}`}>
+      <ChartTypeSelector tool value={chartType} onChange={onChartTypeChange} />
       <button
         type="button"
         onClick={onOpenHistory}
         aria-label={`Trades & history (${openCount} open)`}
         title="Trades & history"
-        className={`${TOOL_BTN} border-rule bg-tile/85 text-ink hover:border-tile-hi land:hidden`}
+        className={`${TOOL_TILE} land:hidden`}
       >
-        <Icon name="briefcase" className="size-4" />
-        <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand-fill px-1 text-[9px] font-bold leading-none text-white">
+        <Icon name="briefcase" className="size-[18px]" />
+        <span
+          className={`absolute -right-1.5 -top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-extrabold leading-none ${
+            openCount > 0 ? "bg-brand-fill text-white" : "bg-tile-hi text-ink-2"
+          }`}
+        >
           {openCount}
         </span>
       </button>
@@ -419,8 +453,8 @@ export function TradeWorkspace() {
       <div
         className={
           focusMode
-            ? "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] gap-1 p-1.5"
-            : "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[minmax(0,1fr)] phone:gap-1 phone:p-1.5"
+            ? "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] gap-1 p-1.5 phone:p-0"
+            : "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[minmax(0,1fr)] phone:gap-0 phone:p-0"
         }
       >
         {/* Desktop keeps the roomy market selector above the chart; on compact
@@ -434,7 +468,7 @@ export function TradeWorkspace() {
           </div>
         )}
 
-        <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[18px_minmax(0,1fr)] phone:gap-1.5 phone:pl-1.5">
+        <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[minmax(0,1fr)] phone:gap-0 phone:rounded-none phone:border-0 phone:p-0">
           <LiveSentiment />
 
           <div className="relative min-h-0">
@@ -447,65 +481,97 @@ export function TradeWorkspace() {
               chartType={chartType}
             />
 
-            {/* Top-left overlay: account switcher (focus), then the compact tool
-                cluster (phone) with the clock row and price readout beside it. */}
-            <div className={`pointer-events-none absolute left-2 top-2 ${marketPickerOpen ? "z-50" : "z-10"} grid max-w-[calc(100%-16px)] gap-1.5 phone:gap-2`}>
+            {/* Desktop top-left overlay (clock, focus-mode switcher + market/history
+                buttons, chart style, price readout). Phones use the pill row and
+                bottom tools below instead. */}
+            <div className={`pointer-events-none absolute left-2 top-2 ${marketPickerOpen ? "z-50" : "z-10"} grid max-w-[calc(100%-16px)] gap-1.5 phone:hidden`}>
               {focusMode ? <FocusAccountSwitcher /> : null}
-              <div className="flex items-start gap-2 phone:gap-4">
-                <ChartToolCluster
-                  className="hidden phone:flex"
-                  assets={assets}
-                  active={asset.symbol}
-                  onSelect={selectChartSymbol}
-                  onMarketOpenChange={setMarketPickerOpen}
-                  chartType={chartType}
-                  onChartTypeChange={handleChartTypeChange}
-                  openCount={openCount}
-                  onOpenHistory={() => setHistoryOpen(true)}
-                />
-                <div className="grid min-w-0 gap-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <ChartClock />
-                    <div className={`${controlsClass} pointer-events-auto items-center gap-1.5`}>
-                      <MarketSelector
-                        assets={assets}
-                        active={asset.symbol}
-                        onSelect={selectChartSymbol}
-                        compact
-                        iconOnly
-                        onOpenChange={setMarketPickerOpen}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setHistoryOpen(true)}
-                        aria-label="Trades & history"
-                        title="Trades & history"
-                        className="relative grid size-[34px] phone:size-10 place-items-center rounded-[4px] border border-brand/50 bg-brand/15 text-brand backdrop-blur hover:border-brand hover:bg-brand/25 land:hidden"
-                      >
-                        <Icon name="history" className="size-5" />
-                        {openCount > 0 ? (
-                          <span className="absolute -right-1 -top-1 grid size-3.5 place-items-center rounded-full bg-up text-[9px] font-bold text-up-ink">
-                            {openCount}
-                          </span>
-                        ) : null}
-                      </button>
-                    </div>
-                    <ChartTypeSelector
-                      value={chartType}
-                      onChange={handleChartTypeChange}
-                      className="pointer-events-auto phone:hidden"
+              <div className="flex items-start gap-2">
+              <div className="grid min-w-0 gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <ChartClock />
+                  <div className={`${controlsClass} pointer-events-auto items-center gap-1.5`}>
+                    <MarketSelector
+                      assets={assets}
+                      active={asset.symbol}
+                      onSelect={selectChartSymbol}
+                      compact
+                      iconOnly
+                      onOpenChange={setMarketPickerOpen}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setHistoryOpen(true)}
+                      aria-label="Trades & history"
+                      title="Trades & history"
+                      className="relative grid size-[34px] place-items-center rounded-[4px] border border-brand/50 bg-brand/15 text-brand backdrop-blur hover:border-brand hover:bg-brand/25"
+                    >
+                      <Icon name="history" className="size-5" />
+                      {openCount > 0 ? (
+                        <span className="absolute -right-1 -top-1 grid size-3.5 place-items-center rounded-full bg-up text-[9px] font-bold text-up-ink">
+                          {openCount}
+                        </span>
+                      ) : null}
+                    </button>
                   </div>
-                  <ChartReadout symbol={asset.symbol} displayName={asset.displayName} precision={asset.precision} />
+                  <ChartTypeSelector value={chartType} onChange={handleChartTypeChange} className="pointer-events-auto" />
                 </div>
+                <ChartReadout symbol={asset.symbol} displayName={asset.displayName} precision={asset.precision} />
+              </div>
               </div>
             </div>
 
+            {/* Phone top row: the market pill (always one tap from the picker) with
+                the price under it, timeframes on the right. In fullscreen the
+                account switcher and clock sit above the pill. */}
+            <div
+              className={`pointer-events-none absolute inset-x-3.5 top-3 ${marketPickerOpen ? "z-50" : "z-10"} hidden items-start justify-between gap-2 phone:flex land:inset-x-2 land:top-2`}
+            >
+              <div className="grid min-w-0 gap-2 land:gap-1">
+                {focusMode ? (
+                  <>
+                    <FocusAccountSwitcher />
+                    <ChartClock />
+                  </>
+                ) : null}
+                <div className="pointer-events-auto flex min-w-0">
+                  <MarketSelector
+                    assets={assets}
+                    active={asset.symbol}
+                    onSelect={selectChartSymbol}
+                    pill
+                    onOpenChange={setMarketPickerOpen}
+                  />
+                </div>
+                <PhoneReadout symbol={asset.symbol} precision={asset.precision} />
+              </div>
+              <PhoneTimeframeTabs />
+            </div>
+
+            {/* Phone bottom row: chart tools bottom-left, the live position strip
+                beside them (above the time axis, clear of the fullscreen button). */}
+            <div className="pointer-events-none absolute inset-x-3.5 bottom-8 z-10 hidden items-end gap-2 phone:flex land:inset-x-2 land:bottom-7">
+              <ChartTools
+                className="pointer-events-auto flex-none"
+                chartType={chartType}
+                onChartTypeChange={handleChartTypeChange}
+                openCount={openCount}
+                onOpenHistory={() => setHistoryOpen(true)}
+              />
+              <PositionStrip
+                className="pointer-events-none min-w-0 max-w-[420px] flex-1 land:hidden"
+                trades={trades}
+                assets={assets}
+                currency={activeAccount.currency}
+                onOpen={() => setHistoryOpen(true)}
+              />
+            </div>
+
             {status === "unauthorised" ? (
-              <p className="absolute left-2 bottom-2 z-10 text-xs text-down">Your session has ended. Log in again.</p>
+              <p className="absolute left-2 bottom-2 z-10 text-xs text-down phone:bottom-[88px] phone:left-3.5">Your session has ended. Log in again.</p>
             ) : null}
 
-            <TimeframeTabs className="absolute right-2 top-2 z-10" />
+            <TimeframeTabs className="absolute right-2 top-2 z-10 phone:hidden" />
             {!marketPickerOpen ? (
               <button
                 type="button"
@@ -524,7 +590,7 @@ export function TradeWorkspace() {
 
       <aside
         aria-label="Trade ticket and trades"
-        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:border-l-0 land:grid-rows-[auto_minmax(0,1fr)] land:border-l"
+        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:rounded-t-[20px] phone:border-l-0 phone:bg-panel land:grid-rows-[auto_minmax(0,1fr)] land:rounded-none land:border-l land:bg-transparent"
       >
         <TradeTicket
           symbol={asset.symbol}
@@ -550,7 +616,7 @@ export function TradeWorkspace() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="trades-sheet-title"
-            className="sheet sheet-in absolute inset-x-0 bottom-0 grid max-h-[72vh] grid-rows-[auto_auto_minmax(0,1fr)]">
+            className="sheet sheet-in absolute inset-x-0 bottom-0 mx-auto grid max-h-[72vh] w-full max-w-[560px] grid-rows-[auto_auto_minmax(0,1fr)]">
             <div aria-hidden className="sheet-handle" />
             <div className="flex items-center justify-between pl-4 pr-2">
               <h2 id="trades-sheet-title" className="text-sm font-semibold text-ink">Trades &amp; history</h2>

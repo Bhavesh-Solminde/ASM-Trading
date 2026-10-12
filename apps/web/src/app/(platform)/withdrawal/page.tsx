@@ -8,7 +8,7 @@ import {
   loadProfile,
   withdrawableBalance,
 } from "@asm/db";
-import { PAYOUT_METHOD_LABEL, isUsdtNetwork, payoutDestinationLabel } from "@asm/contracts";
+import { PAYOUT_METHOD_LABEL, isUsdtNetwork, payoutDestinationLabel, type PayoutMethod } from "@asm/contracts";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
 import { PageFrame } from "@/components/shell/PageFrame";
@@ -34,123 +34,128 @@ export default async function WithdrawalPage() {
   const heldWithdrawals = recent.filter((w) => w.status === "HELD");
 
   // Prefill each payout method with the details the user last withdrew to
-  // (rows are newest-first, so the first match per method wins).
+  // (rows are newest-first, so the first match per method wins). The method of
+  // the newest complete row is the one preselected on the "where to" step.
   const lastPayouts: LastPayouts = {};
+  let initialMethod: PayoutMethod | null = null;
   for (const w of recent) {
     if (w.method === "BANK" && !lastPayouts.BANK && w.accountHolder && w.accountNumber && w.ifsc) {
       lastPayouts.BANK = { accountHolder: w.accountHolder, accountNumber: w.accountNumber, ifsc: w.ifsc };
+      initialMethod ??= "BANK";
     } else if (w.method === "UPI" && !lastPayouts.UPI && w.upiId) {
       lastPayouts.UPI = { upiId: w.upiId };
+      initialMethod ??= "UPI";
     } else if (w.method === "USDT" && !lastPayouts.USDT && w.usdtAddress && isUsdtNetwork(w.usdtNetwork)) {
       lastPayouts.USDT = { usdtNetwork: w.usdtNetwork, usdtAddress: w.usdtAddress };
+      initialMethod ??= "USDT";
     }
   }
   const kycName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
 
+  const summary = (
+    <section aria-label="Your balance" className="rounded-2xl bg-panel">
+      <div className="grid grid-cols-2 divide-x divide-rule">
+        <div className="px-4 py-3.5">
+          <p className="text-[13px] text-ink-2">Balance</p>
+          <p className="text-lg font-bold tabular-nums">
+            {formatMoney(live.realBalance + live.bonusBalance, live.currency)}
+          </p>
+        </div>
+        <div className="px-4 py-3.5">
+          <p className="text-[13px] text-ink-2">Available to withdraw</p>
+          <p className="text-lg font-bold tabular-nums">{formatMoney(balance.withdrawable, live.currency)}</p>
+        </div>
+      </div>
+      {balance.lockedBonus > 0 ? (
+        <div className="m-3 mt-0 rounded-xl bg-tile p-3">
+          <p className="text-xs font-semibold">
+            {formatMoney(balance.lockedBonus, live.currency)} bonus — not withdrawable
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-2">
+            Your deposit bonus is for trading only and can&apos;t be cashed out. Only your real balance above is
+            available to withdraw.
+          </p>
+        </div>
+      ) : null}
+    </section>
+  );
+
   return (
-    <PageFrame width="wide" nav={<PlatformTabs />} title="Withdrawal">
+    <PageFrame width="narrow" nav={<PlatformTabs />} title="Withdrawal">
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-6 phone:gap-5">
+        {heldWithdrawals.map((w) => (
+          <HeldWithdrawalCard
+            key={w.id}
+            id={w.id}
+            amountLabel={formatMoney(w.amount, live.currency)}
+            holdUntilIso={w.holdUntil?.toISOString() ?? null}
+            cancelableUntilIso={w.cancelableUntil?.toISOString() ?? null}
+          />
+        ))}
 
-      {heldWithdrawals.map((w) => (
-        <HeldWithdrawalCard
-          key={w.id}
-          id={w.id}
-          amountLabel={formatMoney(w.amount, live.currency)}
-          holdUntilIso={w.holdUntil?.toISOString() ?? null}
-          cancelableUntilIso={w.cancelableUntil?.toISOString() ?? null}
-        />
-      ))}
-
-      <div className="grid grid-cols-2 gap-5 phone:grid-cols-1">
-        <section className="sticky top-6 flex flex-col gap-4 self-start rounded-xl border border-rule bg-panel p-4 phone:static phone:gap-0 phone:p-0">
-          <h2 className="text-sm font-semibold phone:sr-only">Account</h2>
-          <div className="contents phone:grid phone:grid-cols-2 phone:divide-x phone:divide-rule">
-            <div className="phone:px-4 phone:py-3.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]">
-                <span className="phone:hidden">In the account</span>
-                <span className="hidden phone:inline">Balance</span>
-              </p>
-              <p className="text-lg font-semibold tabular-nums phone:font-bold">
-                {formatMoney(live.realBalance + live.bonusBalance, live.currency)}
-              </p>
-            </div>
-            <div className="phone:px-4 phone:py-3.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-2)]">
-                <span className="phone:hidden">Available for withdrawal</span>
-                <span className="hidden phone:inline">Withdrawable</span>
-              </p>
-              <p className="text-lg font-semibold tabular-nums phone:font-bold">
-                {formatMoney(balance.withdrawable, live.currency)}
-              </p>
-            </div>
-          </div>
-
-          {balance.lockedBonus > 0 ? (
-            <div className="rounded-lg bg-tile p-3 phone:mx-3 phone:mb-3">
-              <p className="text-xs font-semibold">
-                {formatMoney(balance.lockedBonus, live.currency)} bonus — not withdrawable
-              </p>
-              <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-ink-2)]">
-                Your deposit bonus is for trading only and can&apos;t be cashed out. Only
-                your real balance above is available to withdraw.
-              </p>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="rounded-xl border border-rule bg-panel p-4">
-          <h2 className="mb-3 text-[15px] font-semibold">Withdraw</h2>
-          {profile.kycStatus === "VERIFIED" ? (
-            <WithdrawForm
-              accountId={live.id}
-              currency={live.currency}
-              withdrawableMinor={balance.withdrawable}
-              lastPayouts={lastPayouts}
-              kycName={kycName}
-            />
-          ) : (
+        {profile.kycStatus === "VERIFIED" ? (
+          <WithdrawForm
+            accountId={live.id}
+            currency={live.currency}
+            withdrawableMinor={balance.withdrawable}
+            lastPayouts={lastPayouts}
+            initialMethod={initialMethod}
+            kycName={kycName}
+            summary={summary}
+          />
+        ) : (
+          <>
+            {summary}
             <VerifyFirst kycStatus={profile.kycStatus} />
+          </>
+        )}
+
+        <section aria-labelledby="your-withdrawals" className="rounded-2xl bg-panel">
+          <h2 id="your-withdrawals" className="border-b border-rule px-4 py-3 text-[15px] font-semibold">
+            Your withdrawals
+          </h2>
+          {recent.length === 0 ? (
+            <p className="text-balance px-4 py-6 text-center text-xs text-ink-2">
+              No withdrawals yet. Your requests and their status will show here.
+            </p>
+          ) : (
+            <ul className="divide-y divide-rule">
+              {recent.map((w) => {
+                const pill = STATUS_PILL[w.status] ?? STATUS_PILL.REQUESTED!;
+                const method = PAYOUT_METHOD_LABEL[w.method as keyof typeof PAYOUT_METHOD_LABEL] ?? w.method;
+                const dest = payoutDestinationLabel(w);
+                return (
+                  <li key={w.id}>
+                    <Link
+                      href={`/history?tx=w:${w.id}`}
+                      className="flex min-h-14 items-start justify-between gap-3 px-4 py-3 hover:bg-tile/60"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold tabular-nums">{formatMoney(w.amount, w.currency)}</p>
+                        <p className="truncate text-[11px] text-ink-2">
+                          {method}
+                          {dest ? <span className="font-mono"> · {dest}</span> : null}
+                        </p>
+                        <p className="text-[11px] text-ink-3">{DATE_FMT.format(w.createdAt)}</p>
+                        {w.status === "REJECTED" && w.reason ? (
+                          <p className="mt-1 text-[11px] text-down">
+                            {w.reason} — the amount is back in your balance.
+                          </p>
+                        ) : null}
+                      </div>
+                      <span
+                        className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${pill.cls}`}
+                      >
+                        {pill.label}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </section>
       </div>
-
-      <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)]">
-        <h2 className="border-b border-[var(--color-rule)] px-4 py-3 text-[15px] font-semibold">
-          Your withdrawals
-        </h2>
-        {recent.length === 0 ? (
-          <p className="text-balance px-4 py-6 text-center text-xs text-ink-2">
-            No withdrawals yet. Your requests and their status will show here.
-          </p>
-        ) : (
-          <ul className="divide-y divide-[var(--color-rule)]">
-            {recent.map((w) => {
-              const pill = STATUS_PILL[w.status] ?? STATUS_PILL.REQUESTED!;
-              const method = PAYOUT_METHOD_LABEL[w.method as keyof typeof PAYOUT_METHOD_LABEL] ?? w.method;
-              const dest = payoutDestinationLabel(w);
-              return (
-                <li key={w.id} className="flex min-h-14 items-start justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold tabular-nums">{formatMoney(w.amount, w.currency)}</p>
-                    <p className="truncate text-[11px] text-[var(--color-ink-2)]">
-                      {method}
-                      {dest ? <span className="font-mono"> · {dest}</span> : null}
-                    </p>
-                    <p className="text-[11px] text-[var(--color-ink-3)]">{DATE_FMT.format(w.createdAt)}</p>
-                    {w.status === "REJECTED" && w.reason ? (
-                      <p className="mt-1 text-[11px] text-[var(--color-down)]">
-                        {w.reason} — the amount is back in your balance.
-                      </p>
-                    ) : null}
-                  </div>
-                  <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${pill.cls}`}>
-                    {pill.label}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
     </PageFrame>
   );
 }

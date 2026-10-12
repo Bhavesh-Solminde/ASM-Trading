@@ -7,7 +7,7 @@ import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor } from "@/lib/format-money";
 import { clockTime, countdown } from "@/lib/format-time";
 import { useNowSec } from "@/lib/use-now";
-import { closedRowDisplay, grossReturnMinor } from "./pnl-display";
+import { closedRowDisplay, grossReturnMinor, openSide } from "./pnl-display";
 import { AssetIcon } from "./AssetIcon";
 
 type Tab = "open" | "closed";
@@ -82,8 +82,9 @@ const OpenTradeRow = memo(function OpenTradeRow({
 }) {
   const now = useNowSec();
   const price = useQuote(trade.symbol)?.price ?? null;
-  const winning = price !== null && (trade.direction === "UP" ? price > trade.entryPrice : price < trade.entryPrice);
-  const losing = price !== null && (trade.direction === "UP" ? price < trade.entryPrice : price > trade.entryPrice);
+  const side = openSide(trade.direction, trade.entryPrice, price);
+  const winning = side === "winning";
+  const losing = side === "losing";
   const winProfit = Math.floor((trade.stake * trade.payoutPct) / 100);
   const progress =
     now === null ? 0 : Math.min(1, Math.max(0, (now - trade.entryTs) / (trade.expiryTs - trade.entryTs)));

@@ -1,233 +1,30 @@
 import { cookies } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { formatMoney, listDepositsForActor, listWithdrawalsForActor } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
 import { PageFrame } from "@/components/shell/PageFrame";
-import { Icon } from "@/components/shell/Icon";
+import { HistoryList } from "@/components/history/HistoryList";
+import { loadPaymentRows } from "@/components/history/load-payment-rows";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_LABEL: Record<string, string> = {
-  AWAITING_PAYMENT: "Awaiting payment",
-  PENDING_CONFIRMATION: "Processing",
-  COMPLETED: "Completed",
-  REJECTED: "Rejected",
-  EXPIRED: "Expired",
-  REQUESTED: "Waiting confirmation",
-  APPROVED: "Approved",
-  PAID: "Paid",
-};
-
-/** Pill colour by what the status means to the user, not by its raw value. */
-const STATUS_TONE: Record<string, string> = {
-  COMPLETED: "bg-up/10 text-up",
-  APPROVED: "bg-up/10 text-up",
-  PAID: "bg-up/10 text-up",
-  PENDING_CONFIRMATION: "bg-caution/10 text-caution",
-  REQUESTED: "bg-caution/10 text-caution",
-  AWAITING_PAYMENT: "bg-caution/10 text-caution",
-  REJECTED: "bg-down/10 text-down",
-  EXPIRED: "bg-down/10 text-down",
-};
-
-function StatusPill({ status }: { status: string }) {
-  const tone = STATUS_TONE[status] ?? "bg-tile text-ink-2";
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone}`}>
-      {STATUS_LABEL[status] ?? status}
-    </span>
-  );
-}
-
 /**
- * What a deposit row shows, in USD cents. USDT deposits leave the legacy
- * amountUsd column at 0 and carry their value in amountUsdtMinor (USDT-cents,
- * 1 USDT = $1 — see depositCreditMinor), so reading amountUsd alone showed
- * every USDT deposit as $0.00.
+ * Payments history: deposits and withdrawals only (the Payments tab strip's
+ * "History" tab). The full feed, with trades, lives at /history. Rows open the
+ * same detail sheet, so the status tracker is one tap away from here too.
  */
-function depositAmountUsdMinor(d: { method: string; amountUsd: number; amountUsdtMinor: number | null }): number {
-  return d.method === "USDT" ? (d.amountUsdtMinor ?? 0) : d.amountUsd;
-}
-
 export default async function BalancePage() {
   const store = await cookies();
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
 
-  const [deposits, withdrawals] = await Promise.all([
-    listDepositsForActor(session.userId, 50),
-    listWithdrawalsForActor(session.userId, 50),
-  ]);
-
-  const rows = [
-    ...deposits.map((d) => ({
-      id: d.id,
-      at: d.createdAt,
-      status: d.status,
-      kind: "Deposit" as const,
-      method: d.method,
-      amount: depositAmountUsdMinor(d),
-      note:
-        d.status === "PENDING_CONFIRMATION"
-          ? "Payments with this method can take up to 48 hours. The status may appear as “Failed” until the funds are received on our side."
-          : null,
-    })),
-    ...withdrawals.map((w) => ({
-      id: w.id,
-      at: w.createdAt,
-      status: w.status,
-      kind: "Withdrawal" as const,
-      method: w.method,
-      amount: -w.amount,
-      note: null,
-    })),
-  ].sort((a, b) => b.at.getTime() - a.at.getTime());
+  const payments = await loadPaymentRows(session.userId);
 
   return (
-    <PageFrame width="wide" nav={<PlatformTabs />} title="History">
-      {rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-rule bg-panel px-6 py-12 text-center">
-          <span className="grid size-12 place-items-center rounded-full bg-tile text-ink-2">
-            <Icon name="history" className="size-6" aria-hidden />
-          </span>
-          <h2 className="text-base font-semibold">No transactions yet</h2>
-          <p className="max-w-[48ch] text-balance text-sm text-ink-2">Deposits and withdrawals will show up here.</p>
-          <Link
-            href="/deposit"
-            className="mt-2 rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-fill-hi phone:grid phone:h-11 phone:place-items-center phone:py-0"
-          >
-            Make a deposit
-          </Link>
-        </div>
-      ) : (
-        <>
-          <ul className="hidden flex-col divide-y divide-rule overflow-hidden rounded-xl border border-rule bg-panel phone:flex">
-            {rows.map((row) => {
-              const isDeposit = row.kind === "Deposit";
-              return (
-                <li
-                  key={row.id}
-                  className="grid min-h-14 grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 px-4 py-3 text-sm"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className={`flex size-7 shrink-0 items-center justify-center rounded-full ${
-                        isDeposit
-                          ? "bg-up/15 text-up border border-up/25"
-                          : "bg-down/15 text-down border border-down/25"
-                      }`}
-                    >
-                      {isDeposit ? (
-                        <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M17 7L7 17M7 17h8M7 17V9" />
-                        </svg>
-                      ) : (
-                        <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M7 17L17 7M17 7H9M17 7v8" />
-                        </svg>
-                      )}
-                    </span>
-                    <div className="flex flex-col">
-                      <span className={`font-semibold ${isDeposit ? "text-up" : "text-down"}`}>
-                        {row.kind}
-                      </span>
-                      <span className="text-xs text-ink-2">{row.method}</span>
-                    </div>
-                  </div>
-                  <span
-                    className={`flex items-center justify-end gap-1 text-right font-semibold tabular-nums ${
-                      isDeposit ? "text-up" : "text-down"
-                    }`}
-                  >
-                    <span>{isDeposit ? "+" : "−"}</span>
-                    <span>{formatMoney(Math.abs(row.amount), "USD")}</span>
-                  </span>
-                  <span className="text-xs tabular-nums text-ink-2">
-                    {row.at.toISOString().slice(0, 16).replace("T", " ")}
-                  </span>
-                  <span className="justify-self-end">
-                    <StatusPill status={row.status} />
-                  </span>
-                  <span className="col-span-2 font-mono text-[11px] text-ink-3">
-                    {row.id.slice(0, 8).toUpperCase()}
-                  </span>
-                  {row.note ? (
-                    <p className="col-span-2 mt-1 rounded-lg bg-tile p-2 text-[11px] leading-relaxed text-ink-2">
-                      {row.note}
-                    </p>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-          <div className="overflow-x-auto phone:hidden">
-            <table className="w-full min-w-[680px] text-sm">
-              <thead>
-                <tr className="text-left text-[10px] uppercase tracking-[0.1em] text-ink-2">
-                  <th className="pb-2">Transaction ID</th>
-                  <th className="pb-2">Date and time</th>
-                  <th className="pb-2">Status</th>
-                  <th className="pb-2">Type</th>
-                  <th className="pb-2">Payment system</th>
-                  <th className="pb-2 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  const isDeposit = row.kind === "Deposit";
-                  return (
-                    <tr key={row.id} className="border-t border-rule align-top">
-                      <td className="py-3 font-mono text-xs">{row.id.slice(0, 8).toUpperCase()}</td>
-                      <td className="py-3 tabular-nums text-ink-2">
-                        {row.at.toISOString().slice(0, 16).replace("T", " ")}
-                      </td>
-                      <td className="py-3">
-                        <StatusPill status={row.status} />
-                        {row.note ? (
-                          <p className="mt-2 max-w-sm rounded-lg bg-tile p-2 text-[11px] leading-relaxed text-ink-2">
-                            {row.note}
-                          </p>
-                        ) : null}
-                      </td>
-                      <td className="py-3">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            isDeposit
-                              ? "bg-up/15 text-up border border-up/25"
-                              : "bg-down/15 text-down border border-down/25"
-                          }`}
-                        >
-                          {isDeposit ? (
-                            <svg className="size-3 text-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <path d="M17 7L7 17M7 17h8M7 17V9" />
-                            </svg>
-                          ) : (
-                            <svg className="size-3 text-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <path d="M7 17L17 7M17 7H9M17 7v8" />
-                            </svg>
-                          )}
-                          {row.kind}
-                        </span>
-                      </td>
-                      <td className="py-3 text-ink-2">{row.method}</td>
-                      <td
-                        className={`py-3 text-right font-semibold tabular-nums ${
-                          isDeposit ? "text-up" : "text-down"
-                        }`}
-                      >
-                        {isDeposit ? "+" : "−"}
-                        {formatMoney(Math.abs(row.amount), "USD")}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+    <PageFrame width="narrow" nav={<PlatformTabs />} title="History">
+      <div className="w-full max-w-2xl">
+        <HistoryList payments={payments} includeTrades={false} />
+      </div>
     </PageFrame>
   );
 }

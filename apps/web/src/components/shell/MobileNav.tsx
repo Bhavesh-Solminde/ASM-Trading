@@ -5,7 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { LogoWordmark } from "@/components/brand/Logo";
 import { formatMinor } from "@/lib/format-money";
-import { RAIL_ITEMS, isRailItemActive } from "@/lib/nav";
+import { DRAWER_ITEMS, isRailItemActive } from "@/lib/nav";
 import { useDismiss } from "@/lib/use-dismiss";
 import { Icon } from "./Icon";
 import { usePlatform } from "./PlatformProvider";
@@ -25,7 +25,7 @@ export function MobileNav() {
   const live = activeAccount?.type === "LIVE";
   const bal = activeAccount ? balances[activeAccount.id] : undefined;
   const total = activeAccount && bal ? formatMinor(bal.realBalance + bal.bonusBalance, activeAccount.currency) : "—";
-  const items = RAIL_ITEMS.filter((item) => !item.pinBottom);
+  const items = DRAWER_ITEMS.filter((item) => !item.pinBottom);
   const close = useCallback(() => setOpen(false), []);
   useDismiss(drawerRef, open, close);
 
