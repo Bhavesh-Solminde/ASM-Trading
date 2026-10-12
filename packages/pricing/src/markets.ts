@@ -15,7 +15,8 @@
 
 import type { IntradayProfileName } from "./intraday";
 import type { NewsParams } from "./news";
-import type { MsmParams } from "./msm";
+import { msmMedianMultiplier, type MsmParams } from "./msm";
+import { TICK_DT_SEC } from "./step";
 
 export interface MarketMsmCalibration {
   readonly symbol: string;
@@ -57,6 +58,39 @@ export const MARKET_CALIBRATIONS: readonly MarketMsmCalibration[] = [
 
 export function findMarketCalibration(symbol: string): MarketMsmCalibration | undefined {
   return MARKET_CALIBRATIONS.find((m) => m.symbol === symbol);
+}
+
+/**
+ * The fewest display steps a market may move per price update before its
+ * candles stop looking like candles.
+ *
+ * Below ~3 the price can only reach a handful of distinct values inside a
+ * one-minute bar, so every candle renders as the same one-step rectangle with
+ * no wick — the lattice that made XRP/USDT look mechanical in Oct 2026. Three
+ * is the floor, not the target; most of the catalogue sits far above it.
+ */
+export const MIN_DISPLAY_STEPS_PER_UPDATE = 3;
+
+/**
+ * How many display steps a market moves in one price update, in its typical
+ * (median) volatility regime.
+ *
+ * `precision` is the grid the shown price snaps to — the engine publishes
+ * every price through toFixed(precision) — so this is the resolution the
+ * chart actually gets, whatever the model computes underneath. A market whose
+ * answer is below 1 cannot render a wick at all.
+ */
+export function displayStepsPerUpdate(input: {
+  readonly sigma: number;
+  readonly m0: number;
+  readonly price: number;
+  readonly precision: number;
+  readonly dtSec?: number;
+}): number {
+  const { sigma, m0, price, precision, dtSec = TICK_DT_SEC } = input;
+  const median = msmMedianMultiplier(marketMsm(sigma, m0));
+  const move = sigma * Math.sqrt(dtSec) * median * price;
+  return move / 10 ** -precision;
 }
 
 /**

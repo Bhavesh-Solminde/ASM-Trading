@@ -227,7 +227,7 @@ export class AssetRegistry {
   }
 
   private volScale(asset: LiveAsset, nowSec: number | undefined): number {
-    let scale = msmMultiplier(asset.vol);
+    let scale = msmMultiplier(asset.vol, asset.params.msm);
     if (nowSec !== undefined) scale *= intradayFactor(asset.intraday, nowSec);
     return withNews(scale, asset.news, MARKET_NEWS);
   }
@@ -265,7 +265,7 @@ export class AssetRegistry {
       this.rng.normal,
     );
     const volScale = withNews(
-      msmMultiplier(asset.vol) * intradayRate,
+      msmMultiplier(asset.vol, asset.params.msm) * intradayRate,
       asset.news,
       MARKET_NEWS,
     );
@@ -413,7 +413,7 @@ async function catchupMissingCandles(input: {
       const intraday = input.params.intraday
         ? intradayFactor(input.params.intraday, bucketSec + t * TICK_DT_SEC)
         : 1;
-      const volScale = msmMultiplier(vol) * intraday;
+      const volScale = msmMultiplier(vol, input.params.msm) * intraday;
       state = stepPrice({
         state,
         params: input.params,
