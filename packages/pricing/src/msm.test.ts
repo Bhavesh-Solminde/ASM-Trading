@@ -5,6 +5,7 @@ import {
   msmMultiplier,
   stepMsm,
   type MsmParams,
+  type MsmState,
 } from "./msm";
 import { createRng } from "./rng";
 
@@ -52,13 +53,54 @@ describe("MSM", () => {
     const N = 20_000;
     for (let i = 0; i < N; i++) {
       const s = initMsm(params, rng.next);
-      const m = msmMultiplier(s);
+      const m = msmMultiplier(s, params);
       sum += m * m;
     }
     const mean = sum / N;
     // E[m²] = E[prod(layers)] = 1 exactly in expectation (layers i.i.d. mean 1).
     expect(mean).toBeGreaterThan(0.9);
     expect(mean).toBeLessThan(1.1);
+  });
+
+  it("never returns a multiplier that freezes the price", () => {
+    // The all-quiet state is the worst case: every layer at 2 - m0. Unfloored
+    // that is 0.063 for these params (0.041 at the crypto m0 of 1.55), which
+    // is where the chart stops moving between display ticks.
+    const allQuiet: MsmState = {
+      layers: new Array<number>(params.components).fill(2 - params.m0),
+    };
+    const raw = Math.sqrt((2 - params.m0) ** params.components);
+    expect(raw).toBeLessThan(0.1);
+    expect(msmMultiplier(allQuiet, params)).toBeGreaterThan(0.4);
+  });
+
+  it("leaves busy regimes alone — only the quiet tail is lifted", () => {
+    const allBusy: MsmState = {
+      layers: new Array<number>(params.components).fill(params.m0),
+    };
+    const raw = Math.sqrt(params.m0 ** params.components);
+    // Renormalisation trims the top by a couple of percent and no more, so
+    // volatility clustering still has its full dynamic range.
+    expect(msmMultiplier(allBusy, params)).toBeGreaterThan(raw * 0.95);
+    expect(msmMultiplier(allBusy, params)).toBeLessThanOrEqual(raw);
+  });
+
+  it("keeps E[m²] = 1 at every m0 we ship", () => {
+    // The floor only ever raises the multiplier, so without the matching
+    // renormalisation it would silently make every market livelier than its
+    // calibrated sigma. Covers the three m0 values in markets.ts.
+    for (const m0 of [1.45, 1.5, 1.55]) {
+      const p: MsmParams = { ...params, m0 };
+      const rng = createRng(1234);
+      let sum = 0;
+      const N = 20_000;
+      for (let i = 0; i < N; i++) {
+        const m = msmMultiplier(initMsm(p, rng.next), p);
+        sum += m * m;
+      }
+      expect(sum / N).toBeGreaterThan(0.95);
+      expect(sum / N).toBeLessThan(1.05);
+    }
   });
 
   it("stepMsm leaves fast layers more volatile than slow ones", () => {
@@ -89,7 +131,7 @@ describe("MSM", () => {
     for (let i = 0; i < 50_000; i++) {
       state = stepMsm(state, params, 5, rng.next);
       const z = rng.normal();
-      returns.push(params.sigma * msmMultiplier(state) * Math.sqrt(5) * z);
+      returns.push(params.sigma * msmMultiplier(state, params) * Math.sqrt(5) * z);
     }
     const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
     const m2 = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / returns.length;

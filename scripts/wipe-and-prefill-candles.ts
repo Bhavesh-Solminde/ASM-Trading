@@ -88,7 +88,7 @@ async function backfill(asset: AssetRow, endBucketSec: number) {
     for (let t = 0; t < ticksPerMinute; t++) {
       vol = stepMsm(vol, params.msm, TICK_DT_SEC, rng.next);
       const tickSec = startBucketSec + m * 60 + t * TICK_DT_SEC;
-      const volScale = msmMultiplier(vol) * intradayFactor(intraday, tickSec);
+      const volScale = msmMultiplier(vol, params.msm) * intradayFactor(intraday, tickSec);
       state = stepPrice({
         state,
         params,

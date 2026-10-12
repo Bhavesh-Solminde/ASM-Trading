@@ -76,7 +76,7 @@ function baseline(
     for (let t = 0; t < ticksPerMinute; t++) {
       vol = stepMsm(vol, params.msm, TICK_DT_SEC, rng.next);
       const volScale =
-        msmMultiplier(vol) *
+        msmMultiplier(vol, params.msm) *
         intradayFactor(intraday, baseSec + m * 60 + t * TICK_DT_SEC);
       state = stepPrice({
         state,

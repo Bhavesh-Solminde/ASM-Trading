@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import argon2 from "argon2";
 import { MARKET_CALIBRATIONS } from "@asm/pricing";
 import { prisma } from "../src/client";
+import { MARKETS } from "../src/catalogue";
 
 // MSM volatility calibration per symbol. The canonical table lives in
 // packages/pricing/src/markets.ts (one source of truth with the engine).
