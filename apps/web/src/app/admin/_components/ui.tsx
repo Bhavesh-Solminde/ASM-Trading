@@ -1,7 +1,78 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "../_lib/icons";
-import { avatarColor, hrefWith, initials } from "../_lib/format";
+import { hrefWith, initials } from "../_lib/format";
+
+/* ------------------------------- Page header ------------------------------- */
+export function PageHead({
+  title,
+  desc,
+  back,
+  actions,
+}: {
+  title: string;
+  desc?: ReactNode;
+  back?: { href: string; label: string };
+  actions?: ReactNode;
+}) {
+  return (
+    <div>
+      {back ? (
+        <Link className="admin-back" href={back.href}>
+          <Icon name="chevronLeft" size={16} />
+          {back.label}
+        </Link>
+      ) : null}
+      <div className="admin-head">
+        <div>
+          <h1>{title}</h1>
+          {desc ? <p>{desc}</p> : null}
+        </div>
+        {actions ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{actions}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------- Notice ----------------------------------- */
+/** A one-line result message under the page header (saved, failed, created). */
+export function Notice({ tone, children }: { tone: "pos" | "neg" | "info"; children: ReactNode }) {
+  return (
+    <div className={`admin-notice admin-notice--${tone}`} role={tone === "neg" ? "alert" : "status"}>
+      <Icon name={tone === "pos" ? "check" : tone === "neg" ? "alert" : "info"} size={16} />
+      <span>{children}</span>
+    </div>
+  );
+}
+
+/* ------------------------------- Tab bar ----------------------------------- */
+/** Underlined, link-based tabs: each tab is a real navigation so the server
+ *  component re-renders with fresh data. Counts ride on the tab itself. */
+export function TabBar({
+  tabs,
+  active,
+  label,
+}: {
+  tabs: { key: string; label: string; href: string; count?: number }[];
+  active: string;
+  label: string;
+}) {
+  return (
+    <nav className="admin-tabbar" aria-label={label}>
+      {tabs.map((t) => (
+        <Link
+          key={t.key}
+          href={t.href}
+          aria-current={t.key === active ? "page" : undefined}
+          className={`admin-tab${t.key === active ? " active" : ""}`}
+        >
+          {t.label}
+          {t.count ? <span className="admin-tab__badge">{t.count}</span> : null}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 
 /* ---------------------------------- Pills ---------------------------------- */
 type PillTone = "pos" | "neg" | "warn" | "info" | "muted" | "accent";
@@ -58,10 +129,10 @@ export function Avatar({ name, size = 32 }: { name: string; size?: number }) {
     <span
       className="admin-avatar"
       style={{
-        background: avatarColor(name),
         width: size,
         height: size,
-        fontSize: Math.round(size * 0.4),
+        fontSize: Math.round(size * 0.38),
+        borderRadius: Math.round(size / 4),
       }}
     >
       {initials(name)}
@@ -124,7 +195,7 @@ export function Card({
   noBody,
 }: {
   title?: string;
-  sub?: string;
+  sub?: string | undefined;
   action?: ReactNode;
   children: ReactNode;
   bodyClass?: string;
@@ -331,9 +402,8 @@ export function AreaChart({
               key={i}
               x={x(i).toFixed(1)}
               y={H - 5}
-              fill="var(--admin-muted)"
-              fontSize={10}
-              fontFamily="var(--admin-font-mono)"
+              fill="var(--admin-faint)"
+              fontSize={11}
               textAnchor={i === 0 ? "start" : i === labels.length - 1 ? "end" : "middle"}
             >
               {labels[i]}

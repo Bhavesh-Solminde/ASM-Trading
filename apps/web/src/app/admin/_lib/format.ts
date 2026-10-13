@@ -30,13 +30,13 @@ export function usdCompactFromMinor(minor: number): string {
   return "$" + n.toFixed(0);
 }
 
+/** Rupees in Indian units — crore and lakh — the way operators read them. */
 export function inrCompactFromMinor(minor: number): string {
   const n = minor / 100;
   const a = Math.abs(n);
-  if (a >= 1e9) return "₹" + (n / 1e9).toFixed(2) + "B";
-  if (a >= 1e6) return "₹" + (n / 1e6).toFixed(2) + "M";
-  if (a >= 1e3) return "₹" + (n / 1e3).toFixed(1) + "K";
-  return "₹" + n.toFixed(0);
+  if (a >= 1e7) return "₹" + (n / 1e7).toFixed(2) + " Cr";
+  if (a >= 1e5) return "₹" + (n / 1e5).toFixed(2) + " L";
+  return "₹" + Math.round(n).toLocaleString("en-IN");
 }
 
 export function num(n: number): string {
@@ -51,22 +51,6 @@ export function initials(name: string): string {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-}
-
-const AVATAR_COLORS = [
-  "#8A6215",
-  "#2C5A8A",
-  "#157F52",
-  "#6B4A9E",
-  "#B0563A",
-  "#0F7A78",
-  "#9E4A6B",
-  "#556228",
-];
-export function avatarColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffff;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length]!;
 }
 
 export function timeAgo(date: Date | number): string {

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { prisma, type Prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
-import { Avatar, Card, EmptyRow, Pager, StatCard, StatusPill } from "../../_components/ui";
+import { Avatar, EmptyRow, PageHead, Pager, StatusPill, TabBar } from "../../_components/ui";
+import { Icon } from "../../_lib/icons";
 import { PAYOUT_METHOD_LABEL, USDT_NETWORK_INFO, isUsdtNetwork } from "@asm/contracts";
 import { hrefWith, fmtDate, inrFromMinor, timeAgo } from "../../_lib/format";
 import {
@@ -26,43 +27,6 @@ function money(minor: number, currency: string): string {
 function userName(u: { firstName: string | null; lastName: string | null; email: string }): string {
   const full = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
   return full || u.email.split("@")[0]!;
-}
-
-function TabBar({
-  tab,
-  sp,
-  pendingCount,
-  approvedCount,
-  heldCount,
-}: {
-  tab: Tab;
-  sp: Record<string, string | undefined>;
-  pendingCount: number;
-  approvedCount: number;
-  heldCount: number;
-}) {
-  const tabs: { key: Tab; label: string; badge?: number }[] = [
-    { key: "pending", label: "Pending", ...(pendingCount ? { badge: pendingCount } : {}) },
-    { key: "approved", label: "To pay", ...(approvedCount ? { badge: approvedCount } : {}) },
-    { key: "held", label: "On Hold", ...(heldCount ? { badge: heldCount } : {}) },
-    { key: "history", label: "History" },
-  ];
-  return (
-    <div className="admin-tabbar" role="tablist" aria-label="Withdrawal sections">
-      {tabs.map((t) => (
-        <Link
-          key={t.key}
-          role="tab"
-          aria-selected={tab === t.key}
-          href={hrefWith(PATH, sp, { tab: t.key === "pending" ? null : t.key, page: null, q: null })}
-          className={`admin-tab${tab === t.key ? " active" : ""}`}
-        >
-          {t.label}
-          {t.badge ? <span className="admin-tab__badge">{t.badge}</span> : null}
-        </Link>
-      ))}
-    </div>
-  );
 }
 
 /**
@@ -121,7 +85,7 @@ export default async function WithdrawalsPage({
     // Amounts are in each row's own currency, so the total is per currency.
     prisma.withdrawal.groupBy({
       by: ["currency"],
-      where: { status: { in: ["REQUESTED", "APPROVED"] }, ...EXCLUDE_AFFILIATE },
+      where: { status: "REQUESTED", ...EXCLUDE_AFFILIATE },
       _sum: { amount: true },
     }),
     prisma.withdrawal.count({
@@ -133,6 +97,7 @@ export default async function WithdrawalsPage({
       .filter((g) => (g._sum.amount ?? 0) > 0)
       .map((g) => money(g._sum.amount ?? 0, g.currency))
       .join(" + ") || money(0, "INR");
+  const owedRounded = owedLabel.replace(/\.00\b/g, "");
 
   const statusFilter: Prisma.WithdrawalWhereInput =
     tab === "pending"
@@ -217,194 +182,176 @@ export default async function WithdrawalsPage({
     q: q || undefined,
   };
 
+  const tabHref = (key: Tab) => hrefWith(PATH, sp, { tab: key === "pending" ? null : key, page: null, q: null });
+  const desc =
+    tab === "pending"
+      ? pendingCount
+        ? `${pendingCount} to approve · ${owedRounded}. Check the payee against the KYC name. Approving moves it to To pay; rejecting refunds the balance.`
+        : "Nothing to approve. Check the payee against the KYC name before approving."
+      : tab === "approved"
+        ? "Send the money to the details shown, then mark it paid. If the payment fails, reject to refund the user."
+        : tab === "held"
+          ? "Funds are already debited. Each one moves to To approve when its hold ends."
+          : "Paid, cancelled and rejected requests.";
+
   return (
     <>
-      <div className="admin-grid admin-stat-grid" style={{ gridTemplateColumns: "repeat(2,1fr)" }}>
-        <StatCard
-          label="Withdrawals to handle"
-          value={String(pendingCount + approvedCount)}
-          icon="dollar"
-          warn={pendingCount + approvedCount > 0}
-          foot={<span>{owedLabel} pending payout</span>}
+      <PageHead title="Withdrawals" desc={desc} />
+
+      <section className="admin-card">
+        <TabBar
+          label="Withdrawal views"
+          active={tab}
+          tabs={[
+            { key: "pending", label: "To approve", href: tabHref("pending"), count: pendingCount },
+            { key: "approved", label: "To pay", href: tabHref("approved"), count: approvedCount },
+            { key: "held", label: "On hold", href: tabHref("held"), count: heldCount },
+            { key: "history", label: "History", href: tabHref("history") },
+          ]}
         />
-        <StatCard
-          label="Deposits"
-          value=""
-          icon="inbox"
-          foot={
-            <Link href="/admin/deposits" style={{ color: "var(--admin-accent)" }}>
-              Review the deposit queue &rarr;
-            </Link>
-          }
-        />
-      </div>
 
-      <div style={{ marginTop: 16 }}>
-        <Card
-          title={
-            tab === "pending"
-              ? "Withdrawals awaiting approval"
-              : tab === "approved"
-                ? "Approved — send the money, then mark paid"
-              : tab === "held"
-                ? "Withdrawals on hold"
-                : "Withdrawal history"
-          }
-          sub={
-            tab === "pending"
-              ? "Check the payout details against the KYC name. Approve to move it to To pay; reject refunds the balance."
-              : tab === "approved"
-                ? "Pay to the details shown, then Mark paid. If the payment fails, reject to refund the user."
-              : tab === "held"
-                ? "Funds already debited; auto-promotes to Pending at the hold expiry."
-                : "Paid, cancelled and rejected requests."
-          }
-          noBody
-        >
-          <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
-            <TabBar
-              tab={tab}
-              sp={sp}
-              pendingCount={pendingCount}
-              approvedCount={approvedCount}
-              heldCount={heldCount}
-            />
-          </div>
+        <div className="admin-toolbar">
+          <TableControls placeholder="Search UPI ID, account no., wallet or email" />
+          <span className="admin-result-count">{tab === "history" ? "Newest first" : "Oldest first"}</span>
+        </div>
 
-          <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
-            <TableControls placeholder="Search UPI ID, account no., wallet, email or name…" />
-          </div>
-
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th className="admin-num-right">Amount</th>
-                  <th>Pay to</th>
-                  <th>Deposited via</th>
-                  <th>
-                    {tab === "pending" ? "Requested" : tab === "held" ? "Held" : "Created"}
-                  </th>
-                  {tab === "held" ? <th>Releases in</th> : null}
-                  {tab === "history" ? <th>Status</th> : null}
-                  <th className="admin-num-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 ? (
-                  <EmptyRow
-                    cols={tab === "held" || tab === "history" ? 7 : 6}
-                    message={
-                      q
-                        ? "No withdrawals match that search."
-                        : tab === "pending"
-                          ? "No withdrawals awaiting approval."
-                          : tab === "approved"
-                            ? "Nothing approved and waiting to be paid."
+        <div className="admin-table-wrap">
+          <table className="admin-table admin-table--stack">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th className="admin-num-right">Amount</th>
+                <th>Pay to</th>
+                <th>Funded via</th>
+                <th>{tab === "pending" ? "Waiting" : tab === "held" ? "Held" : tab === "approved" ? "Requested" : "Created"}</th>
+                {tab === "held" ? <th>Releases in</th> : null}
+                {tab === "history" ? <th>Status</th> : null}
+                <th className="admin-num-right">
+                  <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+                    Actions
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <EmptyRow
+                  cols={tab === "held" || tab === "history" ? 7 : 6}
+                  message={
+                    q
+                      ? "No withdrawals match that search."
+                      : tab === "pending"
+                        ? "Nothing to approve. The queue is clear."
+                        : tab === "approved"
+                          ? "Nothing approved and waiting to be paid."
                           : tab === "held"
-                            ? "No withdrawals currently on hold."
+                            ? "No withdrawals on hold."
                             : "No withdrawal history yet."
-                    }
-                  />
-                ) : (
-                  rows.map((w) => {
-                    const name = userName(w.user);
-                    return (
-                      <tr key={w.id}>
-                        <td>
-                          <div className="admin-cell-user">
-                            <Avatar name={name} size={26} />
-                            <div>
-                              <div className="admin-cell-strong">{name}</div>
-                              <div className="admin-cell-sub">{w.user.email}</div>
-                              <div className="admin-cell-sub" style={{ marginTop: 2 }}>
-                                KYC <StatusPill status={w.user.kycStatus} />
-                              </div>
+                  }
+                />
+              ) : (
+                rows.map((w) => {
+                  const name = userName(w.user);
+                  const verified = w.user.kycStatus === "VERIFIED";
+                  return (
+                    <tr key={w.id}>
+                      <td>
+                        <div className="admin-cell-user">
+                          <Avatar name={name} size={32} />
+                          <div>
+                            <div className="admin-cell-strong" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              {name}
+                              {verified ? <span className="admin-pill admin-pill--pos">KYC</span> : null}
                             </div>
+                            <div className="admin-cell-sub">{w.user.email}</div>
+                            {!verified && tab !== "history" ? (
+                              <span className="admin-kyc-warn">
+                                <Icon name="alert" size={13} />
+                                {w.user.kycStatus === "PENDING" ? "KYC still pending" : "KYC not verified"}
+                              </span>
+                            ) : null}
                           </div>
-                        </td>
-                        <td className="num admin-num-right admin-cell-strong">{money(w.amount, w.currency)}</td>
-                        <td style={{ fontSize: 12, minWidth: 200 }}>
-                          <PayoutCell w={w} />
-                          {sharedWithOthers(w.userId, w.destinationKey) ? (
-                            <div style={{ color: "var(--admin-neg, #c0392b)", fontWeight: 600, marginTop: 4 }}>
-                              ⚠ Also used by another account
-                            </div>
-                          ) : null}
-                        </td>
-                        <td className="admin-cell-sub" style={{ fontSize: 12 }}>
-                          {(depositsByUser.get(w.userId) ?? ["No completed deposit"]).join(", ")}
-                        </td>
-                        <td className="admin-cell-sub">
-                          {tab === "pending" || tab === "held"
-                            ? timeAgo(w.createdAt)
-                            : fmtDate(w.createdAt)}
-                        </td>
-                        {tab === "held" ? (
-                          <td>
-                            <HoldUntilLabel holdUntil={w.holdUntil} />
-                          </td>
+                        </div>
+                      </td>
+                      <td className="admin-num-right admin-amount">{money(w.amount, w.currency)}</td>
+                      <td style={{ minWidth: 220 }}>
+                        <PayoutCell w={w} />
+                        {sharedWithOthers(w.userId, w.destinationKey) ? (
+                          <span className="admin-kyc-warn" style={{ color: "var(--admin-neg)" }}>
+                            <Icon name="alert" size={13} />
+                            Also used by another account
+                          </span>
                         ) : null}
-                        {tab === "history" ? (
-                          <td>
-                            <StatusPill status={w.status} />
-                          </td>
-                        ) : null}
-                        <td className="admin-num-right">
-                          {tab === "pending" ? (
-                            <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
-                              <form action={approveWithdrawalAction}>
-                                <input type="hidden" name="withdrawalId" value={w.id} />
-                                <button type="submit" className="admin-btn admin-btn--sm admin-btn--pos">
-                                  Approve
-                                </button>
-                              </form>
-                              <RejectForm id={w.id} />
-                            </div>
-                          ) : tab === "approved" ? (
-                            <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
-                              <form action={markWithdrawalPaidAction}>
-                                <input type="hidden" name="withdrawalId" value={w.id} />
-                                <button type="submit" className="admin-btn admin-btn--sm admin-btn--pos">
-                                  Mark paid
-                                </button>
-                              </form>
-                              <RejectForm id={w.id} />
-                            </div>
-                          ) : tab === "held" ? (
-                            <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
-                              <form action={releaseHeldWithdrawalAction}>
-                                <input type="hidden" name="withdrawalId" value={w.id} />
-                                <button type="submit" className="admin-btn admin-btn--sm">
-                                  Force-release now
-                                </button>
-                              </form>
-                              <RejectForm id={w.id} />
-                            </div>
-                          ) : (
-                            <Link
-                              href={`/admin/users?q=${encodeURIComponent(w.user.email)}`}
-                              className="admin-cell-sub"
-                              style={{ fontSize: 11, textDecoration: "underline" }}
-                            >
-                              user
-                            </Link>
-                          )}
+                      </td>
+                      <td className="admin-cell-sub" style={{ color: "var(--admin-muted)" }}>
+                        {(depositsByUser.get(w.userId) ?? ["No completed deposit"]).join(", ")}
+                      </td>
+                      <td>
+                        {tab === "pending" || tab === "held" ? (
+                          <span className={`admin-age${Date.now() - w.createdAt.getTime() >= 12 * 3600_000 ? " hot" : ""}`}>
+                            {timeAgo(w.createdAt).replace(" ago", "")}
+                          </span>
+                        ) : (
+                          <span className="admin-age">{fmtDate(w.createdAt)}</span>
+                        )}
+                      </td>
+                      {tab === "held" ? (
+                        <td>
+                          <HoldUntilLabel holdUntil={w.holdUntil} />
                         </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                      ) : null}
+                      {tab === "history" ? (
+                        <td>
+                          <StatusPill status={w.status} />
+                        </td>
+                      ) : null}
+                      <td className="admin-num-right">
+                        {tab === "pending" ? (
+                          <div className="admin-row-actions">
+                            <RejectForm id={w.id} />
+                            <form action={approveWithdrawalAction}>
+                              <input type="hidden" name="withdrawalId" value={w.id} />
+                              <button type="submit" className="admin-btn admin-btn--sm admin-btn--pos">
+                                Approve
+                              </button>
+                            </form>
+                          </div>
+                        ) : tab === "approved" ? (
+                          <div className="admin-row-actions">
+                            <RejectForm id={w.id} />
+                            <form action={markWithdrawalPaidAction}>
+                              <input type="hidden" name="withdrawalId" value={w.id} />
+                              <button type="submit" className="admin-btn admin-btn--sm admin-btn--pos">
+                                Mark paid
+                              </button>
+                            </form>
+                          </div>
+                        ) : tab === "held" ? (
+                          <div className="admin-row-actions">
+                            <RejectForm id={w.id} />
+                            <form action={releaseHeldWithdrawalAction}>
+                              <input type="hidden" name="withdrawalId" value={w.id} />
+                              <button type="submit" className="admin-btn admin-btn--sm admin-btn--ghost">
+                                Release now
+                              </button>
+                            </form>
+                          </div>
+                        ) : (
+                          <Link className="admin-link" href={`/admin/users?q=${encodeURIComponent(w.user.email)}`} style={{ fontSize: 13 }}>
+                            View user
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
-          <div style={{ padding: 12 }}>
-            <Pager total={total} page={page} perPage={PER_PAGE} path={PATH} sp={spForLinks} />
-          </div>
-        </Card>
-      </div>
+        <Pager total={total} page={page} perPage={PER_PAGE} path={PATH} sp={spForLinks} />
+      </section>
     </>
   );
 }
@@ -428,7 +375,9 @@ function PayoutCell({ w }: { w: PayoutRow }) {
     v ? (
       <div>
         <span className="admin-cell-sub">{k} </span>
-        <span className="mono" style={{ userSelect: "all" }}>{v}</span>
+        <span className="mono" style={{ userSelect: "all" }}>
+          {v}
+        </span>
       </div>
     ) : null;
   return (
@@ -458,13 +407,19 @@ function PayoutCell({ w }: { w: PayoutRow }) {
 /** Reject with a preset reason (the user sees it); refunds the amount. */
 function RejectForm({ id }: { id: string }) {
   return (
-    <details>
-      <summary className="admin-cell-sub" style={{ cursor: "pointer", fontSize: 11, textDecoration: "underline" }}>
-        Reject…
-      </summary>
-      <form action={rejectWithdrawalAction} style={{ display: "grid", gap: 6, marginTop: 6, minWidth: 220 }}>
+    <details className="admin-reject">
+      <summary className="admin-btn admin-btn--sm admin-btn--danger">Reject</summary>
+      <form action={rejectWithdrawalAction} className="admin-reject__panel">
         <input type="hidden" name="withdrawalId" value={id} />
-        <select name="reason" className="admin-select" defaultValue={WITHDRAWAL_REJECT_REASONS[0]} aria-label="Reject reason">
+        <label className="admin-label" htmlFor={`reason-${id}`}>
+          Reason shown to the user
+        </label>
+        <select
+          id={`reason-${id}`}
+          name="reason"
+          className="admin-select"
+          defaultValue={WITHDRAWAL_REJECT_REASONS[0]}
+        >
           {WITHDRAWAL_REJECT_REASONS.map((r) => (
             <option key={r} value={r}>
               {r}
@@ -472,7 +427,7 @@ function RejectForm({ id }: { id: string }) {
           ))}
         </select>
         <button type="submit" className="admin-btn admin-btn--sm admin-btn--danger">
-          Reject &amp; refund
+          Reject and refund
         </button>
       </form>
     </details>

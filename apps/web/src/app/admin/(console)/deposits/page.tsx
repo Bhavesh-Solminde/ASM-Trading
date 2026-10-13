@@ -11,10 +11,10 @@ import {
 } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
-import { Avatar, Card, EmptyRow, Pager, StatCard, StatusPill } from "../../_components/ui";
-import { Icon } from "../../_lib/icons";
-import { hrefWith, fmtDate, fmtDateTime, inrFromMinor, timeAgo, inrCompactFromMinor, usdFromMinor } from "../../_lib/format";
+import { Avatar, EmptyRow, PageHead, Pager, StatusPill, TabBar, Tag } from "../../_components/ui";
+import { hrefWith, fmtDate, fmtDateTime, inrFromMinor, timeAgo, usdFromMinor } from "../../_lib/format";
 import { approveDepositAction, rejectDepositAction, reverseUsdtDepositAction } from "./actions";
+import { CopyText } from "./_components/CopyText";
 import {
   EMPTY_EVIDENCE,
   isCreditable,
@@ -32,51 +32,19 @@ export const dynamic = "force-dynamic";
 const PATH = "/admin/deposits";
 const PER_PAGE = 20;
 const USDT_QUEUE_LIMIT = 50;
-type Tab = "pending" | "history" | "usdt";
+const ORPHAN_LIMIT = 50;
+const HOUR = 3600_000;
+type Tab = "pending" | "usdt" | "unmatched" | "history";
 
 function userName(u: { firstName: string | null; lastName: string | null; email: string }): string {
   const full = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
   return full || u.email.split("@")[0]!;
 }
 
-function TabBar({
-  tab,
-  sp,
-  pendingCount,
-  usdtReviewCount,
-}: {
-  tab: Tab;
-  sp: Record<string, string | undefined>;
-  pendingCount: number;
-  usdtReviewCount: number;
-}) {
-  const tabs: { key: Tab; label: string; badge?: number }[] = [
-    { key: "pending", label: "Pending", ...(pendingCount ? { badge: pendingCount } : {}) },
-    { key: "history", label: "History" },
-    { key: "usdt", label: "USDT review", ...(usdtReviewCount > 0 ? { badge: usdtReviewCount } : {}) },
-  ];
-  return (
-    <div className="admin-tabbar" role="tablist" aria-label="Deposit sections">
-      {tabs.map((t) => (
-        <Link
-          key={t.key}
-          role="tab"
-          aria-selected={tab === t.key}
-          href={hrefWith(PATH, sp, {
-            tab: t.key === "pending" ? null : t.key,
-            page: null,
-            q: null,
-            ok: null,
-            error: null,
-          })}
-          className={`admin-tab${tab === t.key ? " active" : ""}`}
-        >
-          {t.label}
-          {t.badge ? <span className="admin-tab__badge">{t.badge}</span> : null}
-        </Link>
-      ))}
-    </div>
-  );
+/** "1h", "46m" — how long a deposit has waited. An hour or more reads as overdue. */
+function Waiting({ since }: { since: Date }) {
+  const hot = Date.now() - since.getTime() >= HOUR;
+  return <span className={`admin-age${hot ? " hot" : ""}`}>{timeAgo(since).replace(" ago", "")}</span>;
 }
 
 export default async function DepositsPage({
@@ -87,7 +55,8 @@ export default async function DepositsPage({
   await requireAdmin();
   const sp = await searchParams;
 
-  const tab: Tab = sp.tab === "history" ? "history" : sp.tab === "usdt" ? "usdt" : "pending";
+  const tab: Tab =
+    sp.tab === "history" || sp.tab === "usdt" || sp.tab === "unmatched" ? sp.tab : "pending";
   const q = sp.q?.trim() ?? "";
   const page = Math.max(1, Number(sp.page) || 1);
 
@@ -99,61 +68,47 @@ export default async function DepositsPage({
     user: { role: { not: "AFFILIATE" } },
   };
 
-  const [pendingCount, pendingAgg, usdtReviewCount] = await Promise.all([
-    prisma.deposit.count({
-      where: { AND: [{ status: "PENDING_CONFIRMATION" }, notAffiliate] },
-    }),
+  const [pendingAgg, usdtReviewCount, orphanCount] = await Promise.all([
     prisma.deposit.aggregate({
       where: { AND: [{ status: "PENDING_CONFIRMATION" }, notAffiliate] },
+      _count: { _all: true },
       _sum: { amountInr: true },
     }),
     countUsdtReviewQueue(),
+    prisma.bankCredit.count({ where: { consumed: false } }),
   ]);
+  const pendingCount = pendingAgg._count._all;
 
-  const orphans = tab === "pending" ? await listOrphanBankCredits(10) : [];
+  const tabHref = (key: Tab) =>
+    hrefWith(PATH, sp, { tab: key === "pending" ? null : key, page: null, q: null, ok: null, error: null });
+  const tabs = (
+    <TabBar
+      label="Deposit views"
+      active={tab}
+      tabs={[
+        { key: "pending", label: "Needs review", href: tabHref("pending"), count: pendingCount },
+        { key: "usdt", label: "USDT review", href: tabHref("usdt"), count: usdtReviewCount },
+        { key: "unmatched", label: "Unmatched credits", href: tabHref("unmatched"), count: orphanCount },
+        { key: "history", label: "History", href: tabHref("history") },
+      ]}
+    />
+  );
+  const banner =
+    sp.ok || sp.error ? (
+      <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--admin-border)" }}>
+        <UsdtResultBanner ok={sp.ok} error={sp.error} />
+      </div>
+    ) : null;
 
-  const statGrid = (
-    <div className="admin-grid admin-stat-grid" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
-      <StatCard
-        label="Deposits in review"
-        value={String(pendingCount)}
-        icon="inbox"
-        warn={pendingCount > 0}
-        foot={<span>{inrCompactFromMinor(pendingAgg._sum.amountInr ?? 0)} awaiting vouch</span>}
-      />
-      <StatCard
-        label="Withdrawals"
-        value=""
-        icon="dollar"
-        foot={
-          <Link href="/admin/withdrawals" style={{ color: "var(--admin-accent)" }}>
-            Manage payouts &rarr;
-          </Link>
-        }
-      />
-      <StatCard
-        label={tab === "pending" ? "Orphaned credits" : "USDT payments in review"}
-        value={String(tab === "pending" ? orphans.length : usdtReviewCount)}
-        icon="shield"
-        warn={usdtReviewCount > 0 || orphans.length > 0}
-        foot={
-          tab === "pending" ? (
-            usdtReviewCount > 0 ? (
-              <span>
-                need manual matching ·{" "}
-                <Link href={`${PATH}?tab=usdt`} style={{ color: "var(--admin-accent)" }}>
-                  {usdtReviewCount} USDT in review &rarr;
-                </Link>
-              </span>
-            ) : (
-              <span>need manual matching</span>
-            )
-          ) : (
-            <span>on-chain payments needing an operator</span>
-          )
-        }
-      />
-    </div>
+  const head = (
+    <PageHead
+      title="Deposits"
+      desc={
+        pendingCount
+          ? `${pendingCount} waiting · ${inrFromMinor(pendingAgg._sum.amountInr ?? 0, 0)} to confirm. Exact UTR matches settle on their own; only the ones that didn't match land here.`
+          : "Nothing waiting. Exact UTR matches settle on their own; only the ones that didn't match land here."
+      }
+    />
   );
 
   if (tab === "usdt") {
@@ -180,29 +135,83 @@ export default async function DepositsPage({
 
     return (
       <>
-        {statGrid}
-        <div style={{ marginTop: 16 }}>
-          <Card
-            title="On-chain USDT payments needing review"
-            sub="Transfers the matcher could not auto-credit. Crediting always adds the amount actually received on-chain."
-            noBody
-          >
-            <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
-              <TabBar tab={tab} sp={sp} pendingCount={pendingCount} usdtReviewCount={usdtReviewCount} />
-            </div>
-            {sp.ok || sp.error ? (
-              <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
-                <UsdtResultBanner ok={sp.ok} error={sp.error} />
-              </div>
-            ) : null}
-            <UsdtReviewTable rows={usdtRows} />
-            {usdtReviewCount > usdtRows.length ? (
-              <div className="admin-cell-sub" style={{ padding: 12, fontSize: 12 }}>
+        {head}
+        <section className="admin-card">
+          {tabs}
+          {banner}
+          <div className="admin-cell-sub" style={{ padding: "12px 18px", borderBottom: "1px solid var(--admin-border)" }}>
+            On-chain transfers the matcher couldn&rsquo;t credit on its own. Crediting always adds the amount actually
+            received on-chain.
+          </div>
+          <UsdtReviewTable rows={usdtRows} />
+          {usdtReviewCount > usdtRows.length ? (
+            <div className="admin-pager">
+              <span className="info">
                 Showing the newest {usdtRows.length} of {usdtReviewCount}.
-              </div>
-            ) : null}
-          </Card>
-        </div>
+              </span>
+            </div>
+          ) : null}
+        </section>
+      </>
+    );
+  }
+
+  if (tab === "unmatched") {
+    const orphans = await listOrphanBankCredits(ORPHAN_LIMIT);
+    return (
+      <>
+        {head}
+        <section className="admin-card">
+          {tabs}
+          <div className="admin-cell-sub" style={{ padding: "12px 18px", borderBottom: "1px solid var(--admin-border)" }}>
+            Money that reached the bank with no deposit to match it. Search the UTR to find the user who paid.
+          </div>
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Received</th>
+                  <th className="admin-num-right">Amount</th>
+                  <th>UTR</th>
+                  <th className="admin-num-right">
+                    <span className="sr-only" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+                      Find
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {orphans.length === 0 ? (
+                  <EmptyRow cols={4} message="Every bank credit is matched to a deposit." />
+                ) : (
+                  orphans.map((c) => (
+                    <tr key={c.id}>
+                      <td className="admin-cell-sub" style={{ color: "var(--admin-muted)" }}>
+                        {fmtDateTime(c.receivedAt)}
+                      </td>
+                      <td className="admin-num-right admin-amount">{inrFromMinor(c.amountInr)}</td>
+                      <td>
+                        <CopyText value={c.utr} label="UTR" />
+                      </td>
+                      <td className="admin-num-right">
+                        <Link className="admin-btn admin-btn--sm admin-btn--ghost" href={hrefWith(PATH, {}, { q: c.utr })}>
+                          Search deposits
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {orphanCount > orphans.length ? (
+            <div className="admin-pager">
+              <span className="info">
+                Showing the newest {orphans.length} of {orphanCount}.
+              </span>
+            </div>
+          ) : null}
+        </section>
       </>
     );
   }
@@ -244,232 +253,178 @@ export default async function DepositsPage({
     tab: tab === "pending" ? undefined : tab,
     q: q || undefined,
   };
+  const pending = tab === "pending";
 
   return (
     <>
-      {statGrid}
+      {head}
 
-      <div style={{ marginTop: 16 }}>
-        <Card
-          title={tab === "pending" ? "Deposits awaiting review" : "Deposit history"}
-          sub={
-            tab === "pending"
-              ? "Only the residue reaches here — exact and amount-only matches settle automatically."
-              : "Completed, rejected and expired deposits."
-          }
-          noBody
-        >
-          <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
-            <TabBar tab={tab} sp={sp} pendingCount={pendingCount} usdtReviewCount={usdtReviewCount} />
-          </div>
+      <section className="admin-card">
+        {tabs}
+        {banner}
 
-          {sp.ok || sp.error ? (
-            <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
-              <UsdtResultBanner ok={sp.ok} error={sp.error} />
-            </div>
-          ) : null}
+        <div className="admin-toolbar">
+          <TableControls placeholder="Search UTR, name or email" />
+          <span className="admin-result-count">{pending ? "Oldest first" : "Newest first"}</span>
+        </div>
 
-          <div style={{ padding: 12, borderBottom: "1px solid var(--admin-border)" }}>
-            <TableControls placeholder="Search UTR, user email or name…" />
-          </div>
-
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th className="admin-num-right">Amount (USD)</th>
-                  <th className="admin-num-right">Amount (INR)</th>
-                  <th>Method</th>
-                  <th>UTR</th>
-                  {tab === "pending" ? <th>Screenshot</th> : null}
-                  <th>{tab === "pending" ? "Requested" : "Resolved"}</th>
-                  {tab === "history" ? <th>Status</th> : null}
-                  <th className="admin-num-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 ? (
-                  <EmptyRow
-                    cols={tab === "pending" ? 8 : 8}
-                    message={
-                      q
-                        ? "No deposits match that search."
-                        : tab === "pending"
-                          ? "Nothing awaiting review. The queue is clear."
-                          : "No deposit history yet."
-                    }
-                  />
-                ) : (
-                  rows.map((d) => {
-                    const name = userName(d.user);
-                    return (
-                      <tr key={d.id}>
-                        <td>
-                          <div className="admin-cell-user">
-                            <Avatar name={name} size={26} />
-                            <div>
-                              <div className="admin-cell-strong">{name}</div>
-                              <div className="admin-cell-sub">{d.user.email}</div>
-                            </div>
+        <div className="admin-table-wrap">
+          <table className="admin-table admin-table--stack">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th className="admin-num-right">Amount</th>
+                <th>Method</th>
+                <th>UTR</th>
+                {pending ? <th>Proof</th> : null}
+                <th>{pending ? "Waiting" : "Resolved"}</th>
+                {pending ? null : <th>Status</th>}
+                <th className="admin-num-right">
+                  <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+                    {pending ? "Decision" : "Actions"}
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <EmptyRow
+                  cols={7}
+                  message={
+                    q
+                      ? "No deposits match that search."
+                      : pending
+                        ? "Nothing waiting. The queue is clear."
+                        : "No deposit history yet."
+                  }
+                />
+              ) : (
+                rows.map((d) => {
+                  const name = userName(d.user);
+                  const usdt = d.method === "USDT";
+                  return (
+                    <tr key={d.id}>
+                      <td>
+                        <div className="admin-cell-user">
+                          <Avatar name={name} size={32} />
+                          <div>
+                            <div className="admin-cell-strong">{name}</div>
+                            <div className="admin-cell-sub">{d.user.email}</div>
                           </div>
-                        </td>
-                        {/* USDT deposits carry a negative sentinel in amountInr and 0 in
-                            amountUsd — their real amount lives in amountUsdtMinor. */}
-                        <td className="num admin-num-right admin-cell-strong">
-                          {d.method === "USDT" ? usdtFromMinor(d.amountUsdtMinor) : usdFromMinor(d.amountUsd)}
-                          {d.method === "USDT" ? (
-                            <div className="admin-cell-sub" style={{ fontSize: 11, fontWeight: 400 }}>
-                              on {usdtNetworkLabel(d.network)}
-                            </div>
-                          ) : null}
-                        </td>
-                        <td className="num admin-num-right admin-cell-sub">
-                          {d.method === "USDT" ? "—" : inrFromMinor(d.amountInr)}
-                        </td>
-                        <td>{d.method}</td>
-                        <td className="mono admin-cell-sub" style={{ fontSize: 12 }}>
-                          {d.claimedUtr ?? "—"}
-                        </td>
-                        {tab === "pending" ? (
-                          <td>
-                            {d.screenshotUrl ? (
-                              <a
-                                href={d.screenshotUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="Open the payment screenshot"
-                                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-                              >
-                                <img
-                                  src={d.screenshotUrl}
-                                  alt=""
-                                  width={30}
-                                  height={30}
-                                  style={{ objectFit: "cover", borderRadius: 3, border: "1px solid var(--admin-border)" }}
-                                />
-                                <span className="admin-cell-sub" style={{ fontSize: 11 }}>view</span>
-                              </a>
-                            ) : (
-                              <span className="admin-cell-sub" style={{ fontSize: 11, opacity: 0.6 }}>none</span>
-                            )}
-                          </td>
-                        ) : null}
-                        <td className="admin-cell-sub">
-                          {tab === "pending" ? timeAgo(d.createdAt) : fmtDate(d.updatedAt)}
-                        </td>
-                        {tab === "history" ? (
-                          <td>
-                            <StatusPill status={d.status} />
-                          </td>
-                        ) : null}
-                        <td className="admin-num-right">
-                          {tab === "pending" ? (
-                            <div style={{ display: "inline-flex", gap: 6 }}>
-                              <form action={rejectDepositAction}>
-                                <input type="hidden" name="depositId" value={d.id} />
-                                <input type="hidden" name="reason" value="no matching credit found" />
-                                <button type="submit" className="admin-btn admin-btn--sm admin-btn--danger">
-                                  Reject
-                                </button>
-                              </form>
-                              <form action={approveDepositAction}>
-                                <input type="hidden" name="depositId" value={d.id} />
-                                <button type="submit" className="admin-btn admin-btn--sm admin-btn--pos">
-                                  Approve
-                                </button>
-                              </form>
-                            </div>
-                          ) : d.method === "USDT" && d.status === "COMPLETED" ? (
-                            <div style={{ display: "inline-flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-                              <Link
-                                href={`/admin/users?q=${encodeURIComponent(d.user.email)}`}
-                                className="admin-cell-sub"
-                                style={{ fontSize: 11, textDecoration: "underline" }}
-                              >
-                                user
-                              </Link>
-                              <form
-                                action={reverseUsdtDepositAction}
-                                style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}
-                              >
-                                <input type="hidden" name="depositId" value={d.id} />
-                                <input
-                                  type="text"
-                                  name="reason"
-                                  required
-                                  placeholder="Reason (e.g. wrong user)"
-                                  aria-label="Reason for reversing this deposit"
-                                  className="admin-input"
-                                  style={{ width: 180, fontSize: 12, padding: "4px 6px" }}
-                                />
-                                <label
-                                  className="admin-cell-sub"
-                                  style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 4 }}
-                                  title="Reclaim the credit even if the user's balance is now below it (caps at zero instead of refusing)."
-                                >
-                                  <input type="checkbox" name="force" />
-                                  Force if balance is short
-                                </label>
-                                <button
-                                  type="submit"
-                                  className="admin-btn admin-btn--sm admin-btn--danger"
-                                  title="Undo this credit and return the on-chain payment to the USDT review queue."
-                                >
-                                  Reverse &amp; requeue
-                                </button>
-                              </form>
-                            </div>
-                          ) : (
-                            <Link
-                              href={`/admin/users?q=${encodeURIComponent(d.user.email)}`}
-                              className="admin-cell-sub"
-                              style={{ fontSize: 11, textDecoration: "underline" }}
+                        </div>
+                      </td>
+                      {/* USDT deposits carry a negative sentinel in amountInr and 0 in
+                          amountUsd — their real amount lives in amountUsdtMinor. */}
+                      <td className="admin-num-right">
+                        <div className="admin-amount">
+                          {usdt ? usdtFromMinor(d.amountUsdtMinor) : inrFromMinor(d.amountInr)}
+                        </div>
+                        <div className="admin-cell-sub">
+                          {usdt ? `on ${usdtNetworkLabel(d.network)}` : usdFromMinor(d.amountUsd)}
+                        </div>
+                      </td>
+                      <td>
+                        <Tag>{d.method}</Tag>
+                      </td>
+                      <td>
+                        {d.claimedUtr ? <CopyText value={d.claimedUtr} label="UTR" /> : <span className="admin-cell-sub">—</span>}
+                      </td>
+                      {pending ? (
+                        <td>
+                          {d.screenshotUrl ? (
+                            <a
+                              href={d.screenshotUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="admin-link"
+                              style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13 }}
                             >
-                              user
-                            </Link>
+                              <img
+                                src={d.screenshotUrl}
+                                alt=""
+                                width={28}
+                                height={28}
+                                style={{ objectFit: "cover", borderRadius: 4, border: "1px solid var(--admin-border)" }}
+                              />
+                              View
+                            </a>
+                          ) : (
+                            <span className="admin-cell-sub">No screenshot</span>
                           )}
                         </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ padding: 12 }}>
-            <Pager total={total} page={page} perPage={PER_PAGE} path={PATH} sp={spForLinks} />
-          </div>
-        </Card>
-      </div>
-
-      {tab === "pending" && orphans.length > 0 ? (
-        <div style={{ marginTop: 16 }}>
-          <Card title="Orphaned bank credits" sub="Received money with no matching deposit." noBody>
-            <div className="admin-table-wrap">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Received</th>
-                    <th className="admin-num-right">Amount</th>
-                    <th>UTR</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orphans.map((c) => (
-                    <tr key={c.id}>
-                      <td className="admin-cell-sub">{fmtDateTime(c.receivedAt)}</td>
-                      <td className="num admin-num-right">{inrFromMinor(c.amountInr)}</td>
-                      <td className="mono admin-cell-sub">{c.utr}</td>
+                      ) : null}
+                      <td>
+                        {pending ? <Waiting since={d.createdAt} /> : <span className="admin-age">{fmtDate(d.updatedAt)}</span>}
+                      </td>
+                      {pending ? null : (
+                        <td>
+                          <StatusPill status={d.status} />
+                        </td>
+                      )}
+                      <td className="admin-num-right">
+                        {pending ? (
+                          <div className="admin-row-actions">
+                            <form action={rejectDepositAction}>
+                              <input type="hidden" name="depositId" value={d.id} />
+                              <input type="hidden" name="reason" value="no matching credit found" />
+                              <button type="submit" className="admin-btn admin-btn--sm admin-btn--danger">
+                                Reject
+                              </button>
+                            </form>
+                            <form action={approveDepositAction}>
+                              <input type="hidden" name="depositId" value={d.id} />
+                              <button type="submit" className="admin-btn admin-btn--sm admin-btn--pos">
+                                Approve
+                              </button>
+                            </form>
+                          </div>
+                        ) : usdt && d.status === "COMPLETED" ? (
+                          <form
+                            action={reverseUsdtDepositAction}
+                            style={{ display: "inline-flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}
+                          >
+                            <input type="hidden" name="depositId" value={d.id} />
+                            <input
+                              type="text"
+                              name="reason"
+                              required
+                              placeholder="Reason, e.g. wrong user"
+                              aria-label="Reason for reversing this deposit"
+                              className="admin-input"
+                              style={{ width: 200, height: 30, fontSize: 12.5, padding: "0 8px" }}
+                            />
+                            <label
+                              className="admin-cell-sub"
+                              style={{ display: "flex", alignItems: "center", gap: 6 }}
+                              title="Reclaim the credit even if the user's balance is now below it (caps at zero instead of refusing)."
+                            >
+                              <input type="checkbox" name="force" />
+                              Force if the balance is short
+                            </label>
+                            <button
+                              type="submit"
+                              className="admin-btn admin-btn--sm admin-btn--danger"
+                              title="Undo this credit and return the on-chain payment to the USDT review queue."
+                            >
+                              Reverse and re-queue
+                            </button>
+                          </form>
+                        ) : (
+                          <Link className="admin-link" href={`/admin/users?q=${encodeURIComponent(d.user.email)}`} style={{ fontSize: 13 }}>
+                            View user
+                          </Link>
+                        )}
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      ) : null}
+
+        <Pager total={total} page={page} perPage={PER_PAGE} path={PATH} sp={spForLinks} />
+      </section>
     </>
   );
 }

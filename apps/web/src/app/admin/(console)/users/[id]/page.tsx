@@ -1,13 +1,29 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { KycStatus, Role, listKycDocuments, prisma } from "@asm/db";
+import { KYC_DOCUMENT_KINDS, KycStatus, Role, listKycDocuments, prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
-import { Avatar, Card, StatusPill, Tag } from "../../../_components/ui";
+import { ChangeAwareForm } from "../../../_components/ChangeAwareForm";
+import { Avatar, Card, Pill, Tag } from "../../../_components/ui";
 import { Icon } from "../../../_lib/icons";
-import { fmtDate, inrFromMinor } from "../../../_lib/format";
+import { fmtDate, inrFromMinor, num } from "../../../_lib/format";
+import { CopyText } from "../../deposits/_components/CopyText";
 import { updateUserAction } from "../actions";
 
 export const dynamic = "force-dynamic";
+
+const DOC_LABEL: Record<string, string> = {
+  AADHAAR_FRONT: "Aadhaar front",
+  AADHAAR_BACK: "Aadhaar back",
+  PAN: "PAN",
+  SELFIE: "Selfie",
+};
+const ROLE_LABEL: Record<string, string> = { USER: "User", AFFILIATE: "Affiliate", ADMIN: "Admin" };
+const KYC_LABEL: Record<string, string> = {
+  NOT_STARTED: "Not started",
+  PENDING: "Pending",
+  VERIFIED: "Verified",
+  REJECTED: "Rejected",
+};
 
 function displayName(u: {
   firstName: string | null;
@@ -17,6 +33,10 @@ function displayName(u: {
 }): string {
   const full = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
   return full || u.nickname || u.email.split("@")[0]!;
+}
+
+function truncateMiddle(s: string, head = 8, tail = 6): string {
+  return s.length <= head + tail + 1 ? s : `${s.slice(0, head)}…${s.slice(-tail)}`;
 }
 
 export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,224 +56,216 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   const name = displayName(user);
   const live = user.accounts.find((a) => a.type === "LIVE");
   const demo = user.accounts.find((a) => a.type === "DEMO");
-
-  const detail = (label: string, value: React.ReactNode) => (
-    <div className="admin-set-row">
-      <div className="lbl">{label}</div>
-      <div className="num" style={{ color: "var(--admin-ink-2)" }}>
-        {value}
-      </div>
-    </div>
-  );
+  const kycPending = user.kycStatus === "PENDING";
 
   return (
     <>
-      <div style={{ marginBottom: 16 }}>
-        <Link
-          href="/admin/users"
-          className="admin-btn admin-btn--sm admin-btn--subtle"
-          style={{ textDecoration: "none" }}
-        >
-          <Icon name="arrowUp" size={14} style={{ transform: "rotate(-90deg)" }} />
-          Back to users
+      <div>
+        <Link className="admin-back" href="/admin/users">
+          <Icon name="chevronLeft" size={16} />
+          Users
         </Link>
-      </div>
-
-      <div className="admin-grid admin-cols-3">
-        <Card title="Account profile">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              paddingBottom: 16,
-              borderBottom: "1px solid var(--admin-border)",
-            }}
-          >
-            <Avatar name={name} size={56} />
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 18 }}>{name}</div>
-              <div style={{ color: "var(--admin-muted)", fontSize: 13 }}>{user.email}</div>
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <Tag accent={user.role === "ADMIN"}>{user.role}</Tag>
-                <StatusPill status={user.kycStatus} />
-                {user.emailVerified ? (
-                  <span className="admin-pill admin-pill--pos">Email verified</span>
-                ) : (
-                  <span className="admin-pill admin-pill--muted">Email unverified</span>
-                )}
-                {user.liveAccess ? (
-                  <span className="admin-pill admin-pill--pos">Live access</span>
-                ) : (
-                  <span className="admin-pill admin-pill--muted">Demo only</span>
-                )}
-                {user.vpnExempt ? (
-                  <span className="admin-pill admin-pill--pos">VPN exempt</span>
+        <div className="admin-head">
+          <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+            <Avatar name={name} size={52} />
+            <div style={{ minWidth: 0 }}>
+              <h1>{name}</h1>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 6 }}>
+                <span style={{ color: "var(--admin-muted)", fontSize: 13.5 }}>
+                  {user.email} · joined {fmtDate(user.createdAt)}
+                </span>
+                {user.role !== "USER" ? <Tag accent>{ROLE_LABEL[user.role] ?? user.role}</Tag> : null}
+                {user.status !== "ACTIVE" ? (
+                  <Pill tone={user.status === "BANNED" ? "neg" : "warn"}>
+                    {user.status.charAt(0) + user.status.slice(1).toLowerCase()}
+                  </Pill>
                 ) : null}
+                <Pill tone={user.kycStatus === "VERIFIED" ? "pos" : user.kycStatus === "PENDING" ? "warn" : user.kycStatus === "REJECTED" ? "neg" : "muted"}>
+                  KYC {KYC_LABEL[user.kycStatus]?.toLowerCase()}
+                </Pill>
+                <Pill tone={user.emailVerified ? "pos" : "muted"}>{user.emailVerified ? "Email verified" : "Email unverified"}</Pill>
+                <Pill tone={user.liveAccess ? "info" : "muted"}>{user.liveAccess ? "Live access on" : "Demo only"}</Pill>
               </div>
             </div>
           </div>
-
-          {detail("User ID", <span style={{ fontSize: 12 }}>{user.id}</span>)}
-          {detail("Country", user.country || "—")}
-          {detail("Two-factor (login)", user.twoFaForLogin ? "Enabled" : "Off")}
-          {detail("Deposits", `${user._count.deposits} total`)}
-          {detail("Withdrawals", `${user._count.withdrawals} total`)}
-          {detail("Support tickets", `${user._count.supportTickets} total`)}
-          {detail("Joined", fmtDate(user.createdAt))}
-        </Card>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Card title="Balances">
-            <div className="admin-set-row">
-              <div>
-                <div className="lbl">Live account</div>
-                <div className="desc">Real + bonus balance</div>
-              </div>
-              <div className="num" style={{ fontWeight: 600, fontSize: 15 }}>
-                {live ? inrFromMinor(live.realBalance + live.bonusBalance) : "—"}
-              </div>
-            </div>
-            <div className="admin-set-row">
-              <div>
-                <div className="lbl">Demo account</div>
-                <div className="desc">Practice balance</div>
-              </div>
-              <div className="num" style={{ fontWeight: 600, fontSize: 15 }}>
-                {demo ? inrFromMinor(demo.realBalance) : "—"}
-              </div>
-            </div>
-            <div className="admin-set-row">
-              <div className="lbl">Trades placed</div>
-              <div className="num">{live?.tradesCount ?? 0}</div>
-            </div>
-            <div className="admin-set-row">
-              <div className="lbl">Lifetime deposited</div>
-              <div className="num">{inrFromMinor(user.cumulativeDeposits)}</div>
-            </div>
-          </Card>
-
-          <Card title="Manage account" sub="Changes are recorded in the audit log.">
-            <form action={updateUserAction} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <input type="hidden" name="userId" value={user.id} />
-              <div className="admin-field">
-                <label htmlFor="role">Role</label>
-                <select id="role" name="role" className="admin-select" defaultValue={user.role}>
-                  {Object.values(Role).map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="admin-field">
-                <label htmlFor="kycStatus">KYC status</label>
-                <select
-                  id="kycStatus"
-                  name="kycStatus"
-                  className="admin-select"
-                  defaultValue={user.kycStatus}
-                >
-                  {Object.values(KycStatus).map((k) => (
-                    <option key={k} value={k}>
-                      {k.replace(/_/g, " ")}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="admin-field">
-                <label htmlFor="liveAccess">Live account access</label>
-                <select
-                  id="liveAccess"
-                  name="liveAccess"
-                  className="admin-select"
-                  defaultValue={String(user.liveAccess)}
-                >
-                  <option value="false">Disabled — demo only</option>
-                  <option value="true">Enabled — real-money live</option>
-                </select>
-              </div>
-              <div className="admin-field">
-                <label htmlFor="vpnExempt">VPN / proxy block</label>
-                <select
-                  id="vpnExempt"
-                  name="vpnExempt"
-                  className="admin-select"
-                  defaultValue={String(user.vpnExempt)}
-                >
-                  <option value="false">Enforced — VPN users are blocked</option>
-                  <option value="true">Exempt — allowed through a VPN</option>
-                </select>
-              </div>
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
-                <Link href="/admin/users" className="admin-btn admin-btn--ghost">
-                  Cancel
-                </Link>
-                <button type="submit" className="admin-btn admin-btn--primary">
-                  Save changes
-                </button>
-              </div>
-            </form>
-          </Card>
+          {kycPending ? (
+            <Link className="admin-btn admin-btn--primary" href={`/admin/kyc/${user.id}`}>
+              Review KYC
+            </Link>
+          ) : null}
         </div>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <Card
-          title="KYC review"
-          action={
-            <Link href={`/admin/kyc/${user.id}`} className="admin-btn admin-btn--sm admin-btn--ghost" style={{ textDecoration: "none" }}>
-              {user.kycStatus === "PENDING" ? "Review & decide" : "Open KYC"}
-            </Link>
-          }
-          sub={
-            user.kycSubmittedAt
-              ? `Submitted ${fmtDate(user.kycSubmittedAt)} — approve or reject with the KYC status above.`
-              : "Not submitted yet."
-          }
-        >
-          {detail("Full name", [user.firstName, user.lastName].filter(Boolean).join(" ") || "—")}
-          {detail("Date of birth", user.dateOfBirth ? user.dateOfBirth.toISOString().slice(0, 10) : "—")}
-          {detail("Aadhaar", user.aadhaar || "—")}
-          {detail("PAN", user.pan || "—")}
-          {detail("Address", user.address || "—")}
-          {kycDocs.length > 0 ? (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                gap: 12,
-                marginTop: 12,
-              }}
-            >
-              {kycDocs.map((doc) => {
-                const url = `/api/admin/kyc-documents/${doc.id}`;
-                return (
-                  <a key={doc.kind} href={url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element -- admin-gated image route */}
-                    <img
-                      src={url}
-                      alt={doc.kind}
-                      style={{
-                        width: "100%",
-                        height: 150,
-                        objectFit: "cover",
-                        borderRadius: 8,
-                        border: "1px solid var(--admin-border)",
-                      }}
-                    />
-                    <div style={{ color: "var(--admin-muted)", fontSize: 12, marginTop: 4 }}>
-                      {doc.kind.replace("_", " ").toLowerCase()} · {fmtDate(doc.updatedAt)}
-                    </div>
-                  </a>
-                );
-              })}
+      <section className="admin-card admin-strip" aria-label="Balances">
+        <div className="admin-strip__cell">
+          <span className="admin-label">Live balance</span>
+          <span className="admin-strip__val">{live ? inrFromMinor(live.realBalance + live.bonusBalance) : "—"}</span>
+          <span className="admin-cell-sub">Real + bonus</span>
+        </div>
+        <div className="admin-strip__cell">
+          <span className="admin-label">Demo balance</span>
+          <span className="admin-strip__val">{demo ? inrFromMinor(demo.realBalance) : "—"}</span>
+          <span className="admin-cell-sub">Practice</span>
+        </div>
+        <div className="admin-strip__cell">
+          <span className="admin-label">Deposited</span>
+          <span className="admin-strip__val">{inrFromMinor(user.cumulativeDeposits)}</span>
+          <span className="admin-cell-sub">
+            {user._count.deposits} deposit{user._count.deposits === 1 ? "" : "s"}, lifetime
+          </span>
+        </div>
+        <div className="admin-strip__cell">
+          <span className="admin-label">Trades</span>
+          <span className="admin-strip__val">{num(live?.tradesCount ?? 0)}</span>
+          <span className="admin-cell-sub">
+            {user._count.withdrawals} withdrawal{user._count.withdrawals === 1 ? "" : "s"}
+          </span>
+        </div>
+      </section>
+
+      <div className="admin-grid admin-cols-2" style={{ alignItems: "start" }}>
+        <Card title="Account controls" action={<span className="admin-cell-sub">Every change is audit-logged</span>}>
+          <ChangeAwareForm action={updateUserAction}>
+            <input type="hidden" name="userId" value={user.id} />
+            <div className="admin-set-row">
+              <div>
+                <label className="lbl" htmlFor="role">
+                  Role
+                </label>
+                <div className="desc">What this account can do</div>
+              </div>
+              <select id="role" name="role" className="admin-filter-select" defaultValue={user.role}>
+                {Object.values(Role).map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABEL[r] ?? r}
+                  </option>
+                ))}
+              </select>
             </div>
-          ) : (
-            <div style={{ color: "var(--admin-muted)", fontSize: 13, marginTop: 8 }}>No documents uploaded.</div>
-          )}
+            <div className="admin-set-row">
+              <div>
+                <label className="lbl" htmlFor="kycStatus">
+                  KYC status
+                </label>
+                <div className="desc">Set by the review; override only if needed</div>
+              </div>
+              <select id="kycStatus" name="kycStatus" className="admin-filter-select" defaultValue={user.kycStatus}>
+                {Object.values(KycStatus).map((k) => (
+                  <option key={k} value={k}>
+                    {KYC_LABEL[k] ?? k}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="admin-set-row">
+              <div>
+                <label className="lbl" htmlFor="liveAccess">
+                  Live account
+                </label>
+                <div className="desc">Real-money trading is allowed</div>
+              </div>
+              {/* The checkbox comes first so a checked box wins; the hidden
+                  input is the value sent when it's unchecked. */}
+              <label className="admin-switch">
+                <input id="liveAccess" type="checkbox" name="liveAccess" value="true" defaultChecked={user.liveAccess} />
+                <span className="track" />
+              </label>
+              <input type="hidden" name="liveAccess" value="false" />
+            </div>
+            <div className="admin-set-row">
+              <div>
+                <label className="lbl" htmlFor="vpnBlock">
+                  Block VPN and proxies
+                </label>
+                <div className="desc">Sign-ins through a VPN are refused</div>
+              </div>
+              <label className="admin-switch">
+                <input id="vpnBlock" type="checkbox" name="vpnExempt" value="false" defaultChecked={!user.vpnExempt} />
+                <span className="track" />
+              </label>
+              <input type="hidden" name="vpnExempt" value="true" />
+            </div>
+          </ChangeAwareForm>
+        </Card>
+
+        <Card title="Profile">
+          <dl className="admin-dl">
+            <dt>User ID</dt>
+            <dd>
+              <CopyText value={user.id} display={truncateMiddle(user.id)} label="user ID" />
+            </dd>
+            <dt>Country</dt>
+            <dd>{user.country === "IN" ? "India" : user.country || "—"}</dd>
+            <dt>Two-step sign-in</dt>
+            <dd style={{ color: user.twoFaForLogin ? undefined : "var(--admin-muted)" }}>{user.twoFaForLogin ? "On" : "Off"}</dd>
+            <dt>Deposits</dt>
+            <dd>
+              <Link className="admin-link" href={`/admin/deposits?tab=history&q=${encodeURIComponent(user.email)}`}>
+                {user._count.deposits}
+              </Link>
+            </dd>
+            <dt>Withdrawals</dt>
+            <dd>
+              <Link className="admin-link" href={`/admin/withdrawals?tab=history&q=${encodeURIComponent(user.email)}`}>
+                {user._count.withdrawals}
+              </Link>
+            </dd>
+            <dt>Support tickets</dt>
+            <dd>{user._count.supportTickets}</dd>
+          </dl>
         </Card>
       </div>
+
+      <Card
+        title="KYC submission"
+        sub={
+          user.kycSubmittedAt
+            ? `Submitted ${fmtDate(user.kycSubmittedAt)}${kycPending ? " · waiting for review" : ""}`
+            : "Not submitted yet"
+        }
+        action={
+          user.kycSubmittedAt ? (
+            <Link href={`/admin/kyc/${user.id}`} className="admin-btn admin-btn--sm admin-btn--ghost">
+              {kycPending ? "Open review" : "View submission"}
+            </Link>
+          ) : null
+        }
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 28 }}>
+          <dl className="admin-dl" style={{ flex: "1 1 300px" }}>
+            <dt>Name</dt>
+            <dd>{[user.firstName, user.lastName].filter(Boolean).join(" ") || "—"}</dd>
+            <dt>Date of birth</dt>
+            <dd>
+              {user.dateOfBirth
+                ? user.dateOfBirth.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                : "—"}
+            </dd>
+            <dt>Aadhaar</dt>
+            <dd className="mono">{user.aadhaar ? user.aadhaar.replace(/(\d{4})(?=\d)/g, "$1 ") : "—"}</dd>
+            <dt>PAN</dt>
+            <dd className="mono">{user.pan || "—"}</dd>
+            <dt>Address</dt>
+            <dd>{user.address || "—"}</dd>
+          </dl>
+          <div className="admin-thumbs" style={{ flex: "1 1 420px" }}>
+            {KYC_DOCUMENT_KINDS.map((kind) => {
+              const doc = kycDocs.find((d) => d.kind === kind);
+              return doc ? (
+                <a key={kind} href={`/api/admin/kyc-documents/${doc.id}`} target="_blank" rel="noreferrer">
+                  <img src={`/api/admin/kyc-documents/${doc.id}`} alt={DOC_LABEL[kind] ?? kind} />
+                  <span>{DOC_LABEL[kind] ?? kind}</span>
+                </a>
+              ) : (
+                <div key={kind} className="missing">
+                  <div>Not uploaded</div>
+                  <span>{DOC_LABEL[kind] ?? kind}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
     </>
   );
 }

@@ -1,15 +1,33 @@
+import Link from "next/link";
 import { prisma, type Prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
-import { Avatar, EmptyRow, Pager, SortableTh, Tag } from "../../_components/ui";
+import { PageHead, Pager } from "../../_components/ui";
 import { Icon } from "../../_lib/icons";
-import { fmtDateTime, timeAgo } from "../../_lib/format";
+import { auditSentence, auditTone } from "../../_lib/audit";
+import { fmtDateTime, hrefWith, timeAgo } from "../../_lib/format";
 
 export const dynamic = "force-dynamic";
 
-const PER_PAGE = 15;
+const PER_PAGE = 25;
 const PATH = "/admin/audit";
-const SORT_COLS = new Set(["createdAt", "action", "targetType", "actorId"]);
+
+/** "FraudFlag" → "Fraud flag". */
+function typeLabel(t: string): string {
+  return t.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^(.)(.*)$/, (_, a: string, b: string) => a + b.toLowerCase());
+}
+
+function dayLabel(d: Date): string {
+  const today = new Date();
+  const yest = new Date(Date.now() - 86400_000);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yest.toDateString()) return "Yesterday";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: d.getFullYear() === today.getFullYear() ? undefined : "numeric" });
+}
+
+function shortId(id: string): string {
+  return id.length > 14 ? id.slice(0, 13) : id;
+}
 
 export default async function AuditPage({
   searchParams,
@@ -21,8 +39,6 @@ export default async function AuditPage({
 
   const q = sp.q?.trim() ?? "";
   const targetType = sp.type && sp.type !== "all" ? sp.type : undefined;
-  const sort = sp.sort && SORT_COLS.has(sp.sort) ? sp.sort : "createdAt";
-  const dir: "asc" | "desc" = sp.dir === "asc" ? "asc" : "desc";
   const page = Math.max(1, Number(sp.page) || 1);
 
   const where: Prisma.AuditLogWhereInput = {
@@ -43,95 +59,81 @@ export default async function AuditPage({
     prisma.auditLog.count({ where }),
     prisma.auditLog.findMany({
       where,
-      orderBy: { [sort]: dir },
+      orderBy: { createdAt: "desc" },
       skip: (page - 1) * PER_PAGE,
       take: PER_PAGE,
     }),
-    prisma.auditLog.findMany({ distinct: ["targetType"], select: { targetType: true } }),
+    prisma.auditLog.groupBy({ by: ["targetType"], _count: { _all: true } }),
   ]);
+  const allCount = types.reduce((n, t) => n + t._count._all, 0);
 
-  const spForLinks: Record<string, string | undefined> = {
-    q: q || undefined,
-    type: sp.type,
-    sort,
-    dir,
-  };
+  const spForLinks: Record<string, string | undefined> = { q: q || undefined, type: sp.type };
+  const chip = (value: string | undefined, label: string, count: number) => (
+    <Link
+      key={label}
+      href={hrefWith(PATH, spForLinks, { type: value ?? null, page: null })}
+      className={`admin-chip${targetType === value ? " active" : ""}`}
+    >
+      {label}
+      <span className="n">{count}</span>
+    </Link>
+  );
+
+  // Group the page's entries under day headings.
+  const groups: { day: string; items: typeof rows }[] = [];
+  for (const r of rows) {
+    const day = dayLabel(r.createdAt);
+    const last = groups[groups.length - 1];
+    if (last && last.day === day) last.items.push(r);
+    else groups.push({ day, items: [r] });
+  }
 
   return (
-    <div className="admin-card">
-      <div className="admin-toolbar">
-        <TableControls
-          searchKey="q"
-          placeholder="Search actor, action, target…"
-          filters={[
-            {
-              param: "type",
-              label: "Target",
-              options: [
-                { value: "all", label: "All targets" },
-                ...types.map((t) => ({ value: t.targetType, label: t.targetType })),
-              ],
-            },
-          ]}
-        />
-        <div className="admin-spacer" />
-        <span className="admin-result-count">
-          {total} event{total === 1 ? "" : "s"}
-        </span>
-      </div>
+    <>
+      <PageHead title="Audit log" desc="Every change made from this console, newest first. Entries can't be edited or deleted." />
 
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <SortableTh label="Actor" colKey="actorId" path={PATH} sp={spForLinks} />
-              <SortableTh label="Action" colKey="action" path={PATH} sp={spForLinks} />
-              <SortableTh label="Target" colKey="targetType" path={PATH} sp={spForLinks} />
-              <SortableTh label="When" colKey="createdAt" path={PATH} sp={spForLinks} align="right" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <EmptyRow cols={4} message="No audit events match." />
-            ) : (
-              rows.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <div className="admin-cell-user">
-                      {r.actorId ? (
-                        <Avatar name={r.actorId} size={28} />
-                      ) : (
-                        <span className="admin-stat__ic" style={{ width: 28, height: 28 }}>
-                          <Icon name="grid" size={14} />
-                        </span>
-                      )}
-                      <span className="admin-cell-strong">{r.actorId ?? "system"}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span style={{ color: "var(--admin-muted)" }}>
-                      {r.action.replace(/[._]/g, " ")}
+      <section className="admin-card">
+        <div className="admin-toolbar">
+          <TableControls searchKey="q" placeholder="Search action or ID" />
+          {chip(undefined, "All", allCount)}
+          {types
+            .sort((a, b) => b._count._all - a._count._all)
+            .map((t) => chip(t.targetType, typeLabel(t.targetType), t._count._all))}
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="admin-empty">
+            <Icon name="scroll" size={30} />
+            <div>{q || targetType ? "No entries match." : "No audited actions yet."}</div>
+          </div>
+        ) : (
+          groups.map((g) => (
+            <div key={g.day}>
+              <div className="admin-day">{g.day}</div>
+              {g.items.map((a) => (
+                <div key={a.id} className="admin-event">
+                  <span className="admin-event__time" title={fmtDateTime(a.createdAt)}>
+                    {timeAgo(a.createdAt)}
+                  </span>
+                  <span className={`admin-feed__dot ${auditTone(a.action)}`} />
+                  <span className="admin-event__what">
+                    {auditSentence(a.action, a.after)}
+                    {a.actorId && a.actorId !== "admin-panel" ? <span className="admin-cell-sub"> · {a.actorId}</span> : null}
+                  </span>
+                  <span className="admin-event__target">
+                    <span className="admin-tag">{typeLabel(a.targetType)}</span>
+                    <span className="mono" title={a.targetId}>
+                      {shortId(a.targetId)}
                     </span>
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                      <Tag>{r.targetType}</Tag>
-                      <span className="mono admin-cell-sub" style={{ fontSize: 11 }}>
-                        {r.targetId.slice(0, 18)}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="num admin-num-right" title={fmtDateTime(r.createdAt)}>
-                    {timeAgo(r.createdAt)}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
 
-      <Pager total={total} page={page} perPage={PER_PAGE} path={PATH} sp={spForLinks} />
-    </div>
+        <Pager total={total} page={page} perPage={PER_PAGE} path={PATH} sp={spForLinks} />
+      </section>
+    </>
   );
 }

@@ -1,42 +1,25 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
-import { Archivo, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import "./admin.css";
 
-// Self-hosted by next/font (the app CSP blocks external font stylesheets).
-const archivo = Archivo({
+// The console uses the trader app's face (Hanken Grotesk, loaded by the root
+// layout as --font-hanken). Mono is only for identifiers: UTRs, UPI IDs,
+// wallet addresses, record IDs. Self-hosted by next/font (the CSP blocks
+// external font stylesheets).
+const mono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-archivo",
+  weight: ["400", "500"],
+  variable: "--font-admin-mono",
 });
-const plexSans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-plex-sans",
-});
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-mono",
-});
-
-export const ADMIN_THEME_COOKIE = "asm_admin_theme";
 
 export const metadata: Metadata = {
   title: "IndianxTrade — Admin Console",
   robots: { index: false, follow: false },
 };
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const store = await cookies();
-  const theme = store.get(ADMIN_THEME_COOKIE)?.value === "light" ? "light" : "dark";
-
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      id="admin-root"
-      className={`admin-root ${archivo.variable} ${plexSans.variable} ${plexMono.variable}`}
-      data-admin-theme={theme}
-    >
+    <div id="admin-root" className={`admin-root ${mono.variable}`}>
       {children}
     </div>
   );

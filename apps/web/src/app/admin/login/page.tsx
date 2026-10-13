@@ -7,6 +7,7 @@ import { Icon } from "../_lib/icons";
 export default function AdminLoginPage() {
   const router = useRouter();
   const [secret, setSecret] = useState("");
+  const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -26,88 +27,74 @@ export default function AdminLoginPage() {
       router.refresh();
       return;
     }
-    const data = (await res.json()) as { error?: string };
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
     setError(data.error ?? "Something went wrong. Try again.");
     setBusy(false);
   }
 
   return (
     <div className="admin-login">
-      <aside className="admin-login__aside">
-        <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative", zIndex: 1 }}>
-          <div className="admin-logo">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/indianxtrade-logo-dark.png" alt="IndianxTrade" />
+      <main className="admin-login__card">
+        <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+          <div className="admin-login__brand">
+            <img src="/brand/indianxtrade-wordmark.png" alt="IndianxTrade" />
+            <span className="admin-tagline">Admin</span>
           </div>
           <div>
-            <div className="admin-brand-name" style={{ color: "#F6EFDF" }}>
-              IndianxTrade
+            <h1>Sign in to the console</h1>
+            <p className="sub">Use the operator secret. Every action is logged.</p>
+          </div>
+        </div>
+
+        <form onSubmit={onSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label htmlFor="admin-secret" className="admin-label">
+              Operator secret
+            </label>
+            <div className="admin-secret">
+              <input
+                id="admin-secret"
+                type={show ? "text" : "password"}
+                required
+                autoFocus
+                autoComplete="current-password"
+                value={secret}
+                onChange={(e) => setSecret(e.target.value)}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? "admin-login-error" : undefined}
+              />
+              <button
+                type="button"
+                className="admin-icon-btn"
+                onClick={() => setShow((v) => !v)}
+                aria-label={show ? "Hide secret" : "Show secret"}
+                aria-pressed={show}
+              >
+                <Icon name={show ? "eyeOff" : "eye"} />
+              </button>
             </div>
-            <div className="admin-brand-sub" style={{ color: "#A99C82" }}>
-              Operations Console
-            </div>
           </div>
-        </div>
-
-        <div className="admin-login__pitch">
-          <h1>The control room behind the exchange.</h1>
-          <p>
-            Approve settlements, manage listings, and monitor liquidity across every IndianxTrade market —
-            in one operator console.
-          </p>
-        </div>
-
-        <div className="admin-login__stats">
-          <div className="admin-login__stat">
-            <div className="k">Secured</div>
-            <div className="l">Shared-secret gate</div>
-          </div>
-          <div className="admin-login__stat">
-            <div className="k">Audited</div>
-            <div className="l">Every action logged</div>
-          </div>
-          <div className="admin-login__stat">
-            <div className="k">Live</div>
-            <div className="l">Real-time data</div>
-          </div>
-        </div>
-      </aside>
-
-      <main className="admin-login__main">
-        <form className="admin-login__card" onSubmit={onSubmit} noValidate>
-          <h2>Sign in to the console</h2>
-          <p className="sub">Operator access is restricted and fully audited.</p>
 
           {error ? (
-            <div className="admin-form-error">
-              <Icon name="ban" size={16} />
+            <div className="admin-form-error" id="admin-login-error" role="alert">
+              <Icon name="alert" size={16} />
               <span>{error}</span>
             </div>
           ) : null}
 
-          <div className="admin-field">
-            <label htmlFor="admin-secret">Admin secret</label>
-            <input
-              id="admin-secret"
-              className="admin-input"
-              type="password"
-              required
-              autoFocus
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-              placeholder="••••••••••••"
-            />
-          </div>
-
-          <button type="submit" className="admin-btn admin-btn--primary admin-btn--block" disabled={busy}>
-            {busy ? "Checking…" : "Enter console"}
+          <button
+            type="submit"
+            className="admin-btn admin-btn--primary admin-btn--block admin-btn--lg"
+            disabled={busy || secret.length === 0}
+          >
+            {busy ? "Checking…" : "Sign in"}
+            {busy ? null : <Icon name="arrowRight" size={18} />}
           </button>
-
-          <div className="admin-demo-hint">
-            Access is gated by a single shared secret (<code>ADMIN_PANEL_SECRET</code>), independent
-            of any user account. Sessions last 24 hours.
-          </div>
         </form>
+
+        <p className="admin-login__foot" style={{ margin: 0 }}>
+          Sessions last 24 hours. Lost the secret? Ask the platform owner to rotate it.
+        </p>
       </main>
     </div>
   );

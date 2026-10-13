@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { prisma, type Prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
-import { EmptyRow, Pager, SortableTh, StatusPill } from "../../_components/ui";
-import { avatarColor } from "../../_lib/format";
-import { Icon } from "../../_lib/icons";
+import { EmptyRow, PageHead, Pager, SortableTh } from "../../_components/ui";
+import { hrefWith } from "../../_lib/format";
+import { PayoutStepper } from "./_components/PayoutStepper";
 import { setAssetPayoutAction, toggleAssetOpenAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,7 @@ export default async function MarketsPage({
       : {}),
   };
 
-  const [total, assets] = await Promise.all([
+  const [total, assets, openGroups] = await Promise.all([
     prisma.asset.count({ where }),
     prisma.asset.findMany({
       where,
@@ -48,7 +49,10 @@ export default async function MarketsPage({
       skip: (page - 1) * PER_PAGE,
       take: PER_PAGE,
     }),
+    prisma.asset.groupBy({ by: ["isOpen"], _count: { _all: true } }),
   ]);
+  const openCount = openGroups.find((g) => g.isOpen)?._count._all ?? 0;
+  const pausedCount = openGroups.find((g) => !g.isOpen)?._count._all ?? 0;
 
   const spForLinks: Record<string, string | undefined> = {
     q: q || undefined,
@@ -58,120 +62,97 @@ export default async function MarketsPage({
     dir,
   };
 
+  const chip = (value: string | undefined, label: string, count: number) => (
+    <Link
+      key={label}
+      href={hrefWith(PATH, spForLinks, { status: value ?? null, page: null })}
+      className={`admin-chip${status === value ? " active" : ""}`}
+    >
+      {label}
+      <span className="n">{count}</span>
+    </Link>
+  );
+
   return (
-    <div className="admin-card">
-      <div className="admin-toolbar">
-        <TableControls
-          searchKey="q"
-          placeholder="Search symbol or name…"
-          filters={[
-            {
-              param: "status",
-              label: "Status",
-              options: [
-                { value: "all", label: "All status" },
-                { value: "open", label: "Open" },
-                { value: "paused", label: "Paused" },
-              ],
-            },
-          ]}
-        />
-        <div className="admin-spacer" />
-        <span className="admin-result-count">
-          {total} market{total === 1 ? "" : "s"}
-        </span>
-      </div>
+    <>
+      <PageHead
+        title="Markets"
+        desc={`${openCount + pausedCount} markets, ${pausedCount ? `${pausedCount} paused` : "all open"}. Payout changes apply to new trades only; open positions settle on the terms they were opened at.`}
+      />
 
-      <div className="admin-banner" style={{ margin: "14px 16px 0" }}>
-        <Icon name="info" />
-        <span>
-          Payout changes apply to new trades only — every open position settles on the terms it was
-          opened at.
-        </span>
-      </div>
+      <section className="admin-card">
+        <div className="admin-toolbar">
+          <TableControls searchKey="q" placeholder="Search symbol or name" />
+          {chip(undefined, "All", openCount + pausedCount)}
+          {chip("open", "Open", openCount)}
+          {chip("paused", "Paused", pausedCount)}
+          <span className="admin-result-count">{sort === "symbol" ? "A–Z" : "Sorted"}</span>
+        </div>
 
-      <div className="admin-table-wrap" style={{ marginTop: 4 }}>
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <SortableTh label="Market" colKey="symbol" path={PATH} sp={spForLinks} />
-              <th>Type</th>
-              <SortableTh label="Payout" colKey="payoutPct" path={PATH} sp={spForLinks} align="right" />
-              <th className="admin-num-right">Ref. price</th>
-              <SortableTh label="Status" colKey="isOpen" path={PATH} sp={spForLinks} />
-              <th style={{ textAlign: "right", minWidth: 260 }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {assets.length === 0 ? (
-              <EmptyRow cols={6} message="No markets match your filters." />
-            ) : (
-              assets.map((a) => (
-                <tr key={a.id}>
-                  <td>
-                    <div className="admin-cell-user">
-                      <span
-                        className="admin-avatar"
-                        style={{ background: avatarColor(a.symbol), width: 30, height: 30, fontSize: 10 }}
-                      >
-                        {a.symbol.slice(0, 3)}
-                      </span>
-                      <div>
-                        <div className="admin-cell-strong">{a.displayName}</div>
-                        <div className="admin-cell-sub">{a.symbol}</div>
+        <div className="admin-table-wrap">
+          <table className="admin-table admin-table--stack">
+            <thead>
+              <tr>
+                <SortableTh label="Market" colKey="symbol" path={PATH} sp={spForLinks} />
+                <SortableTh label="Payout" colKey="payoutPct" path={PATH} sp={spForLinks} />
+                <th className="admin-num-right">Ref. price</th>
+                <SortableTh label="Open for trading" colKey="isOpen" path={PATH} sp={spForLinks} />
+              </tr>
+            </thead>
+            <tbody>
+              {assets.length === 0 ? (
+                <EmptyRow cols={4} message="No markets match these filters." />
+              ) : (
+                assets.map((a) => (
+                  <tr key={a.id}>
+                    <td>
+                      <div className="admin-cell-user">
+                        <span className="admin-avatar" style={{ width: 32, height: 32, fontSize: 10 }}>
+                          {a.symbol.slice(0, 3)}
+                        </span>
+                        <div>
+                          <div className="admin-cell-strong" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            {a.displayName}
+                            <span className="admin-kind">{a.kind}</span>
+                          </div>
+                          <div className="admin-cell-sub">{a.symbol}</div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td>
-                    <StatusPill status={a.kind} />
-                  </td>
-                  <td className="num admin-num-right">{a.payoutPct}%</td>
-                  <td className="num admin-num-right">{a.basePrice.toFixed(a.precision)}</td>
-                  <td>
-                    <span className={`admin-pill admin-pill--${a.isOpen ? "pos" : "warn"}`}>
-                      {a.isOpen ? "Open" : "Paused"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="admin-row-actions">
-                      <form
-                        action={setAssetPayoutAction}
-                        style={{ display: "flex", alignItems: "center", gap: 6 }}
-                      >
-                        <input type="hidden" name="assetId" value={a.id} />
-                        <input
-                          name="payoutPct"
-                          type="number"
-                          min={1}
-                          max={200}
-                          defaultValue={a.payoutPct}
-                          aria-label={`Payout percent for ${a.symbol}`}
-                          className="admin-input num"
-                          style={{ width: 68, padding: "6px 8px" }}
-                        />
-                        <button type="submit" className="admin-btn admin-btn--sm admin-btn--subtle">
-                          Set %
-                        </button>
-                      </form>
+                    </td>
+                    <td>
+                      <PayoutStepper assetId={a.id} symbol={a.symbol} initial={a.payoutPct} action={setAssetPayoutAction} />
+                    </td>
+                    <td className="admin-num-right">
+                      {a.basePrice.toLocaleString("en-US", {
+                        minimumFractionDigits: a.precision,
+                        maximumFractionDigits: a.precision,
+                      })}
+                    </td>
+                    <td>
                       <form action={toggleAssetOpenAction}>
                         <input type="hidden" name="assetId" value={a.id} />
                         <button
                           type="submit"
-                          className={`admin-btn admin-btn--sm ${a.isOpen ? "admin-btn--danger" : "admin-btn--primary"}`}
+                          role="switch"
+                          aria-checked={a.isOpen}
+                          aria-label={`${a.displayName} open for trading`}
+                          title={a.isOpen ? "Open — click to pause" : "Paused — click to open"}
+                          className={`admin-toggle${a.isOpen ? " on" : ""}`}
                         >
-                          {a.isOpen ? "Pause" : "Open"}
+                          <span className="track" />
+                          <span className="admin-toggle__txt">{a.isOpen ? "Open" : "Paused"}</span>
                         </button>
                       </form>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      <Pager total={total} page={page} perPage={PER_PAGE} path={PATH} sp={spForLinks} />
-    </div>
+        <Pager total={total} page={page} perPage={PER_PAGE} path={PATH} sp={spForLinks} />
+      </section>
+    </>
   );
 }
