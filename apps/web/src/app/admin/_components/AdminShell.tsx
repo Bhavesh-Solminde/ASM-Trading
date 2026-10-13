@@ -5,90 +5,81 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "../_lib/icons";
 
-type NavItem = { href: string; label: string; icon: IconName; badge?: number };
-type NavGroup = { label: string; items: NavItem[] };
+type NavItem = { href: string; label: string; icon: IconName; badge?: number | undefined; urgent?: boolean };
+type NavGroup = { label?: string; items: NavItem[] };
 
-const NAV = (badges: Record<string, number>): NavGroup[] => [
+// Work that needs a decision leads; reference pages follow.
+const NAV = (b: Record<string, number>): NavGroup[] => [
+  { items: [{ href: "/admin", label: "Overview", icon: "grid" }] },
   {
-    label: "Operations",
+    label: "Queues",
     items: [
-      { href: "/admin", label: "Overview", icon: "grid" },
-      { href: "/admin/users", label: "Users & Accounts", icon: "users" },
-      { href: "/admin/affiliates", label: "Affiliates", icon: "user" },
-      { href: "/admin/markets", label: "Markets", icon: "coins" },
-      {
-        href: "/admin/deposits",
-        label: "Deposits",
-        icon: "inbox",
-        ...(badges.deposits ? { badge: badges.deposits } : {}),
-      },
-      {
-        href: "/admin/withdrawals",
-        label: "Withdrawals",
-        icon: "dollar",
-        ...(badges.withdrawals ? { badge: badges.withdrawals } : {}),
-      },
-      {
-        href: "/admin/kyc",
-        label: "KYC",
-        icon: "shield",
-        ...(badges.kyc ? { badge: badges.kyc } : {}),
-      },
-      {
-        href: "/admin/fraud",
-        label: "Fraud queue",
-        icon: "shield",
-        ...(badges.fraud ? { badge: badges.fraud } : {}),
-      },
-      { href: "/admin/messages", label: "Messages", icon: "message" },
+      { href: "/admin/deposits", label: "Deposits", icon: "depositIn", badge: b.deposits },
+      { href: "/admin/withdrawals", label: "Withdrawals", icon: "payoutOut", badge: b.withdrawals },
+      { href: "/admin/kyc", label: "KYC", icon: "idCard", badge: b.kyc },
+      { href: "/admin/fraud", label: "Fraud", icon: "shieldAlert", badge: b.fraud, urgent: true },
     ],
   },
   {
-    label: "Governance",
+    label: "Manage",
+    items: [
+      { href: "/admin/users", label: "Users", icon: "users" },
+      { href: "/admin/affiliates", label: "Affiliates", icon: "broadcast" },
+      { href: "/admin/markets", label: "Markets", icon: "candles" },
+    ],
+  },
+  {
+    label: "Records",
     items: [
       { href: "/admin/house-pnl", label: "Treasury & P&L", icon: "trend" },
-      { href: "/admin/audit", label: "Audit Log", icon: "scroll" },
+      { href: "/admin/messages", label: "Bank messages", icon: "message" },
+      { href: "/admin/audit", label: "Audit log", icon: "scroll" },
       {
         href: "/admin/reconciliation",
         label: "Reconciliation",
-        icon: "check",
-        ...(badges.reconciliation ? { badge: badges.reconciliation } : {}),
+        icon: "ledger",
+        badge: b.reconciliation,
+        urgent: true,
       },
-      { href: "/admin/settings", label: "Settings", icon: "settings" },
     ],
   },
 ];
 
-const TITLES: Record<string, { title: string; crumb: string }> = {
-  "/admin": { title: "Overview", crumb: "Home / Overview" },
-  "/admin/users": { title: "Users & Accounts", crumb: "Operations / Users" },
-  "/admin/affiliates": { title: "Affiliates", crumb: "Operations / Affiliates" },
-  "/admin/affiliates/new": { title: "Create affiliate", crumb: "Operations / Affiliates / New" },
-  "/admin/markets": { title: "Markets", crumb: "Operations / Markets" },
-  "/admin/deposits": { title: "Deposits", crumb: "Operations / Deposits" },
-  "/admin/withdrawals": { title: "Withdrawals", crumb: "Operations / Withdrawals" },
-  "/admin/approvals": { title: "Approvals", crumb: "Operations / Approvals" },
-  "/admin/kyc": { title: "KYC", crumb: "Operations / KYC" },
-  "/admin/fraud": { title: "Fraud queue", crumb: "Operations / Fraud queue" },
-  "/admin/messages": { title: "Messages", crumb: "Operations / Messages" },
-  "/admin/house-pnl": { title: "Treasury & P&L", crumb: "Governance / Treasury & P&L" },
-  "/admin/audit": { title: "Audit Log", crumb: "Governance / Audit Log" },
-  "/admin/reconciliation": { title: "Reconciliation", crumb: "Governance / Reconciliation" },
-  "/admin/settings": { title: "Settings", crumb: "Governance / Settings" },
-};
-
-/** Detail pages (/admin/kyc/<id>, /admin/users/<id>) borrow their section's title. */
-function subPageTitle(pathname: string): { title: string; crumb: string } {
-  if (pathname.startsWith("/admin/kyc/")) return { title: "KYC review", crumb: "Operations / KYC / Review" };
-  const parent = Object.keys(TITLES)
-    .filter((k) => k !== "/admin" && pathname.startsWith(k + "/"))
-    .sort((a, b) => b.length - a.length)[0];
-  return parent ? TITLES[parent]! : { title: "Console", crumb: "Admin" };
-}
+// Title for the phone top bar (desktop pages carry their own heading).
+const TITLES: [string, string][] = [
+  ["/admin/deposits", "Deposits"],
+  ["/admin/withdrawals", "Withdrawals"],
+  ["/admin/kyc", "KYC"],
+  ["/admin/fraud", "Fraud"],
+  ["/admin/users", "Users"],
+  ["/admin/affiliates", "Affiliates"],
+  ["/admin/markets", "Markets"],
+  ["/admin/house-pnl", "Treasury & P&L"],
+  ["/admin/messages", "Bank messages"],
+  ["/admin/audit", "Audit log"],
+  ["/admin/reconciliation", "Reconciliation"],
+  ["/admin/settings", "Settings"],
+];
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/admin") return pathname === "/admin";
   return pathname === href || pathname.startsWith(href + "/");
+}
+
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  return (
+    <Link
+      href={item.href}
+      aria-current={isActive(pathname, item.href) ? "page" : undefined}
+      className={`admin-nav__item${isActive(pathname, item.href) ? " active" : ""}`}
+    >
+      <Icon name={item.icon} />
+      <span>{item.label}</span>
+      {item.badge ? (
+        <span className={`admin-nav__badge${item.urgent ? " red" : ""}`}>{item.badge}</span>
+      ) : null}
+    </Link>
+  );
 }
 
 export function AdminShell({
@@ -101,180 +92,122 @@ export function AdminShell({
   const pathname = usePathname();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const findRef = useRef<HTMLInputElement | null>(null);
 
-  // reflect the server-rendered theme once mounted, then own it client-side
-  useEffect(() => {
-    const root = document.getElementById("admin-root");
-    const t = root?.dataset.adminTheme === "light" ? "light" : "dark";
-    setTheme(t);
-  }, []);
-
-  // close the mobile drawer on navigation
+  // close the phone drawer on navigation
   useEffect(() => {
     setNavOpen(false);
-    setMenuOpen(false);
   }, [pathname]);
 
+  // "/" jumps to the find box, unless the operator is already typing somewhere
   useEffect(() => {
-    if (!menuOpen) return;
-    function onDown(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      e.preventDefault();
+      findRef.current?.focus();
     }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [menuOpen]);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
-  function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark";
-    const root = document.getElementById("admin-root");
-    if (root) root.dataset.adminTheme = next;
-    document.cookie = `asm_admin_theme=${next}; path=/; max-age=31536000; samesite=lax`;
-    setTheme(next);
-  }
-
-  function onSearch(e: React.KeyboardEvent<HTMLInputElement>) {
+  function onFind(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
     const v = e.currentTarget.value.trim();
     e.currentTarget.value = "";
+    e.currentTarget.blur();
     router.push(v ? `/admin/users?q=${encodeURIComponent(v)}` : "/admin/users");
   }
 
-  const meta = TITLES[pathname] ?? subPageTitle(pathname);
-  const groups = NAV(badges);
+  const title = pathname === "/admin" ? "Overview" : (TITLES.find(([p]) => isActive(pathname, p))?.[1] ?? "Admin");
 
   return (
     <div className={`admin-shell${navOpen ? " nav-open" : ""}`}>
-      {navOpen ? (
-        <div className="admin-scrim" onClick={() => setNavOpen(false)} aria-hidden="true" />
-      ) : null}
+      {navOpen ? <div className="admin-scrim" onClick={() => setNavOpen(false)} aria-hidden="true" /> : null}
 
-      <aside className="admin-sidebar">
-        <div className="admin-sidebar__brand">
-          <div className="admin-logo">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/indianxtrade-logo-dark.png" alt="IndianxTrade" />
-          </div>
-          <div>
-            <div className="admin-brand-name">IndianxTrade</div>
-            <div className="admin-brand-sub">Console</div>
-          </div>
-        </div>
+      <aside className="admin-sidebar" aria-label="Admin">
+        <Link className="admin-sidebar__brand" href="/admin">
+          <img src="/brand/indianxtrade-wordmark.png" alt="IndianxTrade" />
+          <span className="admin-tagline">Admin</span>
+        </Link>
 
-        <nav className="admin-nav">
-          {groups.map((g) => (
-            <div key={g.label}>
-              <div className="admin-nav__label">{g.label}</div>
+        <label className="admin-find">
+          <Icon name="search" size={16} />
+          <input ref={findRef} type="search" placeholder="Find a user" aria-label="Find a user by name or email" onKeyDown={onFind} />
+          <kbd className="admin-kbd" aria-hidden="true">
+            /
+          </kbd>
+        </label>
+
+        <nav className="admin-nav" aria-label="Admin sections">
+          {NAV(badges).map((g, i) => (
+            <div key={g.label ?? i} style={{ display: "contents" }}>
+              {g.label ? <div className="admin-nav__label">{g.label}</div> : null}
               {g.items.map((it) => (
-                <Link
-                  key={it.href}
-                  href={it.href}
-                  className={`admin-nav__item${isActive(pathname, it.href) ? " active" : ""}`}
-                >
-                  <Icon name={it.icon} />
-                  <span>{it.label}</span>
-                  {it.badge ? <span className="admin-nav__badge">{it.badge}</span> : null}
-                </Link>
+                <NavLink key={it.href} item={it} pathname={pathname} />
               ))}
             </div>
           ))}
         </nav>
 
-        <div className="admin-sidebar__foot" ref={menuRef} style={{ position: "relative" }}>
-          {menuOpen ? (
-            <div className="admin-menu" role="menu">
-              <Link className="admin-menu__item" href="/admin/settings">
-                <Icon name="settings" size={16} />
-                Settings
-              </Link>
-              <button className="admin-menu__item" onClick={toggleTheme}>
-                <Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
-                {theme === "dark" ? "Light mode" : "Dark mode"}
-              </button>
-              <div className="admin-menu__sep" />
-              <a className="admin-menu__item danger" href="/api/admin/logout">
-                <Icon name="logout" size={16} />
-                Sign out
-              </a>
-            </div>
-          ) : null}
-          <button
-            className="admin-userchip"
-            onClick={() => setMenuOpen((v) => !v)}
-            style={{ border: "none", background: "transparent", cursor: "pointer" }}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-          >
-            <span className="admin-avatar" style={{ background: "#8A6215" }}>
+        <div className="admin-sidebar__foot">
+          <NavLink item={{ href: "/admin/settings", label: "Settings", icon: "settings" }} pathname={pathname} />
+          <div className="admin-userchip">
+            <span className="admin-avatar" style={{ width: 30, height: 30 }}>
               OP
             </span>
-            <span style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
-              <span className="nm" style={{ display: "block" }}>
-                Operator
-              </span>
-              <span className="rl">Admin console</span>
-            </span>
-            <Icon name="settings" size={16} />
-          </button>
+            <div style={{ minWidth: 0 }}>
+              <div className="nm">Operator</div>
+              <div className="rl">Admin console</div>
+            </div>
+            <a className="admin-icon-btn" href="/api/admin/logout" aria-label="Sign out" title="Sign out" style={{ marginLeft: "auto" }}>
+              <Icon name="logout" size={17} />
+            </a>
+          </div>
         </div>
       </aside>
 
       <div className="admin-main">
         <header className="admin-topbar">
-          <button
-            className="admin-icon-btn admin-hamburger"
-            onClick={() => setNavOpen(true)}
-            aria-label="Open navigation"
-          >
+          <button className="admin-icon-btn" onClick={() => setNavOpen(true)} aria-label="Open navigation">
             <Icon name="menu" />
           </button>
-          <div className="admin-topbar__title">
-            <h1>{meta.title}</h1>
-            <span className="bc">{meta.crumb}</span>
-          </div>
-
-          <div className="admin-search">
-            <Icon name="search" size={16} />
-            <input
-              type="search"
-              placeholder="Search users…"
-              aria-label="Search users"
-              onKeyDown={onSearch}
-            />
-          </div>
-
-          <button
-            className="admin-icon-btn"
-            onClick={toggleTheme}
-            aria-label="Toggle light or dark theme"
-            title="Toggle theme"
-          >
-            <Icon name={theme === "dark" ? "sun" : "moon"} />
-          </button>
-          <Link className="admin-icon-btn" href="/admin/deposits" aria-label="Pending approvals">
-            <span style={{ position: "relative", display: "inline-grid" }}>
-              <Icon name="bell" />
-              {(badges.deposits ?? 0) + (badges.withdrawals ?? 0) ? (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: -2,
-                    right: -2,
-                    width: 7,
-                    height: 7,
-                    borderRadius: "50%",
-                    background: "var(--admin-neg)",
-                  }}
-                />
-              ) : null}
-            </span>
-          </Link>
+          <img src="/brand/indianxtrade-wordmark.png" alt="IndianxTrade" />
+          <span className="admin-topbar__title">{title}</span>
         </header>
-
         <main className="admin-view">{children}</main>
       </div>
+
+      {/* Phone only: the queues one tap away; everything else sits under More. */}
+      <nav className="admin-bottomnav" aria-label="Queues">
+        {(
+          [
+            ["/admin", "Home", "grid", 0],
+            ["/admin/deposits", "Deposits", "depositIn", badges.deposits ?? 0],
+            ["/admin/withdrawals", "Payouts", "payoutOut", badges.withdrawals ?? 0],
+            ["/admin/kyc", "KYC", "idCard", badges.kyc ?? 0],
+          ] as const
+        ).map(([href, label, icon, count]) => (
+          <Link
+            key={href}
+            href={href}
+            aria-current={isActive(pathname, href) ? "page" : undefined}
+            className={isActive(pathname, href) ? "active" : undefined}
+          >
+            <Icon name={icon} size={20} />
+            {label}
+            {count ? <span className="b">{count}</span> : null}
+          </Link>
+        ))}
+        <button type="button" onClick={() => setNavOpen(true)} aria-label="More sections">
+          <Icon name="menu" size={20} />
+          More
+          {(badges.fraud ?? 0) + (badges.reconciliation ?? 0) ? (
+            <span className="b red">{(badges.fraud ?? 0) + (badges.reconciliation ?? 0)}</span>
+          ) : null}
+        </button>
+      </nav>
     </div>
   );
 }

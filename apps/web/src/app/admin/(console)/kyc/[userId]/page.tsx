@@ -2,22 +2,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { KYC_DOCUMENT_KINDS, listKycDocuments, prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
-import { Avatar, Card, StatusPill } from "../../../_components/ui";
+import { Avatar, Card, PageHead, StatusPill } from "../../../_components/ui";
 import { Icon } from "../../../_lib/icons";
-import { fmtDate, fmtDateTime } from "../../../_lib/format";
+import { fmtDate, fmtDateTime, timeAgo } from "../../../_lib/format";
 import { approveKycAction, rejectKycAction } from "../actions";
 import { KYC_REJECT_REASONS } from "../reasons";
 
 export const dynamic = "force-dynamic";
 
 const DOC_LABEL: Record<string, string> = {
-  AADHAAR_FRONT: "Aadhaar — front",
-  AADHAAR_BACK: "Aadhaar — back",
+  AADHAAR_FRONT: "Aadhaar · front",
+  AADHAAR_BACK: "Aadhaar · back",
   PAN: "PAN card",
   SELFIE: "Selfie",
 };
 
-/** One submission: identity details, the four photos side by side, and the decision. */
+/** One submission: the four photos beside the applicant's details, and one decision panel. */
 export default async function KycReviewPage({ params }: { params: Promise<{ userId: string }> }) {
   await requireAdmin();
   const { userId } = await params;
@@ -42,112 +42,163 @@ export default async function KycReviewPage({ params }: { params: Promise<{ user
   });
   if (!user) notFound();
 
-  const [docs, decision] = await Promise.all([
+  const pending = user.kycStatus === "PENDING";
+  const [docs, decision, queue] = await Promise.all([
     listKycDocuments(user.id),
     prisma.auditLog.findFirst({
-      where: { targetType: "User", targetId: user.id, action: { in: ["kyc.approved", "kyc.rejected"] } },
+      where: { targetType: "User", targetId: user.id, action: { in: ["kyc.approved", "kyc.verified", "kyc.rejected"] } },
       orderBy: { createdAt: "desc" },
       select: { createdAt: true },
     }),
+    // Same order as the queue page, so previous / next walk it exactly.
+    pending
+      ? prisma.user.findMany({
+          where: { kycStatus: "PENDING" },
+          orderBy: [{ kycSubmittedAt: { sort: "asc", nulls: "first" } }, { updatedAt: "asc" }],
+          select: { id: true },
+        })
+      : Promise.resolve([] as { id: string }[]),
   ]);
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email.split("@")[0]!;
-  const pending = user.kycStatus === "PENDING";
-
-  const row = (label: string, value: React.ReactNode) => (
-    <div className="admin-set-row">
-      <div className="lbl">{label}</div>
-      <div className="num" style={{ color: "var(--admin-ink-2)", textAlign: "right" }}>
-        {value}
-      </div>
-    </div>
-  );
+  const pos = queue.findIndex((u) => u.id === user.id);
+  const prev = pos > 0 ? queue[pos - 1] : undefined;
+  const next = pos >= 0 && pos < queue.length - 1 ? queue[pos + 1] : undefined;
+  const overdue = !!user.kycSubmittedAt && Date.now() - user.kycSubmittedAt.getTime() >= 86400_000;
 
   return (
     <>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <Link href="/admin/kyc" className="admin-btn admin-btn--sm admin-btn--subtle" style={{ textDecoration: "none" }}>
-          <Icon name="arrowUp" size={14} style={{ transform: "rotate(-90deg)" }} />
-          Back to KYC queue
-        </Link>
-        <Link href={`/admin/users/${user.id}`} className="admin-btn admin-btn--sm admin-btn--ghost" style={{ textDecoration: "none" }}>
-          Open user account
-        </Link>
-      </div>
-
-      <div className="admin-grid admin-cols-3">
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-          <Card title="Documents" sub="Click a photo to open it full size in a new tab.">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
-              {KYC_DOCUMENT_KINDS.map((kind) => {
-                const doc = docs.find((d) => d.kind === kind);
-                return (
-                  <div key={kind}>
-                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{DOC_LABEL[kind]}</div>
-                    {doc ? (
-                      <a href={`/api/admin/kyc-documents/${doc.id}`} target="_blank" rel="noreferrer">
-                        {/* eslint-disable-next-line @next/next/no-img-element -- admin-gated image route */}
-                        <img
-                          src={`/api/admin/kyc-documents/${doc.id}`}
-                          alt={DOC_LABEL[kind]}
-                          style={{
-                            width: "100%",
-                            height: 200,
-                            objectFit: "contain",
-                            background: "var(--admin-bg-2, #0f1115)",
-                            borderRadius: 8,
-                            border: "1px solid var(--admin-border)",
-                          }}
-                        />
-                      </a>
-                    ) : (
-                      <div
-                        style={{
-                          height: 200,
-                          display: "grid",
-                          placeItems: "center",
-                          borderRadius: 8,
-                          border: "1px dashed var(--admin-border)",
-                          color: "var(--admin-muted)",
-                          fontSize: 13,
-                        }}
-                      >
-                        Not uploaded
-                      </div>
-                    )}
-                    {doc ? (
-                      <div style={{ color: "var(--admin-muted)", fontSize: 11, marginTop: 4 }}>
-                        Uploaded {fmtDateTime(doc.updatedAt)}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
+      <PageHead
+        title={name}
+        back={{ href: "/admin/kyc", label: "KYC queue" }}
+        desc={
+          <>
+            {user.email}
+            {user.kycSubmittedAt ? <> · submitted {fmtDateTime(user.kycSubmittedAt)}</> : null}
+            {pending && user.kycSubmittedAt ? (
+              <span style={{ color: overdue ? "var(--admin-warn)" : undefined }}>
+                {" "}
+                · waiting {timeAgo(user.kycSubmittedAt).replace(" ago", "")}
+              </span>
+            ) : null}
+          </>
+        }
+        actions={
+          pending && pos >= 0 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span className="admin-cell-sub" style={{ marginRight: 4 }}>
+                {pos + 1} of {queue.length}
+              </span>
+              {prev ? (
+                <Link className="admin-btn admin-btn--sm admin-btn--ghost" href={`/admin/kyc/${prev.id}`}>
+                  <Icon name="chevronLeft" size={14} />
+                  Previous
+                </Link>
+              ) : (
+                <span className="admin-btn admin-btn--sm admin-btn--ghost" aria-disabled="true" style={{ opacity: 0.4 }}>
+                  <Icon name="chevronLeft" size={14} />
+                  Previous
+                </span>
+              )}
+              {next ? (
+                <Link className="admin-btn admin-btn--sm admin-btn--ghost" href={`/admin/kyc/${next.id}`}>
+                  Next
+                  <Icon name="chevronRight" size={14} />
+                </Link>
+              ) : (
+                <span className="admin-btn admin-btn--sm admin-btn--ghost" aria-disabled="true" style={{ opacity: 0.4 }}>
+                  Next
+                  <Icon name="chevronRight" size={14} />
+                </span>
+              )}
             </div>
+          ) : (
+            <StatusPill status={user.kycStatus} />
+          )
+        }
+      />
+
+      <div className="admin-split">
+        <Card title="Documents" sub="Click a photo to open it full size" bodyClass="admin-docs">
+          {KYC_DOCUMENT_KINDS.map((kind) => {
+            const doc = docs.find((d) => d.kind === kind);
+            return (
+              <figure key={kind} className="admin-doc">
+                {doc ? (
+                  <a className="admin-doc__img" href={`/api/admin/kyc-documents/${doc.id}`} target="_blank" rel="noreferrer">
+                    <img src={`/api/admin/kyc-documents/${doc.id}`} alt={DOC_LABEL[kind]} />
+                    <span className="admin-doc__open">Open</span>
+                  </a>
+                ) : (
+                  <div className="admin-doc__img missing">Not uploaded</div>
+                )}
+                <figcaption>
+                  <b>{DOC_LABEL[kind]}</b>
+                  {doc ? <span className="admin-cell-sub">{fmtDateTime(doc.updatedAt)}</span> : null}
+                </figcaption>
+              </figure>
+            );
+          })}
+        </Card>
+
+        <div className="admin-split__side">
+          <Card
+            title="Applicant"
+            action={
+              <Link className="admin-link" href={`/admin/users/${user.id}`} style={{ fontSize: 13 }}>
+                Open account
+              </Link>
+            }
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+              <Avatar name={name} size={40} />
+              <StatusPill status={user.kycStatus} />
+            </div>
+            <dl className="admin-dl">
+              <dt>Name</dt>
+              <dd>{[user.firstName, user.lastName].filter(Boolean).join(" ") || "—"}</dd>
+              <dt>Date of birth</dt>
+              <dd>
+                {user.dateOfBirth
+                  ? user.dateOfBirth.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                  : "—"}
+              </dd>
+              <dt>Aadhaar</dt>
+              <dd className="mono">{user.aadhaar ? user.aadhaar.replace(/(\d{4})(?=\d)/g, "$1 ") : "—"}</dd>
+              <dt>PAN</dt>
+              <dd className="mono">{user.pan || "—"}</dd>
+              <dt>Address</dt>
+              <dd>{user.address || "—"}</dd>
+              <dt>Country</dt>
+              <dd>{user.country === "IN" ? "India" : user.country || "—"}</dd>
+              <dt>Account created</dt>
+              <dd>{fmtDate(user.createdAt)}</dd>
+            </dl>
           </Card>
 
           <Card
             title="Decision"
             sub={
               pending
-                ? "Approving unlocks withdrawals. Rejecting sends the user back to fix and resubmit, with the reason below."
+                ? undefined
                 : decision
-                  ? `Decided ${fmtDateTime(decision.createdAt)}.`
-                  : "This submission isn't waiting for review."
+                  ? `Decided ${fmtDateTime(decision.createdAt)}`
+                  : "This submission isn't waiting for review"
             }
           >
             {pending ? (
-              <div style={{ display: "grid", gap: 16 }}>
+              <div style={{ display: "grid", gap: 14 }}>
                 <form action={approveKycAction}>
                   <input type="hidden" name="userId" value={user.id} />
-                  <button type="submit" className="admin-btn admin-btn--pos">
-                    <Icon name="check" size={14} /> Approve — verify this user
+                  <button type="submit" className="admin-btn admin-btn--pos admin-btn--block admin-btn--lg">
+                    <Icon name="check" size={16} />
+                    Approve and verify
                   </button>
                 </form>
-
-                <form action={rejectKycAction} style={{ display: "grid", gap: 8, borderTop: "1px solid var(--admin-border)", paddingTop: 16 }}>
+                <div className="admin-or">or reject</div>
+                <form action={rejectKycAction} style={{ display: "grid", gap: 12 }}>
                   <input type="hidden" name="userId" value={user.id} />
-                  <div className="admin-field">
-                    <label htmlFor="reason">Reject reason (shown to the user)</label>
+                  <div className="admin-field" style={{ margin: 0 }}>
+                    <label htmlFor="reason">Reason shown to the user</label>
                     <select id="reason" name="reason" className="admin-select" defaultValue={KYC_REJECT_REASONS[0]}>
                       {KYC_REJECT_REASONS.map((r) => (
                         <option key={r} value={r}>
@@ -157,29 +208,30 @@ export default async function KycReviewPage({ params }: { params: Promise<{ user
                       <option value="other">Other (write below)</option>
                     </select>
                   </div>
-                  <div className="admin-field">
+                  <div className="admin-field" style={{ margin: 0 }}>
                     <label htmlFor="note">Extra detail (optional)</label>
-                    <input id="note" name="note" className="admin-input" maxLength={300} placeholder="e.g. Upload the back of your Aadhaar again" />
+                    <input
+                      id="note"
+                      name="note"
+                      className="admin-input"
+                      maxLength={300}
+                      placeholder="e.g. Upload the back of your Aadhaar again"
+                    />
                   </div>
-                  <div>
-                    <button type="submit" className="admin-btn admin-btn--danger">
-                      <Icon name="x" size={14} /> Reject
-                    </button>
-                  </div>
+                  <button type="submit" className="admin-btn admin-btn--danger admin-btn--block admin-btn--lg">
+                    Reject and ask to resubmit
+                  </button>
                 </form>
               </div>
             ) : (
-              <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
-                <div>
-                  Status: <StatusPill status={user.kycStatus} />
-                </div>
+              <div style={{ display: "grid", gap: 8, fontSize: 13.5 }}>
                 {user.kycStatus === "REJECTED" && user.kycReviewNote ? (
                   <div style={{ color: "var(--admin-muted)" }}>Reason given: {user.kycReviewNote}</div>
                 ) : null}
                 <div style={{ color: "var(--admin-muted)" }}>
-                  To change it, use the KYC status on the{" "}
-                  <Link href={`/admin/users/${user.id}`} style={{ color: "var(--admin-accent)" }}>
-                    user account
+                  To change it, set the KYC status on the{" "}
+                  <Link className="admin-link" href={`/admin/users/${user.id}`}>
+                    user&rsquo;s account
                   </Link>
                   .
                 </div>
@@ -187,27 +239,6 @@ export default async function KycReviewPage({ params }: { params: Promise<{ user
             )}
           </Card>
         </div>
-        <Card title="Applicant">
-          <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 14, borderBottom: "1px solid var(--admin-border)" }}>
-            <Avatar name={name} size={48} />
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 17 }}>{name}</div>
-              <div style={{ color: "var(--admin-muted)", fontSize: 13 }}>{user.email}</div>
-              <div style={{ marginTop: 6 }}>
-                <StatusPill status={user.kycStatus} />
-              </div>
-            </div>
-          </div>
-          {row("First name", user.firstName || "—")}
-          {row("Last name", user.lastName || "—")}
-          {row("Date of birth", user.dateOfBirth ? user.dateOfBirth.toISOString().slice(0, 10) : "—")}
-          {row("Aadhaar", user.aadhaar ? user.aadhaar.replace(/(\d{4})(?=\d)/g, "$1 ") : "—")}
-          {row("PAN", user.pan || "—")}
-          {row("Address", user.address || "—")}
-          {row("Country", user.country || "—")}
-          {row("Submitted", user.kycSubmittedAt ? fmtDateTime(user.kycSubmittedAt) : "—")}
-          {row("Account created", fmtDate(user.createdAt))}
-        </Card>
       </div>
     </>
   );

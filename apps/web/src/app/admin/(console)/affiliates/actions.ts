@@ -54,7 +54,7 @@ export async function createAffiliateAction(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/admin/affiliates");
-  redirect("/admin/affiliates");
+  redirect("/admin/affiliates?created=1");
 }
 
 /** "Reset password" row-action. Admin types a new password; it's hashed

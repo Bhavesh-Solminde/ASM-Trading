@@ -39,6 +39,24 @@ const PATHS: Record<string, string> = {
   message: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z",
   info: "M12 21a9 9 0 100-18 9 9 0 000 18M12 16v-5M12 8h.01",
   external: "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3",
+  depositIn: "M12 3v12M7 10l5 5 5-5M4 21h16",
+  payoutOut: "M12 21V9M7 14l5-5 5 5M4 3h16",
+  idCard: "M3 5h18v14H3zM8 11a2 2 0 100-4 2 2 0 000 4M5 16c.6-1.8 1.8-2.5 3-2.5s2.4.7 3 2.5M14 9h4M14 13h4",
+  shieldAlert: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM12 8v4M12 16h.01",
+  broadcast:
+    "M4.9 19.1a10 10 0 010-14.2M19.1 4.9a10 10 0 010 14.2M7.8 16.2a6 6 0 010-8.4M16.2 7.8a6 6 0 010 8.4M12 13a1 1 0 100-2 1 1 0 000 2",
+  candles: "M7 3v4M7 17v4M17 3v2M17 15v6M5 7h4v10H5zM15 5h4v10h-4z",
+  ledger: "M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11",
+  chevronLeft: "M15 18l-6-6 6-6",
+  chevronRight: "M9 6l6 6-6 6",
+  copy: "M9 9h11v11H9zM5 15H4V4h11v1",
+  alert: "M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z",
+  eye: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6",
+  eyeOff:
+    "M17.9 17.9A10 10 0 0112 19c-6 0-10-7-10-7a18 18 0 015.1-5.9M9.9 5.2A9 9 0 0112 5c6 0 10 7 10 7a18 18 0 01-2.2 3.2M14.1 14.1a3 3 0 01-4.2-4.2M2 2l20 20",
+  arrowRight: "M5 12h14M13 6l6 6-6 6",
+  plus: "M12 5v14M5 12h14",
+  more: "M5 12h.01M12 12h.01M19 12h.01",
 };
 
 export type IconName = keyof typeof PATHS | string;

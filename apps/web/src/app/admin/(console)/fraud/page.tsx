@@ -1,8 +1,9 @@
+import Link from "next/link";
 import { prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
-import { Avatar, Card, StatCard, Tag } from "../../_components/ui";
+import { Avatar, EmptyRow, PageHead, Pill, TabBar, Tag } from "../../_components/ui";
 import { Icon } from "../../_lib/icons";
-import { fmtDateTime, timeAgo } from "../../_lib/format";
+import { fmtDateTime, hrefWith, timeAgo } from "../../_lib/format";
 import {
   confirmAndBanAction,
   confirmAndFreezeAction,
@@ -11,6 +12,9 @@ import {
 } from "./actions";
 
 export const dynamic = "force-dynamic";
+
+const PATH = "/admin/fraud";
+type Tab = "open" | "frozen" | "resolved";
 
 /**
  * The evidence JSON the detector writes is untyped in Prisma (Json column), so
@@ -34,7 +38,7 @@ function readEvidence(v: unknown): EvidenceView {
 function humanGap(sec: number | null | undefined): string | null {
   if (sec == null) return null;
   if (sec < 60) return `${sec}s apart`;
-  if (sec < 3600) return `${Math.round(sec / 60)}m apart`;
+  if (sec < 3600) return `${Math.round(sec / 60)} min apart`;
   if (sec < 86_400) return `${Math.round(sec / 3600)}h apart`;
   return `${Math.round(sec / 86_400)}d apart`;
 }
@@ -43,353 +47,244 @@ function truncate(v: string, n: number): string {
   return v.length > n ? v.slice(0, n - 1) + "…" : v;
 }
 
-export default async function FraudQueuePage() {
-  await requireAdmin();
+/** A browser fingerprint string, shortened to what an operator needs to recognise it. */
+function browserLabel(ua: string): string {
+  const os = /Macintosh/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Linux/.test(ua) ? "Linux" : null;
+  return os ? `Same browser · ${os}` : `Same browser · ${truncate(ua, 24)}`;
+}
 
-  const [openFlags, resolvedFlags] = await Promise.all([
+function UserStatus({ status }: { status: string }) {
+  const tone = status === "ACTIVE" ? "pos" : status === "BANNED" ? "neg" : "warn";
+  return <Pill tone={tone}>{status.charAt(0) + status.slice(1).toLowerCase()}</Pill>;
+}
+
+export default async function FraudQueuePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  await requireAdmin();
+  const sp = await searchParams;
+  const tab: Tab = sp.tab === "frozen" || sp.tab === "resolved" ? sp.tab : "open";
+
+  const [openFlags, frozenCount, resolvedCount] = await Promise.all([
     prisma.fraudFlag.findMany({
       where: { status: "OPEN" },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            status: true,
-            signupIp: true,
-            signupUserAgent: true,
-            lastIp: true,
-            createdAt: true,
-          },
-        },
+        user: { select: { id: true, email: true, firstName: true, lastName: true, status: true } },
       },
     }),
-    prisma.fraudFlag.findMany({
-      where: { status: { in: ["DISMISSED", "CONFIRMED"] } },
-      orderBy: { reviewedAt: "desc" },
-      take: 25,
-      include: {
-        user: { select: { email: true, firstName: true, lastName: true } },
-      },
-    }),
+    prisma.user.count({ where: { status: { in: ["FROZEN", "BANNED", "FLAGGED"] } } }),
+    prisma.fraudFlag.count({ where: { status: { in: ["DISMISSED", "CONFIRMED"] } } }),
   ]);
 
-  // Batch-load every linked user across every open flag in one query, then
-  // slice per flag. Avoids N+1 when the queue is deep.
-  const linkedIds = Array.from(
-    new Set(openFlags.flatMap((f) => f.linkedUserIds)),
-  );
-  const linkedUsers = linkedIds.length
-    ? await prisma.user.findMany({
-        where: { id: { in: linkedIds } },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          status: true,
-          signupIp: true,
-          lastIp: true,
-          createdAt: true,
-        },
-      })
-    : [];
-  const usersById = new Map(linkedUsers.map((u) => [u.id, u]));
-
-  const stronglyLinked = openFlags.filter(
-    (f) => readEvidence(f.evidence).verdict === "LINKED",
-  ).length;
-  const weaklyLinked = openFlags.length - stronglyLinked;
+  const stronglyLinked = openFlags.filter((f) => readEvidence(f.evidence).verdict === "LINKED").length;
+  const tabHref = (key: Tab) => hrefWith(PATH, {}, { tab: key === "open" ? null : key });
 
   return (
     <>
-      <div
-        className="admin-grid admin-stat-grid"
-        style={{ gridTemplateColumns: "repeat(3,1fr)" }}
-      >
-        <StatCard
-          label="Open flags"
-          value={String(openFlags.length)}
-          icon="shield"
-          warn={openFlags.length > 0}
-          foot={<span>awaiting operator review</span>}
+      <PageHead
+        title="Fraud"
+        desc={
+          openFlags.length
+            ? `${openFlags.length} open flag${openFlags.length === 1 ? "" : "s"}${stronglyLinked ? ` · ${stronglyLinked} strongly linked` : ""}. Each one lists the accounts that look linked and exactly which signals matched.`
+            : "No open flags. Each flag lists the accounts that look linked and exactly which signals matched."
+        }
+      />
+
+      <section className="admin-card">
+        <TabBar
+          label="Fraud views"
+          active={tab}
+          tabs={[
+            { key: "open", label: "Open", href: tabHref("open"), count: openFlags.length },
+            { key: "frozen", label: "Frozen & banned", href: tabHref("frozen"), count: frozenCount },
+            { key: "resolved", label: "Resolved", href: tabHref("resolved"), count: resolvedCount },
+          ]}
         />
-        <StatCard
-          label="Strongly linked"
-          value={String(stronglyLinked)}
-          icon="ban"
-          warn={stronglyLinked > 0}
-          foot={<span>score ≥ 5 (multiple signals)</span>}
-        />
-        <StatCard
-          label="Weakly linked"
-          value={String(weaklyLinked)}
-          icon="activity"
-          foot={<span>score ≥ 3 (single signal)</span>}
-        />
-      </div>
+        {tab === "open" ? <OpenFlags flags={openFlags} /> : tab === "frozen" ? <FrozenUsers /> : <ResolvedFlags />}
+      </section>
 
-      <div style={{ marginTop: 16 }}>
-        <Card
-          title="Open flags"
-          sub="Each card is one detector finding. Linked accounts are shown with the exact signals that matched. Dismiss = false positive; Freeze = block trades/deposits/withdrawals but keep the balance; Ban = irreversible."
-        >
-          {openFlags.length === 0 ? (
-            <div className="admin-empty">
-              <Icon name="check" size={34} />
-              <div>Fraud queue is clear — no open flags.</div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {openFlags.map((f) => {
-                const ev = readEvidence(f.evidence);
-                const gap = humanGap(ev.minSignupGapSec);
-                const linked = f.linkedUserIds
-                  .map((uid) => usersById.get(uid))
-                  .filter((u): u is NonNullable<typeof u> => u != null);
-
-                return (
-                  <div
-                    key={f.id}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 12,
-                      padding: 16,
-                      border: "1px solid var(--admin-border)",
-                      borderRadius: "var(--admin-radius-sm)",
-                      background: "var(--admin-surface-2)",
-                    }}
-                  >
-                    {/* Header row: primary user + verdict + score */}
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 14,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <div className="admin-cell-user">
-                        <Avatar
-                          name={
-                            [f.user.firstName, f.user.lastName]
-                              .filter(Boolean)
-                              .join(" ") || f.user.email
-                          }
-                        />
-                        <div>
-                          <div className="admin-cell-strong">{f.user.email}</div>
-                          <div className="admin-cell-sub">
-                            flagged {timeAgo(f.createdAt)} · status{" "}
-                            <span className="mono">{f.user.status}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {ev.verdict ? (
-                          <Tag accent={ev.verdict === "LINKED"}>
-                            {ev.verdict === "LINKED" ? "LINKED" : "WEAKLY LINKED"}
-                          </Tag>
-                        ) : null}
-                        {typeof ev.score === "number" ? (
-                          <Tag>score {ev.score}</Tag>
-                        ) : null}
-                        <Tag>{f.kind.replace(/_/g, " ").toLowerCase()}</Tag>
-                      </div>
-                    </div>
-
-                    {/* Evidence pills */}
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {(ev.sharedIps ?? []).map((ip) => (
-                        <Tag key={`ip-${ip}`}>IP {ip}</Tag>
-                      ))}
-                      {(ev.sharedDeviceFps ?? []).map((fp) => (
-                        <Tag key={`fp-${fp}`}>fp {truncate(fp, 12)}</Tag>
-                      ))}
-                      {(ev.sharedMethods ?? []).map((m) => (
-                        <Tag key={`m-${m}`} accent>
-                          method {truncate(m, 24)}
-                        </Tag>
-                      ))}
-                      {(ev.sharedUserAgents ?? []).map((ua) => (
-                        <Tag key={`ua-${ua}`}>UA {truncate(ua, 32)}</Tag>
-                      ))}
-                      {gap ? <Tag>signed up {gap}</Tag> : null}
-                    </div>
-
-                    {/* Linked users table */}
-                    {linked.length > 0 ? (
-                      <div className="admin-table-wrap">
-                        <table className="admin-table" style={{ margin: 0 }}>
-                          <thead>
-                            <tr>
-                              <th>User</th>
-                              <th>Status</th>
-                              <th>Signup IP</th>
-                              <th>Last IP</th>
-                              <th>Signed up</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {linked.map((u) => (
-                              <tr key={u.id}>
-                                <td className="admin-cell-sub">{u.email}</td>
-                                <td>
-                                  <span className="mono">{u.status}</span>
-                                </td>
-                                <td className="mono admin-cell-sub">
-                                  {u.signupIp ?? "—"}
-                                </td>
-                                <td className="mono admin-cell-sub">
-                                  {u.lastIp ?? "—"}
-                                </td>
-                                <td className="admin-cell-sub">
-                                  {timeAgo(u.createdAt)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : null}
-
-                    {/* Action row */}
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <form
-                        action={dismissFlagAction}
-                        style={{ display: "flex", gap: 8, alignItems: "center" }}
-                      >
-                        <input type="hidden" name="flagId" value={f.id} />
-                        <input
-                          name="note"
-                          placeholder="Optional review note"
-                          aria-label="Review note"
-                          className="admin-input"
-                          style={{ minWidth: 220 }}
-                          maxLength={500}
-                        />
-                        <button
-                          type="submit"
-                          className="admin-btn admin-btn--sm"
-                          title="Mark as false positive. Users stay ACTIVE."
-                        >
-                          Dismiss
-                        </button>
-                      </form>
-                      <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                        <form action={confirmAndFreezeAction}>
-                          <input type="hidden" name="flagId" value={f.id} />
-                          <button
-                            type="submit"
-                            className="admin-btn admin-btn--sm admin-btn--danger"
-                            title="Confirm the flag and freeze every linked user."
-                          >
-                            Confirm &amp; freeze all ({linked.length})
-                          </button>
-                        </form>
-                        <form action={confirmAndBanAction}>
-                          <input type="hidden" name="flagId" value={f.id} />
-                          <button
-                            type="submit"
-                            className="admin-btn admin-btn--sm admin-btn--danger"
-                            title="Confirm the flag and ban every linked user. Irreversible from this UI."
-                          >
-                            Confirm &amp; ban all
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <div className="admin-grid admin-cols-2" style={{ marginTop: 16 }}>
-        <Card
-          title="Frozen / banned users"
-          sub="Users with a non-ACTIVE status. Unfreeze returns them to ACTIVE."
-          noBody
-        >
-          <FrozenUsersTable />
-        </Card>
-
-        <Card title="Recently resolved flags" sub="Last 25, newest first." noBody>
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Outcome</th>
-                  <th>When</th>
-                  <th>Note</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resolvedFlags.length === 0 ? (
-                  <tr>
-                    <td colSpan={4}>
-                      <div className="admin-empty">
-                        <Icon name="scroll" size={34} />
-                        <div>No flags have been resolved yet.</div>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  resolvedFlags.map((f) => (
-                    <tr key={f.id}>
-                      <td className="admin-cell-sub">{f.user.email}</td>
-                      <td>
-                        <span className="mono">{f.status}</span>
-                      </td>
-                      <td className="admin-cell-sub">
-                        {f.reviewedAt ? fmtDateTime(f.reviewedAt) : "—"}
-                      </td>
-                      <td className="admin-cell-sub" title={f.reviewNote ?? ""}>
-                        {f.reviewNote ? truncate(f.reviewNote, 60) : "—"}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
+      {tab === "open" && openFlags.length ? (
+        <p className="admin-cell-sub" style={{ margin: 0 }}>
+          Dismiss marks a false positive. Freeze blocks trading, deposits and withdrawals but keeps the balance. Ban
+          can&rsquo;t be undone here.
+        </p>
+      ) : null}
     </>
   );
 }
 
-/**
- * A tiny inline server component: enumerates every user whose status is not
- * ACTIVE and offers an unfreeze form. Kept inline (not extracted) because it
- * is only used by this page and pulls the same admin styling context.
- */
-async function FrozenUsersTable() {
+type OpenFlag = Awaited<ReturnType<typeof prisma.fraudFlag.findMany>>[number] & {
+  user: { id: string; email: string; firstName: string | null; lastName: string | null; status: string };
+};
+
+async function OpenFlags({ flags }: { flags: OpenFlag[] }) {
+  if (flags.length === 0) {
+    return (
+      <div className="admin-empty">
+        <Icon name="check" size={30} />
+        <div>The fraud queue is clear.</div>
+      </div>
+    );
+  }
+
+  // Batch-load every linked user across every open flag in one query, then
+  // slice per flag. Avoids N+1 when the queue is deep.
+  const linkedIds = Array.from(new Set(flags.flatMap((f) => f.linkedUserIds)));
+  const linkedUsers = linkedIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: linkedIds } },
+        select: { id: true, email: true, status: true, signupIp: true, lastIp: true, createdAt: true },
+      })
+    : [];
+  const usersById = new Map(linkedUsers.map((u) => [u.id, u]));
+
+  return (
+    <div>
+      {flags.map((f) => {
+        const ev = readEvidence(f.evidence);
+        const gap = humanGap(ev.minSignupGapSec);
+        const strong = ev.verdict === "LINKED";
+        const linked = f.linkedUserIds
+          .map((uid) => usersById.get(uid))
+          .filter((u): u is NonNullable<typeof u> => u != null);
+        const name = [f.user.firstName, f.user.lastName].filter(Boolean).join(" ") || f.user.email;
+
+        return (
+          <article key={f.id} className="admin-flag">
+            <div className="admin-flag__head">
+              <div className="admin-cell-user">
+                <Avatar name={name} />
+                <div>
+                  <Link className="admin-cell-strong" href={`/admin/users/${f.user.id}`} style={{ textDecoration: "none" }}>
+                    {f.user.email}
+                  </Link>
+                  <div className="admin-cell-sub">
+                    Flagged {timeAgo(f.createdAt)} · account {f.user.status.toLowerCase()}
+                  </div>
+                </div>
+              </div>
+              <Pill tone={strong ? "neg" : "warn"}>
+                {strong ? "Strongly linked" : "Weakly linked"}
+                {typeof ev.score === "number" ? ` · score ${ev.score}` : ""}
+              </Pill>
+            </div>
+
+            <div className="admin-flag__signals">
+              <span className="admin-label" style={{ marginRight: 4 }}>
+                Matched
+              </span>
+              {(ev.sharedIps ?? []).map((ip) => (
+                <Tag key={`ip-${ip}`}>
+                  Same IP <span className="mono">{ip}</span>
+                </Tag>
+              ))}
+              {(ev.sharedDeviceFps ?? []).map((fp) => (
+                <Tag key={`fp-${fp}`}>
+                  Same device <span className="mono">{truncate(fp, 14)}</span>
+                </Tag>
+              ))}
+              {(ev.sharedMethods ?? []).map((m) => (
+                <Tag key={`m-${m}`}>
+                  Same payout <span className="mono">{truncate(m, 24)}</span>
+                </Tag>
+              ))}
+              {(ev.sharedUserAgents ?? []).map((ua) => (
+                <Tag key={`ua-${ua}`}>
+                  <span title={ua}>{browserLabel(ua)}</span>
+                </Tag>
+              ))}
+              {gap ? <Tag>Signed up {gap}</Tag> : null}
+            </div>
+
+            {linked.length > 0 ? (
+              <div className="admin-flag__linked admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Linked account</th>
+                      <th>Status</th>
+                      <th>Signup IP</th>
+                      <th>Last IP</th>
+                      <th>Signed up</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {linked.map((u) => (
+                      <tr key={u.id}>
+                        <td>
+                          <Link className="admin-link" href={`/admin/users/${u.id}`} style={{ fontWeight: 500 }}>
+                            {u.email}
+                          </Link>
+                        </td>
+                        <td>
+                          <UserStatus status={u.status} />
+                        </td>
+                        <td className="mono">{u.signupIp ?? "—"}</td>
+                        <td className="mono">{u.lastIp ?? "—"}</td>
+                        <td className="admin-age">{timeAgo(u.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+
+            <div className="admin-flag__actions">
+              <form action={dismissFlagAction} style={{ display: "flex", gap: 8, alignItems: "center", flex: "1 1 320px" }}>
+                <input type="hidden" name="flagId" value={f.id} />
+                <input
+                  name="note"
+                  placeholder="Review note (optional)"
+                  aria-label="Review note"
+                  className="admin-input"
+                  style={{ maxWidth: 360, height: 34, padding: "0 10px", fontSize: 13 }}
+                  maxLength={500}
+                />
+                <button type="submit" className="admin-btn admin-btn--sm admin-btn--ghost" title="Mark as a false positive. Users stay active.">
+                  Dismiss
+                </button>
+              </form>
+              <div style={{ display: "flex", gap: 8 }}>
+                <form action={confirmAndFreezeAction}>
+                  <input type="hidden" name="flagId" value={f.id} />
+                  <button
+                    type="submit"
+                    className="admin-btn admin-btn--sm admin-btn--warn"
+                    title="Confirm the flag and freeze every linked user."
+                  >
+                    Freeze all ({linked.length})
+                  </button>
+                </form>
+                <form action={confirmAndBanAction}>
+                  <input type="hidden" name="flagId" value={f.id} />
+                  <button
+                    type="submit"
+                    className="admin-btn admin-btn--sm admin-btn--ban"
+                    title="Confirm the flag and ban every linked user. Can't be undone here."
+                  >
+                    Ban all
+                  </button>
+                </form>
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Every user whose status isn't ACTIVE, with an unfreeze action. */
+async function FrozenUsers() {
   const users = await prisma.user.findMany({
     where: { status: { in: ["FROZEN", "BANNED", "FLAGGED"] } },
     orderBy: { statusChangedAt: "desc" },
     take: 50,
-    select: {
-      id: true,
-      email: true,
-      status: true,
-      statusReason: true,
-      statusChangedAt: true,
-    },
+    select: { id: true, email: true, status: true, statusReason: true, statusChangedAt: true },
   });
 
   return (
@@ -400,40 +295,86 @@ async function FrozenUsersTable() {
             <th>User</th>
             <th>Status</th>
             <th>Reason</th>
-            <th style={{ width: 1 }}></th>
+            <th>Since</th>
+            <th className="admin-num-right">
+              <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>Unfreeze</span>
+            </th>
           </tr>
         </thead>
         <tbody>
           {users.length === 0 ? (
-            <tr>
-              <td colSpan={4}>
-                <div className="admin-empty">
-                  <Icon name="check" size={34} />
-                  <div>No users are currently frozen or banned.</div>
-                </div>
-              </td>
-            </tr>
+            <EmptyRow cols={5} message="No users are frozen or banned." />
           ) : (
             users.map((u) => (
               <tr key={u.id}>
-                <td className="admin-cell-sub">{u.email}</td>
                 <td>
-                  <span className="mono">{u.status}</span>
-                </td>
-                <td
-                  className="admin-cell-sub"
-                  title={u.statusReason ?? ""}
-                  style={{ maxWidth: 260 }}
-                >
-                  {u.statusReason ? truncate(u.statusReason, 60) : "—"}
+                  <Link className="admin-link" href={`/admin/users/${u.id}`} style={{ fontWeight: 500 }}>
+                    {u.email}
+                  </Link>
                 </td>
                 <td>
+                  <UserStatus status={u.status} />
+                </td>
+                <td style={{ maxWidth: 360, color: "var(--admin-muted)" }} title={u.statusReason ?? ""}>
+                  {u.statusReason ? truncate(u.statusReason, 80) : "—"}
+                </td>
+                <td className="admin-age">{u.statusChangedAt ? timeAgo(u.statusChangedAt) : "—"}</td>
+                <td className="admin-num-right">
                   <form action={unfreezeUserAction}>
                     <input type="hidden" name="userId" value={u.id} />
-                    <button type="submit" className="admin-btn admin-btn--sm">
+                    <button type="submit" className="admin-btn admin-btn--sm admin-btn--ghost">
                       Unfreeze
                     </button>
                   </form>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** The last 25 decided flags, newest first. */
+async function ResolvedFlags() {
+  const flags = await prisma.fraudFlag.findMany({
+    where: { status: { in: ["DISMISSED", "CONFIRMED"] } },
+    orderBy: { reviewedAt: "desc" },
+    take: 25,
+    include: { user: { select: { id: true, email: true } } },
+  });
+
+  return (
+    <div className="admin-table-wrap">
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Outcome</th>
+            <th>Decided</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {flags.length === 0 ? (
+            <EmptyRow cols={4} message="No flags have been decided yet." />
+          ) : (
+            flags.map((f) => (
+              <tr key={f.id}>
+                <td>
+                  <Link className="admin-link" href={`/admin/users/${f.user.id}`} style={{ fontWeight: 500 }}>
+                    {f.user.email}
+                  </Link>
+                </td>
+                <td>
+                  <Pill tone={f.status === "CONFIRMED" ? "neg" : "muted"}>
+                    {f.status === "CONFIRMED" ? "Confirmed" : "Dismissed"}
+                  </Pill>
+                </td>
+                <td className="admin-age">{f.reviewedAt ? fmtDateTime(f.reviewedAt) : "—"}</td>
+                <td style={{ color: "var(--admin-muted)" }} title={f.reviewNote ?? ""}>
+                  {f.reviewNote ? truncate(f.reviewNote, 80) : "—"}
                 </td>
               </tr>
             ))
