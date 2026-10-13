@@ -10,16 +10,30 @@
 .admin-root {
   /* surfaces — same steps as the trader app's ground/panel/tile/rule */
   --admin-bg: #000000;
-  --admin-surface: #0b0e13;
-  --admin-surface-2: #0f1319;
-  --admin-surface-3: #12161d;
-  --admin-border: #232a34;
-  --admin-border-soft: #161b23;
-  --admin-border-strong: #2b333f;
+  /* panels sit a clear step above the black ground so sections read as
+     sections; text greys are lifted so helper copy is easy to read */
+  --admin-surface: #0e1219;
+  --admin-surface-2: #131923;
+  --admin-surface-3: #18202b;
+  --admin-border: #263040;
+  --admin-border-soft: #1b2330;
+  --admin-border-strong: #313c4d;
   --admin-ink: #f4f7fb;
-  --admin-ink-2: #c9d4e3;
-  --admin-muted: #98a2b3;
-  --admin-faint: #7d8797;
+  --admin-ink-2: #d2dbe7;
+  --admin-muted: #a9b3c2;
+  --admin-faint: #8b96a8;
+
+  /* one colour per queue, used everywhere that queue appears */
+  --q-deposit: #3be584;
+  --q-withdraw: #ff9f45;
+  --q-kyc: #a990ff;
+  --q-fraud: #ff6b64;
+  --q-recon: #2dd4bf;
+
+  /* how long something has waited, against that queue's target */
+  --sla-ok: #3be584;
+  --sla-warn: #f5c518;
+  --sla-late: #ff6b64;
 
   /* one accent: the trader app's brand blue */
   --admin-accent: #2f81f7;
@@ -2058,5 +2072,195 @@ a.admin-doc__img:hover {
   }
   .admin-flag__actions > form {
     flex-basis: 100% !important;
+  }
+}
+
+/* ============================== QUEUE COLOURS ============================== */
+/* Each queue keeps one colour wherever it appears: overview row, sidebar,
+   phone bar. Set --q on any element and its children pick it up. */
+.q-deposit { --q: var(--q-deposit); }
+.q-withdraw { --q: var(--q-withdraw); }
+.q-kyc { --q: var(--q-kyc); }
+.q-fraud { --q: var(--q-fraud); }
+.q-recon { --q: var(--q-recon); }
+
+.admin-q {
+  grid-template-columns: 44px minmax(0, 1.5fr) 64px minmax(0, 1.2fr) 150px 84px;
+  border-left: 0;
+}
+.admin-q__ic {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: var(--q, var(--admin-muted));
+  background: color-mix(in srgb, var(--q, #fff) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--q, #fff) 26%, transparent);
+}
+.admin-q__n {
+  color: var(--q, var(--admin-ink));
+}
+.admin-q.is-clear .admin-q__ic {
+  color: var(--admin-faint);
+  background: var(--admin-surface-2);
+  border-color: var(--admin-border-soft);
+}
+.admin-q.is-clear .admin-q__n {
+  color: var(--admin-faint);
+}
+.admin-q.is-clear .admin-q__title {
+  color: var(--admin-muted);
+}
+.admin-q__clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--sla-ok);
+  font-weight: 600;
+}
+.admin-q__go {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--admin-radius-sm);
+  border: 1px solid var(--admin-border-strong);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--admin-ink);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.admin-q:hover .admin-q__go {
+  background: var(--admin-accent-fill);
+  border-color: var(--admin-accent-fill);
+  color: #fff;
+}
+.admin-q.is-clear .admin-q__go {
+  color: var(--admin-muted);
+  border-color: var(--admin-border);
+}
+.admin-q.is-clear:hover .admin-q__go {
+  background: var(--admin-surface-3);
+  border-color: var(--admin-border-strong);
+  color: var(--admin-ink);
+}
+
+/* waiting time against the queue's own clock */
+.admin-sla {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--sla);
+  background: color-mix(in srgb, var(--sla) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sla) 28%, transparent);
+}
+.admin-sla::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.admin-sla b {
+  font-weight: 700;
+}
+.admin-sla--ok { --sla: var(--sla-ok); }
+.admin-sla--warn { --sla: var(--sla-warn); }
+.admin-sla--late { --sla: var(--sla-late); }
+.admin-sla-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.admin-sla-legend .admin-sla {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+/* live refresh indicator */
+.admin-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--admin-muted);
+  white-space: nowrap;
+}
+.admin-live i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sla-ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sla-ok) 22%, transparent);
+}
+
+/* activity feed: an icon per kind of action */
+.admin-feed__ic {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--admin-accent-ink);
+  background: color-mix(in srgb, var(--admin-accent) 14%, transparent);
+}
+.admin-feed__ic.pos {
+  color: var(--sla-ok);
+  background: color-mix(in srgb, var(--sla-ok) 13%, transparent);
+}
+.admin-feed__ic.neg {
+  color: var(--sla-late);
+  background: color-mix(in srgb, var(--sla-late) 13%, transparent);
+}
+.admin-feed__ic.warn {
+  color: var(--sla-warn);
+  background: color-mix(in srgb, var(--sla-warn) 13%, transparent);
+}
+
+/* sidebar + phone bar carry the queue colours too */
+.admin-nav__item.q-deposit svg,
+.admin-nav__item.q-withdraw svg,
+.admin-nav__item.q-kyc svg,
+.admin-nav__item.q-fraud svg,
+.admin-nav__item.q-recon svg {
+  color: var(--q);
+}
+.admin-nav__item[class*="q-"] .admin-nav__badge {
+  background: color-mix(in srgb, var(--q) 16%, transparent);
+  color: var(--q);
+}
+.admin-bottomnav a[class*="q-"] svg {
+  color: var(--q);
+}
+.admin-bottomnav a[class*="q-"] .b {
+  background: var(--q);
+  color: #05070b;
+}
+
+@media (max-width: 860px) {
+  .admin-q {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+  }
+  .admin-q__go {
+    display: none;
+  }
+  .admin-sla-legend {
+    display: none;
+  }
+  /* keep the wait colour on phones: it moves under the queue's description */
+  .admin-q__age {
+    display: block;
+    grid-column: 2 / -1;
+    text-align: left;
+    margin-top: -4px;
+  }
+  .admin-q__age:empty {
+    display: none;
   }
 }
