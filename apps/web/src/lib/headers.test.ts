@@ -15,6 +15,15 @@ describe("security headers", () => {
     );
   });
 
+  it("allows Meta Pixel's script and beacon hosts, and no other third party", () => {
+    const csp = res.headers.get("Content-Security-Policy") ?? "";
+    expect(csp).toContain(
+      "script-src 'self' 'unsafe-inline' https://connect.facebook.net;",
+    );
+    expect(csp).toMatch(/img-src [^;]*https:\/\/www\.facebook\.com/);
+    expect(csp).toMatch(/connect-src [^;]*https:\/\/www\.facebook\.com/);
+  });
+
   it("disables MIME sniffing", () => {
     expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });

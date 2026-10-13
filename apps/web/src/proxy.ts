@@ -58,12 +58,14 @@ export function proxy(request: NextRequest) {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      // connect.facebook.net / www.facebook.com: Meta Pixel, mounted only on
+      // the landing, login and register pages (components/seo/MetaPixel).
+      "script-src 'self' 'unsafe-inline' https://connect.facebook.net",
       "style-src 'self' 'unsafe-inline'",
       // res.cloudinary.com hosts payment-screenshot uploads shown on the admin
       // approvals queue and the checkout preview thumbnail.
-      "img-src 'self' data: blob: https://res.cloudinary.com",
-      "connect-src 'self' ws: wss:",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://www.facebook.com",
+      "connect-src 'self' ws: wss: https://www.facebook.com https://connect.facebook.net",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

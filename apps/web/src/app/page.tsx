@@ -4,6 +4,8 @@ import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { BoldLanding } from "@/components/marketing/BoldLanding";
 import { faqs } from "@/components/marketing/marketing-data";
 import { JsonLd, faqSchema } from "@/components/seo/JsonLd";
+import { MetaPixel } from "@/components/seo/MetaPixel";
+import { metaPixelId } from "@/lib/meta-pixel";
 
 export default async function Home() {
   const store = await cookies();
@@ -14,6 +16,7 @@ export default async function Home() {
           faithful representation — eligible for rich results / AI answers. */}
       <JsonLd data={faqSchema(faqs)} />
       <BoldLanding />
+      <MetaPixel pixelId={metaPixelId()} />
     </>
   );
 }
