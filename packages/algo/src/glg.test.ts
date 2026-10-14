@@ -80,20 +80,22 @@ describe("perAssetPwinCeiling", () => {
 });
 
 describe("decideVerdictGLG — demo short-circuit", () => {
-  it("returns WIN for demo when RNG rolls under DEMO_WIN_RATE", () => {
+  // Demos never steer the chart, so they must settle on it: HONEST, whatever
+  // the RNG rolls.
+  it("returns HONEST for demo when RNG rolls low", () => {
     const out = decideVerdictGLG(
       baseInput({ isDemo: true, treasuryMinor: 5_000_000 }),
       alwaysLow,
     );
-    expect(out).toBe("WIN");
+    expect(out).toBe("HONEST");
   });
 
-  it("returns LOSS for demo when RNG rolls over DEMO_WIN_RATE", () => {
+  it("returns HONEST for demo when RNG rolls high", () => {
     const out = decideVerdictGLG(
       baseInput({ isDemo: true, treasuryMinor: 5_000_000 }),
       alwaysHigh,
     );
-    expect(out).toBe("LOSS");
+    expect(out).toBe("HONEST");
   });
 });
 
