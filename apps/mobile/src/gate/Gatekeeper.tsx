@@ -8,7 +8,7 @@ import { useSession } from "@/auth/session-store";
 import { appConfig } from "@/config";
 import { useLock } from "@/lock/lock-store";
 import { useGate } from "./gate-store";
-import { redirectFor, routeFor } from "./route-for";
+import { failsafeRoute, redirectFor, routeFor } from "./route-for";
 import { useNavReady } from "./use-nav-ready";
 
 /** Longest the native splash may cover a stuck boot before the app shows whatever it has. */
@@ -35,6 +35,8 @@ export function Gatekeeper() {
   const navReady = useNavReady();
   const [booted, setBooted] = useState(false);
   const started = useRef(false);
+  const bootedRef = useRef(false);
+  bootedRef.current = booted;
 
   useEffect(() => {
     if (started.current) return;
@@ -71,9 +73,21 @@ export function Gatekeeper() {
     if (settled) hideSplash();
   }, [settled]);
 
-  // Armed on mount, so a keystore call that never settles cannot hold the native splash up forever.
+  // Armed on mount, so a keystore call that never settles cannot hold the native splash up forever. If the
+  // boot is still unfinished the session / lock state is unknown: leave whatever a deep link mounted for the
+  // blank ground route first, so lifting the splash never shows a privileged screen unlocked.
   useEffect(() => {
-    const id = setTimeout(hideSplash, SPLASH_FAILSAFE_MS);
+    const id = setTimeout(() => {
+      const ground = failsafeRoute(bootedRef.current);
+      if (ground) {
+        try {
+          router.replace(ground);
+        } catch {
+          // Navigation not ready: no route is mounted yet either.
+        }
+      }
+      hideSplash();
+    }, SPLASH_FAILSAFE_MS);
     return () => clearTimeout(id);
   }, []);
 

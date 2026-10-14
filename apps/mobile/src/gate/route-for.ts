@@ -49,3 +49,12 @@ export function redirectFor(target: GateRoute | null, pathname: string): Exclude
   if (target === "/login") return AUTH_PATHS.includes(pathname) ? null : "/login";
   return pathname === target ? null : target;
 }
+
+/**
+ * Where to go when the splash failsafe fires. A boot that has not finished means the session / lock state is
+ * unknown, so nothing may stay visible: park on the blank ground route (which carries no data) instead of
+ * whatever a deep link mounted.
+ */
+export function failsafeRoute(booted: boolean): "/" | null {
+  return booted ? null : "/";
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redirectFor, routeFor } from "./route-for";
+import { failsafeRoute, redirectFor, routeFor } from "./route-for";
 
 const base = { ready: true, token: "t", locked: false, lockChosen: true, gate: "ok" as const, belowMin: false };
 
@@ -61,5 +61,15 @@ describe("redirectFor", () => {
   it("leaves an unlocked user on an app screen", () => {
     expect(redirectFor(null, "/history")).toBeNull();
     expect(redirectFor(null, "/trade")).toBeNull();
+  });
+});
+
+describe("failsafeRoute", () => {
+  it("sends a boot that never finished to the blank ground route before the splash is hidden", () => {
+    // Otherwise a deep-linked /trade (or any tab) would sit mounted, unlocked, under the lifted splash.
+    expect(failsafeRoute(false)).toBe("/");
+  });
+  it("leaves a finished boot to the normal redirects", () => {
+    expect(failsafeRoute(true)).toBeNull();
   });
 });

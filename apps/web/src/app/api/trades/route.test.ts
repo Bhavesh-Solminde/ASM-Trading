@@ -130,7 +130,9 @@ describe("POST /api/trades", () => {
 
   it("returns 503 when the engine is unavailable", async () => {
     engine.mockRejectedValueOnce(new EngineUnavailable("engine unreachable"));
-    expect((await post(order(), alice.cookie)).status).toBe(503);
+    const res = await post(order(), alice.cookie);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "Trading is temporarily unavailable.", code: "trading_unavailable" });
   });
 });
 
