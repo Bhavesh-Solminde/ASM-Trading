@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { rateLimited } from "@/lib/request-session";
 import { PasswordResetConfirmSchema } from "@asm/contracts";
 import { resetPasswordWithToken } from "@asm/db";
 import { childLogger } from "@asm/logger";
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
 
   if (!(await checkRateLimit(`rl:pwreset-confirm:ip:${ctx.ip}`, 10, 900))) {
     log.warn({ evt: "security.rate_limited", route: "password_reset_confirm" }, "password reset confirm throttled");
-    return NextResponse.json({ error: "Too many attempts. Wait a few minutes and try again." }, { status: 429 });
+    return rateLimited("Too many attempts. Wait a few minutes and try again.");
   }
 
   const parsed = PasswordResetConfirmSchema.safeParse(await req.json().catch(() => null));

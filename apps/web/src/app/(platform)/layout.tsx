@@ -1,9 +1,8 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { tradeViewFrom } from "@asm/contracts";
-import { countCompletedDeposits, listAccountsForActor, listTradesForActor, prisma } from "@asm/db";
 import { childLogger, newCorrelationId } from "@asm/logger";
-import { PlatformProvider } from "@/components/shell/PlatformProvider";
+import { PlatformProvider, type PlatformAsset } from "@/components/shell/PlatformProvider";
+import { loadPlatformBootstrap } from "@/lib/platform-bootstrap";
 import { PlatformShell } from "@/components/shell/PlatformShell";
 import { checkNetwork } from "@/lib/network-guard/guard";
 import { clientIpFrom } from "@/lib/request-context";
@@ -22,43 +21,19 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   });
   if (network.blocked) redirect("/network-blocked");
 
-  const [accounts, assets, user, completedDeposits] = await Promise.all([
-    listAccountsForActor(session.userId),
-    prisma.asset.findMany({
-      where: { isOpen: true },
-      orderBy: { symbol: "asc" },
-      select: { id: true, symbol: true, displayName: true, precision: true, payoutPct: true, assetClass: true },
-    }),
-    prisma.user.findUnique({ where: { id: session.userId }, select: { liveAccess: true } }),
-    countCompletedDeposits(session.userId),
-  ]);
-
-  // History is server-rendered for the default (demo) account; the provider
-  // fetches it for any other account on switch.
-  const defaultAccount = accounts.find((a) => a.type === "DEMO") ?? accounts[0];
-  const recent = defaultAccount ? await listTradesForActor(session.userId, defaultAccount.id, 50) : [];
-  const symbolById = new Map(assets.map((a) => [a.id, a.symbol]));
-  // First-visit default lands on NIFTY 50 (the platform's flagship India
-  // index); if it's ever unavailable, fall back to whatever is loaded.
-  const defaultSymbol = (assets.find((a) => a.symbol === "NIFTY50") ?? assets[0])?.symbol ?? "";
+  const boot = await loadPlatformBootstrap(session.userId);
 
   return (
     <PlatformProvider
-      assets={assets.map((a) => ({
-        symbol: a.symbol,
-        displayName: a.displayName,
-        payoutPct: a.payoutPct,
-        precision: a.precision,
-        assetClass: a.assetClass,
-      }))}
-      accounts={accounts.map((a) => ({ id: a.id, type: a.type, currency: a.currency }))}
+      assets={boot.assets as PlatformAsset[]}
+      accounts={boot.accounts.map((a) => ({ id: a.id, type: a.type, currency: a.currency }))}
       initialBalances={Object.fromEntries(
-        accounts.map((a) => [a.id, { realBalance: a.realBalance, bonusBalance: a.bonusBalance }]),
+        boot.accounts.map((a) => [a.id, { realBalance: a.realBalance, bonusBalance: a.bonusBalance }]),
       )}
-      initialTrades={recent.map((t) => tradeViewFrom(t, symbolById.get(t.assetId) ?? "UNKNOWN"))}
-      defaultSymbol={defaultSymbol}
-      liveAccess={user?.liveAccess ?? false}
-      completedDeposits={completedDeposits}
+      initialTrades={boot.recentTrades}
+      defaultSymbol={boot.defaultSymbol}
+      liveAccess={boot.liveAccess}
+      completedDeposits={boot.completedDeposits}
     >
       <PlatformShell>{children}</PlatformShell>
     </PlatformProvider>

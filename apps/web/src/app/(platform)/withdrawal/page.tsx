@@ -8,11 +8,12 @@ import {
   loadProfile,
   withdrawableBalance,
 } from "@asm/db";
-import { PAYOUT_METHOD_LABEL, isUsdtNetwork, payoutDestinationLabel, type PayoutMethod } from "@asm/contracts";
+import { PAYOUT_METHOD_LABEL, payoutDestinationLabel } from "@asm/contracts";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
 import { PageFrame } from "@/components/shell/PageFrame";
-import { WithdrawForm, type LastPayouts } from "./WithdrawForm";
+import { WithdrawForm } from "./WithdrawForm";
+import { lastPayoutsFrom } from "@/lib/withdrawal-prefill";
 import { HeldWithdrawalCard } from "./HeldWithdrawalCard";
 
 export const dynamic = "force-dynamic";
@@ -36,20 +37,7 @@ export default async function WithdrawalPage() {
   // Prefill each payout method with the details the user last withdrew to
   // (rows are newest-first, so the first match per method wins). The method of
   // the newest complete row is the one preselected on the "where to" step.
-  const lastPayouts: LastPayouts = {};
-  let initialMethod: PayoutMethod | null = null;
-  for (const w of recent) {
-    if (w.method === "BANK" && !lastPayouts.BANK && w.accountHolder && w.accountNumber && w.ifsc) {
-      lastPayouts.BANK = { accountHolder: w.accountHolder, accountNumber: w.accountNumber, ifsc: w.ifsc };
-      initialMethod ??= "BANK";
-    } else if (w.method === "UPI" && !lastPayouts.UPI && w.upiId) {
-      lastPayouts.UPI = { upiId: w.upiId };
-      initialMethod ??= "UPI";
-    } else if (w.method === "USDT" && !lastPayouts.USDT && w.usdtAddress && isUsdtNetwork(w.usdtNetwork)) {
-      lastPayouts.USDT = { usdtNetwork: w.usdtNetwork, usdtAddress: w.usdtAddress };
-      initialMethod ??= "USDT";
-    }
-  }
+  const { lastPayouts, initialMethod } = lastPayoutsFrom(recent);
   const kycName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
 
   const summary = (

@@ -2,13 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { UpdateProfileSchema } from "@asm/contracts";
 import { KycLocked, loadProfile, updateProfile } from "@asm/db";
 import { childLogger } from "@asm/logger";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
+import { getSession, unauthenticated } from "@/lib/request-session";
 
 export async function GET(req: NextRequest) {
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
   return NextResponse.json({ profile: await loadProfile(session.userId) });
 }
@@ -17,9 +17,9 @@ export async function PATCH(req: NextRequest) {
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
 
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   const parsed = UpdateProfileSchema.safeParse(await req.json().catch(() => null));

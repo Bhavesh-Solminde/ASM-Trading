@@ -1,6 +1,7 @@
 /**
  * Client-safe mirror of the deposit bonus tiers in @asm/db (repositories/
- * deposit.ts — the server is what actually grants them). bonus.test.ts fails
+ * deposit.ts — the server is what actually grants them).
+ * apps/web/src/lib/client-core-mirrors.test.ts fails
  * if the two drift apart.
  */
 export const BONUS_TIERS = [100, 100, 50, 50] as const;

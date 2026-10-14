@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { USDT_NETWORK_INFO, type UsdtNetwork } from "@asm/contracts";
 import { SummaryCard } from "@/components/payments/SummaryCard";
-import { bonusMinor, formatInr, formatMinorCompact, inrToUsdt } from "./limits";
+import { bonusMinor, formatInr, formatMinorCompact, inrToUsdt } from "@asm/client-core";
 
 const RECOMMENDED: UsdtNetwork = "bsc";
 

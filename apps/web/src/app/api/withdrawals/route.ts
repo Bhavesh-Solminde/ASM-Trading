@@ -10,20 +10,20 @@ import {
   withdrawableBalance,
 } from "@asm/db";
 import { childLogger } from "@asm/logger";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { displayName, formatDateLabel, payToLabel, personName, shortRef, type CertificateData } from "@asm/mail/templates";
 import { sendWithdrawalRequestedEmail } from "@asm/mail";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
+import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
 
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   if ((await checkNetwork({ ip: ctx.ip, route: "withdrawals", log, userId: session.userId })).blocked) {
@@ -34,10 +34,7 @@ export async function POST(req: NextRequest) {
   // in bursts. Keeps a bot from flooding the admin payout queue.
   if (!(await checkRateLimit(`rl:withdraw:${session.userId}`, 10, 300))) {
     log.warn({ evt: "security.rate_limited", route: "withdrawals" }, "withdrawal throttled");
-    return NextResponse.json(
-      { error: "Too many withdrawal attempts. Wait a few minutes." },
-      { status: 429 },
-    );
+    return rateLimited("Too many withdrawal attempts. Wait a few minutes.");
   }
 
   const parsed = CreateWithdrawalSchema.safeParse(await req.json().catch(() => null));
@@ -117,9 +114,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   const accountId = req.nextUrl.searchParams.get("accountId");

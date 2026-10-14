@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { rateLimited } from "@/lib/request-session";
 import { childLogger } from "@asm/logger";
 import {
   ADMIN_SESSION_COOKIE,
@@ -16,10 +17,7 @@ export async function POST(req: NextRequest) {
   const okIp = await checkRateLimit(`rl:admin_login:ip:${ctx.ip}`, 10, 300);
   if (!okIp) {
     log.warn({ evt: "security.rate_limited", route: "admin_login" }, "admin login throttled");
-    return NextResponse.json(
-      { error: "Too many attempts. Wait five minutes and try again." },
-      { status: 429 },
-    );
+    return rateLimited("Too many attempts. Wait five minutes and try again.");
   }
 
   const body: unknown = await req.json().catch(() => null);

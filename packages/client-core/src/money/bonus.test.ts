@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { BONUS_TIERS as SERVER_TIERS } from "@asm/db";
 import { BONUS_TIERS, bonusPercentForDeposit, ordinal } from "./bonus";
 
-describe("bonus tiers mirror", () => {
-  it("matches the tiers the server grants", () => {
-    expect([...BONUS_TIERS]).toEqual([...SERVER_TIERS]);
-  });
-
+describe("bonus tiers", () => {
   it("gives 0% after the last tier", () => {
     expect(bonusPercentForDeposit(BONUS_TIERS.length + 1)).toBe(0);
   });

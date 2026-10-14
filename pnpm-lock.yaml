@@ -161,6 +161,9 @@ importers:
       '@asm/algo':
         specifier: workspace:*
         version: link:../../packages/algo
+      '@asm/client-core':
+        specifier: workspace:*
+        version: link:../../packages/client-core
       '@asm/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -194,6 +197,9 @@ importers:
       ioredis:
         specifier: 5.9.0
         version: 5.9.0
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
       lightweight-charts:
         specifier: 5.2.1
         version: 5.2.1
@@ -234,6 +240,12 @@ importers:
       '@asm/trading':
         specifier: workspace:*
         version: link:../trading
+
+  packages/client-core:
+    dependencies:
+      '@asm/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/config:
     dependencies:
@@ -3572,6 +3584,9 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
+
+  jose@6.2.12:
+    resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -8779,6 +8794,8 @@ snapshots:
   jimp-compact@0.16.1: {}
 
   jiti@2.7.0: {}
+
+  jose@6.2.12: {}
 
   js-tokens@4.0.0: {}
 

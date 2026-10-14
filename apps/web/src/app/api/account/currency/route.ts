@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { convertAccountCurrency, CurrencyChangeRefused } from "@asm/db";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { getSession, unauthenticated } from "@/lib/request-session";
 
 const CURRENCIES = new Set(["INR", "USD"]);
 
 export async function POST(req: NextRequest) {
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   const body = (await req.json().catch(() => null)) as { accountId?: unknown; currency?: unknown } | null;

@@ -2,12 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { ClientMessage, ServerMessage, Timeframe } from "@asm/contracts";
-import {
-  applyChartMessage,
-  canLoadOlder,
-  initialChartState,
-  type ChartState,
-} from "@/components/chart/engine-state";
+import { applyChartMessage, canLoadOlder, initialChartState, type ChartState } from "@asm/client-core";
 import { applyQuoteMessage, initialQuotes, type Quotes } from "./quotes";
 
 /** How many candles to pull per scroll-left backfill (server clamps to ≤500). */

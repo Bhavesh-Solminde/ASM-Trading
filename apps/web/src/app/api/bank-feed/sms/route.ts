@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
+import { rateLimited } from "@/lib/request-session";
 import {
   createBankCreditIfNew,
   createRelayMessage,
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
       { evt: "security.rate_limited", route: "bank_feed_sms" },
       "bank feed sms ingestion throttled",
     );
-    return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+    return rateLimited("Too many requests.");
   }
 
   if (!authorised(req.headers.get("authorization"))) {

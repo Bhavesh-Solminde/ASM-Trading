@@ -1,8 +1,6 @@
-import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { bonusPercentForDeposit, findOrCreateGoogleUser, findUserByEmail, updateUserLastSeen } from "@asm/db";
+import { findUserByEmail } from "@asm/db";
 import { childLogger } from "@asm/logger";
-import { sendWelcomeEmail } from "@asm/mail";
 import {
   GOOGLE_OAUTH_COOKIE,
   appOrigin,
@@ -10,11 +8,10 @@ import {
   googleRedirectUri,
 } from "@/lib/google-oauth";
 import { checkNetwork } from "@/lib/network-guard/guard";
-import { hashPassword } from "@/lib/password";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, createSession } from "@/lib/session";
-import { provisionNewUser } from "@/lib/signup";
+import { signInWithGoogleProfile } from "@/lib/google-account";
 
 /**
  * Google sends the browser back here with `code` + `state`. The state must
@@ -71,33 +68,9 @@ export async function GET(req: NextRequest) {
 
   let result;
   try {
-    result = await findOrCreateGoogleUser({
-      sub: profile.sub,
-      email: profile.email,
-      firstName: profile.givenName,
-      lastName: profile.familyName,
-      // Random and never shown: a Google-created account has no usable password.
-      passwordHash: await hashPassword(randomBytes(32).toString("base64url")),
-    });
+    result = await signInWithGoogleProfile(profile, ctx, log);
   } catch (err) {
     return fail(err instanceof Error ? err.name : "link_failed");
-  }
-
-  if (result.created) {
-    await provisionNewUser(result.userId, ctx);
-    log.info({ evt: "auth.register", userId: result.userId, via: "google" }, "account created");
-    void sendWelcomeEmail({
-      to: profile.email,
-      cid: ctx.cid,
-      userId: result.userId,
-      name: profile.givenName || null,
-      firstDepositBonusPercent: bonusPercentForDeposit(1),
-    });
-  } else {
-    updateUserLastSeen({ userId: result.userId, ip: ctx.ip, userAgent: ctx.userAgent }).catch(() => {
-      /* best-effort, as on the password login route */
-    });
-    log.info({ evt: "auth.login", userId: result.userId, via: "google" }, "login succeeded");
   }
 
   const token = await createSession(result.userId, { ip: ctx.ip, userAgent: ctx.userAgent });

@@ -31,6 +31,12 @@ enum KycStatus {
   REJECTED
 }
 
+/// Which kind of client a session was issued to; picks its lifetime.
+enum SessionClient {
+  WEB
+  APP
+}
+
 /// Account lifecycle from a compliance/anti-fraud standpoint. Kept separate
 /// from KycStatus so a KYC-verified user can still be frozen for abuse, and
 /// a fresh user can be flagged before KYC even starts. Order matters: any
@@ -204,6 +210,8 @@ model User {
   kycReviewNote      String?
   // Google account id ("sub") once the user has signed in with Google.
   googleSub          String?    @unique
+  // UI + push language: "en" | "hi" (validated by zod, not a DB enum).
+  locale             String     @default("en")
   cumulativeDeposits BigInt     @default(0)
   isBot              Boolean    @default(false)
   // Compliance/anti-fraud status. A non-ACTIVE status blocks new trades,
@@ -251,6 +259,8 @@ model Session {
   lastUsedAt DateTime @default(now())
   ipAddress  String?
   userAgent  String?
+  client     SessionClient @default(WEB)
+  deviceName String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

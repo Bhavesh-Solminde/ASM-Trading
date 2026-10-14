@@ -16,15 +16,13 @@ import {
 } from "@/components/shell/PlatformProvider";
 import { changePct, tickDirection } from "@/components/shell/quotes";
 import { splitAssetName } from "@/lib/asset-name";
-import { formatMinor } from "@/lib/format-money";
-import { clockTime } from "@/lib/format-time";
+import { formatMinor, clockTime, grossReturnMinor } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useNowSec } from "@/lib/use-now";
 import { MarketSelector } from "./MarketSelector";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
 import { AssetIcon } from "./AssetIcon";
-import { grossReturnMinor } from "./pnl-display";
 import { PositionStrip } from "./PositionStrip";
 
 const NO_TRADES: TradeView[] = [];

@@ -17,6 +17,13 @@ export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
  */
 export const SESSION_REFRESH_THRESHOLD_MS = 1000 * 60 * 60 * 24 * 6;
 
+/**
+ * The native app keeps a longer sliding session (it is protected on the device
+ * by the app lock). Rolled forward at most once a day.
+ */
+export const APP_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+export const APP_SESSION_REFRESH_THRESHOLD_MS = 1000 * 60 * 60 * 24 * 29;
+
 export const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
