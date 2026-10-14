@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { create } from "zustand";
 import { color, radius, space } from "@/theme/tokens";
+import { OFFLINE_BANNER_HEIGHT, useOfflineVisible } from "./OfflineBanner";
 
 type ToastItem = { id: number; message: string; tone: "neutral" | "up" | "down" };
 
@@ -18,6 +20,11 @@ const useToasts = create<{ items: ToastItem[]; push: (t: Omit<ToastItem, "id">) 
 
 export function toast(message: string, tone: ToastItem["tone"] = "neutral") {
   useToasts.getState().push({ message, tone });
+}
+
+/** Drops every queued toast: one user's results must not show on the next screen after sign-out. */
+export function clearToasts() {
+  useToasts.setState({ items: [] });
 }
 
 function ToastRow({ item }: { item: ToastItem }) {
@@ -38,8 +45,11 @@ function ToastRow({ item }: { item: ToastItem }) {
 
 export function ToastHost() {
   const items = useToasts((s) => s.items);
+  const insets = useSafeAreaInsets();
+  // Below the status bar, and below the offline strip when it shows.
+  const top = insets.top + space(2) + (useOfflineVisible() ? OFFLINE_BANNER_HEIGHT : 0);
   return (
-    <View pointerEvents="none" accessibilityLiveRegion="polite" style={styles.host}>
+    <View pointerEvents="none" accessibilityLiveRegion="polite" style={[styles.host, { top }]}>
       {items.map((i) => (
         <ToastRow key={i.id} item={i} />
       ))}
@@ -48,7 +58,7 @@ export function ToastHost() {
 }
 
 const styles = StyleSheet.create({
-  host: { position: "absolute", top: 56, left: space(4), right: space(4), gap: space(2) },
+  host: { position: "absolute", left: space(4), right: space(4), gap: space(2) },
   toast: { backgroundColor: color.panel, borderWidth: 1, borderRadius: radius.md, padding: space(3) },
   text: { color: color.ink, fontSize: 14 },
 });

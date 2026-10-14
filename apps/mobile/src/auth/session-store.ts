@@ -4,7 +4,8 @@ import { api, configureApi } from "@/api/client";
 import { queryClient } from "@/api/queries";
 import { clearResume } from "@/cache/resume-cache";
 import { useSocket } from "@/socket/socket-store";
-import { toast } from "@/ui/Toast";
+import { clearToasts, toast } from "@/ui/Toast";
+import { signOutOfGoogle } from "./google";
 
 const KEY = "ixt.session";
 
@@ -48,6 +49,10 @@ export const useSession = create<SessionState>((set, get) => ({
         useSocket.getState().reset();
         // Nor may it see this user's cached balances on the next cold start.
         clearResume();
+        // Nor a "Won ₹…" toast still queued for this user.
+        clearToasts();
+        // On a shared phone the next "Continue with Google" must ask which account.
+        signOutOfGoogle();
         set({ token: null });
       } finally {
         signingOut = null;

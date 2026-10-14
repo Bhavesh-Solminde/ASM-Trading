@@ -6,13 +6,21 @@ import { useSocket } from "@/socket/socket-store";
 import { color, space } from "@/theme/tokens";
 import { shouldShowOffline } from "./offline";
 
+/** Height of the strip, so content and toasts can make room for it. */
+export const OFFLINE_BANNER_HEIGHT = 28;
+
+/** Whether the "No connection" strip is showing. */
+export function useOfflineVisible(): boolean {
+  const failures = useSocket((s) => s.consecutiveFailures);
+  const { isConnected } = useNetInfo();
+  return shouldShowOffline(failures, isConnected);
+}
+
 /** "No connection" strip under the status bar: shown when NetInfo reports offline or the engine socket has failed twice in a row. */
 export function OfflineBanner() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const failures = useSocket((s) => s.consecutiveFailures);
-  const { isConnected } = useNetInfo();
-  if (!shouldShowOffline(failures, isConnected)) return null;
+  if (!useOfflineVisible()) return null;
   return (
     <View
       pointerEvents="none"
@@ -30,7 +38,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    minHeight: 28,
+    height: OFFLINE_BANNER_HEIGHT,
     paddingHorizontal: space(4),
     paddingVertical: space(1),
     alignItems: "center",

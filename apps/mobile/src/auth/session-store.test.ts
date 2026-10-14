@@ -9,12 +9,15 @@ const apiMock = vi.hoisted(() => ({ api: vi.fn(), configureApi: vi.fn() }));
 const clear = vi.hoisted(() => vi.fn());
 const resetSocket = vi.hoisted(() => vi.fn());
 const clearResume = vi.hoisted(() => vi.fn());
+const clearToasts = vi.hoisted(() => vi.fn());
+const signOutOfGoogle = vi.hoisted(() => vi.fn());
 
 vi.mock("expo-secure-store", () => ({ ...secure, WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1 }));
 vi.mock("@/api/client", () => apiMock);
 vi.mock("@/api/queries", () => ({ queryClient: { clear } }));
 vi.mock("@/cache/resume-cache", () => ({ clearResume }));
-vi.mock("@/ui/Toast", () => ({ toast: vi.fn() }));
+vi.mock("@/ui/Toast", () => ({ toast: vi.fn(), clearToasts }));
+vi.mock("./google", () => ({ signOutOfGoogle }));
 vi.mock("@/socket/socket-store", () => ({ useSocket: { getState: () => ({ reset: resetSocket }) } }));
 
 import { useSession } from "./session-store";
@@ -54,6 +57,8 @@ describe("useSession", () => {
     expect(clear).toHaveBeenCalledTimes(1);
     expect(resetSocket).toHaveBeenCalledTimes(1);
     expect(clearResume).toHaveBeenCalledTimes(1);
+    expect(clearToasts).toHaveBeenCalledTimes(1);
+    expect(signOutOfGoogle).toHaveBeenCalledTimes(1);
     expect(useSession.getState().token).toBeNull();
   });
 
