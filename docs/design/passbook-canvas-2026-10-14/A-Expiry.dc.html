@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Trade length</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400..700&amp;family=Anek+Latin:wdth,wght@75..125,300..700&amp;family=Martian+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#06080b}</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; background: #06080b; color: #edf1f6; font-family: 'Anek Latin', 'Anek Devanagari', system-ui, sans-serif; font-size: 15px; line-height: 1.35; overflow: hidden">
+  <div aria-hidden="true" style="position: absolute; left: 0; top: 40px; width: 390px; height: 420px">
+    <sc-for list="{{ bg }}" as="c" hint-placeholder-count="40">
+      <div style="position: absolute; left: {{c.x}}px; top: {{c.wt}}px; width: 1px; height: {{c.wh}}px; background: {{c.col}}"></div>
+      <div style="position: absolute; left: {{c.bx}}px; top: {{c.bt}}px; width: {{c.bw}}px; height: {{c.bh}}px; background: {{c.col}}"></div>
+    </sc-for>
+  </div>
+  <div style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.62)"></div>
+
+  <section aria-label="Trade length" style="position: absolute; left: 0; right: 0; bottom: 0; height: 410px; box-sizing: border-box; border-radius: 22px 22px 0 0; border-top: 1px solid #252d39; background: #0f141b; display: flex; flex-direction: column">
+    <div style="width: 40px; height: 5px; border-radius: 4px; background: #252d39; margin: 10px auto 6px"></div>
+    <h2 style="margin: 0; padding: 4px 20px 14px; font-size: 20px; font-weight: 620">Trade length</h2>
+    <div style="padding: 0 20px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">5s</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">10s</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">15s</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #edf1f6; background: #edf1f6; color: #06080b; font: 600 15px 'Anek Latin', sans-serif">30s</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">1m</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">2m</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">5m</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">10m</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">15m</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">30m</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">1h</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">2h</button>
+      <button type="button" style="height: 44px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">4h</button>
+    </div>
+    <div style="margin-top: auto; padding: 16px 20px 28px; border-top: 1px solid #1a212b; display: flex; justify-content: space-between; align-items: baseline; font-size: 15px">
+      <span style="color: #a6b0be">A trade placed now ends at</span>
+      <span style="font: 600 16px 'Martian Mono', monospace; letter-spacing: -0.02em">18:11:04</span>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"chartSeed":{"editor":"int","default":11,"min":1,"max":60},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  bg(seed, w, h, n) {
+    let s = seed * 9301 + 49297;
+    const r = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+    let p = 100;
+    const d = [];
+    for (let i = 0; i < n; i++) { const o = p; const c = o + (r() - 0.5) * 2.4 + Math.sin(i / 9 + seed) * 0.35; d.push({ o: o, c: c, h: Math.max(o, c) + r() * 1.1, l: Math.min(o, c) - r() * 1.1 }); p = c; }
+    let lo = Infinity, hi = -Infinity;
+    d.forEach(function (k) { lo = Math.min(lo, k.l); hi = Math.max(hi, k.h); });
+    const y = function (v) { return 20 + (hi - v) / (hi - lo) * (h - 34); };
+    const step = w / n, bw = Math.max(2, step * 0.6);
+    return d.map(function (k, i) {
+      const x = i * step + step / 2;
+      return { x: (x - 0.5).toFixed(1), bx: (x - bw / 2).toFixed(1), bw: bw.toFixed(1), wt: y(k.h).toFixed(1), wh: (y(k.l) - y(k.h)).toFixed(1), bt: y(Math.max(k.o, k.c)).toFixed(1), bh: Math.max(1, Math.abs(y(k.o) - y(k.c))).toFixed(1), col: k.c >= k.o ? '#2ecf7a' : '#ff7468' };
+    });
+  }
+  renderVals() { return { bg: this.bg(this.props.chartSeed ?? 11, 390, 420, 44) }; }
+}
+</script>
+</body>
+</html>
