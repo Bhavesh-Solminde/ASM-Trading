@@ -35,17 +35,19 @@ export const useSession = create<SessionState>((set, get) => ({
   },
   signOut: ({ remote = true } = {}) => {
     if (signingOut) return signingOut;
-    if (!get().token) return Promise.resolve();
+    const token = get().token;
+    if (!token) return Promise.resolve();
     signingOut = (async () => {
       try {
-        // The token stays set during the remote call so the request carries it.
-        if (remote) await api("/api/auth/logout", { method: "POST" }).catch(() => {});
+        // Local first: plain fetch has no timeout, so a stalled network must not hold the user signed in.
         await SecureStore.deleteItemAsync(KEY).catch(() => {});
         queryClient.clear();
         set({ token: null });
       } finally {
         signingOut = null;
       }
+      // Best effort in the background, with the captured token since the session no longer holds it.
+      if (remote) void api("/api/auth/logout", { method: "POST", token }).catch(() => {});
     })();
     return signingOut;
   },

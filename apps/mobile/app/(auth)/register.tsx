@@ -1,19 +1,14 @@
-import { router } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
 import { RegisterSchema } from "@asm/contracts";
 import { api } from "@/api/client";
+import { TokenResult, finishSignIn } from "@/auth/finish-sign-in";
 import { errorText, validationKey } from "@/auth/messages";
-import { useSession } from "@/auth/session-store";
 import { Button, Screen, Txt } from "@/theme/ui";
 import { Field, FormScroll, TextLink, formStyles } from "@/ui/form";
 
-const TokenResult = z.object({ token: z.string(), userId: z.string() });
-
 export default function Register() {
   const { t } = useTranslation();
-  const signIn = useSession((s) => s.signIn);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,8 +23,7 @@ export default function Register() {
     setError(null);
     try {
       const out = await api("/api/auth/register", { method: "POST", body: parsed.data, schema: TokenResult, auth: false });
-      await signIn(out.token);
-      router.replace("/lock-setup");
+      await finishSignIn(out.token);
     } catch (e) {
       setError(errorText(e, t));
     } finally {

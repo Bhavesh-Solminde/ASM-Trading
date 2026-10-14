@@ -17,7 +17,7 @@ export function configureApi(opts: { token: () => string | null; logout: () => v
 
 export async function api<T = unknown>(
   path: string,
-  opts: { method?: string; body?: unknown; form?: FormData; schema?: ZodType<T>; auth?: boolean } = {},
+  opts: { method?: string; body?: unknown; form?: FormData; schema?: ZodType<T>; auth?: boolean; token?: string } = {},
 ): Promise<T> {
   const { apiUrl, version } = appConfig();
   const headers: Record<string, string> = {
@@ -26,7 +26,8 @@ export async function api<T = unknown>(
     Accept: "application/json",
   };
   const authed = opts.auth !== false;
-  const token = authed ? tokenProvider() : null;
+  // An explicit token wins: the sign-out logout runs after the session token is already cleared.
+  const token = opts.token ?? (authed ? tokenProvider() : null);
   if (token) headers.Authorization = `Bearer ${token}`;
   let body: BodyInit | undefined;
   if (opts.form) body = opts.form;

@@ -45,6 +45,7 @@ describe("useSession", () => {
       useSession.getState().signOut(),
     ]);
     expect(apiMock.api).toHaveBeenCalledTimes(1);
+    expect(apiMock.api).toHaveBeenCalledWith("/api/auth/logout", { method: "POST", token: "tok" });
     expect(secure.deleteItemAsync).toHaveBeenCalledTimes(1);
     expect(clear).toHaveBeenCalledTimes(1);
     expect(useSession.getState().token).toBeNull();
@@ -60,6 +61,27 @@ describe("useSession", () => {
     useSession.setState({ token: "tok", ready: true });
     apiMock.api.mockRejectedValue(new Error("offline"));
     await useSession.getState().signOut();
+    expect(useSession.getState().token).toBeNull();
+  });
+
+  it("clears local state before the remote logout and does not wait for it", async () => {
+    useSession.setState({ token: "tok", ready: true });
+    let tokenAtRemoteCall: string | null | undefined;
+    apiMock.api.mockImplementation(() => {
+      tokenAtRemoteCall = useSession.getState().token;
+      return new Promise(() => {}); // a stalled network: never settles
+    });
+    await useSession.getState().signOut();
+    expect(tokenAtRemoteCall).toBeNull();
+    expect(secure.deleteItemAsync).toHaveBeenCalledTimes(1);
+    expect(clear).toHaveBeenCalledTimes(1);
+    expect(useSession.getState().token).toBeNull();
+  });
+
+  it("skips the remote logout when asked", async () => {
+    useSession.setState({ token: "tok", ready: true });
+    await useSession.getState().signOut({ remote: false });
+    expect(apiMock.api).not.toHaveBeenCalled();
     expect(useSession.getState().token).toBeNull();
   });
 

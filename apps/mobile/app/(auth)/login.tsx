@@ -1,21 +1,16 @@
-import { router } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
 import { LoginSchema } from "@asm/contracts";
 import { api } from "@/api/client";
 import { signInWithGoogle } from "@/auth/google";
+import { TokenResult, finishSignIn } from "@/auth/finish-sign-in";
 import { errorText, validationKey } from "@/auth/messages";
-import { useSession } from "@/auth/session-store";
 import { appConfig } from "@/config";
 import { Button, Screen, Txt } from "@/theme/ui";
 import { Field, FormScroll, TextLink, formStyles } from "@/ui/form";
 
-const TokenResult = z.object({ token: z.string(), userId: z.string() });
-
 export default function Login() {
   const { t } = useTranslation();
-  const signIn = useSession((s) => s.signIn);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +25,7 @@ export default function Login() {
     setError(null);
     try {
       const out = await api("/api/auth/login", { method: "POST", body: parsed.data, schema: TokenResult, auth: false });
-      await signIn(out.token);
-      router.replace("/lock-setup");
+      await finishSignIn(out.token);
     } catch (e) {
       setError(errorText(e, t));
     } finally {
@@ -46,8 +40,7 @@ export default function Login() {
     try {
       const token = await signInWithGoogle();
       if (token) {
-        await signIn(token);
-        router.replace("/lock-setup");
+        await finishSignIn(token);
       }
     } catch (e) {
       setError(errorText(e, t, "auth.googleFailed"));
