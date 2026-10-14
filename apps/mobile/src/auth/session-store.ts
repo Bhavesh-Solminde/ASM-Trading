@@ -2,6 +2,7 @@ import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { api, configureApi } from "@/api/client";
 import { queryClient } from "@/api/queries";
+import { clearResume } from "@/cache/resume-cache";
 import { useSocket } from "@/socket/socket-store";
 import { toast } from "@/ui/Toast";
 
@@ -45,6 +46,8 @@ export const useSession = create<SessionState>((set, get) => ({
         queryClient.clear();
         // The next user to sign in must not see this user's trades or balances.
         useSocket.getState().reset();
+        // Nor may it see this user's cached balances on the next cold start.
+        clearResume();
         set({ token: null });
       } finally {
         signingOut = null;

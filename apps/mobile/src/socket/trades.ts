@@ -5,7 +5,7 @@ import type { TradeView } from "@asm/contracts";
  * `Bootstrap.recentTrades` is typed as loose records (the contract defers validation to the engine), so
  * the app checks the TradeView shape here. The annotation makes drift from the contract a compile error.
  */
-const TradeViewSchema: z.ZodType<TradeView> = z.object({
+export const TradeViewSchema: z.ZodType<TradeView> = z.object({
   id: z.string(),
   accountId: z.string(),
   symbol: z.string(),
