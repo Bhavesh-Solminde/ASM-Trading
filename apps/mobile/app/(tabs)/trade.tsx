@@ -79,7 +79,7 @@ export default function Trade() {
 
   // Any account's open trade counts: it still needs its settlement watched and the screen awake.
   const hasOpenTrades = useSocket((s) => hasOpenTrade(s.trades.tradesByAccount));
-  useKeepAwakeWhileOpen(hasOpenTrades);
+  useKeepAwakeWhileOpen();
   useSettlementWatchdog(hasOpenTrades);
   useResultFeedback(account?.id ?? null, account?.currency ?? null, boot?.assets);
 

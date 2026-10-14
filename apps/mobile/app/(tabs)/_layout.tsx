@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { AppState } from "react-native";
 import { queryClient } from "@/api/queries";
+import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSocket } from "@/socket/socket-store";
 import { color } from "@/theme/tokens";
 import { Icon, type IconName } from "@/ui/Icon";
@@ -30,7 +31,7 @@ export default function TabsLayout() {
       if (state === "active") {
         start();
         // Settlements, deposits and withdrawals while backgrounded never reached the (closed) socket.
-        void queryClient.invalidateQueries({ queryKey: ["bootstrap"] });
+        refreshBootstrap(queryClient);
       }
       else if (state === "background") stop();
     });

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { queryClient } from "@/api/queries";
+import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSocket } from "@/socket/socket-store";
 import { allTrades } from "./open-trades";
 import { createGapTracker, shouldRefetchSettlements } from "./settlement-watch";
@@ -21,7 +22,7 @@ export function useSettlementWatchdog(hasOpenTrades: boolean): void {
       const trades = allTrades(useSocket.getState().trades.tradesByAccount);
       if (!shouldRefetchSettlements({ trades, nowSec, lastAttemptSec: lastAttemptSec.current })) return;
       lastAttemptSec.current = nowSec;
-      void queryClient.invalidateQueries({ queryKey: ["bootstrap"] });
+      refreshBootstrap(queryClient);
     }, 1000);
     return () => clearInterval(id);
   }, [hasOpenTrades]);
@@ -30,7 +31,7 @@ export function useSettlementWatchdog(hasOpenTrades: boolean): void {
     const gap = createGapTracker();
     gap(useSocket.getState().phase);
     return useSocket.subscribe((s, prev) => {
-      if (s.phase !== prev.phase && gap(s.phase)) void queryClient.invalidateQueries({ queryKey: ["bootstrap"] });
+      if (s.phase !== prev.phase && gap(s.phase)) refreshBootstrap(queryClient);
     });
   }, []);
 }

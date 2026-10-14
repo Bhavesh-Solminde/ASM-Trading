@@ -4,7 +4,10 @@ import type { TradeView } from "@asm/contracts";
 export interface SettledFeedback {
   tone: "up" | "down" | "neutral";
   key: "trade.won" | "trade.lost" | "trade.refunded";
-  /** Same figure the trades list shows for this trade (`closedRowDisplay`): gross return on a win, stake on a loss. */
+  /**
+   * The figure the trades list shows (`closedRowDisplay`): gross return on a win, stake on a loss. The exception is
+   * a refund, where the list shows zero and this is the stake that came back.
+   */
   amountMinor: number;
   /** `amountMinor` formatted in the account currency (Latin digits in both languages). */
   amountText: string;

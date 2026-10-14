@@ -22,13 +22,20 @@ export function shouldRefetchSettlements(input: {
 
 /**
  * Feed it each socket phase in order; it answers true when `authed` comes back after the connection dropped, i.e.
- * settlements may have been pushed into the gap. The first authentication of a session is not a gap (the
- * bootstrap request is already running), nor is a failed first connect.
+ * settlements may have been pushed into the gap. Not a gap: the first authentication of a session (the bootstrap
+ * request is already running), a failed first connect, and a restart after a deliberate stop (`idle`).
  */
 export function createGapTracker(): (phase: SocketStatus["phase"]) => boolean {
   let wasAuthed = false;
   let dropped = false;
   return (phase) => {
+    if (phase === "idle") {
+      // A deliberate stop (app backgrounded, signed out): coming back is a restart, which the foreground
+      // refresh already covers, not a drop.
+      wasAuthed = false;
+      dropped = false;
+      return false;
+    }
     if (phase === "authed") {
       const fire = dropped;
       wasAuthed = true;

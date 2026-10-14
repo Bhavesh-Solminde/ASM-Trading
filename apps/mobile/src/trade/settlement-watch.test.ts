@@ -57,4 +57,28 @@ describe("createGapTracker", () => {
     gap("closed");
     expect(gap("authed")).toBe(false);
   });
+  it("does not treat a deliberate stop (idle) followed by a restart as a drop", () => {
+    const gap = createGapTracker();
+    gap("authed");
+    expect(gap("idle")).toBe(false); // app went to the background on purpose
+    gap("connecting");
+    expect(gap("authed")).toBe(false); // the foreground refresh already covers it
+  });
+  it("still fires for a drop that happens after such a restart", () => {
+    const gap = createGapTracker();
+    gap("authed");
+    gap("idle");
+    gap("connecting");
+    gap("authed");
+    gap("closed");
+    expect(gap("authed")).toBe(true);
+  });
+  it("a deliberate stop cancels a drop recorded just before it", () => {
+    const gap = createGapTracker();
+    gap("authed");
+    gap("closed");
+    gap("idle");
+    gap("connecting");
+    expect(gap("authed")).toBe(false);
+  });
 });

@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/api/client";
 import { queryClient } from "@/api/queries";
+import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSocket } from "@/socket/socket-store";
 import { toast } from "@/ui/Toast";
 import { createSubmitter } from "./submit-flow";
@@ -28,7 +29,7 @@ export function useTradeSubmit(input: SubmitInput): { submit: (direction: "UP" |
         applyOpenResult: (r) => useSocket.getState().applyOpenResult(r),
         toast,
         haptic: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
-        invalidateBootstrap: () => void queryClient.invalidateQueries({ queryKey: ["bootstrap"] }),
+        invalidateBootstrap: () => refreshBootstrap(queryClient),
         setBusy,
         t,
       }),
