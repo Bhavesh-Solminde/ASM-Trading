@@ -143,6 +143,15 @@ export const useSocket = create<SocketStore>((set, get) => {
       // Only mark the request in flight if it was actually sent, or loadingOlder would stick while offline.
       if (ensure().loadOlder(first.openTs)) set({ chart: { ...chart, loadingOlder: true } });
     },
-    applyOpenResult: (r) => set((s) => ({ trades: withOpenResult(s.trades, r, s.phase === "authed") })),
+    applyOpenResult: (r) =>
+      set((s) => {
+        const socketLive = s.phase === "authed";
+        return {
+          trades: withOpenResult(s.trades, r, socketLive),
+          // The HTTP balances are only applied while the socket is down; stamp them like a socket update so a
+          // bootstrap request that started before this open cannot overwrite them with an older figure.
+          ...(socketLive ? {} : { balanceAt: { ...s.balanceAt, [r.trade.accountId]: Date.now() } }),
+        };
+      }),
   };
 });

@@ -131,7 +131,7 @@ export default function Trade() {
             symbol={symbol}
             timeframe={timeframe}
             type={prefs.chartType}
-            precision={precisionFor(asset, resume?.precision)}
+            precision={precisionFor(asset, resume?.symbol === symbol ? resume.precision : undefined)}
             accountId={accountId}
             snapshot={candleSnapshot}
             tradesSnapshot={boot ? null : resume}

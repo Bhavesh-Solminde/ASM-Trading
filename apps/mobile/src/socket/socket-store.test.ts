@@ -266,4 +266,29 @@ describe("useSocket", () => {
     const next = await connect();
     expect(next.sent.some((m) => m.type === "subscribe")).toBe(false);
   });
+  describe("applyOpenResult", () => {
+    const result = { trade, balances: { realBalance: 111, bonusBalance: 22 } };
+
+    it("with the socket down, applies the HTTP balances and stamps them so an older bootstrap cannot overwrite them", () => {
+      useSocket.getState().seed(boot);
+      const before = Date.now();
+      useSocket.getState().applyOpenResult(result);
+      expect(useSocket.getState().trades.balances["a1"]).toEqual({ realBalance: 111, bonusBalance: 22 });
+      expect(useSocket.getState().balanceAt["a1"]).toBeGreaterThanOrEqual(before);
+
+      // A bootstrap whose request started before the open must not roll the balance back.
+      useSocket.getState().seed(boot, before - 1);
+      expect(useSocket.getState().trades.balances["a1"]).toEqual({ realBalance: 111, bonusBalance: 22 });
+    });
+
+    it("with the socket live, keeps the socket's balance and does not stamp", async () => {
+      useSocket.getState().seed(boot);
+      useSocket.getState().subscribe("EURUSD", "1m");
+      await connect();
+      useSocket.getState().applyOpenResult(result);
+      expect(useSocket.getState().trades.balances["a1"]).toEqual({ realBalance: 500, bonusBalance: 20 });
+      expect(useSocket.getState().balanceAt["a1"]).toBeUndefined();
+      expect(useSocket.getState().trades.tradesByAccount["a1"]?.[0]?.id).toBe("t1");
+    });
+  });
 });

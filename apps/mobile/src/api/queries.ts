@@ -2,6 +2,7 @@ import { QueryClient, useQuery } from "@tanstack/react-query";
 import { AppConfigSchema, BootstrapSchema } from "@asm/contracts";
 import { api } from "./client";
 import { shouldRetry } from "./errors";
+import { latestStamp } from "./request-stamp";
 
 export const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: shouldRetry, staleTime: 15_000, refetchOnWindowFocus: false } },
@@ -17,7 +18,7 @@ export const useBootstrap = (enabled: boolean) =>
     queryFn: async () => {
       const startedAt = Date.now();
       const data = await api("/api/v1/bootstrap", { schema: BootstrapSchema });
-      lastBootstrapRequestedAt = startedAt;
+      lastBootstrapRequestedAt = latestStamp(lastBootstrapRequestedAt, startedAt);
       return data;
     },
     enabled,
