@@ -35,8 +35,8 @@ export function payoutPctFor(asset: AppAsset | undefined, live: number | null): 
   return live ?? asset?.payoutPct ?? null;
 }
 
-export function precisionFor(asset: AppAsset | undefined): number {
-  return asset?.precision ?? 2;
+export function precisionFor(asset: AppAsset | undefined, fallback = 2): number {
+  return asset?.precision ?? fallback;
 }
 
 const clampPct = (n: number) => Math.min(100, Math.max(0, n));

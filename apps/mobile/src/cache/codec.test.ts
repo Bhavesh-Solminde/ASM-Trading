@@ -41,6 +41,21 @@ describe("resume codec", () => {
     expect(out.balances).toEqual(snap.balances);
   });
 
+  it("round-trips the market's price precision", () => {
+    expect(decodeResume(encodeResume({ ...snap, precision: 5 }), 2_000)?.precision).toBe(5);
+  });
+
+  it("still reads a v1 snapshot saved before precision existed", () => {
+    const out = decodeResume(encoded({}), 2_000);
+    expect(out).not.toBeNull();
+    expect(out?.precision).toBeUndefined();
+  });
+
+  it("rejects a nonsensical precision", () => {
+    expect(decodeResume(encoded({ precision: -1 }), 2_000)).toBeNull();
+    expect(decodeResume(encoded({ precision: 2.5 }), 2_000)).toBeNull();
+  });
+
   it("trims on encode so storage stays small", () => {
     expect((JSON.parse(encodeResume(snap)) as ResumeSnapshot).candles).toHaveLength(200);
   });

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View } from "react-native";
-import { useBootstrap } from "@/api/queries";
+import { useTranslation } from "react-i18next";
+import { Text, View } from "react-native";
+import { bootstrapRequestedAt, useBootstrap } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
 import { loadLastUserId, loadResume, saveLastUserId } from "@/cache/resume-cache";
 import { useSocket } from "@/socket/socket-store";
-import { Screen, Skeleton } from "@/theme/ui";
+import { color, space } from "@/theme/tokens";
+import { Button, Screen, Skeleton } from "@/theme/ui";
 import type { SheetRef } from "@/ui/Sheet";
 import { accountOfType, canUseLive, resolveAccount, type AppAccount } from "@/trade/accounts";
 import { BonusSheet } from "@/trade/BonusSheet";
@@ -19,13 +21,40 @@ import { TopBar } from "@/trade/TopBar";
 import { TradeChart } from "@/trade/TradeChart";
 import { useUserPrefs } from "@/trade/trade-prefs";
 import { useKeepAwakeWhileOpen } from "@/trade/useKeepAwakeWhileOpen";
+import { useLiveArrived } from "@/trade/useLiveArrived";
 import { useResumeSave } from "@/trade/useResumeSave";
 import type { ChartType } from "@/chart/types";
 import type { Timeframe } from "@asm/contracts";
 
+/** Bootstrap failed and there is nothing else to show: say so and offer a retry instead of a skeleton forever. */
+function BootError({ onRetry, compact }: { onRetry: () => void; compact?: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <View
+      accessibilityRole="alert"
+      style={
+        compact
+          ? { flexDirection: "row", alignItems: "center", gap: space(3), paddingHorizontal: space(3), minHeight: 52 }
+          : { flex: 1, alignItems: "center", justifyContent: "center", gap: space(4), padding: space(6) }
+      }
+    >
+      <Text style={{ color: color.ink2, fontSize: 14, flex: compact ? 1 : undefined, textAlign: compact ? "left" : "center" }}>
+        {t("common.genericError")}
+      </Text>
+      <View style={compact ? undefined : { alignSelf: "stretch" }}>
+        <Button kind="secondary" label={t("common.retry")} onPress={onRetry} />
+      </View>
+    </View>
+  );
+}
+
 export default function Trade() {
   const token = useSession((s) => s.token);
-  const boot = useBootstrap(!!token).data;
+  const bootQuery = useBootstrap(!!token);
+  const boot = bootQuery.data;
+  const bootFailed = !boot && bootQuery.isError;
+  const { refetch } = bootQuery;
+  const retry = useCallback(() => void refetch(), [refetch]);
 
   // Read the resume cache ONCE: it is a synchronous disk read + parse. It lets the chart paint before
   // bootstrap returns; it is stale until live data replaces it, and ignored if bootstrap names another user.
@@ -48,12 +77,10 @@ export default function Trade() {
   const hasOpenTrades = useSocket((s) => (accountId ? (s.trades.tradesByAccount[accountId] ?? []).some((t) => t.status === "OPEN") : false));
   useKeepAwakeWhileOpen(hasOpenTrades);
 
-  // Bootstrap's trades and balances seed the store once per signed-in user; after that the socket owns them.
-  const seededFor = useRef<string | null>(null);
+  // Every distinct bootstrap result (first load, post-deposit invalidation, foreground refetch) is merged
+  // into the store; the merge never rolls back anything the socket delivered since the request started.
   useEffect(() => {
-    if (!boot || seededFor.current === boot.userId) return;
-    seededFor.current = boot.userId;
-    useSocket.getState().seed(boot);
+    if (boot) useSocket.getState().seed(boot, bootstrapRequestedAt());
   }, [boot]);
 
   useEffect(() => {
@@ -65,7 +92,11 @@ export default function Trade() {
     if (symbol) useSocket.getState().subscribe(symbol, timeframe);
   }, [symbol, timeframe]);
 
-  useResumeSave(boot?.userId ?? null, accountId, symbol, timeframe);
+  useResumeSave(boot?.userId ?? null, accountId, symbol, timeframe, asset ? asset.precision : null);
+
+  // The snapshot is only ever painted (and labelled stale) until live candles first arrive this mount.
+  const liveArrived = useLiveArrived();
+  const candleSnapshot = liveArrived ? null : resume;
 
   const bonusSheet = useRef<SheetRef>(null);
   const openBonus = useCallback(() => bonusSheet.current?.present(), []);
@@ -85,23 +116,28 @@ export default function Trade() {
     <Screen>
       {boot && account ? (
         <TopBar account={account} liveEnabled={canUseLive(boot.accounts, boot.liveAccess)} onSelectType={selectAccountType} />
+      ) : bootFailed ? (
+        // With a resume cache the chart is still showing, so the error is a strip; without one, see below.
+        symbol ? <BootError compact onRetry={retry} /> : null
       ) : (
         <View style={{ height: 52, justifyContent: "center", paddingHorizontal: 12 }}>
           <Skeleton height={28} />
         </View>
       )}
-      <StatusRow bonusPct={bonus?.pct ?? null} hasCache={resume !== null} onBonus={openBonus} />
+      <StatusRow bonusPct={bonus?.pct ?? null} snapshot={candleSnapshot} symbol={symbol} timeframe={timeframe} onBonus={openBonus} />
       <View style={{ flex: 1 }}>
         {symbol ? (
           <TradeChart
             symbol={symbol}
             timeframe={timeframe}
             type={prefs.chartType}
-            precision={precisionFor(asset)}
+            precision={precisionFor(asset, resume?.precision)}
             accountId={accountId}
-            cached={resume}
-            cachedTradesAreCurrent={boot !== undefined}
+            snapshot={candleSnapshot}
+            tradesSnapshot={boot ? null : resume}
           />
+        ) : bootFailed ? (
+          <BootError onRetry={retry} />
         ) : null}
         <SentimentBar />
         {boot ? (

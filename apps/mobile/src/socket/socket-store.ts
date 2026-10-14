@@ -18,7 +18,7 @@ import { ApiError } from "@/api/errors";
 import { appConfig } from "@/config";
 import { unitFromBytes } from "./backoff";
 import { EngineSocket, FatalSocketError, type SocketStatus } from "./engine-socket";
-import { parseTrades } from "./trades";
+import { mergeBootstrap } from "./bootstrap-merge";
 
 const Ticket = z.object({ ticket: z.string() });
 
@@ -34,7 +34,13 @@ interface SocketStore {
   chart: ChartState;
   trades: TradeState;
   lastSettled: TradeView | null;
-  seed: (boot: Bootstrap) => void;
+  /** When (epoch ms) the socket last delivered a balance for each account; decides whether a bootstrap is newer. */
+  balanceAt: Record<string, number>;
+  /**
+   * Folds a bootstrap response in, merge-safe: never rolls back socket data that arrived while the request
+   * was in flight. `requestedAt` is when the request started (default: now).
+   */
+  seed: (boot: Bootstrap, requestedAt?: number) => void;
   start: () => void;
   stop: () => void;
   /** Back to the signed-out state: closes the socket and forgets the previous user's market data and trades. */
@@ -57,6 +63,7 @@ const initial = () => ({
   chart: initialChartState("", "1m"),
   trades: initialTradeState([], {}),
   lastSettled: null,
+  balanceAt: {} as Record<string, number>,
 });
 
 export const useSocket = create<SocketStore>((set, get) => {
@@ -67,6 +74,7 @@ export const useSocket = create<SocketStore>((set, get) => {
         trades: applyTradeMessage(s.trades, m),
       };
       if (m.type === "trade:settled") next.lastSettled = m.trade;
+      if (m.type === "balance:update") next.balanceAt = { ...s.balanceAt, [m.accountId]: Date.now() };
       return next;
     });
 
@@ -108,13 +116,8 @@ export const useSocket = create<SocketStore>((set, get) => {
 
   return {
     ...initial(),
-    seed: (boot) =>
-      set({
-        trades: initialTradeState(
-          parseTrades(boot.recentTrades),
-          Object.fromEntries(boot.accounts.map((a) => [a.id, { realBalance: a.realBalance, bonusBalance: a.bonusBalance }])),
-        ),
-      }),
+    seed: (boot, requestedAt = Date.now()) =>
+      set((s) => ({ trades: mergeBootstrap(s.trades, s.balanceAt, boot, requestedAt) })),
     start: () => {
       watchNet();
       ensure().start();

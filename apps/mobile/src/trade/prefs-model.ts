@@ -25,7 +25,7 @@ export const DEFAULT_PREFS: UserPrefs = {
   expirySec: 60,
 };
 
-/** One user's prefs. A user with none saved shares the frozen defaults object, so selectors stay stable. */
+/** One user's prefs. A user with none saved gets the shared `DEFAULT_PREFS` object (never mutated), so selectors stay stable. */
 export function prefsFor(all: PrefsByUser, userId: string | null): UserPrefs {
   return (userId ? all[userId] : undefined) ?? DEFAULT_PREFS;
 }

@@ -12,6 +12,7 @@ export function buildResumeSnapshot(i: {
   accountId: string | null;
   symbol: string | null;
   timeframe: Timeframe;
+  precision: number;
   chart: ChartState;
   trades: TradeState;
   signedIn: boolean;
@@ -29,5 +30,6 @@ export function buildResumeSnapshot(i: {
     balances: { ...i.trades.balances },
     openTrades: (i.trades.tradesByAccount[i.accountId] ?? []).filter((t) => t.status === "OPEN"),
     accountId: i.accountId,
+    precision: i.precision,
   };
 }

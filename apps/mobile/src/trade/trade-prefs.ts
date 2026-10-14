@@ -9,7 +9,10 @@ interface PrefsStore {
   setFor: (userId: string, partial: Partial<UserPrefs>) => void;
 }
 
-/** MMKV-backed, opened on first read/write; with no native module it degrades to in-memory prefs. */
+/**
+ * MMKV-backed through the guarded lazy `openMmkv`. zustand's persist reads it once when the store is created
+ * (on first import of this module), so a native failure is caught there and prefs fall back to in-memory.
+ */
 const storage: StateStorage = {
   getItem: (k) => {
     try {

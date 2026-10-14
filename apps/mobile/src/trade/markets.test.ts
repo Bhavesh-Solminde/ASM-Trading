@@ -77,6 +77,8 @@ describe("market lookup", () => {
   it("falls back to 2 decimals when the market is unknown", () => {
     expect(precisionFor(assets[0])).toBe(5);
     expect(precisionFor(undefined)).toBe(2);
+    expect(precisionFor(undefined, 5)).toBe(5);
+    expect(precisionFor(assets[1], 5)).toBe(2);
   });
 });
 

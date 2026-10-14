@@ -16,6 +16,8 @@ export interface ResumeSnapshot {
   balances: Record<string, BalancesDto>;
   openTrades: TradeView[];
   accountId: string;
+  /** The market's price decimals, so the axis is right before bootstrap. Absent in snapshots saved before it existed. */
+  precision?: number;
 }
 
 export const MAX_AGE_MS = 24 * 3600 * 1000;
@@ -34,6 +36,7 @@ const ResumeSchema: z.ZodType<ResumeSnapshot> = z.object({
   balances: z.record(z.string(), z.object({ realBalance: z.number(), bonusBalance: z.number() })),
   openTrades: z.array(TradeViewSchema),
   accountId: z.string(),
+  precision: z.number().int().min(0).max(12).optional(),
 });
 
 export function encodeResume(s: ResumeSnapshot): string {

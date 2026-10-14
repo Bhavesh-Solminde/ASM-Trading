@@ -98,6 +98,32 @@ describe("useSocket", () => {
     });
   });
 
+  it("keeps a socket balance that arrived after the bootstrap request started", async () => {
+    useSocket.getState().subscribe("EURUSD", "1m");
+    const ws = await connect();
+    const requestedAt = Date.now() - 10_000;
+    ws.receive({ type: "balance:update", accountId: "a1", realBalance: 1, bonusBalance: 2 });
+    useSocket.getState().seed(boot, requestedAt);
+    expect(useSocket.getState().trades.balances["a1"]).toEqual({ realBalance: 1, bonusBalance: 2 });
+  });
+
+  it("applies a bootstrap that started after the last socket balance (e.g. a deposit refetch)", async () => {
+    useSocket.getState().subscribe("EURUSD", "1m");
+    const ws = await connect();
+    ws.receive({ type: "balance:update", accountId: "a1", realBalance: 1, bonusBalance: 2 });
+    useSocket.getState().seed(boot, Date.now() + 10_000);
+    expect(useSocket.getState().trades.balances["a1"]).toEqual({ realBalance: 500, bonusBalance: 20 });
+  });
+
+  it("does not roll back a settlement when re-seeded from an older bootstrap", async () => {
+    useSocket.getState().seed(boot);
+    useSocket.getState().subscribe("EURUSD", "1m");
+    const ws = await connect();
+    ws.receive({ type: "trade:settled", trade: { ...trade, status: "WON", pnl: 85 } });
+    useSocket.getState().seed(boot);
+    expect(useSocket.getState().trades.tradesByAccount["a1"]?.[0]?.status).toBe("WON");
+  });
+
   it("connects with a ticket, subscribes, and folds server messages into chart and trades", async () => {
     useSocket.getState().subscribe("EURUSD", "1m");
     const ws = await connect();

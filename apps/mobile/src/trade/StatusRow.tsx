@@ -2,8 +2,11 @@ import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import { clockTime } from "@asm/client-core";
+import type { Timeframe } from "@asm/contracts";
+import type { ResumeSnapshot } from "@/cache/codec";
 import { useSocket } from "@/socket/socket-store";
 import { color, radius, space } from "@/theme/tokens";
+import { chartSource } from "./chart-source";
 import { useNow } from "./useNow";
 
 /** Green while the engine socket is authenticated, red otherwise. Re-renders only when that flips. */
@@ -20,11 +23,11 @@ function Clock() {
   );
 }
 
-/** "Saved data — updating…" while the chart still shows the resume cache instead of live candles. */
-function StaleNote({ hasCache }: { hasCache: boolean }) {
+/** "Saved data — updating…" only while the candles on screen really are the resume snapshot's. */
+function StaleNote({ snapshot, symbol, timeframe }: { snapshot: ResumeSnapshot | null; symbol: string | null; timeframe: Timeframe }) {
   const { t } = useTranslation();
-  const waiting = useSocket((s) => s.chart.candles.length === 0);
-  if (!hasCache || !waiting) return null;
+  const showing = useSocket((s) => symbol !== null && chartSource({ symbol, timeframe, chart: s.chart, snapshot }) === "snapshot");
+  if (!showing) return null;
   return (
     <Text accessibilityLiveRegion="polite" numberOfLines={1} style={{ color: color.caution, fontSize: 12, flexShrink: 1 }}>
       {t("trade.stale")}
@@ -34,13 +37,17 @@ function StaleNote({ hasCache }: { hasCache: boolean }) {
 
 export const StatusRow = memo(function StatusRow({
   bonusPct,
-  hasCache,
+  snapshot,
+  symbol,
+  timeframe,
   onBonus,
 }: {
   /** Next deposit's bonus percent, or null/0 when there is none to offer. */
   bonusPct: number | null;
-  /** The chart is currently painted from the resume cache (until live candles arrive). */
-  hasCache: boolean;
+  /** The resume snapshot, or null once live candles have arrived (it is then never shown again). */
+  snapshot: ResumeSnapshot | null;
+  symbol: string | null;
+  timeframe: Timeframe;
   onBonus: () => void;
 }) {
   const { t } = useTranslation();
@@ -48,7 +55,7 @@ export const StatusRow = memo(function StatusRow({
     <View style={{ flexDirection: "row", alignItems: "center", gap: space(2), paddingHorizontal: space(3), height: 44 }}>
       <LiveDot />
       <Clock />
-      <StaleNote hasCache={hasCache} />
+      <StaleNote snapshot={snapshot} symbol={symbol} timeframe={timeframe} />
       <View style={{ flex: 1 }} />
       {bonusPct ? (
         <Pressable

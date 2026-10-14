@@ -42,7 +42,7 @@ export const BonusSheet = forwardRef<SheetRef, { completedDeposits: number }>(fu
                 borderRadius: radius.md,
                 borderWidth: 1,
                 borderColor: tier.state === "next" ? color.up : color.rule,
-                backgroundColor: tier.state === "next" ? color.upInk : color.tile,
+                backgroundColor: tier.state === "next" ? color.tileHi : color.tile,
                 opacity: tier.state === "claimed" ? 0.7 : 1,
               }}
             >

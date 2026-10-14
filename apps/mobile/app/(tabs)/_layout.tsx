@@ -2,6 +2,7 @@ import { Tabs } from "expo-router/js-tabs";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { AppState } from "react-native";
+import { queryClient } from "@/api/queries";
 import { useSocket } from "@/socket/socket-store";
 import { color } from "@/theme/tokens";
 import { Icon, type IconName } from "@/ui/Icon";
@@ -26,7 +27,11 @@ export default function TabsLayout() {
     const { start, stop } = useSocket.getState();
     start();
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") start();
+      if (state === "active") {
+        start();
+        // Settlements, deposits and withdrawals while backgrounded never reached the (closed) socket.
+        void queryClient.invalidateQueries({ queryKey: ["bootstrap"] });
+      }
       else if (state === "background") stop();
     });
     return () => {

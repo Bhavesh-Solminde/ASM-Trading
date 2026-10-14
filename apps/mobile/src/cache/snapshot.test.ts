@@ -29,6 +29,7 @@ function inputs(over: Partial<Parameters<typeof buildResumeSnapshot>[0]> = {}) {
     trades: initialTradeState([trade("o", "OPEN"), trade("w", "WON"), trade("x", "OPEN", "other")], {
       acc: { realBalance: 5, bonusBalance: 1 },
     }),
+    precision: 5,
     signedIn: true,
     now: 1_000,
     ...over,
@@ -42,6 +43,10 @@ describe("buildResumeSnapshot", () => {
     expect(s?.candles).toHaveLength(2);
     expect(s?.openTrades.map((t) => t.id)).toEqual(["o"]);
     expect(s?.balances).toEqual({ acc: { realBalance: 5, bonusBalance: 1 } });
+  });
+
+  it("records the market's precision for the pre-bootstrap axis", () => {
+    expect(buildResumeSnapshot(inputs())?.precision).toBe(5);
   });
 
   it("saves nothing when signed out", () => {

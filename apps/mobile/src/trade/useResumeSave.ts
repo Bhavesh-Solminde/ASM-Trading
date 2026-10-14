@@ -12,9 +12,15 @@ import { useSocket } from "@/socket/socket-store";
  * only while a session token exists, so a sign-out can never be followed by a write; the pending save is
  * also dropped on unmount and by `clearResume`.
  */
-export function useResumeSave(userId: string | null, accountId: string | null, symbol: string | null, timeframe: Timeframe) {
+export function useResumeSave(
+  userId: string | null,
+  accountId: string | null,
+  symbol: string | null,
+  timeframe: Timeframe,
+  precision: number | null,
+) {
   useEffect(() => {
-    if (!userId || !accountId || !symbol) return;
+    if (!userId || !accountId || !symbol || precision === null) return;
     const build = () => {
       const s = useSocket.getState();
       return buildResumeSnapshot({
@@ -22,6 +28,7 @@ export function useResumeSave(userId: string | null, accountId: string | null, s
         accountId,
         symbol,
         timeframe,
+        precision,
         chart: s.chart,
         trades: s.trades,
         signedIn: useSession.getState().token !== null,
@@ -40,5 +47,5 @@ export function useResumeSave(userId: string | null, accountId: string | null, s
       app.remove();
       resumeSaver.cancel();
     };
-  }, [userId, accountId, symbol, timeframe]);
+  }, [userId, accountId, symbol, timeframe, precision]);
 }
