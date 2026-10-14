@@ -19,6 +19,8 @@ export interface ProfileView {
   kycDocuments: KycDocumentKind[];
   twoFaForLogin: boolean;
   twoFaForWithdrawal: boolean;
+  /** UI + push language ("en" | "hi"). */
+  locale: string;
 }
 
 /** Every document a KYC submission needs, in the order the flow asks for them. */
@@ -48,6 +50,7 @@ export async function loadProfile(actorId: string): Promise<ProfileView> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: actorId },
     select: {
+      locale: true,
       email: true,
       emailVerified: true,
       nickname: true,
