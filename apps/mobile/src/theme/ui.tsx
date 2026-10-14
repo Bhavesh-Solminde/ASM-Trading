@@ -1,11 +1,16 @@
 import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type TextProps, type ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { OFFLINE_BANNER_HEIGHT, useOfflineVisible } from "@/ui/OfflineBanner";
+import { screenTopPadding } from "./screen-padding";
 import { color, font, radius, space } from "./tokens";
 
+/** Makes room for the "No connection" strip (drawn over the app, under the status bar) while it shows. */
 export function Screen({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+  const offline = useOfflineVisible();
+  const paddingTop = screenTopPadding(StyleSheet.flatten(style), offline, OFFLINE_BANNER_HEIGHT);
   return (
-    <SafeAreaView style={[styles.screen, style]} edges={["top", "left", "right"]}>
+    <SafeAreaView style={[styles.screen, style, { paddingTop }]} edges={["top", "left", "right"]}>
       {children}
     </SafeAreaView>
   );
