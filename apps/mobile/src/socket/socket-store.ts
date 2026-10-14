@@ -18,7 +18,7 @@ import { ApiError } from "@/api/errors";
 import { appConfig } from "@/config";
 import { unitFromBytes } from "./backoff";
 import { EngineSocket, FatalSocketError, type SocketStatus } from "./engine-socket";
-import { mergeBootstrap, recoveredSettlements } from "./bootstrap-merge";
+import { mergeBootstrap, recoveredAccountsWithStaleBalance, recoveredSettlements } from "./bootstrap-merge";
 
 const Ticket = z.object({ ticket: z.string() });
 
@@ -39,6 +39,12 @@ interface SocketStore {
    * delivered them. A new array identity per merge that found any, so subscribers announce each batch once.
    */
   recovered: readonly TradeView[];
+  /**
+   * Accounts whose recovered settlement kept a newer stored balance instead of the response's (see
+   * `mergeBootstrap`): a new array identity per merge that found any, so the watchdog requests ONE follow-up
+   * bootstrap per batch. Empty arrays are never published.
+   */
+  balanceRefetch: readonly string[];
   /** When (epoch ms) the socket last delivered a balance for each account; decides whether a bootstrap is newer. */
   balanceAt: Record<string, number>;
   /**
@@ -69,6 +75,7 @@ const initial = () => ({
   trades: initialTradeState([], {}),
   lastSettled: null,
   recovered: [] as readonly TradeView[],
+  balanceRefetch: [] as readonly string[],
   balanceAt: {} as Record<string, number>,
 });
 
@@ -126,7 +133,9 @@ export const useSocket = create<SocketStore>((set, get) => {
       set((s) => {
         const trades = mergeBootstrap(s.trades, s.balanceAt, boot, requestedAt);
         const recovered = recoveredSettlements(s.trades, trades);
-        return recovered.length > 0 ? { trades, recovered } : { trades };
+        if (recovered.length === 0) return { trades };
+        const stale = recoveredAccountsWithStaleBalance(s.trades, recovered, s.balanceAt, boot, requestedAt);
+        return stale.length > 0 ? { trades, recovered, balanceRefetch: stale } : { trades, recovered };
       }),
     start: () => {
       watchNet();

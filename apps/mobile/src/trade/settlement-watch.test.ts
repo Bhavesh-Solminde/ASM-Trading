@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TradeView } from "@asm/contracts";
-import { createGapTracker, shouldRefetchSettlements, WATCHDOG_MIN_INTERVAL_SEC } from "./settlement-watch";
+import { createGapTracker, needsBalanceFollowUp, shouldRefetchSettlements, WATCHDOG_MIN_INTERVAL_SEC } from "./settlement-watch";
 
 const open = (expiryTs: number, id = "t"): TradeView => ({
   id,
@@ -80,5 +80,20 @@ describe("createGapTracker", () => {
     gap("idle");
     gap("connecting");
     expect(gap("authed")).toBe(false);
+  });
+});
+
+describe("needsBalanceFollowUp", () => {
+  it("is true once for each newly published, non-empty batch of accounts", () => {
+    const none: readonly string[] = [];
+    const batch: readonly string[] = ["a"];
+    expect(needsBalanceFollowUp(none, batch)).toBe(true);
+    expect(needsBalanceFollowUp(batch, batch)).toBe(false);
+    expect(needsBalanceFollowUp(batch, ["a"])).toBe(true);
+  });
+
+  it("is false when nothing is pending", () => {
+    expect(needsBalanceFollowUp(["a"], [])).toBe(false);
+    expect(needsBalanceFollowUp([], [])).toBe(false);
   });
 });

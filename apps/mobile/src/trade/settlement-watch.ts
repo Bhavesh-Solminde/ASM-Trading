@@ -46,3 +46,11 @@ export function createGapTracker(): (phase: SocketStatus["phase"]) => boolean {
     return false;
   };
 }
+
+/**
+ * Whether the store just published a new batch of accounts whose recovered settlement kept a newer balance: then
+ * one more bootstrap is requested so the balance converges. Identity-based, so each batch triggers exactly once.
+ */
+export function needsBalanceFollowUp(prev: readonly string[], next: readonly string[]): boolean {
+  return next !== prev && next.length > 0;
+}

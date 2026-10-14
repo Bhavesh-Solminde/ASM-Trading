@@ -295,6 +295,7 @@ describe("useSocket", () => {
       consecutiveFailures: 0,
       lastSettled: null,
       recovered: [],
+      balanceRefetch: [],
       trades: { tradesByAccount: {}, balances: {} },
       chart: { symbol: "", lastPrice: null },
     });
@@ -302,6 +303,66 @@ describe("useSocket", () => {
     const next = await connect();
     expect(next.sent.some((m) => m.type === "subscribe")).toBe(false);
   });
+  describe("a settlement recovered by a bootstrap refetch", () => {
+    const settledBoot = { ...boot, recentTrades: [{ ...trade, status: "LOST", pnl: -10000, exitPrice: 1.2 }] } as unknown as Bootstrap;
+    const withBalance = (real: number) =>
+      ({ ...settledBoot, accounts: [{ id: "a1", type: "DEMO", currency: "USD", realBalance: real, bonusBalance: 0 }] }) as unknown as Bootstrap;
+    const followUps = () => {
+      const seen: Array<readonly string[]> = [];
+      const unsubscribe = useSocket.subscribe((s, prev) => {
+        if (s.balanceRefetch !== prev.balanceRefetch) seen.push(s.balanceRefetch);
+      });
+      return { seen, unsubscribe };
+    };
+
+    it("does not roll back a newer socket balance, and asks for one follow-up refetch", async () => {
+      useSocket.getState().seed(boot); // t1 OPEN, balance 500/20
+      useSocket.getState().subscribe("EURUSD", "1m");
+      const ws = await connect();
+      ws.receive({ type: "balance:update", accountId: "a1", realBalance: 321, bonusBalance: 0 }); // after the reconnect
+      const { seen, unsubscribe } = followUps();
+      useSocket.getState().seed(withBalance(900), Date.now() - 10_000); // response read before that push
+      unsubscribe();
+      expect(useSocket.getState().trades.tradesByAccount["a1"]?.[0]?.status).toBe("LOST");
+      expect(useSocket.getState().trades.balances["a1"]).toEqual({ realBalance: 321, bonusBalance: 0 });
+      expect(seen).toEqual([["a1"]]);
+    });
+
+    it("does not roll back a newer HTTP open-result balance (socket down), and asks for one follow-up refetch", () => {
+      useSocket.getState().seed(boot);
+      const before = Date.now();
+      useSocket.getState().applyOpenResult({ trade: { ...trade, id: "t2" }, balances: { realBalance: 111, bonusBalance: 22 } });
+      const { seen, unsubscribe } = followUps();
+      useSocket.getState().seed(withBalance(900), before - 1);
+      unsubscribe();
+      expect(useSocket.getState().trades.balances["a1"]).toEqual({ realBalance: 111, bonusBalance: 22 });
+      expect(seen).toEqual([["a1"]]);
+    });
+
+    it("converges: the follow-up bootstrap is newer, so its balance wins, and it asks for nothing more", async () => {
+      useSocket.getState().seed(boot);
+      useSocket.getState().subscribe("EURUSD", "1m");
+      const ws = await connect();
+      ws.receive({ type: "balance:update", accountId: "a1", realBalance: 321, bonusBalance: 0 });
+      useSocket.getState().seed(withBalance(900), Date.now() - 10_000);
+      const { seen, unsubscribe } = followUps();
+      useSocket.getState().seed(withBalance(777), Date.now() + 10_000); // the follow-up
+      useSocket.getState().seed(withBalance(777), Date.now() + 20_000); // and a later routine refetch
+      unsubscribe();
+      expect(useSocket.getState().trades.balances["a1"]).toEqual({ realBalance: 777, bonusBalance: 0 });
+      expect(seen).toEqual([]);
+    });
+
+    it("asks for no follow-up when the bootstrap balance was applied (it started after the stored balance)", () => {
+      useSocket.getState().seed(boot);
+      const { seen, unsubscribe } = followUps();
+      useSocket.getState().seed(withBalance(900), Date.now() + 10_000);
+      unsubscribe();
+      expect(useSocket.getState().trades.balances["a1"]).toEqual({ realBalance: 900, bonusBalance: 0 });
+      expect(seen).toEqual([]);
+    });
+  });
+
   describe("applyOpenResult", () => {
     const result = { trade, balances: { realBalance: 111, bonusBalance: 22 } };
 

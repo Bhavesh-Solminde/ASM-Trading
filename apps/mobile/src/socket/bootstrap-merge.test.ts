@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { initialTradeState } from "@asm/client-core";
 import type { Bootstrap, TradeView } from "@asm/contracts";
-import { mergeBootstrap, recoveredSettlements } from "./bootstrap-merge";
+import { mergeBootstrap, recoveredSettlements, recoveredAccountsWithStaleBalance } from "./bootstrap-merge";
 
 const trade = (over: Partial<TradeView> = {}): TradeView => ({
   id: "t1",
@@ -67,19 +67,52 @@ describe("mergeBootstrap", () => {
 describe("mergeBootstrap: recovered settlements", () => {
   const lost = () => trade({ status: "LOST", pnl: -1000, exitPrice: 2 });
 
-  it("lets the bootstrap balance win when it settles a trade the store still held open, even if a socket balance is stamped later than the request start", () => {
-    // The socket was live when the request started, delivered a balance (700 > 600), then dropped before the
-    // settlement push. The store still has the trade OPEN, so that balance predates the settlement.
+  it("never rolls back a balance stamped after the request started, even when the response settles a trade the store held open", () => {
+    // t1's push was lost; a later balance (a post-reconnect push for t2, or an HTTP open result while the socket
+    // was down) is stamped 700 > 600 and already includes t1. The older response must not replace it.
     const state = initialTradeState([trade()], { a1: { realBalance: 1, bonusBalance: 1 } });
     const out = mergeBootstrap(state, { a1: 700 }, boot({ real: 900, bonus: 0 }, [lost()]), 600);
-    expect(out.balances["a1"]).toEqual({ realBalance: 900, bonusBalance: 0 });
+    expect(out.balances["a1"]).toEqual({ realBalance: 1, bonusBalance: 1 });
     expect(out.tradesByAccount["a1"]?.[0]?.status).toBe("LOST");
+  });
+
+  it("applies the bootstrap balance for a recovered settlement when the request started after the stored balance", () => {
+    const state = initialTradeState([trade()], { a1: { realBalance: 1, bonusBalance: 1 } });
+    const out = mergeBootstrap(state, { a1: 500 }, boot({ real: 900, bonus: 0 }, [lost()]), 600);
+    expect(out.balances["a1"]).toEqual({ realBalance: 900, bonusBalance: 0 });
   });
 
   it("still keeps a newer socket balance when the bootstrap settles nothing new", () => {
     const state = initialTradeState([lost()], { a1: { realBalance: 1, bonusBalance: 1 } });
     const out = mergeBootstrap(state, { a1: 700 }, boot({ real: 900, bonus: 0 }, [lost()]), 600);
     expect(out.balances["a1"]).toEqual({ realBalance: 1, bonusBalance: 1 });
+  });
+
+  it("recoveredAccountsWithStaleBalance names accounts whose recovered settlement kept a newer stored balance", () => {
+    const state = initialTradeState([trade()], { a1: { realBalance: 1, bonusBalance: 1 } });
+    const b = boot({ real: 900, bonus: 0 }, [lost()]);
+    const after = mergeBootstrap(state, { a1: 700 }, b, 600);
+    const recovered = recoveredSettlements(state, after);
+    expect(recoveredAccountsWithStaleBalance(state, recovered, { a1: 700 }, b, 600)).toEqual(["a1"]);
+  });
+
+  it("recoveredAccountsWithStaleBalance is empty when the bootstrap balance was applied, or nothing was recovered", () => {
+    const state = initialTradeState([trade()], { a1: { realBalance: 1, bonusBalance: 1 } });
+    const b = boot({ real: 900, bonus: 0 }, [lost()]);
+    const recovered = recoveredSettlements(state, mergeBootstrap(state, { a1: 500 }, b, 600));
+    expect(recoveredAccountsWithStaleBalance(state, recovered, { a1: 500 }, b, 600)).toEqual([]);
+    expect(recoveredAccountsWithStaleBalance(state, [], { a1: 700 }, b, 600)).toEqual([]);
+  });
+
+  it("recoveredAccountsWithStaleBalance lists an account once however many of its trades were recovered", () => {
+    const state = initialTradeState([trade({ id: "x" }), trade({ id: "y" })], { a1: { realBalance: 1, bonusBalance: 1 } });
+    const b = boot({ real: 900, bonus: 0 }, [
+      { ...lost(), id: "x" },
+      { ...lost(), id: "y" },
+    ]);
+    const recovered = recoveredSettlements(state, mergeBootstrap(state, { a1: 700 }, b, 600));
+    expect(recovered).toHaveLength(2);
+    expect(recoveredAccountsWithStaleBalance(state, recovered, { a1: 700 }, b, 600)).toEqual(["a1"]);
   });
 
   it("recoveredSettlements lists only trades that were open in the store and are settled afterwards", () => {

@@ -3,14 +3,15 @@ import { queryClient } from "@/api/queries";
 import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSocket } from "@/socket/socket-store";
 import { allTrades } from "./open-trades";
-import { createGapTracker, shouldRefetchSettlements } from "./settlement-watch";
+import { createGapTracker, needsBalanceFollowUp, shouldRefetchSettlements } from "./settlement-watch";
 
 /**
  * Recovers settlements the socket never delivered. `trade:settled` is pushed once and never replayed, so a lost
  * one would leave a trade open at 0:00 for good. Two triggers refetch the bootstrap (its merge lets a settled
  * trade beat an open one): any open trade, on any account, still open past its expiry (checked each second, and
  * only while something is open), and the socket coming back after a drop. Coming back to the foreground is
- * handled by the tab layout.
+ * handled by the tab layout. A third refetches once after a recovered settlement kept a newer stored balance
+ * (the response may have predated it), so the balance converges; that refetch recovers nothing, so it cannot repeat.
  */
 export function useSettlementWatchdog(hasOpenTrades: boolean): void {
   const lastAttemptSec = useRef<number | null>(null);
@@ -34,4 +35,12 @@ export function useSettlementWatchdog(hasOpenTrades: boolean): void {
       if (s.phase !== prev.phase && gap(s.phase)) refreshBootstrap(queryClient);
     });
   }, []);
+
+  useEffect(
+    () =>
+      useSocket.subscribe((s, prev) => {
+        if (needsBalanceFollowUp(prev.balanceRefetch, s.balanceRefetch)) refreshBootstrap(queryClient);
+      }),
+    [],
+  );
 }
