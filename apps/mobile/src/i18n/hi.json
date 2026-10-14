@@ -40,6 +40,7 @@
     "trades": "ट्रेड", "moreOpen": "+{{n}} और", "ifClosedNow": "अभी बंद हो तो",
     "positionLabel": "{{side}} {{name}}, राशि {{stake}}, {{time}} बाकी। अपने ट्रेड देखने के लिए टैप करें।",
     "settling": "सेटल हो रहा है…", "positionLabelSettling": "{{side}} {{name}}, राशि {{stake}}, सेटल हो रहा है। अपने ट्रेड देखने के लिए टैप करें।",
+    "marketClosed": "यह मार्केट रात के लिए बंद है। ट्रेडिंग सुबह 5:00 बजे (IST) फिर शुरू होगी।", "accountPaused": "यह खाता रोका गया है। सपोर्ट से संपर्क करें।", "assetUnavailable": "यह मार्केट अभी उपलब्ध नहीं है।", "unavailable": "ट्रेडिंग अभी कुछ समय के लिए उपलब्ध नहीं है।",
     "tabCount": "{{name}}, {{n}}", "statusWon": "जीत", "statusLost": "हार", "statusRefund": "वापसी"
   },
   "bonus": {

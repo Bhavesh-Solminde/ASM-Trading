@@ -99,7 +99,7 @@ describe("POST /api/trades", () => {
     expect(account.currency).toBe("INR");
     const res = await post({ ...order(), stake: 9_999 }, alice.cookie);
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Minimum investment is ₹100.00." });
+    expect(await res.json()).toEqual({ error: "Minimum investment is ₹100.00.", code: "min_stake" });
     expect(engine).not.toHaveBeenCalled();
   });
 
@@ -115,7 +115,7 @@ describe("POST /api/trades", () => {
     engine.mockRejectedValueOnce(new EngineRejected(409, "insufficient_funds"));
     const res = await post(order(), alice.cookie);
     expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({ error: "Not enough balance for that stake." });
+    expect(await res.json()).toEqual({ error: "Not enough balance for that stake.", code: "insufficient_funds" });
   });
 
   it("maps an engine market-closed rejection to a 409 with the reopening time", async () => {
@@ -124,6 +124,7 @@ describe("POST /api/trades", () => {
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({
       error: "This market is closed for the night. Trading resumes at 5:00 AM IST.",
+      code: "market_closed",
     });
   });
 

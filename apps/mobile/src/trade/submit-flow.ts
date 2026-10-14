@@ -1,5 +1,5 @@
 import { ApiError } from "@/api/errors";
-import { errorText } from "@/auth/messages";
+import { tradeErrorKey } from "./trade-errors";
 import { OpenTradeResultSchema, buildOpenTradeBody } from "./trade-request";
 import type { OpenTradeInput, OpenTradeResult } from "@asm/contracts";
 
@@ -52,7 +52,7 @@ export function createSubmitter(deps: SubmitDeps): (req: SubmitRequest) => Promi
       }
     } catch (e) {
       if (!(e instanceof ApiError && e.code !== null && HANDLED_ELSEWHERE.has(e.code))) {
-        deps.toast(errorText(e, deps.t, "trade.failed"), "down");
+        deps.toast(deps.t(tradeErrorKey(e)), "down");
       }
     } finally {
       inFlight = false;

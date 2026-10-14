@@ -59,12 +59,20 @@ describe("createSubmitter", () => {
     },
   );
 
-  it("shows the server's message for other ApiErrors", async () => {
+  it("translates a known server refusal instead of showing the server's English text", async () => {
     const { deps, submit } = setup(async () => {
       throw new ApiError("Not enough balance for that stake.", 409, "insufficient_funds");
     });
     await submit(req);
-    expect(deps.toast).toHaveBeenCalledWith("Not enough balance for that stake.", "down");
+    expect(deps.toast).toHaveBeenCalledWith("<trade.insufficient>", "down");
+  });
+
+  it("an unknown server refusal reads trade.failed", async () => {
+    const { deps, submit } = setup(async () => {
+      throw new ApiError("Could not place that trade.", 400, "something_new");
+    });
+    await submit(req);
+    expect(deps.toast).toHaveBeenCalledWith("<trade.failed>", "down");
   });
 
   it("translates the offline and generic errors", async () => {
