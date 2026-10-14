@@ -85,10 +85,21 @@ export function TopBar({
 
 /**
  * The top bar from the resume cache, shown until bootstrap arrives: the last known balance, dimmed, with the
- * account type but no controls (the switch and deposit need live account data). The "Saved data — updating…" note
- * in the status row says why it is dimmed.
+ * account type but no controls (the switch and deposit need live account data). The screen-reader label says the
+ * figure is saved data, so it never reads as current money. A balance the store already received (`live`) is
+ * shown at full strength and without that wording.
  */
-export function StaleTopBar({ totalMinor, type, currency }: { totalMinor: number; type: AppAccount["type"]; currency: string }) {
+export function StaleTopBar({
+  totalMinor,
+  type,
+  currency,
+  live = false,
+}: {
+  totalMinor: number;
+  type: AppAccount["type"];
+  currency: string;
+  live?: boolean;
+}) {
   const { t } = useTranslation();
   const text = formatMinor(totalMinor, currency);
   return (
@@ -99,10 +110,10 @@ export function StaleTopBar({ totalMinor, type, currency }: { totalMinor: number
       </View>
       <View style={{ flex: 1 }} />
       <Text
-        accessibilityLabel={`${t("trade.balance")}: ${text}`}
+        accessibilityLabel={live ? `${t("trade.balance")}: ${text}` : `${t("trade.balance")}: ${text}. ${t("trade.stale")}`}
         numberOfLines={1}
         adjustsFontSizeToFit
-        style={{ color: color.ink2, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 }}
+        style={{ color: live ? color.ink : color.ink2, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 }}
       >
         {text}
       </Text>

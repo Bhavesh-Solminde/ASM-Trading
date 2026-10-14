@@ -24,15 +24,22 @@ export function resolveAccount(
 }
 
 /**
- * The cached balance of the saved account (real + bonus, minor units) with its type and currency, for the top bar
- * until bootstrap arrives. Null when there is nothing usable: no snapshot, an older one without the account
- * record, or no balance saved for that account.
+ * The balance for the top bar until bootstrap arrives, with its type and currency. A balance the store already holds
+ * for the saved account (a socket push or an HTTP open result can arrive before bootstrap) beats the cached one and
+ * is `live`; the cached one is stale. Null when there is nothing usable: no snapshot, an older one without the
+ * account record, or no balance for that account.
  */
 export function staleBalance(
   resume: ResumeSnapshot | null,
-): { totalMinor: number; type: "DEMO" | "LIVE"; currency: string } | null {
+  stored?: { realBalance: number; bonusBalance: number },
+): { totalMinor: number; type: "DEMO" | "LIVE"; currency: string; live: boolean } | null {
   if (!resume?.account) return null;
-  const bal = resume.balances[resume.accountId];
+  const bal = stored ?? resume.balances[resume.accountId];
   if (!bal) return null;
-  return { totalMinor: Math.round(bal.realBalance + bal.bonusBalance), type: resume.account.type, currency: resume.account.currency };
+  return {
+    totalMinor: Math.round(bal.realBalance + bal.bonusBalance),
+    type: resume.account.type,
+    currency: resume.account.currency,
+    live: stored !== undefined,
+  };
 }

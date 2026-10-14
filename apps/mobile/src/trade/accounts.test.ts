@@ -48,7 +48,15 @@ describe("staleBalance (the cached balance shown until bootstrap arrives)", () =
   });
 
   it("is the saved account's real + bonus balance with its type and currency", () => {
-    expect(staleBalance(snap())).toEqual({ totalMinor: 1_000, type: "DEMO", currency: "INR" });
+    expect(staleBalance(snap())).toEqual({ totalMinor: 1_000, type: "DEMO", currency: "INR", live: false });
+  });
+
+  it("prefers a balance the store already holds for that account (socket or HTTP) over the cached one, and says it is live", () => {
+    expect(staleBalance(snap(), { realBalance: 50, bonusBalance: 5 })).toEqual({ totalMinor: 55, type: "DEMO", currency: "INR", live: true });
+  });
+
+  it("still returns the cached balance when the store has none", () => {
+    expect(staleBalance(snap(), undefined)).toMatchObject({ totalMinor: 1_000, live: false });
   });
 
   it("is null without a snapshot, without the account record (older snapshot) or without that account's balance", () => {

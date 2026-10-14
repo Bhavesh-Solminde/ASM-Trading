@@ -13,6 +13,12 @@ describe("screenTopPadding", () => {
     expect(screenTopPadding({ padding: 16, paddingTop: 4 }, true, 28)).toBe(32);
   });
 
+  it("falls back from paddingTop to paddingVertical to padding", () => {
+    expect(screenTopPadding({ paddingVertical: 12 }, true, 28)).toBe(40);
+    expect(screenTopPadding({ paddingVertical: 12, padding: 16 }, false, 28)).toBe(12);
+    expect(screenTopPadding({ paddingTop: 4, paddingVertical: 12 }, false, 28)).toBe(4);
+  });
+
   it("ignores a non-numeric (percentage) padding rather than producing NaN", () => {
     expect(screenTopPadding({ paddingTop: "10%" }, true, 28)).toBe(28);
   });

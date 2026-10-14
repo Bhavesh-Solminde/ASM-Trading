@@ -121,7 +121,9 @@ export default function Trade() {
 
   const bonus = boot ? nextBonus(boot.completedDeposits) : null;
   // Until bootstrap arrives the cached balance (dimmed) beats a skeleton; without one, the skeleton stays.
-  const stale = !boot && !bootFailed ? staleBalance(resume) : null;
+  // A balance the store already holds for the saved account (socket push, HTTP open result) beats the cached one.
+  const storedBalance = useSocket((s) => (resume ? s.trades.balances[resume.accountId] : undefined));
+  const stale = !boot && !bootFailed ? staleBalance(resume, storedBalance) : null;
 
   return (
     <Screen>
@@ -131,7 +133,7 @@ export default function Trade() {
         // With a resume cache the chart is still showing, so the error is a strip; without one, see below.
         symbol ? <BootError compact onRetry={retry} /> : null
       ) : stale ? (
-        <StaleTopBar totalMinor={stale.totalMinor} type={stale.type} currency={stale.currency} />
+        <StaleTopBar totalMinor={stale.totalMinor} type={stale.type} currency={stale.currency} live={stale.live} />
       ) : (
         <View style={{ height: 52, justifyContent: "center", paddingHorizontal: 12 }}>
           <Skeleton height={28} />

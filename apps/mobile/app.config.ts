@@ -10,7 +10,7 @@ const version = "0.1.0";
 export function assertSecureUrls(input: { apiUrl: string; wsUrl: string; production: boolean }): void {
   if (!input.production) return;
   const check = (name: string, value: string, scheme: string) => {
-    if (!value.startsWith(`${scheme}://`)) throw new Error(`${name} must start with ${scheme}:// in a production build (got "${value}").`);
+    if (!value.startsWith(`${scheme}://`) || value.length <= scheme.length + 3) throw new Error(`${name} must be a ${scheme}:// URL with a host in a production build (got "${value}").`);
   };
   check("APP_API_URL", input.apiUrl, "https");
   check("APP_WS_URL", input.wsUrl, "wss");

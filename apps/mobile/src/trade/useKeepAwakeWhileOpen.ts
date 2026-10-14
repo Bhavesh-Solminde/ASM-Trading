@@ -2,7 +2,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useEffect } from "react";
 import { AppState } from "react-native";
 import { useSocket } from "@/socket/socket-store";
-import { createKeepAwakeLock, keepAwakePlan } from "./keep-awake-lock";
+import { createKeepAwakeLock, foregroundAction, keepAwakePlan } from "./keep-awake-lock";
 import { awakeDeadlineSec } from "./open-trades";
 
 const TAG = "open-trades";
@@ -33,7 +33,9 @@ export function useKeepAwakeWhileOpen(): void {
     lock.hold();
     const timer = setTimeout(lock.release, plan.releaseInMs);
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active" && keepAwakePlan(deadlineSec, Date.now()).hold) lock.reassert();
+      if (state !== "active") return;
+      if (foregroundAction(deadlineSec, Date.now()) === "reassert") lock.reassert();
+      else lock.release();
     });
     return () => {
       clearTimeout(timer);

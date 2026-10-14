@@ -20,6 +20,11 @@ describe("assertSecureUrls", () => {
     expect(() => assertSecureUrls({ ...secure, apiUrl: "indianxtrade.com", production: true })).toThrow(/APP_API_URL/);
   });
 
+  it("refuses a bare scheme with no host", () => {
+    expect(() => assertSecureUrls({ ...secure, apiUrl: "https://", production: true })).toThrow(/APP_API_URL/);
+    expect(() => assertSecureUrls({ ...secure, wsUrl: "wss://", production: true })).toThrow(/APP_WS_URL/);
+  });
+
   it("allows cleartext localhost URLs for a development build (Metro, dev client)", () => {
     expect(() => assertSecureUrls({ apiUrl: "http://localhost:3200", wsUrl: "ws://localhost:4001/ws", production: false })).not.toThrow();
   });

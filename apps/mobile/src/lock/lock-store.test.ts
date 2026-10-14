@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const disk = vi.hoisted(() => new Map<string, string>());
 const signOut = vi.hoisted(() => vi.fn());
-const fail = vi.hoisted(() => ({ get: new Set<string>(), set: new Set<string>(), del: new Set<string>() }));
+const fail = vi.hoisted(() => ({ get: new Set<string>(), set: new Set<string>(), del: new Set<string>(), delAll: false }));
 const auth = vi.hoisted(() => ({ hardware: vi.fn(), enrolled: vi.fn(), authenticate: vi.fn() }));
 
 vi.mock("expo-secure-store", () => ({
@@ -17,7 +17,7 @@ vi.mock("expo-secure-store", () => ({
     disk.set(k, v);
   },
   deleteItemAsync: async (k: string) => {
-    if (fail.del.has(k)) throw new Error("keystore delete");
+    if (fail.delAll || fail.del.has(k)) throw new Error("keystore delete");
     disk.delete(k);
   },
 }));
@@ -53,6 +53,7 @@ beforeEach(() => {
   fail.get.clear();
   fail.set.clear();
   fail.del.clear();
+  fail.delAll = false;
   auth.hardware.mockResolvedValue(true);
   auth.enrolled.mockResolvedValue(true);
   auth.authenticate.mockResolvedValue({ success: true });
@@ -115,7 +116,7 @@ describe("useLock reset", () => {
   it("completes and clears the in-memory lock even when every keystore delete fails", async () => {
     await useLock.getState().setPin("1234");
     useLock.getState().skipSetup();
-    for (const k of disk.keys()) fail.del.add(k);
+    fail.delAll = true;
     await expect(useLock.getState().reset()).resolves.toBeUndefined();
     expect(useLock.getState()).toMatchObject({
       enabled: false,
