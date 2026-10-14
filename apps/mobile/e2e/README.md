@@ -26,6 +26,11 @@ before `login-trade`) and `maintenance` needs a different server.
    DATABASE_URL=<isolated> DIRECT_URL=<isolated> REDIS_URL=<redis> \
      ENGINE_WS_PORT=4001 ENGINE_HTTP_PORT=4002 ENGINE_INTERNAL_SECRET=<any> BOTS_ENABLED=false \
      pnpm --filter @asm/engine start     # `start`/`dev` read ../../.env via dotenv; exported vars win over it
+   # In a worktree with no ../../.env that wrapper is untested. The reliable alternative (worked on device) is to
+   # export the same variables and run the entry point directly:
+   #   cd apps/engine && pnpm exec tsx src/main.ts
+   # @asm/config validates DATABASE_URL, DIRECT_URL, REDIS_URL and SESSION_SECRET strictly, so export all four.
+   # The engine also needs markets seeded: it throws "No open assets found" otherwise.
 
    # web on 3200 (the `dev` script is fixed to 3000), pointed at that engine
    DATABASE_URL=<isolated> DIRECT_URL=<isolated> REDIS_URL=<redis> \
@@ -33,6 +38,9 @@ before `login-trade`) and `maintenance` needs a different server.
      NEXT_PUBLIC_ENGINE_WS_URL=ws://localhost:4001 \
      pnpm --filter @asm/web exec next dev --port 3200
    ```
+
+   Charts need history: the pan, zoom and older-candles checks need at least ~150 candles per market in the
+   database. On a fresh database the view is clamped to about 7 candles, so backfill candles first.
 
    Demo trades need a market that is open. A 30s trade settles in the engine and the result arrives over the
    socket. Check `apps/engine/src/main.ts` and `apps/web` for any other variable your `.env` normally supplies.
@@ -62,10 +70,25 @@ before `login-trade`) and `maintenance` needs a different server.
    ```
 
    A release build cannot be used: it refuses cleartext `http://localhost`.
-4. **Emulator quirks.** The Gboard stylus popup swallows the first typed characters:
-   `adb shell settings put secure stylus_handwriting_enabled 0`. A dev client shows a one-time "developer menu"
-   intro sheet after a fresh install or `clearState`; close it by hand before the first run, or the first tap
-   lands on the sheet.
+4. **Emulator quirks.**
+   - The Gboard stylus popup swallows the first typed characters:
+     `adb shell settings put secure stylus_handwriting_enabled 0`.
+   - The dev client shows its "developer menu" intro sheet after **every** relaunch through the dev-client deep
+     link (every `am force-stop` plus launch, and after a hardware-Back exit plus relaunch), not only after a
+     fresh install or `clearState`. The `open-dev-client` subflow must dismiss it every time (its close button
+     is near (970, 1081) or (970, 1740) on a 1080x2400 screen, depending on layout).
+   - With the app locale set to Hindi (`hi-IN`), `adb shell input text` cannot type Latin letters (digits and
+     symbols work: an email came out as `1791957199@.com`). Set the locale back to English before typing
+     credentials: `adb shell cmd locale set-app-locales com.indianxtrade.app --locales ""`.
+   - Bottom-sheet content (market list, keypad, expiry, trades) shows up in a uiautomator dump only ~2.5 s after
+     the sheet opens; a dump at 1-1.5 s returns just the page behind it. Use `extendedWaitUntil` for `key-1`,
+     `keypad-done` and `expiry-*` after opening a sheet.
+   - `adb svc wifi/data disable` and `adb reverse --remove` do **not** drop an already-open adb-tunnelled
+     WebSocket (the offline banner shows through NetInfo, but the socket stays alive and keeps delivering). For
+     offline or reconnect flows put a small TCP proxy in front of the engine port, point `adb reverse` at the
+     proxy, and have it destroy its connections and refuse new ones on a signal.
+   - The AVD's `screen_off_timeout` is 2147483647 (never) by default, so keep-awake can only be checked after
+     setting a short one (`adb shell settings put system screen_off_timeout 15000`); restore it afterwards.
 
 ## Running
 
@@ -102,7 +125,9 @@ Without `DEV_CLIENT_URL` the helper does nothing (it has no default in the YAML;
 - **`lock.yaml` ends signed out** (five wrong PINs clear the session and the lock). Run `login-trade.yaml` again
   before the next `lock.yaml`.
 - **The trade flow waits for a settlement toast.** It matches a `toast` containing " · " (the settlement text is
-  "<market> · <result>"; no error message has that separator), so a "trade failed" toast does not pass.
+  "<market> · <result>", for example "BTC/USDT · Won ₹193.00"; no error message has that separator), so a "trade
+  failed" toast does not pass. The settlement arrives about 4-5 s after the 30 s expiry (the engine settles a few
+  seconds late), so the flow's 60 s toast timeout is right: do not shorten it.
 - The stake keypad appends digits to the saved stake, so the flow clears it with the backspace key first.
 - IDs used: `login-email`, `login-password`, `login-submit`, `lock-set-pin`, `pin-<0-9>`, `lock-message`,
   `account-demo` (also `account-live`), `stake-tile`, `key-<0-9|back>`, `keypad-done`, `expiry-<seconds>`,
