@@ -1,6 +1,8 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { prisma, type Role } from "@asm/db";
 import {
+  APP_SESSION_REFRESH_THRESHOLD_MS,
+  APP_SESSION_TTL_MS,
   SESSION_COOKIE,
   SESSION_COOKIE_OPTIONS,
   SESSION_REFRESH_THRESHOLD_MS,
@@ -9,6 +11,14 @@ import {
 
 export { SESSION_COOKIE, SESSION_COOKIE_OPTIONS };
 
+export type SessionClient = "WEB" | "APP";
+
+const TTL_MS: Record<SessionClient, number> = { WEB: SESSION_TTL_MS, APP: APP_SESSION_TTL_MS };
+const REFRESH_BELOW_MS: Record<SessionClient, number> = {
+  WEB: SESSION_REFRESH_THRESHOLD_MS,
+  APP: APP_SESSION_REFRESH_THRESHOLD_MS,
+};
+
 /** Tokens are stored hashed — a database leak must not yield usable sessions. */
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -16,16 +26,19 @@ function hashToken(token: string): string {
 
 export async function createSession(
   userId: string,
-  meta: { ip?: string; userAgent?: string },
+  meta: { ip?: string; userAgent?: string; client?: SessionClient; deviceName?: string | null },
 ): Promise<string> {
+  const client = meta.client ?? "WEB";
   const token = randomBytes(32).toString("base64url");
   await prisma.session.create({
     data: {
       userId,
       tokenHash: hashToken(token),
-      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      expiresAt: new Date(Date.now() + TTL_MS[client]),
       ipAddress: meta.ip ?? null,
       userAgent: meta.userAgent ?? null,
+      client,
+      deviceName: meta.deviceName ?? null,
     },
   });
   return token;
@@ -34,6 +47,7 @@ export async function createSession(
 export type SessionReadResult = {
   userId: string;
   role: Role;
+  client: SessionClient;
   /** True when readSession extended the DB expiry; the caller should re-issue the cookie. */
   refreshed: boolean;
 };
@@ -72,14 +86,15 @@ export async function readSession(
 
   // Sliding refresh: if the session is closer to expiry than the threshold,
   // roll it forward. Best-effort — a DB blip here shouldn't fail the read.
+  const client = session.client as SessionClient;
   let refreshed = false;
   const remainingMs = session.expiresAt.getTime() - now;
-  if (remainingMs < SESSION_REFRESH_THRESHOLD_MS) {
+  if (remainingMs < REFRESH_BELOW_MS[client]) {
     await prisma.session
       .update({
         where: { id: session.id },
         data: {
-          expiresAt: new Date(now + SESSION_TTL_MS),
+          expiresAt: new Date(now + TTL_MS[client]),
           lastUsedAt: new Date(now),
         },
       })
@@ -89,7 +104,7 @@ export async function readSession(
       .catch(() => {});
   }
 
-  return { userId: session.user.id, role: session.user.role, refreshed };
+  return { userId: session.user.id, role: session.user.role, client, refreshed };
 }
 
 export async function destroySession(token: string): Promise<void> {
