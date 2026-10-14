@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor } from "@asm/client-core";
 import { Icon, type IconName } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import {

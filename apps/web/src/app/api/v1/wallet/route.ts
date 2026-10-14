@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { WalletSchema } from "@asm/contracts";
 import { countCompletedDeposits, listAccountsForActor, withdrawableBalance } from "@asm/db";
-import { BONUS_TIERS, bonusPercentForDeposit } from "@/lib/bonus";
+import { BONUS_TIERS, bonusPercentForDeposit } from "@asm/client-core";
 import { getSession, noStoreJson, unauthenticated } from "@/lib/request-session";
 
 export async function GET(req: NextRequest) {

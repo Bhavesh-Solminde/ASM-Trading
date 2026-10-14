@@ -15,7 +15,7 @@ import {
   type UsdtNetwork,
 } from "@asm/contracts";
 import { certificateHtml, type CertificateData } from "@asm/mail/templates";
-import { currencySymbol, formatMinor } from "@/lib/format-money";
+import { currencySymbol, formatMinor } from "@asm/client-core";
 import { focusStep } from "@/lib/focus-step";
 import { IconTether } from "@/components/trade/AssetIcon";
 import { Icon } from "@/components/shell/Icon";

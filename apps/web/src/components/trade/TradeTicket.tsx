@@ -6,21 +6,24 @@ import type { OpenTradeResult } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { durationForTargetTime, offeredExpirySlots } from "@/lib/expiry-times";
-import { minStakeMinor } from "@/lib/currency";
-import { currencySymbol, formatMinor } from "@/lib/format-money";
-import { clockTime, countdown, hms } from "@/lib/format-time";
-import { useDismiss } from "@/lib/use-dismiss";
-import { useMarketClosed, useNowSec } from "@/lib/use-now";
-import { grossReturnMinor } from "./pnl-display";
-import { StakeSheet } from "./StakeSheet";
 import {
+  minStakeMinor,
+  currencySymbol,
+  formatMinor,
+  clockTime,
+  countdown,
+  hms,
+  grossReturnMinor,
   EXPIRY_CHIPS,
   defaultStake,
   formatDuration,
   groupAmount,
   isChipExpiry,
   stakePresets,
-} from "./stake";
+} from "@asm/client-core";
+import { useDismiss } from "@/lib/use-dismiss";
+import { useMarketClosed, useNowSec } from "@/lib/use-now";
+import { StakeSheet } from "./StakeSheet";
 
 type TimeMode = "timer" | "time";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { currencySymbol } from "@/lib/format-money";
+import { currencySymbol } from "@asm/client-core";
 
 /**
  * Lets the user set their DEMO balance to any amount up to the currency's cap,

@@ -1,6 +1,6 @@
 import type { CheckoutView } from "@asm/contracts";
 import type { getDepositByToken } from "@asm/db";
-import { buildUpiDeepLink } from "./upi";
+import { buildUpiDeepLink } from "@asm/client-core";
 import { upiCollection, upiManualClaimDelaySec } from "./upi-collection";
 
 type Deposit = NonNullable<Awaited<ReturnType<typeof getDepositByToken>>>;

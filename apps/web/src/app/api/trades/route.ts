@@ -4,7 +4,7 @@ import { formatMoney, getAccountForActor, listTradesForActor, prisma } from "@as
 import { childLogger } from "@asm/logger";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { minStakeMinor } from "@/lib/currency";
+import { minStakeMinor } from "@asm/client-core";
 import { EngineRejected, EngineUnavailable, engineOpenTrade } from "@/lib/engine-client";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { getSession, unauthenticated } from "@/lib/request-session";

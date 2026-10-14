@@ -2,8 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { usePathname } from "next/navigation";
-import { bonusPercentForDeposit } from "@/lib/bonus";
-import { clockTime } from "@/lib/format-time";
+import { bonusPercentForDeposit, clockTime } from "@asm/client-core";
 import { useNowSec } from "@/lib/use-now";
 import { usePlatform } from "./PlatformProvider";
 import { IconRail } from "./IconRail";

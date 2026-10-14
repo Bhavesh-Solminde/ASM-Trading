@@ -1,6 +1,6 @@
 import type { DEPOSIT_METHODS } from "@asm/contracts";
-import { USD_INR_RATE } from "@/lib/currency";
-import { currencySymbol, formatMinor } from "@/lib/format-money";
+import { USD_INR_RATE } from "../money/currency";
+import { currencySymbol, formatMinor } from "../money/format-money";
 
 type Method = (typeof DEPOSIT_METHODS)[number];
 

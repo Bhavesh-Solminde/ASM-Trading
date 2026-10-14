@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef } from "react";
 import { useScrollLock } from "@/lib/use-scroll-lock";
-import { applyKey, groupAmount, type AmountOpts } from "./amount-input";
+import { applyKey, groupAmountInput, type AmountOpts } from "@asm/client-core";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"] as const;
 
@@ -73,7 +73,7 @@ export function KeypadSheet({
         </p>
         <p className="mt-1 flex items-baseline justify-center gap-1.5 tabular-nums" aria-live="polite">
           <span className="text-2xl font-bold text-ink-3">{symbol}</span>
-          <span className="text-5xl font-extrabold tracking-[-0.035em]">{groupAmount(value)}</span>
+          <span className="text-5xl font-extrabold tracking-[-0.035em]">{groupAmountInput(value)}</span>
         </p>
         <p role="alert" className="mt-1 min-h-5 text-center text-xs text-down">
           {error ?? ""}

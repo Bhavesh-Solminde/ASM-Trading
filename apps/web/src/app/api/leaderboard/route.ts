@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { dailyLeaderboard } from "@asm/db";
-import { startOfDayMs } from "@/lib/day";
+import { startOfDayMs } from "@asm/client-core";
 import { getSession, unauthenticated } from "@/lib/request-session";
 
 // Populate the board with the trading bots by default so it reads like a live

@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { USD_INR_RATE } from "@/lib/currency";
-import { formatMinor } from "@/lib/format-money";
+import { USD_INR_RATE, formatMinor } from "@asm/client-core";
 import { isMuted, setMuted } from "@/lib/sound";
 import { Icon, type IconName } from "@/components/shell/Icon";
 import { initialsFor, kycBadge, type KycTone } from "./profile-display";

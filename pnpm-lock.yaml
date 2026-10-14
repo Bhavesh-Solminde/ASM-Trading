@@ -161,6 +161,9 @@ importers:
       '@asm/algo':
         specifier: workspace:*
         version: link:../../packages/algo
+      '@asm/client-core':
+        specifier: workspace:*
+        version: link:../../packages/client-core
       '@asm/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -237,6 +240,12 @@ importers:
       '@asm/trading':
         specifier: workspace:*
         version: link:../trading
+
+  packages/client-core:
+    dependencies:
+      '@asm/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/config:
     dependencies:

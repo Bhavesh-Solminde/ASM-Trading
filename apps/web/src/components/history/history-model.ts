@@ -1,7 +1,6 @@
 import type { TradeView } from "@asm/contracts";
 import { splitAssetName } from "@/lib/asset-name";
-import { formatMinor } from "@/lib/format-money";
-import { closedRowDisplay } from "@/components/trade/pnl-display";
+import { formatMinor, closedRowDisplay } from "@asm/client-core";
 
 /**
  * Pure model behind the History list and its detail sheet: the row shapes the
