@@ -14,6 +14,8 @@ const config: ExpoConfig = {
   android: {
     package: variant === "direct" ? "com.indianxtrade.app.direct" : "com.indianxtrade.app",
     versionCode: 1,
+    // The MMKV caches (resume snapshot with balances and trades, prefs) must not be copied into a cloud backup.
+    allowBackup: false,
     adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#000000" },
     permissions: ["android.permission.INTERNET", "android.permission.USE_BIOMETRIC", "android.permission.VIBRATE"],
   },

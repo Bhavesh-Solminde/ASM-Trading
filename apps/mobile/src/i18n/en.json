@@ -14,9 +14,9 @@
   "account": { "logout": "Log out" },
   "lock": {
     "title": "Unlock IndianxTrade", "setupTitle": "Protect your account", "useBiometric": "Use fingerprint or face",
-    "setPin": "Set a 4-digit PIN", "confirmPin": "Enter the PIN again", "wrongPin_one": "Wrong PIN. {{count}} try left.", "wrongPin_other": "Wrong PIN. {{count}} tries left.",
+    "setPin": "Set a 4-digit PIN", "confirmPin": "Enter the PIN again", "wrongPin_one": "Wrong PIN. {{n}} try left.", "wrongPin_other": "Wrong PIN. {{count}} tries left.",
     "mismatch": "PINs didn't match. Try again.", "skip": "Not now", "forgotPin": "Forgot PIN? Log in again",
-    "delete": "Delete", "pinEntered": "{{count}} of 4 digits entered"
+    "delete": "Delete", "pinEntered": "{{n}} of 4 digits entered"
   },
   "gate": {
     "maintenanceTitle": "We'll be right back", "maintenanceBody": "IndianxTrade is under maintenance. We'll reconnect automatically.",
@@ -30,6 +30,17 @@
     "favourites": "Favourites", "bonus": "+{{pct}}% bonus", "minStake": "Minimum stake is {{amount}}",
     "insufficient": "Not enough balance", "backToLive": "Live", "chartType": "Chart type", "timeframe": "Timeframe",
     "candles": "Candles", "line": "Line", "area": "Area", "bars": "Bars",
-    "ohlcO": "O", "ohlcH": "H", "ohlcL": "L", "ohlcC": "C", "chartLabel": "Price chart"
+    "ohlcO": "O", "ohlcH": "H", "ohlcL": "L", "ohlcC": "C", "chartLabel": "Price chart",
+    "sentiment": "Trader sentiment: {{up}}% up, {{down}}% down", "stale": "Saved data — updating…",
+    "liveLocked": "Live trading isn't available on your account yet.", "deposit": "Deposit", "balance": "Balance",
+    "noMarkets": "No markets match your search", "addFavourite": "Add {{name}} to favourites",
+    "removeFavourite": "Remove {{name}} from favourites", "selectMarket": "Market: {{name}}. Tap to change."
+  },
+  "bonus": {
+    "title": "Deposit bonus", "subtitle": "Extra trading balance on each of your first {{n}} deposits.",
+    "nth1": "1st deposit", "nth2": "2nd deposit", "nth3": "3rd deposit", "nth4": "4th deposit", "nthN": "Deposit {{n}}",
+    "claimed": "Claimed", "next": "Next", "upcoming": "Upcoming",
+    "note": "The bonus is added automatically when your deposit is credited. It is for trading only and can't be withdrawn — only your real balance can.",
+    "depositNow": "Deposit now · get {{pct}}%", "allUsed": "You've used all your deposit bonuses."
   }
 }

@@ -1,6 +1,7 @@
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
+  BottomSheetScrollView,
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
@@ -17,10 +18,17 @@ interface SheetProps {
   title?: string;
   children: ReactNode;
   snapPoints?: (string | number)[];
+  /**
+   * Long content (a searchable list): needs `snapPoints`, scrolls inside the sheet, keeps taps working while
+   * the keyboard is up, and resizes with the keyboard so a search field stays visible.
+   */
+  scroll?: boolean;
   onDismiss?: () => void;
 }
 
-export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, children, snapPoints, onDismiss }, ref) {
+const body = { padding: space(4), paddingBottom: space(8), gap: space(3) } as const;
+
+export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, children, snapPoints, scroll, onDismiss }, ref) {
   const inner = useRef<BottomSheetModal>(null);
   const [presented, setPresented] = useState(false);
 
@@ -54,6 +62,8 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, ch
     [],
   );
 
+  const heading = title ? <Text style={{ color: color.ink, fontSize: 17, fontWeight: "700" }}>{title}</Text> : null;
+
   return (
     <BottomSheetModal
       ref={inner}
@@ -64,11 +74,19 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, ch
       backgroundStyle={{ backgroundColor: color.panel }}
       handleIndicatorStyle={{ backgroundColor: color.ink2 }}
       backdropComponent={backdrop}
+      {...(scroll ? { keyboardBehavior: "extend", keyboardBlurBehavior: "restore", android_keyboardInputMode: "adjustResize" } : {})}
     >
-      <BottomSheetView style={{ padding: space(4), paddingBottom: space(8), gap: space(3) }}>
-        {title ? <Text style={{ color: color.ink, fontSize: 17, fontWeight: "700" }}>{title}</Text> : null}
-        {children}
-      </BottomSheetView>
+      {scroll ? (
+        <BottomSheetScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={body}>
+          {heading}
+          {children}
+        </BottomSheetScrollView>
+      ) : (
+        <BottomSheetView style={body}>
+          {heading}
+          {children}
+        </BottomSheetView>
+      )}
     </BottomSheetModal>
   );
 });

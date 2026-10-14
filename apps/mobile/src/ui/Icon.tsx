@@ -31,13 +31,24 @@ const D: Record<IconName, string[]> = {
   bolt: ["M13 3L5 14h6l-1 7 8-11h-6z"],
 };
 
-export function Icon({ name, size = 22, color = palette.ink }: { name: IconName; size?: number; color?: string }) {
+export function Icon({
+  name,
+  size = 22,
+  color = palette.ink,
+  filled = false,
+}: {
+  name: IconName;
+  size?: number;
+  color?: string;
+  /** Solid shape instead of an outline (the starred state of `star`). */
+  filled?: boolean;
+}) {
   return (
     <Svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? color : "none"}
       stroke={color}
       strokeWidth={1.8}
       strokeLinecap="round"
