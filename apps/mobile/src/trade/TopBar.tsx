@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Image, Pressable, Text, View } from "react-native";
-import { formatMinor } from "@asm/client-core";
+import { money } from "@/money/format";
 import logo from "../../assets/icon.png";
 import { useSocket } from "@/socket/socket-store";
 import { color, radius, space } from "@/theme/tokens";
@@ -63,12 +63,12 @@ export function TopBar({
       </View>
       <View style={{ flex: 1 }} />
       <Text
-        accessibilityLabel={`${t("trade.balance")}: ${formatMinor(total, account.currency)}`}
+        accessibilityLabel={`${t("trade.balance")}: ${money(total, account.currency)}`}
         numberOfLines={1}
         adjustsFontSizeToFit
         style={{ color: color.ink, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 }}
       >
-        {formatMinor(total, account.currency)}
+        {money(total, account.currency)}
       </Text>
       <Pressable
         accessibilityRole="button"
@@ -101,7 +101,7 @@ export function StaleTopBar({
   live?: boolean;
 }) {
   const { t } = useTranslation();
-  const text = formatMinor(totalMinor, currency);
+  const text = money(totalMinor, currency);
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: space(2), paddingHorizontal: space(3), height: 52 }}>
       <Image source={logo} accessibilityIgnoresInvertColors style={{ width: 28, height: 28, borderRadius: 6 }} />

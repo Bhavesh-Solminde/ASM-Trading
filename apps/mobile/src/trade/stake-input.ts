@@ -1,5 +1,6 @@
 import { OpenTradeSchema, TRADE_DURATIONS_SEC } from "@asm/contracts";
-import { applyKey, defaultStake, formatMinor, groupAmountInput, minStakeMinor, stakeToMinor, type AmountOpts } from "@asm/client-core";
+import { applyKey, currencySymbol, defaultStake, minStakeMinor, stakeToMinor, type AmountOpts } from "@asm/client-core";
+import { groupTyped, money } from "@/money/format";
 
 /** The contract's per-trade ceiling, in minor units, read from `OpenTradeSchema.stake` so the two cannot drift. */
 export const MAX_STAKE_MINOR: number = OpenTradeSchema.shape.stake.maxValue ?? Number.MAX_SAFE_INTEGER;
@@ -26,9 +27,9 @@ export function stakeAmountOpts(currency: string): AmountOpts {
   return { decimals: currency !== "INR", maxInt: String(Math.floor(MAX_STAKE_MINOR / 100)).length };
 }
 
-/** The stake text as shown: grouped thousands, "0" when empty, a trailing point kept while typing. */
-export function stakeDisplay(text: string): string {
-  return groupAmountInput(text);
+/** The stake text as shown: Indian grouping on INR, "0" when empty, a trailing point kept while typing. */
+export function stakeDisplay(text: string, currency: string): string {
+  return groupTyped(text, currency);
 }
 
 /**
@@ -38,8 +39,9 @@ export function stakeDisplay(text: string): string {
 export function stakeTileLabel(text: string, currency: string): string {
   if (text.trim() === "") return "—";
   const minor = stakeToMinor(text);
-  // A stored stake like "1e308" overflows to Infinity, which formatMinor rejects: show it as typed instead of crashing the dock.
-  return Number.isInteger(minor) ? formatMinor(minor, currency) : stakeDisplay(text);
+  // A stored stake like "1e308" overflows to Infinity, which money() rejects: show it as typed, with the symbol, instead of crashing
+  // the dock. (Grouping it would strip the "e" and show a wrong number.)
+  return Number.isInteger(minor) ? money(minor, currency) : `${currencySymbol(currency)}${text.trim()}`;
 }
 
 export const DEFAULT_EXPIRY_SEC = 60;

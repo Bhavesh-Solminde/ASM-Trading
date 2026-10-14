@@ -2,7 +2,8 @@ import * as Haptics from "expo-haptics";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
-import { formatMinor, stakePresets, stakeToMinor } from "@asm/client-core";
+import { stakePresets, stakeToMinor } from "@asm/client-core";
+import { money } from "@/money/format";
 import { color, radius, space } from "@/theme/tokens";
 import { Button } from "@/theme/ui";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
@@ -34,11 +35,11 @@ export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: strin
     return (
       <Sheet ref={ref} title={t("trade.stakeKeypad")}>
         <Text
-          accessibilityLabel={`${t("trade.stake")}: ${stakeDisplay(value)}`}
+          accessibilityLabel={`${t("trade.stake")}: ${stakeDisplay(value, currency)}`}
           accessibilityLiveRegion="polite"
           style={{ color: color.ink, fontSize: 40, fontWeight: "800", textAlign: "center", fontVariant: ["tabular-nums"] }}
         >
-          {stakeDisplay(value)}
+          {stakeDisplay(value, currency)}
         </Text>
         <View style={{ flexDirection: "row", gap: space(2) }}>
           {stakePresets(currency).map((amount) => {
@@ -55,7 +56,7 @@ export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: strin
                 style={{ ...keyBox, minHeight: 44, borderRadius: radius.sm, backgroundColor: selected ? color.brandFill : color.tile }}
               >
                 <Text style={{ color: selected ? color.brandInk : color.ink, fontWeight: "700", fontSize: 13 }} numberOfLines={1}>
-                  {formatMinor(stakeToMinor(String(amount)), currency)}
+                  {money(stakeToMinor(String(amount)), currency)}
                 </Text>
               </Pressable>
             );

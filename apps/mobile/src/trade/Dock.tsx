@@ -1,7 +1,8 @@
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
-import { EXPIRY_CHIPS, formatDuration, formatMinor, isChipExpiry, minStakeMinor, profitForStake } from "@asm/client-core";
+import { EXPIRY_CHIPS, formatDuration, isChipExpiry, minStakeMinor, profitForStake } from "@asm/client-core";
+import { money } from "@/money/format";
 import type { Bootstrap } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
 import { color, font, radius, space } from "@/theme/tokens";
@@ -48,9 +49,9 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
 
   const problem = !check.ok
     ? check.reason === "min"
-      ? t("trade.minStake", { amount: formatMinor(minStakeMinor(currency), currency) })
+      ? t("trade.minStake", { amount: money(minStakeMinor(currency), currency) })
       : check.reason === "max"
-        ? t("trade.maxStake", { amount: formatMinor(MAX_STAKE_MINOR, currency) })
+        ? t("trade.maxStake", { amount: money(MAX_STAKE_MINOR, currency) })
         : check.reason === "balance"
           ? t("trade.insufficient")
           : null
@@ -143,7 +144,7 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
           const ink = up ? color.upInk : color.downInk;
           const label = up ? t("trade.buy") : t("trade.sell");
           const payoutText = payoutPct !== null ? t("trade.payout", { pct: payoutPct }) : "";
-          const profitText = profit !== null ? `+${formatMinor(profit, currency)}` : "";
+          const profitText = profit !== null ? `+${money(profit, currency)}` : "";
           return (
             <Pressable
               key={dir}

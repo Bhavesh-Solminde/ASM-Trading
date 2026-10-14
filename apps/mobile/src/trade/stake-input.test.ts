@@ -46,10 +46,11 @@ describe("stakeAmountOpts", () => {
 
 describe("stakeDisplay", () => {
   it("groups digits and keeps a trailing point or decimals", () => {
-    expect(stakeDisplay("")).toBe("0");
-    expect(stakeDisplay("1250")).toBe("1,250");
-    expect(stakeDisplay("12.")).toBe("12.");
-    expect(stakeDisplay("12.5")).toBe("12.5");
+    expect(stakeDisplay("", "USD")).toBe("0");
+    expect(stakeDisplay("1250", "USD")).toBe("1,250");
+    expect(stakeDisplay("12.", "USD")).toBe("12.");
+    expect(stakeDisplay("12.5", "USD")).toBe("12.5");
+    expect(stakeDisplay("125000", "INR")).toBe("1,25,000");
   });
 });
 
@@ -122,7 +123,7 @@ describe("stakeTileLabel", () => {
     expect(stakeTileLabel("12.34", "USD")).toBe("$12.34");
   });
   it("keeps the currency on stakes the validation message already explains (over max, over balance, below min)", () => {
-    expect(stakeTileLabel("1005010", "INR")).toBe("₹1,005,010.00");
+    expect(stakeTileLabel("1005010", "INR")).toBe("₹10,05,010.00");
     expect(stakeTileLabel("1000", "INR")).toBe("₹1,000.00");
     expect(stakeTileLabel("50", "INR")).toBe("₹50.00");
   });
@@ -136,6 +137,6 @@ describe("stakeTileLabel", () => {
   });
   it("does not throw for a stored stake too large to be an amount (renders in the dock)", () => {
     expect(() => stakeTileLabel("1e308", "INR")).not.toThrow();
-    expect(stakeTileLabel("1e308", "INR")).toBe(stakeDisplay("1e308"));
+    expect(stakeTileLabel("1e308", "INR")).toBe("₹1e308");
   });
 });

@@ -2,7 +2,8 @@ import { memo, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import { Circle, Svg } from "react-native-svg";
-import { formatMinor, RING_LENGTH, ringOffset, soonestOpen } from "@asm/client-core";
+import { RING_LENGTH, ringOffset, soonestOpen } from "@asm/client-core";
+import { money } from "@/money/format";
 import type { TradeView } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
 import { color, radius, space } from "@/theme/tokens";
@@ -38,7 +39,7 @@ const StripBody = memo(function StripBody({
   const up = trade.direction === "UP";
   const dirColor = up ? color.up : color.down;
   const side = up ? t("trade.buy") : t("trade.sell");
-  const stake = formatMinor(trade.stake, currency);
+  const stake = money(trade.stake, currency);
   const time = countdownText(live, t("trade.settling"));
   const label =
     (live.expired ? t("trade.positionLabelSettling", { side, name, stake }) : t("trade.positionLabel", { side, name, stake, time })) +
@@ -95,7 +96,7 @@ const StripBody = memo(function StripBody({
             fontVariant: ["tabular-nums"],
           }}
         >
-          {pnl === null ? "—" : `${pnl.sign}${formatMinor(pnl.amountMinor, currency)}`}
+          {pnl === null ? "—" : `${pnl.sign}${money(pnl.amountMinor, currency)}`}
         </Text>
         <Text style={{ color: color.ink3, fontSize: 10 }}>{t("trade.ifClosedNow")}</Text>
       </View>

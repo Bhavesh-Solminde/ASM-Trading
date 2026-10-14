@@ -1,4 +1,5 @@
-import { closedRowDisplay, formatMinor } from "@asm/client-core";
+import { closedRowDisplay } from "@asm/client-core";
+import { money } from "@/money/format";
 import type { TradeView } from "@asm/contracts";
 
 export interface SettledFeedback {
@@ -22,7 +23,7 @@ export interface SettledFeedback {
 export function settledFeedback(trade: TradeView, currency: string): SettledFeedback {
   const { amountMinor: listed } = closedRowDisplay(trade);
   const amountMinor = trade.status === "REFUNDED" ? trade.stake : listed;
-  const amountText = formatMinor(amountMinor, currency);
+  const amountText = money(amountMinor, currency);
   switch (trade.status) {
     case "WON":
       return { tone: "up", key: "trade.won", amountMinor, amountText, haptic: "success" };

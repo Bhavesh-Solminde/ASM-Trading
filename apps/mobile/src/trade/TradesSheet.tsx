@@ -1,7 +1,8 @@
 import { forwardRef, memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
-import { closedRowDisplay, formatMinor } from "@asm/client-core";
+import { closedRowDisplay } from "@asm/client-core";
+import { money } from "@/money/format";
 import type { TradeView } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
 import { color, radius, space } from "@/theme/tokens";
@@ -66,7 +67,7 @@ const OpenRow = memo(function OpenRow({ trade, assets, currency }: { trade: Trad
   const precision = assets.find((a) => a.symbol === trade.symbol)?.precision ?? 5;
   return (
     <View style={rowBox}>
-      <TradeName trade={trade} assets={assets} detail={`${formatMinor(trade.stake, currency)} · ${trade.entryPrice.toFixed(precision)}`} />
+      <TradeName trade={trade} assets={assets} detail={`${money(trade.stake, currency)} · ${trade.entryPrice.toFixed(precision)}`} />
       <View style={{ alignItems: "flex-end", gap: 2 }}>
         <Text style={{ color: color.ink, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{countdownText(live, t("trade.settling"))}</Text>
         <Text
@@ -77,7 +78,7 @@ const OpenRow = memo(function OpenRow({ trade, assets, currency }: { trade: Trad
             fontVariant: ["tabular-nums"],
           }}
         >
-          {pnl === null ? "—" : `${pnl.sign}${formatMinor(pnl.amountMinor, currency)}`}
+          {pnl === null ? "—" : `${pnl.sign}${money(pnl.amountMinor, currency)}`}
         </Text>
       </View>
     </View>
@@ -106,7 +107,7 @@ const ClosedRow = memo(function ClosedRow({ trade, assets, currency }: { trade: 
       <TradeName trade={trade} assets={assets} detail={`${prices} · ${closedStamp(trade.expiryTs, Date.now())}`} />
       <View style={{ alignItems: "flex-end", gap: 4 }}>
         <Text style={{ color: amountColor, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
-          {`${display.sign}${formatMinor(display.amountMinor, currency)}`}
+          {`${display.sign}${money(display.amountMinor, currency)}`}
         </Text>
         {chip ? (
           <View style={{ backgroundColor: chip.bg, borderColor: chip.border, borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 }}>
