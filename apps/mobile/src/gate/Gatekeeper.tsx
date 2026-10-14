@@ -55,12 +55,14 @@ export function Gatekeeper() {
   }, []);
 
   const belowMin = minVersion !== undefined && compareVersions(appConfig().version, minVersion) < 0;
-  const target = routeFor({ ready, token, locked, lockChosen: method !== null || skipped, gate, belowMin });
+  // Until the lock store has loaded too, `method` is unknown: route nowhere rather than briefly to /lock-setup.
+  const target = routeFor({ ready: ready && booted, token, locked, lockChosen: method !== null || skipped, gate, belowMin });
   const redirect = redirectFor(target, pathname);
 
+  // `pathname` too: if the route moves to another wrong one while `redirect` keeps its value, correct it again.
   useEffect(() => {
     if (navReady && redirect) router.replace(redirect);
-  }, [navReady, redirect]);
+  }, [navReady, redirect, pathname]);
 
   // Hide the splash only once the user is on the right screen and the app-config answer is in, so a
   // signed-out, locked, below-min or maintenance user never sees the tabs.
@@ -69,11 +71,11 @@ export function Gatekeeper() {
     if (settled) hideSplash();
   }, [settled]);
 
+  // Armed on mount, so a keystore call that never settles cannot hold the native splash up forever.
   useEffect(() => {
-    if (!booted) return;
     const id = setTimeout(hideSplash, SPLASH_FAILSAFE_MS);
     return () => clearTimeout(id);
-  }, [booted]);
+  }, []);
 
   return null;
 }
