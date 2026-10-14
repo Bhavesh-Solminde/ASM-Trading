@@ -87,6 +87,7 @@ export function resolveAuth(
   sessionToken: () => string | null,
 ): { token: string | null; authed: boolean } {
   if (opts.token !== undefined) return { token: opts.token, authed: false };
-  const authed = opts.auth !== false;
-  return { token: authed ? sessionToken() : null, authed };
+  const token = opts.auth !== false ? sessionToken() : null;
+  // A request that carried no token (e.g. sent before hydrate() finished) says nothing about the session.
+  return { token, authed: token !== null };
 }

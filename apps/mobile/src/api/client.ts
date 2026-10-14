@@ -58,7 +58,8 @@ export async function api<T = unknown>(
       if (clearsGate(path) && useGate.getState().gate !== "ok") useGate.getState().setGate("ok");
       return opts.schema ? opts.schema.parse(json) : (json as T);
     case "logout":
-      onLogout();
+      // Only the session this request carried is gone; a newer sign-in made while it was in flight stays.
+      if (tokenProvider() === token) onLogout();
       throw new ApiError("Not signed in.", 401, "unauthenticated");
     case "gate":
       useGate.getState().setGate(verdict.gate);

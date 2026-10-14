@@ -115,4 +115,10 @@ describe("resolveAuth", () => {
     // So a stale 401 for the old token cannot sign out a newer session.
     expect(classifyResponse(401, { code: "unauthenticated" }, { authed: out.authed }).kind).not.toBe("logout");
   });
+  it("never treats a 401 as session loss when no session token was sent", () => {
+    // Cold start: the request leaves before hydrate() has read the stored token.
+    const out = resolveAuth({}, () => null);
+    expect(out).toEqual({ token: null, authed: false });
+    expect(classifyResponse(401, { code: "unauthenticated" }, { authed: out.authed }).kind).not.toBe("logout");
+  });
 });
