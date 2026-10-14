@@ -331,6 +331,81 @@ export function EmptyRow({ cols, message }: { cols: number; message: string }) {
 }
 
 /* ---------------------------------- Charts --------------------------------- */
+/** Daily bars with the last bar (today) highlighted and labelled. */
+export function BarChart({
+  points,
+  labels,
+  format,
+}: {
+  points: number[];
+  labels: string[];
+  format: (v: number) => string;
+}) {
+  const W = 720;
+  const H = 210;
+  const padT = 28;
+  const padB = 22;
+  const max = Math.max(...points, 1);
+  const n = points.length;
+  const slot = W / n;
+  const bw = Math.max(2, slot * 0.62);
+  const ih = H - padT - padB;
+  const last = n - 1;
+  const lastH = Math.max(2, (points[last]! / max) * ih);
+  const avg = points.slice(0, last).reduce((s, v) => s + v, 0) / Math.max(1, last);
+  return (
+    <svg
+      className="admin-chart-svg"
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      aria-label={`Daily trade volume. Today ${format(points[last] ?? 0)}, daily average before today ${format(avg)}.`}
+    >
+      {[0, 1, 2].map((g) => {
+        const gy = padT + (g / 2) * ih;
+        return <line key={g} x1={0} y1={gy} x2={W} y2={gy} stroke="var(--admin-border-soft)" strokeWidth={1} />;
+      })}
+      {points.map((v, i) => {
+        const h = Math.max(2, (v / max) * ih);
+        return (
+          <rect
+            key={i}
+            x={(i * slot + (slot - bw) / 2).toFixed(1)}
+            y={(padT + ih - h).toFixed(1)}
+            width={bw.toFixed(1)}
+            height={h.toFixed(1)}
+            rx={2}
+            fill={i === last ? "var(--admin-accent)" : "#24426e"}
+          >
+            <title>{`${labels[i]}: ${format(v)}`}</title>
+          </rect>
+        );
+      })}
+      <text
+        x={Math.min(W - 4, last * slot + slot / 2).toFixed(1)}
+        y={(padT + ih - lastH - 8).toFixed(1)}
+        fill="var(--admin-ink)"
+        fontSize={12}
+        fontWeight={700}
+        textAnchor="end"
+      >
+        Today {format(points[last] ?? 0)}
+      </text>
+      {[0, Math.floor(n / 2), last].map((i) => (
+        <text
+          key={i}
+          x={(i * slot + slot / 2).toFixed(1)}
+          y={H - 5}
+          fill="var(--admin-faint)"
+          fontSize={11}
+          textAnchor={i === 0 ? "start" : i === last ? "end" : "middle"}
+        >
+          {labels[i]}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
 export function AreaChart({
   points,
   labels,

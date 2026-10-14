@@ -5,7 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "../_lib/icons";
 
-type NavItem = { href: string; label: string; icon: IconName; badge?: number | undefined; urgent?: boolean };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: IconName;
+  badge?: number | undefined;
+  urgent?: boolean;
+  /** queue colour class (see admin.css "Queue colours") */
+  tone?: string;
+};
 type NavGroup = { label?: string; items: NavItem[] };
 
 // Work that needs a decision leads; reference pages follow.
@@ -14,10 +22,10 @@ const NAV = (b: Record<string, number>): NavGroup[] => [
   {
     label: "Queues",
     items: [
-      { href: "/admin/deposits", label: "Deposits", icon: "depositIn", badge: b.deposits },
-      { href: "/admin/withdrawals", label: "Withdrawals", icon: "payoutOut", badge: b.withdrawals },
-      { href: "/admin/kyc", label: "KYC", icon: "idCard", badge: b.kyc },
-      { href: "/admin/fraud", label: "Fraud", icon: "shieldAlert", badge: b.fraud, urgent: true },
+      { href: "/admin/deposits", label: "Deposits", icon: "depositIn", badge: b.deposits, tone: "q-deposit" },
+      { href: "/admin/withdrawals", label: "Withdrawals", icon: "payoutOut", badge: b.withdrawals, tone: "q-withdraw" },
+      { href: "/admin/kyc", label: "KYC", icon: "idCard", badge: b.kyc, tone: "q-kyc" },
+      { href: "/admin/fraud", label: "Fraud", icon: "shieldAlert", badge: b.fraud, urgent: true, tone: "q-fraud" },
     ],
   },
   {
@@ -40,6 +48,7 @@ const NAV = (b: Record<string, number>): NavGroup[] => [
         icon: "ledger",
         badge: b.reconciliation,
         urgent: true,
+        tone: "q-recon",
       },
     ],
   },
@@ -71,7 +80,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
     <Link
       href={item.href}
       aria-current={isActive(pathname, item.href) ? "page" : undefined}
-      className={`admin-nav__item${isActive(pathname, item.href) ? " active" : ""}`}
+      className={`admin-nav__item${item.tone ? ` ${item.tone}` : ""}${isActive(pathname, item.href) ? " active" : ""}`}
     >
       <Icon name={item.icon} />
       <span>{item.label}</span>
@@ -183,17 +192,17 @@ export function AdminShell({
       <nav className="admin-bottomnav" aria-label="Queues">
         {(
           [
-            ["/admin", "Home", "grid", 0],
-            ["/admin/deposits", "Deposits", "depositIn", badges.deposits ?? 0],
-            ["/admin/withdrawals", "Payouts", "payoutOut", badges.withdrawals ?? 0],
-            ["/admin/kyc", "KYC", "idCard", badges.kyc ?? 0],
+            ["/admin", "Home", "grid", 0, ""],
+            ["/admin/deposits", "Deposits", "depositIn", badges.deposits ?? 0, "q-deposit"],
+            ["/admin/withdrawals", "Payouts", "payoutOut", badges.withdrawals ?? 0, "q-withdraw"],
+            ["/admin/kyc", "KYC", "idCard", badges.kyc ?? 0, "q-kyc"],
           ] as const
-        ).map(([href, label, icon, count]) => (
+        ).map(([href, label, icon, count, tone]) => (
           <Link
             key={href}
             href={href}
             aria-current={isActive(pathname, href) ? "page" : undefined}
-            className={isActive(pathname, href) ? "active" : undefined}
+            className={[tone, isActive(pathname, href) ? "active" : ""].filter(Boolean).join(" ") || undefined}
           >
             <Icon name={icon} size={20} />
             {label}
