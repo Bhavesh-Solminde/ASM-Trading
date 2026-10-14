@@ -8,7 +8,8 @@ type Method = (typeof DEPOSIT_METHODS)[number];
  * Deposit limits in whole rupees, as the amount screen sees them. A client
  * component can't import @asm/db (its barrel builds the Prisma client), so
  * these mirror MIN/MAX_DEPOSIT_INR_MINOR and MIN/MAX_DEPOSIT_USDT_MINOR;
- * limits.test.ts fails if they drift. The server re-checks every amount.
+ * apps/web/src/lib/client-core-mirrors.test.ts fails if they drift. The server
+ * re-checks every amount.
  */
 export const INR_MIN = 500;
 export const INR_MAX = 10_00_000;
