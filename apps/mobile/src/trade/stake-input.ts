@@ -1,5 +1,5 @@
 import { OpenTradeSchema, TRADE_DURATIONS_SEC } from "@asm/contracts";
-import { applyKey, defaultStake, groupAmountInput, minStakeMinor, stakeToMinor, type AmountOpts } from "@asm/client-core";
+import { applyKey, defaultStake, formatMinor, groupAmountInput, minStakeMinor, stakeToMinor, type AmountOpts } from "@asm/client-core";
 
 /** The contract's per-trade ceiling, in minor units, read from `OpenTradeSchema.stake` so the two cannot drift. */
 export const MAX_STAKE_MINOR: number = OpenTradeSchema.shape.stake.maxValue ?? Number.MAX_SAFE_INTEGER;
@@ -29,6 +29,14 @@ export function stakeAmountOpts(currency: string): AmountOpts {
 /** The stake text as shown: grouped thousands, "0" when empty, a trailing point kept while typing. */
 export function stakeDisplay(text: string): string {
   return groupAmountInput(text);
+}
+
+/**
+ * The stake tile's text: always the amount with its currency, valid or not (the validation message under it says
+ * what is wrong with an over-max or over-balance stake), and a dash once the stake is cleared.
+ */
+export function stakeTileLabel(text: string, currency: string): string {
+  return text.trim() === "" ? "—" : formatMinor(stakeToMinor(text), currency);
 }
 
 export const DEFAULT_EXPIRY_SEC = 60;

@@ -10,7 +10,7 @@ import { ExpirySheet } from "./ExpirySheet";
 import { KeypadSheet } from "./KeypadSheet";
 import { payoutPctFor, type AppAsset } from "./markets";
 import { prefsFor } from "./prefs-model";
-import { MAX_STAKE_MINOR, resolveExpiry, stakeAfterKey, stakeAmountOpts, stakeDisplay, stakeFor, validateStake, withStake } from "./stake-input";
+import { MAX_STAKE_MINOR, resolveExpiry, stakeAfterKey, stakeAmountOpts, stakeFor, stakeTileLabel, validateStake, withStake } from "./stake-input";
 import { useTradePrefs, useUserPrefs } from "./trade-prefs";
 import { useTradeSubmit } from "./useTradeSubmit";
 
@@ -56,7 +56,7 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
           : null
     : null;
 
-  const stakeLabel = check.ok ? formatMinor(check.minor, currency) : stake === "" ? "—" : stakeDisplay(stake);
+  const stakeLabel = stakeTileLabel(stake, currency);
 
   return (
     <View

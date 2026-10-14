@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OpenTradeSchema } from "@asm/contracts";
-import { DEFAULT_EXPIRY_SEC, MAX_STAKE_MINOR, resolveExpiry, stakeAmountOpts, stakeDisplay, stakeFor, stakeAfterKey, validateStake, withStake } from "./stake-input";
+import { DEFAULT_EXPIRY_SEC, MAX_STAKE_MINOR, resolveExpiry, stakeAmountOpts, stakeDisplay, stakeFor, stakeAfterKey, stakeTileLabel, validateStake, withStake } from "./stake-input";
 
 describe("validateStake", () => {
   it("rejects an empty stake", () => {
@@ -113,5 +113,25 @@ describe("stakeAfterKey", () => {
 
   it("deletes with back", () => {
     expect(stakeAfterKey({ INR: "125" }, "INR", "back", opts)).toEqual({ INR: "12" });
+  });
+});
+
+describe("stakeTileLabel", () => {
+  it("formats a valid stake with the currency", () => {
+    expect(stakeTileLabel("100", "INR")).toBe("₹100.00");
+    expect(stakeTileLabel("12.34", "USD")).toBe("$12.34");
+  });
+  it("keeps the currency on stakes the validation message already explains (over max, over balance, below min)", () => {
+    expect(stakeTileLabel("1005010", "INR")).toBe("₹1,005,010.00");
+    expect(stakeTileLabel("1000", "INR")).toBe("₹1,000.00");
+    expect(stakeTileLabel("50", "INR")).toBe("₹50.00");
+  });
+  it("shows a dash for a cleared stake", () => {
+    expect(stakeTileLabel("", "INR")).toBe("—");
+    expect(stakeTileLabel("   ", "INR")).toBe("—");
+  });
+  it("shows a zero amount, with the currency, for text that is not an amount yet", () => {
+    expect(stakeTileLabel("0", "INR")).toBe("₹0.00");
+    expect(stakeTileLabel(".", "USD")).toBe("$0.00");
   });
 });
