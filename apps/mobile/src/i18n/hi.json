@@ -1,0 +1,27 @@
+{
+  "common": { "retry": "फिर कोशिश करें", "cancel": "रद्द करें", "done": "हो गया", "continue": "आगे बढ़ें", "offline": "कनेक्शन नहीं है — दोबारा जोड़ रहे हैं…" },
+  "tabs": { "trade": "ट्रेड", "payments": "भुगतान", "history": "इतिहास", "account": "खाता" },
+  "auth": {
+    "login": "लॉग इन", "register": "खाता बनाएँ", "email": "ईमेल", "password": "पासवर्ड",
+    "forgot": "पासवर्ड भूल गए?", "google": "Google से जारी रखें", "noAccount": "नए हैं? खाता बनाएँ",
+    "haveAccount": "पहले से खाता है? लॉग इन करें", "resetSent": "अगर यह ईमेल रजिस्टर्ड है, तो रीसेट लिंक भेज दिया गया है।"
+  },
+  "lock": {
+    "title": "IndianxTrade अनलॉक करें", "setupTitle": "अपने खाते को सुरक्षित करें", "useBiometric": "फ़िंगरप्रिंट या फ़ेस का इस्तेमाल करें",
+    "setPin": "4 अंकों का PIN सेट करें", "confirmPin": "PIN फिर से डालें", "wrongPin": "गलत PIN। {{left}} कोशिशें बाकी।",
+    "mismatch": "PIN मेल नहीं खाए। फिर कोशिश करें।", "skip": "अभी नहीं", "forgotPin": "PIN भूल गए? फिर से लॉग इन करें"
+  },
+  "gate": {
+    "maintenanceTitle": "हम जल्द लौटेंगे", "maintenanceBody": "IndianxTrade पर रखरखाव चल रहा है। हम अपने आप दोबारा जुड़ जाएँगे।",
+    "blockedTitle": "VPN या प्रॉक्सी मिला", "blockedBody": "अपना VPN, प्रॉक्सी या Tor बंद करके फिर कोशिश करें।",
+    "updateTitle": "अपडेट ज़रूरी है", "updateBody": "यह वर्ज़न अब काम नहीं करता। ट्रेडिंग जारी रखने के लिए अपडेट करें।", "update": "अभी अपडेट करें"
+  },
+  "trade": {
+    "buy": "खरीदें", "sell": "बेचें", "stake": "राशि", "expiry": "समय", "more": "और", "payout": "{{pct}}%",
+    "demo": "डेमो", "live": "लाइव", "won": "{{amount}} जीते", "lost": "{{amount}} हारे", "refunded": "{{amount}} वापस",
+    "open": "खुले", "closed": "बंद", "noTrades": "अभी कोई ट्रेड नहीं", "markets": "मार्केट", "search": "मार्केट खोजें",
+    "favourites": "पसंदीदा", "bonus": "+{{pct}}% बोनस", "minStake": "न्यूनतम राशि {{amount}} है",
+    "insufficient": "बैलेंस कम है", "backToLive": "लाइव", "chartType": "चार्ट प्रकार", "timeframe": "टाइमफ़्रेम",
+    "candles": "कैंडल", "line": "लाइन", "area": "एरिया", "bars": "बार"
+  }
+}

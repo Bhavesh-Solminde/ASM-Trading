@@ -1,0 +1,27 @@
+{
+  "common": { "retry": "Retry", "cancel": "Cancel", "done": "Done", "continue": "Continue", "offline": "No connection — reconnecting…" },
+  "tabs": { "trade": "Trade", "payments": "Payments", "history": "History", "account": "Account" },
+  "auth": {
+    "login": "Log in", "register": "Create account", "email": "Email", "password": "Password",
+    "forgot": "Forgot password?", "google": "Continue with Google", "noAccount": "New here? Create an account",
+    "haveAccount": "Already have an account? Log in", "resetSent": "If that email is registered, a reset link is on its way."
+  },
+  "lock": {
+    "title": "Unlock IndianxTrade", "setupTitle": "Protect your account", "useBiometric": "Use fingerprint or face",
+    "setPin": "Set a 4-digit PIN", "confirmPin": "Enter the PIN again", "wrongPin": "Wrong PIN. {{left}} tries left.",
+    "mismatch": "PINs didn't match. Try again.", "skip": "Not now", "forgotPin": "Forgot PIN? Log in again"
+  },
+  "gate": {
+    "maintenanceTitle": "We'll be right back", "maintenanceBody": "IndianxTrade is under maintenance. We'll reconnect automatically.",
+    "blockedTitle": "VPN or proxy detected", "blockedBody": "Turn off your VPN, proxy or Tor and try again.",
+    "updateTitle": "Update required", "updateBody": "This version is no longer supported. Update to keep trading.", "update": "Update now"
+  },
+  "trade": {
+    "buy": "Buy", "sell": "Sell", "stake": "Stake", "expiry": "Time", "more": "More", "payout": "{{pct}}%",
+    "demo": "Demo", "live": "Live", "won": "Won {{amount}}", "lost": "Lost {{amount}}", "refunded": "Refunded {{amount}}",
+    "open": "Open", "closed": "Closed", "noTrades": "No trades yet", "markets": "Markets", "search": "Search markets",
+    "favourites": "Favourites", "bonus": "+{{pct}}% bonus", "minStake": "Minimum stake is {{amount}}",
+    "insufficient": "Not enough balance", "backToLive": "Live", "chartType": "Chart type", "timeframe": "Timeframe",
+    "candles": "Candles", "line": "Line", "area": "Area", "bars": "Bars"
+  }
+}
