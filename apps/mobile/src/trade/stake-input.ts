@@ -36,7 +36,10 @@ export function stakeDisplay(text: string): string {
  * what is wrong with an over-max or over-balance stake), and a dash once the stake is cleared.
  */
 export function stakeTileLabel(text: string, currency: string): string {
-  return text.trim() === "" ? "—" : formatMinor(stakeToMinor(text), currency);
+  if (text.trim() === "") return "—";
+  const minor = stakeToMinor(text);
+  // A stored stake like "1e308" overflows to Infinity, which formatMinor rejects: show it as typed instead of crashing the dock.
+  return Number.isInteger(minor) ? formatMinor(minor, currency) : stakeDisplay(text);
 }
 
 export const DEFAULT_EXPIRY_SEC = 60;

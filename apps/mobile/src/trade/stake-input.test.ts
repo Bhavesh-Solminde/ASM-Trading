@@ -134,4 +134,8 @@ describe("stakeTileLabel", () => {
     expect(stakeTileLabel("0", "INR")).toBe("₹0.00");
     expect(stakeTileLabel(".", "USD")).toBe("$0.00");
   });
+  it("does not throw for a stored stake too large to be an amount (renders in the dock)", () => {
+    expect(() => stakeTileLabel("1e308", "INR")).not.toThrow();
+    expect(stakeTileLabel("1e308", "INR")).toBe(stakeDisplay("1e308"));
+  });
 });
