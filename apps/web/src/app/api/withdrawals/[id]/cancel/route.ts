@@ -4,7 +4,7 @@ import { childLogger } from "@asm/logger";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
-import { getSession, unauthenticated } from "@/lib/request-session";
+import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
 /**
  * Cancels a HELD withdrawal and refunds the money to the user's realBalance.
@@ -33,10 +33,7 @@ export async function POST(
 
   if (!(await checkRateLimit(`rl:withdraw-cancel:${session.userId}`, 20, 300))) {
     log.warn({ evt: "security.rate_limited", route: "withdraw-cancel" }, "cancel throttled");
-    return NextResponse.json(
-      { error: "Too many attempts. Wait a few minutes." },
-      { status: 429 },
-    );
+    return rateLimited("Too many attempts. Wait a few minutes.");
   }
 
   const { id } = await params;

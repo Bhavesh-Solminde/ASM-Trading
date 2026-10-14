@@ -24,7 +24,7 @@ import {
 } from "@/lib/usdt-networks";
 import { pickCollectionVpa, upiDepositsEnabled } from "@/lib/upi-collection";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
-import { getSession, unauthenticated } from "@/lib/request-session";
+import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -41,10 +41,7 @@ export async function POST(req: NextRequest) {
 
   if (!(await checkRateLimit(`rl:deposit:${session.userId}`, 10, 300))) {
     log.warn({ evt: "security.rate_limited", route: "deposits" }, "deposit throttled");
-    return NextResponse.json(
-      { error: "Too many deposit attempts. Wait a few minutes." },
-      { status: 429 },
-    );
+    return rateLimited("Too many deposit attempts. Wait a few minutes.");
   }
 
   const parsed = CreateDepositSchema.safeParse(await req.json().catch(() => null));

@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@asm/db";
 import { SESSION_COOKIE, createSession } from "./session";
-import { getSession, noStoreJson, sessionTokenFrom, unauthenticated } from "./request-session";
+import { getSession, noStoreJson, rateLimited, sessionTokenFrom, unauthenticated } from "./request-session";
 
 let userId = "";
 let otherUserId = "";
@@ -59,6 +59,12 @@ describe("responses", () => {
     const res = unauthenticated();
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "Not signed in.", code: "unauthenticated" });
+  });
+  it("rateLimited carries the stable code and an optional message", async () => {
+    const res = rateLimited("Slow down.");
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({ error: "Slow down.", code: "rate_limited" });
+    expect(await rateLimited().json()).toEqual({ error: "Too many requests.", code: "rate_limited" });
   });
   it("noStoreJson disables caching", () => {
     expect(noStoreJson({ ok: true }).headers.get("cache-control")).toBe("no-store");

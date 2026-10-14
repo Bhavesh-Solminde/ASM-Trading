@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { minStakeMinor } from "@asm/client-core";
 import { EngineRejected, EngineUnavailable, engineOpenTrade } from "@/lib/engine-client";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
-import { getSession, unauthenticated } from "@/lib/request-session";
+import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
 const REJECTION_MESSAGE: Record<string, string> = {
   insufficient_funds: "Not enough balance for that stake.",
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   if (!(await checkRateLimit(`rl:trade:${session.userId}`, 60, 60))) {
     log.warn({ evt: "security.rate_limited", route: "trades" }, "trade throttled");
-    return NextResponse.json({ error: "Slow down a moment and try again." }, { status: 429 });
+    return rateLimited("Slow down a moment and try again.");
   }
 
   const parsed = OpenTradeSchema.safeParse(await req.json().catch(() => null));

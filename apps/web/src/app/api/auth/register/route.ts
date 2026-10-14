@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { noStoreJson, rateLimited } from "@/lib/request-session";
 import { RegisterSchema } from "@asm/contracts";
 import { bonusPercentForDeposit, findUserByEmail, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
@@ -26,10 +27,7 @@ export async function POST(req: NextRequest) {
       { evt: "security.rate_limited", route: "register" },
       "register throttled",
     );
-    return NextResponse.json(
-      { error: "Too many attempts. Wait an hour and try again." },
-      { status: 429 },
-    );
+    return rateLimited("Too many attempts. Wait an hour and try again.");
   }
 
   if ((await checkNetwork({ ip: ctx.ip, route: "register", log })).blocked) {
@@ -95,7 +93,7 @@ export async function POST(req: NextRequest) {
     firstDepositBonusPercent: bonusPercentForDeposit(1),
   });
 
-  if (app) return NextResponse.json({ token, userId: user.id }, { status: 201 });
+  if (app) return noStoreJson({ token, userId: user.id }, { status: 201 });
 
   const response = NextResponse.json({ userId: user.id }, { status: 201 });
   response.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);

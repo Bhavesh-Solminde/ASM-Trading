@@ -4,7 +4,7 @@ import { createTicket, listTicketsForActor } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getSession, unauthenticated } from "@/lib/request-session";
+import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -16,10 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!(await checkRateLimit(`rl:ticket:${session.userId}`, 5, 600))) {
-    return NextResponse.json(
-      { error: "You have opened several tickets recently. Try again later." },
-      { status: 429 },
-    );
+    return rateLimited("You have opened several tickets recently. Try again later.");
   }
 
   const parsed = CreateTicketSchema.safeParse(await req.json().catch(() => null));

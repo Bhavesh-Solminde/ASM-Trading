@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { TwoFaToggleSchema } from "@asm/contracts";
 import { issueTwoFactorCode, setTwoFactorPreferences } from "@asm/db";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getSession, unauthenticated } from "@/lib/request-session";
+import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
 /** PATCH updates preferences. POST issues a code for the given purpose. */
 export async function PATCH(req: NextRequest) {
@@ -27,10 +27,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!(await checkRateLimit(`rl:2fa:${session.userId}`, 5, 300))) {
-    return NextResponse.json(
-      { error: "Too many code requests. Wait a few minutes." },
-      { status: 429 },
-    );
+    return rateLimited("Too many code requests. Wait a few minutes.");
   }
 
   const purpose = req.nextUrl.searchParams.get("purpose") ?? "login";

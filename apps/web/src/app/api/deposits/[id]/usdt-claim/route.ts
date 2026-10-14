@@ -5,7 +5,7 @@ import { childLogger } from "@asm/logger";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
-import { getSession, unauthenticated } from "@/lib/request-session";
+import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
 /**
  * USDT "I already paid": the user attaches the transaction hash (and
@@ -29,10 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!(await checkRateLimit(`rl:usdt-claim:${session.userId}`, 10, 300))) {
     log.warn({ evt: "security.rate_limited", route: "deposit_usdt_claim" }, "usdt claim throttled");
-    return NextResponse.json(
-      { error: "Too many attempts. Wait a few minutes." },
-      { status: 429 },
-    );
+    return rateLimited("Too many attempts. Wait a few minutes.");
   }
 
   const { id } = await params;

@@ -15,7 +15,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { displayName, formatDateLabel, payToLabel, personName, shortRef, type CertificateData } from "@asm/mail/templates";
 import { sendWithdrawalRequestedEmail } from "@asm/mail";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
-import { getSession, unauthenticated } from "@/lib/request-session";
+import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
@@ -34,10 +34,7 @@ export async function POST(req: NextRequest) {
   // in bursts. Keeps a bot from flooding the admin payout queue.
   if (!(await checkRateLimit(`rl:withdraw:${session.userId}`, 10, 300))) {
     log.warn({ evt: "security.rate_limited", route: "withdrawals" }, "withdrawal throttled");
-    return NextResponse.json(
-      { error: "Too many withdrawal attempts. Wait a few minutes." },
-      { status: 429 },
-    );
+    return rateLimited("Too many withdrawal attempts. Wait a few minutes.");
   }
 
   const parsed = CreateWithdrawalSchema.safeParse(await req.json().catch(() => null));
