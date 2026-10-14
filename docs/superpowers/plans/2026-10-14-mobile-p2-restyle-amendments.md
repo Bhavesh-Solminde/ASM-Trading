@@ -27,8 +27,7 @@ Task 10 into 10a/10b (see those sections); task numbers 9, 11, 12, 13 are unchan
   - `color.down` (`#d63a30`) is a **fill/stroke/border colour only** (4.30 on ground, 3.97 on surface as text). Any `down`-coloured text
     uses `color.downText` (`#ff7468`, 7.00 on surface).
   - Everything else in the Task 1 table stays (`upInk`/`downInk` on the buttons pass 4.5).
-- **Figures with ₹ or Devanagari.** Martian Mono has neither glyph. Never put a string that can contain `₹`, `$`-less currency symbols, or
-  Hindi words into `<Txt font="fig">`. Use `<Money>` / `<FigText>` (Task 4, rule below) for every figure-bearing string. Pure
+- **Figures with ₹ or Devanagari.** Martian Mono has neither glyph. Never put a string that can contain `₹` or Hindi words into `<Txt font="fig">`. Use `<Money>` / `<FigText>` (Task 4, rule below) for every figure-bearing string. Pure
   ASCII digit strings (times, counts, prices without a symbol, the OHLC strip) stay `font="fig"`.
 - **Chart-tag rule** (Task 8b): every Skia tag is sized with `font.measureText(text).width`, never a fixed width, and never with
   `getTextWidth` (deprecated in Skia 2.6.2).
@@ -94,9 +93,8 @@ Task 10 into 10a/10b (see those sections); task numbers 9, 11, 12, 13 are unchan
 ## T5 (app shell) — "today" line
 - `TodayLine` (P1655-1670) and `dayNetMinor` (Task 5's `day-total.ts`):
   - **Zero net** uses `color.switchInk`, not `color.ink3` (3.93:1 on `headerTop` fails). Positive `color.up`, negative `color.downText` unchanged.
-  - Render as `<Txt font="ui" …>{t("trade.today", {amount: ""}) …}` split: the word(s) in a ui `<Txt>` and the amount in `<Money text={amount}>`.
-    Concretely: keep `trade.today` as `"today {{amount}}"`/`"आज {{amount}}"` and pass `<Money text={t("trade.today", { amount })} …>`: `Money` now
-    splits Hindi words to the ui family (Task 4), so no extra change is needed beyond the zero colour.
+  - Keep `trade.today` as `"today {{amount}}"`/`"आज {{amount}}"` and keep passing the interpolated string to `<Money text={…}>`: `Money` now
+    sets the Hindi word and the ₹ in the ui family (Task 4), so only the zero colour changes here.
   - **Data source (decision: fetch for the selected account, hide when coverage is unproven).**
     - Bootstrap's `recentTrades` is only the default **DEMO** account's last 50. When the selected account is not the bootstrap default
       (LIVE, or any other), fetch `GET /api/trades?accountId=<id>` (`apps/web/src/app/api/trades/route.ts:86-110`, last 50) with the existing
@@ -133,8 +131,8 @@ export function bearFrame(buttonW: number): Frame {
 }
 ```
 
-  (The cover crop is `scale = max(59/380, 68/510) = 0.15526`, drawn `59 × 79.18`; vertical overflow `11.18 × 0.7322 = 8.19`, so the image top is at
-  `67 − 68 + … = −1 − 8.19 = −9.19` relative to the button top. Clip to the button as the plan already does; the box clip is redundant.)
+  (Cover crop: `scale = max(59/380, 68/510) = 0.15526`, drawn `59 × 79.18`; vertical overflow `11.18 × 0.7322 = 8.19`. The 68pt box spans
+  `y = −1 … 67` on the button, so the image top is `−1 − 8.19 = −9.19`. Clip to the button as the plan already does; the box clip is redundant.)
   `bearFrame` drops its optional `buttonH` parameter; fix its caller.
 - `beast-frame.test.ts` (override P2020-2036 and P2031-2036):
   - bull at 176: `x ≈ 105` (`toBeCloseTo(105)`), `y = -3`, `h = 88`, `w ≈ 65.2`; **for any W (161, 176, 206): `x + w ≈ W − 5.8`** (replaces the "left offset scales with width" test).
@@ -201,7 +199,7 @@ Step 6 of the plan's Task 8, with these replacements.
 - Grid: three horizontal rules in `color.ruleSoft`, as the canvas (`:38-40`), evenly spaced over the plot height, drawn under the candles.
 - "Live ›" back-to-live button (P3047): `backgroundColor: color.accent`, label `<Txt weight={600} size={14} color={color.onAccent}>`, now AA.
 - `color.down` text uses are gone from the chart (`downText` for text, `down` for candle fill/stroke).
-- Add the fontTools-free fallback note: until `useFont(MartianMono_600SemiBold, 11)` resolves the system font measures the tag; the tag re-measures when `font` changes.
+- Until `useFont(MartianMono_600SemiBold, 11)` resolves, the system fallback font measures the tag; it re-measures when `font` changes (the width is computed per render).
 
 ## T9 (sheets: markets, trades ledger, deposit bonus)
 - Trades-row detail (P3344), option hints (P4459), Markets subtitles (13px): `<FigText>`/`<Money>` where they hold ₹ or Hindi; plain `ui` `Txt` for words.
