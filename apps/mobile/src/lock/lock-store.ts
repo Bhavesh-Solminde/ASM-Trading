@@ -25,6 +25,8 @@ interface LockState {
   enabled: boolean;
   method: "biometric" | "pin" | null;
   locked: boolean;
+  /** True once load() has settled (success or fail-closed): until then `locked` is only its initial guess. */
+  loaded: boolean;
   /** "Not now" on lock setup; in memory only, so the next cold start offers setup again. */
   skippedThisSession: boolean;
   /** Wrong PINs since the last success; persisted so force-stopping the app cannot reset it. */
@@ -60,6 +62,7 @@ export const useLock = create<LockState>((set, get) => ({
   enabled: false,
   method: null,
   locked: false,
+  loaded: false,
   skippedThisSession: false,
   attempts: 0,
   backgroundedAt: null,
@@ -79,7 +82,7 @@ export const useLock = create<LockState>((set, get) => ({
     } catch {
       // Fail closed: reading this as "no lock" would offer setup, whose "Not now" opens the app. Locked with
       // no unlock method leaves only "Forgot PIN" (sign out, then log in again).
-      set({ method: null, enabled: false, locked: true });
+      set({ method: null, enabled: false, locked: true, loaded: true });
       return;
     }
     const m = method === "biometric" || method === "pin" ? method : null;
@@ -88,6 +91,7 @@ export const useLock = create<LockState>((set, get) => ({
       method: m,
       enabled,
       attempts,
+      loaded: true,
       locked: shouldLock({ enabled, coldStart: true, backgroundedAt: null, now: Date.now() }),
     });
   },

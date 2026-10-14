@@ -25,8 +25,12 @@ const tabIcons = {
 export default function TabsLayout() {
   const { t } = useTranslation();
   // A deep-link cold start mounts the tabs before the session has hydrated: no socket until there is an
-  // unlocked session, or its ticket request goes out without a token.
-  const live = useSession((s) => s.ready && s.token !== null) && !useLock((s) => s.locked);
+  // unlocked session, or its ticket request goes out without a token. Nor before the lock state is known
+  // (`locked` is only a guess until load() settles). Every hook runs on every render; only the values combine.
+  const sessionLive = useSession((s) => s.ready && s.token !== null);
+  const lockLoaded = useLock((s) => s.loaded);
+  const locked = useLock((s) => s.locked);
+  const live = sessionLive && lockLoaded && !locked;
 
   // One engine socket for the whole tab shell: open while the app is in the foreground, closed in the background.
   useEffect(() => {

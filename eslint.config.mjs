@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -31,6 +32,13 @@ export default tseslint.config(
       globals: { module: "writable", require: "readonly", __dirname: "readonly" },
     },
     rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
+    // apps/mobile only: a conditional hook (`a && useB()`) crashes React at runtime and no test renders the
+    // shell. rules-of-hooks alone: the plugin's exhaustive-deps and compiler rules are deliberately off.
+    files: ["apps/mobile/**/*.{ts,tsx}"],
+    plugins: { "react-hooks": reactHooks },
+    rules: { "react-hooks/rules-of-hooks": "error" },
   },
   {
     files: ["**/*.{ts,tsx}"],

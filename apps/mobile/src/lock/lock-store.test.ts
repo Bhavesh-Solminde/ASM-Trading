@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const disk = vi.hoisted(() => new Map<string, string>());
 const signOut = vi.hoisted(() => vi.fn());
-const fail = vi.hoisted(() => ({ get: new Set<string>(), set: new Set<string>() }));
+const fail = vi.hoisted(() => ({ get: new Set<string>(), set: new Set<string>(), del: new Set<string>() }));
 const auth = vi.hoisted(() => ({ hardware: vi.fn(), enrolled: vi.fn(), authenticate: vi.fn() }));
 
 vi.mock("expo-secure-store", () => ({
@@ -16,7 +16,10 @@ vi.mock("expo-secure-store", () => ({
     if (fail.set.has(k)) throw new Error("keystore write");
     disk.set(k, v);
   },
-  deleteItemAsync: async (k: string) => void disk.delete(k),
+  deleteItemAsync: async (k: string) => {
+    if (fail.del.has(k)) throw new Error("keystore delete");
+    disk.delete(k);
+  },
 }));
 vi.mock("expo-crypto", () => ({
   CryptoDigestAlgorithm: { SHA256: "SHA-256" },
@@ -37,6 +40,7 @@ const fresh = {
   enabled: false,
   method: null,
   locked: false,
+  loaded: false,
   skippedThisSession: false,
   attempts: 0,
   backgroundedAt: null,
@@ -48,6 +52,7 @@ beforeEach(() => {
   signOut.mockResolvedValue(undefined);
   fail.get.clear();
   fail.set.clear();
+  fail.del.clear();
   auth.hardware.mockResolvedValue(true);
   auth.enrolled.mockResolvedValue(true);
   auth.authenticate.mockResolvedValue({ success: true });
@@ -88,6 +93,45 @@ describe("useLock PIN attempts", () => {
     expect(signOut).toHaveBeenCalledTimes(1);
     expect([...disk.keys()]).toEqual([]);
     expect(useLock.getState()).toMatchObject({ method: null, enabled: false, attempts: 0 });
+  });
+});
+
+describe("useLock logout ordering", () => {
+  it("signs out while the lock keys are still on disk, and wipes them only afterwards", async () => {
+    await useLock.getState().setPin("1234");
+    const seenAtSignOut: boolean[] = [];
+    signOut.mockImplementation(async () => {
+      // Wiping first would leave a live session with no lock for the length of the sign-out.
+      seenAtSignOut.push(disk.has("ixt.lock.pin"), disk.has("ixt.lock.method"));
+    });
+    for (let i = 0; i < 4; i++) await useLock.getState().verifyPin("0000");
+    expect(await useLock.getState().verifyPin("0000")).toBe("logout");
+    expect(seenAtSignOut).toEqual([true, true]);
+    expect(disk.has("ixt.lock.pin")).toBe(false);
+  });
+});
+
+describe("useLock reset", () => {
+  it("completes and clears the in-memory lock even when every keystore delete fails", async () => {
+    await useLock.getState().setPin("1234");
+    useLock.getState().skipSetup();
+    for (const k of disk.keys()) fail.del.add(k);
+    await expect(useLock.getState().reset()).resolves.toBeUndefined();
+    expect(useLock.getState()).toMatchObject({
+      enabled: false,
+      method: null,
+      locked: false,
+      skippedThisSession: false,
+      attempts: 0,
+    });
+  });
+
+  it("still completes the fifth-wrong-PIN logout when the wipe fails", async () => {
+    await useLock.getState().setPin("1234");
+    fail.del.add("ixt.lock.pin");
+    for (let i = 0; i < 4; i++) await useLock.getState().verifyPin("0000");
+    expect(await useLock.getState().verifyPin("0000")).toBe("logout");
+    expect(useLock.getState().method).toBeNull();
   });
 });
 
@@ -206,6 +250,26 @@ describe("useLock owner", () => {
     fail.get.add("ixt.lock.owner");
     await useLock.getState().startFreshSession("user-a");
     expect(useLock.getState().method).toBeNull();
+  });
+});
+
+describe("useLock loaded flag", () => {
+  it("is false until load() settles, then true", async () => {
+    expect(useLock.getState().loaded).toBe(false);
+    await useLock.getState().load();
+    expect(useLock.getState().loaded).toBe(true);
+  });
+
+  it("is true after a failed load too (the lock state is known: fail-closed)", async () => {
+    fail.get.add("ixt.lock.method");
+    await useLock.getState().load();
+    expect(useLock.getState()).toMatchObject({ loaded: true, locked: true });
+  });
+
+  it("survives a reset", async () => {
+    await useLock.getState().load();
+    await useLock.getState().reset();
+    expect(useLock.getState().loaded).toBe(true);
   });
 });
 
