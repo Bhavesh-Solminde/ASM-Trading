@@ -137,6 +137,28 @@ describe("useSocket", () => {
     expect(seenIds).toEqual(["t1", "t2"]);
   });
 
+  it("publishes a settlement recovered by a bootstrap (open in the store, settled in the response) as `recovered`, once", () => {
+    useSocket.getState().seed(boot);
+    expect(useSocket.getState().recovered).toEqual([]);
+    const settled = { ...trade, status: "LOST", pnl: -10000 };
+    const bootSettled = { ...boot, recentTrades: [settled] } as unknown as Bootstrap;
+    useSocket.getState().seed(bootSettled);
+    expect(useSocket.getState().recovered.map((t) => t.id)).toEqual(["t1"]);
+    const first = useSocket.getState().recovered;
+    // A second identical response recovers nothing new and must not re-publish the same list.
+    useSocket.getState().seed(bootSettled);
+    expect(useSocket.getState().recovered).toBe(first);
+  });
+
+  it("does not publish trades the socket already settled, or ones it never saw open", async () => {
+    useSocket.getState().seed(boot);
+    useSocket.getState().subscribe("EURUSD", "1m");
+    const ws = await connect();
+    ws.receive({ type: "trade:settled", trade: { ...trade, status: "WON", pnl: 85 } });
+    useSocket.getState().seed({ ...boot, recentTrades: [{ ...trade, status: "WON", pnl: 85 }, { ...trade, id: "old", status: "LOST" }] } as unknown as Bootstrap);
+    expect(useSocket.getState().recovered).toEqual([]);
+  });
+
   it("connects with a ticket, subscribes, and folds server messages into chart and trades", async () => {
     useSocket.getState().subscribe("EURUSD", "1m");
     const ws = await connect();
@@ -272,6 +294,7 @@ describe("useSocket", () => {
       phase: "idle",
       consecutiveFailures: 0,
       lastSettled: null,
+      recovered: [],
       trades: { tradesByAccount: {}, balances: {} },
       chart: { symbol: "", lastPrice: null },
     });

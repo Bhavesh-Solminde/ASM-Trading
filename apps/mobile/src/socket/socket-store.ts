@@ -18,7 +18,7 @@ import { ApiError } from "@/api/errors";
 import { appConfig } from "@/config";
 import { unitFromBytes } from "./backoff";
 import { EngineSocket, FatalSocketError, type SocketStatus } from "./engine-socket";
-import { mergeBootstrap } from "./bootstrap-merge";
+import { mergeBootstrap, recoveredSettlements } from "./bootstrap-merge";
 
 const Ticket = z.object({ ticket: z.string() });
 
@@ -34,6 +34,11 @@ interface SocketStore {
   chart: ChartState;
   trades: TradeState;
   lastSettled: TradeView | null;
+  /**
+   * Settlements the last bootstrap merge recovered (open here, settled in the response): the socket never
+   * delivered them. A new array identity per merge that found any, so subscribers announce each batch once.
+   */
+  recovered: readonly TradeView[];
   /** When (epoch ms) the socket last delivered a balance for each account; decides whether a bootstrap is newer. */
   balanceAt: Record<string, number>;
   /**
@@ -63,6 +68,7 @@ const initial = () => ({
   chart: initialChartState("", "1m"),
   trades: initialTradeState([], {}),
   lastSettled: null,
+  recovered: [] as readonly TradeView[],
   balanceAt: {} as Record<string, number>,
 });
 
@@ -117,7 +123,11 @@ export const useSocket = create<SocketStore>((set, get) => {
   return {
     ...initial(),
     seed: (boot, requestedAt = Date.now()) =>
-      set((s) => ({ trades: mergeBootstrap(s.trades, s.balanceAt, boot, requestedAt) })),
+      set((s) => {
+        const trades = mergeBootstrap(s.trades, s.balanceAt, boot, requestedAt);
+        const recovered = recoveredSettlements(s.trades, trades);
+        return recovered.length > 0 ? { trades, recovered } : { trades };
+      }),
     start: () => {
       watchNet();
       ensure().start();

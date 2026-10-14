@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { closedRowDisplay } from "@asm/client-core";
 import type { TradeView } from "@asm/contracts";
-import { claimAnnouncement, newlySettled, settledFeedback } from "./result";
+import { claimAnnouncement, newlySettled, settledFeedback, toAnnounce } from "./result";
 
 const ACCOUNT = "0b7d7e6e-5f0e-4c43-9a4f-2d3c1b0a9e11";
 const OTHER = "9c1d7e6e-5f0e-4c43-9a4f-2d3c1b0a9e22";
@@ -126,5 +126,40 @@ describe("newlySettled", () => {
       prev = next;
     }
     expect(announced).toEqual(["a", "b"]);
+  });
+});
+
+describe("toAnnounce", () => {
+  const ctx = { accountId: ACCOUNT as string | null };
+  const empty = { lastSettled: null, recovered: [] as readonly TradeView[] };
+
+  it("announces a settlement recovered by a refetch", () => {
+    const seen = new Set<string>();
+    const next = { lastSettled: null, recovered: [trade({ id: "r1" })] };
+    expect(toAnnounce(empty, next, seen, ctx).map((t) => t.id)).toEqual(["r1"]);
+  });
+
+  it("announces a recovered trade exactly once, even if the socket delivers the same one afterwards or the list is re-published", () => {
+    const seen = new Set<string>();
+    const recovered = [trade({ id: "r1" })];
+    const afterRefetch = { lastSettled: null, recovered };
+    expect(toAnnounce(empty, afterRefetch, seen, ctx)).toHaveLength(1);
+    const afterSocket = { lastSettled: trade({ id: "r1" }), recovered };
+    expect(toAnnounce(afterRefetch, afterSocket, seen, ctx)).toEqual([]);
+    expect(toAnnounce(afterRefetch, { lastSettled: null, recovered: [...recovered] }, seen, ctx)).toEqual([]);
+  });
+
+  it("announces every trade in one recovered batch", () => {
+    const next = { lastSettled: null, recovered: [trade({ id: "a" }), trade({ id: "b" }), trade({ id: "c", accountId: OTHER })] };
+    expect(toAnnounce(empty, next, new Set(), ctx).map((t) => t.id)).toEqual(["a", "b"]);
+  });
+
+  it("still announces a socket settlement", () => {
+    expect(toAnnounce(empty, { lastSettled: trade({ id: "s1" }), recovered: [] }, new Set(), ctx).map((t) => t.id)).toEqual(["s1"]);
+  });
+
+  it("says nothing when neither changed", () => {
+    const same = { lastSettled: trade({ id: "s1" }), recovered: [trade({ id: "r1" })] };
+    expect(toAnnounce(same, same, new Set(), ctx)).toEqual([]);
   });
 });

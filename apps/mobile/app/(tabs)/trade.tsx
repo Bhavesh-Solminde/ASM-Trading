@@ -83,11 +83,14 @@ export default function Trade() {
   useSettlementWatchdog(hasOpenTrades);
   useResultFeedback(account?.id ?? null, account?.currency ?? null, boot?.assets);
 
-  // Every distinct bootstrap result (first load, post-deposit invalidation, foreground refetch) is merged
-  // into the store; the merge never rolls back anything the socket delivered since the request started.
+  // Every successful bootstrap fetch (first load, post-deposit invalidation, foreground, watchdog and reconnect
+  // refetches) is merged into the store; the merge never rolls back anything the socket delivered since the
+  // request started. Keyed on `dataUpdatedAt`, not just `boot`: React Query keeps the old object when a refetch
+  // returns structurally identical data, and a reconnect refetch must still get its merge.
+  const bootUpdatedAt = bootQuery.dataUpdatedAt;
   useEffect(() => {
     if (boot) useSocket.getState().seed(boot, bootstrapRequestedAt());
-  }, [boot]);
+  }, [boot, bootUpdatedAt]);
 
   useEffect(() => {
     if (boot?.userId) saveLastUserId(boot.userId);

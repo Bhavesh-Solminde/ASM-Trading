@@ -49,8 +49,8 @@ export function newlySettled(prev: TradeView | null, next: TradeView | null): Tr
 /**
  * Decides whether this settlement should be announced, and records it so it never is twice.
  *
- * Only socket-delivered settlements reach this (bootstrap-merged ones never set `lastSettled`), so no clock check
- * is needed and a skewed device clock cannot silence the toasts. Like the web app, only trades on the SELECTED
+ * Only settlements this device watched happen reach this (socket-delivered, or recovered by a refetch for a trade it
+ * held open), so no clock check is needed and a skewed device clock cannot silence the toasts. Like the web app, only trades on the SELECTED
  * account are announced. Every settled trade is recorded the first time it is seen, announced or not, so switching
  * to another account later does not replay its old result.
  */
@@ -62,4 +62,21 @@ export function claimAnnouncement(seen: Set<string>, trade: TradeView, ctx: { ac
     if (oldest !== undefined) seen.delete(oldest);
   }
   return ctx.accountId !== null && trade.accountId === ctx.accountId;
+}
+
+/**
+ * The settlements to announce for one store update, in order: every trade of a newly published `recovered` batch
+ * (a refetch found the socket's push was lost), then a newly delivered `lastSettled`. Both go through
+ * `claimAnnouncement` with the same `seen` set, so a trade is announced once however it arrives.
+ */
+export function toAnnounce(
+  prev: { lastSettled: TradeView | null; recovered: readonly TradeView[] },
+  next: { lastSettled: TradeView | null; recovered: readonly TradeView[] },
+  seen: Set<string>,
+  ctx: { accountId: string | null },
+): TradeView[] {
+  const candidates: TradeView[] = next.recovered !== prev.recovered ? [...next.recovered] : [];
+  const live = newlySettled(prev.lastSettled, next.lastSettled);
+  if (live) candidates.push(live);
+  return candidates.filter((t) => claimAnnouncement(seen, t, ctx));
 }
