@@ -34,7 +34,9 @@
     "sentiment": "Trader sentiment: {{up}}% up, {{down}}% down", "stale": "Saved data — updating…",
     "liveLocked": "Live trading isn't available on your account yet.", "deposit": "Deposit", "balance": "Balance",
     "noMarkets": "No markets match your search", "addFavourite": "Add {{name}} to favourites",
-    "removeFavourite": "Remove {{name}} from favourites", "selectMarket": "Market: {{name}}. Tap to change."
+    "removeFavourite": "Remove {{name}} from favourites", "selectMarket": "Market: {{name}}. Tap to change.",
+    "failed": "Trade failed.", "maxStake": "Maximum stake is {{amount}}", "delete": "Delete", "point": "Decimal point",
+    "expiryOption": "Expiry {{label}}", "stakeButton": "Stake {{amount}}. Tap to change.", "stakeKeypad": "Stake amount"
   },
   "bonus": {
     "title": "Deposit bonus", "subtitle": "Extra trading balance on each of your first {{n}} deposits.",
