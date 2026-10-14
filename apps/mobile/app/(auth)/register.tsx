@@ -23,7 +23,7 @@ export default function Register() {
     setError(null);
     try {
       const out = await api("/api/auth/register", { method: "POST", body: parsed.data, schema: TokenResult, auth: false });
-      await finishSignIn(out.token);
+      await finishSignIn(out.token, out.userId);
     } catch (e) {
       setError(errorText(e, t));
     } finally {

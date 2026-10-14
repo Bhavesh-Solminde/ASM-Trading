@@ -1,5 +1,6 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "@/auth/session-store";
@@ -10,6 +11,9 @@ import { MAX_PIN_ATTEMPTS } from "@/lock/rules";
 import { space } from "@/theme/tokens";
 import { Button, Screen, Txt } from "@/theme/ui";
 import { formStyles } from "@/ui/form";
+
+// A fixed height (not minHeight): a two-line message must not push the pad down mid-entry.
+const styles = StyleSheet.create({ messageSlot: { height: 40 } });
 
 /** Shown while `useLock().locked` is true. Unlocking only clears that flag; the root gate (Task 7) routes away. */
 export default function Lock() {
@@ -76,13 +80,21 @@ export default function Lock() {
       <Txt variant="title">{t("lock.title")}</Txt>
       {method === "pin" ? (
         <>
-          <Txt testID="lock-message" accessibilityRole={message ? "alert" : undefined} style={[formStyles.error, formStyles.messageSlot]}>
+          <Txt
+            testID="lock-message"
+            accessibilityRole={message ? "alert" : undefined}
+            numberOfLines={2}
+            style={[formStyles.error, styles.messageSlot]}
+          >
             {message}
           </Txt>
           <PinPad value={value} onChange={onPin} disabled={busy} />
         </>
-      ) : (
+      ) : method === "biometric" ? (
         <Button label={t("lock.useBiometric")} onPress={promptBiometric} busy={bioBusy} />
+      ) : (
+        // The lock settings could not be read: the only way on is to sign in again.
+        <Txt style={formStyles.error}>{t("lock.unavailable")}</Txt>
       )}
       <Button label={t("lock.forgotPin")} kind="secondary" onPress={forgot} />
     </Screen>

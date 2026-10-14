@@ -9,8 +9,20 @@ export function configureGoogle(webClientId: string) {
   GoogleSignin.configure({ webClientId, offlineAccess: false });
 }
 
-/** Returns the app session token, or null when the user cancelled the Google sheet. */
-export async function signInWithGoogle(): Promise<string | null> {
+/**
+ * Forgets the Google account picked at sign-in, so the next "Continue with Google" on a shared phone asks
+ * again. Best effort: a no-op when Google sign-in was never configured.
+ */
+export function signOutOfGoogle(): void {
+  try {
+    void GoogleSignin.signOut().catch(() => {});
+  } catch {
+    // Not configured, or the native module is missing.
+  }
+}
+
+/** Returns the app session, or null when the user cancelled the Google sheet. */
+export async function signInWithGoogle(): Promise<{ token: string; userId: string } | null> {
   await GoogleSignin.hasPlayServices();
   const res = await GoogleSignin.signIn();
   if (!isSuccessResponse(res) || !res.data.idToken) return null;
@@ -20,5 +32,5 @@ export async function signInWithGoogle(): Promise<string | null> {
     schema: GoogleResult,
     auth: false,
   });
-  return out.token;
+  return { token: out.token, userId: out.userId };
 }

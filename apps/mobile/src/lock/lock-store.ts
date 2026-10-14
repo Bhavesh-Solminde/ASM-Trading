@@ -13,6 +13,8 @@ const K = {
   salt: "ixt.lock.salt",
   off: "ixt.lock.off",
   attempts: "ixt.lock.attempts",
+  /** The userId the lock belongs to: a different user signing in on this phone must not inherit it. */
+  owner: "ixt.lock.owner",
 };
 /** Same keychain class as the session token: readable only while the device is unlocked, never migrated. */
 const put = (key: string, value: string) =>
@@ -35,8 +37,11 @@ interface LockState {
   unlockWithBiometric: () => Promise<boolean>;
   onBackground: (now: number) => void;
   onForeground: (now: number) => void;
-  /** A session was just established: the cold-start lock guarded the previous session, not this one. */
-  startFreshSession: () => void;
+  /**
+   * `userId` just signed in. The cold-start lock guarded the previous session, not this one, so it is
+   * cleared; a lock owned by anyone else (or by an unknown owner) is wiped so this user is offered setup.
+   */
+  startFreshSession: (userId: string) => Promise<void>;
   skipSetup: () => void;
   disable: () => Promise<void>;
   reset: () => Promise<void>;
@@ -72,7 +77,10 @@ export const useLock = create<LockState>((set, get) => ({
       off = o;
       attempts = parseAttempts(a);
     } catch {
-      // An unreadable keystore reads as no lock; the session token lives in the same keystore.
+      // Fail closed: reading this as "no lock" would offer setup, whose "Not now" opens the app. Locked with
+      // no unlock method leaves only "Forgot PIN" (sign out, then log in again).
+      set({ method: null, enabled: false, locked: true });
+      return;
     }
     const m = method === "biometric" || method === "pin" ? method : null;
     const enabled = m !== null && off !== "1";
@@ -151,7 +159,19 @@ export const useLock = create<LockState>((set, get) => ({
       ...(shouldLock({ enabled, coldStart: false, backgroundedAt, now }) ? { locked: true } : {}),
     });
   },
-  startFreshSession: () => set({ locked: false, backgroundedAt: null }),
+  startFreshSession: async (userId) => {
+    let owner: string | null = null;
+    try {
+      owner = await SecureStore.getItemAsync(K.owner);
+    } catch {
+      // Unknown owner: treat it as someone else's lock.
+    }
+    if (owner !== userId) {
+      await get().reset();
+      await put(K.owner, userId).catch(() => {});
+    }
+    set({ locked: false, backgroundedAt: null });
+  },
   skipSetup: () => set({ skippedThisSession: true }),
   disable: async () => {
     await put(K.off, "1");

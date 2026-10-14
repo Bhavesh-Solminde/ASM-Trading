@@ -15,7 +15,7 @@
   "lock": {
     "title": "Unlock IndianxTrade", "setupTitle": "Protect your account", "useBiometric": "Use fingerprint or face",
     "setPin": "Set a 4-digit PIN", "confirmPin": "Enter the PIN again", "wrongPin_one": "Wrong PIN. {{count}} try left.", "wrongPin_other": "Wrong PIN. {{count}} tries left.",
-    "mismatch": "PINs didn't match. Try again.", "skip": "Not now", "forgotPin": "Forgot PIN? Log in again",
+    "mismatch": "PINs didn't match. Try again.", "skip": "Not now", "forgotPin": "Forgot PIN? Log in again", "unavailable": "Your lock settings couldn't be read. Log in again to continue.",
     "delete": "Delete", "pinEntered": "{{count}} of 4 digits entered"
   },
   "gate": {

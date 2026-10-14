@@ -25,7 +25,7 @@ export default function Login() {
     setError(null);
     try {
       const out = await api("/api/auth/login", { method: "POST", body: parsed.data, schema: TokenResult, auth: false });
-      await finishSignIn(out.token);
+      await finishSignIn(out.token, out.userId);
     } catch (e) {
       setError(errorText(e, t));
     } finally {
@@ -38,10 +38,8 @@ export default function Login() {
     setBusy(true);
     setError(null);
     try {
-      const token = await signInWithGoogle();
-      if (token) {
-        await finishSignIn(token);
-      }
+      const session = await signInWithGoogle();
+      if (session) await finishSignIn(session.token, session.userId);
     } catch (e) {
       setError(errorText(e, t, "auth.googleFailed"));
     } finally {

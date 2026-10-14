@@ -171,13 +171,62 @@ describe("useLock setup skip", () => {
   });
 });
 
+describe("useLock owner", () => {
+  it("offers lock setup to a different user instead of inheriting the previous user's PIN", async () => {
+    await useLock.getState().startFreshSession("user-a");
+    await useLock.getState().setPin("1234");
+    // A signs out (the lock keys stay), B signs in on the same phone.
+    await useLock.getState().startFreshSession("user-b");
+    expect(useLock.getState()).toMatchObject({ method: null, enabled: false, locked: false, attempts: 0 });
+    expect(disk.has("ixt.lock.pin")).toBe(false);
+    expect(disk.get("ixt.lock.owner")).toBe("user-b");
+    // Nor does B's next cold start ask for A's PIN.
+    useLock.setState({ ...fresh });
+    await useLock.getState().load();
+    expect(useLock.getState()).toMatchObject({ method: null, locked: false });
+  });
+
+  it("keeps the lock when the same user signs in again (e.g. after a server-side expiry)", async () => {
+    await useLock.getState().startFreshSession("user-a");
+    await useLock.getState().setPin("1234");
+    await useLock.getState().startFreshSession("user-a");
+    expect(useLock.getState()).toMatchObject({ method: "pin", enabled: true, locked: false });
+  });
+
+  it("resets a lock with no recorded owner (set up before owners existed)", async () => {
+    await useLock.getState().setPin("1234");
+    disk.delete("ixt.lock.owner");
+    await useLock.getState().startFreshSession("user-a");
+    expect(useLock.getState().method).toBeNull();
+  });
+
+  it("resets the lock when the owner cannot be read", async () => {
+    await useLock.getState().startFreshSession("user-a");
+    await useLock.getState().setPin("1234");
+    fail.get.add("ixt.lock.owner");
+    await useLock.getState().startFreshSession("user-a");
+    expect(useLock.getState().method).toBeNull();
+  });
+});
+
+describe("useLock load failure", () => {
+  it("fails closed: an unreadable keystore locks with no unlock method instead of offering setup", async () => {
+    await useLock.getState().setPin("1234");
+    useLock.setState({ ...fresh });
+    fail.get.add("ixt.lock.method");
+    await useLock.getState().load();
+    expect(useLock.getState()).toMatchObject({ locked: true, method: null });
+  });
+});
+
 describe("useLock fresh session", () => {
   it("locks a cold start, and a new sign-in clears that lock without disabling it", async () => {
+    await useLock.getState().startFreshSession("user-a");
     await useLock.getState().setPin("1234");
     useLock.setState({ ...fresh });
     await useLock.getState().load();
     expect(useLock.getState().locked).toBe(true);
-    useLock.getState().startFreshSession();
+    await useLock.getState().startFreshSession("user-a");
     expect(useLock.getState()).toMatchObject({ locked: false, enabled: true, method: "pin" });
     // The next background cycle still relocks the new session.
     useLock.getState().onBackground(1_000);
