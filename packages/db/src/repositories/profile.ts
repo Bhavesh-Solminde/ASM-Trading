@@ -263,3 +263,8 @@ export async function setTwoFactorPreferences(
     },
   });
 }
+
+/** UI/push language. Not KYC-locked: it is a preference, not identity data. */
+export async function setLocale(userId: string, locale: "en" | "hi"): Promise<void> {
+  await prisma.user.update({ where: { id: userId }, data: { locale } });
+}
