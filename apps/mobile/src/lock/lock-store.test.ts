@@ -3,10 +3,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const disk = vi.hoisted(() => new Map<string, string>());
 const signOut = vi.hoisted(() => vi.fn());
+const fail = vi.hoisted(() => ({ get: new Set<string>(), set: new Set<string>() }));
+const auth = vi.hoisted(() => ({ hardware: vi.fn(), enrolled: vi.fn(), authenticate: vi.fn() }));
 
 vi.mock("expo-secure-store", () => ({
-  getItemAsync: async (k: string) => disk.get(k) ?? null,
-  setItemAsync: async (k: string, v: string) => void disk.set(k, v),
+  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1,
+  getItemAsync: async (k: string) => {
+    if (fail.get.has(k)) throw new Error("keystore read");
+    return disk.get(k) ?? null;
+  },
+  setItemAsync: async (k: string, v: string) => {
+    if (fail.set.has(k)) throw new Error("keystore write");
+    disk.set(k, v);
+  },
   deleteItemAsync: async (k: string) => void disk.delete(k),
 }));
 vi.mock("expo-crypto", () => ({
@@ -15,9 +24,9 @@ vi.mock("expo-crypto", () => ({
   randomUUID: () => "11111111-2222-3333-4444-555555555555",
 }));
 vi.mock("expo-local-authentication", () => ({
-  hasHardwareAsync: async () => true,
-  isEnrolledAsync: async () => true,
-  authenticateAsync: async () => ({ success: true }),
+  hasHardwareAsync: () => auth.hardware(),
+  isEnrolledAsync: () => auth.enrolled(),
+  authenticateAsync: () => auth.authenticate(),
 }));
 vi.mock("i18next", () => ({ default: { t: (k: string) => k } }));
 vi.mock("@/auth/session-store", () => ({ useSession: { getState: () => ({ signOut }) } }));
@@ -30,6 +39,11 @@ beforeEach(() => {
   disk.clear();
   signOut.mockReset();
   signOut.mockResolvedValue(undefined);
+  fail.get.clear();
+  fail.set.clear();
+  auth.hardware.mockResolvedValue(true);
+  auth.enrolled.mockResolvedValue(true);
+  auth.authenticate.mockResolvedValue({ success: true });
   useLock.setState({ ...fresh });
 });
 
@@ -67,6 +81,63 @@ describe("useLock PIN attempts", () => {
     expect(signOut).toHaveBeenCalledTimes(1);
     expect([...disk.keys()]).toEqual([]);
     expect(useLock.getState()).toMatchObject({ method: null, enabled: false, attempts: 0 });
+  });
+});
+
+describe("useLock keystore failures", () => {
+  it("still counts a wrong PIN when the attempts write fails", async () => {
+    await useLock.getState().setPin("1234");
+    fail.set.add("ixt.lock.attempts");
+    expect(await useLock.getState().verifyPin("0000")).toBe("wrong");
+    expect(useLock.getState().attempts).toBe(1);
+  });
+
+  it("still logs out on the fifth wrong PIN when the attempts write fails", async () => {
+    await useLock.getState().setPin("1234");
+    fail.set.add("ixt.lock.attempts");
+    for (let i = 0; i < 4; i++) expect(await useLock.getState().verifyPin("0000")).toBe("wrong");
+    expect(await useLock.getState().verifyPin("0000")).toBe("logout");
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats an unreadable salt as a wrong PIN instead of rejecting", async () => {
+    await useLock.getState().setPin("1234");
+    fail.get.add("ixt.lock.salt");
+    expect(await useLock.getState().verifyPin("1234")).toBe("wrong");
+    expect(useLock.getState()).toMatchObject({ attempts: 1 });
+  });
+
+  it("still wipes the lock if sign-out throws", async () => {
+    await useLock.getState().setPin("1234");
+    signOut.mockRejectedValue(new Error("boom"));
+    for (let i = 0; i < 4; i++) await useLock.getState().verifyPin("0000");
+    expect(await useLock.getState().verifyPin("0000")).toBe("logout");
+    expect(useLock.getState().method).toBeNull();
+  });
+
+  it("reads a throwing biometric probe as not available", async () => {
+    auth.hardware.mockRejectedValue(new Error("no module"));
+    expect(await useLock.getState().enableBiometric()).toBe(false);
+    expect(useLock.getState().method).toBeNull();
+  });
+});
+
+describe("useLock biometric unlock", () => {
+  it("clears the persisted wrong-PIN count on success", async () => {
+    await useLock.getState().setPin("1234");
+    await useLock.getState().verifyPin("0000");
+    expect(disk.get("ixt.lock.attempts")).toBe("1");
+    expect(await useLock.getState().unlockWithBiometric()).toBe(true);
+    expect(disk.has("ixt.lock.attempts")).toBe(false);
+    expect(useLock.getState().attempts).toBe(0);
+  });
+
+  it("keeps the count when the prompt fails", async () => {
+    await useLock.getState().setPin("1234");
+    await useLock.getState().verifyPin("0000");
+    auth.authenticate.mockResolvedValue({ success: false });
+    expect(await useLock.getState().unlockWithBiometric()).toBe(false);
+    expect(disk.get("ixt.lock.attempts")).toBe("1");
   });
 });
 

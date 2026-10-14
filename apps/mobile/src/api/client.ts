@@ -2,7 +2,7 @@ import * as Device from "expo-device";
 import type { ZodType } from "zod";
 import { appConfig } from "@/config";
 import { useGate } from "@/gate/gate-store";
-import { ApiError, classifyResponse, clearsGate } from "./errors";
+import { ApiError, classifyResponse, clearsGate, resolveAuth } from "./errors";
 
 let tokenProvider: () => string | null = () => null;
 let onLogout: () => void = () => {};
@@ -25,9 +25,8 @@ export async function api<T = unknown>(
     "X-Device-Name": Device.modelName ?? "Android",
     Accept: "application/json",
   };
-  const authed = opts.auth !== false;
-  // An explicit token wins: the sign-out logout runs after the session token is already cleared.
-  const token = opts.token ?? (authed ? tokenProvider() : null);
+  // An explicit token (the sign-out logout, sent after the session is cleared) never takes the session-loss path.
+  const { token, authed } = resolveAuth(opts, tokenProvider);
   if (token) headers.Authorization = `Bearer ${token}`;
   let body: BodyInit | undefined;
   if (opts.form) body = opts.form;

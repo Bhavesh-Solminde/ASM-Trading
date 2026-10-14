@@ -15,7 +15,7 @@
     "title": "IndianxTrade अनलॉक करें", "setupTitle": "अपने खाते को सुरक्षित करें", "useBiometric": "फ़िंगरप्रिंट या फ़ेस का इस्तेमाल करें",
     "setPin": "4 अंकों का PIN सेट करें", "confirmPin": "PIN फिर से डालें", "wrongPin": "गलत PIN। {{left}} कोशिशें बाकी।",
     "mismatch": "PIN मेल नहीं खाए। फिर कोशिश करें।", "skip": "अभी नहीं", "forgotPin": "PIN भूल गए? फिर से लॉग इन करें",
-    "delete": "मिटाएँ", "pinEntered": "{{count}} में से 4 अंक डाले गए"
+    "delete": "मिटाएँ", "pinEntered": "4 में से {{count}} अंक डाले गए"
   },
   "gate": {
     "maintenanceTitle": "हम जल्द लौटेंगे", "maintenanceBody": "IndianxTrade पर रखरखाव चल रहा है। हम अपने आप दोबारा जुड़ जाएँगे।",

@@ -39,9 +39,12 @@ export default function LockSetup() {
   async function useBiometric() {
     if (busy) return;
     setBusy(true);
+    setError(null);
     try {
       if (await enableBiometric()) router.replace("/");
       else setStep("pin");
+    } catch {
+      setError(t("common.genericError"));
     } finally {
       setBusy(false);
     }
@@ -91,6 +94,7 @@ export default function LockSetup() {
       <Txt variant="title">{t("lock.setupTitle")}</Txt>
       {step === "choose" ? (
         <>
+          {error ? <Txt accessibilityRole="alert" style={formStyles.error}>{error}</Txt> : null}
           {biometric ? <Button label={t("lock.useBiometric")} onPress={useBiometric} busy={busy} /> : null}
           <Button label={t("lock.setPin")} kind={biometric ? "secondary" : "primary"} onPress={() => setStep("pin")} disabled={busy} />
           <Button label={t("lock.skip")} kind="secondary" onPress={skip} disabled={busy} />

@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "@/auth/session-store";
@@ -21,18 +21,37 @@ export default function Lock() {
   const signOut = useSession((s) => s.signOut);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const prompting = useRef(false);
+
+  // One system prompt at a time: repeated taps must not stack prompts.
+  const promptBiometric = useCallback(async () => {
+    if (prompting.current) return;
+    prompting.current = true;
+    setBioBusy(true);
+    try {
+      await unlockWithBiometric();
+    } finally {
+      prompting.current = false;
+      setBioBusy(false);
+    }
+  }, [unlockWithBiometric]);
 
   useEffect(() => {
-    if (method === "biometric") void unlockWithBiometric();
-  }, [method, unlockWithBiometric]);
+    if (method === "biometric") void promptBiometric();
+  }, [method, promptBiometric]);
 
   async function onPin(v: string) {
     setValue(v);
     if (!isValidPin(v) || busy) return;
     setBusy(true);
+    setError(null);
     try {
       const result = await verifyPin(v);
       if (result === "logout") router.replace("/login");
+    } catch {
+      setError(t("common.genericError"));
     } finally {
       setValue("");
       setBusy(false);
@@ -40,8 +59,12 @@ export default function Lock() {
   }
 
   async function forgot() {
-    await signOut();
-    await reset();
+    try {
+      await signOut();
+      await reset();
+    } catch {
+      // Best effort: the user is sent to login either way.
+    }
     router.replace("/login");
   }
 
@@ -50,6 +73,7 @@ export default function Lock() {
       <Txt variant="title">{t("lock.title")}</Txt>
       {method === "pin" ? (
         <>
+          {error ? <Txt accessibilityRole="alert" style={formStyles.error}>{error}</Txt> : null}
           {attempts > 0 ? (
             <Txt accessibilityRole="alert" style={formStyles.error}>
               {t("lock.wrongPin", { left: MAX_PIN_ATTEMPTS - attempts })}
@@ -58,7 +82,7 @@ export default function Lock() {
           <PinPad value={value} onChange={onPin} disabled={busy} />
         </>
       ) : (
-        <Button label={t("lock.useBiometric")} onPress={() => void unlockWithBiometric()} />
+        <Button label={t("lock.useBiometric")} onPress={promptBiometric} busy={bioBusy} />
       )}
       <Button label={t("lock.forgotPin")} kind="secondary" onPress={forgot} />
     </Screen>

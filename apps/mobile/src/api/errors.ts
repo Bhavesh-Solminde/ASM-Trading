@@ -68,3 +68,17 @@ export function shouldRetry(failureCount: number, error: unknown): boolean {
   }
   return true;
 }
+
+/**
+ * Which token a request carries and whether an `unauthenticated` reply means "the session is gone".
+ * An explicit `token` (the post-sign-out logout) is sent as given but never takes the session-loss
+ * path: its 401 must not sign out whatever newer session exists by the time the reply lands.
+ */
+export function resolveAuth(
+  opts: { auth?: boolean; token?: string },
+  sessionToken: () => string | null,
+): { token: string | null; authed: boolean } {
+  if (opts.token !== undefined) return { token: opts.token, authed: false };
+  const authed = opts.auth !== false;
+  return { token: authed ? sessionToken() : null, authed };
+}

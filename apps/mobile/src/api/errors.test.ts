@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError, classifyResponse, clearsGate, shouldRetry } from "./errors";
+import { ApiError, classifyResponse, clearsGate, resolveAuth, shouldRetry } from "./errors";
 
 describe("classifyResponse", () => {
   it("passes successful responses through", () => {
@@ -88,5 +88,21 @@ describe("shouldRetry", () => {
   it("retries unknown (non-ApiError) failures once", () => {
     expect(shouldRetry(0, new Error("parse failed"))).toBe(true);
     expect(shouldRetry(1, new Error("parse failed"))).toBe(false);
+  });
+});
+
+describe("resolveAuth", () => {
+  const session = () => "session-token";
+  it("sends the session token and treats a 401 as session loss by default", () => {
+    expect(resolveAuth({}, session)).toEqual({ token: "session-token", authed: true });
+  });
+  it("sends no token for unauthenticated calls", () => {
+    expect(resolveAuth({ auth: false }, session)).toEqual({ token: null, authed: false });
+  });
+  it("sends an explicit token but never takes the session-loss path", () => {
+    const out = resolveAuth({ token: "old" }, session);
+    expect(out).toEqual({ token: "old", authed: false });
+    // So a stale 401 for the old token cannot sign out a newer session.
+    expect(classifyResponse(401, { code: "unauthenticated" }, { authed: out.authed }).kind).not.toBe("logout");
   });
 });
