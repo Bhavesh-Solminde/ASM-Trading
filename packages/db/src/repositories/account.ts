@@ -1,5 +1,5 @@
 import { prisma } from "../client";
-import type { Account } from "../../generated/prisma/client";
+import type { Account } from "../models";
 
 /** Supported account currencies and their DEMO starting balance (minor units). */
 export const DEMO_START_BY_CURRENCY: Record<string, number> = {

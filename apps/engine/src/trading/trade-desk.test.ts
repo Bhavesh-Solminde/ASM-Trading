@@ -219,6 +219,38 @@ describe("TradeDesk.hydrate", () => {
     expect(account.realBalance).toBe(1_000_000);
   });
 
+  it("skips a trade it cannot void and still voids the rest", async () => {
+    const assetId = registry.get("AUDNZD_OTC")!.id;
+    const expired = (accountId: string) =>
+      openTrade({
+        accountId,
+        assetId,
+        direction: "UP",
+        stake: 1_000,
+        payoutPct: 100,
+        entryPrice: 1.175,
+        entryTs: new Date(Date.now() - 120_000),
+        expiryTs: new Date(Date.now() - 60_000),
+      }).then((o) => o.trade.id);
+    const broken = await trader();
+    const healthy = await trader();
+    const brokenTradeId = await expired(broken.accountId);
+    const healthyTradeId = await expired(healthy.accountId);
+    // A refund onto this balance overflows BIGINT, so voidTrade throws.
+    await prisma.$executeRaw`UPDATE "Account" SET "realBalance" = 9223372036854775000 WHERE id = ${broken.accountId}`;
+
+    await expect(new TradeDesk(registry, notifier, controller).hydrate(nowSec())).resolves.toBeUndefined();
+
+    const stuck = await prisma.trade.findUniqueOrThrow({ where: { id: brokenTradeId } });
+    expect(stuck.status).toBe("OPEN");
+    const voided = await prisma.trade.findUniqueOrThrow({ where: { id: healthyTradeId } });
+    expect(voided.status).toBe("REFUNDED");
+
+    // Settle the stuck trade so later hydrate tests don't trip over it.
+    await prisma.$executeRaw`UPDATE "Account" SET "realBalance" = 0 WHERE id = ${broken.accountId}`;
+    await prisma.trade.update({ where: { id: brokenTradeId }, data: { status: "REFUNDED" } });
+  });
+
   it("keeps a position that is not yet due", async () => {
     const t = await trader();
     const assetId = registry.get("AUDNZD_OTC")!.id;

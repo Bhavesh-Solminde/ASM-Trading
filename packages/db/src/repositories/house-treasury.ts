@@ -1,5 +1,6 @@
 import { prisma } from "../client";
-import type { HouseTreasury, TradeStatus } from "../../generated/prisma/client";
+import type { TradeStatus } from "../../generated/prisma/client";
+import type { HouseTreasury } from "../models";
 
 /**
  * Read the treasury singleton. Returns the row if seeded (migration inserts

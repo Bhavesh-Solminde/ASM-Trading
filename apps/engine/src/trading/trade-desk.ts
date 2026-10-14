@@ -441,6 +441,7 @@ export class TradeDesk {
   async hydrate(nowSec: number): Promise<void> {
     const positions = await loadOpenPositions();
     let voided = 0;
+    let failed = 0;
 
     for (const position of positions) {
       if (position.expirySec > nowSec) {
@@ -453,12 +454,26 @@ export class TradeDesk {
         voided += 1;
         this.announce(settled, this.symbolByAssetId.get(position.assetId) ?? "UNKNOWN");
       } catch (err) {
-        if (!(err instanceof AlreadySettled)) throw err;
+        if (err instanceof AlreadySettled) continue;
+        // One trade that cannot be voided must not keep the engine down —
+        // on 2026-10-14 a single refund overflowing an INTEGER balance
+        // crash-looped startup and took the websocket offline. Leave the
+        // trade OPEN (the next restart retries it) and carry on.
+        failed += 1;
+        logger.error(
+          {
+            evt: "engine.hydrate_void_failed",
+            tradeId: position.tradeId,
+            accountId: position.accountId,
+            reason: err instanceof Error ? err.message : String(err),
+          },
+          "could not void an expired trade at startup — left open",
+        );
       }
     }
 
     logger.info(
-      { evt: "engine.book_hydrated", open: this.book.size(), voided },
+      { evt: "engine.book_hydrated", open: this.book.size(), voided, failed },
       "trade book hydrated",
     );
   }

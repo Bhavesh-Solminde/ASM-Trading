@@ -13,7 +13,7 @@ import {
   resolveChainCreditToDeposit,
 } from "./chain-credit-admin";
 import { rawPerMinor } from "../usdt-money";
-import type { Deposit } from "../../generated/prisma/client";
+import type { Deposit } from "../models";
 
 const NETWORK = "tron";
 const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";

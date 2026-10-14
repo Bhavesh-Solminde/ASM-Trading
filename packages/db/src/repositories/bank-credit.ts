@@ -1,5 +1,5 @@
 import { prisma } from "../client";
-import type { BankCredit } from "../../generated/prisma/client";
+import type { BankCredit } from "../models";
 
 /**
  * Returns null on a duplicate UTR rather than throwing — the relay may

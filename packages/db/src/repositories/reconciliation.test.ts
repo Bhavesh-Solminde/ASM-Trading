@@ -11,7 +11,8 @@ import {
   runUsdtReconciliation,
   type ReconciliationFinding,
 } from "./reconciliation";
-import type { ChainCreditFinalityState, ChainCreditProcessingStatus, Deposit, DepositStatus } from "../../generated/prisma/client";
+import type { ChainCreditFinalityState, ChainCreditProcessingStatus, DepositStatus } from "../../generated/prisma/client";
+import type { Deposit } from "../models";
 
 const NETWORK = "tron";
 const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";

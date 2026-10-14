@@ -1,5 +1,6 @@
 import { prisma } from "../client";
-import type { HouseDay, TradeStatus } from "../../generated/prisma/client";
+import type { TradeStatus } from "../../generated/prisma/client";
+import type { HouseDay } from "../models";
 
 /** IST calendar day for an instant. IST is UTC+5:30, no DST. */
 export function houseDateForInstant(instant: Date): Date {

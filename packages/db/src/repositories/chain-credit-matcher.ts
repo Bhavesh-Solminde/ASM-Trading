@@ -1,6 +1,6 @@
 import { prisma } from "../client";
 import { MAX_DEPOSIT_USDT_MINOR, creditDepositToAccount } from "./deposit";
-import type { ChainCredit, Deposit } from "../../generated/prisma/client";
+import type { ChainCredit, Deposit } from "../models";
 
 export type ChainMatchOutcome =
   | { kind: "auto_approved"; depositId: string }

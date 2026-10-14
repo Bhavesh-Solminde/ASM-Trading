@@ -268,3 +268,21 @@ export {
   type ReconciliationRunSummary,
 } from "./repositories/reconciliation";
 export * from "../generated/prisma/client";
+// Number-typed money rows (see client.ts) — these names shadow the generated
+// bigint-typed models re-exported above.
+export type {
+  User,
+  Account,
+  Trade,
+  HouseDay,
+  HouseTreasury,
+  TradeShadow,
+  Deposit,
+  BankCredit,
+  RelayMessage,
+  ChainCredit,
+  Withdrawal,
+  Transaction,
+  BonusGrant,
+} from "./models";
+export type { DbClient, DbTransaction } from "./client";
