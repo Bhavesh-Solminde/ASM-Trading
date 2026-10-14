@@ -29,7 +29,9 @@ function ToastRow({ item }: { item: ToastItem }) {
   const border = item.tone === "up" ? color.up : item.tone === "down" ? color.down : color.rule;
   return (
     <Animated.View entering={FadeInUp} exiting={FadeOutUp} style={[styles.toast, { borderColor: border }]}>
-      <Text style={styles.text}>{item.message}</Text>
+      <Text testID="toast" style={styles.text}>
+        {item.message}
+      </Text>
     </Animated.View>
   );
 }

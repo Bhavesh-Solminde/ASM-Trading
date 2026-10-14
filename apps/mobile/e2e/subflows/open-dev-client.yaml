@@ -1,0 +1,12 @@
+# Debug builds are Expo dev clients: after every (re)start they show the launcher until a Metro URL is
+# opened. Pass -e DEV_CLIENT_URL=exp+indianxtrade://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081
+# For a build that embeds its bundle, leave it unset and this does nothing.
+appId: com.indianxtrade.app
+env:
+  DEV_CLIENT_URL: ""
+---
+- runFlow:
+    when:
+      true: ${DEV_CLIENT_URL != ''}
+    commands:
+      - openLink: ${DEV_CLIENT_URL}

@@ -76,7 +76,7 @@ export default function Lock() {
       <Txt variant="title">{t("lock.title")}</Txt>
       {method === "pin" ? (
         <>
-          <Txt accessibilityRole={message ? "alert" : undefined} style={[formStyles.error, formStyles.messageSlot]}>
+          <Txt testID="lock-message" accessibilityRole={message ? "alert" : undefined} style={[formStyles.error, formStyles.messageSlot]}>
             {message}
           </Txt>
           <PinPad value={value} onChange={onPin} disabled={busy} />

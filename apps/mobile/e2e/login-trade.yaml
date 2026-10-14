@@ -1,0 +1,56 @@
+# Fresh install -> sign in -> set a PIN -> place a 30s demo trade -> see it settle.
+# Run: maestro test -e EMAIL=<test user> -e PASSWORD=<its password> [-e DEV_CLIENT_URL=...] apps/mobile/e2e/login-trade.yaml
+# Leaves the app signed in with PIN 1234, which lock.yaml relies on.
+appId: com.indianxtrade.app
+---
+- launchApp:
+    clearState: true
+- runFlow: subflows/open-dev-client.yaml
+- extendedWaitUntil:
+    visible: { id: "login-email" }
+    timeout: 60000
+- tapOn: { id: "login-email" }
+- inputText: ${EMAIL}
+- tapOn: { id: "login-password" }
+- inputText: ${PASSWORD}
+- hideKeyboard
+- tapOn: { id: "login-submit" }
+
+# A fresh sign-in has no lock yet, so the gatekeeper sends us to lock-setup (fingerprint is offered
+# only where the device has one enrolled; the PIN button is always there).
+- extendedWaitUntil:
+    visible: { id: "lock-set-pin" }
+    timeout: 30000
+- tapOn: { id: "lock-set-pin" }
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "1", D2: "2", D3: "3", D4: "4" }
+# Confirm step: the same pad, the same PIN.
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "1", D2: "2", D3: "3", D4: "4" }
+
+# Trade screen. Demo is the account we may trade on without risk.
+- extendedWaitUntil:
+    visible: { id: "account-demo" }
+    timeout: 30000
+- tapOn: { id: "account-demo" }
+
+# The stake starts at the account's default (₹100 / $10) and keys append to it, so clear it first.
+- tapOn: { id: "stake-tile" }
+- repeat:
+    times: 6
+    commands:
+      - tapOn: { id: "key-back" }
+- tapOn: { id: "key-1" }
+- tapOn: { id: "key-0" }
+- tapOn: { id: "key-0" }
+- tapOn: { id: "keypad-done" }
+- tapOn: { id: "expiry-30" }
+- tapOn: { id: "buy" }
+
+# The toast announces the settlement (30s expiry + settle), and also shows any failure, so a red
+# "trade failed" toast would pass this step: check the screenshot Maestro saves on failure.
+- extendedWaitUntil:
+    visible: { id: "toast" }
+    timeout: 60000

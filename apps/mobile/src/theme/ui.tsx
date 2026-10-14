@@ -38,15 +38,19 @@ export function Button({
   kind = "primary",
   disabled,
   busy,
+  testID,
 }: {
   label: string;
   onPress: () => void;
   kind?: ButtonKind;
   disabled?: boolean;
   busy?: boolean;
+  /** Stable handle for end-to-end tests. */
+  testID?: string;
 }) {
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled, busy: !!busy }}

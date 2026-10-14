@@ -88,7 +88,7 @@ export default function LockSetup() {
         <>
           {error ? <Txt accessibilityRole="alert" style={formStyles.error}>{error}</Txt> : null}
           {biometric ? <Button label={t("lock.useBiometric")} onPress={useBiometric} busy={busy} /> : null}
-          <Button label={t("lock.setPin")} kind={biometric ? "secondary" : "primary"} onPress={() => setStep("pin")} disabled={busy} />
+          <Button testID="lock-set-pin" label={t("lock.setPin")} kind={biometric ? "secondary" : "primary"} onPress={() => setStep("pin")} disabled={busy} />
           <Button label={t("lock.skip")} kind="secondary" onPress={skip} disabled={busy} />
         </>
       ) : (

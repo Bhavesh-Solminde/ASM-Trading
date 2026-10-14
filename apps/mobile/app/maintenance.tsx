@@ -14,5 +14,5 @@ export default function Maintenance() {
     }, POLL_MS);
     return () => clearInterval(id);
   }, []);
-  return <GateScreen title={t("gate.maintenanceTitle")} body={t("gate.maintenanceBody")} />;
+  return <GateScreen testID="gate-maintenance" title={t("gate.maintenanceTitle")} body={t("gate.maintenanceBody")} />;
 }

@@ -39,6 +39,7 @@ export function TopBar({
           return (
             <Pressable
               key={type}
+              testID={`account-${type.toLowerCase()}`}
               accessibilityRole="radio"
               accessibilityState={{ selected, disabled: blocked }}
               onPress={() => (blocked ? toast(t("trade.liveLocked")) : onSelectType(type))}

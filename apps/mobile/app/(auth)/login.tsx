@@ -54,6 +54,7 @@ export default function Login() {
       <FormScroll>
         <Txt variant="title">{t("auth.login")}</Txt>
         <Field
+          testID="login-email"
           label={t("auth.email")}
           autoCapitalize="none"
           autoComplete="email"
@@ -62,6 +63,7 @@ export default function Login() {
           onChangeText={setEmail}
         />
         <Field
+          testID="login-password"
           label={t("auth.password")}
           secureTextEntry
           autoComplete="password"
@@ -70,7 +72,7 @@ export default function Login() {
           onSubmitEditing={submit}
         />
         {error ? <Txt accessibilityRole="alert" style={formStyles.error}>{error}</Txt> : null}
-        <Button label={t("auth.login")} onPress={submit} busy={busy} />
+        <Button testID="login-submit" label={t("auth.login")} onPress={submit} busy={busy} />
         {googleEnabled ? <Button label={t("auth.google")} kind="secondary" onPress={google} disabled={busy} /> : null}
         <TextLink href="/forgot" label={t("auth.forgot")} />
         <TextLink href="/register" label={t("auth.noAccount")} />

@@ -67,6 +67,7 @@ export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: strin
                 return (
                   <Pressable
                     key={key}
+                    testID={`key-${key}`}
                     accessibilityRole="button"
                     accessibilityLabel={isBack ? t("trade.delete") : key === "." ? t("trade.point") : key}
                     onPress={() => press(key)}
@@ -80,7 +81,7 @@ export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: strin
             </View>
           ))}
         </View>
-        <Button label={t("common.done")} onPress={onDone} />
+        <Button testID="keypad-done" label={t("common.done")} onPress={onDone} />
       </Sheet>
     );
   },

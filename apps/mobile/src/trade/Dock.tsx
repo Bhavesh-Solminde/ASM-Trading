@@ -65,6 +65,7 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
       }}
     >
       <Pressable
+        testID="stake-tile"
         accessibilityRole="button"
         accessibilityLabel={t("trade.stakeButton", { amount: stakeLabel })}
         onPress={() => keypad.current?.present()}
@@ -88,6 +89,7 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
           return (
             <Pressable
               key={c.sec}
+              testID={`expiry-${c.sec}`}
               accessibilityRole="button"
               accessibilityLabel={t("trade.expiryOption", { label: formatDuration(c.sec) })}
               accessibilityState={{ selected }}
@@ -141,6 +143,7 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
           return (
             <Pressable
               key={dir}
+              testID={up ? "buy" : "sell"}
               accessibilityRole="button"
               accessibilityLabel={[label, payoutText, profitText].filter(Boolean).join(", ")}
               accessibilityState={{ disabled: blocked, busy }}

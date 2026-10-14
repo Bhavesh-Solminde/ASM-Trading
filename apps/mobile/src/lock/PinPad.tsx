@@ -42,6 +42,7 @@ export function PinPad({
           ) : (
             <Pressable
               key={i}
+              testID={`pin-${k}`}
               accessibilityRole="button"
               accessibilityLabel={k === DELETE ? t("lock.delete") : k}
               accessibilityState={{ disabled: !!disabled }}
