@@ -572,9 +572,10 @@ export async function markWithdrawalPaid(input: {
 export async function listWithdrawalsForActor(
   actorId: string,
   limit: number,
+  before?: Date,
 ): Promise<Withdrawal[]> {
   return prisma.withdrawal.findMany({
-    where: { userId: actorId },
+    where: { userId: actorId, ...(before ? { createdAt: { lt: before } } : {}) },
     orderBy: { createdAt: "desc" },
     take: Math.min(Math.max(limit, 1), 100),
   });
