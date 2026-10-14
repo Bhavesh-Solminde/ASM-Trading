@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -17,7 +18,27 @@ export default tseslint.config(
       "apps/relay/**",
       "apps/harness/**",
       "scripts/echo-relay-server.mjs",
+      // apps/mobile: generated native projects and Expo's cache.
+      "apps/mobile/android/**",
+      "apps/mobile/ios/**",
+      "apps/mobile/.expo/**",
     ],
+  },
+  {
+    // apps/mobile's Metro/Babel configs are CommonJS by Expo convention.
+    files: ["apps/mobile/*.config.js"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: { module: "writable", require: "readonly", __dirname: "readonly" },
+    },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
+    // apps/mobile only: a conditional hook (`a && useB()`) crashes React at runtime and no test renders the
+    // shell. rules-of-hooks alone: the plugin's exhaustive-deps and compiler rules are deliberately off.
+    files: ["apps/mobile/**/*.{ts,tsx}"],
+    plugins: { "react-hooks": reactHooks },
+    rules: { "react-hooks/rules-of-hooks": "error" },
   },
   {
     files: ["**/*.{ts,tsx}"],

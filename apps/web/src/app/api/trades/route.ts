@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   const minStake = minStakeMinor(account.currency);
   if (parsed.data.stake < minStake) {
     return NextResponse.json(
-      { error: `Minimum investment is ${formatMoney(minStake, account.currency)}.` },
+      { error: `Minimum investment is ${formatMoney(minStake, account.currency)}.`, code: "min_stake" },
       { status: 400 },
     );
   }
@@ -70,13 +70,14 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof EngineRejected) {
       return NextResponse.json(
-        { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade." },
+        // `code` lets the mobile app show translated copy; the browser keeps using `error`.
+        { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade.", code: err.reason },
         { status: BROWSER_STATUS[err.reason] ?? err.status },
       );
     }
     if (err instanceof EngineUnavailable) {
       log.error({ evt: "trade.rejected", reason: "engine_unavailable" }, err.message);
-      return NextResponse.json({ error: "Trading is temporarily unavailable." }, { status: 503 });
+      return NextResponse.json({ error: "Trading is temporarily unavailable.", code: "trading_unavailable" }, { status: 503 });
     }
     throw err;
   }

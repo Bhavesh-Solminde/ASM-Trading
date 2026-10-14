@@ -1,0 +1,54 @@
+{
+  "common": { "retry": "Retry", "cancel": "Cancel", "done": "Done", "continue": "Continue", "offline": "No connection — reconnecting…", "genericError": "Something went wrong.", "noConnection": "No connection. Check your internet and try again." },
+  "tabs": { "trade": "Trade", "payments": "Payments", "history": "History", "account": "Account", "soon": "This screen arrives in the next update." },
+  "auth": {
+    "login": "Log in", "register": "Create account", "email": "Email", "password": "Password",
+    "forgot": "Forgot password?", "google": "Continue with Google", "noAccount": "New here? Create an account",
+    "haveAccount": "Already have an account? Log in", "resetSent": "If that email is registered, a reset link is on its way.",
+    "name": "Full name", "passwordHint": "At least 12 characters", "forgotTitle": "Reset your password",
+    "sendReset": "Send reset link", "backToLogin": "Back to log in",
+    "checkDetails": "Check your details.", "googleFailed": "Google sign-in failed.",
+    "errName": "Enter your full name.", "errEmail": "Enter a valid email address.",
+    "errPassword": "Password must be at least 12 characters."
+  },
+  "account": { "logout": "Log out" },
+  "lock": {
+    "title": "Unlock IndianxTrade", "setupTitle": "Protect your account", "useBiometric": "Use fingerprint or face",
+    "setPin": "Set a 4-digit PIN", "confirmPin": "Enter the PIN again", "wrongPin_one": "Wrong PIN. {{count}} try left.", "wrongPin_other": "Wrong PIN. {{count}} tries left.",
+    "mismatch": "PINs didn't match. Try again.", "skip": "Not now", "forgotPin": "Forgot PIN? Log in again", "unavailable": "Your lock settings couldn't be read. Log in again to continue.",
+    "delete": "Delete", "pinEntered": "{{count}} of 4 digits entered"
+  },
+  "gate": {
+    "maintenanceTitle": "We'll be right back", "maintenanceBody": "IndianxTrade is under maintenance. We'll reconnect automatically.",
+    "blockedTitle": "VPN or proxy detected", "blockedBody": "Turn off your VPN, proxy or Tor and try again.",
+    "updateTitle": "Update required", "updateBody": "This version is no longer supported. Update to keep trading.", "update": "Update now"
+  },
+  "trade": {
+    "buy": "Buy", "sell": "Sell", "stake": "Stake", "expiry": "Time", "more": "More", "payout": "{{pct}}%",
+    "demo": "Demo", "live": "Live", "won": "Won {{amount}}", "lost": "Lost {{amount}}", "refunded": "Refunded {{amount}}",
+    "open": "Open", "closed": "Closed", "noTrades": "No trades yet", "markets": "Markets", "search": "Search markets",
+    "favourites": "Favourites", "bonus": "+{{pct}}% bonus", "minStake": "Minimum stake is {{amount}}",
+    "insufficient": "Not enough balance", "backToLive": "Live", "chartType": "Chart type", "timeframe": "Timeframe",
+    "candles": "Candles", "line": "Line", "area": "Area", "bars": "Bars",
+    "ohlcO": "O", "ohlcH": "H", "ohlcL": "L", "ohlcC": "C", "chartLabel": "Price chart",
+    "sentiment": "Trader sentiment: {{up}}% up, {{down}}% down", "stale": "Saved data — updating…",
+    "today": "{{amount}} today",
+    "liveLocked": "Live trading isn't available on your account yet.", "deposit": "Deposit", "balance": "Balance",
+    "noMarkets": "No markets match your search", "addFavourite": "Add {{name}} to favourites",
+    "removeFavourite": "Remove {{name}} from favourites", "selectMarket": "Market: {{name}}. Tap to change.",
+    "failed": "Trade failed.", "maxStake": "Maximum stake is {{amount}}", "delete": "Delete", "point": "Decimal point",
+    "expiryOption": "Expiry {{label}}", "stakeButton": "Stake {{amount}}. Tap to change.", "stakeKeypad": "Stake amount",
+    "trades": "Trades", "moreOpen": "+{{n}} more", "ifClosedNow": "if it closed now",
+    "positionLabel": "{{side}} {{name}}, stake {{stake}}, {{time}} left. Tap to see your trades.",
+    "settling": "Settling…", "positionLabelSettling": "{{side}} {{name}}, stake {{stake}}, settling. Tap to see your trades.",
+    "marketClosed": "This market is closed for the night. Trading resumes at 5:00 AM IST.", "accountPaused": "This account is paused. Contact support.", "assetUnavailable": "That market isn't available right now.", "unavailable": "Trading is temporarily unavailable.",
+    "tabCount": "{{name}}, {{n}}", "statusWon": "Won", "statusLost": "Lost", "statusRefund": "Refund"
+  },
+  "bonus": {
+    "title": "Deposit bonus", "subtitle": "Extra trading balance on each of your first {{n}} deposits.",
+    "nth1": "1st deposit", "nth2": "2nd deposit", "nth3": "3rd deposit", "nth4": "4th deposit", "nthN": "Deposit {{n}}",
+    "claimed": "Claimed", "next": "Next", "upcoming": "Upcoming",
+    "note": "The bonus is added automatically when your deposit is credited. It is for trading only and can't be withdrawn — only your real balance can.",
+    "depositNow": "Deposit now · get {{pct}}%", "allUsed": "You've used all your deposit bonuses."
+  }
+}

@@ -2,6 +2,7 @@ export * from "./money/currency";
 export * from "./money/format-money";
 export * from "./time/format-time";
 export * from "./time/day";
+export * from "./time/version";
 export * from "./money/bonus";
 export * from "./payments/upi";
 export * from "./trade/pnl-display";

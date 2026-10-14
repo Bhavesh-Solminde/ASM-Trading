@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Log in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400..700&amp;family=Anek+Latin:wdth,wght@75..125,300..700&amp;family=Martian+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#06080b}input::placeholder{color:#737d8c}</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; padding-top: 40px; display: flex; flex-direction: column; background: #06080b; color: #edf1f6; font-family: 'Anek Latin', 'Anek Devanagari', system-ui, sans-serif; font-size: 15px; line-height: 1.35; overflow: hidden">
+
+  <div style="padding: 0 20px">
+    <img src="/_blob/d570ba0573204578048b1dc5a8e18e85" alt="IndianxTrade" style="width: 250px; height: auto; display: block">
+    <div style="width: 250px; height: 2px; margin-top: 2px; background: linear-gradient(90deg, transparent, #ff9933 18%, #ff9933 33.3%, #f3f1ea 33.3% 66.6%, #1f9a12 66.6% 82%, transparent)"></div>
+  </div>
+
+  <div style="position: relative; height: 128px; margin-top: 10px">
+    <svg aria-hidden="true" width="390" height="128" viewBox="0 0 390 128" style="display: block">
+      <defs>
+        <linearGradient id="loginArea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2ecf7a" stop-opacity="0.28"></stop>
+          <stop offset="1" stop-color="#2ecf7a" stop-opacity="0"></stop>
+        </linearGradient>
+      </defs>
+      <path d="{{ area.fill }}" fill="url(#loginArea)"></path>
+      <path d="{{ area.line }}" fill="none" stroke="#2ecf7a" stroke-width="1.8" stroke-linejoin="round"></path>
+      <circle cx="{{ area.lastX }}" cy="{{ area.lastY }}" r="3.5" fill="#2ecf7a"></circle>
+    </svg>
+    <div style="position: absolute; left: 20px; bottom: 10px; display: flex; gap: 8px; align-items: baseline">
+      <span style="font-weight: 600; font-size: 14px">NIFTY 50</span>
+      <span style="font: 500 13px 'Martian Mono', monospace; color: #2ecf7a; letter-spacing: -0.02em">24,812.40</span>
+    </div>
+  </div>
+
+  <form style="padding: 14px 20px 0; display: flex; flex-direction: column; gap: 14px; flex: 1">
+    <h1 style="margin: 0; font-size: 28px; font-weight: 620; letter-spacing: -0.01em">Log in</h1>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <label for="email" style="font-size: 14px; color: #a6b0be; font-weight: 500">Email</label>
+      <input id="email" type="email" value="asha.rao@gmail.com" style="height: 52px; box-sizing: border-box; border-radius: 12px; border: 1px solid {{accent}}; box-shadow: 0 0 0 3px #142247; background: #0f141b; color: #edf1f6; padding: 0 14px; font: 400 16px 'Anek Latin', sans-serif">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <label for="password" style="font-size: 14px; color: #a6b0be; font-weight: 500">Password</label>
+      <div style="position: relative">
+        <input id="password" type="password" value="correct-horse-battery" style="width: 100%; height: 52px; box-sizing: border-box; border-radius: 12px; border: 1px solid #252d39; background: #0f141b; color: #edf1f6; padding: 0 48px 0 14px; font: 400 16px 'Anek Latin', sans-serif">
+        <button type="button" aria-label="Show password" style="position: absolute; right: 4px; top: 4px; width: 44px; height: 44px; border: 0; background: transparent; color: #737d8c; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
+      </div>
+    </div>
+    <button type="submit" style="height: 54px; margin-top: 4px; border-radius: 12px; border: 0; background: {{accent}}; color: #ffffff; font: 600 17px 'Anek Latin', sans-serif">Log in</button>
+    <div style="display: flex; justify-content: space-between; font-size: 14px">
+      <a href="#" style="color: #86a6ff; text-decoration: none">Forgot password?</a>
+      <span style="color: #a6b0be">New here? <a href="#" style="color: #86a6ff; text-decoration: none">Create account</a></span>
+    </div>
+  </form>
+
+  <div style="display: flex; justify-content: center; gap: 6px; padding: 0 20px 28px">
+    <button type="button" style="height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid #edf1f6; background: #edf1f6; color: #06080b; font: 600 14px 'Anek Latin', sans-serif">English</button>
+    <button type="button" style="height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Devanagari', sans-serif">हिन्दी</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3f6ff2","options":["#3f6ff2","#2f81f7","#ff9933","#1f9a12"]},"chartSeed":{"editor":"int","default":7,"min":1,"max":60},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  area(seed, w, h, n) {
+    let s = seed * 9301 + 49297;
+    const r = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+    let p = 100;
+    const pts = [];
+    for (let i = 0; i < n; i++) { p = p + (r() - 0.46) * 2.2 + Math.sin(i / 9 + seed) * 0.3; pts.push(p); }
+    const lo = Math.min.apply(null, pts), hi = Math.max.apply(null, pts);
+    const step = w / (n - 1);
+    const xy = pts.map(function (v, i) { return [(i * step).toFixed(1), (8 + (hi - v) / (hi - lo) * (h - 40)).toFixed(1)]; });
+    const line = xy.map(function (q, i) { return (i ? 'L' : 'M') + q[0] + ' ' + q[1]; }).join(' ');
+    const last = xy[xy.length - 1];
+    return { line: line, fill: line + ' L' + last[0] + ' ' + h + ' L0 ' + h + ' Z', lastX: last[0], lastY: last[1] };
+  }
+  renderVals() {
+    return { accent: this.props.accent ?? '#3f6ff2', area: this.area(this.props.chartSeed ?? 7, 386, 128, 70) };
+  }
+}
+</script>
+</body>
+</html>
