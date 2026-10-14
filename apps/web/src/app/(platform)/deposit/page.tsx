@@ -1,12 +1,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { countCompletedDeposits, getDepositByToken } from "@asm/db";
+import { getDepositByToken } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { DepositFlow } from "@/components/deposit/DepositFlow";
 import { PlatformTabs } from "@/components/shell/PlatformTabs";
 import { PageFrame } from "@/components/shell/PageFrame";
-import { listEnabledUsdtNetworks, usdtGatewayActive } from "@/lib/usdt-networks";
-import { upiDepositsEnabled } from "@/lib/upi-collection";
+import { loadDepositConfig } from "@/lib/deposit-config";
 
 export default async function DepositPage({
   searchParams,
@@ -23,17 +22,12 @@ export default async function DepositPage({
   const expiredToken =
     typeof expired === "string" && /^[A-Za-z0-9_-]{20,64}$/.test(expired) ? expired : null;
   const showExpired = expired === "1" || expiredToken !== null;
-  // Only networks whose receiving config is complete (i.e. a watcher is on
-  // them) are offered — the env is re-read per request.
-  const usdtNetworks = listEnabledUsdtNetworks();
-  // Each network has its own provider (e.g. TRON on the shared treasury
-  // address, BSC on per-deposit gateway addresses).
-  const gatewayNetworks = usdtNetworks.filter((n) => usdtGatewayActive(n));
+  // Methods, networks and bonus tiers — the same loader the app's /api/v1/deposit-config uses.
+  const config = await loadDepositConfig(session.userId);
   // The expired notice follows the flow that deposit actually used. Only the
   // gateway flag is read, and only for the signed-in user's own deposit.
   const expiredDeposit = expiredToken ? await getDepositByToken(expiredToken) : null;
   const usdtGateway = expiredDeposit?.userId === session.userId && expiredDeposit.gateway !== null;
-  const completedDeposits = await countCompletedDeposits(session.userId);
 
   return (
     <PageFrame width="narrow" nav={<PlatformTabs />} title="Deposit">
@@ -65,10 +59,10 @@ export default async function DepositPage({
       ) : null}
 
       <DepositFlow
-        usdtNetworks={usdtNetworks}
-        gatewayNetworks={gatewayNetworks}
-        upiEnabled={upiDepositsEnabled()}
-        completedDeposits={completedDeposits}
+        usdtNetworks={config.usdtNetworks}
+        gatewayNetworks={config.gatewayNetworks}
+        upiEnabled={config.upiEnabled}
+        completedDeposits={config.completedDeposits}
       />
     </PageFrame>
   );
