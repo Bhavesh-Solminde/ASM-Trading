@@ -68,7 +68,17 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+          # ssh-keyscan exits non-zero when the VPS is slow to answer (e.g.
+          # mid-build from the previous deploy) — retry before giving up.
+          for i in 1 2 3 4 5; do
+            if ssh-keyscan -T 15 -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts \
+               && [ -s ~/.ssh/known_hosts ]; then
+              exit 0
+            fi
+            echo "ssh-keyscan attempt $i failed, retrying in 10s"
+            sleep 10
+          done
+          exit 1
 
       - name: Rsync source to VPS
         run: |
@@ -94,11 +104,16 @@ jobs:
 
       - name: Smoke test
         run: |
-          # Two-second grace for containers to answer after restart.
-          sleep 5
+          # Next.js takes a while to boot after the container restarts, and
+          # nginx answers 502 until it does — poll for up to ~2 minutes
+          # instead of a fixed sleep.
           # Canonical host must answer 200.
-          canonical=$(curl -s -o /dev/null -w "%{http_code}" https://indianxtrade.com)
-          echo "indianxtrade.com: $canonical"
+          for i in $(seq 1 24); do
+            canonical=$(curl -s -o /dev/null -w "%{http_code}" https://indianxtrade.com)
+            echo "indianxtrade.com (attempt $i): $canonical"
+            [ "$canonical" = "200" ] && break
+            sleep 5
+          done
           if [ "$canonical" != "200" ]; then exit 1; fi
           # Legacy host must 301 to the canonical. Any 2xx or 4xx here is a
           # misconfig — either the redirect is missing or the legacy cert
