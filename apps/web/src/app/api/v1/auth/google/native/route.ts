@@ -4,7 +4,7 @@ import { findUserByEmail } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { deviceNameFrom } from "@/lib/app-client";
 import { signInWithGoogleProfile } from "@/lib/google-account";
-import { googleNativeAudiences, verifyNativeIdToken } from "@/lib/google-native";
+import { googleAndroidClientIds, googleNativeAudiences, verifyNativeIdToken } from "@/lib/google-native";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
@@ -28,9 +28,14 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return failed(400);
 
+  const webClientId = process.env["GOOGLE_CLIENT_ID"]?.trim();
   let profile;
   try {
-    profile = await verifyNativeIdToken(parsed.data.idToken, { audiences });
+    profile = await verifyNativeIdToken(parsed.data.idToken, {
+      audiences,
+      androidClientIds: googleAndroidClientIds(),
+      ...(webClientId ? { webClientId } : {}),
+    });
   } catch (err) {
     log.info({ evt: "auth.google_failed", reason: err instanceof Error ? err.message : "verify" }, "native google failed");
     return failed(401);

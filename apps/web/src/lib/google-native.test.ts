@@ -52,6 +52,26 @@ describe("verifyNativeIdToken", () => {
   });
 });
 
+describe("verifyNativeIdToken authorized party", () => {
+  const WEB = "web-client.apps.googleusercontent.com";
+  const opts = () => ({ audiences: [AUD, WEB], webClientId: WEB, androidClientIds: [AUD], jwks });
+  it("accepts a web-audience token issued to an Android client", async () => {
+    const t = await sign({ ...base(), aud: WEB, azp: AUD });
+    expect((await verifyNativeIdToken(t, opts())).sub).toBe("1234567890");
+  });
+  it("rejects a web-audience token issued to the web client (browser sign-in)", async () => {
+    const t = await sign({ ...base(), aud: WEB, azp: WEB });
+    await expect(verifyNativeIdToken(t, opts())).rejects.toThrow("unexpected authorized party");
+  });
+  it("rejects a web-audience token with no azp", async () => {
+    const t = await sign({ ...base(), aud: WEB });
+    await expect(verifyNativeIdToken(t, opts())).rejects.toBeInstanceOf(GoogleSignInError);
+  });
+  it("does not require azp for an Android-audience token", async () => {
+    expect((await verifyNativeIdToken(await sign(base()), opts())).sub).toBe("1234567890");
+  });
+});
+
 describe("googleNativeAudiences", () => {
   it("accepts the Android client ids plus the web client id", () => {
     expect(googleNativeAudiences({ GOOGLE_ANDROID_CLIENT_IDS: " a , b ", GOOGLE_CLIENT_ID: "web" })).toEqual(["a", "b", "web"]);
