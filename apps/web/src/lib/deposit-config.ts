@@ -1,6 +1,5 @@
 import type { DepositConfig } from "@asm/contracts";
-import { countCompletedDeposits } from "@asm/db";
-import { BONUS_TIERS } from "@asm/client-core";
+import { BONUS_TIERS, countCompletedDeposits } from "@asm/db";
 import { upiDepositsEnabled } from "./upi-collection";
 import { listEnabledUsdtNetworks, usdtGatewayActive } from "./usdt-networks";
 
