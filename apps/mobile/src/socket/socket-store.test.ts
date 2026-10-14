@@ -363,6 +363,26 @@ describe("useSocket", () => {
     });
   });
 
+  describe("mergeFetchedTrades", () => {
+    it("folds one account's fetched list in, keeps other accounts, and skips malformed or foreign rows", () => {
+      useSocket.getState().seed(boot);
+      const live = { ...trade, id: "l1", accountId: "a2", status: "WON", pnl: 85, exitPrice: 1.2 };
+      useSocket.getState().mergeFetchedTrades("a2", [live, { junk: true }, { ...trade, id: "x", accountId: "a1" }]);
+      const by = useSocket.getState().trades.tradesByAccount;
+      expect(by["a2"]?.map((t) => t.id)).toEqual(["l1"]);
+      expect(by["a1"]?.map((t) => t.id)).toEqual(["t1"]);
+    });
+
+    it("never rolls back a settlement the socket delivered while the request was in flight", async () => {
+      useSocket.getState().seed(boot);
+      useSocket.getState().subscribe("EURUSD", "1m");
+      const ws = await connect();
+      ws.receive({ type: "trade:settled", trade: { ...trade, status: "WON", pnl: 85 } });
+      useSocket.getState().mergeFetchedTrades("a1", [trade]); // the fetched copy still says OPEN
+      expect(useSocket.getState().trades.tradesByAccount["a1"]?.[0]?.status).toBe("WON");
+    });
+  });
+
   describe("applyOpenResult", () => {
     const result = { trade, balances: { realBalance: 111, bonusBalance: 22 } };
 

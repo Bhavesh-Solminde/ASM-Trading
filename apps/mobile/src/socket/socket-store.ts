@@ -8,6 +8,7 @@ import {
   canLoadOlder,
   initialChartState,
   initialTradeState,
+  withFetchedTrades,
   withOpenResult,
   type ChartState,
   type TradeState,
@@ -19,6 +20,7 @@ import { appConfig } from "@/config";
 import { unitFromBytes } from "./backoff";
 import { EngineSocket, FatalSocketError, type SocketStatus } from "./engine-socket";
 import { mergeBootstrap, recoveredAccountsWithStaleBalance, recoveredSettlements } from "./bootstrap-merge";
+import { parseTrades } from "./trades";
 
 const Ticket = z.object({ ticket: z.string() });
 
@@ -52,6 +54,11 @@ interface SocketStore {
    * was in flight. `requestedAt` is when the request started (default: now).
    */
   seed: (boot: Bootstrap, requestedAt?: number) => void;
+  /**
+   * Folds one account's freshly fetched trade list (`GET /api/trades?accountId=`) in, merge-safe like `seed`: a
+   * settled version always beats an open one. Rows that are malformed or belong to another account are skipped.
+   */
+  mergeFetchedTrades: (accountId: string, rows: readonly unknown[]) => void;
   start: () => void;
   stop: () => void;
   /** Back to the signed-out state: closes the socket and forgets the previous user's market data and trades. */
@@ -137,6 +144,14 @@ export const useSocket = create<SocketStore>((set, get) => {
         const stale = recoveredAccountsWithStaleBalance(s.trades, recovered, s.balanceAt, boot, requestedAt);
         return stale.length > 0 ? { trades, recovered, balanceRefetch: stale } : { trades, recovered };
       }),
+    mergeFetchedTrades: (accountId, rows) =>
+      set((s) => ({
+        trades: withFetchedTrades(
+          s.trades,
+          accountId,
+          parseTrades(rows).filter((t) => t.accountId === accountId),
+        ),
+      })),
     start: () => {
       watchNet();
       ensure().start();

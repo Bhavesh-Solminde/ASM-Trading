@@ -7,20 +7,9 @@ import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSession } from "@/auth/session-store";
 import { useLock } from "@/lock/lock-store";
 import { useSocket } from "@/socket/socket-store";
-import { color } from "@/theme/tokens";
-import { Icon, type IconName } from "@/ui/Icon";
+import { BottomNav, type BottomTabBarProps } from "@/ui/BottomNav";
 
-const icon = (name: IconName) =>
-  function TabIcon({ focused }: { focused: boolean }) {
-    return <Icon name={name} color={focused ? color.brand : color.ink2} />;
-  };
-
-const tabIcons = {
-  trade: icon("trade"),
-  payments: icon("wallet"),
-  history: icon("history"),
-  account: icon("user"),
-};
+const renderTabBar = (props: BottomTabBarProps) => <BottomNav {...props} />;
 
 export default function TabsLayout() {
   const { t } = useTranslation();
@@ -56,20 +45,11 @@ export default function TabsLayout() {
   }, [live]);
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        // No fixed height: React Navigation adds the bottom safe-area inset to the bar.
-        tabBarStyle: { backgroundColor: color.panel, borderTopColor: color.rule },
-        tabBarActiveTintColor: color.brand,
-        tabBarInactiveTintColor: color.ink2,
-        tabBarLabelStyle: { fontSize: 12 },
-      }}
-    >
-      <Tabs.Screen name="trade" options={{ title: t("tabs.trade"), tabBarIcon: tabIcons.trade }} />
-      <Tabs.Screen name="payments" options={{ title: t("tabs.payments"), tabBarIcon: tabIcons.payments }} />
-      <Tabs.Screen name="history" options={{ title: t("tabs.history"), tabBarIcon: tabIcons.history }} />
-      <Tabs.Screen name="account" options={{ title: t("tabs.account"), tabBarIcon: tabIcons.account }} />
+    <Tabs tabBar={renderTabBar} screenOptions={{ headerShown: false }}>
+      <Tabs.Screen name="trade" options={{ title: t("tabs.trade") }} />
+      <Tabs.Screen name="payments" options={{ title: t("tabs.payments") }} />
+      <Tabs.Screen name="history" options={{ title: t("tabs.history") }} />
+      <Tabs.Screen name="account" options={{ title: t("tabs.account") }} />
     </Tabs>
   );
 }

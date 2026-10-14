@@ -7,8 +7,10 @@ import { loadLastUserId, loadResume, saveLastUserId } from "@/cache/resume-cache
 import { useSocket } from "@/socket/socket-store";
 import { color, space } from "@/theme/tokens";
 import { Button, Screen, Skeleton } from "@/theme/ui";
+import { AppHeader } from "@/ui/AppHeader";
+import { BrandMark } from "@/ui/Brand";
 import type { SheetRef } from "@/ui/Sheet";
-import { accountOfType, canUseLive, resolveAccount, staleBalance, type AppAccount } from "@/trade/accounts";
+import { accountOfType, bootstrapTradesAccountId, canUseLive, resolveAccount, staleBalance, type AppAccount } from "@/trade/accounts";
 import { BonusSheet } from "@/trade/BonusSheet";
 import { ChartTools } from "@/trade/ChartTools";
 import { Dock } from "@/trade/Dock";
@@ -126,19 +128,25 @@ export default function Trade() {
   const stale = !boot && !bootFailed ? staleBalance(resume, storedBalance) : null;
 
   return (
-    <Screen>
+    <Screen bleedTop>
       {boot && account ? (
-        <TopBar account={account} liveEnabled={canUseLive(boot.accounts, boot.liveAccess)} onSelectType={selectAccountType} />
-      ) : bootFailed ? (
-        // With a resume cache the chart is still showing, so the error is a strip; without one, see below.
-        symbol ? <BootError compact onRetry={retry} /> : null
-      ) : stale ? (
+        <TopBar
+          account={account}
+          liveEnabled={canUseLive(boot.accounts, boot.liveAccess)}
+          onSelectType={selectAccountType}
+          bootstrapTradesAccountId={bootstrapTradesAccountId(boot.accounts)}
+        />
+      ) : !bootFailed && stale ? (
         <StaleTopBar totalMinor={stale.totalMinor} type={stale.type} currency={stale.currency} live={stale.live} />
       ) : (
-        <View style={{ height: 52, justifyContent: "center", paddingHorizontal: 12 }}>
-          <Skeleton height={28} />
-        </View>
+        <AppHeader>
+          <BrandMark width={34} />
+          <View style={{ flex: 1 }} />
+          {bootFailed ? null : <Skeleton height={20} width={120} />}
+        </AppHeader>
       )}
+      {/* With a resume cache the chart is still showing, so the error is a strip; without one, see below. */}
+      {!boot && bootFailed && symbol ? <BootError compact onRetry={retry} /> : null}
       <StatusRow bonusPct={bonus?.pct ?? null} snapshot={candleSnapshot} symbol={symbol} timeframe={timeframe} onBonus={openBonus} />
       <View style={{ flex: 1 }}>
         {symbol ? (

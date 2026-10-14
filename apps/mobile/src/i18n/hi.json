@@ -1,6 +1,6 @@
 {
   "common": { "retry": "फिर कोशिश करें", "cancel": "रद्द करें", "done": "हो गया", "continue": "आगे बढ़ें", "offline": "कनेक्शन नहीं है — दोबारा जोड़ रहे हैं…", "genericError": "कुछ गलत हो गया।", "noConnection": "कनेक्शन नहीं है। इंटरनेट जाँचकर फिर कोशिश करें।" },
-  "tabs": { "trade": "ट्रेड", "payments": "भुगतान", "history": "इतिहास", "account": "खाता" },
+  "tabs": { "trade": "ट्रेड", "payments": "भुगतान", "history": "इतिहास", "account": "खाता", "soon": "यह स्क्रीन अगले अपडेट में आएगी।" },
   "auth": {
     "login": "लॉग इन", "register": "खाता बनाएँ", "email": "ईमेल", "password": "पासवर्ड",
     "forgot": "पासवर्ड भूल गए?", "google": "Google से जारी रखें", "noAccount": "नए हैं? खाता बनाएँ",
@@ -32,6 +32,7 @@
     "candles": "कैंडल", "line": "लाइन", "area": "एरिया", "bars": "बार",
     "ohlcO": "खु", "ohlcH": "उ", "ohlcL": "नि", "ohlcC": "बं", "chartLabel": "प्राइस चार्ट",
     "sentiment": "ट्रेडर रुझान: {{up}}% ऊपर, {{down}}% नीचे", "stale": "सहेजा गया डेटा — अपडेट हो रहा है…",
+    "today": "आज {{amount}}",
     "liveLocked": "आपके खाते पर लाइव ट्रेडिंग अभी उपलब्ध नहीं है।", "deposit": "जमा करें", "balance": "बैलेंस",
     "noMarkets": "आपकी खोज से कोई मार्केट नहीं मिला", "addFavourite": "{{name}} को पसंदीदा में जोड़ें",
     "removeFavourite": "{{name}} को पसंदीदा से हटाएं", "selectMarket": "मार्केट: {{name}}। बदलने के लिए टैप करें।",

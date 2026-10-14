@@ -1,13 +1,16 @@
 import { useTranslation } from "react-i18next";
-import { space } from "@/theme/tokens";
+import { color } from "@/theme/tokens";
 import { Screen, Txt } from "@/theme/ui";
 
 export default function History() {
   const { t } = useTranslation();
   return (
-    <Screen style={{ padding: space(4) }}>
-      <Txt variant="title" accessibilityRole="header">
+    <Screen style={{ paddingHorizontal: 20, paddingTop: 24, gap: 8 }}>
+      <Txt weight={600} size={24} accessibilityRole="header">
         {t("tabs.history")}
+      </Txt>
+      <Txt size={15} color={color.ink2}>
+        {t("tabs.soon")}
       </Txt>
     </Screen>
   );

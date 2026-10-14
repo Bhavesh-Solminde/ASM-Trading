@@ -12,6 +12,14 @@ export function canUseLive(accounts: readonly AppAccount[], liveAccess: boolean)
   return liveAccess && accountOfType(accounts, "LIVE") !== undefined;
 }
 
+/**
+ * The account whose last 50 trades bootstrap's `recentTrades` carries: the server picks the DEMO account, else the
+ * first one (`loadPlatformBootstrap`). Any other account's list has to be fetched. Keep in step with that rule.
+ */
+export function bootstrapTradesAccountId(accounts: readonly AppAccount[]): string | undefined {
+  return (accountOfType(accounts, "DEMO") ?? accounts[0])?.id;
+}
+
 /** The saved account if it still exists (and live is allowed), else demo, else whatever there is. */
 export function resolveAccount(
   accounts: readonly AppAccount[],

@@ -1,6 +1,6 @@
 {
   "common": { "retry": "Retry", "cancel": "Cancel", "done": "Done", "continue": "Continue", "offline": "No connection — reconnecting…", "genericError": "Something went wrong.", "noConnection": "No connection. Check your internet and try again." },
-  "tabs": { "trade": "Trade", "payments": "Payments", "history": "History", "account": "Account" },
+  "tabs": { "trade": "Trade", "payments": "Payments", "history": "History", "account": "Account", "soon": "This screen arrives in the next update." },
   "auth": {
     "login": "Log in", "register": "Create account", "email": "Email", "password": "Password",
     "forgot": "Forgot password?", "google": "Continue with Google", "noAccount": "New here? Create an account",
@@ -32,6 +32,7 @@
     "candles": "Candles", "line": "Line", "area": "Area", "bars": "Bars",
     "ohlcO": "O", "ohlcH": "H", "ohlcL": "L", "ohlcC": "C", "chartLabel": "Price chart",
     "sentiment": "Trader sentiment: {{up}}% up, {{down}}% down", "stale": "Saved data — updating…",
+    "today": "{{amount}} today",
     "liveLocked": "Live trading isn't available on your account yet.", "deposit": "Deposit", "balance": "Balance",
     "noMarkets": "No markets match your search", "addFavourite": "Add {{name}} to favourites",
     "removeFavourite": "Remove {{name}} from favourites", "selectMarket": "Market: {{name}}. Tap to change.",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ResumeSnapshot } from "@/cache/codec";
-import { accountOfType, canUseLive, resolveAccount, staleBalance, type AppAccount } from "./accounts";
+import { accountOfType, bootstrapTradesAccountId, canUseLive, resolveAccount, staleBalance, type AppAccount } from "./accounts";
 
 const demo: AppAccount = { id: "d", type: "DEMO", currency: "USD", realBalance: 0, bonusBalance: 0 };
 const live: AppAccount = { id: "l", type: "LIVE", currency: "USD", realBalance: 0, bonusBalance: 0 };
@@ -63,5 +63,16 @@ describe("staleBalance (the cached balance shown until bootstrap arrives)", () =
     expect(staleBalance(null)).toBeNull();
     expect(staleBalance(snap({ account: undefined }))).toBeNull();
     expect(staleBalance(snap({ balances: {} }))).toBeNull();
+  });
+});
+
+describe("bootstrapTradesAccountId", () => {
+  it("is the demo account (what the server puts in recentTrades), whatever the order", () => {
+    expect(bootstrapTradesAccountId([live, demo])).toBe("d");
+    expect(bootstrapTradesAccountId([demo, live])).toBe("d");
+  });
+  it("is the first account when there is no demo, and undefined for none", () => {
+    expect(bootstrapTradesAccountId([live])).toBe("l");
+    expect(bootstrapTradesAccountId([])).toBeUndefined();
   });
 });
