@@ -52,6 +52,12 @@ describe("redirectFor", () => {
       expect(redirectFor(null, p)).toBe("/trade");
     }
   });
+  it("resolves the entry route to wherever the state says", () => {
+    expect(redirectFor(null, "/")).toBe("/trade");
+    expect(redirectFor("/login", "/")).toBe("/login");
+    expect(redirectFor("/lock", "/")).toBe("/lock");
+    expect(redirectFor("/splash", "/")).toBeNull();
+  });
   it("leaves an unlocked user on an app screen", () => {
     expect(redirectFor(null, "/history")).toBeNull();
     expect(redirectFor(null, "/trade")).toBeNull();

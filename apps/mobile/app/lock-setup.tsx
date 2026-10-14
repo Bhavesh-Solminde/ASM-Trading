@@ -94,7 +94,10 @@ export default function LockSetup() {
       ) : (
         <>
           <Txt>{step === "pin" ? t("lock.setPin") : t("lock.confirmPin")}</Txt>
-          {error ? <Txt accessibilityRole="alert" style={formStyles.error}>{error}</Txt> : null}
+          {/* Reserved line: the pad does not jump when the message appears. */}
+          <Txt accessibilityRole={error ? "alert" : undefined} style={[formStyles.error, formStyles.messageSlot]}>
+            {error}
+          </Txt>
           <PinPad value={value} onChange={onPin} disabled={busy} />
         </>
       )}

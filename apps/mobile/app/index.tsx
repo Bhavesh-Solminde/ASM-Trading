@@ -1,6 +1,10 @@
-import { Redirect } from "expo-router";
+import { View } from "react-native";
+import { color } from "@/theme/tokens";
 
-/** Entry route: the gatekeeper sends signed-out and locked users elsewhere before this settles. */
+/**
+ * Entry route. Renders only the ground colour: the gatekeeper decides where "/" goes (login, lock,
+ * a gate screen or /trade), so no tab screen mounts before the session and lock state are known.
+ */
 export default function Index() {
-  return <Redirect href="/trade" />;
+  return <View style={{ flex: 1, backgroundColor: color.ground }} />;
 }

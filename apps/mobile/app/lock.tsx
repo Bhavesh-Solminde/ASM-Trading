@@ -68,17 +68,17 @@ export default function Lock() {
     router.replace("/login");
   }
 
+  // One reserved line, so the pad does not jump when a message appears.
+  const message = error ?? (attempts > 0 ? t("lock.wrongPin", { count: MAX_PIN_ATTEMPTS - attempts }) : "");
+
   return (
     <Screen style={{ padding: space(5), paddingBottom: space(5) + insets.bottom, gap: space(5), justifyContent: "center" }}>
       <Txt variant="title">{t("lock.title")}</Txt>
       {method === "pin" ? (
         <>
-          {error ? <Txt accessibilityRole="alert" style={formStyles.error}>{error}</Txt> : null}
-          {attempts > 0 ? (
-            <Txt accessibilityRole="alert" style={formStyles.error}>
-              {t("lock.wrongPin", { left: MAX_PIN_ATTEMPTS - attempts })}
-            </Txt>
-          ) : null}
+          <Txt accessibilityRole={message ? "alert" : undefined} style={[formStyles.error, formStyles.messageSlot]}>
+            {message}
+          </Txt>
           <PinPad value={value} onChange={onPin} disabled={busy} />
         </>
       ) : (
