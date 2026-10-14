@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { accountOfType, canUseLive, resolveAccount, type AppAccount } from "./accounts";
+import type { ResumeSnapshot } from "@/cache/codec";
+import { accountOfType, canUseLive, resolveAccount, staleBalance, type AppAccount } from "./accounts";
 
 const demo: AppAccount = { id: "d", type: "DEMO", currency: "USD", realBalance: 0, bonusBalance: 0 };
 const live: AppAccount = { id: "l", type: "LIVE", currency: "USD", realBalance: 0, bonusBalance: 0 };
@@ -28,5 +29,31 @@ describe("account selection", () => {
   it("finds an account by type", () => {
     expect(accountOfType([demo, live], "LIVE")?.id).toBe("l");
     expect(accountOfType([demo], "LIVE")).toBeUndefined();
+  });
+});
+
+describe("staleBalance (the cached balance shown until bootstrap arrives)", () => {
+  const snap = (over: Partial<ResumeSnapshot> = {}): ResumeSnapshot => ({
+    v: 1,
+    savedAt: 1,
+    userId: "u",
+    symbol: "EURUSD",
+    timeframe: "1m",
+    candles: [],
+    balances: { d: { realBalance: 900, bonusBalance: 100 } },
+    openTrades: [],
+    accountId: "d",
+    account: { type: "DEMO", currency: "INR" },
+    ...over,
+  });
+
+  it("is the saved account's real + bonus balance with its type and currency", () => {
+    expect(staleBalance(snap())).toEqual({ totalMinor: 1_000, type: "DEMO", currency: "INR" });
+  });
+
+  it("is null without a snapshot, without the account record (older snapshot) or without that account's balance", () => {
+    expect(staleBalance(null)).toBeNull();
+    expect(staleBalance(snap({ account: undefined }))).toBeNull();
+    expect(staleBalance(snap({ balances: {} }))).toBeNull();
   });
 });

@@ -18,9 +18,12 @@ export function useResumeSave(
   symbol: string | null,
   timeframe: Timeframe,
   precision: number | null,
+  account: { type: "DEMO" | "LIVE"; currency: string } | null,
 ) {
+  const accountType = account?.type ?? null;
+  const currency = account?.currency ?? null;
   useEffect(() => {
-    if (!userId || !accountId || !symbol || precision === null) return;
+    if (!userId || !accountId || !symbol || precision === null || accountType === null || currency === null) return;
     const build = () => {
       const s = useSocket.getState();
       return buildResumeSnapshot({
@@ -29,6 +32,7 @@ export function useResumeSave(
         symbol,
         timeframe,
         precision,
+        account: { type: accountType, currency },
         chart: s.chart,
         trades: s.trades,
         signedIn: useSession.getState().token !== null,
@@ -47,5 +51,5 @@ export function useResumeSave(
       app.remove();
       resumeSaver.cancel();
     };
-  }, [userId, accountId, symbol, timeframe, precision]);
+  }, [userId, accountId, symbol, timeframe, precision, accountType, currency]);
 }

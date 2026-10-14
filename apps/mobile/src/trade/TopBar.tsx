@@ -82,3 +82,30 @@ export function TopBar({
     </View>
   );
 }
+
+/**
+ * The top bar from the resume cache, shown until bootstrap arrives: the last known balance, dimmed, with the
+ * account type but no controls (the switch and deposit need live account data). The "Saved data — updating…" note
+ * in the status row says why it is dimmed.
+ */
+export function StaleTopBar({ totalMinor, type, currency }: { totalMinor: number; type: AppAccount["type"]; currency: string }) {
+  const { t } = useTranslation();
+  const text = formatMinor(totalMinor, currency);
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: space(2), paddingHorizontal: space(3), height: 52 }}>
+      <Image source={logo} accessibilityIgnoresInvertColors style={{ width: 28, height: 28, borderRadius: 6 }} />
+      <View style={{ minHeight: 44, paddingHorizontal: 14, justifyContent: "center", backgroundColor: color.tile, borderRadius: radius.pill }}>
+        <Text style={{ color: color.ink2, fontWeight: "700", fontSize: 12 }}>{type === "DEMO" ? t("trade.demo") : t("trade.live")}</Text>
+      </View>
+      <View style={{ flex: 1 }} />
+      <Text
+        accessibilityLabel={`${t("trade.balance")}: ${text}`}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        style={{ color: color.ink2, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 }}
+      >
+        {text}
+      </Text>
+    </View>
+  );
+}

@@ -30,6 +30,7 @@ function inputs(over: Partial<Parameters<typeof buildResumeSnapshot>[0]> = {}) {
       acc: { realBalance: 5, bonusBalance: 1 },
     }),
     precision: 5,
+    account: { type: "DEMO" as const, currency: "INR" },
     signedIn: true,
     now: 1_000,
     ...over,
@@ -47,6 +48,10 @@ describe("buildResumeSnapshot", () => {
 
   it("records the market's precision for the pre-bootstrap axis", () => {
     expect(buildResumeSnapshot(inputs())?.precision).toBe(5);
+  });
+
+  it("records the account's type and currency for the pre-bootstrap balance", () => {
+    expect(buildResumeSnapshot(inputs())?.account).toEqual({ type: "DEMO", currency: "INR" });
   });
 
   it("saves nothing when signed out", () => {

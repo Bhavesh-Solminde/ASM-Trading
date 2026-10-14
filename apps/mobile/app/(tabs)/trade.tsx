@@ -8,7 +8,7 @@ import { useSocket } from "@/socket/socket-store";
 import { color, space } from "@/theme/tokens";
 import { Button, Screen, Skeleton } from "@/theme/ui";
 import type { SheetRef } from "@/ui/Sheet";
-import { accountOfType, canUseLive, resolveAccount, type AppAccount } from "@/trade/accounts";
+import { accountOfType, canUseLive, resolveAccount, staleBalance, type AppAccount } from "@/trade/accounts";
 import { BonusSheet } from "@/trade/BonusSheet";
 import { ChartTools } from "@/trade/ChartTools";
 import { Dock } from "@/trade/Dock";
@@ -19,7 +19,7 @@ import { PositionStrip } from "@/trade/PositionStrip";
 import { useResultFeedback } from "@/trade/ResultToast";
 import { SentimentBar } from "@/trade/SentimentBar";
 import { StatusRow } from "@/trade/StatusRow";
-import { TopBar } from "@/trade/TopBar";
+import { StaleTopBar, TopBar } from "@/trade/TopBar";
 import { TradeChart } from "@/trade/TradeChart";
 import { useUserPrefs } from "@/trade/trade-prefs";
 import { useKeepAwakeWhileOpen } from "@/trade/useKeepAwakeWhileOpen";
@@ -101,7 +101,7 @@ export default function Trade() {
     if (symbol) useSocket.getState().subscribe(symbol, timeframe);
   }, [symbol, timeframe]);
 
-  useResumeSave(boot?.userId ?? null, accountId, symbol, timeframe, asset ? asset.precision : null);
+  useResumeSave(boot?.userId ?? null, accountId, symbol, timeframe, asset ? asset.precision : null, account ? { type: account.type, currency: account.currency } : null);
 
   // The snapshot is only ever painted (and labelled stale) until live candles first arrive this mount.
   const liveArrived = useLiveArrived();
@@ -120,6 +120,8 @@ export default function Trade() {
   const setTimeframe = (next: Timeframe) => prefs.set({ timeframe: next });
 
   const bonus = boot ? nextBonus(boot.completedDeposits) : null;
+  // Until bootstrap arrives the cached balance (dimmed) beats a skeleton; without one, the skeleton stays.
+  const stale = !boot && !bootFailed ? staleBalance(resume) : null;
 
   return (
     <Screen>
@@ -128,6 +130,8 @@ export default function Trade() {
       ) : bootFailed ? (
         // With a resume cache the chart is still showing, so the error is a strip; without one, see below.
         symbol ? <BootError compact onRetry={retry} /> : null
+      ) : stale ? (
+        <StaleTopBar totalMinor={stale.totalMinor} type={stale.type} currency={stale.currency} />
       ) : (
         <View style={{ height: 52, justifyContent: "center", paddingHorizontal: 12 }}>
           <Skeleton height={28} />

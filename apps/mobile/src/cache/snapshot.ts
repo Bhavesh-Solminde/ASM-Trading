@@ -13,6 +13,7 @@ export function buildResumeSnapshot(i: {
   symbol: string | null;
   timeframe: Timeframe;
   precision: number;
+  account: { type: "DEMO" | "LIVE"; currency: string };
   chart: ChartState;
   trades: TradeState;
   signedIn: boolean;
@@ -31,5 +32,6 @@ export function buildResumeSnapshot(i: {
     openTrades: (i.trades.tradesByAccount[i.accountId] ?? []).filter((t) => t.status === "OPEN"),
     accountId: i.accountId,
     precision: i.precision,
+    account: i.account,
   };
 }

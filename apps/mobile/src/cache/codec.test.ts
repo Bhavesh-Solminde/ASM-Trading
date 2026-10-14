@@ -56,6 +56,17 @@ describe("resume codec", () => {
     expect(decodeResume(encoded({ precision: 2.5 }), 2_000)).toBeNull();
   });
 
+  it("round-trips the account's type and currency, so the balance can be formatted before bootstrap", () => {
+    const out = decodeResume(encodeResume({ ...snap, account: { type: "DEMO", currency: "INR" } }), 2_000);
+    expect(out?.account).toEqual({ type: "DEMO", currency: "INR" });
+  });
+
+  it("still reads a v1 snapshot saved before the account was recorded, and rejects a malformed one", () => {
+    expect(decodeResume(encoded({}), 2_000)?.account).toBeUndefined();
+    expect(decodeResume(encoded({ account: { type: "OTHER", currency: "INR" } }), 2_000)).toBeNull();
+    expect(decodeResume(encoded({ account: { type: "LIVE", currency: "" } }), 2_000)).toBeNull();
+  });
+
   it("trims on encode so storage stays small", () => {
     expect((JSON.parse(encodeResume(snap)) as ResumeSnapshot).candles).toHaveLength(200);
   });
