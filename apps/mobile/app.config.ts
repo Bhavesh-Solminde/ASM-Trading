@@ -14,13 +14,16 @@ const config: ExpoConfig = {
   android: {
     package: variant === "direct" ? "com.indianxtrade.app.direct" : "com.indianxtrade.app",
     versionCode: 1,
-    adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#0d1117" },
+    adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#000000" },
     permissions: ["android.permission.INTERNET", "android.permission.USE_BIOMETRIC", "android.permission.VIBRATE"],
   },
   plugins: [
     "expo-router",
+    "expo-secure-store",
+    "expo-web-browser",
+    "@react-native-google-signin/google-signin",
     // SDK 57 dropped the top-level `splash` key; the splash is configured via this plugin.
-    ["expo-splash-screen", { image: "./assets/splash.png", imageWidth: 200, resizeMode: "contain", backgroundColor: "#0d1117" }],
+    ["expo-splash-screen", { image: "./assets/splash.png", imageWidth: 200, resizeMode: "contain", backgroundColor: "#000000" }],
     [
       "expo-build-properties",
       // Release stays cleartext-free; Expo's debug manifest already allows cleartext for the dev server.

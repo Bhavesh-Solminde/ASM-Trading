@@ -38,6 +38,7 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@prisma/engines",
+      "@shopify/react-native-skia",
       "argon2",
       "esbuild",
       "prisma"
