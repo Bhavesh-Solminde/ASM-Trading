@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { TIMEFRAMES, type TradeView } from "@asm/contracts";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { SentimentBar } from "@/components/chart/SentimentBar";
@@ -20,6 +20,7 @@ import { formatMinor } from "@/lib/format-money";
 import { clockTime } from "@/lib/format-time";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useNowSec } from "@/lib/use-now";
+import { useScrollLock } from "@/lib/use-scroll-lock";
 import { MarketSelector } from "./MarketSelector";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
@@ -362,6 +363,41 @@ function ChartTools({
   );
 }
 
+/**
+ * History / trades bottom sheet — the compact + fullscreen replacement for the
+ * always-on desktop trades panel. Locks the page behind it so a swipe on the
+ * list scrolls the list, not the page.
+ */
+function TradesSheet({ onClose, ...panel }: ComponentProps<typeof TradesPanel> & { onClose: () => void }) {
+  useScrollLock();
+  return (
+    <div className="fixed inset-0 z-50">
+      <div aria-hidden onClick={onClose} className="absolute inset-0 bg-black/60" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trades-sheet-title"
+        className="sheet sheet-in absolute inset-x-0 bottom-0 mx-auto grid max-h-[72vh] w-full max-w-[560px] grid-rows-[auto_auto_minmax(0,1fr)] overscroll-contain">
+        <div aria-hidden className="sheet-handle" />
+        <div className="flex items-center justify-between pl-4 pr-2">
+          <h2 id="trades-sheet-title" className="text-sm font-semibold text-ink">Trades &amp; history</h2>
+          <button
+            type="button"
+            aria-label="Close trades"
+            onClick={onClose}
+            className="grid size-10 place-items-center rounded-lg text-ink-2 hover:bg-tile hover:text-ink"
+          >
+            <Icon name="close" className="size-[18px]" />
+          </button>
+        </div>
+        <div className="min-h-0 overflow-hidden">
+          <TradesPanel {...panel} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TradeWorkspace() {
   const {
     assets,
@@ -606,33 +642,13 @@ export function TradeWorkspace() {
         )}
       </aside>
 
-      {/* History / trades bottom sheet — the compact + fullscreen replacement for
-          the always-on desktop trades panel. */}
       {historyOpen ? (
-        <div className="fixed inset-0 z-50">
-          <div aria-hidden onClick={() => setHistoryOpen(false)} className="absolute inset-0 bg-black/60" />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="trades-sheet-title"
-            className="sheet sheet-in absolute inset-x-0 bottom-0 mx-auto grid max-h-[72vh] w-full max-w-[560px] grid-rows-[auto_auto_minmax(0,1fr)]">
-            <div aria-hidden className="sheet-handle" />
-            <div className="flex items-center justify-between pl-4 pr-2">
-              <h2 id="trades-sheet-title" className="text-sm font-semibold text-ink">Trades &amp; history</h2>
-              <button
-                type="button"
-                aria-label="Close trades"
-                onClick={() => setHistoryOpen(false)}
-                className="grid size-10 place-items-center rounded-lg text-ink-2 hover:bg-tile hover:text-ink"
-              >
-                <Icon name="close" className="size-[18px]" />
-              </button>
-            </div>
-            <div className="min-h-0 overflow-hidden">
-              <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} />
-            </div>
-          </div>
-        </div>
+        <TradesSheet
+          trades={trades}
+          currency={activeAccount.currency}
+          assets={assets}
+          onClose={() => setHistoryOpen(false)}
+        />
       ) : null}
     </section>
   );
