@@ -44,14 +44,16 @@ export function LogoEmblem({
  * (/brand/indianxtrade-wordmark-dark.png, still used for the share card), so
  * it sits on any surface with no box, blend mode or glow. Height is set by the
  * caller via className (e.g. `h-6`); width follows the art's ~3.96:1 ratio.
+ * `compact` drops the "INDIA ME TRADING CHAT" tagline row (unreadable at
+ * top-bar sizes) so the lettering fills the height; that art is ~5.1:1.
  */
-export function LogoWordmark({ className }: { className?: string }) {
+export function LogoWordmark({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
     <Image
-      src="/brand/indianxtrade-wordmark.png"
+      src={compact ? "/brand/indianxtrade-wordmark-compact.png" : "/brand/indianxtrade-wordmark.png"}
       alt="IndianxTrade"
-      width={1179}
-      height={298}
+      width={compact ? 1170 : 1179}
+      height={compact ? 229 : 298}
       priority
       className={`w-auto ${className ?? ""}`}
     />
