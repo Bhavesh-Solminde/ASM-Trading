@@ -1,5 +1,5 @@
 {
-  "common": { "retry": "Retry", "cancel": "Cancel", "done": "Done", "continue": "Continue", "offline": "No connection — reconnecting…" },
+  "common": { "retry": "Retry", "cancel": "Cancel", "done": "Done", "continue": "Continue", "offline": "No connection — reconnecting…", "genericError": "Something went wrong." },
   "tabs": { "trade": "Trade", "payments": "Payments", "history": "History", "account": "Account" },
   "auth": {
     "login": "Log in", "register": "Create account", "email": "Email", "password": "Password",

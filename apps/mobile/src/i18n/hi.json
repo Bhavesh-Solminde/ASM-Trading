@@ -1,5 +1,5 @@
 {
-  "common": { "retry": "फिर कोशिश करें", "cancel": "रद्द करें", "done": "हो गया", "continue": "आगे बढ़ें", "offline": "कनेक्शन नहीं है — दोबारा जोड़ रहे हैं…" },
+  "common": { "retry": "फिर कोशिश करें", "cancel": "रद्द करें", "done": "हो गया", "continue": "आगे बढ़ें", "offline": "कनेक्शन नहीं है — दोबारा जोड़ रहे हैं…", "genericError": "कुछ गलत हो गया।" },
   "tabs": { "trade": "ट्रेड", "payments": "भुगतान", "history": "इतिहास", "account": "खाता" },
   "auth": {
     "login": "लॉग इन", "register": "खाता बनाएँ", "email": "ईमेल", "password": "पासवर्ड",
