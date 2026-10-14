@@ -172,7 +172,7 @@ export function TradesPanel({
   const Row = tab === "open" ? OpenTradeRow : ClosedTradeRow;
 
   return (
-    <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
+    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
       <div role="tablist" className="flex border-b border-rule px-3">
         {(["open", "closed"] as const).map((t) => (
           <button
@@ -193,7 +193,7 @@ export function TradesPanel({
         ))}
       </div>
 
-      <ul aria-live="polite" className="m-0 list-none overflow-auto py-1">
+      <ul aria-live="polite" className="m-0 list-none overflow-auto overscroll-contain py-1">
         {shown.length === 0 ? (
           <li className="grid gap-1.5 px-[18px] py-7 text-center text-ink-3">
             <strong className="font-semibold text-ink-2">No {tab} trades on this account</strong>
