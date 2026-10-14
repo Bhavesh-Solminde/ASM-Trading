@@ -22,7 +22,10 @@
     "relay:prebuild": "pnpm --filter @asm/relay prebuild",
     "relay:android": "pnpm --filter @asm/relay android",
     "relay:start": "pnpm --filter @asm/relay start",
-    "relay:test": "pnpm --filter @asm/relay test"
+    "relay:test": "pnpm --filter @asm/relay test",
+    "mobile:start": "pnpm --filter @asm/mobile start",
+    "mobile:android": "pnpm --filter @asm/mobile android",
+    "mobile:test": "pnpm --filter @asm/mobile test"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

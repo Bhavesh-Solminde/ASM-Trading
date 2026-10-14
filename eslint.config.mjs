@@ -17,7 +17,20 @@ export default tseslint.config(
       "apps/relay/**",
       "apps/harness/**",
       "scripts/echo-relay-server.mjs",
+      // apps/mobile: generated native projects and Expo's cache.
+      "apps/mobile/android/**",
+      "apps/mobile/ios/**",
+      "apps/mobile/.expo/**",
     ],
+  },
+  {
+    // apps/mobile's Metro/Babel configs are CommonJS by Expo convention.
+    files: ["apps/mobile/*.config.js"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: { module: "writable", require: "readonly", __dirname: "readonly" },
+    },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
   },
   {
     files: ["**/*.{ts,tsx}"],
