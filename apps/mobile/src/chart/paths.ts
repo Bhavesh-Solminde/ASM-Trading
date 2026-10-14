@@ -9,6 +9,13 @@ export interface SeriesPaths {
   down: string;
   line?: string;
   area?: string;
+  /**
+   * Candles only: the wicks on their own. `up`/`down` still hold wick + body, so fill `up`/`down`
+   * (a wick has no area, so only bodies paint) and stroke `upWicks`/`downWicks`; body width is then
+   * not widened by the stroke.
+   */
+  upWicks?: string;
+  downWicks?: string;
 }
 
 /**
@@ -50,12 +57,15 @@ export function buildSeries(
 
   const up: string[] = [];
   const down: string[] = [];
+  const upWicks: string[] = [];
+  const downWicks: string[] = [];
   for (let i = from; i < to; i++) {
     const c = candles[i];
     if (!c) continue;
     const x = cx(i);
     const target = c.c >= c.o ? up : down;
     if (type === "candles") {
+      (c.c >= c.o ? upWicks : downWicks).push(`M${x} ${y(c.h)} L${x} ${y(c.l)}`);
       const top = y(Math.max(c.o, c.c));
       const bottom = Math.max(y(Math.min(c.o, c.c)), top + 1);
       target.push(`M${x} ${y(c.h)} L${x} ${y(c.l)}`);
@@ -66,5 +76,10 @@ export function buildSeries(
       target.push(`M${x} ${y(c.c)} L${r(x + half)} ${y(c.c)}`);
     }
   }
-  return { up: up.join(" "), down: down.join(" ") };
+  const out: SeriesPaths = { up: up.join(" "), down: down.join(" ") };
+  if (type === "candles") {
+    out.upWicks = upWicks.join(" ");
+    out.downWicks = downWicks.join(" ");
+  }
+  return out;
 }

@@ -64,3 +64,19 @@ describe("buildSeries", () => {
     );
   });
 });
+
+describe("buildSeries wicks", () => {
+  it("splits candle wicks from bodies so bodies can be filled and wicks stroked", () => {
+    const s = buildSeries("candles", candles, 0, 2, vp, range);
+    expect(s.upWicks).toBe("M25 20 L25 90");
+    expect(s.downWicks).toBe("M75 30 L75 70");
+  });
+
+  it("has no wick fields for bars, lines or areas", () => {
+    for (const type of ["bars", "line", "area"] as ChartType[]) {
+      const s = buildSeries(type, candles, 0, 2, vp, range);
+      expect(s.upWicks).toBeUndefined();
+      expect(s.downWicks).toBeUndefined();
+    }
+  });
+});
