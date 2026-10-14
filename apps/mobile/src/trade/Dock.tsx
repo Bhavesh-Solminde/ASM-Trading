@@ -9,8 +9,9 @@ import type { SheetRef } from "@/ui/Sheet";
 import { ExpirySheet } from "./ExpirySheet";
 import { KeypadSheet } from "./KeypadSheet";
 import { payoutPctFor, type AppAsset } from "./markets";
-import { MAX_STAKE_MINOR, resolveExpiry, stakeDisplay, stakeFor, validateStake, withStake } from "./stake-input";
-import { useUserPrefs } from "./trade-prefs";
+import { prefsFor } from "./prefs-model";
+import { MAX_STAKE_MINOR, resolveExpiry, stakeAfterKey, stakeAmountOpts, stakeDisplay, stakeFor, validateStake, withStake } from "./stake-input";
+import { useTradePrefs, useUserPrefs } from "./trade-prefs";
 import { useTradeSubmit } from "./useTradeSubmit";
 
 /**
@@ -31,6 +32,8 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
   const stake = stakeFor(prefs.stakeByCurrency, currency);
 
   const { set } = prefs;
+  // Keypad presses build on the saved stakes as they are NOW, not the copy this render closed over.
+  const latestStakes = () => prefsFor(useTradePrefs.getState().byUser, boot.userId).stakeByCurrency;
 
   const available = bal ? bal.realBalance + bal.bonusBalance : 0;
   const check = validateStake(stake, currency, available);
@@ -172,7 +175,8 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
         ref={keypad}
         currency={currency}
         value={stake}
-        onChange={(v) => set({ stakeByCurrency: withStake(prefs.stakeByCurrency, currency, v) })}
+        onKey={(key) => set({ stakeByCurrency: stakeAfterKey(latestStakes(), currency, key, stakeAmountOpts(currency)) })}
+        onPreset={(text) => set({ stakeByCurrency: withStake(latestStakes(), currency, text) })}
         onDone={() => keypad.current?.dismiss()}
       />
       <ExpirySheet

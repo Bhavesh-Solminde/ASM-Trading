@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OpenTradeSchema } from "@asm/contracts";
-import { DEFAULT_EXPIRY_SEC, MAX_STAKE_MINOR, resolveExpiry, stakeAmountOpts, stakeDisplay, stakeFor, validateStake, withStake } from "./stake-input";
+import { DEFAULT_EXPIRY_SEC, MAX_STAKE_MINOR, resolveExpiry, stakeAmountOpts, stakeDisplay, stakeFor, stakeAfterKey, validateStake, withStake } from "./stake-input";
 
 describe("validateStake", () => {
   it("rejects an empty stake", () => {
@@ -87,5 +87,31 @@ describe("stake per currency", () => {
   });
   it("respects a stake the user cleared", () => {
     expect(stakeFor(withStake({}, "INR", ""), "INR")).toBe("");
+  });
+});
+
+describe("stakeAfterKey", () => {
+  const opts = stakeAmountOpts("INR");
+
+  it("builds on the stake it is given, per currency, leaving other currencies alone", () => {
+    expect(stakeAfterKey({ INR: "10", USD: "5.00" }, "INR", "5", opts)).toEqual({ INR: "105", USD: "5.00" });
+  });
+
+  it("starts from the currency default when nothing is saved", () => {
+    expect(stakeAfterKey({}, "INR", "0", opts)).toEqual({ INR: "1000" });
+  });
+
+  it("two presses in one render build on each other when each reads the latest map (and drop a digit when both read the render-time one)", () => {
+    const renderTime = { INR: "" };
+    let latest: Record<string, string> = renderTime;
+    latest = stakeAfterKey(latest, "INR", "1", opts);
+    latest = stakeAfterKey(latest, "INR", "2", opts);
+    expect(latest["INR"]).toBe("12");
+    // The old behaviour: both presses applied to the stale render-time value.
+    expect(stakeAfterKey(renderTime, "INR", "2", opts)["INR"]).toBe("2");
+  });
+
+  it("deletes with back", () => {
+    expect(stakeAfterKey({ INR: "125" }, "INR", "back", opts)).toEqual({ INR: "12" });
   });
 });

@@ -1,5 +1,5 @@
 import { OpenTradeSchema, TRADE_DURATIONS_SEC } from "@asm/contracts";
-import { defaultStake, groupAmountInput, minStakeMinor, stakeToMinor, type AmountOpts } from "@asm/client-core";
+import { applyKey, defaultStake, groupAmountInput, minStakeMinor, stakeToMinor, type AmountOpts } from "@asm/client-core";
 
 /** The contract's per-trade ceiling, in minor units, read from `OpenTradeSchema.stake` so the two cannot drift. */
 export const MAX_STAKE_MINOR: number = OpenTradeSchema.shape.stake.maxValue ?? Number.MAX_SAFE_INTEGER;
@@ -45,4 +45,17 @@ export function stakeFor(byCurrency: Readonly<Record<string, string>>, currency:
 
 export function withStake(byCurrency: Readonly<Record<string, string>>, currency: string, stake: string): Record<string, string> {
   return { ...byCurrency, [currency]: stake };
+}
+
+/**
+ * The per-currency stake map after one keypad press, built on the map it is given. The caller passes the LATEST
+ * saved map (from the store, not a render-time copy), so two presses landing before a re-render both count.
+ */
+export function stakeAfterKey(
+  byCurrency: Readonly<Record<string, string>>,
+  currency: string,
+  key: string,
+  opts: AmountOpts,
+): Record<string, string> {
+  return withStake(byCurrency, currency, applyKey(stakeFor(byCurrency, currency), key, opts));
 }

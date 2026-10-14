@@ -2,7 +2,7 @@ import * as Haptics from "expo-haptics";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
-import { applyKey, formatMinor, stakePresets, stakeToMinor } from "@asm/client-core";
+import { formatMinor, stakePresets, stakeToMinor } from "@asm/client-core";
 import { color, radius, space } from "@/theme/tokens";
 import { Button } from "@/theme/ui";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
@@ -17,15 +17,18 @@ const ROWS = [
 
 const keyBox = { flex: 1, minHeight: 52, borderRadius: radius.md, alignItems: "center", justifyContent: "center" } as const;
 
-/** Big amount, quick amounts, a 3×4 keypad and Done. Every press goes through client-core's `applyKey`. */
-export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: string; onChange: (next: string) => void; onDone: () => void }>(
-  function KeypadSheet({ currency, value, onChange, onDone }, ref) {
+/**
+ * Big amount, quick amounts, a 3×4 keypad and Done. It only reports presses: the owner applies each one to the
+ * LATEST saved stake (`stakeAfterKey`), never to the `value` it rendered, so fast presses cannot drop a digit.
+ */
+export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: string; onKey: (key: string) => void; onPreset: (text: string) => void; onDone: () => void }>(
+  function KeypadSheet({ currency, value, onKey, onPreset, onDone }, ref) {
     const { t } = useTranslation();
     const opts = stakeAmountOpts(currency);
 
     const press = (key: string) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onChange(applyKey(value, key, opts));
+      onKey(key);
     };
 
     return (
@@ -47,7 +50,7 @@ export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: strin
                 accessibilityState={{ selected }}
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onChange(String(amount));
+                  onPreset(String(amount));
                 }}
                 style={{ ...keyBox, minHeight: 44, borderRadius: radius.sm, backgroundColor: selected ? color.brandFill : color.tile }}
               >
@@ -71,7 +74,7 @@ export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: strin
                     accessibilityRole="button"
                     accessibilityLabel={isBack ? t("trade.delete") : key === "." ? t("trade.point") : key}
                     onPress={() => press(key)}
-                    onLongPress={isBack ? () => onChange("") : undefined}
+                    onLongPress={isBack ? () => onPreset("") : undefined}
                     style={({ pressed }) => ({ ...keyBox, backgroundColor: pressed ? color.tileHi : color.tile })}
                   >
                     <Text style={{ color: color.ink, fontSize: 22, fontWeight: "700" }}>{isBack ? "⌫" : key}</Text>
