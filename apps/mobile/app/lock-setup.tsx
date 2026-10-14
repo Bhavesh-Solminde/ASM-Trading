@@ -1,5 +1,4 @@
 import * as LocalAuth from "expo-local-authentication";
-import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,8 +40,8 @@ export default function LockSetup() {
     setBusy(true);
     setError(null);
     try {
-      if (await enableBiometric()) router.replace("/");
-      else setStep("pin");
+      // On success the gatekeeper sees the stored method and leaves this screen.
+      if (!(await enableBiometric())) setStep("pin");
     } catch {
       setError(t("common.genericError"));
     } finally {
@@ -53,7 +52,6 @@ export default function LockSetup() {
   function skip() {
     if (busy) return;
     skipSetup();
-    router.replace("/");
   }
 
   async function onPin(v: string) {
@@ -75,7 +73,6 @@ export default function LockSetup() {
     setBusy(true);
     try {
       await setPin(v);
-      router.replace("/");
     } catch {
       setError(t("common.genericError"));
       setValue("");

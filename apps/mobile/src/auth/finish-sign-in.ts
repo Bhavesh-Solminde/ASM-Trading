@@ -1,4 +1,3 @@
-import { router } from "expo-router";
 import { z } from "zod";
 import { useLock } from "@/lock/lock-store";
 import { useSession } from "./session-store";
@@ -7,10 +6,11 @@ import { useSession } from "./session-store";
 export const TokenResult = z.object({ token: z.string(), userId: z.string() });
 
 /**
- * Stores the session token, then sends the user to set up an app lock if this device has none yet.
- * The root layout loads the lock store at startup, so `method` is already known here.
+ * Stores the session token. The root gatekeeper does the routing (lock setup, or the app) so there is a
+ * single navigation owner. The cold-start lock guarded the previous session, so it is cleared first:
+ * a user who just typed their password is not asked to unlock.
  */
 export async function finishSignIn(token: string): Promise<void> {
+  useLock.getState().startFreshSession();
   await useSession.getState().signIn(token);
-  router.replace(useLock.getState().method === null ? "/lock-setup" : "/");
 }

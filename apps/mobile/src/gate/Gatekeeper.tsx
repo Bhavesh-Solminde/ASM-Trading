@@ -27,7 +27,10 @@ export function Gatekeeper() {
   const method = useLock((s) => s.method);
   const skipped = useLock((s) => s.skippedThisSession);
   const gate = useGate((s) => s.gate);
-  const minVersion = useAppConfig().data?.minVersion;
+  const cfg = useAppConfig();
+  const minVersion = cfg.data?.minVersion;
+  // Success or failure: either way the min-version / maintenance answer is in.
+  const cfgSettled = cfg.isSuccess || cfg.isError;
   const pathname = usePathname();
   const navReady = useNavReady();
   const [booted, setBooted] = useState(false);
@@ -59,8 +62,9 @@ export function Gatekeeper() {
     if (navReady && redirect) router.replace(redirect);
   }, [navReady, redirect]);
 
-  // Hide the splash only once the user is on the right screen, so a signed-out user never sees the tabs.
-  const settled = booted && navReady && ready && redirect === null;
+  // Hide the splash only once the user is on the right screen and the app-config answer is in, so a
+  // signed-out, locked, below-min or maintenance user never sees the tabs.
+  const settled = booted && navReady && ready && cfgSettled && redirect === null;
   useEffect(() => {
     if (settled) hideSplash();
   }, [settled]);

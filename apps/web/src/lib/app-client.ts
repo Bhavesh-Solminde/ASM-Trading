@@ -1,6 +1,6 @@
 /**
- * Headers the native app sends on every request. Dependency-free on purpose:
- * proxy.ts imports this, and it must stay cheap.
+ * Headers the native app sends on every request. proxy.ts imports this, so it stays cheap:
+ * the only import is the pure compareVersions module (a deep path, not the client-core barrel).
  *   X-Client: app/<major>.<minor>.<patch>
  *   X-Device-Name: <model>
  */
@@ -20,4 +20,4 @@ export function deviceNameFrom(headers: Pick<Headers, "get">): string | null {
   return raw ? raw.slice(0, 80) : null;
 }
 
-export { compareVersions } from "@asm/client-core";
+export { compareVersions } from "@asm/client-core/src/time/version";

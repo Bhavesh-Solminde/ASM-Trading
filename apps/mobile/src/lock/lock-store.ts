@@ -35,6 +35,8 @@ interface LockState {
   unlockWithBiometric: () => Promise<boolean>;
   onBackground: (now: number) => void;
   onForeground: (now: number) => void;
+  /** A session was just established: the cold-start lock guarded the previous session, not this one. */
+  startFreshSession: () => void;
   skipSetup: () => void;
   disable: () => Promise<void>;
   reset: () => Promise<void>;
@@ -149,6 +151,7 @@ export const useLock = create<LockState>((set, get) => ({
       ...(shouldLock({ enabled, coldStart: false, backgroundedAt, now }) ? { locked: true } : {}),
     });
   },
+  startFreshSession: () => set({ locked: false, backgroundedAt: null }),
   skipSetup: () => set({ skippedThisSession: true }),
   disable: async () => {
     await put(K.off, "1");

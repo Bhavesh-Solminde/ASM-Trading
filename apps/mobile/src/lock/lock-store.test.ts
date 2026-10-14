@@ -170,3 +170,25 @@ describe("useLock setup skip", () => {
     expect(useLock.getState().skippedThisSession).toBe(false);
   });
 });
+
+describe("useLock fresh session", () => {
+  it("locks a cold start, and a new sign-in clears that lock without disabling it", async () => {
+    await useLock.getState().setPin("1234");
+    useLock.setState({ ...fresh });
+    await useLock.getState().load();
+    expect(useLock.getState().locked).toBe(true);
+    useLock.getState().startFreshSession();
+    expect(useLock.getState()).toMatchObject({ locked: false, enabled: true, method: "pin" });
+    // The next background cycle still relocks the new session.
+    useLock.getState().onBackground(1_000);
+    useLock.getState().onForeground(1_000 + 300_000);
+    expect(useLock.getState().locked).toBe(true);
+  });
+
+  it("still locks a cold start that has a stored session (nothing clears it)", async () => {
+    await useLock.getState().setPin("1234");
+    useLock.setState({ ...fresh });
+    await useLock.getState().load();
+    expect(useLock.getState()).toMatchObject({ locked: true, enabled: true });
+  });
+});
