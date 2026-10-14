@@ -2,13 +2,14 @@ import { memo, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import { Circle, Svg } from "react-native-svg";
-import { formatMinor, RING_LENGTH, ringOffset, shortCountdown, soonestOpen } from "@asm/client-core";
+import { formatMinor, RING_LENGTH, ringOffset, soonestOpen } from "@asm/client-core";
 import type { TradeView } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
 import { color, radius, space } from "@/theme/tokens";
 import { Icon } from "@/ui/Icon";
 import type { SheetRef } from "@/ui/Sheet";
 import type { AppAsset } from "./markets";
+import { countdownText } from "./countdown-text";
 import { DirMark, TradesSheet } from "./TradesSheet";
 import { useLiveTrade } from "./useLiveTrade";
 
@@ -32,13 +33,16 @@ const StripBody = memo(function StripBody({
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
-  const { remainingSec, totalSec, pnl } = useLiveTrade(trade);
+  const live = useLiveTrade(trade);
+  const { remainingSec, totalSec, pnl } = live;
   const up = trade.direction === "UP";
   const dirColor = up ? color.up : color.down;
   const side = up ? t("trade.buy") : t("trade.sell");
   const stake = formatMinor(trade.stake, currency);
+  const time = countdownText(live, t("trade.settling"));
   const label =
-    t("trade.positionLabel", { side, name, stake, time: shortCountdown(remainingSec) }) + (more > 0 ? ` ${t("trade.moreOpen", { n: more })}` : "");
+    (live.expired ? t("trade.positionLabelSettling", { side, name, stake }) : t("trade.positionLabel", { side, name, stake, time })) +
+    (more > 0 ? ` ${t("trade.moreOpen", { n: more })}` : "");
 
   return (
     <Pressable
@@ -74,7 +78,7 @@ const StripBody = memo(function StripBody({
         <View style={{ flexDirection: "row", alignItems: "center", gap: space(1) }}>
           <DirMark direction={trade.direction} />
           <Text style={{ color: dirColor, fontSize: 13, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
-            {side} · {shortCountdown(remainingSec)}
+            {side} · {time}
           </Text>
         </View>
         <Text numberOfLines={1} style={{ color: color.ink2, fontSize: 12 }}>

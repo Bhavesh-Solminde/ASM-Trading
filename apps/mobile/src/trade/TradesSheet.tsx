@@ -1,12 +1,13 @@
 import { forwardRef, memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
-import { closedRowDisplay, formatMinor, shortCountdown } from "@asm/client-core";
+import { closedRowDisplay, formatMinor } from "@asm/client-core";
 import type { TradeView } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
 import { color, radius, space } from "@/theme/tokens";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
 import { closedStamp } from "./closed-stamp";
+import { countdownText } from "./countdown-text";
 import type { AppAsset } from "./markets";
 import { useLiveTrade } from "./useLiveTrade";
 
@@ -59,13 +60,15 @@ function TradeName({ trade, assets, detail }: { trade: TradeView; assets: readon
 
 /** Ticks on its own each second, so settled rows and the rest of the sheet never re-render for it. */
 const OpenRow = memo(function OpenRow({ trade, assets, currency }: { trade: TradeView; assets: readonly AppAsset[]; currency: string }) {
-  const { remainingSec, pnl } = useLiveTrade(trade);
+  const { t } = useTranslation();
+  const live = useLiveTrade(trade);
+  const { pnl } = live;
   const precision = assets.find((a) => a.symbol === trade.symbol)?.precision ?? 5;
   return (
     <View style={rowBox}>
       <TradeName trade={trade} assets={assets} detail={`${formatMinor(trade.stake, currency)} · ${trade.entryPrice.toFixed(precision)}`} />
       <View style={{ alignItems: "flex-end", gap: 2 }}>
-        <Text style={{ color: color.ink, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{shortCountdown(remainingSec)}</Text>
+        <Text style={{ color: color.ink, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{countdownText(live, t("trade.settling"))}</Text>
         <Text
           style={{
             color: pnl === null ? color.ink2 : pnl.tone === "up" ? color.up : color.down,

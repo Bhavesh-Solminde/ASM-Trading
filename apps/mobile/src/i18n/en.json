@@ -39,6 +39,7 @@
     "expiryOption": "Expiry {{label}}", "stakeButton": "Stake {{amount}}. Tap to change.", "stakeKeypad": "Stake amount",
     "trades": "Trades", "moreOpen": "+{{n}} more", "ifClosedNow": "if it closed now",
     "positionLabel": "{{side}} {{name}}, stake {{stake}}, {{time}} left. Tap to see your trades.",
+    "settling": "Settling…", "positionLabelSettling": "{{side}} {{name}}, stake {{stake}}, settling. Tap to see your trades.",
     "tabCount": "{{name}}, {{n}}", "statusWon": "Won", "statusLost": "Lost", "statusRefund": "Refund"
   },
   "bonus": {
