@@ -3,6 +3,7 @@ import type { Script } from "@/theme/font-families";
 import { color, radius } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 import { chipHitSlop } from "./chip-metrics";
+import { FigText } from "./FigText";
 
 /**
  * Pill choice used for expiry, quick amounts, categories, segments and the language switch. Selected = white
@@ -27,7 +28,7 @@ export function Chip({
   selected?: boolean;
   onPress: () => void;
   height?: number;
-  /** Martian Mono label (amounts). */
+  /** Figure label (amounts): digits in Martian Mono, ₹ and Hindi in Anek (via FigText). */
   figures?: boolean;
   size?: number;
   /** Small trailing count ("Open 0"). */
@@ -67,18 +68,13 @@ export function Chip({
         style,
       ]}
     >
-      <Txt
-        font={figures ? "fig" : "ui"}
-        weight={selected ? 600 : 500}
-        size={size}
-        tracking={figures ? -0.03 : undefined}
-        color={ink}
-        script={script}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-      >
-        {label}
-      </Txt>
+      {figures ? (
+        <FigText text={label} weight={selected ? 600 : 500} size={size} tracking={-0.03} color={ink} script={script} numberOfLines={1} adjustsFontSizeToFit />
+      ) : (
+        <Txt weight={selected ? 600 : 500} size={size} color={ink} script={script} numberOfLines={1} adjustsFontSizeToFit>
+          {label}
+        </Txt>
+      )}
       {count !== undefined ? (
         <Txt font="fig" size={12} color={ink}>
           {count}
