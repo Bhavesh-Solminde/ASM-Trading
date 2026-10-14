@@ -73,8 +73,8 @@ Data from `GET /api/v1/wallet` + `GET /api/v1/withdrawal-prefill`.
   address, `isValidUsdtAddress`), prefilled from `lastPayouts`; validated with
   `PayoutDetailsSchema`.
 - **Confirm**: summary card → `POST /api/withdrawals`
-  (`CreateWithdrawalSchema`), including the 2FA code step when the server asks
-  for it (existing `two-factor` route behaviour).
+  (`CreateWithdrawalSchema`). The withdrawals route has no 2FA step today, so
+  the app adds none.
 - Held withdrawals: banner with cancel → `POST /api/withdrawals/:id/cancel`.
 
 ## History tab

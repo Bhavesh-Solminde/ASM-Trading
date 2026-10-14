@@ -49,8 +49,15 @@ apps that let users trade them. The owner chose to submit anyway. Mitigations
 | 5 | [iPhone PWA, distribution, releases](2026-10-14-mobile-p5-pwa-distribution-design.md) | 1 | 1.5 wk |
 
 About 13–14 weeks for one developer; 5 runs alongside 3. Each sub-project ends
-in its own PR to `main`. Plans live in `docs/superpowers/plans/` and may change
-as we build.
+in its own PR to `main`. Plans may change as we build:
+
+| # | Plan |
+|---|---|
+| 1 | [`2026-10-14-mobile-p1-server.md`](../plans/2026-10-14-mobile-p1-server.md) |
+| 2 | [`2026-10-14-mobile-p2-shell-trade.md`](../plans/2026-10-14-mobile-p2-shell-trade.md) |
+| 3 | [`2026-10-14-mobile-p3-payments-account.md`](../plans/2026-10-14-mobile-p3-payments-account.md) |
+| 4 | [`2026-10-14-mobile-p4-push.md`](../plans/2026-10-14-mobile-p4-push.md) |
+| 5 | [`2026-10-14-mobile-p5-pwa-distribution.md`](../plans/2026-10-14-mobile-p5-pwa-distribution.md) |
 
 ## What's different: app vs mobile website
 

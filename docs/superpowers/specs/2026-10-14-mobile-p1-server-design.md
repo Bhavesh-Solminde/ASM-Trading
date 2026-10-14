@@ -32,8 +32,8 @@ from the `asm_session` cookie (18 routes under `app/api`, plus RSC pages).
 - All 18 routes listed by `grep -rln 'readSession(' apps/web/src/app/api`
   switch from `readSession(req.cookies.get(SESSION_COOKIE)?.value)` to
   `getSession(req)`. RSC pages keep using cookies (web only).
-- `logout` deletes the session found via `getSession`, and clears the cookie
-  only when the request used one.
+- `logout` deletes the session named by the bearer token or cookie, and
+  always clears the cookie (harmless for the app).
 - Role is still read from the DB on every request (unchanged).
 
 **Client identification:** the app sends `X-Client: app/<semver>` and
