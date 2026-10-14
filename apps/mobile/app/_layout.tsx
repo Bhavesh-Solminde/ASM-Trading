@@ -14,6 +14,7 @@ import { initI18n, localeFromDevice } from "@/i18n";
 import { useLock } from "@/lock/lock-store";
 import { color } from "@/theme/tokens";
 import { OfflineBanner } from "@/ui/OfflineBanner";
+import { PrivacyShield } from "@/ui/PrivacyCover";
 import { ToastHost } from "@/ui/Toast";
 
 void SplashScreen.preventAutoHideAsync();
@@ -41,19 +42,22 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: color.ground }}>
       <QueryClientProvider client={queryClient}>
-        <BottomSheetModalProvider>
-          <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.ground }, animation: "fade" }}>
-            <Stack.Screen name="lock" options={INSTANT} />
-            <Stack.Screen name="maintenance" options={INSTANT} />
-            <Stack.Screen name="blocked" options={INSTANT} />
-            <Stack.Screen name="update-required" options={INSTANT} />
-          </Stack>
-          <DismissSheetsOnLock />
-          <Gatekeeper />
-          <OfflineBanner />
-          <ToastHost />
-        </BottomSheetModalProvider>
+        {/* Outermost inside the data providers, so its cover is drawn over the sheet portal and the toasts too. */}
+        <PrivacyShield>
+          <BottomSheetModalProvider>
+            <StatusBar style="light" />
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.ground }, animation: "fade" }}>
+              <Stack.Screen name="lock" options={INSTANT} />
+              <Stack.Screen name="maintenance" options={INSTANT} />
+              <Stack.Screen name="blocked" options={INSTANT} />
+              <Stack.Screen name="update-required" options={INSTANT} />
+            </Stack>
+            <DismissSheetsOnLock />
+            <Gatekeeper />
+            <OfflineBanner />
+            <ToastHost />
+          </BottomSheetModalProvider>
+        </PrivacyShield>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

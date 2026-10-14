@@ -1,14 +1,14 @@
-import { compareVersions } from "@asm/client-core";
 import { router, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useAppConfig } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
-import { appConfig } from "@/config";
+import { onAppStateChange, useAppStatus } from "@/lock/app-state";
 import { useLock } from "@/lock/lock-store";
 import { useGate } from "./gate-store";
 import { failsafeRoute, redirectFor, routeFor } from "./route-for";
+import { useBelowMin } from "./use-below-min";
 import { useNavReady } from "./use-nav-ready";
 
 /** Longest the native splash may cover a stuck boot before the app shows whatever it has. */
@@ -28,7 +28,6 @@ export function Gatekeeper() {
   const skipped = useLock((s) => s.skippedThisSession);
   const gate = useGate((s) => s.gate);
   const cfg = useAppConfig();
-  const minVersion = cfg.data?.minVersion;
   // Success or failure: either way the min-version / maintenance answer is in.
   const cfgSettled = cfg.isSuccess || cfg.isError;
   const pathname = usePathname();
@@ -49,14 +48,14 @@ export function Gatekeeper() {
   }, []);
 
   useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "background") useLock.getState().onBackground(Date.now());
-      if (state === "active") useLock.getState().onForeground(Date.now());
-    });
+    // Catch up on a state change that landed before this listener was attached.
+    useAppStatus.setState({ appState: AppState.currentState });
+    // Relock decision and privacy-cover state are ordered inside `onAppStateChange`; navigation stays below.
+    const sub = AppState.addEventListener("change", (state) => onAppStateChange(state, Date.now()));
     return () => sub.remove();
   }, []);
 
-  const belowMin = minVersion !== undefined && compareVersions(appConfig().version, minVersion) < 0;
+  const belowMin = useBelowMin();
   // Until the lock store has loaded too, `method` is unknown: route nowhere rather than briefly to /lock-setup.
   const target = routeFor({ ready: ready && booted, token, locked, lockChosen: method !== null || skipped, gate, belowMin });
   const redirect = redirectFor(target, pathname);
