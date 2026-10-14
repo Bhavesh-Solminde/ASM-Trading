@@ -24,11 +24,8 @@ import { AmountField, type AmountFieldHandle } from "@/components/payments/Amoun
 import { StepHeader } from "@/components/payments/StepHeader";
 
 /** The user's most recent details per payout method, used to prefill the form. */
-export interface LastPayouts {
-  BANK?: { accountHolder: string; accountNumber: string; ifsc: string };
-  UPI?: { upiId: string };
-  USDT?: { usdtNetwork: UsdtNetwork; usdtAddress: string };
-}
+import type { LastPayouts } from "@/lib/withdrawal-prefill";
+export type { LastPayouts };
 
 interface Receipt {
   id: string;
