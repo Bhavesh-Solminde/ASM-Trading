@@ -139,4 +139,8 @@ describe("stakeTileLabel", () => {
     expect(() => stakeTileLabel("1e308", "INR")).not.toThrow();
     expect(stakeTileLabel("1e308", "INR")).toBe("₹1e308");
   });
+  it("shows a huge but finite stake as typed (not an exponent garbled by grouping)", () => {
+    expect(stakeTileLabel("1e22", "INR")).toBe("₹1e22");
+    expect(stakeTileLabel("1e300", "INR")).toBe("₹1e300");
+  });
 });

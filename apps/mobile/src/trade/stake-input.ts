@@ -39,9 +39,10 @@ export function stakeDisplay(text: string, currency: string): string {
 export function stakeTileLabel(text: string, currency: string): string {
   if (text.trim() === "") return "—";
   const minor = stakeToMinor(text);
-  // A stored stake like "1e308" overflows to Infinity, which money() rejects: show it as typed, with the symbol, instead of crashing
-  // the dock. (Grouping it would strip the "e" and show a wrong number.)
-  return Number.isInteger(minor) ? money(minor, currency) : `${currencySymbol(currency)}${text.trim()}`;
+  // A stored stake like "1e308" overflows to Infinity (money() rejects it), and one like "1e22" is finite but past 2^53, where String()
+  // goes to exponent form and the digits are wrong: show those as typed, with the symbol, instead of crashing or garbling the dock.
+  // (Grouping them would strip the "e" and show a wrong number.)
+  return Number.isSafeInteger(minor) ? money(minor, currency) : `${currencySymbol(currency)}${text.trim()}`;
 }
 
 export const DEFAULT_EXPIRY_SEC = 60;

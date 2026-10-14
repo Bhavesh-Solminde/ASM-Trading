@@ -69,11 +69,12 @@ function spell(n: number, l: Lang): string[] {
 
 /**
  * Whole rupees as a cheque writes them: "Two thousand five hundred rupees only" / "दो हज़ार पाँच सौ रुपये मात्र".
- * Empty for 0 (the keypad hides the line). Paise are not spelled (INR stakes are whole rupees).
+ * Empty for 0 or anything that is not a safe integer once floored (the keypad hides the line). Paise are not spelled (INR stakes are whole rupees).
  */
 export function amountInWords(rupees: number, locale: WordsLocale): string {
   const n = Math.floor(Math.abs(rupees));
-  if (n === 0) return "";
+  // Zero hides the line; Infinity/NaN/1e308 (a corrupted stored stake) are not amounts and spell() would recurse forever on them.
+  if (!Number.isSafeInteger(n) || n === 0) return "";
   const words = spell(n, LANG[locale]).join(" ");
   if (locale === "hi") return `${words} ${n === 1 ? "रुपया" : "रुपये"} मात्र`;
   return `${words.charAt(0).toUpperCase()}${words.slice(1)} ${n === 1 ? "rupee" : "rupees"} only`;

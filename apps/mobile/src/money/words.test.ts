@@ -31,3 +31,15 @@ describe("amountInWords (Hindi)", () => {
     expect(amountInWords(n, "hi")).toBe(words);
   });
 });
+
+describe.each(["en", "hi"] as const)("amountInWords (%s) with an input that is not a usable amount", (locale) => {
+  it.each([
+    ["Infinity", Infinity],
+    ["-Infinity", -Infinity],
+    ["NaN", NaN],
+    ["1e308", 1e308],
+    ["0", 0],
+  ])("is empty for %s (no crash, no stray words)", (_label, n) => {
+    expect(amountInWords(n, locale)).toBe("");
+  });
+});
