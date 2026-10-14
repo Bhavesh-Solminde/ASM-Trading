@@ -4,7 +4,9 @@ import { depositRow, withdrawalRow } from "./payment-rows";
 
 /**
  * SERVER ONLY (reads the database). Loads a user's deposits and withdrawals as
- * serialisable rows for the History list: newest first, up to `limit` of each.
+ * serialisable rows for the History list: newest first, merged and capped at
+ * `limit` rows in total (up to `limit` of each kind are fetched, then the merged
+ * list is cut). `before` pages by creation time.
  *
  * Deposit amounts are shown in the user's LIVE account currency, the same
  * figure that was (or will be) credited, via `depositCreditMinor`. If that
