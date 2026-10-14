@@ -38,7 +38,14 @@ export function priceRange(candles: CandleDto[], from: number, to: number, extra
 export const yForPrice = (p: number, r: PriceRange, h: number) => ((r.max - p) / (r.max - r.min)) * h;
 export const priceForY = (y: number, r: PriceRange, h: number) => r.max - (y / h) * (r.max - r.min);
 
+/** A viewport the maths can divide by: positive width/visibleCount and finite fields. */
+const isUsable = (vp: Viewport) =>
+  vp.width > 0 &&
+  vp.visibleCount > 0 &&
+  [vp.width, vp.height, vp.rightIndex, vp.visibleCount].every(Number.isFinite);
+
 export function zoomAround(vp: Viewport, focusX: number, factor: number, total: number): Viewport {
+  if (!isUsable(vp) || !Number.isFinite(focusX) || !Number.isFinite(factor) || !Number.isFinite(total)) return vp;
   const focusIndex = indexForX(focusX, vp);
   const visibleCount = clampVisible(vp.visibleCount / factor);
   // keep focusIndex under focusX at the new zoom level
@@ -47,8 +54,10 @@ export function zoomAround(vp: Viewport, focusX: number, factor: number, total: 
 }
 
 export function panBy(vp: Viewport, dx: number, total: number): Viewport {
+  if (!isUsable(vp) || !Number.isFinite(dx) || !Number.isFinite(total)) return vp;
   const rightIndex = vp.rightIndex - dx / step(vp);
-  return { ...vp, rightIndex: Math.max(Math.min(rightIndex, total), MIN_VISIBLE / 2) };
+  // the live edge wins: never past `total`, even when total < MIN_VISIBLE / 2
+  return { ...vp, rightIndex: Math.min(total, Math.max(MIN_VISIBLE / 2, rightIndex)) };
 }
 
 /** Older candles were prepended: shift the edge so the on-screen candles stay put. */

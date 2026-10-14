@@ -5,6 +5,7 @@ import {
   indexForX,
   nearLeftEdge,
   panBy,
+  priceForY,
   priceRange,
   shiftForPrepend,
   visibleRange,
@@ -68,5 +69,41 @@ describe("scale", () => {
     expect(shifted.visibleCount).toBe(vp.visibleCount);
     // an existing candle at old index 40 now sits at index 50 in the prepended array
     expect(xForIndex(50, shifted)).toBeCloseTo(xForIndex(40, vp));
+  });
+
+  it("never pans the live edge past a history shorter than the minimum window", () => {
+    for (const dx of [-600, -1, 0, 1, 600]) {
+      expect(panBy(vp, dx, 3).rightIndex).toBeLessThanOrEqual(3);
+    }
+    expect(panBy(vp, 600, 3).rightIndex).toBe(3);
+  });
+
+  it("maps a price to a pixel row and back (priceForY inverts yForPrice)", () => {
+    const r = { min: 0, max: 100 };
+    expect(priceForY(yForPrice(37.5, r, 200), r, 200)).toBeCloseTo(37.5);
+    expect(priceForY(0, r, 200)).toBe(100);
+  });
+
+  it("gives a flat price range (single candle with h === l) a non-zero span", () => {
+    const r = priceRange([candle(0, 5, 5)], 0, 1);
+    expect(r.max).toBeGreaterThan(r.min);
+    expect(Number.isFinite(yForPrice(5, r, 200))).toBe(true);
+  });
+
+  it("gives an all-zero price range a non-zero span", () => {
+    const r = priceRange([candle(0, 0, 0)], 0, 1);
+    expect(r.max).toBeGreaterThan(r.min);
+    expect(Number.isFinite(yForPrice(0, r, 200))).toBe(true);
+  });
+
+  it("returns the viewport unchanged when zoom or pan inputs are unusable", () => {
+    const zeroWidth = { ...vp, width: 0 };
+    expect(zoomAround(zeroWidth, 10, 2, 100)).toBe(zeroWidth);
+    expect(zoomAround(vp, NaN, 2, 100)).toBe(vp);
+    expect(zoomAround(vp, 150, Infinity, 100)).toBe(vp);
+    expect(zoomAround(vp, 150, 2, NaN)).toBe(vp);
+    expect(panBy({ ...vp, width: -1 }, 10, 100)).toEqual({ ...vp, width: -1 });
+    expect(panBy(vp, Infinity, 100)).toBe(vp);
+    expect(panBy(vp, 10, NaN)).toBe(vp);
   });
 });

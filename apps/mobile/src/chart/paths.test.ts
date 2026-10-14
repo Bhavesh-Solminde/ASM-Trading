@@ -3,6 +3,8 @@ import type { CandleDto } from "@asm/contracts";
 import { buildSeries } from "./paths";
 import type { ChartType, PriceRange, Viewport } from "./types";
 
+// 100x100 canvas, 2 visible candles => 50px per candle; candle 0 centred at x=25, candle 1 at x=75.
+// Price 0..10 over 100px => y = (10 - price) * 10. Body half-width = 0.35 * 50 = 17.5.
 const vp: Viewport = { width: 100, height: 100, rightIndex: 2, visibleCount: 2 };
 const range: PriceRange = { min: 0, max: 10 };
 const candles: CandleDto[] = [
@@ -12,26 +14,41 @@ const candles: CandleDto[] = [
 const TYPES: ChartType[] = ["candles", "line", "area", "bars"];
 
 describe("buildSeries", () => {
-  it("splits candles into up and down paths with wick and body", () => {
+  it("draws candles: wick and body for the up candle, body for the down candle", () => {
     const s = buildSeries("candles", candles, 0, 2, vp, range);
-    expect(s.up).toContain("M");
-    expect(s.down).toContain("M");
-    expect(s.up).not.toBe(s.down);
+    expect(s.up).toBe("M25 20 L25 90 M7.5 40 L42.5 40 L42.5 80 L7.5 80 Z");
+    expect(s.down).toBe("M75 30 L75 70 M57.5 40 L92.5 40 L92.5 60 L57.5 60 Z");
+  });
+
+  it("draws a doji (close === open) in the up path with a 1px body", () => {
+    const doji: CandleDto[] = [{ openTs: 0, o: 5, h: 6, l: 4, c: 5 }];
+    const s = buildSeries("candles", doji, 0, 1, vp, range);
+    expect(s.up).toBe("M25 40 L25 60 M7.5 50 L42.5 50 L42.5 51 L7.5 51 Z");
+    expect(s.down).toBe("");
+  });
+
+  it("draws bars: wick plus open tick (left) and close tick (right)", () => {
+    const s = buildSeries("bars", candles, 0, 2, vp, range);
+    expect(s.up).toBe("M25 20 L25 90 M7.5 80 L25 80 M25 40 L42.5 40");
+    expect(s.down).toBe("M75 30 L75 70 M57.5 40 L75 40 M75 60 L92.5 60");
   });
 
   it("draws a line through the closes", () => {
     const s = buildSeries("line", candles, 0, 2, vp, range);
-    expect(s.line).toMatch(/^M[\d.]+ [\d.]+ L[\d.]+ [\d.]+$/);
+    expect(s.line).toBe("M25 40 L75 60");
+    expect(s.area).toBeUndefined();
   });
 
-  it("closes the area path to the bottom of the chart", () => {
+  it("closes the area path down to the bottom of the chart", () => {
     const s = buildSeries("area", candles, 0, 2, vp, range);
-    expect(s.area?.endsWith("Z")).toBe(true);
+    expect(s.line).toBe("M25 40 L75 60");
+    expect(s.area).toBe("M25 40 L75 60 L75 100 L25 100 Z");
   });
 
-  it("draws OHLC bars with open and close ticks", () => {
-    const s = buildSeries("bars", candles, 0, 2, vp, range);
-    expect((s.up.match(/M/g) ?? []).length).toBe(3);
+  it("honours `from`: from=1 draws only candle 1", () => {
+    const s = buildSeries("candles", candles, 1, 2, vp, range);
+    expect(s.up).toBe("");
+    expect(s.down).toBe("M75 30 L75 70 M57.5 40 L92.5 40 L92.5 60 L57.5 60 Z");
   });
 
   it("returns empty paths for an empty window", () => {
