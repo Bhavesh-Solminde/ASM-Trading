@@ -2,6 +2,7 @@ import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { api, configureApi } from "@/api/client";
 import { queryClient } from "@/api/queries";
+import { useSocket } from "@/socket/socket-store";
 import { toast } from "@/ui/Toast";
 
 const KEY = "ixt.session";
@@ -42,6 +43,8 @@ export const useSession = create<SessionState>((set, get) => ({
         // Local first: plain fetch has no timeout, so a stalled network must not hold the user signed in.
         await SecureStore.deleteItemAsync(KEY).catch(() => {});
         queryClient.clear();
+        // The next user to sign in must not see this user's trades or balances.
+        useSocket.getState().reset();
         set({ token: null });
       } finally {
         signingOut = null;

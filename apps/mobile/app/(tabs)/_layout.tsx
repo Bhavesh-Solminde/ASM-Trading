@@ -1,5 +1,8 @@
 import { Tabs } from "expo-router/js-tabs";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { AppState } from "react-native";
+import { useSocket } from "@/socket/socket-store";
 import { color } from "@/theme/tokens";
 import { Icon, type IconName } from "@/ui/Icon";
 
@@ -17,6 +20,21 @@ const tabIcons = {
 
 export default function TabsLayout() {
   const { t } = useTranslation();
+
+  // One engine socket for the whole tab shell: open while the app is in the foreground, closed in the background.
+  useEffect(() => {
+    const { start, stop } = useSocket.getState();
+    start();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") start();
+      else if (state === "background") stop();
+    });
+    return () => {
+      sub.remove();
+      stop();
+    };
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
