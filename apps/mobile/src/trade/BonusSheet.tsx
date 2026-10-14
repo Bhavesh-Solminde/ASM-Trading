@@ -62,7 +62,7 @@ export const BonusSheet = forwardRef<SheetRef, { completedDeposits: number }>(fu
       <Text style={{ color: color.ink3, fontSize: 11, lineHeight: 16 }}>{t("bonus.note")}</Text>
       {pct > 0 ? (
         <Button
-          kind="up"
+          kind="primary"
           label={t("bonus.depositNow", { pct })}
           onPress={() => {
             inner.current?.dismiss();

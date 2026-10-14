@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { OFFLINE_BANNER_HEIGHT, useOfflineVisible } from "@/ui/OfflineBanner";
 import { screenTopPadding } from "./screen-padding";
+import { Icon, type IconName } from "@/ui/Icon";
+import { BUTTON_SKIN, type ButtonKind } from "./button-skin";
 import { figFamily, scriptFor, uiFamily, type Script, type Weight } from "./font-families";
 import { color, radius, space } from "./tokens";
 
@@ -70,22 +72,7 @@ export function useUiFamily(weight: Weight): string {
   return uiFamily(weight, scriptFor(i18n.language));
 }
 
-type ButtonKind = "primary" | "secondary" | "up" | "down";
-
-const FILL: Record<ButtonKind, string> = {
-  primary: color.brandFill,
-  secondary: color.tile,
-  up: color.up,
-  down: color.down,
-};
-
-/** Label colour per fill: white on green fails contrast, so `up` uses its dark ink. */
-const INK: Record<ButtonKind, string> = {
-  primary: color.brandInk,
-  secondary: color.ink,
-  up: color.upInk,
-  down: color.downInk,
-};
+export type { ButtonKind };
 
 export function Button({
   label,
@@ -94,6 +81,7 @@ export function Button({
   disabled,
   busy,
   testID,
+  icon,
 }: {
   label: string;
   onPress: () => void;
@@ -102,7 +90,9 @@ export function Button({
   busy?: boolean;
   /** Stable handle for end-to-end tests. */
   testID?: string;
+  icon?: IconName;
 }) {
+  const s = BUTTON_SKIN[kind];
   return (
     <Pressable
       testID={testID}
@@ -113,10 +103,19 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: FILL[kind], opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
+        { minHeight: s.height, backgroundColor: s.bg, borderColor: s.border, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
       ]}
     >
-      {busy ? <ActivityIndicator color={INK[kind]} /> : <Text style={[styles.buttonText, { color: INK[kind] }]}>{label}</Text>}
+      {busy ? (
+        <ActivityIndicator color={s.ink} />
+      ) : (
+        <>
+          {icon ? <Icon name={icon} size={20} color={s.ink} strokeWidth={2} /> : null}
+          <Txt weight={s.weight} size={s.size} color={s.ink} numberOfLines={1}>
+            {label}
+          </Txt>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -136,13 +135,14 @@ export function Skeleton({ height = 16, width = "100%" }: { height?: number; wid
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.ground },
   button: {
-    minHeight: 48,
     borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: space(2),
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: space(4),
   },
-  buttonText: { fontSize: 16, fontWeight: "700" },
   card: { backgroundColor: color.panel, borderRadius: radius.lg, padding: space(4) },
   row: { flexDirection: "row", alignItems: "center" },
 });

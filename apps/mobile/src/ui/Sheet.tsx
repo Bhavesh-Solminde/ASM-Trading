@@ -6,8 +6,9 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
-import { BackHandler, Text } from "react-native";
-import { color, space } from "@/theme/tokens";
+import { BackHandler, View } from "react-native";
+import { color, radius } from "@/theme/tokens";
+import { Txt } from "@/theme/ui";
 
 export interface SheetRef {
   present: () => void;
@@ -24,11 +25,16 @@ interface SheetProps {
    */
   scroll?: boolean;
   onDismiss?: () => void;
+  /** Small text right of the title (e.g. "Demo account"). */
+  aside?: string;
+  /** Content spans the full width and pads itself; the title keeps 20pt sides. */
+  flush?: boolean;
 }
 
-const body = { padding: space(4), paddingBottom: space(8), gap: space(3) } as const;
+const body = { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28, gap: 12 } as const;
+const bodyFlush = { paddingTop: 4, paddingBottom: 0 } as const;
 
-export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, children, snapPoints, scroll, onDismiss }, ref) {
+export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, children, snapPoints, scroll, onDismiss, aside, flush }, ref) {
   const inner = useRef<BottomSheetModal>(null);
   const [presented, setPresented] = useState(false);
 
@@ -58,11 +64,22 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, ch
   }, [onDismiss]);
 
   const backdrop = useCallback(
-    (p: BottomSheetBackdropProps) => <BottomSheetBackdrop {...p} appearsOnIndex={0} disappearsOnIndex={-1} />,
+    (p: BottomSheetBackdropProps) => <BottomSheetBackdrop {...p} opacity={0.62} appearsOnIndex={0} disappearsOnIndex={-1} />,
     [],
   );
 
-  const heading = title ? <Text style={{ color: color.ink, fontSize: 17, fontWeight: "700" }}>{title}</Text> : null;
+  const heading = title ? (
+    <View style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }, flush ? { paddingHorizontal: 20, paddingBottom: 12 } : null]}>
+      <Txt weight={600} size={20} accessibilityRole="header">
+        {title}
+      </Txt>
+      {aside ? (
+        <Txt size={14} color={color.ink3}>
+          {aside}
+        </Txt>
+      ) : null}
+    </View>
+  ) : null;
 
   return (
     <BottomSheetModal
@@ -71,18 +88,25 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, ch
       enableDynamicSizing={!snapPoints}
       enablePanDownToClose
       onDismiss={handleDismiss}
-      backgroundStyle={{ backgroundColor: color.panel }}
-      handleIndicatorStyle={{ backgroundColor: color.ink2 }}
+      backgroundStyle={{
+        backgroundColor: color.surface,
+        borderTopLeftRadius: radius.sheet,
+        borderTopRightRadius: radius.sheet,
+        borderTopWidth: 1,
+        borderColor: color.rule,
+      }}
+      handleStyle={{ paddingTop: 10, paddingBottom: 6 }}
+      handleIndicatorStyle={{ backgroundColor: color.rule, width: 40, height: 5, borderRadius: 4 }}
       backdropComponent={backdrop}
       {...(scroll ? { keyboardBehavior: "extend", keyboardBlurBehavior: "restore", android_keyboardInputMode: "adjustResize" } : {})}
     >
       {scroll ? (
-        <BottomSheetScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={body}>
+        <BottomSheetScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={flush ? bodyFlush : body}>
           {heading}
           {children}
         </BottomSheetScrollView>
       ) : (
-        <BottomSheetView style={body}>
+        <BottomSheetView style={flush ? bodyFlush : body}>
           {heading}
           {children}
         </BottomSheetView>
