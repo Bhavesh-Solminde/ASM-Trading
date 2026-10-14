@@ -1,4 +1,4 @@
-import { grossReturnMinor, type openSide } from "@asm/client-core";
+import { grossReturnMinor, profitForStake, type openSide } from "@asm/client-core";
 import type { TradeView } from "@asm/contracts";
 
 export interface OpenPnl {
@@ -17,7 +17,7 @@ export function openPnl(
   side: ReturnType<typeof openSide>,
 ): OpenPnl | null {
   if (side === "winning") {
-    const profit = Math.floor((trade.stake * trade.payoutPct) / 100);
+    const profit = profitForStake(trade.stake, trade.payoutPct) ?? 0;
     return { sign: "+", amountMinor: grossReturnMinor(trade.stake, profit), tone: "up" };
   }
   if (side === "losing") return { sign: "−", amountMinor: trade.stake, tone: "down" };

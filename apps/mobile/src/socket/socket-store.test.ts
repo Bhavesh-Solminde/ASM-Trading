@@ -124,6 +124,19 @@ describe("useSocket", () => {
     expect(useSocket.getState().trades.tradesByAccount["a1"]?.[0]?.status).toBe("WON");
   });
 
+  it("notifies a subscriber once per settlement even when two arrive back to back", async () => {
+    useSocket.getState().subscribe("EURUSD", "1m");
+    const ws = await connect();
+    const seenIds: string[] = [];
+    const unsubscribe = useSocket.subscribe((s, prev) => {
+      if (s.lastSettled && s.lastSettled !== prev.lastSettled) seenIds.push(s.lastSettled.id);
+    });
+    ws.receive({ type: "trade:settled", trade: { ...trade, id: "t1", status: "WON", pnl: 85 } });
+    ws.receive({ type: "trade:settled", trade: { ...trade, id: "t2", status: "LOST", pnl: -10000 } });
+    unsubscribe();
+    expect(seenIds).toEqual(["t1", "t2"]);
+  });
+
   it("connects with a ticket, subscribes, and folds server messages into chart and trades", async () => {
     useSocket.getState().subscribe("EURUSD", "1m");
     const ws = await connect();

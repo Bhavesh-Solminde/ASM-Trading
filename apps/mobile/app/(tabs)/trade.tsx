@@ -13,6 +13,7 @@ import { BonusSheet } from "@/trade/BonusSheet";
 import { ChartTools } from "@/trade/ChartTools";
 import { Dock } from "@/trade/Dock";
 import { findAsset, nextBonus, precisionFor, resolveSymbol, toggleFavourite } from "@/trade/markets";
+import { hasOpenTrade } from "@/trade/open-trades";
 import { MarketPill } from "@/trade/MarketPill";
 import { PositionStrip } from "@/trade/PositionStrip";
 import { useResultFeedback } from "@/trade/ResultToast";
@@ -24,6 +25,7 @@ import { useUserPrefs } from "@/trade/trade-prefs";
 import { useKeepAwakeWhileOpen } from "@/trade/useKeepAwakeWhileOpen";
 import { useLiveArrived } from "@/trade/useLiveArrived";
 import { useResumeSave } from "@/trade/useResumeSave";
+import { useSettlementWatchdog } from "@/trade/useSettlementWatchdog";
 import type { ChartType } from "@/chart/types";
 import type { Timeframe } from "@asm/contracts";
 
@@ -75,8 +77,10 @@ export default function Trade() {
   const timeframe = prefs.timeframe;
   const asset = boot ? findAsset(boot.assets, symbol) : undefined;
 
-  const hasOpenTrades = useSocket((s) => (accountId ? (s.trades.tradesByAccount[accountId] ?? []).some((t) => t.status === "OPEN") : false));
+  // Any account's open trade counts: it still needs its settlement watched and the screen awake.
+  const hasOpenTrades = useSocket((s) => hasOpenTrade(s.trades.tradesByAccount));
   useKeepAwakeWhileOpen(hasOpenTrades);
+  useSettlementWatchdog(hasOpenTrades);
   useResultFeedback(account?.id ?? null, account?.currency ?? null, boot?.assets);
 
   // Every distinct bootstrap result (first load, post-deposit invalidation, foreground refetch) is merged

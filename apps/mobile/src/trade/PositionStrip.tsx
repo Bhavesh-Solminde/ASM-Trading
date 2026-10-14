@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import { Circle, Svg } from "react-native-svg";
@@ -109,6 +109,7 @@ export function PositionStrip({ accountId, assets, currency }: { accountId: stri
   const trades = useSocket((s) => s.trades.tradesByAccount[accountId]) ?? NO_TRADES;
   const soonest = useMemo(() => soonestOpen(trades), [trades]);
   const sheet = useRef<SheetRef>(null);
+  const openSheet = useCallback(() => sheet.current?.present(), []);
   return (
     <>
       {soonest ? (
@@ -119,7 +120,7 @@ export function PositionStrip({ accountId, assets, currency }: { accountId: stri
             more={soonest.more}
             name={assets.find((a) => a.symbol === soonest.trade.symbol)?.displayName ?? soonest.trade.symbol}
             currency={currency}
-            onOpen={() => sheet.current?.present()}
+            onOpen={openSheet}
           />
         </View>
       ) : null}

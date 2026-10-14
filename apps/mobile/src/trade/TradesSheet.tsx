@@ -1,11 +1,12 @@
 import { forwardRef, memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
-import { clockTime, closedRowDisplay, formatMinor, shortCountdown } from "@asm/client-core";
+import { closedRowDisplay, formatMinor, shortCountdown } from "@asm/client-core";
 import type { TradeView } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
 import { color, radius, space } from "@/theme/tokens";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
+import { closedStamp } from "./closed-stamp";
 import type { AppAsset } from "./markets";
 import { useLiveTrade } from "./useLiveTrade";
 
@@ -99,7 +100,7 @@ const ClosedRow = memo(function ClosedRow({ trade, assets, currency }: { trade: 
   const chip = trade.status === "OPEN" ? null : CHIP[trade.status];
   return (
     <View style={rowBox}>
-      <TradeName trade={trade} assets={assets} detail={`${prices} · ${clockTime(trade.expiryTs)}`} />
+      <TradeName trade={trade} assets={assets} detail={`${prices} · ${closedStamp(trade.expiryTs, Date.now())}`} />
       <View style={{ alignItems: "flex-end", gap: 4 }}>
         <Text style={{ color: amountColor, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
           {`${display.sign}${formatMinor(display.amountMinor, currency)}`}
