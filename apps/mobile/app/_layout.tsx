@@ -1,5 +1,6 @@
 import { BottomSheetModalProvider, useBottomSheetModal } from "@gorhom/bottom-sheet";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { useEffect } from "react";
 import { getLocales } from "expo-localization";
@@ -12,6 +13,7 @@ import { appConfig } from "@/config";
 import { Gatekeeper } from "@/gate/Gatekeeper";
 import { initI18n, localeFromDevice } from "@/i18n";
 import { useLock } from "@/lock/lock-store";
+import { FONT_ASSETS } from "@/theme/font-assets";
 import { color } from "@/theme/tokens";
 import { OfflineBanner } from "@/ui/OfflineBanner";
 import { PrivacyShield } from "@/ui/PrivacyCover";
@@ -39,6 +41,8 @@ function DismissSheetsOnLock() {
 const INSTANT = { animation: "none" } as const;
 
 export default function RootLayout() {
+  // Bundled fonts (no network). An error still lets the app start, in the system font.
+  const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: color.ground }}>
       <QueryClientProvider client={queryClient}>
@@ -53,7 +57,7 @@ export default function RootLayout() {
               <Stack.Screen name="update-required" options={INSTANT} />
             </Stack>
             <DismissSheetsOnLock />
-            <Gatekeeper />
+            <Gatekeeper fontsReady={fontsLoaded || fontError !== null} />
             <OfflineBanner />
             <ToastHost />
           </BottomSheetModalProvider>

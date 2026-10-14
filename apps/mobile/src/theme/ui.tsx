@@ -1,23 +1,73 @@
 import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type TextProps, type ViewStyle } from "react-native";
+import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { OFFLINE_BANNER_HEIGHT, useOfflineVisible } from "@/ui/OfflineBanner";
 import { screenTopPadding } from "./screen-padding";
-import { color, font, radius, space } from "./tokens";
+import { figFamily, scriptFor, uiFamily, type Script, type Weight } from "./font-families";
+import { color, radius, space } from "./tokens";
 
-/** Makes room for the "No connection" strip (drawn over the app, under the status bar) while it shows. */
-export function Screen({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+/**
+ * Makes room for the "No connection" strip while it shows. `bleedTop`: the screen draws its own header under
+ * the status bar (the Trade tab's AppHeader handles the inset and the strip itself).
+ */
+export function Screen({ children, style, bleedTop = false }: { children: ReactNode; style?: ViewStyle; bleedTop?: boolean }) {
   const offline = useOfflineVisible();
-  const paddingTop = screenTopPadding(StyleSheet.flatten(style), offline, OFFLINE_BANNER_HEIGHT);
+  const own = StyleSheet.flatten(style);
+  const paddingTop = bleedTop ? screenTopPadding(own, false, 0) : screenTopPadding(own, offline, OFFLINE_BANNER_HEIGHT);
   return (
-    <SafeAreaView style={[styles.screen, style, { paddingTop }]} edges={["top", "left", "right"]}>
+    <SafeAreaView style={[styles.screen, style, { paddingTop }]} edges={bleedTop ? ["left", "right"] : ["top", "left", "right"]}>
       {children}
     </SafeAreaView>
   );
 }
 
-export function Txt({ variant = "regular", style, ...rest }: TextProps & { variant?: "regular" | "small" | "title" }) {
-  return <Text {...rest} style={[font[variant], style]} />;
+const VARIANT = {
+  regular: { size: 14, weight: 400, color: color.ink },
+  small: { size: 12, weight: 400, color: color.ink2 },
+  title: { size: 20, weight: 600, color: color.ink },
+} as const satisfies Record<string, { size: number; weight: Weight; color: string }>;
+
+export type TxtProps = TextProps & {
+  /** Legacy presets; prefer size/weight/color. */
+  variant?: keyof typeof VARIANT;
+  /** "ui" = Anek (Latin or Devanagari by language), "fig" = Martian Mono. */
+  font?: "ui" | "fig";
+  weight?: Weight;
+  size?: number;
+  color?: string;
+  /** Letter-spacing in em, as on the canvas (-0.02 = -0.02em). */
+  tracking?: number;
+  lineHeight?: number;
+  /** Force a script (the language switch shows हिन्दी in Devanagari on an English screen). */
+  script?: Script;
+};
+
+/** The one text primitive: picks the bundled family by weight and the current language. Never sets fontWeight. */
+export function Txt({ variant, font: kind = "ui", weight, size, color: ink, tracking, lineHeight, script, style, ...rest }: TxtProps) {
+  const { i18n } = useTranslation();
+  const base = variant ? VARIANT[variant] : undefined;
+  const w = weight ?? base?.weight ?? 400;
+  const s = size ?? base?.size ?? 14;
+  const sc = script ?? scriptFor(i18n.language);
+  const family = kind === "fig" ? figFamily(w) : uiFamily(w, sc);
+  const lh = lineHeight ?? Math.round(s * (kind === "ui" && sc === "devanagari" ? 1.5 : 1.3));
+  return (
+    <Text
+      {...rest}
+      style={[
+        { fontFamily: family, fontSize: s, lineHeight: lh, color: ink ?? base?.color ?? color.ink },
+        tracking !== undefined ? { letterSpacing: tracking * s } : null,
+        style,
+      ]}
+    />
+  );
+}
+
+/** Font family for a TextInput (inputs cannot use <Txt>). */
+export function useUiFamily(weight: Weight): string {
+  const { i18n } = useTranslation();
+  return uiFamily(weight, scriptFor(i18n.language));
 }
 
 type ButtonKind = "primary" | "secondary" | "up" | "down";
@@ -80,7 +130,7 @@ export function Row({ children, style }: { children: ReactNode; style?: ViewStyl
 }
 
 export function Skeleton({ height = 16, width = "100%" }: { height?: number; width?: number | `${number}%` }) {
-  return <View style={{ height, width, borderRadius: radius.sm, backgroundColor: color.tile }} />;
+  return <View style={{ height, width, borderRadius: radius.sm, backgroundColor: color.raised }} />;
 }
 
 const styles = StyleSheet.create({

@@ -112,6 +112,15 @@ importers:
       '@asm/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@expo-google-fonts/anek-devanagari':
+        specifier: ^0.4.1
+        version: 0.4.1
+      '@expo-google-fonts/anek-latin':
+        specifier: ^0.4.2
+        version: 0.4.2
+      '@expo-google-fonts/martian-mono':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@expo/log-box':
         specifier: ^57.0.4
         version: 57.0.4(@expo/dom-webview@57.0.1)(expo@57.0.22)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
@@ -148,6 +157,9 @@ importers:
       expo-device:
         specifier: ~57.0.2
         version: 57.0.2(expo@57.0.22)
+      expo-font:
+        specifier: ~57.0.4
+        version: 57.0.4(expo@57.0.22)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       expo-haptics:
         specifier: ~57.0.3
         version: 57.0.3(expo@57.0.22)
@@ -1109,6 +1121,15 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@expo-google-fonts/anek-devanagari@0.4.1':
+    resolution: {integrity: sha512-CSVWJXqRqts4iOrV/wQPSFWTq4Jk7SbicY9RWiix8XMBTK2Mm7fNUNzoBY9Z4jzc0OhemfLDigmP2yZsE6gwPg==}
+
+  '@expo-google-fonts/anek-latin@0.4.2':
+    resolution: {integrity: sha512-y8/+TOD13/XwYIkqFK6mUUZFmdKPnSPYHXsy3OQsnyM2RN5IufVMCIBrE5oNLuL9zLdXFwfPm11F9LA5e5Kf1g==}
+
+  '@expo-google-fonts/martian-mono@0.4.2':
+    resolution: {integrity: sha512-dzrsnjixkbu9O2XgjNaMIl/aSbQ32zqkJW7G5ZvBB1EWudbuqQCnDu1wFzXMsDLY318NAgflmakl1v7fr9/kyQ==}
 
   '@expo-google-fonts/material-symbols@0.4.47':
     resolution: {integrity: sha512-5G4ObZlyGvDzx6g/+NC+RAMeeCc3dc0/HLu/llY5dYZUlNDYzaZWQZwPUzoTixf27riT8I7ur9mQKPYCPFDJzQ==}
@@ -6414,6 +6435,12 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
+  '@expo-google-fonts/anek-devanagari@0.4.1': {}
+
+  '@expo-google-fonts/anek-latin@0.4.2': {}
+
+  '@expo-google-fonts/martian-mono@0.4.2': {}
+
   '@expo-google-fonts/material-symbols@0.4.47': {}
 
   '@expo/cli@57.0.24(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.15)(expo-constants@57.0.18)(expo-font@57.0.4)(expo-router@57.0.21)(expo@57.0.22)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)':
@@ -7804,7 +7831,9 @@ snapshots:
       metro-runtime: 0.84.5
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/metro-config@0.87.1(@babel/core@7.29.7)':
     dependencies:

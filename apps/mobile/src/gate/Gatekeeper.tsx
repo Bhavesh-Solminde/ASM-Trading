@@ -20,7 +20,7 @@ const hideSplash = () => void SplashScreen.hideAsync().catch(() => {});
  * Renders nothing. Boots the session and lock stores, relocks on foreground, and keeps the
  * current route consistent with the session / lock / gate state.
  */
-export function Gatekeeper() {
+export function Gatekeeper({ fontsReady }: { fontsReady: boolean }) {
   const ready = useSession((s) => s.ready);
   const token = useSession((s) => s.token);
   const locked = useLock((s) => s.locked);
@@ -65,9 +65,10 @@ export function Gatekeeper() {
     if (navReady && redirect) router.replace(redirect);
   }, [navReady, redirect, pathname]);
 
-  // Hide the splash only once the user is on the right screen and the app-config answer is in, so a
-  // signed-out, locked, below-min or maintenance user never sees the tabs.
-  const settled = booted && navReady && ready && cfgSettled && redirect === null;
+  // Hide the splash only once the user is on the right screen, the app-config answer is in and the fonts are
+  // registered (text drawn before that would flash in the system font), so a signed-out, locked, below-min or
+  // maintenance user never sees the tabs.
+  const settled = booted && navReady && ready && cfgSettled && fontsReady && redirect === null;
   useEffect(() => {
     if (settled) hideSplash();
   }, [settled]);
