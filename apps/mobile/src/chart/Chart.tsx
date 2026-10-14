@@ -7,29 +7,23 @@ import {
   Rect,
   Skia,
   Text as SkText,
+  type SkFont,
   matchFont,
   vec,
 } from "@shopify/react-native-skia";
-import { memo, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
 import { shortCountdown } from "@asm/client-core";
 import type { CandleDto, TradeView } from "@asm/contracts";
 import { color } from "@/theme/tokens";
-import {
-  historyRetryDelay,
-  isFollowing,
-  nextHistoryRange,
-  prependedCount,
-  shouldRequestOlder,
-  type EdgeState,
-  type HistoryCommit,
-} from "./live";
+import { firstCandleShift, isFollowing, shouldRequestOlder, type EdgeState } from "./live";
 import { buildSeries, type SeriesPaths } from "./paths";
 import { indexForX, nearLeftEdge, priceRange, shiftForPrepend, visibleRange, xForIndex, yForPrice } from "./scale";
 import type { ChartType, Viewport } from "./types";
 import { useChartGestures } from "./useChartGestures";
+import { useHistoryCommit } from "./useHistoryCommit";
 
 const PRICE_AXIS = 56;
 const DEFAULT_VISIBLE = 60;
@@ -100,6 +94,33 @@ const SeriesLayer = memo(function SeriesLayer({ type, series, height }: { type: 
   );
 });
 
+/** An open trade's entry line, direction triangle and countdown. The triangle path is parsed once per position. */
+function TradeLine({
+  direction,
+  y,
+  plotW,
+  label,
+  font,
+}: {
+  direction: TradeView["direction"];
+  y: number;
+  plotW: number;
+  label: string;
+  font: SkFont;
+}) {
+  const tone = direction === "UP" ? color.up : color.down;
+  const tri = useSkPath(
+    direction === "UP" ? `M6 ${y - 4} L14 ${y - 4} L10 ${y - 11} Z` : `M6 ${y - 11} L14 ${y - 11} L10 ${y - 4} Z`,
+  );
+  return (
+    <Group>
+      <Line p1={vec(0, y)} p2={vec(plotW, y)} color={tone} strokeWidth={1} />
+      {tri ? <Path path={tri} color={tone} /> : null}
+      <SkText x={18} y={y - 4} text={label} font={font} color={tone} />
+    </Group>
+  );
+}
+
 export function Chart(props: ChartProps) {
   const { type, candles, forming, lastPrice, precision, openTrades, nowSec, onNearLeftEdge } = props;
   const { t } = useTranslation();
@@ -116,19 +137,23 @@ export function Chart(props: ChartProps) {
   const height = size.height;
   const ready = plotW > 0 && height > 0;
 
-  // Older candles were prepended (first candle moved earlier): shift the edge so a scrolled-back view does not jump.
+  // The front of the list moved (older candles prepended, or the oldest trimmed at the retention cap): shift the
+  // edge so a scrolled-back view keeps the same candles on screen. `indexShift` also carries the shift to a
+  // gesture that is already in progress.
   const firstTs = candles[0]?.openTs ?? null;
-  const [seenFirstTs, setSeenFirstTs] = useState(firstTs);
-  if (seenFirstTs !== firstTs) {
-    setSeenFirstTs(firstTs);
-    const added = prependedCount(seenFirstTs, candles);
-    if (added > 0) {
+  const [seen, setSeen] = useState(candles);
+  const [indexShift, setIndexShift] = useState(0);
+  if (seen[0]?.openTs !== firstTs) {
+    setSeen(candles);
+    const shift = firstCandleShift(seen, candles);
+    if (shift !== 0) {
+      setIndexShift((n) => n + shift);
       setView((v) =>
         v.following
           ? v
           : {
               ...v,
-              rightIndex: shiftForPrepend({ width: 0, height: 0, rightIndex: v.rightIndex, visibleCount: v.visibleCount }, added)
+              rightIndex: shiftForPrepend({ width: 0, height: 0, rightIndex: v.rightIndex, visibleCount: v.visibleCount }, shift)
                 .rightIndex,
             },
       );
@@ -142,28 +167,16 @@ export function Chart(props: ChartProps) {
   const { from, to } = visibleRange(viewport, total);
   const histTo = Math.min(to, closed);
 
-  // The range follows ticks (forming candle, last price, trade entries) but is committed to the history
+  // The last price and forming candle only shape the range while the live edge is in view; scrolled far back,
+  // they would squash the history you are looking at. The range follows ticks but is committed to the history
   // layer at most every 250ms; pan, zoom, resize and new candles commit straight away.
-  const extras = [...(lastPrice !== null ? [lastPrice] : []), ...openTrades.map((tr) => tr.entryPrice)];
+  const liveEdgeVisible = to >= total;
+  const extras = [
+    ...(liveEdgeVisible && lastPrice !== null ? [lastPrice] : []),
+    ...openTrades.map((tr) => tr.entryPrice),
+  ];
   const liveRange = priceRange(all, from, to, extras);
-  const commitRef = useRef<HistoryCommit | null>(null);
-  const commit = nextHistoryRange(
-    commitRef.current,
-    liveRange,
-    [type, candles, from, histTo, plotW, height, rightIndex, view.visibleCount],
-    Date.now(),
-  );
-  commitRef.current = commit;
-  const range = commit.range;
-
-  // A held-back range still has to land when the market goes quiet.
-  const [flushes, flush] = useReducer((n: number) => n + 1, 0);
-  useEffect(() => {
-    const delay = historyRetryDelay(commit, liveRange, Date.now());
-    if (delay === null) return;
-    const id = setTimeout(flush, delay);
-    return () => clearTimeout(id);
-  }, [commit, liveRange.min, liveRange.max, flushes]);
+  const range = useHistoryCommit(liveRange, [type, candles, from, histTo, plotW, height, rightIndex, view.visibleCount]);
 
   // History layer: closed candles only, no last price.
   const history = useMemo(
@@ -187,6 +200,7 @@ export function Chart(props: ChartProps) {
   const gesture = useChartGestures({
     viewport,
     total,
+    indexShift,
     setViewport: (next) =>
       setView({ rightIndex: next.rightIndex, visibleCount: next.visibleCount, following: isFollowing(next.rightIndex, total) }),
     onCrosshair: setCrossX,
@@ -202,51 +216,47 @@ export function Chart(props: ChartProps) {
 
   const crossIndex = crossX !== null && crossX <= plotW ? Math.floor(indexForX(crossX, viewport)) : null;
   const crossCandle = crossIndex !== null && crossIndex >= 0 && crossIndex < total ? all[crossIndex] : undefined;
-  const crossLineX = crossCandle ? xForIndex(crossIndex! + 0.5, viewport) : null;
+  const crossLineX = crossIndex !== null && crossCandle ? xForIndex(crossIndex + 0.5, viewport) : null;
 
   return (
-    <View style={{ flex: 1 }} onLayout={onLayout} accessible accessibilityLabel={t("trade.chartLabel")}>
-      <GestureDetector gesture={gesture}>
-        <Canvas style={{ flex: 1 }}>
-          {ready ? (
-            <>
-              <Group clip={{ x: 0, y: 0, width: plotW, height }}>
-                <SeriesLayer type={type} series={history} height={height} />
-                <SeriesLayer type={type} series={live} height={height} />
+    <View style={{ flex: 1 }} onLayout={onLayout}>
+      <View style={{ flex: 1 }} accessible accessibilityLabel={t("trade.chartLabel")}>
+        <GestureDetector gesture={gesture}>
+          <Canvas style={{ flex: 1 }}>
+            {ready ? (
+              <>
+                <Group clip={{ x: 0, y: 0, width: plotW, height }}>
+                  <SeriesLayer type={type} series={history} height={height} />
+                  <SeriesLayer type={type} series={live} height={height} />
 
-                {openTrades.map((tr) => {
-                  const y = clampY(yForPrice(tr.entryPrice, range, height));
-                  const tone = tr.direction === "UP" ? color.up : color.down;
-                  const left = Math.max(0, tr.expiryTs - nowSec);
-                  const tri =
-                    tr.direction === "UP"
-                      ? `M6 ${y - 4} L14 ${y - 4} L10 ${y - 11} Z`
-                      : `M6 ${y - 11} L14 ${y - 11} L10 ${y - 4} Z`;
-                  return (
-                    <Group key={tr.id}>
-                      <Line p1={vec(0, y)} p2={vec(plotW, y)} color={tone} strokeWidth={1} />
-                      <Path path={tri} color={tone} />
-                      <SkText x={18} y={y - 4} text={shortCountdown(left)} font={font} color={tone} />
-                    </Group>
-                  );
-                })}
+                  {openTrades.map((tr) => (
+                    <TradeLine
+                      key={tr.id}
+                      direction={tr.direction}
+                      y={clampY(yForPrice(tr.entryPrice, range, height))}
+                      plotW={plotW}
+                      label={shortCountdown(Math.max(0, tr.expiryTs - nowSec))}
+                      font={font}
+                    />
+                  ))}
 
-                {priceY !== null ? <Line p1={vec(0, priceY)} p2={vec(plotW, priceY)} color={color.brand} strokeWidth={1} /> : null}
-                {crossLineX !== null ? (
-                  <Line p1={vec(crossLineX, 0)} p2={vec(crossLineX, height)} color={color.ink2} strokeWidth={1} />
-                ) : null}
-              </Group>
-
-              {priceY !== null && lastPrice !== null ? (
-                <Group>
-                  <Rect x={plotW} y={priceY - 9} width={PRICE_AXIS} height={18} color={color.brand} />
-                  <SkText x={plotW + 4} y={priceY + 4} text={fmt(lastPrice)} font={font} color={color.brandInk} />
+                  {priceY !== null ? <Line p1={vec(0, priceY)} p2={vec(plotW, priceY)} color={color.brand} strokeWidth={1} /> : null}
+                  {crossLineX !== null ? (
+                    <Line p1={vec(crossLineX, 0)} p2={vec(crossLineX, height)} color={color.ink2} strokeWidth={1} />
+                  ) : null}
                 </Group>
-              ) : null}
-            </>
-          ) : null}
-        </Canvas>
-      </GestureDetector>
+
+                {priceY !== null && lastPrice !== null ? (
+                  <Group>
+                    <Rect x={plotW} y={priceY - 9} width={PRICE_AXIS} height={18} color={color.brand} />
+                    <SkText x={plotW + 4} y={priceY + 4} text={fmt(lastPrice)} font={font} color={color.brandInk} />
+                  </Group>
+                ) : null}
+              </>
+            ) : null}
+          </Canvas>
+        </GestureDetector>
+      </View>
 
       {crossCandle ? (
         <View

@@ -1,69 +1,66 @@
 import type { CandleDto } from "@asm/contracts";
-import type { PriceRange } from "./types";
+import { shiftForPrepend } from "./scale";
+import type { PriceRange, Viewport } from "./types";
 
 /** Tick-driven history rebuilds are limited to this cadence; the live layer redraws per tick. */
 export const HISTORY_INTERVAL_MS = 250;
 
-export interface HistoryCommit {
-  /** The price range the history layer (and the live layer, for coherence) is drawn with. */
-  range: PriceRange;
-  /** The structural inputs this range was committed for; any change commits immediately. */
-  key: readonly unknown[];
-  /** Epoch ms of the commit. */
-  at: number;
+/** Entry-wise identity comparison of two structural keys. */
+export function isSameKey(a: readonly unknown[], b: readonly unknown[]): boolean {
+  return a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
 }
 
-const sameKey = (a: readonly unknown[], b: readonly unknown[]) =>
-  a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
 const sameRange = (a: PriceRange, b: PriceRange) => a.min === b.min && a.max === b.max;
 
 /**
- * Throttle for the history layer. A structural change (pan, zoom, resize, a new closed candle, chart type)
- * commits the live range straight away; a range change alone (a tick moved the forming candle or last
- * price) only commits once `interval` ms have passed since the last commit. Returns `prev` itself when
- * nothing is committed, so callers can memoise on the object.
+ * Ms until a held-back range may be committed to the history layer (so a quiet market still flushes),
+ * or null if the live range equals the committed one. Structural changes (pan, zoom, resize, new
+ * candle) are committed immediately by the caller and never wait.
  */
-export function nextHistoryRange(
-  prev: HistoryCommit | null,
-  live: PriceRange,
-  key: readonly unknown[],
-  nowMs: number,
-  interval = HISTORY_INTERVAL_MS,
-): HistoryCommit {
-  if (prev === null || !sameKey(prev.key, key)) return { range: live, key, at: nowMs };
-  if (sameRange(prev.range, live)) return prev;
-  return nowMs - prev.at >= interval ? { range: live, key, at: nowMs } : prev;
-}
-
-/** Ms until a held-back range may be committed (so a quiet market still flushes), or null if none is held back. */
 export function historyRetryDelay(
-  prev: HistoryCommit,
+  committed: PriceRange,
+  committedAtMs: number,
   live: PriceRange,
   nowMs: number,
   interval = HISTORY_INTERVAL_MS,
 ): number | null {
-  if (sameRange(prev.range, live)) return null;
-  return Math.max(0, interval - (nowMs - prev.at));
+  if (sameRange(committed, live)) return null;
+  return Math.max(0, interval - (nowMs - committedAtMs));
 }
 
-/**
- * How many older candles were prepended, judged by the first candle moving earlier. Zero for a first load,
- * an emptied list, a first candle that was not simply pushed right (symbol change), or one trimmed away.
- */
-export function prependedCount(prevFirstTs: number | null, candles: readonly CandleDto[]): number {
-  const first = candles[0];
-  if (prevFirstTs === null || first === undefined || first.openTs >= prevFirstTs) return 0;
+const indexOfOpenTs = (candles: readonly CandleDto[], openTs: number): number => {
   let lo = 0;
   let hi = candles.length - 1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
     const ts = candles[mid]!.openTs;
-    if (ts === prevFirstTs) return mid;
-    if (ts < prevFirstTs) lo = mid + 1;
+    if (ts === openTs) return mid;
+    if (ts < openTs) lo = mid + 1;
     else hi = mid - 1;
   }
-  return 0;
+  return -1;
+};
+
+/**
+ * By how many indices the candles on screen moved when the list changed at the front: positive when
+ * older candles were prepended, negative when the front was trimmed (the retention cap). Zero when the
+ * first candle did not move, a list is empty, or the lists do not overlap (symbol change).
+ */
+export function firstCandleShift(prev: readonly CandleDto[], next: readonly CandleDto[]): number {
+  const before = prev[0];
+  const after = next[0];
+  if (before === undefined || after === undefined || before.openTs === after.openTs) return 0;
+  if (after.openTs < before.openTs) return Math.max(0, indexOfOpenTs(next, before.openTs));
+  const trimmed = indexOfOpenTs(prev, after.openTs);
+  return trimmed > 0 ? -trimmed : 0;
 }
+
+/**
+ * A gesture's start viewport, moved by the index shift that landed since the gesture began, so a
+ * prepend (or trim) mid-gesture keeps the same candles under the finger.
+ */
+export const startViewport = (start: Viewport, shiftAtStart: number, shiftNow: number): Viewport =>
+  shiftForPrepend(start, shiftNow - shiftAtStart);
 
 export interface EdgeState {
   near: boolean;

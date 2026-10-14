@@ -2,82 +2,86 @@ import { describe, expect, it } from "vitest";
 import type { CandleDto } from "@asm/contracts";
 import {
   HISTORY_INTERVAL_MS,
+  firstCandleShift,
   historyRetryDelay,
   isFollowing,
-  nextHistoryRange,
-  prependedCount,
+  isSameKey,
   shouldRequestOlder,
-  type HistoryCommit,
+  startViewport,
 } from "./live";
+import { panBy, zoomAround } from "./scale";
+import type { Viewport } from "./types";
 
 const R1 = { min: 1, max: 2 };
 const R2 = { min: 1, max: 3 };
 const c = (openTs: number): CandleDto => ({ openTs, o: 1, h: 2, l: 0, c: 1 });
 
-describe("nextHistoryRange", () => {
-  it("commits the first range immediately", () => {
-    expect(nextHistoryRange(null, R1, ["a"], 1000)).toEqual({ range: R1, key: ["a"], at: 1000 });
-  });
-
-  it("holds the committed range when only the range changed inside the interval", () => {
-    const prev: HistoryCommit = { range: R1, key: ["a"], at: 1000 };
-    expect(nextHistoryRange(prev, R2, ["a"], 1000 + HISTORY_INTERVAL_MS - 1)).toBe(prev);
-  });
-
-  it("commits a changed range once the interval has elapsed", () => {
-    const prev: HistoryCommit = { range: R1, key: ["a"], at: 1000 };
-    expect(nextHistoryRange(prev, R2, ["a"], 1000 + HISTORY_INTERVAL_MS)).toEqual({
-      range: R2,
-      key: ["a"],
-      at: 1000 + HISTORY_INTERVAL_MS,
-    });
-  });
-
-  it("commits immediately when a structural input changed (pan, zoom, new candle)", () => {
-    const prev: HistoryCommit = { range: R1, key: ["a", 1], at: 1000 };
-    expect(nextHistoryRange(prev, R2, ["a", 2], 1001)).toEqual({ range: R2, key: ["a", 2], at: 1001 });
-  });
-
-  it("compares key entries by identity (a new candles array is a change)", () => {
-    const a = [c(0)];
-    const prev: HistoryCommit = { range: R1, key: [a], at: 1000 };
-    expect(nextHistoryRange(prev, R1, [a], 1001)).toBe(prev);
-    expect(nextHistoryRange(prev, R1, [[c(0)]], 1001).at).toBe(1001);
-  });
-
-  it("keeps the same commit object when nothing changed", () => {
-    const prev: HistoryCommit = { range: R1, key: ["a"], at: 1000 };
-    expect(nextHistoryRange(prev, { ...R1 }, ["a"], 5000)).toBe(prev);
+describe("isSameKey", () => {
+  it("compares entries by identity", () => {
+    const candles = [c(0)];
+    expect(isSameKey(["a", candles, 1], ["a", candles, 1])).toBe(true);
+    expect(isSameKey(["a", candles], ["a", [c(0)]])).toBe(false);
+    expect(isSameKey(["a"], ["a", 1])).toBe(false);
   });
 });
 
 describe("historyRetryDelay", () => {
-  const prev: HistoryCommit = { range: R1, key: ["a"], at: 1000 };
   it("is null when the live range equals the committed one", () => {
-    expect(historyRetryDelay(prev, { ...R1 }, 1100)).toBeNull();
+    expect(historyRetryDelay(R1, 1000, { ...R1 }, 1100)).toBeNull();
   });
   it("is the time left until the interval elapses", () => {
-    expect(historyRetryDelay(prev, R2, 1100)).toBe(HISTORY_INTERVAL_MS - 100);
+    expect(historyRetryDelay(R1, 1000, R2, 1100)).toBe(HISTORY_INTERVAL_MS - 100);
   });
   it("is 0 when already due", () => {
-    expect(historyRetryDelay(prev, R2, 9000)).toBe(0);
+    expect(historyRetryDelay(R1, 1000, R2, 9000)).toBe(0);
   });
 });
 
-describe("prependedCount", () => {
-  it("counts the candles added before the previously-first candle", () => {
-    expect(prependedCount(120, [c(0), c(60), c(120), c(180)])).toBe(2);
+describe("firstCandleShift", () => {
+  it("is the number of candles prepended", () => {
+    expect(firstCandleShift([c(120), c(180)], [c(0), c(60), c(120), c(180), c(240)])).toBe(2);
+  });
+  it("is negative when the front was trimmed", () => {
+    expect(firstCandleShift([c(0), c(60), c(120)], [c(60), c(120), c(180)])).toBe(-1);
+    expect(firstCandleShift([c(0), c(60), c(120), c(180)], [c(120), c(180), c(240)])).toBe(-2);
   });
   it("is 0 when the first candle did not move", () => {
-    expect(prependedCount(0, [c(0), c(60)])).toBe(0);
+    expect(firstCandleShift([c(0), c(60)], [c(0), c(60), c(120)])).toBe(0);
   });
-  it("is 0 for a first load, an emptied list, or a first candle that is not in the new list", () => {
-    expect(prependedCount(null, [c(0)])).toBe(0);
-    expect(prependedCount(60, [])).toBe(0);
-    expect(prependedCount(30, [c(0), c(60)])).toBe(0);
+  it("is 0 for a first load, an emptied list, or lists that do not overlap", () => {
+    expect(firstCandleShift([], [c(0)])).toBe(0);
+    expect(firstCandleShift([c(60)], [])).toBe(0);
+    expect(firstCandleShift([c(30), c(90)], [c(0), c(60)])).toBe(0);
+    expect(firstCandleShift([c(0), c(60)], [c(30), c(90)])).toBe(0);
   });
-  it("is 0 when the first candle moved later (trimmed)", () => {
-    expect(prependedCount(0, [c(60), c(120)])).toBe(0);
+});
+
+describe("startViewport", () => {
+  const start: Viewport = { width: 300, height: 200, rightIndex: 100, visibleCount: 60 };
+  const total = 100;
+
+  it("is unchanged when no shift landed during the gesture", () => {
+    expect(startViewport(start, 5, 5)).toEqual(start);
+  });
+
+  it("panning after a prepend shows the same candles as panning without it", () => {
+    const n = 40;
+    const plain = panBy(start, 80, total);
+    const shifted = panBy(startViewport(start, 0, n), 80, total + n);
+    expect(shifted.rightIndex).toBeCloseTo(plain.rightIndex + n, 9);
+    expect(shifted.visibleCount).toBe(plain.visibleCount);
+  });
+
+  it("zooming after a prepend keeps the same candle under the focus", () => {
+    const n = 40;
+    const plain = zoomAround(start, 150, 1.5, total);
+    const shifted = zoomAround(startViewport(start, 0, n), 150, 1.5, total + n);
+    expect(shifted.rightIndex).toBeCloseTo(plain.rightIndex + n, 9);
+  });
+
+  it("only counts the shift since the gesture began, and handles a trim", () => {
+    expect(startViewport(start, 40, 40).rightIndex).toBe(100);
+    expect(startViewport(start, 40, 30).rightIndex).toBe(90);
   });
 });
 

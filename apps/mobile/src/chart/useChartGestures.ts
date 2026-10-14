@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { Gesture } from "react-native-gesture-handler";
+import { startViewport } from "./live";
 import { panBy, zoomAround } from "./scale";
 import type { Viewport } from "./types";
 
@@ -7,6 +8,11 @@ export interface ChartGestureOpts {
   /** The viewport as currently drawn. Read when a gesture starts, never captured in a closure. */
   viewport: Viewport;
   total: number;
+  /**
+   * Cumulative index shift from candles prepended to / trimmed from the front. A gesture's start
+   * viewport is moved by what landed since it began, so a backfill mid-pan does not make the view jump.
+   */
+  indexShift: number;
   setViewport: (vp: Viewport) => void;
   onCrosshair: (x: number | null) => void;
   /** Double tap: back to the live edge. */
@@ -21,10 +27,15 @@ export interface ChartGestureOpts {
  */
 export function useChartGestures(opts: ChartGestureOpts) {
   const latest = useRef(opts);
-  const start = useRef(opts.viewport);
-  useEffect(() => {
+  const start = useRef({ viewport: opts.viewport, shift: opts.indexShift });
+  // Layout effect: runs in the commit itself, so no gesture event can see a stale shift or viewport.
+  useLayoutEffect(() => {
     latest.current = opts;
   });
+  const startNow = () => {
+    const { viewport, shift } = start.current;
+    return startViewport(viewport, shift, latest.current.indexShift);
+  };
 
   return useMemo(() => {
     const pan = Gesture.Pan()
@@ -32,21 +43,21 @@ export function useChartGestures(opts: ChartGestureOpts) {
       .maxPointers(1)
       .minDistance(4)
       .onStart(() => {
-        start.current = latest.current.viewport;
+        start.current = { viewport: latest.current.viewport, shift: latest.current.indexShift };
       })
       .onUpdate((e) => {
         const { total, setViewport } = latest.current;
-        setViewport(panBy(start.current, e.translationX, total));
+        setViewport(panBy(startNow(), e.translationX, total));
       });
 
     const pinch = Gesture.Pinch()
       .runOnJS(true)
       .onStart(() => {
-        start.current = latest.current.viewport;
+        start.current = { viewport: latest.current.viewport, shift: latest.current.indexShift };
       })
       .onUpdate((e) => {
         const { total, setViewport } = latest.current;
-        setViewport(zoomAround(start.current, e.focalX, e.scale, total));
+        setViewport(zoomAround(startNow(), e.focalX, e.scale, total));
       });
 
     // Pan that only activates after a 250ms hold; moving earlier fails it so the plain pan above takes over.
