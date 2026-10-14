@@ -4,7 +4,7 @@ import { childLogger } from "@asm/logger";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { getSession, unauthenticated } from "@/lib/request-session";
 
 // The client downsizes photos to a few hundred KB before upload; this cap is
 // for the odd one that arrives as-is (e.g. canvas unsupported). The bytes are
@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
 
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
-  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return unauthenticated();
 
   if ((await checkNetwork({ ip: ctx.ip, route: "kyc_document", log, userId: session.userId })).blocked) {
     return vpnBlockedResponse();

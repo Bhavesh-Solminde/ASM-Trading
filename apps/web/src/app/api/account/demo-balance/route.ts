@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { setDemoBalance, DemoBalanceRefused } from "@asm/db";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { getSession, unauthenticated } from "@/lib/request-session";
 
 /**
  * Sets the caller's DEMO balance to `amountMinor` (minor units), or resets it to
@@ -8,9 +8,9 @@ import { SESSION_COOKIE, readSession } from "@/lib/session";
  * cap are enforced in the repository.
  */
 export async function POST(req: NextRequest) {
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   const body = (await req.json().catch(() => null)) as

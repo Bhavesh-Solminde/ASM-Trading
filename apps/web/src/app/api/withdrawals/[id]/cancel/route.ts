@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { WithdrawalRefused, cancelHeldWithdrawal, listAccountsForActor } from "@asm/db";
 import { childLogger } from "@asm/logger";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
+import { getSession, unauthenticated } from "@/lib/request-session";
 
 /**
  * Cancels a HELD withdrawal and refunds the money to the user's realBalance.
@@ -22,9 +22,9 @@ export async function POST(
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
 
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   if ((await checkNetwork({ ip: ctx.ip, route: "withdrawals_cancel", log, userId: session.userId })).blocked) {

@@ -2,12 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { OpenTradeSchema, tradeViewFrom } from "@asm/contracts";
 import { formatMoney, getAccountForActor, listTradesForActor, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { minStakeMinor } from "@/lib/currency";
 import { EngineRejected, EngineUnavailable, engineOpenTrade } from "@/lib/engine-client";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
+import { getSession, unauthenticated } from "@/lib/request-session";
 
 const REJECTION_MESSAGE: Record<string, string> = {
   insufficient_funds: "Not enough balance for that stake.",
@@ -26,9 +26,9 @@ export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
 
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   if ((await checkNetwork({ ip: ctx.ip, route: "trades", log, userId: session.userId })).blocked) {
@@ -83,9 +83,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   const accountId = OpenTradeSchema.shape.accountId.safeParse(

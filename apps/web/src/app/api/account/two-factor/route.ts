@@ -1,14 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { TwoFaToggleSchema } from "@asm/contracts";
 import { issueTwoFactorCode, setTwoFactorPreferences } from "@asm/db";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getSession, unauthenticated } from "@/lib/request-session";
 
 /** PATCH updates preferences. POST issues a code for the given purpose. */
 export async function PATCH(req: NextRequest) {
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   const parsed = TwoFaToggleSchema.safeParse(await req.json().catch(() => null));
@@ -21,9 +21,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   if (!(await checkRateLimit(`rl:2fa:${session.userId}`, 5, 300))) {

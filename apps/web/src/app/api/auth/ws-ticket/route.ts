@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { childLogger } from "@asm/logger";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
 import { issueWsTicket } from "@/lib/ws-ticket";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
+import { getSession, rateLimited, unauthenticated } from "@/lib/request-session";
 
 /**
  * Mints a one-time WebSocket ticket for the signed-in caller. POST, not GET:
@@ -14,9 +14,9 @@ export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
 
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   if ((await checkNetwork({ ip: ctx.ip, route: "ws_ticket", log, userId: session.userId })).blocked) {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   // still bounds a script hammering the endpoint.
   if (!(await checkRateLimit(`rl:ws_ticket:${session.userId}`, 30, 60))) {
     log.warn({ evt: "security.rate_limited", route: "ws_ticket" }, "ws ticket throttled");
-    return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+    return rateLimited();
   }
 
   const ticket = await issueWsTicket(session.userId);
