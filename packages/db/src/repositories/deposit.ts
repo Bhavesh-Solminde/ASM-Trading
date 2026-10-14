@@ -1,13 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { sendDepositCreditedEmail } from "@asm/mail";
 import { personName } from "@asm/mail/templates";
-import { prisma } from "../client";
+import { prisma, type DbTransaction } from "../client";
 import { formatMoney } from "../money";
 import { flagLinkageForUser } from "./fraud";
 import { convertMinorBetween } from "./account";
-import type { Deposit, Prisma } from "../../generated/prisma/client";
+import type { Deposit } from "../models";
 
-type Tx = Prisma.TransactionClient;
+type Tx = DbTransaction;
 
 /**
  * The PSP-style conversion rate. Deliberately above interbank — that spread is

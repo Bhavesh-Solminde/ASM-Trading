@@ -1,5 +1,5 @@
 import { prisma } from "../client";
-import type { Withdrawal } from "../../generated/prisma/client";
+import type { Withdrawal } from "../models";
 
 export class WithdrawalRefused extends Error {
   constructor(message: string) {

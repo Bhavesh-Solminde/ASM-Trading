@@ -6,7 +6,7 @@ import {
   MIN_DEPOSIT_USDT_MINOR,
   creditDepositToAccount,
 } from "./deposit";
-import type { ChainCredit, Deposit } from "../../generated/prisma/client";
+import type { ChainCredit, Deposit } from "../models";
 
 /**
  * Payment-gateway (Tatum) USDT deposits: every deposit is issued its OWN

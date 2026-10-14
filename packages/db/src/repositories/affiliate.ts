@@ -1,5 +1,5 @@
 import { prisma } from "../client";
-import type { Account, User } from "../../generated/prisma/client";
+import type { Account, User } from "../models";
 
 /**
  * Daily play float for an affiliate account, in paise. ₹10,000 — set via

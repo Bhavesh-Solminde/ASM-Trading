@@ -116,7 +116,7 @@ export default async function OverviewPage() {
     prisma.asset.count(),
     prisma.supportTicket.count({ where: { status: "OPEN" } }),
     prisma.$queryRaw<{ day: Date; total: bigint }[]>`
-      SELECT date_trunc('day', "createdAt") AS day, COALESCE(SUM("stake"), 0) AS total
+      SELECT date_trunc('day', "createdAt") AS day, COALESCE(SUM("stake"), 0)::bigint AS total
       FROM "Trade"
       WHERE "createdAt" >= ${since30}
       GROUP BY 1 ORDER BY 1`,

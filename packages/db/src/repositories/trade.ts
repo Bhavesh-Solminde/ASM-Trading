@@ -7,15 +7,9 @@ import {
   type Outcome,
   type Position,
 } from "@asm/trading";
-import { prisma } from "../client";
-import type {
-  Direction,
-  PathStyle,
-  Prisma,
-  Trade,
-  TradeShadow,
-  TradeVerdict,
-} from "../../generated/prisma/client";
+import { prisma, type DbTransaction } from "../client";
+import type { Direction, PathStyle, TradeVerdict } from "../../generated/prisma/client";
+import type { Trade, TradeShadow } from "../models";
 
 export class InsufficientFunds extends Error {
   constructor() {
@@ -72,7 +66,7 @@ class VersionConflict extends Error {}
 
 const MAX_ATTEMPTS = 5;
 
-type Tx = Prisma.TransactionClient;
+type Tx = DbTransaction;
 
 export interface OpenTradeInput {
   accountId: string;

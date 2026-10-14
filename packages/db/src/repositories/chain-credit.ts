@@ -1,6 +1,6 @@
 import { prisma } from "../client";
 import { rawToNormalizedMinor } from "../usdt-money";
-import type { ChainCredit } from "../../generated/prisma/client";
+import type { ChainCredit } from "../models";
 
 /**
  * The ChainCredit analog of createBankCreditIfNew. Returns null on a

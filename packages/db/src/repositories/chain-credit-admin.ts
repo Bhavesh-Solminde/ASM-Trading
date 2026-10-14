@@ -1,6 +1,6 @@
 import { prisma } from "../client";
 import { creditDepositToAccount, DepositAlreadyResolved } from "./deposit";
-import type { ChainCredit, Deposit } from "../../generated/prisma/client";
+import type { ChainCredit, Deposit } from "../models";
 
 /**
  * Admin-side handling of USDT ChainCredits the matcher could not auto-credit

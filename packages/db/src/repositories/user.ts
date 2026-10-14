@@ -1,5 +1,6 @@
 import { prisma } from "../client";
-import type { User, UserStatus } from "../../generated/prisma/client";
+import type { UserStatus } from "../../generated/prisma/client";
+import type { User } from "../models";
 
 /**
  * Users are not user-owned rows in the same sense — a person looks up only

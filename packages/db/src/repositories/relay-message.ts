@@ -1,5 +1,5 @@
 import { prisma } from "../client";
-import type { RelayMessage } from "../../generated/prisma/client";
+import type { RelayMessage } from "../models";
 
 export async function createRelayMessage(input: {
   source: string;

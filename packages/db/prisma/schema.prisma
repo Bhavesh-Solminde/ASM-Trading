@@ -204,7 +204,7 @@ model User {
   kycReviewNote      String?
   // Google account id ("sub") once the user has signed in with Google.
   googleSub          String?    @unique
-  cumulativeDeposits Int        @default(0)
+  cumulativeDeposits BigInt     @default(0)
   isBot              Boolean    @default(false)
   // Compliance/anti-fraud status. A non-ACTIVE status blocks new trades,
   // bonus grants and withdrawals; the status is set by the linked-accounts
@@ -263,17 +263,17 @@ model Account {
   userId            String
   type              AccountType
   currency          String          @default("INR")
-  realBalance       Int             @default(0)
-  bonusBalance      Int             @default(0)
-  turnoverProgress  Int             @default(0)
+  realBalance       BigInt          @default(0)
+  bonusBalance      BigInt          @default(0)
+  turnoverProgress  BigInt          @default(0)
   lifecycleStage    LifecycleStage  @default(PRE_DEPOSIT)
   rollingWinRate    Float           @default(0)
   tradesCount       Int             @default(0)
-  medianStake       Int             @default(100)
+  medianStake       BigInt          @default(100)
   lossStreak        Int             @default(0)
   winStreak         Int             @default(0)
   lifecycleOverride LifecycleStage?
-  dailyLimit        Int?
+  dailyLimit        BigInt?
   version           Int             @default(0)
   // Set only on affiliate accounts: the IST timestamp of the last daily reset
   // to the ₹10,000 play float. Daily-reset job uses this as an idempotency
@@ -344,16 +344,16 @@ model Trade {
   accountId      String
   assetId        String
   direction      Direction
-  stake          Int
+  stake          BigInt
   /// The part of `stake` drawn from bonusBalance. Settlement credits return in this proportion.
-  stakeFromBonus Int         @default(0)
+  stakeFromBonus BigInt      @default(0)
   payoutPct      Int
   entryPrice     Float
   entryTs        DateTime
   expiryTs       DateTime
   exitPrice      Float?
   status         TradeStatus @default(OPEN)
-  pnl            Int         @default(0)
+  pnl            BigInt      @default(0)
   createdAt      DateTime    @default(now())
 
   /// House-governor fields — stamped at open on live trades; null for
@@ -375,10 +375,10 @@ model Trade {
 /// trade. Drives the governor's win-probability ladder.
 model HouseDay {
   date                DateTime @id @db.Date
-  targetProfitMinor   Int
-  realizedProfitMinor Int      @default(0)
-  totalStakesMinor    Int      @default(0)
-  totalPayoutsMinor   Int      @default(0)
+  targetProfitMinor   BigInt
+  realizedProfitMinor BigInt   @default(0)
+  totalStakesMinor    BigInt   @default(0)
+  totalPayoutsMinor   BigInt   @default(0)
   tradesSettled       Int      @default(0)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -391,8 +391,8 @@ model HouseDay {
 /// trade when `USE_GLG_TREASURY` is on. Read once per trade open.
 model HouseTreasury {
   id                  Int      @id @default(1)
-  treasuryMinor       Int      @default(0)
-  treasuryTargetMinor Int      @default(1000000)
+  treasuryMinor       BigInt   @default(0)
+  treasuryTargetMinor BigInt   @default(1000000)
   updatedAt           DateTime @updatedAt
 }
 
@@ -407,8 +407,8 @@ model TradeShadow {
   biasApplied      Float
   magnetApplied    Float
   imbalanceAtEntry Float
-  exposureUp       Int
-  exposureDown     Int
+  exposureUp       BigInt
+  exposureDown     BigInt
   lifecycleStage   String
   wantedWin        Boolean?
   winProbability   Float?
@@ -431,8 +431,8 @@ model Deposit {
   id              String        @id @default(uuid())
   userId          String
   method          String
-  amountUsd       Int
-  amountInr       Int
+  amountUsd       BigInt
+  amountInr       BigInt
   vpa             String
   checkoutToken   String        @unique
   claimedUtr      String?
@@ -463,7 +463,7 @@ model Deposit {
   // the token's native 6dp. See usdt-money.ts and the design doc's precision
   // section for why 6dp would silently overflow Int32 balances and lose
   // sub-cent value the ledger has nowhere to put.
-  amountUsdtMinor Int?
+  amountUsdtMinor BigInt?
   matchedChainCreditId String? @unique
   // Set only by the USDT matcher when this deposit lands in manual review.
   // Nothing else in this codebase populates this today — the INR path has no
@@ -591,7 +591,7 @@ model GatewaySweep {
 model BankCredit {
   id         String   @id @default(uuid())
   vpa        String
-  amountInr  Int
+  amountInr  BigInt
   utr        String   @unique
   receivedAt DateTime
   raw        String?
@@ -614,7 +614,7 @@ model RelayMessage {
   sender          String?
   body            String
   receivedAt      DateTime
-  parsedAmountInr Int?
+  parsedAmountInr BigInt?
   parsedUtr       String?
   isCredit        Boolean?
   bankCreditId    String?
@@ -664,7 +664,7 @@ model ChainCredit {
   // accounting precision.
   // Never coerced/rounded into a value; a null here always routes to
   // MANUAL_REVIEW/PRECISION_NOT_REPRESENTABLE, never silently dropped.
-  normalizedAmountMinor Int?
+  normalizedAmountMinor BigInt?
   blockNumber     BigInt
   blockTimestamp  DateTime
   finalityState   ChainCreditFinalityState @default(DETECTED)
@@ -732,7 +732,7 @@ model ChainScanCursor {
 model Withdrawal {
   id         String           @id @default(uuid())
   userId     String
-  amount     Int
+  amount     BigInt
   method     String
   status     WithdrawalStatus @default(REQUESTED)
   reviewedBy String?
@@ -775,8 +775,8 @@ model Transaction {
   id           String   @id @default(uuid())
   accountId    String
   kind         TxKind
-  amount       Int
-  balanceAfter Int
+  amount       BigInt
+  balanceAfter BigInt
   refType      String?
   refId        String?
   createdAt    DateTime @default(now())
@@ -814,9 +814,9 @@ model KycDocument {
 model BonusGrant {
   id               String   @id @default(uuid())
   accountId        String
-  amount           Int
-  turnoverRequired Int
-  turnoverDone     Int      @default(0)
+  amount           BigInt
+  turnoverRequired BigInt
+  turnoverDone     BigInt   @default(0)
   status           String   @default("ACTIVE")
   createdAt        DateTime @default(now())
 
