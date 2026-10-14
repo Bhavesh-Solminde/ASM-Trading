@@ -36,7 +36,10 @@
     "noMarkets": "No markets match your search", "addFavourite": "Add {{name}} to favourites",
     "removeFavourite": "Remove {{name}} from favourites", "selectMarket": "Market: {{name}}. Tap to change.",
     "failed": "Trade failed.", "maxStake": "Maximum stake is {{amount}}", "delete": "Delete", "point": "Decimal point",
-    "expiryOption": "Expiry {{label}}", "stakeButton": "Stake {{amount}}. Tap to change.", "stakeKeypad": "Stake amount"
+    "expiryOption": "Expiry {{label}}", "stakeButton": "Stake {{amount}}. Tap to change.", "stakeKeypad": "Stake amount",
+    "trades": "Trades", "moreOpen": "+{{n}} more", "ifClosedNow": "if it closed now",
+    "positionLabel": "{{side}} {{name}}, stake {{stake}}, {{time}} left. Tap to see your trades.",
+    "tabCount": "{{name}}, {{n}}", "statusWon": "Won", "statusLost": "Lost", "statusRefund": "Refund"
   },
   "bonus": {
     "title": "Deposit bonus", "subtitle": "Extra trading balance on each of your first {{n}} deposits.",

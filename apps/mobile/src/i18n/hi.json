@@ -36,7 +36,10 @@
     "noMarkets": "आपकी खोज से कोई मार्केट नहीं मिला", "addFavourite": "{{name}} को पसंदीदा में जोड़ें",
     "removeFavourite": "{{name}} को पसंदीदा से हटाएं", "selectMarket": "मार्केट: {{name}}। बदलने के लिए टैप करें।",
     "failed": "ट्रेड नहीं हो सका।", "maxStake": "अधिकतम राशि {{amount}} है", "delete": "मिटाएं", "point": "दशमलव बिंदु",
-    "expiryOption": "समय {{label}}", "stakeButton": "राशि {{amount}}। बदलने के लिए टैप करें।", "stakeKeypad": "राशि दर्ज करें"
+    "expiryOption": "समय {{label}}", "stakeButton": "राशि {{amount}}। बदलने के लिए टैप करें।", "stakeKeypad": "राशि दर्ज करें",
+    "trades": "ट्रेड", "moreOpen": "+{{n}} और", "ifClosedNow": "अभी बंद हो तो",
+    "positionLabel": "{{side}} {{name}}, राशि {{stake}}, {{time}} बाकी। अपने ट्रेड देखने के लिए टैप करें।",
+    "tabCount": "{{name}}, {{n}}", "statusWon": "जीत", "statusLost": "हार", "statusRefund": "वापसी"
   },
   "bonus": {
     "title": "डिपॉज़िट बोनस", "subtitle": "आपके पहले {{n}} डिपॉज़िट में से हर एक पर अतिरिक्त ट्रेडिंग बैलेंस।",

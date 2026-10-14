@@ -15,6 +15,7 @@ import { Dock } from "@/trade/Dock";
 import { findAsset, nextBonus, precisionFor, resolveSymbol, toggleFavourite } from "@/trade/markets";
 import { MarketPill } from "@/trade/MarketPill";
 import { PositionStrip } from "@/trade/PositionStrip";
+import { useResultFeedback } from "@/trade/ResultToast";
 import { SentimentBar } from "@/trade/SentimentBar";
 import { StatusRow } from "@/trade/StatusRow";
 import { TopBar } from "@/trade/TopBar";
@@ -76,6 +77,7 @@ export default function Trade() {
 
   const hasOpenTrades = useSocket((s) => (accountId ? (s.trades.tradesByAccount[accountId] ?? []).some((t) => t.status === "OPEN") : false));
   useKeepAwakeWhileOpen(hasOpenTrades);
+  useResultFeedback(account?.id ?? null, account?.currency ?? null, boot?.assets);
 
   // Every distinct bootstrap result (first load, post-deposit invalidation, foreground refetch) is merged
   // into the store; the merge never rolls back anything the socket delivered since the request started.
@@ -154,7 +156,7 @@ export default function Trade() {
           </View>
         ) : null}
       </View>
-      {boot && accountId ? <PositionStrip accountId={accountId} /> : null}
+      {boot && account ? <PositionStrip accountId={account.id} assets={boot.assets} currency={account.currency} /> : null}
       {boot && accountId && asset ? <Dock boot={boot} accountId={accountId} asset={asset} /> : null}
       {boot ? <BonusSheet ref={bonusSheet} completedDeposits={boot.completedDeposits} /> : null}
     </Screen>
