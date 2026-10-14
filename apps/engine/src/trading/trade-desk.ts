@@ -52,6 +52,7 @@ import { logger } from "@asm/logger";
 import type { AssetRegistry } from "../assets/registry";
 import type { ControllerBridge } from "../algo/controller-bridge";
 import { DeskRejection } from "./errors";
+import { demoSettlementExits } from "./demo-settlement";
 import {
   applyOpenTimeOverrides,
   expiryTickBucket,
@@ -573,48 +574,11 @@ export class TradeDesk {
       const exitPrice = Number(asset.state.price.toFixed(asset.precision));
       const honestExitPrice = this.assets.honestPrice(symbol);
 
-      // Demo inverted-majority (user design 2026-10-12). Group this
-      // bucket's demos by direction. If a strict majority of the group
-      // stamped LOSS, every demo in the group loses; otherwise every
-      // demo in the group wins. Opposite of the LIVE rule — demos stay
-      // user-friendly, but concurrent demos no longer get per-trade
-      // targetPrices that visibly disagree with each other. Chart stays
-      // honest/LIVE-driven; this only decides each demo's exit.
-      const demoGroupExit = new Map<"UP" | "DOWN", number>();
-      {
-        const demoByDir = new Map<"UP" | "DOWN", typeof bucket.positions>();
-        for (const p of bucket.positions) {
-          if (!p.isDemo) continue;
-          if (!p.verdict || p.verdict === "HONEST") continue;
-          const list = demoByDir.get(p.direction) ?? [];
-          list.push(p);
-          demoByDir.set(p.direction, list);
-        }
-        for (const [direction, group] of demoByDir) {
-          let lossCount = 0;
-          for (const p of group) if (p.verdict === "LOSS") lossCount += 1;
-          const majorityLoss = group.length >= 5 && lossCount / group.length >= 0.6;
-          let minE = group[0]!.entryPrice;
-          let maxE = minE;
-          for (let i = 1; i < group.length; i++) {
-            const e = group[i]!.entryPrice;
-            if (e < minE) minE = e;
-            if (e > maxE) maxE = e;
-          }
-          const forced =
-            direction === "UP"
-              ? majorityLoss
-                ? minE - asset.tickSize
-                : maxE + asset.tickSize
-              : majorityLoss
-                ? maxE + asset.tickSize
-                : minE - asset.tickSize;
-          demoGroupExit.set(
-            direction,
-            Number(forced.toFixed(asset.precision)),
-          );
-        }
-      }
+      // Demo inverted-majority (user design 2026-10-12): co-direction demo
+      // groups of 5+ settle together; smaller groups settle by their own
+      // stamped verdict. Chart stays honest/LIVE-driven; this only decides
+      // each demo's exit. See demo-settlement.ts.
+      const demoExits = demoSettlementExits(bucket.positions, asset.tickSize, asset.precision);
 
       for (const position of bucket.positions) {
         const pending: PendingSettlement = {
@@ -627,25 +591,13 @@ export class TradeDesk {
 
         // Demo isolation (Option B, 2026-10-05). Demos never contribute to
         // the shown chart (the tick loop already filters them out of the
-        // magnet). At settlement, instead of inheriting the shared bucket
-        // exit, each demo gets its own exitPrice from the GLG stamp so the
-        // user-visible outcome matches DEMO_WIN_RATE exactly:
-        //   WIN  → exitPrice = targetPrice (favors user's direction)
-        //   LOSS → exitPrice = targetPrice (against user's direction)
-        // The targetPrice was set at open based on (verdict × direction),
-        // so writing it back as exitPrice makes WIN/LOSS deterministic.
-        // Marking `resolvedExitPrice` here means the bucket resolver skips
-        // this item — demos never share a resolved price with live trades.
-        if (
-          position.isDemo &&
-          position.verdict != null &&
-          position.verdict !== "HONEST" &&
-          demoGroupExit.has(position.direction)
-        ) {
-          // All co-direction demos in this bucket settle at the SAME
-          // majority-forced exit (inverted rule: majority LOSS → all
-          // lose; otherwise all win).
-          pending.resolvedExitPrice = demoGroupExit.get(position.direction)!;
+        // magnet). Each stamped demo settles at the exit from
+        // demoSettlementExits; marking `resolvedExitPrice` means the bucket
+        // resolver skips it — demos never share a resolved price with live
+        // trades.
+        const demoExit = demoExits.get(position.tradeId);
+        if (demoExit !== undefined) {
+          pending.resolvedExitPrice = demoExit;
         } else {
           // Live (or honest-grandfathered) trade — the chart IS the exit.
           // Skip the drain-time bucket resolver entirely so no later pass
