@@ -13,7 +13,7 @@ import { formStyles } from "@/ui/form";
 export default function LockSetup() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { enableBiometric, setPin, disable } = useLock();
+  const { enableBiometric, setPin, skipSetup } = useLock();
   const [step, setStep] = useState<"choose" | "pin" | "confirm">("choose");
   const [biometric, setBiometric] = useState(false);
   const [first, setFirst] = useState("");
@@ -50,14 +50,9 @@ export default function LockSetup() {
     }
   }
 
-  async function skip() {
+  function skip() {
     if (busy) return;
-    setBusy(true);
-    try {
-      await disable();
-    } catch {
-      // The lock is simply not enabled; skipping still continues into the app.
-    }
+    skipSetup();
     router.replace("/");
   }
 

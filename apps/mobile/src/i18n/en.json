@@ -11,6 +11,7 @@
     "errName": "Enter your full name.", "errEmail": "Enter a valid email address.",
     "errPassword": "Password must be at least 12 characters."
   },
+  "account": { "logout": "Log out" },
   "lock": {
     "title": "Unlock IndianxTrade", "setupTitle": "Protect your account", "useBiometric": "Use fingerprint or face",
     "setPin": "Set a 4-digit PIN", "confirmPin": "Enter the PIN again", "wrongPin": "Wrong PIN. {{left}} tries left.",

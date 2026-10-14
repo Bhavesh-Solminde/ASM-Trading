@@ -1,9 +1,6 @@
-import { Text, View } from "react-native";
+import { Redirect } from "expo-router";
 
+/** Entry route: the gatekeeper sends signed-out and locked users elsewhere before this settles. */
 export default function Index() {
-  return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#0d1117" }}>
-      <Text style={{ color: "#e6edf3", fontSize: 20 }}>IndianxTrade</Text>
-    </View>
-  );
+  return <Redirect href="/trade" />;
 }

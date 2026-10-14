@@ -20,6 +20,7 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-secure-store",
+    "expo-localization",
     "expo-web-browser",
     "@react-native-google-signin/google-signin",
     // SDK 57 dropped the top-level `splash` key; the splash is configured via this plugin.

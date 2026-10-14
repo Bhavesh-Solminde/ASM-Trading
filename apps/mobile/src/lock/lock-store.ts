@@ -23,6 +23,8 @@ interface LockState {
   enabled: boolean;
   method: "biometric" | "pin" | null;
   locked: boolean;
+  /** "Not now" on lock setup; in memory only, so the next cold start offers setup again. */
+  skippedThisSession: boolean;
   /** Wrong PINs since the last success; persisted so force-stopping the app cannot reset it. */
   attempts: number;
   backgroundedAt: number | null;
@@ -33,6 +35,7 @@ interface LockState {
   unlockWithBiometric: () => Promise<boolean>;
   onBackground: (now: number) => void;
   onForeground: (now: number) => void;
+  skipSetup: () => void;
   disable: () => Promise<void>;
   reset: () => Promise<void>;
 }
@@ -50,6 +53,7 @@ export const useLock = create<LockState>((set, get) => ({
   enabled: false,
   method: null,
   locked: false,
+  skippedThisSession: false,
   attempts: 0,
   backgroundedAt: null,
   load: async () => {
@@ -145,12 +149,13 @@ export const useLock = create<LockState>((set, get) => ({
       ...(shouldLock({ enabled, coldStart: false, backgroundedAt, now }) ? { locked: true } : {}),
     });
   },
+  skipSetup: () => set({ skippedThisSession: true }),
   disable: async () => {
     await put(K.off, "1");
     set({ enabled: false, locked: false });
   },
   reset: async () => {
     await Promise.all(Object.values(K).map((k) => SecureStore.deleteItemAsync(k).catch(() => {})));
-    set({ enabled: false, method: null, locked: false, attempts: 0 });
+    set({ enabled: false, method: null, locked: false, skippedThisSession: false, attempts: 0 });
   },
 }));

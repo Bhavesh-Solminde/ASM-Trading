@@ -33,7 +33,14 @@ vi.mock("@/auth/session-store", () => ({ useSession: { getState: () => ({ signOu
 
 import { useLock } from "./lock-store";
 
-const fresh = { enabled: false, method: null, locked: false, attempts: 0, backgroundedAt: null } as const;
+const fresh = {
+  enabled: false,
+  method: null,
+  locked: false,
+  skippedThisSession: false,
+  attempts: 0,
+  backgroundedAt: null,
+} as const;
 
 beforeEach(() => {
   disk.clear();
@@ -150,5 +157,16 @@ describe("useLock relock timing", () => {
     useLock.getState().onBackground(1_000);
     useLock.getState().onForeground(1_000 + 300_000);
     expect(useLock.getState().locked).toBe(true);
+  });
+});
+
+describe("useLock setup skip", () => {
+  it("remembers the skip for this run only, and a reset forgets it", async () => {
+    useLock.getState().skipSetup();
+    expect(useLock.getState().skippedThisSession).toBe(true);
+    await useLock.getState().load();
+    expect(useLock.getState().skippedThisSession).toBe(true);
+    await useLock.getState().reset();
+    expect(useLock.getState().skippedThisSession).toBe(false);
   });
 });
