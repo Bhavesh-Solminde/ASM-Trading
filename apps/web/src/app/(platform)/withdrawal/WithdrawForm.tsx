@@ -22,9 +22,9 @@ import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { AmountField, type AmountFieldHandle } from "@/components/payments/AmountField";
 import { StepHeader } from "@/components/payments/StepHeader";
+import type { LastPayouts } from "@/lib/withdrawal-prefill";
 
 /** The user's most recent details per payout method, used to prefill the form. */
-import type { LastPayouts } from "@/lib/withdrawal-prefill";
 export type { LastPayouts };
 
 interface Receipt {
