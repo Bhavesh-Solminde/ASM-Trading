@@ -18,7 +18,7 @@ import { GestureDetector } from "react-native-gesture-handler";
 import { shortCountdown } from "@asm/client-core";
 import type { CandleDto, TradeView } from "@asm/contracts";
 import { color } from "@/theme/tokens";
-import { firstCandleShift, isFollowing, shouldRequestOlder, type EdgeState } from "./live";
+import { firstCandleShift, frontChanged, isFollowing, shouldRequestOlder, type EdgeState } from "./live";
 import { buildSeries, type SeriesPaths } from "./paths";
 import { indexForX, nearLeftEdge, priceRange, shiftForPrepend, visibleRange, xForIndex, yForPrice } from "./scale";
 import type { ChartType, Viewport } from "./types";
@@ -143,7 +143,7 @@ export function Chart(props: ChartProps) {
   const firstTs = candles[0]?.openTs ?? null;
   const [seen, setSeen] = useState(candles);
   const [indexShift, setIndexShift] = useState(0);
-  if (seen[0]?.openTs !== firstTs) {
+  if (frontChanged(seen, candles)) {
     setSeen(candles);
     const shift = firstCandleShift(seen, candles);
     if (shift !== 0) {

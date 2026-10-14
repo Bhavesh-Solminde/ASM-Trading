@@ -10,7 +10,47 @@ export function isSameKey(a: readonly unknown[], b: readonly unknown[]): boolean
   return a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
 }
 
-const sameRange = (a: PriceRange, b: PriceRange) => a.min === b.min && a.max === b.max;
+export const sameRange = (a: PriceRange, b: PriceRange) => a.min === b.min && a.max === b.max;
+
+export interface RangeCommit {
+  /** The price range the history layer is drawn with. */
+  range: PriceRange;
+  /** The structural inputs the range was committed for. */
+  key: readonly unknown[];
+}
+
+/** A structural change commits the live range at once; otherwise `prev` itself comes back (no state change). */
+export function commitOnKeyChange(prev: RangeCommit, live: PriceRange, key: readonly unknown[]): RangeCommit {
+  return isSameKey(prev.key, key) ? prev : { range: live, key };
+}
+
+/**
+ * Schedules the held-back range to land `interval` ms after the last commit. One timer at a time and it is
+ * never rescheduled by later calls, so a continuous stream of ticks cannot postpone it forever.
+ */
+export class HistoryFlusher {
+  private timer: ReturnType<typeof setTimeout> | null = null;
+
+  schedule(committed: PriceRange, committedAtMs: number, live: PriceRange, nowMs: number, flush: () => void): void {
+    if (this.timer !== null) return;
+    const delay = historyRetryDelay(committed, committedAtMs, live, nowMs);
+    if (delay === null) return;
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      flush();
+    }, delay);
+  }
+
+  /** Safe to call and then schedule again (a StrictMode remount does exactly that). */
+  cancel(): void {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+  }
+}
+
+/** Whether the front of the candle list changed (compared by first openTs; an empty list is `null`). */
+export const frontChanged = (prev: readonly CandleDto[], next: readonly CandleDto[]): boolean =>
+  (prev[0]?.openTs ?? null) !== (next[0]?.openTs ?? null);
 
 /**
  * Ms until a held-back range may be committed to the history layer (so a quiet market still flushes),

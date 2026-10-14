@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CandleDto } from "@asm/contracts";
 import {
   HISTORY_INTERVAL_MS,
+  HistoryFlusher,
+  commitOnKeyChange,
   firstCandleShift,
+  frontChanged,
   historyRetryDelay,
   isFollowing,
   isSameKey,
@@ -107,5 +110,78 @@ describe("isFollowing", () => {
     expect(isFollowing(10, 10)).toBe(true);
     expect(isFollowing(9.5, 10)).toBe(true);
     expect(isFollowing(9.4, 10)).toBe(false);
+  });
+});
+
+describe("frontChanged", () => {
+  it("treats two empty lists as unchanged (the render-phase loop guard)", () => {
+    expect(frontChanged([], [])).toBe(false);
+  });
+  it("detects the first candle appearing or disappearing", () => {
+    expect(frontChanged([], [c(0)])).toBe(true);
+    expect(frontChanged([c(0)], [])).toBe(true);
+  });
+  it("ignores a new array with the same first candle", () => {
+    expect(frontChanged([c(0)], [c(0), c(60)])).toBe(false);
+  });
+  it("detects a different first candle", () => {
+    expect(frontChanged([c(60)], [c(0), c(60)])).toBe(true);
+    expect(frontChanged([c(0)], [c(60)])).toBe(true);
+  });
+});
+
+describe("commitOnKeyChange", () => {
+  const candles = [c(0)];
+  const prev = { range: R1, key: ["a", candles] as readonly unknown[] };
+  it("commits the live range immediately when a structural input changed", () => {
+    expect(commitOnKeyChange(prev, R2, ["b", candles])).toEqual({ range: R2, key: ["b", candles] });
+  });
+  it("returns the same object when the key is unchanged, even if the range moved", () => {
+    expect(commitOnKeyChange(prev, R2, ["a", candles])).toBe(prev);
+  });
+});
+
+describe("HistoryFlusher", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("flushes a held-back range within the interval", () => {
+    const flush = vi.fn();
+    new HistoryFlusher().schedule(R1, 0, R2, 0, flush);
+    vi.advanceTimersByTime(HISTORY_INTERVAL_MS - 1);
+    expect(flush).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(flush).toHaveBeenCalledTimes(1);
+  });
+
+  it("is not postponed by a continuous stream of ticks", () => {
+    const flush = vi.fn();
+    const f = new HistoryFlusher();
+    for (let t = 0; t < HISTORY_INTERVAL_MS; t += 25) {
+      f.schedule(R1, 0, { min: 1, max: 2 + t }, t, flush);
+      vi.advanceTimersByTime(25);
+    }
+    expect(flush).toHaveBeenCalledTimes(1);
+  });
+
+  it("schedules nothing when the range is unchanged", () => {
+    const flush = vi.fn();
+    new HistoryFlusher().schedule(R1, 0, { ...R1 }, 0, flush);
+    vi.advanceTimersByTime(10_000);
+    expect(flush).not.toHaveBeenCalled();
+  });
+
+  it("can schedule again after a flush and after cancel (StrictMode remount)", () => {
+    const flush = vi.fn();
+    const f = new HistoryFlusher();
+    f.schedule(R1, 0, R2, 0, flush);
+    vi.advanceTimersByTime(HISTORY_INTERVAL_MS);
+    f.schedule(R1, 0, R2, HISTORY_INTERVAL_MS, flush);
+    f.cancel();
+    vi.advanceTimersByTime(10_000);
+    expect(flush).toHaveBeenCalledTimes(1);
+    f.schedule(R1, 0, R2, 0, flush);
+    vi.advanceTimersByTime(HISTORY_INTERVAL_MS);
+    expect(flush).toHaveBeenCalledTimes(2);
   });
 });

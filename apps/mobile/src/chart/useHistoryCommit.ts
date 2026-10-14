@@ -1,12 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { historyRetryDelay, isSameKey } from "./live";
+import { HistoryFlusher, commitOnKeyChange, sameRange, type RangeCommit } from "./live";
 import type { PriceRange } from "./types";
-
-interface Commit {
-  range: PriceRange;
-  /** The structural inputs the range was committed for. */
-  key: readonly unknown[];
-}
 
 /**
  * The price range the history layer is drawn with. A change to `key` (pan, zoom, resize, chart type,
@@ -14,16 +8,13 @@ interface Commit {
  * A change to the range alone (a tick moved the forming candle or last price) is committed by a timer
  * at most once per HISTORY_INTERVAL_MS, and still lands when the market goes quiet.
  *
- * Render stays pure: it only compares `key` and sets state; clock reads, the commit timestamp and the
- * timer all live in effects.
+ * Render stays pure: it only compares `key` and sets state when that key changed (the next render sees
+ * the same key, so it cannot loop); clock reads, the commit timestamp and the timer live in effects.
  */
 export function useHistoryCommit(live: PriceRange, key: readonly unknown[]): PriceRange {
-  const [commit, setCommit] = useState<Commit>(() => ({ range: live, key }));
-  let current = commit;
-  if (!isSameKey(commit.key, key)) {
-    current = { range: live, key };
-    setCommit(current);
-  }
+  const [commit, setCommit] = useState<RangeCommit>(() => ({ range: live, key }));
+  const current = commitOnKeyChange(commit, live, key);
+  if (current !== commit) setCommit(current);
 
   const latest = useRef({ live, key });
   useLayoutEffect(() => {
@@ -35,24 +26,21 @@ export function useHistoryCommit(live: PriceRange, key: readonly unknown[]): Pri
     committedAt.current = Date.now();
   }, [commit]);
 
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flusher = useRef<HistoryFlusher | null>(null);
+  flusher.current ??= new HistoryFlusher();
   useEffect(() => {
-    if (timer.current !== null) return;
-    const delay = historyRetryDelay(commit.range, committedAt.current, live, Date.now());
-    if (delay === null) return;
-    timer.current = setTimeout(() => {
-      timer.current = null;
-      // Forced: the delay was computed to reach the interval, and structural changes already
-      // committed in render, so `latest` carries the key `commit` holds.
-      setCommit({ range: latest.current.live, key: latest.current.key });
-    }, delay);
+    // Forced commit of the latest range (the delay was computed to reach the interval); an unchanged
+    // range returns the same state object, so nothing re-renders.
+    flusher.current?.schedule(commit.range, committedAt.current, live, Date.now(), () =>
+      setCommit((c) =>
+        sameRange(c.range, latest.current.live) ? c : { range: latest.current.live, key: latest.current.key },
+      ),
+    );
   });
-  useEffect(
-    () => () => {
-      if (timer.current !== null) clearTimeout(timer.current);
-    },
-    [],
-  );
+  useEffect(() => {
+    const f = flusher.current;
+    return () => f?.cancel();
+  }, []);
 
   return current.range;
 }
