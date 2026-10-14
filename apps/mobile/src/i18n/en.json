@@ -29,6 +29,7 @@
     "open": "Open", "closed": "Closed", "noTrades": "No trades yet", "markets": "Markets", "search": "Search markets",
     "favourites": "Favourites", "bonus": "+{{pct}}% bonus", "minStake": "Minimum stake is {{amount}}",
     "insufficient": "Not enough balance", "backToLive": "Live", "chartType": "Chart type", "timeframe": "Timeframe",
-    "candles": "Candles", "line": "Line", "area": "Area", "bars": "Bars"
+    "candles": "Candles", "line": "Line", "area": "Area", "bars": "Bars",
+    "ohlcO": "O", "ohlcH": "H", "ohlcL": "L", "ohlcC": "C", "chartLabel": "Price chart"
   }
 }

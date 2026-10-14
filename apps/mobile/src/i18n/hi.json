@@ -29,6 +29,7 @@
     "open": "खुले", "closed": "बंद", "noTrades": "अभी कोई ट्रेड नहीं", "markets": "मार्केट", "search": "मार्केट खोजें",
     "favourites": "पसंदीदा", "bonus": "+{{pct}}% बोनस", "minStake": "न्यूनतम राशि {{amount}} है",
     "insufficient": "बैलेंस कम है", "backToLive": "लाइव", "chartType": "चार्ट प्रकार", "timeframe": "टाइमफ़्रेम",
-    "candles": "कैंडल", "line": "लाइन", "area": "एरिया", "bars": "बार"
+    "candles": "कैंडल", "line": "लाइन", "area": "एरिया", "bars": "बार",
+    "ohlcO": "खु", "ohlcH": "उ", "ohlcL": "नि", "ohlcC": "बं", "chartLabel": "प्राइस चार्ट"
   }
 }
