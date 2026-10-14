@@ -49,8 +49,8 @@ appId: com.indianxtrade.app
 - tapOn: { id: "expiry-30" }
 - tapOn: { id: "buy" }
 
-# The toast announces the settlement (30s expiry + settle), and also shows any failure, so a red
-# "trade failed" toast would pass this step: check the screenshot Maestro saves on failure.
+# Settlement toasts read "<market> · <result>" (error toasts never contain " · "), so this passes only
+# once the 30s trade has opened and settled.
 - extendedWaitUntil:
-    visible: { id: "toast" }
+    visible: { id: "toast", text: ".* · .*" }
     timeout: 60000
