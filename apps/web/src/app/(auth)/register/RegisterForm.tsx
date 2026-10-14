@@ -88,7 +88,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
             autoFocus={!googleEnabled}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="As on your Aadhaar / PAN"
+            placeholder="Your name"
             className="mt-2 h-12 w-full rounded-lg border border-rule bg-panel/70 px-4 text-sm text-ink outline-none transition placeholder:text-ink-3 focus:border-brand focus:bg-panel"
           />
         </div>
