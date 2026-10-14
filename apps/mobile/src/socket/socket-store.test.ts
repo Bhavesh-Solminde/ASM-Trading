@@ -82,11 +82,11 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   vi.stubGlobal("WebSocket", FakeWS);
   FakeWS.instances = [];
-  net.listener = null;
-  net.unsubscribe.mockClear();
   apiMock.api.mockReset();
   apiMock.api.mockResolvedValue({ ticket: "tk" });
-  useSocket.getState().reset();
+  useSocket.getState().reset(); // also tears down the previous test's NetInfo subscription
+  net.listener = null;
+  net.unsubscribe.mockClear();
 });
 
 describe("useSocket", () => {
@@ -101,7 +101,10 @@ describe("useSocket", () => {
   it("connects with a ticket, subscribes, and folds server messages into chart and trades", async () => {
     useSocket.getState().subscribe("EURUSD", "1m");
     const ws = await connect();
-    expect(apiMock.api).toHaveBeenCalledWith("/api/auth/ws-ticket", expect.objectContaining({ method: "POST" }));
+    expect(apiMock.api).toHaveBeenCalledWith(
+      "/api/auth/ws-ticket",
+      expect.objectContaining({ method: "POST", silentRateLimit: true }),
+    );
     expect(ws.url).toBe("wss://test/ws");
     expect(ws.sent).toEqual([
       { type: "auth", token: "tk" },
@@ -148,6 +151,22 @@ describe("useSocket", () => {
     expect(useSocket.getState().phase).toBe("closed");
   });
 
+  it.each(["maintenance", "blocked", "upgrade"])("stops retrying when the ticket request hits the %s gate", async (gate) => {
+    apiMock.api.mockRejectedValue(new ApiError(gate, 503, gate));
+    useSocket.getState().start();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(apiMock.api).toHaveBeenCalledTimes(1);
+    expect(useSocket.getState().phase).toBe("closed");
+  });
+
+  it("keeps backing off on a rate-limited ticket request", async () => {
+    apiMock.api.mockRejectedValue(new ApiError("Too many requests.", 429, "rate_limited"));
+    useSocket.getState().start();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(apiMock.api).toHaveBeenCalledTimes(2);
+  });
+
   it("backs off on other ticket errors and the failure count feeds the banner", async () => {
     apiMock.api.mockRejectedValue(new ApiError("No connection.", 0, "offline"));
     useSocket.getState().start();
@@ -168,6 +187,28 @@ describe("useSocket", () => {
     net.listener!({ isConnected: true });
     await vi.advanceTimersByTimeAsync(0);
     expect(FakeWS.instances).toHaveLength(1);
+  });
+
+  it("recycles an authed socket when the network returns", async () => {
+    const ws = await connect();
+    net.listener!({ isConnected: false });
+    expect(ws.readyState).toBe(1); // going offline alone does not close it
+    net.listener!({ isConnected: true });
+    expect(ws.readyState).toBe(3);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(FakeWS.instances).toHaveLength(2);
+    expect(useSocket.getState().consecutiveFailures).toBe(0);
+  });
+
+  it("reset() unsubscribes from NetInfo and forgets a stale offline reading", async () => {
+    useSocket.getState().start();
+    net.listener!({ isConnected: false });
+    useSocket.getState().reset();
+    expect(net.unsubscribe).toHaveBeenCalledTimes(1);
+
+    useSocket.getState().start(); // NetInfo has not reported yet: must not be held by the old "offline"
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apiMock.api).toHaveBeenCalledTimes(1);
   });
 
   it("stop() closes the socket and stops watching the network; start() resumes", async () => {

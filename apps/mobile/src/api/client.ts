@@ -17,7 +17,16 @@ export function configureApi(opts: { token: () => string | null; logout: () => v
 
 export async function api<T = unknown>(
   path: string,
-  opts: { method?: string; body?: unknown; form?: FormData; schema?: ZodType<T>; auth?: boolean; token?: string } = {},
+  opts: {
+    method?: string;
+    body?: unknown;
+    form?: FormData;
+    schema?: ZodType<T>;
+    auth?: boolean;
+    token?: string;
+    /** Throw on a 429 instead of toasting it: for callers that back off and retry on their own. */
+    silentRateLimit?: boolean;
+  } = {},
 ): Promise<T> {
   const { apiUrl, version } = appConfig();
   const headers: Record<string, string> = {
@@ -43,7 +52,7 @@ export async function api<T = unknown>(
   }
 
   const json: unknown = res.status === 204 ? null : await res.json().catch(() => null);
-  const verdict = classifyResponse(res.status, json, { authed });
+  const verdict = classifyResponse(res.status, json, { authed, silentRateLimit: opts.silentRateLimit });
   switch (verdict.kind) {
     case "ok":
       if (clearsGate(path) && useGate.getState().gate !== "ok") useGate.getState().setGate("ok");

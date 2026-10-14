@@ -72,7 +72,7 @@ export const useSocket = create<SocketStore>((set, get) => {
 
   const fetchTicket = async (): Promise<string> => {
     try {
-      return (await api("/api/auth/ws-ticket", { method: "POST", schema: Ticket })).ticket;
+      return (await api("/api/auth/ws-ticket", { method: "POST", schema: Ticket, silentRateLimit: true })).ticket;
     } catch (err) {
       if (err instanceof ApiError && err.code !== null && FATAL_TICKET_CODES.has(err.code)) {
         throw new FatalSocketError(err.code);
@@ -102,6 +102,8 @@ export const useSocket = create<SocketStore>((set, get) => {
   const unwatch = () => {
     unwatchNet?.();
     unwatchNet = null;
+    // Forget the last reading: the next start() re-reads it from NetInfo rather than trusting a stale value.
+    online = true;
   };
 
   return {

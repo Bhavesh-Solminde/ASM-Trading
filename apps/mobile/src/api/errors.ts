@@ -35,9 +35,13 @@ function field(body: unknown, key: string): string | null {
 /**
  * Only a response carrying the explicit `unauthenticated` code ends the session,
  * and only for calls that sent a session. Bare 401s (wrong password, google_failed)
- * are form errors.
+ * are form errors. A rate limit normally toasts; `silentRateLimit` turns it into a plain `rate_limited` error.
  */
-export function classifyResponse(status: number, body: unknown, opts: { authed?: boolean } = {}): Classified {
+export function classifyResponse(
+  status: number,
+  body: unknown,
+  opts: { authed?: boolean; silentRateLimit?: boolean } = {},
+): Classified {
   if (status >= 200 && status < 300) return { kind: "ok" };
   const authed = opts.authed ?? true;
   const code = field(body, "code");
@@ -46,7 +50,11 @@ export function classifyResponse(status: number, body: unknown, opts: { authed?:
   if (code === "vpn_blocked") return { kind: "gate", gate: "blocked" };
   if (code === "upgrade_required" || status === 426) return { kind: "gate", gate: "upgrade" };
   const message = field(body, "error") ?? field(body, "message") ?? GENERIC_ERROR;
-  if (status === 429 || code === "rate_limited") return { kind: "toast", message };
+  if (status === 429 || code === "rate_limited") {
+    // A caller that retries on its own schedule (the engine socket) gets a plain error, not a toast per retry.
+    if (opts.silentRateLimit) return { kind: "error", status, code: "rate_limited", message };
+    return { kind: "toast", message };
+  }
   return { kind: "error", status, code, message };
 }
 

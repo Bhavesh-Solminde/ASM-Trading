@@ -163,6 +163,42 @@ describe("EngineSocket", () => {
     expect(ws.sent.filter((m) => (m as { type: string }).type === "candles:loadOlder")).toHaveLength(1);
   });
 
+  it("ignores a stale socket's close and messages after stop() + start()", async () => {
+    socket.start();
+    await vi.runOnlyPendingTimersAsync();
+    const stale = FakeWS.instances[0]!;
+    stale.open();
+    stale.receive({ type: "authed" });
+    socket.stop();
+    socket.start();
+    await vi.runOnlyPendingTimersAsync();
+    const current = FakeWS.instances[1]!;
+    current.open();
+    current.receive({ type: "authed" });
+    messages.length = 0;
+    statuses.length = 0;
+
+    stale.onclose?.();
+    stale.receive({ type: "tick", symbol: "EURUSD", price: 9, ts: 1 });
+    stale.receive({ type: "authed" });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(messages).toEqual([]);
+    expect(statuses).toEqual([]);
+    expect(FakeWS.instances).toHaveLength(2);
+    expect(current.readyState).toBe(1);
+  });
+
+  it("stop() during the handshake clears its timer", async () => {
+    socket.start();
+    await vi.runOnlyPendingTimersAsync();
+    expect(vi.getTimerCount()).toBe(1); // the handshake timeout
+    socket.stop();
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(HANDSHAKE_TIMEOUT_MS * 2);
+    expect(statuses.at(-1)).toEqual({ phase: "idle", consecutiveFailures: 0 });
+    expect(FakeWS.instances).toHaveLength(1);
+  });
+
   describe("ticket failures", () => {
     it("backs off and retries when the ticket request fails", async () => {
       fetchTicket.mockRejectedValueOnce(new Error("offline"));
@@ -273,21 +309,60 @@ describe("EngineSocket", () => {
       expect(FakeWS.instances).toHaveLength(2);
     });
 
-    it("networkRestored() is a no-op while connecting, authed or stopped", async () => {
-      socket.networkRestored(); // stopped
+    it("networkRestored() is a no-op when stopped", async () => {
+      socket.networkRestored();
       await flush();
       expect(FakeWS.instances).toHaveLength(0);
+      expect(fetchTicket).not.toHaveBeenCalled();
+    });
 
+    it("recycles an authed socket on an offline->online edge without counting a failure", async () => {
+      socket.subscribe("EURUSD", "1m");
       socket.start();
       await vi.runOnlyPendingTimersAsync();
-      socket.networkRestored(); // handshake in progress
+      const old = FakeWS.instances[0]!;
+      old.open();
+      old.receive({ type: "authed" });
+      statuses.length = 0;
+
+      online = false; // wifi dropped...
+      online = true; // ...and cellular is up: the old socket may be dead but never closed
+      socket.networkRestored();
+      expect(old.readyState).toBe(3);
       await flush();
-      expect(FakeWS.instances).toHaveLength(1);
-      FakeWS.instances[0]!.open();
-      FakeWS.instances[0]!.receive({ type: "authed" });
-      socket.networkRestored(); // authed
+      expect(fetchTicket).toHaveBeenCalledTimes(2);
+      expect(FakeWS.instances).toHaveLength(2);
+      expect(statuses.every((st) => st.consecutiveFailures === 0)).toBe(true);
+
+      const fresh = FakeWS.instances[1]!;
+      fresh.open();
+      expect(fresh.sent[0]).toEqual({ type: "auth", token: "ticket-1" });
+      fresh.receive({ type: "authed" });
+      expect(fresh.sent).toContainEqual({ type: "subscribe", symbol: "EURUSD", timeframe: "1m" });
+      // the recycled socket's close must not schedule a second reconnect
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(FakeWS.instances).toHaveLength(2);
+    });
+
+    it("recycles a socket that is still handshaking, and drops a ticket still in flight", async () => {
+      socket.start();
+      await vi.runOnlyPendingTimersAsync();
+      const handshaking = FakeWS.instances[0]!;
+      socket.networkRestored();
+      expect(handshaking.readyState).toBe(3);
       await flush();
-      expect(FakeWS.instances).toHaveLength(1);
+      expect(FakeWS.instances).toHaveLength(2);
+
+      let resolveSlow: (t: string) => void = () => {};
+      fetchTicket.mockImplementationOnce(() => new Promise<string>((r) => (resolveSlow = r)));
+      FakeWS.instances[1]!.close(); // failure 1, backoff armed
+      await vi.advanceTimersByTimeAsync(500); // third connect now waiting on a slow ticket
+      socket.networkRestored(); // fourth connect supersedes it
+      await flush();
+      expect(FakeWS.instances).toHaveLength(3);
+      resolveSlow("stale");
+      await flush();
+      expect(FakeWS.instances).toHaveLength(3);
     });
   });
 });

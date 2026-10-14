@@ -70,10 +70,20 @@ export class EngineSocket {
     this.status("idle");
   }
 
-  /** The device is back online: skip any backoff wait and reconnect now (no-op if already connecting/connected). */
+  /**
+   * The device came back online (possibly on a different network). Skip any backoff wait and reconnect now
+   * with a fresh ticket. An existing connection is recycled too, since after a wifi/cellular switch or a NAT
+   * drop it can be dead without ever closing. The recycle is deliberate, so it does not count as a failure.
+   */
   networkRestored(): void {
-    if (!this.wanted || this.ws || this.fetching) return;
+    if (!this.wanted) return;
+    this.run += 1; // drops the result of a ticket request still in flight
     this.clearTimers();
+    const ws = this.ws;
+    this.ws = null;
+    this.authed = false;
+    this.fetching = false;
+    ws?.close();
     this.schedule(0);
   }
 

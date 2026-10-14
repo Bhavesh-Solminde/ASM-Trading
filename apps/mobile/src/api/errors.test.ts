@@ -37,6 +37,16 @@ describe("classifyResponse", () => {
     expect(classifyResponse(403, { code: "vpn_blocked" })).toEqual({ kind: "gate", gate: "blocked" });
     expect(classifyResponse(426, { code: "upgrade_required" })).toEqual({ kind: "gate", gate: "upgrade" });
   });
+  it("turns a rate limit into a plain rate_limited error when the caller retries on its own", () => {
+    expect(classifyResponse(429, { error: "Too many requests." }, { silentRateLimit: true })).toEqual({
+      kind: "error",
+      status: 429,
+      code: "rate_limited",
+      message: "Too many requests.",
+    });
+    expect(classifyResponse(429, { code: "rate_limited" }, { silentRateLimit: true }).kind).toBe("error");
+  });
+
   it("turns rate limits into a toast", () => {
     expect(classifyResponse(429, { error: "Too many requests.", code: "rate_limited" })).toEqual({
       kind: "toast",
