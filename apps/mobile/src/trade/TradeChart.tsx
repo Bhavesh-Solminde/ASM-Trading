@@ -7,6 +7,8 @@ import { useSocket } from "@/socket/socket-store";
 import { chartSource } from "./chart-source";
 import { useNow } from "./useNow";
 
+/** One shared empty list: a fresh `[]` per render would defeat the history commit's change check. */
+const NO_CANDLES: ResumeSnapshot["candles"] = [];
 const loadOlder = () => useSocket.getState().loadOlder();
 
 /**
@@ -55,7 +57,7 @@ export function TradeChart({
     <Chart
       key={`${symbol}:${timeframe}`}
       type={type}
-      candles={live ? chart.candles : source === "snapshot" && snapshot ? snapshot.candles : []}
+      candles={live ? chart.candles : source === "snapshot" && snapshot ? snapshot.candles : NO_CANDLES}
       forming={live ? chart.forming : null}
       lastPrice={live ? chart.lastPrice : null}
       precision={precision}

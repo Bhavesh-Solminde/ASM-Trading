@@ -15,7 +15,10 @@ export type IconName =
   | "lock"
   | "bolt";
 
-/** trade/wallet/history/user/more/briefcase/star are copied from apps/web/src/components/shell/Icon.tsx. */
+/**
+ * 24x24 outline paths. trade, wallet, history, user and more follow the web shell's icons
+ * (apps/web/src/components/shell/Icon.tsx); the rest (including briefcase and star) are drawn for this app.
+ */
 const D: Record<IconName, string[]> = {
   trade: ["M4 19V5M4 19h16", "M8 15v-4M12 15V8M16 15v-6"],
   wallet: ["M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z", "M4 7l11-3v3", "M16 13.5h.5"],
@@ -45,6 +48,9 @@ export function Icon({
 }) {
   return (
     <Svg
+      // Decorative: the control around an icon carries the label.
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
       width={size}
       height={size}
       viewBox="0 0 24 24"

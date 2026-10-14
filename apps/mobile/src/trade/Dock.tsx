@@ -16,7 +16,8 @@ import { useTradeSubmit } from "./useTradeSubmit";
 
 /**
  * Stake, expiry and Buy/Sell. The tab bar below already adds the bottom safe-area inset, so the dock has none.
- * Stake and expiry are saved per user; the typed stake is checked against real + bonus balance, as the server does.
+ * Expiry and the stake (kept separately for each currency) are saved per user. The stake is checked against the
+ * account's real + bonus balance, as the server does, and keypad presses are applied to the latest saved stake.
  */
 export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: string; asset: AppAsset }) {
   const { t } = useTranslation();

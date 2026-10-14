@@ -77,7 +77,7 @@ export default function Trade() {
   const timeframe = prefs.timeframe;
   const asset = boot ? findAsset(boot.assets, symbol) : undefined;
 
-  // Any account's open trade counts: it still needs its settlement watched and the screen awake.
+  // Any account's open trade counts: its settlement is watched (the keep-awake hook reads the store itself).
   const hasOpenTrades = useSocket((s) => hasOpenTrade(s.trades.tradesByAccount));
   useKeepAwakeWhileOpen();
   useSettlementWatchdog(hasOpenTrades);
