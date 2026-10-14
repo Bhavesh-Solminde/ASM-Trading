@@ -35,6 +35,7 @@ const config: ExpoConfig = {
     variant,
     apiUrl: process.env.APP_API_URL ?? "https://indianxtrade.com",
     wsUrl: process.env.APP_WS_URL ?? "wss://indianxtrade.com/ws",
+    googleWebClientId: process.env.APP_GOOGLE_WEB_CLIENT_ID ?? "",
   },
 };
 

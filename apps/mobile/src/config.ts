@@ -3,11 +3,13 @@ export interface AppConfig {
   wsUrl: string;
   version: string;
   variant: "play" | "direct";
+  /** Google web OAuth client id; empty until the owner creates the clients (hides the Google button). */
+  googleWebClientId: string;
 }
 
 interface ExpoLike {
   version?: string;
-  extra?: { apiUrl?: string; wsUrl?: string; variant?: string } | null;
+  extra?: { apiUrl?: string; wsUrl?: string; variant?: string; googleWebClientId?: string } | null;
 }
 
 export function configFrom(expo: ExpoLike): AppConfig {
@@ -17,6 +19,7 @@ export function configFrom(expo: ExpoLike): AppConfig {
     wsUrl: extra.wsUrl ?? "",
     version: expo.version ?? "0.0.0",
     variant: extra.variant === "direct" ? "direct" : "play",
+    googleWebClientId: extra.googleWebClientId ?? "",
   };
 }
 

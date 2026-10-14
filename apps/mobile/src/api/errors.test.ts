@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyResponse, clearsGate } from "./errors";
+import { ApiError, classifyResponse, clearsGate, shouldRetry } from "./errors";
 
 describe("classifyResponse", () => {
   it("passes successful responses through", () => {
@@ -65,5 +65,28 @@ describe("clearsGate", () => {
     expect(clearsGate("/api/auth/ws-ticket")).toBe(false);
     expect(clearsGate("/api/auth/logout")).toBe(false);
     expect(clearsGate("/api/v1")).toBe(false);
+  });
+});
+
+describe("shouldRetry", () => {
+  it("retries a network failure once", () => {
+    expect(shouldRetry(0, new ApiError("No connection.", 0, "offline"))).toBe(true);
+    expect(shouldRetry(1, new ApiError("No connection.", 0, "offline"))).toBe(false);
+  });
+  it("retries a 5xx once", () => {
+    expect(shouldRetry(0, new ApiError("Boom", 502, null))).toBe(true);
+    expect(shouldRetry(1, new ApiError("Boom", 502, null))).toBe(false);
+  });
+  it("never retries a 4xx, which would repeat its side effects", () => {
+    for (const status of [400, 401, 409, 426, 429, 499]) {
+      expect(shouldRetry(0, new ApiError("No", status, null))).toBe(false);
+    }
+  });
+  it("does not re-hit a maintenance gate that arrived as a 503", () => {
+    expect(shouldRetry(0, new ApiError("maintenance", 503, "maintenance"))).toBe(false);
+  });
+  it("retries unknown (non-ApiError) failures once", () => {
+    expect(shouldRetry(0, new Error("parse failed"))).toBe(true);
+    expect(shouldRetry(1, new Error("parse failed"))).toBe(false);
   });
 });

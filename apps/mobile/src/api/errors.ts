@@ -54,3 +54,17 @@ export function classifyResponse(status: number, body: unknown, opts: { authed?:
 export function clearsGate(path: string): boolean {
   return path.startsWith("/api/v1/");
 }
+
+/**
+ * react-query retry predicate: at most one retry, and never for a 4xx ApiError.
+ * A 4xx was answered by the server, so repeating it repeats its side effects
+ * (a second logout, a second rate-limit toast, re-hitting a gate).
+ */
+export function shouldRetry(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 1) return false;
+  if (error instanceof ApiError) {
+    if (error.status >= 1 && error.status < 500) return false;
+    if (error.code === "maintenance") return false; // a 503 gate, not a transient failure
+  }
+  return true;
+}
