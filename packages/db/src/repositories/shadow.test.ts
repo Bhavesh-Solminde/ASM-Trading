@@ -74,6 +74,27 @@ describe("shadow ledger", () => {
     expect(shadow!.lifecycleStage).toBe("HIGH_VALUE");
   });
 
+  it("settles with fractional exposure, storing it rounded", async () => {
+    const { trade } = await open();
+    await settleTrade({
+      tradeId: trade.id,
+      exitPrice: 1.174,
+      shadow: {
+        honestExitPrice: 1.176,
+        biasApplied: 0,
+        magnetApplied: 0,
+        imbalanceAtEntry: 0.18,
+        exposureUp: 19239.039999999997,
+        exposureDown: 11683.08,
+        lifecycleStage: "UNKNOWN",
+      },
+    });
+
+    const shadow = await loadTradeShadow(trade.id);
+    expect(shadow!.exposureUp).toBe(19239);
+    expect(shadow!.exposureDown).toBe(11683);
+  });
+
   it("computes deltaPips as the gap between shown and honest price", async () => {
     const { trade } = await open();
     await settleTrade({

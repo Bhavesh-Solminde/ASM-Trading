@@ -246,8 +246,10 @@ async function applySettlement(
         biasApplied: shadow.biasApplied,
         magnetApplied: shadow.magnetApplied,
         imbalanceAtEntry: shadow.imbalanceAtEntry,
-        exposureUp: shadow.exposureUp,
-        exposureDown: shadow.exposureDown,
+        // Exposure is a weighted sum and can be fractional; the BIGINT
+        // column rejects non-integers (the old INTEGER column truncated).
+        exposureUp: Math.round(shadow.exposureUp),
+        exposureDown: Math.round(shadow.exposureDown),
         lifecycleStage: shadow.lifecycleStage,
       },
     });
