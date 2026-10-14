@@ -57,7 +57,7 @@ export const useTradePrefs = create<PrefsStore>()(
 );
 
 /**
- * One user's prefs plus a setter. Chart type, market, timeframe, favourites, stake and expiry are saved
+ * One user's prefs plus a setter. Chart type, market, timeframe, favourites, stake (per currency) and expiry are saved
  * per user, so a second account on the same phone never inherits them. `userId` null (not known yet)
  * reads defaults and ignores writes.
  */

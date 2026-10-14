@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
-import { EXPIRY_CHIPS, defaultStake, formatDuration, formatMinor, isChipExpiry, minStakeMinor, profitForStake } from "@asm/client-core";
+import { EXPIRY_CHIPS, formatDuration, formatMinor, isChipExpiry, minStakeMinor, profitForStake } from "@asm/client-core";
 import type { Bootstrap } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
 import { color, font, radius, space } from "@/theme/tokens";
@@ -9,7 +9,7 @@ import type { SheetRef } from "@/ui/Sheet";
 import { ExpirySheet } from "./ExpirySheet";
 import { KeypadSheet } from "./KeypadSheet";
 import { payoutPctFor, type AppAsset } from "./markets";
-import { MAX_STAKE_MINOR, resolveExpiry, stakeDisplay, validateStake } from "./stake-input";
+import { MAX_STAKE_MINOR, resolveExpiry, stakeDisplay, stakeFor, validateStake, withStake } from "./stake-input";
 import { useUserPrefs } from "./trade-prefs";
 import { useTradeSubmit } from "./useTradeSubmit";
 
@@ -27,17 +27,10 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
 
   const currency = account?.currency ?? "USD";
   const expirySec = resolveExpiry(prefs.expirySec);
-  const stake = prefs.stake;
+  // Each currency keeps its own stake, so switching DEMO <-> LIVE never reads ₹5,000 as $5,000.
+  const stake = stakeFor(prefs.stakeByCurrency, currency);
 
-  // A user who has never picked a stake starts at the account's default (₹100 / $10), once. After that an
-  // empty stake is the user's own choice (they cleared it) and is respected.
-  const seeded = useRef(false);
   const { set } = prefs;
-  useEffect(() => {
-    if (seeded.current || !account) return;
-    seeded.current = true;
-    if (stake === "") set({ stake: defaultStake(account.currency) });
-  }, [account, stake, set]);
 
   const available = bal ? bal.realBalance + bal.bonusBalance : 0;
   const check = validateStake(stake, currency, available);
@@ -172,8 +165,21 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
         })}
       </View>
 
-      <KeypadSheet ref={keypad} currency={currency} value={stake} onChange={(v) => set({ stake: v })} />
-      <ExpirySheet ref={expiry} value={expirySec} onPick={(sec) => set({ expirySec: sec })} />
+      <KeypadSheet
+        ref={keypad}
+        currency={currency}
+        value={stake}
+        onChange={(v) => set({ stakeByCurrency: withStake(prefs.stakeByCurrency, currency, v) })}
+        onDone={() => keypad.current?.dismiss()}
+      />
+      <ExpirySheet
+        ref={expiry}
+        value={expirySec}
+        onPick={(sec) => {
+          set({ expirySec: sec });
+          expiry.current?.dismiss();
+        }}
+      />
     </View>
   );
 }

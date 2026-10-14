@@ -9,7 +9,8 @@ export interface UserPrefs {
   timeframe: Timeframe;
   chartType: ChartType;
   favourites: string[];
-  stake: string;
+  /** Typed stake per account currency: ₹5,000 must never reappear as $5,000 on a USD account. */
+  stakeByCurrency: Readonly<Record<string, string>>;
   expirySec: number;
 }
 
@@ -21,7 +22,7 @@ export const DEFAULT_PREFS: UserPrefs = {
   timeframe: "1m",
   chartType: "candles",
   favourites: [],
-  stake: "",
+  stakeByCurrency: {},
   expirySec: 60,
 };
 
@@ -40,7 +41,8 @@ const UserPrefsSchema = z.object({
   timeframe: TimeframeSchema.catch(DEFAULT_PREFS.timeframe),
   chartType: z.enum(["candles", "line", "area", "bars"]).catch(DEFAULT_PREFS.chartType),
   favourites: z.array(z.string()).catch([]),
-  stake: z.string().catch(DEFAULT_PREFS.stake),
+  // The old single `stake` has no currency, so it is not migrated (unknown keys are stripped): defaults apply.
+  stakeByCurrency: z.record(z.string(), z.string()).catch({}),
   expirySec: z.number().int().positive().catch(DEFAULT_PREFS.expirySec),
 });
 

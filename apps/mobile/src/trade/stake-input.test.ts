@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_EXPIRY_SEC, resolveExpiry, stakeAmountOpts, stakeDisplay, validateStake } from "./stake-input";
+import { OpenTradeSchema } from "@asm/contracts";
+import { DEFAULT_EXPIRY_SEC, MAX_STAKE_MINOR, resolveExpiry, stakeAmountOpts, stakeDisplay, stakeFor, validateStake, withStake } from "./stake-input";
 
 describe("validateStake", () => {
   it("rejects an empty stake", () => {
@@ -38,8 +39,8 @@ describe("stakeAmountOpts", () => {
     expect(stakeAmountOpts("INR").decimals).toBe(false);
     expect(stakeAmountOpts("USD").decimals).toBe(true);
   });
-  it("caps the whole part at the contract's maximum digits", () => {
-    expect(stakeAmountOpts("INR").maxInt).toBe(7);
+  it("caps the whole part at the digits of the contract's maximum", () => {
+    expect(stakeAmountOpts("INR").maxInt).toBe(String(Math.floor(MAX_STAKE_MINOR / 100)).length);
   });
 });
 
@@ -60,5 +61,31 @@ describe("resolveExpiry", () => {
   it("falls back to the default for a saved value the server no longer offers", () => {
     expect(resolveExpiry(45)).toBe(DEFAULT_EXPIRY_SEC);
     expect(resolveExpiry(0)).toBe(DEFAULT_EXPIRY_SEC);
+  });
+});
+
+describe("contract limits", () => {
+  it("MAX_STAKE_MINOR is exactly what OpenTradeSchema accepts", () => {
+    const base = { symbol: "EURUSD", direction: "UP", durationSec: 30, accountId: "0b7d7e6e-5f0e-4c43-9a4f-2d3c1b0a9e11" };
+    expect(OpenTradeSchema.safeParse({ ...base, stake: MAX_STAKE_MINOR }).success).toBe(true);
+    expect(OpenTradeSchema.safeParse({ ...base, stake: MAX_STAKE_MINOR + 1 }).success).toBe(false);
+  });
+});
+
+describe("stake per currency", () => {
+  it("falls back to the currency's default when nothing is saved", () => {
+    expect(stakeFor({}, "INR")).toBe("100");
+    expect(stakeFor({}, "USD")).toBe("10");
+  });
+  it("never reinterprets one currency's digits as another's", () => {
+    const inr = withStake({}, "INR", "5000");
+    expect(stakeFor(inr, "INR")).toBe("5000");
+    expect(stakeFor(inr, "USD")).toBe("10");
+    const both = withStake(inr, "USD", "25.5");
+    expect(stakeFor(both, "INR")).toBe("5000");
+    expect(stakeFor(both, "USD")).toBe("25.5");
+  });
+  it("respects a stake the user cleared", () => {
+    expect(stakeFor(withStake({}, "INR", ""), "INR")).toBe("");
   });
 });

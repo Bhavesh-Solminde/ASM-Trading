@@ -1,8 +1,8 @@
 import * as Haptics from "expo-haptics";
-import { forwardRef, useImperativeHandle, useRef } from "react";
+import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
-import { applyKey, formatMinor, stakePresets } from "@asm/client-core";
+import { applyKey, formatMinor, stakePresets, stakeToMinor } from "@asm/client-core";
 import { color, radius, space } from "@/theme/tokens";
 import { Button } from "@/theme/ui";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
@@ -18,14 +18,9 @@ const ROWS = [
 const keyBox = { flex: 1, minHeight: 52, borderRadius: radius.md, alignItems: "center", justifyContent: "center" } as const;
 
 /** Big amount, quick amounts, a 3×4 keypad and Done. Every press goes through client-core's `applyKey`. */
-export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: string; onChange: (next: string) => void }>(
-  function KeypadSheet({ currency, value, onChange }, ref) {
+export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: string; onChange: (next: string) => void; onDone: () => void }>(
+  function KeypadSheet({ currency, value, onChange, onDone }, ref) {
     const { t } = useTranslation();
-    const inner = useRef<SheetRef>(null);
-    useImperativeHandle(ref, () => ({
-      present: () => inner.current?.present(),
-      dismiss: () => inner.current?.dismiss(),
-    }));
     const opts = stakeAmountOpts(currency);
 
     const press = (key: string) => {
@@ -34,7 +29,7 @@ export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: strin
     };
 
     return (
-      <Sheet ref={inner} title={t("trade.stakeKeypad")}>
+      <Sheet ref={ref} title={t("trade.stakeKeypad")}>
         <Text
           accessibilityLabel={`${t("trade.stake")}: ${stakeDisplay(value)}`}
           accessibilityLiveRegion="polite"
@@ -57,7 +52,7 @@ export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: strin
                 style={{ ...keyBox, minHeight: 44, borderRadius: radius.sm, backgroundColor: selected ? color.brandFill : color.tile }}
               >
                 <Text style={{ color: selected ? color.brandInk : color.ink, fontWeight: "700", fontSize: 13 }} numberOfLines={1}>
-                  {formatMinor(amount * 100, currency)}
+                  {formatMinor(stakeToMinor(String(amount)), currency)}
                 </Text>
               </Pressable>
             );
@@ -85,7 +80,7 @@ export const KeypadSheet = forwardRef<SheetRef, { currency: string; value: strin
             </View>
           ))}
         </View>
-        <Button label={t("common.done")} onPress={() => inner.current?.dismiss()} />
+        <Button label={t("common.done")} onPress={onDone} />
       </Sheet>
     );
   },

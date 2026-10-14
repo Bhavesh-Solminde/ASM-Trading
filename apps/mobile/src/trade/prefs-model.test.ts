@@ -55,3 +55,17 @@ describe("parsePersisted", () => {
     expect(parsePersisted({ u1: 5 })).toEqual({});
   });
 });
+
+describe("stake per currency persistence", () => {
+  it("drops the legacy single stake (its currency is unknown) and reads stakeByCurrency", () => {
+    const out = parsePersisted({ u1: { symbol: "EURUSD", stake: "5000", stakeByCurrency: { INR: "700", USD: 3 } } });
+    expect(out.u1).not.toHaveProperty("stake");
+    expect(out.u1?.stakeByCurrency).toEqual({});
+  });
+  it("keeps a valid map", () => {
+    expect(parsePersisted({ u1: { stakeByCurrency: { INR: "700", USD: "5" } } }).u1?.stakeByCurrency).toEqual({ INR: "700", USD: "5" });
+  });
+  it("a legacy record with only the old stake reads as no saved stakes", () => {
+    expect(parsePersisted({ u1: { stake: "5000" } }).u1?.stakeByCurrency).toEqual({});
+  });
+});
