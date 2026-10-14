@@ -21,12 +21,10 @@
  * See doc: Growth-Loop Governor — Design & Migration Plan.
  */
 
-import { DEMO_WIN_RATE } from "./constants";
-
 export type GlgVerdict = "WIN" | "LOSS" | "HONEST";
 
 export interface GlgInput {
-  /** Demo trades skip the treasury ladder and roll `DEMO_WIN_RATE` for a WIN. */
+  /** Demo trades skip the treasury ladder and resolve HONEST (settle on the chart). */
   isDemo: boolean;
   /** Cumulative house treasury in minor units. Can be negative (rare). */
   treasuryMinor: number;
@@ -136,7 +134,7 @@ export function decideVerdictGLG(
   rng: () => number,
   config: GlgConfig = DEFAULT_GLG_CONFIG,
 ): GlgVerdict {
-  if (input.isDemo) return rng() < DEMO_WIN_RATE ? "WIN" : "LOSS";
+  if (input.isDemo) return "HONEST";
 
   const health = treasuryHealth(input.treasuryMinor, input.treasuryTargetMinor);
   let pWin = ladder(health, config.basePwinLadder);
