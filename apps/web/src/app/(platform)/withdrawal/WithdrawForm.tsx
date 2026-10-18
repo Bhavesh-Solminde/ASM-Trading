@@ -15,20 +15,17 @@ import {
   type UsdtNetwork,
 } from "@asm/contracts";
 import { certificateHtml, type CertificateData } from "@asm/mail/templates";
-import { currencySymbol, formatMinor } from "@/lib/format-money";
+import { currencySymbol, formatMinor } from "@asm/client-core";
 import { focusStep } from "@/lib/focus-step";
 import { IconTether } from "@/components/trade/AssetIcon";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { AmountField, type AmountFieldHandle } from "@/components/payments/AmountField";
 import { StepHeader } from "@/components/payments/StepHeader";
+import type { LastPayouts } from "@/lib/withdrawal-prefill";
 
 /** The user's most recent details per payout method, used to prefill the form. */
-export interface LastPayouts {
-  BANK?: { accountHolder: string; accountNumber: string; ifsc: string };
-  UPI?: { upiId: string };
-  USDT?: { usdtNetwork: UsdtNetwork; usdtAddress: string };
-}
+export type { LastPayouts };
 
 interface Receipt {
   id: string;

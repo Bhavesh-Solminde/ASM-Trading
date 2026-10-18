@@ -10,8 +10,8 @@ import {
   withFetchedTrades,
   withOpenResult,
   type TradeState,
-} from "@/components/trade/trade-state";
-import { shouldReconcile } from "@/components/trade/reconcile";
+  shouldReconcile,
+} from "@asm/client-core";
 import { MarketStore, useMarket } from "./market-store";
 import type { Quote } from "./quotes";
 

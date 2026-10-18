@@ -452,9 +452,9 @@ export async function rejectDeposit(input: {
 }
 
 /** A user's own deposits, newest first. Ownership is in the predicate. */
-export async function listDepositsForActor(actorId: string, limit: number): Promise<Deposit[]> {
+export async function listDepositsForActor(actorId: string, limit: number, before?: Date): Promise<Deposit[]> {
   return prisma.deposit.findMany({
-    where: { userId: actorId },
+    where: { userId: actorId, ...(before ? { createdAt: { lt: before } } : {}) },
     orderBy: { createdAt: "desc" },
     take: Math.min(Math.max(limit, 1), 100),
   });

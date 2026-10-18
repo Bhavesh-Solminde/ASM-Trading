@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { noStoreJson, rateLimited } from "@/lib/request-session";
 import { RegisterSchema } from "@asm/contracts";
 import { bonusPercentForDeposit, findUserByEmail, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
@@ -10,6 +11,7 @@ import {
   SESSION_COOKIE_OPTIONS,
   createSession,
 } from "@/lib/session";
+import { deviceNameFrom, isAppRequest } from "@/lib/app-client";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
 import { provisionNewUser } from "@/lib/signup";
@@ -25,10 +27,7 @@ export async function POST(req: NextRequest) {
       { evt: "security.rate_limited", route: "register" },
       "register throttled",
     );
-    return NextResponse.json(
-      { error: "Too many attempts. Wait an hour and try again." },
-      { status: 429 },
-    );
+    return rateLimited("Too many attempts. Wait an hour and try again.");
   }
 
   if ((await checkNetwork({ ip: ctx.ip, route: "register", log })).blocked) {
@@ -75,9 +74,12 @@ export async function POST(req: NextRequest) {
 
   await provisionNewUser(user.id, ctx);
 
+  const app = isAppRequest(req.headers);
   const token = await createSession(user.id, {
     ip: ctx.ip,
     userAgent: ctx.userAgent,
+    client: app ? "APP" : "WEB",
+    deviceName: app ? deviceNameFrom(req.headers) : null,
   });
 
   log.info({ evt: "auth.register", userId: user.id }, "account created");
@@ -90,6 +92,8 @@ export async function POST(req: NextRequest) {
     name: firstName ?? name,
     firstDepositBonusPercent: bonusPercentForDeposit(1),
   });
+
+  if (app) return noStoreJson({ token, userId: user.id }, { status: 201 });
 
   const response = NextResponse.json({ userId: user.id }, { status: 201 });
   response.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);

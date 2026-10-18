@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { dailyLeaderboard } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
-import { startOfDayMs } from "@/lib/day";
+import { startOfDayMs } from "@asm/client-core";
 import { PageFrame } from "@/components/shell/PageFrame";
 import { LeaderboardView } from "@/components/leaderboard/LeaderboardView";
 

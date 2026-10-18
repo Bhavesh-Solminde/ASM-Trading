@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BONUS_TIERS, bonusPercentForDeposit, ordinal } from "@/lib/bonus";
+import { BONUS_TIERS, bonusPercentForDeposit, ordinal, bonusMinor, formatMinorCompact } from "@asm/client-core";
 import { BonusOfferSheet } from "@/components/shell/PromoBanner";
-import { bonusMinor, formatMinorCompact } from "./limits";
 
 /**
  * What this deposit is worth: the bonus tier it falls in, the total trading

@@ -6,12 +6,11 @@ import { MethodPicker } from "@/components/deposit/MethodPicker";
 import { AmountStep } from "@/components/deposit/AmountStep";
 import { UsdtAmountStep } from "@/components/deposit/UsdtAmountStep";
 import { BonusPreview } from "@/components/deposit/BonusPreview";
-import { formatInr, overallLimits } from "@/components/deposit/limits";
+import { formatInr, overallLimits, bonusPercentForDeposit } from "@asm/client-core";
 import { AmountField, type AmountFieldHandle } from "@/components/payments/AmountField";
 import { StepHeader } from "@/components/payments/StepHeader";
 import { SummaryCard } from "@/components/payments/SummaryCard";
 import { Icon } from "@/components/shell/Icon";
-import { bonusPercentForDeposit } from "@/lib/bonus";
 import { focusStep } from "@/lib/focus-step";
 
 type Method = (typeof DEPOSIT_METHODS)[number];

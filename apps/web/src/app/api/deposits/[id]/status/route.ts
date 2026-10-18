@@ -5,8 +5,8 @@ import {
   findLatestChainCreditForGatewayDeposit,
   getDepositByToken,
 } from "@asm/db";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getSession, rateLimited, unauthenticated } from "@/lib/request-session";
 
 /**
  * Lightweight JSON status for the checkout page's client-side poller — only
@@ -24,13 +24,13 @@ import { checkRateLimit } from "@/lib/rate-limit";
  * already does everywhere else in this route family.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   if (!(await checkRateLimit(`rl:deposit-status:${session.userId}`, 60, 60))) {
-    return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+    return rateLimited();
   }
 
   const { id: checkoutToken } = await params;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
-import { BONUS_TIERS, bonusPercentForDeposit, ordinal } from "@/lib/bonus";
+import { BONUS_TIERS, bonusPercentForDeposit, ordinal } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
 import { Icon } from "./Icon";
 import { usePlatform } from "./PlatformProvider";

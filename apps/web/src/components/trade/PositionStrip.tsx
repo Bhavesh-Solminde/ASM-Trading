@@ -5,10 +5,16 @@ import type { TradeView } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
 import { splitAssetName } from "@/lib/asset-name";
-import { formatMinor } from "@/lib/format-money";
+import {
+  formatMinor,
+  grossReturnMinor,
+  openSide,
+  RING_LENGTH,
+  ringOffset,
+  shortCountdown,
+  soonestOpen,
+} from "@asm/client-core";
 import { useNowSec } from "@/lib/use-now";
-import { grossReturnMinor, openSide } from "./pnl-display";
-import { RING_LENGTH, ringOffset, shortCountdown, soonestOpen } from "./position";
 
 /**
  * Ticks on its own each second (and with its symbol's price), so the chart and

@@ -134,6 +134,7 @@ export {
 } from "./repositories/withdrawal";
 export {
   loadProfile,
+  setLocale,
   updateProfile,
   saveKycDocument,
   submitKyc,

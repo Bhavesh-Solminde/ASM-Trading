@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/shell/Icon";
-import { formatMinor } from "@/lib/format-money";
-import { convertMinorBetween } from "@/lib/currency";
+import { formatMinor, convertMinorBetween } from "@asm/client-core";
 
 type Currency = "INR" | "USD";
 

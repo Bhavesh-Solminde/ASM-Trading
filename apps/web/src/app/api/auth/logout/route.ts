@@ -5,6 +5,7 @@ import {
   destroySession,
   readSession,
 } from "@/lib/session";
+import { sessionTokenFrom } from "@/lib/request-session";
 
 /** A plain HTML form post (no JS) rather than a fetch() from our own code. */
 function isFormPost(req: NextRequest): boolean {
@@ -13,7 +14,7 @@ function isFormPost(req: NextRequest): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  const token = sessionTokenFrom(req);
   const all = req.nextUrl.searchParams.get("all") === "1";
 
   if (token) {

@@ -96,3 +96,4 @@ export {
   type LeaderboardEntryDto,
   type LeaderboardResultDto,
 } from "./leaderboard";
+export * from "./app";
