@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import type { TradeView } from "@asm/contracts";
 import { Chart } from "@/chart/Chart";
 import type { ChartType } from "@/chart/types";
 import type { ResumeSnapshot } from "@/cache/codec";
 import { useSocket } from "@/socket/socket-store";
 import { chartSource } from "./chart-source";
+import { tradeLabel } from "./trade-label";
 import { useNow } from "./useNow";
 
 /** One shared empty list: a fresh `[]` per render would defeat the history commit's change check. */
@@ -29,6 +31,8 @@ export function TradeChart({
   accountId,
   snapshot,
   tradesSnapshot,
+  topInset,
+  hideReadout,
 }: {
   symbol: string;
   timeframe: ResumeSnapshot["timeframe"];
@@ -37,11 +41,12 @@ export function TradeChart({
   accountId: string | null;
   snapshot: ResumeSnapshot | null;
   tradesSnapshot: ResumeSnapshot | null;
-  /** Top of the chart readout, below the overlay row. Accepted now; Task 8b forwards it to `Chart`. */
+  /** Top of the chart readout, below the overlay row (forwarded to `Chart`). */
   topInset?: number;
-  /** Hide the readout while the chart-tools panel is open. Accepted now; Task 8b forwards it to `Chart`. */
+  /** Hide the readout while the chart-tools panel is open (forwarded to `Chart`). */
   hideReadout?: boolean;
 }) {
+  const { t } = useTranslation();
   const chart = useSocket((s) => s.chart);
   const liveTrades = useSocket((s) => (accountId ? s.trades.tradesByAccount[accountId] : undefined));
   const source = chartSource({ symbol, timeframe, chart, snapshot });
@@ -56,6 +61,10 @@ export function TradeChart({
   const nowMs = useNow(openTrades.length > 0 && !staleTrades ? 1000 : null);
   const nowSec = staleTrades ? Math.floor(staleTrades.savedAt / 1000) : Math.floor(nowMs / 1000);
 
+  // The trade line says "Settling…" after the expiry, like the position strip (a stale snapshot reads the same).
+  const settling = t("trade.settling");
+  const labelFor = useCallback((tr: TradeView, now: number) => tradeLabel(tr.expiryTs, now, settling), [settling]);
+
   const live = source === "live";
   return (
     <Chart
@@ -67,6 +76,9 @@ export function TradeChart({
       precision={precision}
       openTrades={openTrades}
       nowSec={nowSec}
+      labelFor={labelFor}
+      topInset={topInset}
+      hideReadout={hideReadout}
       onNearLeftEdge={loadOlder}
     />
   );

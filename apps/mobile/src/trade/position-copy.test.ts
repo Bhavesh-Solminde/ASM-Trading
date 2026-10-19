@@ -21,7 +21,12 @@ describe("positionCopy", () => {
 
   it("puts the stake at the entry price in the detail line", () => {
     const c = positionCopy({ ...base, live: { expired: false, remainingSec: 8 } }, t);
-    expect(c.detail).toBe('trade.at|{"stake":"₹100.00","price":"94553.60"}');
+    expect(c.detail).toBe('trade.at|{"stake":"₹100.00","price":"94,553.60"}');
+  });
+
+  it("groups the entry price like the chart's tags", () => {
+    const c = positionCopy({ ...base, entryPrice: 1234567.5, precision: 1, live: { expired: false, remainingSec: 8 } }, t);
+    expect(c.detail).toContain('"price":"1,234,567.5"');
   });
 
   it("appends '+N more' to the detail and the spoken label only when others are open", () => {

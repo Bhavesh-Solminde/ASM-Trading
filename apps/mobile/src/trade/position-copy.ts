@@ -1,3 +1,4 @@
+import { fmtPrice } from "@/chart/format-price";
 import { countdownText } from "./countdown-text";
 
 type T = (key: string, options?: Record<string, unknown>) => string;
@@ -29,6 +30,6 @@ export function positionCopy(
     side,
     time,
     label: moreText ? `${spoken} ${moreText}` : spoken,
-    detail: t("trade.at", { stake, price: a.entryPrice.toFixed(a.precision) }) + (moreText ? ` · ${moreText}` : ""),
+    detail: t("trade.at", { stake, price: fmtPrice(a.entryPrice, a.precision) }) + (moreText ? ` · ${moreText}` : ""),
   };
 }

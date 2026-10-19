@@ -1,26 +1,37 @@
+import { AnekDevanagari_600SemiBold } from "@expo-google-fonts/anek-devanagari/600SemiBold";
+import { AnekLatin_600SemiBold } from "@expo-google-fonts/anek-latin/600SemiBold";
+import { MartianMono_600SemiBold } from "@expo-google-fonts/martian-mono/600SemiBold";
 import {
   Canvas,
+  Circle,
+  DashPathEffect,
   Group,
   LinearGradient,
   Line,
   Path,
-  Rect,
+  RoundedRect,
   Skia,
   Text as SkText,
   type SkFont,
   matchFont,
+  useFont,
   vec,
 } from "@shopify/react-native-skia";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
+import { Pressable, View, type LayoutChangeEvent } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
 import { shortCountdown } from "@asm/client-core";
 import type { CandleDto, TradeView } from "@asm/contracts";
-import { color } from "@/theme/tokens";
+import { scriptFor } from "@/theme/font-families";
+import { color, radius } from "@/theme/tokens";
+import { Txt } from "@/theme/ui";
+import { FigText } from "@/ui/FigText";
 import { firstCandleShift, frontChanged, isFollowing, shouldRequestOlder, type EdgeState } from "./live";
+import { fmtPrice } from "./format-price";
 import { buildSeries, type SeriesPaths } from "./paths";
 import { indexForX, nearLeftEdge, priceRange, shiftForPrepend, visibleRange, xForIndex, yForPrice } from "./scale";
+import { entryIndex, gridYs, hasNonAscii, priceTagRect, readoutBox, showReadout, tradeTagRect } from "./tag-layout";
 import type { ChartType, Viewport } from "./types";
 import { useChartGestures } from "./useChartGestures";
 import { useHistoryCommit } from "./useHistoryCommit";
@@ -28,6 +39,12 @@ import { useHistoryCommit } from "./useHistoryCommit";
 const PRICE_AXIS = 56;
 const DEFAULT_VISIBLE = 60;
 const EMPTY: SeriesPaths = { up: "", down: "" };
+/** Dash pattern of the last-price line (hoisted: a fresh array per render would re-create the effect). */
+const PRICE_DASH = [4, 3];
+
+/** What the chart needs of an open trade. */
+export type ChartTrade = TradeView;
+const DEFAULT_LABEL = (tr: ChartTrade, nowSec: number) => shortCountdown(Math.max(0, tr.expiryTs - nowSec));
 
 export interface ChartProps {
   type: ChartType;
@@ -39,6 +56,12 @@ export interface ChartProps {
   openTrades: TradeView[];
   /** Epoch seconds, for the open-trade countdowns. */
   nowSec: number;
+  /** The trade line's countdown text. Default: the plain countdown; the Trade screen says "Settling…" after expiry. */
+  labelFor?: (trade: ChartTrade, nowSec: number) => string;
+  /** Top of the crosshair's OHLC readout: just below the screen's overlay row. */
+  topInset?: number;
+  /** Hide the readout (the chart-tools panel is open over its spot). */
+  hideReadout?: boolean;
   onNearLeftEdge: () => void;
 }
 
@@ -68,10 +91,10 @@ const SeriesLayer = memo(function SeriesLayer({ type, series, height }: { type: 
       <>
         {area ? (
           <Path path={area}>
-            <LinearGradient start={vec(0, 0)} end={vec(0, height)} colors={[`${color.brand}66`, `${color.brand}00`]} />
+            <LinearGradient start={vec(0, 0)} end={vec(0, height)} colors={[`${color.accent}66`, `${color.accent}00`]} />
           </Path>
         ) : null}
-        {line ? <Path path={line} style="stroke" strokeWidth={1.5} strokeJoin="round" color={color.brand} /> : null}
+        {line ? <Path path={line} style="stroke" strokeWidth={1.5} strokeJoin="round" color={color.accent} /> : null}
       </>
     );
   }
@@ -79,7 +102,7 @@ const SeriesLayer = memo(function SeriesLayer({ type, series, height }: { type: 
     return (
       <>
         {up ? <Path path={up} style="stroke" strokeWidth={1.5} color={color.up} /> : null}
-        {down ? <Path path={down} style="stroke" strokeWidth={1.5} color={color.down} /> : null}
+        {down ? <Path path={down} style="stroke" strokeWidth={1.5} color={color.downText} /> : null}
       </>
     );
   }
@@ -87,44 +110,90 @@ const SeriesLayer = memo(function SeriesLayer({ type, series, height }: { type: 
   return (
     <>
       {up ? <Path path={up} style="fill" color={color.up} /> : null}
-      {down ? <Path path={down} style="fill" color={color.down} /> : null}
+      {down ? <Path path={down} style="fill" color={color.downText} /> : null}
       {upWicks ? <Path path={upWicks} style="stroke" strokeWidth={1} color={color.up} /> : null}
-      {downWicks ? <Path path={downWicks} style="stroke" strokeWidth={1} color={color.down} /> : null}
+      {downWicks ? <Path path={downWicks} style="stroke" strokeWidth={1} color={color.downText} /> : null}
     </>
   );
 });
 
-/** An open trade's entry line, direction triangle and countdown. The triangle path is parsed once per position. */
-function TradeLine({
-  direction,
+/** Three faint horizontal rules under the candles. One path, parsed once per size. */
+const GridLayer = memo(function GridLayer({ plotW, height }: { plotW: number; height: number }) {
+  const d = useMemo(() => gridYs(height).map((y) => `M0 ${Math.round(y) + 0.5} H${plotW}`).join(" "), [plotW, height]);
+  const grid = useSkPath(d);
+  return grid ? <Path path={grid} style="stroke" strokeWidth={1} color={color.ruleSoft} /> : null;
+});
+
+/**
+ * An open trade: an accent line from the entry candle to the right edge ending in a dot at the entry, and a tag
+ * "Down 0:08" (or "Down Settling…") sized by measuring its text. The width is memoised on font and text, so it is
+ * measured only when either changes, not on every price tick.
+ */
+const TradeLine = memo(function TradeLine({
+  side,
+  label,
+  x,
   y,
   plotW,
-  label,
-  font,
+  figFont,
+  uiFont,
 }: {
-  direction: TradeView["direction"];
+  side: string;
+  label: string;
+  x: number;
   y: number;
   plotW: number;
-  label: string;
-  font: SkFont;
+  /** Martian Mono: for pure-ASCII tag text. */
+  figFont: SkFont;
+  /** Anek: for tag text with Hindi words or the ellipsis, which Martian has no glyphs for. */
+  uiFont: SkFont;
 }) {
-  const tone = direction === "UP" ? color.up : color.down;
-  const tri = useSkPath(
-    direction === "UP" ? `M6 ${y - 4} L14 ${y - 4} L10 ${y - 11} Z` : `M6 ${y - 11} L14 ${y - 11} L10 ${y - 4} Z`,
-  );
+  const text = `${side} ${label}`;
+  const font = hasNonAscii(text) ? uiFont : figFont;
+  const textW = useMemo(() => font.measureText(text).width, [font, text]);
+  const tag = tradeTagRect(plotW, textW);
   return (
     <Group>
-      <Line p1={vec(0, y)} p2={vec(plotW, y)} color={tone} strokeWidth={1} />
-      {tri ? <Path path={tri} color={tone} /> : null}
-      <SkText x={18} y={y - 4} text={label} font={font} color={tone} />
+      <Line p1={vec(x, y)} p2={vec(plotW, y)} color={color.accent} strokeWidth={1.5} />
+      <Circle cx={x} cy={y} r={4} color={color.accent} />
+      <RoundedRect x={tag.x} y={y - 11} width={tag.w} height={22} r={4} color={color.accent} />
+      <SkText x={tag.textX} y={y + 4} text={text} font={font} color={color.onAccent} />
     </Group>
   );
-}
+});
+
+/** The last-price tag: ink-white with dark text, hanging from the axis side, sized to its text (it may overlap the plot). */
+const PriceTag = memo(function PriceTag({
+  y,
+  plotW,
+  text,
+  textW,
+  font,
+}: {
+  y: number;
+  plotW: number;
+  text: string;
+  textW: number;
+  font: SkFont;
+}) {
+  const tag = priceTagRect(plotW, PRICE_AXIS, textW);
+  return (
+    <Group>
+      <RoundedRect x={tag.x} y={y - 11} width={tag.w} height={22} r={4} color={color.ink} />
+      <SkText x={tag.textX} y={y + 4} text={text} font={font} color={color.ground} />
+    </Group>
+  );
+});
 
 export function Chart(props: ChartProps) {
   const { type, candles, forming, lastPrice, precision, openTrades, nowSec, onNearLeftEdge } = props;
-  const { t } = useTranslation();
-  const font = useMemo(() => matchFont({ fontFamily: "sans-serif", fontSize: 11 }), []);
+  const { labelFor = DEFAULT_LABEL, topInset = 0, hideReadout = false } = props;
+  const { t, i18n } = useTranslation();
+  const fallbackFont = useMemo(() => matchFont({ fontFamily: "sans-serif", fontSize: 11 }), []);
+  // Martian Mono (bundled) for prices on the canvas; the system font until it has loaded.
+  const figFont = useFont(MartianMono_600SemiBold, 11) ?? fallbackFont;
+  // Anek (bundled) for tag text Martian cannot draw (Hindi words, "…"). Skia draws unshaped, so conjuncts may be plain.
+  const uiFont = useFont(scriptFor(i18n.language) === "devanagari" ? AnekDevanagari_600SemiBold : AnekLatin_600SemiBold, 11) ?? fallbackFont;
 
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<ViewState>({ rightIndex: 0, visibleCount: DEFAULT_VISIBLE, following: true });
@@ -210,9 +279,11 @@ export function Chart(props: ChartProps) {
   const onLayout = (e: LayoutChangeEvent) =>
     setSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height });
 
-  const fmt = (p: number) => p.toFixed(precision);
+  const fmt = (p: number) => fmtPrice(p, precision);
+  const priceText = lastPrice !== null ? fmt(lastPrice) : "";
+  const priceTextW = useMemo(() => figFont.measureText(priceText).width, [figFont, priceText]);
   const clampY = (y: number) => Math.min(height - 2, Math.max(12, y));
-  const priceY = ready && lastPrice !== null ? Math.min(height - 9, Math.max(9, yForPrice(lastPrice, range, height))) : null;
+  const priceY = ready && lastPrice !== null ? Math.min(height - 11, Math.max(11, yForPrice(lastPrice, range, height))) : null;
 
   const crossIndex = crossX !== null && crossX <= plotW ? Math.floor(indexForX(crossX, viewport)) : null;
   const crossCandle = crossIndex !== null && crossIndex >= 0 && crossIndex < total ? all[crossIndex] : undefined;
@@ -226,31 +297,35 @@ export function Chart(props: ChartProps) {
             {ready ? (
               <>
                 <Group clip={{ x: 0, y: 0, width: plotW, height }}>
+                  <GridLayer plotW={plotW} height={height} />
                   <SeriesLayer type={type} series={history} height={height} />
                   <SeriesLayer type={type} series={live} height={height} />
 
                   {openTrades.map((tr) => (
                     <TradeLine
                       key={tr.id}
-                      direction={tr.direction}
+                      side={tr.direction === "UP" ? t("trade.up") : t("trade.down")}
+                      label={labelFor(tr, nowSec)}
+                      x={Math.max(0, xForIndex(entryIndex(all, tr.entryTs) + 0.5, viewport))}
                       y={clampY(yForPrice(tr.entryPrice, range, height))}
                       plotW={plotW}
-                      label={shortCountdown(Math.max(0, tr.expiryTs - nowSec))}
-                      font={font}
+                      figFont={figFont}
+                      uiFont={uiFont}
                     />
                   ))}
 
-                  {priceY !== null ? <Line p1={vec(0, priceY)} p2={vec(plotW, priceY)} color={color.brand} strokeWidth={1} /> : null}
+                  {priceY !== null ? (
+                    <Line p1={vec(0, priceY)} p2={vec(plotW, priceY)} color={color.ink3} strokeWidth={1}>
+                      <DashPathEffect intervals={PRICE_DASH} />
+                    </Line>
+                  ) : null}
                   {crossLineX !== null ? (
                     <Line p1={vec(crossLineX, 0)} p2={vec(crossLineX, height)} color={color.ink2} strokeWidth={1} />
                   ) : null}
                 </Group>
 
                 {priceY !== null && lastPrice !== null ? (
-                  <Group>
-                    <Rect x={plotW} y={priceY - 9} width={PRICE_AXIS} height={18} color={color.brand} />
-                    <SkText x={plotW + 4} y={priceY + 4} text={fmt(lastPrice)} font={font} color={color.brandInk} />
-                  </Group>
+                  <PriceTag y={priceY} plotW={plotW} text={priceText} textW={priceTextW} font={figFont} />
                 ) : null}
               </>
             ) : null}
@@ -258,21 +333,34 @@ export function Chart(props: ChartProps) {
         </GestureDetector>
       </View>
 
-      {crossCandle ? (
+      {crossCandle && showReadout({ hide: hideReadout, hasCandle: true }) ? (
         <View
           pointerEvents="none"
-          style={{ position: "absolute", top: 6, left: 6, backgroundColor: color.panel, borderRadius: 8, padding: 6 }}
+          style={{
+            position: "absolute",
+            ...readoutBox(topInset, PRICE_AXIS),
+            backgroundColor: color.surface,
+            borderWidth: 1,
+            borderColor: color.rule,
+            borderRadius: radius.sm,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+          }}
         >
-          <Text style={{ color: color.ink, fontSize: 11, fontVariant: ["tabular-nums"] }}>
-            {t("trade.ohlcO")} {fmt(crossCandle.o)}  {t("trade.ohlcH")} {fmt(crossCandle.h)}  {t("trade.ohlcL")}{" "}
-            {fmt(crossCandle.l)}  {t("trade.ohlcC")} {fmt(crossCandle.c)}
-          </Text>
+          <FigText
+            size={11}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+            text={`${t("trade.ohlcO")} ${fmt(crossCandle.o)}  ${t("trade.ohlcH")} ${fmt(crossCandle.h)}  ${t("trade.ohlcL")} ${fmt(crossCandle.l)}  ${t("trade.ohlcC")} ${fmt(crossCandle.c)}`}
+          />
         </View>
       ) : null}
 
       {!view.following ? (
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={t("trade.backToLive")}
           onPress={() => setView((v) => ({ ...v, following: true }))}
           hitSlop={8}
           style={{
@@ -283,12 +371,14 @@ export function Chart(props: ChartProps) {
             minWidth: 44,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: color.brandFill,
-            borderRadius: 999,
+            backgroundColor: color.accent,
+            borderRadius: radius.pill,
             paddingHorizontal: 16,
           }}
         >
-          <Text style={{ color: color.brandInk, fontWeight: "700" }}>{t("trade.backToLive")} ›</Text>
+          <Txt weight={600} size={14} color={color.onAccent}>
+            {t("trade.backToLive")} ›
+          </Txt>
         </Pressable>
       ) : null}
     </View>
