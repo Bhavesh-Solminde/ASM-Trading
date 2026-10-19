@@ -15,14 +15,17 @@ import { grossReturnMinor } from "./pnl-display";
 import { StakeSheet } from "./StakeSheet";
 import {
   EXPIRY_CHIPS,
+  EXPIRY_STORAGE_KEY,
   defaultStake,
   formatDuration,
   groupAmount,
   isChipExpiry,
+  parseSavedExpiry,
+  parseSavedStake,
   stakePresets,
+  stakeStorageKey,
+  type TimeMode,
 } from "./stake";
-
-type TimeMode = "timer" | "time";
 
 /** The next wall-clock occurrence of an HH:MM, today or (if already past) tomorrow. */
 function nextOccurrenceMs(hhmm: string, nowMs: number): number | null {
@@ -107,11 +110,55 @@ export function TradeTicket({
   const closed = useMarketClosed(symbol);
   const minStake = minStakeMinor(currency);
 
-  // Switching to an account in another currency resets the stake to that
-  // currency's default, so an INR ticket never opens below the ₹100 minimum.
+  // The currency whose saved stake has been restored into the ticket. Saving is
+  // gated on it, and the save effects are declared before the restore effect,
+  // so the first render's defaults never overwrite what was stored.
+  const restoredFor = useRef<string | null>(null);
   useEffect(() => {
-    setStakeInput(defaultStake(currency));
+    if (restoredFor.current !== currency) return;
+    try {
+      localStorage.setItem(stakeStorageKey(currency), stakeInput);
+    } catch {
+      // Storage blocked (private mode): the ticket just won't persist.
+    }
+  }, [currency, stakeInput]);
+  useEffect(() => {
+    if (restoredFor.current === null) return;
+    try {
+      localStorage.setItem(EXPIRY_STORAGE_KEY, JSON.stringify({ durationSec, mode, targetMs }));
+    } catch {
+      // As above.
+    }
+  }, [durationSec, mode, targetMs]);
+
+  // Restore the trader's last stake for this currency (else its default, so an
+  // INR ticket never opens below the ₹100 minimum) and, on mount, their last
+  // expiry. This survives a refresh and the remount on entering/leaving
+  // fullscreen. Runs once per currency, so a dev double-invoke can't reset it.
+  useEffect(() => {
+    if (restoredFor.current === currency) return;
+    let savedStake: string | null = null;
+    try {
+      savedStake = parseSavedStake(localStorage.getItem(stakeStorageKey(currency)));
+    } catch {
+      // Unreadable storage: fall back to the default below.
+    }
+    setStakeInput(savedStake ?? defaultStake(currency));
     setError(null);
+    if (restoredFor.current === null) {
+      let saved = null;
+      try {
+        saved = parseSavedExpiry(localStorage.getItem(EXPIRY_STORAGE_KEY), Date.now());
+      } catch {
+        // Unreadable storage: keep the default expiry.
+      }
+      if (saved) {
+        setDurationSec(saved.durationSec);
+        setMode(saved.mode);
+        setTargetMs(saved.targetMs);
+      }
+    }
+    restoredFor.current = currency;
   }, [currency]);
 
   const stakeMajor = Number(stakeInput);
