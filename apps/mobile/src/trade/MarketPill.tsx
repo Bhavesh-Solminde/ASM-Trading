@@ -39,6 +39,9 @@ export function MarketPill({
         style={({ pressed }) => ({
           height: 40,
           maxWidth: 220,
+          // Shrink (the name truncates) so a long market name never pushes the bonus stamp off the row.
+          flexShrink: 1,
+          minWidth: 0,
           flexDirection: "row",
           alignItems: "center",
           gap: 8,
