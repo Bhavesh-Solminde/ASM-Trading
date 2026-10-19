@@ -133,6 +133,50 @@ ssh deploy@187.52.118.185 'cd /opt/asmtrader/deploy && docker compose up -d --bu
 `postgres` and `redis` stay running across redeploys — only the `web`,
 `engine`, and one-shot `migrate` images get rebuilt.
 
+## Network edge: Private Relay block + flood limits
+
+**Private Relay (Safari's "Show IP Address" sheet).** `deploy/scripts/block-private-relay.sh`
+loads Apple's published egress ranges into ipsets and TCP-resets web traffic
+from them, so Safari asks the user to reveal their IP. Run once, then daily:
+
+```bash
+sudo apt install -y ipset
+# This VPS also serves amscoins.com. Without --dest the block covers both sites;
+# scope it to indianxtrade.com's own address(es) if they differ:
+sudo /opt/asmtrader/deploy/scripts/block-private-relay.sh            # or: --dest <v4> --dest6 <v6>
+
+sudo tee /etc/systemd/system/private-relay-block.service >/dev/null <<'UNIT'
+[Unit]
+Description=Refresh iCloud Private Relay block
+After=network-online.target
+[Service]
+Type=oneshot
+ExecStart=/opt/asmtrader/deploy/scripts/block-private-relay.sh
+UNIT
+sudo tee /etc/systemd/system/private-relay-block.timer >/dev/null <<'UNIT'
+[Unit]
+Description=Daily iCloud Private Relay block refresh (and on boot)
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1d
+Persistent=true
+[Install]
+WantedBy=timers.target
+UNIT
+sudo systemctl daemon-reload && sudo systemctl enable --now private-relay-block.timer
+# Undo: sudo /opt/asmtrader/deploy/scripts/block-private-relay.sh --remove
+```
+
+Verify on an iPhone/iPad with Private Relay on: Safari should show "Private
+Relay is unable to hide your IP address" → **Show IP Address** loads the site.
+The app also blocks relay itself (`VPN_BLOCK_MODE=block`) as a fallback page.
+
+**Flood limits** live in `deploy/nginx/asmtrader.conf` (auth 20 r/min per IP,
+API 10 r/s, 100 connections per IP, slow-client timeouts, 10 MB body cap).
+After copying the file: `sudo nginx -t && sudo systemctl reload nginx`. The
+full DDoS plan (Cloudflare, Turnstile, origin lock-down) is in
+`docs/security/ddos-plan.md`.
+
 ## Useful commands
 
 ```bash
