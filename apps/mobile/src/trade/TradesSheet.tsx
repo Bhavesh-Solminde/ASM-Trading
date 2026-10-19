@@ -50,7 +50,7 @@ function TradeName({ trade, assets, detail }: { trade: TradeView; assets: readon
         <Text numberOfLines={1} style={{ color: color.ink, fontSize: 15, fontWeight: "700", flexShrink: 1 }}>
           {assetName(assets, trade.symbol)}
         </Text>
-        <Text style={{ color: color.ink2, fontSize: 12 }}>{trade.direction === "UP" ? t("trade.buy") : t("trade.sell")}</Text>
+        <Text style={{ color: color.ink2, fontSize: 12 }}>{trade.direction === "UP" ? t("trade.up") : t("trade.down")}</Text>
       </View>
       <Text numberOfLines={1} style={{ color: color.ink3, fontSize: 12, fontVariant: ["tabular-nums"] }}>
         {detail}

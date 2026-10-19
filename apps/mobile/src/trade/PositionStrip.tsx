@@ -38,7 +38,7 @@ const StripBody = memo(function StripBody({
   const { remainingSec, totalSec, pnl } = live;
   const up = trade.direction === "UP";
   const dirColor = up ? color.up : color.down;
-  const side = up ? t("trade.buy") : t("trade.sell");
+  const side = up ? t("trade.up") : t("trade.down");
   const stake = money(trade.stake, currency);
   const time = countdownText(live, t("trade.settling"));
   const label =

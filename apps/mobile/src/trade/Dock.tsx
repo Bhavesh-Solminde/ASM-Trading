@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
-import { EXPIRY_CHIPS, formatDuration, isChipExpiry, minStakeMinor, profitForStake } from "@asm/client-core";
+import { EXPIRY_CHIPS, formatDuration, grossReturnMinor, isChipExpiry, minStakeMinor, profitForStake } from "@asm/client-core";
 import { money } from "@/money/format";
 import type { Bootstrap } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
@@ -12,11 +12,12 @@ import { KeypadSheet } from "./KeypadSheet";
 import { payoutPctFor, type AppAsset } from "./markets";
 import { prefsFor } from "./prefs-model";
 import { MAX_STAKE_MINOR, resolveExpiry, stakeAfterKey, stakeAmountOpts, stakeFor, stakeTileLabel, validateStake, withStake } from "./stake-input";
+import { TradeButton } from "./TradeButton";
 import { useTradePrefs, useUserPrefs } from "./trade-prefs";
 import { useTradeSubmit } from "./useTradeSubmit";
 
 /**
- * Stake, expiry and Buy/Sell. The tab bar below already adds the bottom safe-area inset, so the dock has none.
+ * Stake, expiry and Up/Down. The tab bar below already adds the bottom safe-area inset, so the dock has none.
  * Expiry and the stake (kept separately for each currency) are saved per user. The stake is checked against the
  * account's real + bonus balance, as the server does, and keypad presses are applied to the latest saved stake.
  */
@@ -138,37 +139,25 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
         </Text>
       ) : null}
 
-      <View style={{ flexDirection: "row", gap: space(2) }}>
+      <View style={{ flexDirection: "row", gap: 10 }}>
         {(["UP", "DOWN"] as const).map((dir) => {
           const up = dir === "UP";
-          const ink = up ? color.upInk : color.downInk;
-          const label = up ? t("trade.buy") : t("trade.sell");
+          const label = up ? t("trade.up") : t("trade.down");
           const payoutText = payoutPct !== null ? t("trade.payout", { pct: payoutPct }) : "";
-          const profitText = profit !== null ? `+${money(profit, currency)}` : "";
+          // What comes back on a win: the stake plus the profit (the canvas shows "win ₹1,930" for ₹1,000 at 93%).
+          const win = check.ok && profit !== null ? t("trade.win", { amount: money(grossReturnMinor(check.minor, profit), currency, { trim: true }) }) : null;
           return (
-            <Pressable
+            <TradeButton
               key={dir}
+              direction={dir}
               testID={up ? "buy" : "sell"}
-              accessibilityRole="button"
-              accessibilityLabel={[label, payoutText, profitText].filter(Boolean).join(", ")}
-              accessibilityState={{ disabled: blocked, busy }}
+              label={label}
+              sub={win}
+              accessibilityLabel={[label, payoutText, win ?? ""].filter(Boolean).join(", ")}
               disabled={blocked}
+              busy={busy}
               onPress={() => void submit(dir)}
-              style={({ pressed }) => ({
-                flex: 1,
-                minHeight: 56,
-                borderRadius: radius.md,
-                backgroundColor: up ? color.up : color.down,
-                opacity: blocked ? 0.5 : pressed ? 0.85 : 1,
-                alignItems: "center",
-                justifyContent: "center",
-              })}
-            >
-              <Text style={{ color: ink, fontSize: 18, fontWeight: "800" }}>{label}</Text>
-              <Text style={{ ...font.number, color: ink, fontSize: 12, fontWeight: "600" }}>
-                {[payoutText, profitText].filter(Boolean).join(" · ")}
-              </Text>
-            </Pressable>
+            />
           );
         })}
       </View>

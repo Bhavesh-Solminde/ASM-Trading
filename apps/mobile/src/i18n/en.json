@@ -24,7 +24,7 @@
     "updateTitle": "Update required", "updateBody": "This version is no longer supported. Update to keep trading.", "update": "Update now"
   },
   "trade": {
-    "buy": "Buy", "sell": "Sell", "stake": "Stake", "expiry": "Time", "more": "More", "payout": "{{pct}}%",
+    "up": "Up", "down": "Down", "win": "win {{amount}}", "stake": "Stake", "expiry": "Time", "more": "More", "payout": "{{pct}}%",
     "demo": "Demo", "live": "Live", "won": "Won {{amount}}", "lost": "Lost {{amount}}", "refunded": "Refunded {{amount}}",
     "open": "Open", "closed": "Closed", "noTrades": "No trades yet", "markets": "Markets", "search": "Search markets",
     "favourites": "Favourites", "bonus": "+{{pct}}% bonus", "minStake": "Minimum stake is {{amount}}",
