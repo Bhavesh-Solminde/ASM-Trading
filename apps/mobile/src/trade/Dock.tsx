@@ -1,11 +1,14 @@
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { EXPIRY_CHIPS, formatDuration, grossReturnMinor, isChipExpiry, minStakeMinor, profitForStake } from "@asm/client-core";
 import { money } from "@/money/format";
 import type { Bootstrap } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
-import { color, font, radius, space } from "@/theme/tokens";
+import { color, radius } from "@/theme/tokens";
+import { Txt } from "@/theme/ui";
+import { Chip } from "@/ui/Chip";
+import { Money } from "@/ui/Money";
 import type { SheetRef } from "@/ui/Sheet";
 import { ExpirySheet } from "./ExpirySheet";
 import { KeypadSheet } from "./KeypadSheet";
@@ -17,9 +20,9 @@ import { useTradePrefs, useUserPrefs } from "./trade-prefs";
 import { useTradeSubmit } from "./useTradeSubmit";
 
 /**
- * Stake, expiry and Up/Down. The tab bar below already adds the bottom safe-area inset, so the dock has none.
- * Expiry and the stake (kept separately for each currency) are saved per user. The stake is checked against the
- * account's real + bonus balance, as the server does, and keypad presses are applied to the latest saved stake.
+ * Amount, trade length and Up/Down. The bottom nav below already adds the bottom safe-area inset, so the dock has
+ * none. Expiry and the stake (kept separately for each currency) are saved per user. The stake is checked against
+ * the account's real + bonus balance, as the server does, and keypad presses are applied to the latest saved stake.
  */
 export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: string; asset: AppAsset }) {
   const { t } = useTranslation();
@@ -60,84 +63,65 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
 
   const stakeLabel = stakeTileLabel(stake, currency);
 
-  return (
-    <View
-      style={{
-        padding: space(3),
-        gap: space(2),
-        backgroundColor: color.panel,
-        borderTopLeftRadius: radius.lg,
-        borderTopRightRadius: radius.lg,
-      }}
-    >
-      <Pressable
-        testID="stake-tile"
-        accessibilityRole="button"
-        accessibilityLabel={t("trade.stakeButton", { amount: stakeLabel })}
-        onPress={() => keypad.current?.present()}
-        style={{
-          minHeight: 48,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          backgroundColor: color.tile,
-          borderRadius: radius.md,
-          paddingHorizontal: space(4),
-        }}
-      >
-        <Text style={{ color: color.ink2, fontSize: 13 }}>{t("trade.stake")}</Text>
-        <Text style={{ ...font.number, color: problem ? color.down : color.ink, fontSize: 20, fontWeight: "800" }}>{stakeLabel}</Text>
-      </Pressable>
+  const moreSelected = !isChipExpiry(expirySec);
 
-      <View style={{ flexDirection: "row", gap: space(2) }}>
-        {EXPIRY_CHIPS.map((c) => {
-          const selected = expirySec === c.sec;
-          return (
-            <Pressable
-              key={c.sec}
-              testID={`expiry-${c.sec}`}
-              accessibilityRole="button"
-              accessibilityLabel={t("trade.expiryOption", { label: formatDuration(c.sec) })}
-              accessibilityState={{ selected }}
-              onPress={() => set({ expirySec: c.sec })}
-              style={{
-                flex: 1,
-                minHeight: 44,
-                borderRadius: radius.sm,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: selected ? color.brandFill : color.tile,
-              }}
-            >
-              <Text style={{ color: selected ? color.brandInk : color.ink, fontWeight: "700", fontSize: 13 }}>{formatDuration(c.sec)}</Text>
-            </Pressable>
-          );
-        })}
+  return (
+    <View style={{ paddingTop: 10, paddingHorizontal: 14, paddingBottom: 8, gap: 10, borderTopWidth: 1, borderTopColor: color.ruleSoft, backgroundColor: color.dock }}>
+      <View style={{ gap: 4 }}>
         <Pressable
+          testID="stake-tile"
           accessibilityRole="button"
-          accessibilityLabel={isChipExpiry(expirySec) ? t("trade.more") : t("trade.expiryOption", { label: formatDuration(expirySec) })}
-          accessibilityState={{ selected: !isChipExpiry(expirySec) }}
-          onPress={() => expiry.current?.present()}
-          style={{
-            flex: 1,
+          accessibilityLabel={t("trade.stakeButton", { amount: stakeLabel })}
+          onPress={() => keypad.current?.present()}
+          style={({ pressed }) => ({
             minHeight: 44,
-            borderRadius: radius.sm,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: isChipExpiry(expirySec) ? color.tile : color.brandFill,
-          }}
+            paddingTop: 8,
+            paddingBottom: 7,
+            paddingHorizontal: 12,
+            borderRadius: radius.md,
+            borderWidth: 1,
+            borderColor: problem ? color.downText : color.rule,
+            backgroundColor: pressed ? color.raised : color.ground,
+            flexDirection: "row",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+          })}
         >
-          <Text style={{ color: isChipExpiry(expirySec) ? color.ink : color.brandInk, fontWeight: "700", fontSize: 13 }} numberOfLines={1}>
-            {isChipExpiry(expirySec) ? t("trade.more") : formatDuration(expirySec)}
-          </Text>
+          <Txt size={13} color={color.ink3}>
+            {t("trade.amount")}
+          </Txt>
+          <Money text={stakeLabel} size={22} weight={600} tracking={-0.03} lineHeight={28} color={problem ? color.downText : color.ink} />
         </Pressable>
+        {/* One line is always reserved so Up/Down do not jump when a message appears. */}
+        <View style={{ minHeight: 16, justifyContent: "center" }}>
+          {problem ? (
+            <Txt accessibilityLiveRegion="polite" size={12} lineHeight={16} color={color.downText}>
+              {problem}
+            </Txt>
+          ) : null}
+        </View>
       </View>
 
-      {problem ? (
-        <Text accessibilityLiveRegion="polite" style={{ color: color.down, fontSize: 12 }}>
-          {problem}
-        </Text>
-      ) : null}
+      <View style={{ flexDirection: "row", gap: 6 }}>
+        {EXPIRY_CHIPS.map((c) => (
+          <Chip
+            key={c.sec}
+            testID={`expiry-${c.sec}`}
+            label={formatDuration(c.sec)}
+            accessibilityLabel={t("trade.expiryOption", { label: formatDuration(c.sec) })}
+            selected={expirySec === c.sec}
+            onPress={() => set({ expirySec: c.sec })}
+            style={{ flex: 1, paddingHorizontal: 4 }}
+          />
+        ))}
+        <Chip
+          label={moreSelected ? formatDuration(expirySec) : t("trade.more")}
+          accessibilityLabel={moreSelected ? t("trade.expiryOption", { label: formatDuration(expirySec) }) : t("trade.more")}
+          selected={moreSelected}
+          onPress={() => expiry.current?.present()}
+          style={{ flex: 1, paddingHorizontal: 4 }}
+        />
+      </View>
 
       <View style={{ flexDirection: "row", gap: 10 }}>
         {(["UP", "DOWN"] as const).map((dir) => {
@@ -165,6 +149,8 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
       <KeypadSheet
         ref={keypad}
         currency={currency}
+        accountType={account.type}
+        payoutPct={payoutPct}
         value={stake}
         onKey={(key) => set({ stakeByCurrency: stakeAfterKey(latestStakes(), currency, key, stakeAmountOpts(currency)) })}
         onPreset={(text) => set({ stakeByCurrency: withStake(latestStakes(), currency, text) })}

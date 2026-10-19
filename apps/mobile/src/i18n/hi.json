@@ -24,6 +24,12 @@
     "updateTitle": "अपडेट ज़रूरी है", "updateBody": "यह वर्ज़न अब काम नहीं करता। ट्रेडिंग जारी रखने के लिए अपडेट करें।", "update": "अभी अपडेट करें"
   },
   "trade": {
+    "amount": "राशि",
+    "demoAccount": "डेमो खाता",
+    "liveAccount": "लाइव खाता",
+    "ifYouWin": "जीतने पर ({{pct}}%)",
+    "tradeLength": "ट्रेड की अवधि",
+    "endsAt": "अभी लगाया गया ट्रेड इस समय खत्म होगा",
     "up": "ऊपर", "down": "नीचे", "win": "जीत {{amount}}", "stake": "राशि", "expiry": "समय", "more": "और", "payout": "{{pct}}%",
     "demo": "डेमो", "live": "लाइव", "won": "{{amount}} जीते", "lost": "{{amount}} हारे", "refunded": "{{amount}} वापस",
     "open": "खुले", "closed": "बंद", "noTrades": "अभी कोई ट्रेड नहीं", "markets": "मार्केट", "search": "मार्केट खोजें",
