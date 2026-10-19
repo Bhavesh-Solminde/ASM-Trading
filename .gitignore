@@ -21,6 +21,13 @@ AgentContext.md
 .house-governor-webp/
 .playwright-mcp/
 
+# Playwright e2e run output (videos, traces, reports)
+apps/web/e2e/.auth/
+apps/web/e2e-results/
+apps/web/e2e-report/
+apps/web/allure-results/
+apps/web/allure-report/
+
 # Local-only secrets (testnet HD wallet mnemonics etc.)
 .secrets/
 

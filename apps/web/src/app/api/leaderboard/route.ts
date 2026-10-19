@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { dailyLeaderboard } from "@asm/db";
+import { dailyLeaderboard, leaderboardCurrencyFor } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { startOfDayMs } from "@/lib/day";
 
@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     viewerUserId: session.userId,
     limit: 100,
     includeBots: INCLUDE_BOTS,
+    displayCurrency: await leaderboardCurrencyFor(session.userId),
   });
 
   return NextResponse.json(result, { headers: { "cache-control": "no-store" } });

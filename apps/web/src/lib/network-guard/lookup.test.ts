@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { redis } from "@/lib/redis";
-import { lookupIp, verdictCacheKey } from "./lookup";
+import { lookupIp, lookupIpDetails, verdictCacheKey } from "./lookup";
 
 const IP = "203.0.113.41";
 
@@ -27,10 +27,25 @@ describe("lookupIp", () => {
     expect(url.hostname).toBe("api.ipapi.is");
     expect(url.searchParams.get("q")).toBe(IP);
 
-    expect(await redis.get(verdictCacheKey(IP))).toBe("vpn");
+    expect(JSON.parse((await redis.get(verdictCacheKey(IP)))!)).toEqual({ v: "vpn", cc: null });
     const ttl = await redis.ttl(verdictCacheKey(IP));
     expect(ttl).toBeGreaterThan(23 * 3600);
     expect(ttl).toBeLessThanOrEqual(24 * 3600);
+  });
+
+  it("keeps the located country alongside the verdict", async () => {
+    const f = fakeFetch({ ip: IP, location: { country_code: "in" } });
+    expect(await lookupIpDetails(IP, f as unknown as typeof fetch)).toEqual({ verdict: "clean", country: "IN" });
+    const again = fakeFetch({});
+    expect(await lookupIpDetails(IP, again as unknown as typeof fetch)).toEqual({ verdict: "clean", country: "IN" });
+    expect(again).not.toHaveBeenCalled();
+  });
+
+  it("still reads a bare-verdict cache entry written before countries were kept", async () => {
+    await redis.set(verdictCacheKey(IP), "relay", "EX", 60);
+    const f = fakeFetch({});
+    expect(await lookupIpDetails(IP, f as unknown as typeof fetch)).toEqual({ verdict: "relay", country: null });
+    expect(f).not.toHaveBeenCalled();
   });
 
   it("serves a cached verdict without calling the provider", async () => {
@@ -43,7 +58,7 @@ describe("lookupIp", () => {
   it("returns unknown and remembers it for at most five minutes when the quota is spent", async () => {
     const f = fakeFetch({ error: "quota", error_code: "ERR_QUOTA_EXCEEDED" }, 429);
     expect(await lookupIp(IP, f as unknown as typeof fetch)).toBe("unknown");
-    expect(await redis.get(verdictCacheKey(IP))).toBe("unknown");
+    expect(JSON.parse((await redis.get(verdictCacheKey(IP)))!)).toEqual({ v: "unknown", cc: null });
     expect(await redis.ttl(verdictCacheKey(IP))).toBeLessThanOrEqual(300);
   });
 

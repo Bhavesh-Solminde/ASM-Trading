@@ -1,3 +1,5 @@
+import { DURATIONS_SEC } from "@asm/trading";
+
 /** Quick-pick stakes (major units), all at or above the currency's minimum. */
 export function stakePresets(currency: string): readonly number[] {
   return currency === "INR" ? [100, 250, 500, 1000, 2500] : [1, 5, 10, 25, 100];
@@ -44,4 +46,51 @@ export function groupAmount(text: string): string {
   const [whole = "", frac] = text.split(".");
   const grouped = (whole === "" ? "0" : whole).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return frac === undefined ? grouped : `${grouped}.${frac}`;
+}
+
+/**
+ * The ticket's last stake and expiry live in localStorage, so a refresh — or
+ * the remount when the chart enters/leaves fullscreen — keeps what the trader
+ * set. Stakes are per currency (₹ and $ minimums differ).
+ */
+export function stakeStorageKey(currency: string): string {
+  return `asm_ticket_stake:${currency}`;
+}
+export const EXPIRY_STORAGE_KEY = "asm_ticket_expiry";
+
+export type TimeMode = "timer" | "time";
+
+export interface SavedExpiry {
+  durationSec: number;
+  mode: TimeMode;
+  /** The absolute expiry picked in TIME mode, or null in TIMER mode. */
+  targetMs: number | null;
+}
+
+/** A stored stake text, or null when missing, malformed or not positive. */
+export function parseSavedStake(raw: string | null): string | null {
+  if (raw === null || !/^\d+(\.\d{0,2})?$/.test(raw)) return null;
+  return Number(raw) > 0 ? raw : null;
+}
+
+/**
+ * A stored expiry, or null when missing or malformed. The duration must still
+ * be one the engine offers; a TIME-mode target already in the past falls back
+ * to TIMER mode with the same duration.
+ */
+export function parseSavedExpiry(raw: string | null, nowMs: number): SavedExpiry | null {
+  if (raw === null) return null;
+  let v: unknown;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof v !== "object" || v === null) return null;
+  const { durationSec, mode, targetMs } = v as Record<string, unknown>;
+  if (typeof durationSec !== "number" || !(DURATIONS_SEC as readonly number[]).includes(durationSec)) return null;
+  if (mode === "time" && typeof targetMs === "number" && targetMs > nowMs) {
+    return { durationSec, mode: "time", targetMs };
+  }
+  return { durationSec, mode: "timer", targetMs: null };
 }
