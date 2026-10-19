@@ -182,7 +182,7 @@ function TradesBody({ accountId, assets, currency }: { accountId: string; assets
 }
 
 /** The selected account's trades: Open (live countdown, soonest first) and Closed (newest first). */
-export const TradesSheet = forwardRef<SheetRef, { accountId: string; assets: readonly AppAsset[]; currency: string }>(function TradesSheet(
+export const TradesSheet = forwardRef<SheetRef, { accountId: string; /** Task 9 uses it for the "Demo account" aside; accepted now. */ accountType?: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string }>(function TradesSheet(
   { accountId, assets, currency },
   ref,
 ) {

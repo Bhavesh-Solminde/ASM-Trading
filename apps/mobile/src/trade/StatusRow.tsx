@@ -1,25 +1,29 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { clockTime } from "@asm/client-core";
 import type { Timeframe } from "@asm/contracts";
 import type { ResumeSnapshot } from "@/cache/codec";
 import { useSocket } from "@/socket/socket-store";
-import { color, radius, space } from "@/theme/tokens";
+import { color } from "@/theme/tokens";
+import { Txt } from "@/theme/ui";
+import { Stamp } from "@/ui/Stamp";
 import { chartSource } from "./chart-source";
 import { useNow } from "./useNow";
 
 /** Green while the engine socket is authenticated, red otherwise. Re-renders only when that flips. */
 function LiveDot() {
   const live = useSocket((s) => s.phase === "authed");
-  return <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: live ? color.up : color.down }} />;
+  return <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: live ? color.up : color.downText }} />;
 }
 
-/** The only part of the row that re-renders each second. */
+/** The only part of the line that re-renders each second. */
 function Clock() {
   const now = useNow();
   return (
-    <Text style={{ color: color.ink2, fontSize: 12, fontVariant: ["tabular-nums"] }}>{clockTime(Math.floor(now / 1000))}</Text>
+    <Txt font="fig" size={11} color={color.ink3}>
+      {clockTime(Math.floor(now / 1000))}
+    </Txt>
   );
 }
 
@@ -29,45 +33,39 @@ function StaleNote({ snapshot, symbol, timeframe }: { snapshot: ResumeSnapshot |
   const showing = useSocket((s) => symbol !== null && chartSource({ symbol, timeframe, chart: s.chart, snapshot }) === "snapshot");
   if (!showing) return null;
   return (
-    <Text accessibilityLiveRegion="polite" numberOfLines={1} style={{ color: color.caution, fontSize: 12, flexShrink: 1 }}>
+    <Txt accessibilityLiveRegion="polite" numberOfLines={1} size={11} color={color.gold} style={{ flexShrink: 1 }}>
       {t("trade.stale")}
-    </Text>
+    </Txt>
   );
 }
 
-export const StatusRow = memo(function StatusRow({
-  bonusPct,
+/** Quiet status line at the chart's bottom-left: connection dot, clock, stale-data note. */
+export const StatusLine = memo(function StatusLine({
   snapshot,
   symbol,
   timeframe,
-  onBonus,
 }: {
-  /** Next deposit's bonus percent, or null/0 when there is none to offer. */
-  bonusPct: number | null;
   /** The resume snapshot, or null once live candles have arrived (it is then never shown again). */
   snapshot: ResumeSnapshot | null;
   symbol: string | null;
   timeframe: Timeframe;
-  onBonus: () => void;
 }) {
-  const { t } = useTranslation();
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: space(2), paddingHorizontal: space(3), height: 44 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
       <LiveDot />
       <Clock />
       <StaleNote snapshot={snapshot} symbol={symbol} timeframe={timeframe} />
-      <View style={{ flex: 1 }} />
-      {bonusPct ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onBonus}
-          style={{ minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "center" }}
-        >
-          <View style={{ backgroundColor: color.brandDim, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ color: color.brand, fontSize: 12, fontWeight: "700" }}>{t("trade.bonus", { pct: bonusPct })}</Text>
-          </View>
-        </Pressable>
-      ) : null}
     </View>
   );
 });
+
+/** Gold "+100% BONUS" stamp in the chart's overlay row; opens the bonus sheet. Bonus appears on /trade only. */
+export function BonusStamp({ pct, onPress }: { pct: number; onPress: () => void }) {
+  const { t } = useTranslation();
+  const label = t("trade.bonus", { pct });
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}>
+      <Stamp label={label} tone="gold" size="md" />
+    </Pressable>
+  );
+}

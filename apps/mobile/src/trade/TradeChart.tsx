@@ -37,6 +37,10 @@ export function TradeChart({
   accountId: string | null;
   snapshot: ResumeSnapshot | null;
   tradesSnapshot: ResumeSnapshot | null;
+  /** Top of the chart readout, below the overlay row. Accepted now; Task 8b forwards it to `Chart`. */
+  topInset?: number;
+  /** Hide the readout while the chart-tools panel is open. Accepted now; Task 8b forwards it to `Chart`. */
+  hideReadout?: boolean;
 }) {
   const chart = useSocket((s) => s.chart);
   const liveTrades = useSocket((s) => (accountId ? s.trades.tradesByAccount[accountId] : undefined));

@@ -1,8 +1,10 @@
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text } from "react-native";
+import { Pressable } from "react-native";
 import { useSocket } from "@/socket/socket-store";
-import { color, radius, space } from "@/theme/tokens";
+import { color, radius } from "@/theme/tokens";
+import { Txt } from "@/theme/ui";
+import { Icon } from "@/ui/Icon";
 import type { SheetRef } from "@/ui/Sheet";
 import { payoutPctFor, type AppAsset } from "./markets";
 import { MarketSheet } from "./MarketSheet";
@@ -33,21 +35,29 @@ export function MarketPill({
         accessibilityRole="button"
         accessibilityLabel={t("trade.selectMarket", { name })}
         onPress={() => sheet.current?.present()}
-        style={{
-          minHeight: 44,
+        hitSlop={2}
+        style={({ pressed }) => ({
+          height: 40,
+          maxWidth: 220,
           flexDirection: "row",
           alignItems: "center",
-          gap: space(2),
-          paddingHorizontal: space(3),
+          gap: 8,
+          paddingHorizontal: 12,
           borderRadius: radius.pill,
-          backgroundColor: color.panel,
+          backgroundColor: pressed ? color.raised : color.overlayPill,
           borderWidth: 1,
           borderColor: color.rule,
-        }}
+        })}
       >
-        <Text style={{ color: color.ink, fontWeight: "700", fontSize: 14 }}>{name}</Text>
-        {payout !== null ? <Text style={{ color: color.up, fontWeight: "700", fontSize: 13 }}>{t("trade.payout", { pct: payout })}</Text> : null}
-        <Text style={{ color: color.ink2, fontSize: 12 }}>▾</Text>
+        <Txt weight={600} size={15} numberOfLines={1} style={{ flexShrink: 1 }}>
+          {name}
+        </Txt>
+        {payout !== null ? (
+          <Txt font="fig" weight={500} size={13} color={color.up}>
+            {t("trade.payout", { pct: payout })}
+          </Txt>
+        ) : null}
+        <Icon name="chevronDown" size={16} strokeWidth={2} color={color.ink3} />
       </Pressable>
       <MarketSheet
         ref={sheet}

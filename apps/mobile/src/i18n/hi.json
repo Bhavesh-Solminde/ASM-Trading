@@ -44,7 +44,7 @@
     "removeFavourite": "{{name}} को पसंदीदा से हटाएं", "selectMarket": "मार्केट: {{name}}। बदलने के लिए टैप करें।",
     "failed": "ट्रेड नहीं हो सका।", "maxStake": "अधिकतम राशि {{amount}} है", "delete": "मिटाएं", "point": "दशमलव बिंदु",
     "expiryOption": "समय {{label}}", "stakeButton": "राशि {{amount}}। बदलने के लिए टैप करें।", "stakeKeypad": "राशि दर्ज करें",
-    "trades": "ट्रेड", "moreOpen": "+{{n}} और", "ifClosedNow": "अभी बंद हो तो",
+    "trades": "ट्रेड", "moreOpen": "+{{n}} और", "ifClosedNow": "अभी खत्म हो तो", "at": "{{price}} पर {{stake}}",
     "positionLabel": "{{side}} {{name}}, राशि {{stake}}, {{time}} बाकी। अपने ट्रेड देखने के लिए टैप करें।",
     "settling": "सेटल हो रहा है…", "positionLabelSettling": "{{side}} {{name}}, राशि {{stake}}, सेटल हो रहा है। अपने ट्रेड देखने के लिए टैप करें।",
     "marketClosed": "यह मार्केट रात के लिए बंद है। ट्रेडिंग सुबह 5:00 बजे (IST) फिर शुरू होगी।", "accountPaused": "यह खाता रोका गया है। सपोर्ट से संपर्क करें।", "assetUnavailable": "यह मार्केट अभी उपलब्ध नहीं है।", "unavailable": "ट्रेडिंग अभी कुछ समय के लिए उपलब्ध नहीं है।",

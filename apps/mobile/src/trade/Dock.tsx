@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
-import { EXPIRY_CHIPS, formatDuration, grossReturnMinor, isChipExpiry, minStakeMinor, profitForStake } from "@asm/client-core";
+import { EXPIRY_CHIPS, formatDuration, grossReturnMinor, isChipExpiry, profitForStake } from "@asm/client-core";
 import { money } from "@/money/format";
 import type { Bootstrap } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
@@ -14,7 +14,8 @@ import { ExpirySheet } from "./ExpirySheet";
 import { KeypadSheet } from "./KeypadSheet";
 import { payoutPctFor, type AppAsset } from "./markets";
 import { prefsFor } from "./prefs-model";
-import { MAX_STAKE_MINOR, resolveExpiry, stakeAfterKey, stakeAmountOpts, stakeFor, stakeTileLabel, validateStake, withStake } from "./stake-input";
+import { stakeProblemText } from "./stake-problem";
+import { resolveExpiry, stakeAfterKey, stakeAmountOpts, stakeFor, stakeTileLabel, validateStake, withStake } from "./stake-input";
 import { TradeButton } from "./TradeButton";
 import { useTradePrefs, useUserPrefs } from "./trade-prefs";
 import { useTradeSubmit } from "./useTradeSubmit";
@@ -51,15 +52,7 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
   const profit = check.ok ? profitForStake(check.minor, payoutPct) : null;
   const blocked = !check.ok || busy;
 
-  const problem = !check.ok
-    ? check.reason === "min"
-      ? t("trade.minStake", { amount: money(minStakeMinor(currency), currency) })
-      : check.reason === "max"
-        ? t("trade.maxStake", { amount: money(MAX_STAKE_MINOR, currency) })
-        : check.reason === "balance"
-          ? t("trade.insufficient")
-          : null
-    : null;
+  const problem = stakeProblemText(check, currency, t);
 
   const stakeLabel = stakeTileLabel(stake, currency);
 
@@ -67,40 +60,39 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
 
   return (
     <View style={{ paddingTop: 10, paddingHorizontal: 14, paddingBottom: 8, gap: 10, borderTopWidth: 1, borderTopColor: color.ruleSoft, backgroundColor: color.dock }}>
-      <View style={{ gap: 4 }}>
-        <Pressable
-          testID="stake-tile"
-          accessibilityRole="button"
-          accessibilityLabel={t("trade.stakeButton", { amount: stakeLabel })}
-          onPress={() => keypad.current?.present()}
-          style={({ pressed }) => ({
-            minHeight: 44,
-            paddingTop: 8,
-            paddingBottom: 7,
-            paddingHorizontal: 12,
-            borderRadius: radius.md,
-            borderWidth: 1,
-            borderColor: problem ? color.downText : color.rule,
-            backgroundColor: pressed ? color.raised : color.ground,
-            flexDirection: "row",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-          })}
-        >
+      <Pressable
+        testID="stake-tile"
+        accessibilityRole="button"
+        accessibilityLabel={[t("trade.stakeButton", { amount: stakeLabel }), problem].filter(Boolean).join(" ")}
+        onPress={() => keypad.current?.present()}
+        style={({ pressed }) => ({
+          minHeight: 44,
+          paddingTop: 8,
+          paddingBottom: 7,
+          paddingHorizontal: 12,
+          borderRadius: radius.md,
+          borderWidth: 1,
+          borderColor: problem ? color.downText : color.rule,
+          backgroundColor: pressed ? color.raised : color.ground,
+          flexDirection: "row",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 8,
+        })}
+      >
+        {/* The reason replaces the "Amount" label while there is one, so the dock never grows or jumps. No pinned
+            lineHeight: Hindi keeps Txt's 1.5x Devanagari spacing. */}
+        {problem ? (
+          <Txt accessibilityLiveRegion="polite" size={12} color={color.downText} numberOfLines={1} adjustsFontSizeToFit style={{ flexShrink: 1 }}>
+            {problem}
+          </Txt>
+        ) : (
           <Txt size={13} color={color.ink3}>
             {t("trade.amount")}
           </Txt>
-          <Money text={stakeLabel} size={22} weight={600} tracking={-0.03} lineHeight={28} color={problem ? color.downText : color.ink} />
-        </Pressable>
-        {/* One line is always reserved so Up/Down do not jump when a message appears. */}
-        <View style={{ minHeight: 16, justifyContent: "center" }}>
-          {problem ? (
-            <Txt accessibilityLiveRegion="polite" size={12} lineHeight={16} color={color.downText}>
-              {problem}
-            </Txt>
-          ) : null}
-        </View>
-      </View>
+        )}
+        <Money text={stakeLabel} size={22} weight={600} tracking={-0.03} lineHeight={28} color={problem ? color.downText : color.ink} />
+      </Pressable>
 
       <View style={{ flexDirection: "row", gap: 6 }}>
         {EXPIRY_CHIPS.map((c) => (

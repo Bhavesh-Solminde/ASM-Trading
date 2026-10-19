@@ -44,7 +44,7 @@
     "removeFavourite": "Remove {{name}} from favourites", "selectMarket": "Market: {{name}}. Tap to change.",
     "failed": "Trade failed.", "maxStake": "Maximum stake is {{amount}}", "delete": "Delete", "point": "Decimal point",
     "expiryOption": "Expiry {{label}}", "stakeButton": "Amount {{amount}}. Tap to change.", "stakeKeypad": "Stake amount",
-    "trades": "Trades", "moreOpen": "+{{n}} more", "ifClosedNow": "if it closed now",
+    "trades": "Trades", "moreOpen": "+{{n}} more", "ifClosedNow": "if it ends now", "at": "{{stake}} at {{price}}",
     "positionLabel": "{{side}} {{name}}, stake {{stake}}, {{time}} left. Tap to see your trades.",
     "settling": "Settling…", "positionLabelSettling": "{{side}} {{name}}, stake {{stake}}, settling. Tap to see your trades.",
     "marketClosed": "This market is closed for the night. Trading resumes at 5:00 AM IST.", "accountPaused": "This account is paused. Contact support.", "assetUnavailable": "That market isn't available right now.", "unavailable": "Trading is temporarily unavailable.",

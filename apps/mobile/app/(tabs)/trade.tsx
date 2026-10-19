@@ -12,6 +12,7 @@ import { BrandMark } from "@/ui/Brand";
 import type { SheetRef } from "@/ui/Sheet";
 import { accountOfType, bootstrapTradesAccountId, canUseLive, resolveAccount, staleBalance, type AppAccount } from "@/trade/accounts";
 import { BonusSheet } from "@/trade/BonusSheet";
+import { CHART_OVERLAY_BOTTOM, OVERLAY_TOP } from "@/trade/chart-overlay";
 import { ChartTools } from "@/trade/ChartTools";
 import { Dock } from "@/trade/Dock";
 import { findAsset, nextBonus, precisionFor, resolveSymbol, toggleFavourite } from "@/trade/markets";
@@ -20,7 +21,7 @@ import { MarketPill } from "@/trade/MarketPill";
 import { PositionStrip } from "@/trade/PositionStrip";
 import { useResultFeedback } from "@/trade/ResultToast";
 import { SentimentBar } from "@/trade/SentimentBar";
-import { StatusRow } from "@/trade/StatusRow";
+import { BonusStamp, StatusLine } from "@/trade/StatusRow";
 import { StaleTopBar, TopBar } from "@/trade/TopBar";
 import { TradeChart } from "@/trade/TradeChart";
 import { useUserPrefs } from "@/trade/trade-prefs";
@@ -109,6 +110,9 @@ export default function Trade() {
   const liveArrived = useLiveArrived();
   const candleSnapshot = liveArrived ? null : resume;
 
+  // The chart readout hides while the chart-tools panel is open (it would sit under the panel).
+  const [toolsOpen, setToolsOpen] = useState(false);
+
   const bonusSheet = useRef<SheetRef>(null);
   const openBonus = useCallback(() => bonusSheet.current?.present(), []);
 
@@ -147,7 +151,6 @@ export default function Trade() {
       )}
       {/* With a resume cache the chart is still showing, so the error is a strip; without one, see below. */}
       {!boot && bootFailed && symbol ? <BootError compact onRetry={retry} /> : null}
-      <StatusRow bonusPct={bonus?.pct ?? null} snapshot={candleSnapshot} symbol={symbol} timeframe={timeframe} onBonus={openBonus} />
       <View style={{ flex: 1 }}>
         {symbol ? (
           <TradeChart
@@ -158,18 +161,25 @@ export default function Trade() {
             accountId={accountId}
             snapshot={candleSnapshot}
             tradesSnapshot={boot ? null : resume}
+            topInset={CHART_OVERLAY_BOTTOM}
+            hideReadout={toolsOpen}
           />
         ) : bootFailed ? (
           <BootError onRetry={retry} />
         ) : null}
         <SentimentBar />
+        <View pointerEvents="none" style={{ position: "absolute", left: 12, bottom: 8, right: 120 }}>
+          <StatusLine snapshot={candleSnapshot} symbol={symbol} timeframe={timeframe} />
+        </View>
         {boot ? (
-          <View pointerEvents="box-none" style={{ position: "absolute", top: 8, left: 8, right: 8 }}>
+          <View pointerEvents="box-none" style={{ position: "absolute", top: OVERLAY_TOP, left: 12, right: 12 }}>
             <ChartTools
               chartType={prefs.chartType}
               timeframe={timeframe}
               onChartType={setChartType}
               onTimeframe={setTimeframe}
+              onOpenChange={setToolsOpen}
+              trailing={bonus?.pct ? <BonusStamp pct={bonus.pct} onPress={openBonus} /> : null}
               leading={
                 <MarketPill assets={boot.assets} asset={asset} favourites={prefs.favourites} onPick={pickSymbol} onToggleFavourite={toggleStar} />
               }
@@ -177,7 +187,7 @@ export default function Trade() {
           </View>
         ) : null}
       </View>
-      {boot && account ? <PositionStrip accountId={account.id} assets={boot.assets} currency={account.currency} /> : null}
+      {boot && account ? <PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} /> : null}
       {boot && accountId && asset ? <Dock boot={boot} accountId={accountId} asset={asset} /> : null}
       {boot ? <BonusSheet ref={bonusSheet} completedDeposits={boot.completedDeposits} /> : null}
     </Screen>
