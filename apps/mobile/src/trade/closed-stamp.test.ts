@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { closedStamp } from "./closed-stamp";
+import { ledgerStamp } from "./closed-stamp";
 
-const sec = (d: Date) => Math.floor(d.getTime() / 1000);
-const NOW = new Date(2026, 9, 14, 18, 30, 0);
-
-describe("closedStamp", () => {
-  it("shows just the clock time for a trade that closed today", () => {
-    expect(closedStamp(sec(new Date(2026, 9, 14, 9, 5, 7)), NOW.getTime())).toBe("09:05:07");
+describe("ledgerStamp", () => {
+  const now = new Date(2026, 9, 14, 18, 30).getTime();
+  it("is HH:MM for today", () => {
+    expect(ledgerStamp(new Date(2026, 9, 14, 18, 10, 42).getTime() / 1000, now)).toEqual({ time: "18:10", date: null });
   });
-  it("adds the day and month when it closed on an earlier day", () => {
-    expect(closedStamp(sec(new Date(2026, 9, 13, 23, 59, 1)), NOW.getTime())).toBe("13/10 23:59:01");
-    expect(closedStamp(sec(new Date(2026, 0, 2, 0, 0, 0)), NOW.getTime())).toBe("02/01 00:00:00");
+  it("adds dd/mm for an earlier day", () => {
+    expect(ledgerStamp(new Date(2026, 9, 12, 9, 5).getTime() / 1000, now)).toEqual({ time: "09:05", date: "12/10" });
+  });
+  it("zero-pads a midnight-hour close", () => {
+    expect(ledgerStamp(new Date(2026, 0, 2, 0, 0, 0).getTime() / 1000, now)).toEqual({ time: "00:00", date: "02/01" });
   });
 });

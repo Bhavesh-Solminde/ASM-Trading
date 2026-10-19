@@ -33,7 +33,7 @@
     "up": "Up", "down": "Down", "win": "win {{amount}}", "stake": "Stake", "expiry": "Time", "more": "More", "payout": "{{pct}}%",
     "demo": "Demo", "live": "Live", "won": "Won {{amount}}", "lost": "Lost {{amount}}", "refunded": "Refunded {{amount}}",
     "open": "Open", "closed": "Closed", "noTrades": "No trades yet", "markets": "Markets", "search": "Search markets",
-    "favourites": "Favourites", "bonus": "+{{pct}}% bonus", "minStake": "Minimum stake is {{amount}}",
+    "bonus": "+{{pct}}% bonus", "minStake": "Minimum stake is {{amount}}",
     "insufficient": "Not enough balance", "backToLive": "Live", "chartType": "Chart type", "timeframe": "Timeframe",
     "candles": "Candles", "line": "Line", "area": "Area", "bars": "Bars",
     "ohlcO": "O", "ohlcH": "H", "ohlcL": "L", "ohlcC": "C", "chartLabel": "Price chart",
@@ -44,17 +44,33 @@
     "removeFavourite": "Remove {{name}} from favourites", "selectMarket": "Market: {{name}}. Tap to change.",
     "failed": "Trade failed.", "maxStake": "Maximum stake is {{amount}}", "delete": "Delete", "point": "Decimal point",
     "expiryOption": "Expiry {{label}}", "stakeButton": "Amount {{amount}}. Tap to change.", "stakeKeypad": "Stake amount",
-    "trades": "Trades", "moreOpen": "+{{n}} more", "ifClosedNow": "if it ends now", "at": "{{stake}} at {{price}}",
+    "moreOpen": "+{{n}} more", "ifClosedNow": "if it ends now", "at": "{{stake}} at {{price}}",
     "positionLabel": "{{side}} {{name}}, stake {{stake}}, {{time}} left. Tap to see your trades.",
     "settling": "Settling…", "positionLabelSettling": "{{side}} {{name}}, stake {{stake}}, settling. Tap to see your trades.",
     "marketClosed": "This market is closed for the night. Trading resumes at 5:00 AM IST.", "accountPaused": "This account is paused. Contact support.", "assetUnavailable": "That market isn't available right now.", "unavailable": "Trading is temporarily unavailable.",
-    "tabCount": "{{name}}, {{n}}", "statusWon": "Won", "statusLost": "Lost", "statusRefund": "Refund"
+    "statusWon": "Won", "statusLost": "Lost", "statusRefund": "Refund",
+    "catAll": "All",
+    "catStarred": "Starred",
+    "catCrypto": "Crypto",
+    "catIndex": "India",
+    "catForex": "Forex",
+    "catCommodity": "Commodities",
+    "yourTrades": "Your trades",
+    "colTime": "Time",
+    "colTrade": "Trade",
+    "colResult": "Result",
+    "priceRange": "{{from}} to {{to}}",
+    "todayAccount": "Today, {{account}}",
+    "closedOpens": "Closed, opens {{time}}"
   },
   "bonus": {
     "title": "Deposit bonus", "subtitle": "Extra trading balance on each of your first {{n}} deposits.",
     "nth1": "1st deposit", "nth2": "2nd deposit", "nth3": "3rd deposit", "nth4": "4th deposit", "nthN": "Deposit {{n}}",
     "claimed": "Claimed", "next": "Next", "upcoming": "Upcoming",
-    "note": "The bonus is added automatically when your deposit is credited. It is for trading only and can't be withdrawn — only your real balance can.",
-    "depositNow": "Deposit now · get {{pct}}%", "allUsed": "You've used all your deposit bonuses."
+    "note": "The bonus is added when your deposit is credited. It is for trading only; only your real balance can be withdrawn.",
+    "allUsed": "You've used all your deposit bonuses.",
+    "colDeposit": "Deposit",
+    "colBonus": "Bonus",
+    "colStatus": "Status"
   }
 }

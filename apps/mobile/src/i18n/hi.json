@@ -33,7 +33,7 @@
     "up": "ऊपर", "down": "नीचे", "win": "जीत {{amount}}", "stake": "राशि", "expiry": "समय", "more": "और", "payout": "{{pct}}%",
     "demo": "डेमो", "live": "लाइव", "won": "{{amount}} जीते", "lost": "{{amount}} हारे", "refunded": "{{amount}} वापस",
     "open": "खुले", "closed": "बंद", "noTrades": "अभी कोई ट्रेड नहीं", "markets": "मार्केट", "search": "मार्केट खोजें",
-    "favourites": "पसंदीदा", "bonus": "+{{pct}}% बोनस", "minStake": "न्यूनतम राशि {{amount}} है",
+    "bonus": "+{{pct}}% बोनस", "minStake": "न्यूनतम राशि {{amount}} है",
     "insufficient": "बैलेंस कम है", "backToLive": "लाइव", "chartType": "चार्ट प्रकार", "timeframe": "टाइमफ़्रेम",
     "candles": "कैंडल", "line": "लाइन", "area": "एरिया", "bars": "बार",
     "ohlcO": "खु", "ohlcH": "उ", "ohlcL": "नि", "ohlcC": "बं", "chartLabel": "प्राइस चार्ट",
@@ -44,17 +44,33 @@
     "removeFavourite": "{{name}} को पसंदीदा से हटाएं", "selectMarket": "मार्केट: {{name}}। बदलने के लिए टैप करें।",
     "failed": "ट्रेड नहीं हो सका।", "maxStake": "अधिकतम राशि {{amount}} है", "delete": "मिटाएं", "point": "दशमलव बिंदु",
     "expiryOption": "समय {{label}}", "stakeButton": "राशि {{amount}}। बदलने के लिए टैप करें।", "stakeKeypad": "राशि दर्ज करें",
-    "trades": "ट्रेड", "moreOpen": "+{{n}} और", "ifClosedNow": "अभी खत्म हो तो", "at": "{{price}} पर {{stake}}",
+    "moreOpen": "+{{n}} और", "ifClosedNow": "अभी खत्म हो तो", "at": "{{price}} पर {{stake}}",
     "positionLabel": "{{side}} {{name}}, राशि {{stake}}, {{time}} बाकी। अपने ट्रेड देखने के लिए टैप करें।",
     "settling": "सेटल हो रहा है…", "positionLabelSettling": "{{side}} {{name}}, राशि {{stake}}, सेटल हो रहा है। अपने ट्रेड देखने के लिए टैप करें।",
     "marketClosed": "यह मार्केट रात के लिए बंद है। ट्रेडिंग सुबह 5:00 बजे (IST) फिर शुरू होगी।", "accountPaused": "यह खाता रोका गया है। सपोर्ट से संपर्क करें।", "assetUnavailable": "यह मार्केट अभी उपलब्ध नहीं है।", "unavailable": "ट्रेडिंग अभी कुछ समय के लिए उपलब्ध नहीं है।",
-    "tabCount": "{{name}}, {{n}}", "statusWon": "जीत", "statusLost": "हार", "statusRefund": "वापसी"
+    "statusWon": "जीत", "statusLost": "हार", "statusRefund": "वापसी",
+    "catAll": "सभी",
+    "catStarred": "पसंदीदा",
+    "catCrypto": "क्रिप्टो",
+    "catIndex": "भारत",
+    "catForex": "फ़ॉरेक्स",
+    "catCommodity": "कमोडिटी",
+    "yourTrades": "आपके ट्रेड",
+    "colTime": "समय",
+    "colTrade": "ट्रेड",
+    "colResult": "नतीजा",
+    "priceRange": "{{from}} से {{to}}",
+    "todayAccount": "आज, {{account}}",
+    "closedOpens": "बंद, {{time}} बजे खुलेगा"
   },
   "bonus": {
     "title": "डिपॉज़िट बोनस", "subtitle": "आपके पहले {{n}} डिपॉज़िट में से हर एक पर अतिरिक्त ट्रेडिंग बैलेंस।",
     "nth1": "पहला डिपॉज़िट", "nth2": "दूसरा डिपॉज़िट", "nth3": "तीसरा डिपॉज़िट", "nth4": "चौथा डिपॉज़िट", "nthN": "डिपॉज़िट {{n}}",
     "claimed": "प्राप्त", "next": "अगला", "upcoming": "आगामी",
-    "note": "बोनस आपका डिपॉज़िट जमा होते ही अपने आप जुड़ जाता है। यह केवल ट्रेडिंग के लिए है और निकाला नहीं जा सकता — केवल आपका असली बैलेंस निकाला जा सकता है।",
-    "depositNow": "अभी जमा करें · {{pct}}% पाएं", "allUsed": "आपने अपने सभी डिपॉज़िट बोनस इस्तेमाल कर लिए हैं।"
+    "note": "डिपॉज़िट जमा होते ही बोनस जुड़ जाता है। यह सिर्फ़ ट्रेडिंग के लिए है; केवल आपका असली बैलेंस निकाला जा सकता है।",
+    "allUsed": "आपने अपने सभी डिपॉज़िट बोनस इस्तेमाल कर लिए हैं।",
+    "colDeposit": "डिपॉज़िट",
+    "colBonus": "बोनस",
+    "colStatus": "स्थिति"
   }
 }

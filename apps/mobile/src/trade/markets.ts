@@ -65,3 +65,18 @@ export function nextBonus(completedDeposits: number): {
     }),
   };
 }
+
+export type MarketCategory = "all" | "starred" | "CRYPTO" | "INDEX" | "FOREX" | "COMMODITY";
+const CLASS_ORDER = ["CRYPTO", "INDEX", "FOREX", "COMMODITY"] as const;
+
+/** Chips for the markets sheet: All, Starred (if any are starred), then the asset classes present. */
+export function categoriesFor(assets: readonly { assetClass: string }[], favourites: readonly string[]): MarketCategory[] {
+  const present = new Set(assets.map((x) => x.assetClass));
+  return ["all", ...(favourites.length > 0 ? (["starred"] as const) : []), ...CLASS_ORDER.filter((c) => present.has(c))];
+}
+
+export function inCategory(asset: { symbol: string; assetClass: string }, category: MarketCategory, favourites: readonly string[]): boolean {
+  if (category === "all") return true;
+  if (category === "starred") return favourites.includes(asset.symbol);
+  return asset.assetClass === category;
+}

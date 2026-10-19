@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  categoriesFor,
   filterMarkets,
   findAsset,
+  inCategory,
   nextBonus,
   payoutPctFor,
   precisionFor,
@@ -111,5 +113,21 @@ describe("bonus tiers", () => {
   });
   it("tolerates a bad count", () => {
     expect(nextBonus(-3).pct).toBe(100);
+  });
+});
+
+describe("market categories", () => {
+  const a = (symbol: string, assetClass: string): AppAsset => ({ symbol, displayName: symbol, precision: 2, payoutPct: 93, assetClass });
+  const listed = [a("BTCUSDT", "CRYPTO"), a("NIFTY50", "INDEX"), a("EURUSD", "FOREX")];
+  it("lists All, Starred (when any) and the classes present, in canvas order", () => {
+    expect(categoriesFor(listed, [])).toEqual(["all", "CRYPTO", "INDEX", "FOREX"]);
+    expect(categoriesFor([...listed, a("XAUUSD", "COMMODITY")], ["EURUSD"])).toEqual(["all", "starred", "CRYPTO", "INDEX", "FOREX", "COMMODITY"]);
+  });
+  it("filters by class or by star", () => {
+    expect(inCategory(a("BTCUSDT", "CRYPTO"), "CRYPTO", [])).toBe(true);
+    expect(inCategory(a("BTCUSDT", "CRYPTO"), "INDEX", [])).toBe(false);
+    expect(inCategory(a("BTCUSDT", "CRYPTO"), "starred", ["BTCUSDT"])).toBe(true);
+    expect(inCategory(a("BTCUSDT", "CRYPTO"), "starred", [])).toBe(false);
+    expect(inCategory(a("BTCUSDT", "CRYPTO"), "all", [])).toBe(true);
   });
 });

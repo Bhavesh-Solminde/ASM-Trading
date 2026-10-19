@@ -1,19 +1,21 @@
 import { router } from "expo-router";
-import { forwardRef, useRef, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
-import { color, radius, space } from "@/theme/tokens";
+import { View } from "react-native";
+import { color } from "@/theme/tokens";
+import { Button, Txt } from "@/theme/ui";
+import { LedgerHeader, LedgerRow, type LedgerColumn } from "@/ui/Ledger";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
-import { Button } from "@/theme/ui";
-import { nextBonus, type BonusTierState } from "./markets";
+import { Stamp } from "@/ui/Stamp";
+import { nextBonus } from "./markets";
 
-const BADGE: Record<BonusTierState, { bg: string; ink: string }> = {
-  claimed: { bg: color.tile, ink: color.ink3 },
-  next: { bg: color.up, ink: color.upInk },
-  upcoming: { bg: color.tile, ink: color.ink2 },
-};
+const COLS: LedgerColumn[] = [{ flex: 1 }, { width: 80, align: "right" }, { width: 96, align: "right" }];
 
-/** Every deposit bonus tier with the user's progress, plus a shortcut to deposit. Wording matches the web ("Bonus"). */
+/**
+ * The bonus rules as a small table, gold only on the next tier; the withdrawal rule stays in words above the
+ * button. The tiers (100, 100, 50, 50) come from client-core's BONUS_TIERS through `nextBonus`, so the app
+ * can never disagree with the server about them.
+ */
 export const BonusSheet = forwardRef<SheetRef, { completedDeposits: number }>(function BonusSheet({ completedDeposits }, ref) {
   const { t } = useTranslation();
   const inner = useRef<SheetRef>(null);
@@ -24,53 +26,56 @@ export const BonusSheet = forwardRef<SheetRef, { completedDeposits: number }>(fu
   const { pct, tiers } = nextBonus(completedDeposits);
   return (
     <Sheet ref={inner} title={t("bonus.title")}>
-      <Text style={{ color: color.ink2, fontSize: 13 }}>{t("bonus.subtitle", { n: tiers.length })}</Text>
-      <View accessibilityRole="list" style={{ gap: space(2) }}>
+      <Txt size={15} color={color.ink2}>
+        {t("bonus.subtitle", { n: tiers.length })}
+      </Txt>
+      <View accessibilityRole="list">
+        <LedgerHeader columns={COLS} labels={[t("bonus.colDeposit"), t("bonus.colBonus"), t("bonus.colStatus")]} />
         {tiers.map((tier) => {
-          const badge = BADGE[tier.state];
+          const nth = t(`bonus.nth${tier.n}`, { defaultValue: t("bonus.nthN", { n: tier.n }) });
+          const state = t(`bonus.${tier.state}`);
+          const next = tier.state === "next";
           return (
-            <View
+            <LedgerRow
               key={tier.n}
-              accessibilityLabel={`${t(`bonus.nth${tier.n}`, { defaultValue: t("bonus.nthN", { n: tier.n }) })}, ${tier.pct}%, ${t(`bonus.${tier.state}`)}`}
-              accessible
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: space(3),
-                minHeight: 52,
-                paddingHorizontal: space(3),
-                borderRadius: radius.md,
-                borderWidth: 1,
-                borderColor: tier.state === "next" ? color.up : color.rule,
-                backgroundColor: tier.state === "next" ? color.tileHi : color.tile,
-                opacity: tier.state === "claimed" ? 0.7 : 1,
-              }}
-            >
-              <Text style={{ color: tier.state === "claimed" ? color.ink3 : color.up, fontSize: 20, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
-                {tier.pct}%
-              </Text>
-              <Text style={{ flex: 1, color: color.ink, fontSize: 14, fontWeight: "600" }}>
-                {t(`bonus.nth${tier.n}`, { defaultValue: t("bonus.nthN", { n: tier.n }) })}
-              </Text>
-              <View style={{ backgroundColor: badge.bg, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 }}>
-                <Text style={{ color: badge.ink, fontSize: 11, fontWeight: "700" }}>{t(`bonus.${tier.state}`)}</Text>
-              </View>
-            </View>
+              columns={COLS}
+              accessibilityLabel={`${nth}, ${tier.pct}%, ${state}`}
+              cells={[
+                <Txt key="n" weight={600} size={16} color={tier.state === "claimed" ? color.ink3 : color.ink}>
+                  {nth}
+                </Txt>,
+                <Txt key="pct" font="fig" weight={next ? 600 : 500} size={15} color={next ? color.gold : tier.state === "claimed" ? color.ink3 : color.ink}>
+                  {`${tier.pct}%`}
+                </Txt>,
+                next ? (
+                  <Stamp key="state" label={state} tone="gold" />
+                ) : tier.state === "claimed" ? (
+                  <Stamp key="state" label={state} tone="muted" />
+                ) : (
+                  <Txt key="state" size={14} color={color.ink3}>
+                    {state}
+                  </Txt>
+                ),
+              ]}
+            />
           );
         })}
       </View>
-      <Text style={{ color: color.ink3, fontSize: 11, lineHeight: 16 }}>{t("bonus.note")}</Text>
+      <Txt size={14} color={color.ink2}>
+        {t("bonus.note")}
+      </Txt>
       {pct > 0 ? (
         <Button
-          kind="primary"
-          label={t("bonus.depositNow", { pct })}
+          label={t("trade.deposit")}
           onPress={() => {
             inner.current?.dismiss();
             router.navigate("/payments");
           }}
         />
       ) : (
-        <Text style={{ color: color.ink2, textAlign: "center" }}>{t("bonus.allUsed")}</Text>
+        <Txt color={color.ink2} style={{ textAlign: "center" }}>
+          {t("bonus.allUsed")}
+        </Txt>
       )}
     </Sheet>
   );
