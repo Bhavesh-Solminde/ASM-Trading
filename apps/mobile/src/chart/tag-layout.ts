@@ -18,11 +18,27 @@ export function priceTagRect(plotW: number, axis: number, textW: number): TagRec
   return { x, w, textX: x + TAG_PAD };
 }
 
-/** The open-trade tag: right-aligned inside the plot (4 in). */
-export function tradeTagRect(plotW: number, textW: number): TagRect {
+/** Tags are 22 high; two tags closer than this vertically overlap. */
+const TAG_H = 22;
+
+/**
+ * The open-trade tag: right-aligned inside the plot (4 in), or, when `avoidX` is given (the price tag's x), ending
+ * 4 before that x so the two never overlap.
+ */
+export function tradeTagRect(plotW: number, textW: number, avoidX: number | null = null): TagRect {
   const w = textW + TAG_PAD * 2;
-  const x = plotW - w - TAG_EDGE;
+  const x = (avoidX === null ? plotW : avoidX) - w - TAG_EDGE;
   return { x, w, textX: x + TAG_PAD };
+}
+
+/** The x a trade tag must end before: the price tag's x when the two tags are less than 22 apart vertically, else null. */
+export function tradeAvoidX(tradeY: number, priceY: number | null, priceTagX: number): number | null {
+  return priceY !== null && Math.abs(tradeY - priceY) < TAG_H ? priceTagX : null;
+}
+
+/** Keeps a 22-high tag centred on `y` inside the plot. */
+export function clampTagY(y: number, height: number): number {
+  return Math.min(height - TAG_H / 2, Math.max(TAG_H / 2, y));
 }
 
 /**

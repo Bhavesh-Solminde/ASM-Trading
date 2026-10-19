@@ -31,7 +31,7 @@ import { firstCandleShift, frontChanged, isFollowing, shouldRequestOlder, type E
 import { fmtPrice } from "./format-price";
 import { buildSeries, type SeriesPaths } from "./paths";
 import { indexForX, nearLeftEdge, priceRange, shiftForPrepend, visibleRange, xForIndex, yForPrice } from "./scale";
-import { entryIndex, gridYs, hasNonAscii, priceTagRect, readoutBox, showReadout, tradeTagRect } from "./tag-layout";
+import { clampTagY, entryIndex, gridYs, hasNonAscii, priceTagRect, readoutBox, showReadout, tradeAvoidX, tradeTagRect } from "./tag-layout";
 import type { ChartType, Viewport } from "./types";
 import { useChartGestures } from "./useChartGestures";
 import { useHistoryCommit } from "./useHistoryCommit";
@@ -134,6 +134,8 @@ const TradeLine = memo(function TradeLine({
   label,
   x,
   y,
+  showDot,
+  avoidX,
   plotW,
   figFont,
   uiFont,
@@ -142,6 +144,10 @@ const TradeLine = memo(function TradeLine({
   label: string;
   x: number;
   y: number;
+  /** False when the entry candle is older than the loaded history (x is clamped to 0): the line just runs in from the edge. */
+  showDot: boolean;
+  /** The price tag's x when it would overlap this tag, else null: the tag ends before it. */
+  avoidX: number | null;
   plotW: number;
   /** Martian Mono: for pure-ASCII tag text. */
   figFont: SkFont;
@@ -151,11 +157,11 @@ const TradeLine = memo(function TradeLine({
   const text = `${side} ${label}`;
   const font = hasNonAscii(text) ? uiFont : figFont;
   const textW = useMemo(() => font.measureText(text).width, [font, text]);
-  const tag = tradeTagRect(plotW, textW);
+  const tag = tradeTagRect(plotW, textW, avoidX);
   return (
     <Group>
       <Line p1={vec(x, y)} p2={vec(plotW, y)} color={color.accent} strokeWidth={1.5} />
-      <Circle cx={x} cy={y} r={4} color={color.accent} />
+      {showDot ? <Circle cx={x} cy={y} r={4} color={color.accent} /> : null}
       <RoundedRect x={tag.x} y={y - 11} width={tag.w} height={22} r={4} color={color.accent} />
       <SkText x={tag.textX} y={y + 4} text={text} font={font} color={color.onAccent} />
     </Group>
@@ -282,8 +288,8 @@ export function Chart(props: ChartProps) {
   const fmt = (p: number) => fmtPrice(p, precision);
   const priceText = lastPrice !== null ? fmt(lastPrice) : "";
   const priceTextW = useMemo(() => figFont.measureText(priceText).width, [figFont, priceText]);
-  const clampY = (y: number) => Math.min(height - 2, Math.max(12, y));
-  const priceY = ready && lastPrice !== null ? Math.min(height - 11, Math.max(11, yForPrice(lastPrice, range, height))) : null;
+    const priceTagX = priceTagRect(plotW, PRICE_AXIS, priceTextW).x;
+  const priceY = ready && lastPrice !== null ? clampTagY(yForPrice(lastPrice, range, height), height) : null;
 
   const crossIndex = crossX !== null && crossX <= plotW ? Math.floor(indexForX(crossX, viewport)) : null;
   const crossCandle = crossIndex !== null && crossIndex >= 0 && crossIndex < total ? all[crossIndex] : undefined;
@@ -301,18 +307,24 @@ export function Chart(props: ChartProps) {
                   <SeriesLayer type={type} series={history} height={height} />
                   <SeriesLayer type={type} series={live} height={height} />
 
-                  {openTrades.map((tr) => (
-                    <TradeLine
-                      key={tr.id}
-                      side={tr.direction === "UP" ? t("trade.up") : t("trade.down")}
-                      label={labelFor(tr, nowSec)}
-                      x={Math.max(0, xForIndex(entryIndex(all, tr.entryTs) + 0.5, viewport))}
-                      y={clampY(yForPrice(tr.entryPrice, range, height))}
-                      plotW={plotW}
-                      figFont={figFont}
-                      uiFont={uiFont}
-                    />
-                  ))}
+                  {openTrades.map((tr) => {
+                    const rawX = xForIndex(entryIndex(all, tr.entryTs) + 0.5, viewport);
+                    const tradeY = clampTagY(yForPrice(tr.entryPrice, range, height), height);
+                    return (
+                      <TradeLine
+                        key={tr.id}
+                        side={tr.direction === "UP" ? t("trade.up") : t("trade.down")}
+                        label={labelFor(tr, nowSec)}
+                        x={Math.max(0, rawX)}
+                        y={tradeY}
+                        showDot={rawX >= 0}
+                        avoidX={tradeAvoidX(tradeY, priceY, priceTagX)}
+                        plotW={plotW}
+                        figFont={figFont}
+                        uiFont={uiFont}
+                      />
+                    );
+                  })}
 
                   {priceY !== null ? (
                     <Line p1={vec(0, priceY)} p2={vec(plotW, priceY)} color={color.ink3} strokeWidth={1}>

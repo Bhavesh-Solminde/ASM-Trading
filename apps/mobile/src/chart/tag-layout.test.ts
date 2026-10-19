@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CandleDto } from "@asm/contracts";
-import { entryIndex, gridYs, hasNonAscii, priceTagRect, readoutBox, showReadout, tradeTagRect } from "./tag-layout";
+import { clampTagY, entryIndex, gridYs, hasNonAscii, priceTagRect, readoutBox, showReadout, tradeAvoidX, tradeTagRect } from "./tag-layout";
 
 const c = (openTs: number): CandleDto => ({ openTs, o: 1, h: 1, l: 1, c: 1 });
 
@@ -14,6 +14,35 @@ describe("priceTagRect", () => {
 describe("tradeTagRect", () => {
   it("ends 4 before the plot's right edge, text inset 6 from its left", () => {
     expect(tradeTagRect(300, 80)).toEqual({ x: 204, w: 92, textX: 210 });
+    expect(tradeTagRect(300, 80, null)).toEqual({ x: 204, w: 92, textX: 210 });
+  });
+  it("ends 4 before the price tag when it must avoid it", () => {
+    expect(tradeTagRect(300, 80, 271)).toEqual({ x: 175, w: 92, textX: 181 });
+  });
+});
+
+describe("tradeAvoidX", () => {
+  const priceX = 271;
+  it("is the price tag's x when the two tags are closer than 22 vertically", () => {
+    expect(tradeAvoidX(100, 100, priceX)).toBe(271);
+    expect(tradeAvoidX(100, 121.9, priceX)).toBe(271);
+    expect(tradeAvoidX(100, 78.5, priceX)).toBe(271);
+  });
+  it("is null when they are 22 or more apart (the tags cannot overlap)", () => {
+    expect(tradeAvoidX(100, 122, priceX)).toBeNull();
+    expect(tradeAvoidX(100, 40, priceX)).toBeNull();
+  });
+  it("is null when there is no price tag", () => {
+    expect(tradeAvoidX(100, null, priceX)).toBeNull();
+  });
+});
+
+describe("clampTagY", () => {
+  it("keeps a 22-high tag inside the plot: [11, height - 11]", () => {
+    expect(clampTagY(-50, 300)).toBe(11);
+    expect(clampTagY(5, 300)).toBe(11);
+    expect(clampTagY(150, 300)).toBe(150);
+    expect(clampTagY(299, 300)).toBe(289);
   });
 });
 
