@@ -68,3 +68,29 @@ export function clearResume(): void {
     // Best effort, see above.
   }
 }
+
+const NICKNAME_KEY = "lastNickname";
+
+/**
+ * The lock screen greets the last signed-in user by nickname (never the email or the balance). Same MMKV store as the
+ * snapshots, so `clearResume()` on sign-out wipes it. Best effort; null or a blank name removes it.
+ */
+export function saveLastNickname(name: string | null): void {
+  try {
+    const s = store();
+    if (!s) return;
+    const trimmed = name?.trim();
+    if (trimmed) s.set(NICKNAME_KEY, trimmed);
+    else s.remove(NICKNAME_KEY);
+  } catch {
+    // Best effort, see above.
+  }
+}
+
+export function loadLastNickname(): string | null {
+  try {
+    return store()?.getString(NICKNAME_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}

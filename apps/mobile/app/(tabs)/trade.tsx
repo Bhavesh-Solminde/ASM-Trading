@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
 import { bootstrapRequestedAt, useBootstrap } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
-import { loadLastUserId, loadResume, saveLastUserId } from "@/cache/resume-cache";
+import { loadLastUserId, loadResume, saveLastNickname, saveLastUserId } from "@/cache/resume-cache";
 import { useSocket } from "@/socket/socket-store";
 import { color, space } from "@/theme/tokens";
 import { Button, Screen, Skeleton } from "@/theme/ui";
@@ -102,6 +102,13 @@ export default function Trade() {
   useEffect(() => {
     if (boot?.userId) saveLastUserId(boot.userId);
   }, [boot?.userId]);
+
+  // The lock screen greets by this nickname (never the email). Only a loaded bootstrap may write it; null clears it.
+  const nickname = boot?.profile.nickname ?? null;
+  const booted = boot !== undefined;
+  useEffect(() => {
+    if (booted) saveLastNickname(nickname);
+  }, [booted, nickname]);
 
   // Subscribe on the market/timeframe only: a bootstrap refetch must not reset the chart.
   useEffect(() => {

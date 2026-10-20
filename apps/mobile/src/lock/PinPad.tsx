@@ -1,19 +1,28 @@
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { color, radius, space } from "@/theme/tokens";
+import { Pressable, View } from "react-native";
+import { color } from "@/theme/tokens";
+import { Txt } from "@/theme/ui";
+import { Icon, type IconName } from "@/ui/Icon";
 
 const DELETE = "delete";
-const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", DELETE];
+const LEFT = "left";
+const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", LEFT, "0", DELETE] as const;
 
+/**
+ * Full-width ledger keypad (no grey tiles). The PIN boxes are separate (`PinBoxes`). `leftKey` fills the bottom-left cell
+ * (a fingerprint key); without it the cell is empty.
+ */
 export function PinPad({
   value,
   onChange,
   disabled,
+  leftKey,
 }: {
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
+  leftKey?: { icon: IconName; label: string; onPress: () => void };
 }) {
   const { t } = useTranslation();
 
@@ -25,44 +34,55 @@ export function PinPad({
   }
 
   return (
-    <View style={{ gap: space(6) }}>
-      <View
-        style={styles.dots}
-        accessible
-        accessibilityLabel={t("lock.pinEntered", { count: value.length })}
-      >
-        {[0, 1, 2, 3].map((i) => (
-          <View key={i} style={[styles.dot, i < value.length && { backgroundColor: color.brand, borderColor: color.brand }]} />
-        ))}
-      </View>
-      <View style={styles.grid}>
-        {KEYS.map((k, i) =>
-          k === "" ? (
-            <View key={i} style={styles.key} />
-          ) : (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", borderTopWidth: 1, borderTopColor: color.ruleSoft }}>
+      {KEYS.map((k, i) => {
+        const col = i % 3;
+        // minHeight, not height: the digits scale with the system font size.
+        const cell = {
+          width: "33.333%",
+          minHeight: 64,
+          borderBottomWidth: 1,
+          borderLeftWidth: col === 1 ? 1 : 0,
+          borderRightWidth: col === 1 ? 1 : 0,
+          borderColor: color.ruleSoft,
+          alignItems: "center",
+          justifyContent: "center",
+        } as const;
+        if (k === LEFT) {
+          return leftKey ? (
             <Pressable
-              key={i}
-              testID={`pin-${k}`}
+              key={k}
               accessibilityRole="button"
-              accessibilityLabel={k === DELETE ? t("lock.delete") : k}
-              accessibilityState={{ disabled: !!disabled }}
-              onPress={() => press(k)}
-              style={({ pressed }) => [styles.key, styles.keyFace, { opacity: disabled ? 0.5 : pressed ? 0.7 : 1 }]}
+              accessibilityLabel={leftKey.label}
+              onPress={leftKey.onPress}
+              style={({ pressed }) => [cell, pressed ? { backgroundColor: color.raised } : null]}
             >
-              <Text style={styles.keyText}>{k === DELETE ? "⌫" : k}</Text>
+              <Icon name={leftKey.icon} size={26} color={color.accentText} />
             </Pressable>
-          ),
-        )}
-      </View>
+          ) : (
+            <View key={k} style={cell} />
+          );
+        }
+        return (
+          <Pressable
+            key={k}
+            testID={`pin-${k}`}
+            accessibilityRole="button"
+            accessibilityLabel={k === DELETE ? t("lock.delete") : k}
+            accessibilityState={{ disabled: !!disabled }}
+            onPress={() => press(k)}
+            style={({ pressed }) => [cell, { opacity: disabled ? 0.5 : 1 }, pressed ? { backgroundColor: color.raised } : null]}
+          >
+            {k === DELETE ? (
+              <Icon name="delete" size={26} color={color.ink2} />
+            ) : (
+              <Txt weight={500} size={27} lineHeight={34}>
+                {k}
+              </Txt>
+            )}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  dots: { flexDirection: "row", justifyContent: "center", gap: space(4) },
-  dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: color.ink2 },
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignSelf: "center", width: 76 * 3 + space(3) * 2, gap: space(3) },
-  key: { width: 76, height: 64 },
-  keyFace: { borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: color.tile },
-  keyText: { color: color.ink, fontSize: 24, fontWeight: "600" },
-});
