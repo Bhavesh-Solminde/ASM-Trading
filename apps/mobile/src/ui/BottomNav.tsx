@@ -3,6 +3,7 @@ import { Pressable, View } from "react-native";
 import { color } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 import { Icon, type IconName } from "./Icon";
+import { PillFill } from "./PillFill";
 
 export type { BottomTabBarProps };
 
@@ -10,6 +11,8 @@ const ICONS: Record<string, IconName> = { trade: "trade", payments: "wallet", hi
 
 /** Height of the tab row above the bottom inset: 30pt pill + 2pt gap + 16pt label. */
 export const BOTTOM_NAV_ROW = 48;
+
+const PILL_HEIGHT = 30;
 
 /** Gap above the tab row, so the active pill clears the top hairline (canvas: 8px). */
 const BOTTOM_NAV_TOP_GAP = 8;
@@ -49,13 +52,13 @@ export function BottomNav({ state, descriptors, navigation, insets }: BottomTabB
             <View
               style={{
                 width: 64,
-                height: 30,
-                borderRadius: 15,
+                height: PILL_HEIGHT,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: focused ? color.accentDim : "transparent",
               }}
             >
+              {/* Drawn by SVG: a view whose backgroundColor toggles loses its rounded corners on Android. */}
+              <PillFill fill={focused ? color.accentDim : null} height={PILL_HEIGHT} />
               <Icon name={ICONS[route.name] ?? "trade"} size={20} color={focused ? color.accentText : color.ink3} />
             </View>
             <Txt size={12} weight={focused ? 600 : 400} lineHeight={16} color={focused ? color.ink : color.ink3} numberOfLines={1}>
