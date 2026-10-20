@@ -5,6 +5,7 @@ import { AppState } from "react-native";
 import { queryClient } from "@/api/queries";
 import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSession } from "@/auth/session-store";
+import { useLocaleSync } from "@/i18n/use-locale-sync";
 import { useLock } from "@/lock/lock-store";
 import { useSocket } from "@/socket/socket-store";
 import { BottomNav, type BottomTabBarProps } from "@/ui/BottomNav";
@@ -20,6 +21,9 @@ export default function TabsLayout() {
   const lockLoaded = useLock((s) => s.loaded);
   const locked = useLock((s) => s.locked);
   const live = sessionLive && lockLoaded && !locked;
+
+  // The server's locale (the language of push notifications) follows the app's language, quietly.
+  useLocaleSync(live);
 
   // One engine socket for the whole tab shell: open while the app is in the foreground, closed in the background.
   useEffect(() => {
