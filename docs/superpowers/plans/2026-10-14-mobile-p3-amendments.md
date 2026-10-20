@@ -1,5 +1,324 @@
 # Mobile P3 (payments, history, account): plan amendments (pre-flight review, 2026-10-20)
 
+## R5 rebase (2026-10-21), overrides everything below
+
+**Why this section exists.** The owner merged Codex's R5 redesign (PR #94, 518856e) into this branch and said to keep its UI. The merge is a056096.
+
+**Where the findings are.** The re-preflight is `.superpowers/sdd/p3-r5-preflight.md`: 2 Blockers, 8 Important, 10 Minor.
+
+**Precedence.** Where this section and anything below disagree, this section wins. Everything below that is not mentioned here still applies, restyled to R5.
+
+**Baseline**
+- HEAD a056096.
+- Mobile vitest **754 / 83 files**; `tsc` and eslint clean.
+- The stacked PR base is still `claude/mobile-p2-shell-trade`.
+- The worktree is `.claude/worktrees/mobile-p3-t1a`. Never touch `.claude/worktrees/mobile-p3`, which is Codex's.
+
+### R0. Design source
+
+**Look.** R5 everywhere:
+- `theme/tokens.ts` as merged;
+- `Txt` native sans;
+- R5 `Money`;
+- the R5 hub patterns.
+
+For flow screens, use the **R2 chrome** of the Figma file `FKOYMF8qihz9OG9qKrrIzJ` ("IndianxTrade Mobile redesign review", page "02 · Premium revision"):
+- a 44pt rounded-square `raised` back button with a 21/600 title;
+- the CTA stack at the bottom: a pale `light` main button over a `secondary` button;
+- key/value cards on `surface`;
+- small tinted status tags.
+
+**Content and behaviour** come from the task sections below (built from the N-boards and checked against the server):
+- what is on each screen, in what order;
+- data, validation, money rules, routes and copy limits.
+
+**Figma R2 frames are labelled "Proposal awaiting approval".** Use them for layout and chrome only. When an R2 frame disagrees with a task section on behaviour, the task section wins (owner Q1).
+
+**Dropped Passbook decoration:**
+- `Stamp lg` / `xs`;
+- perforations;
+- the Payments cover card and its gradient;
+- `Tricolour` in flows;
+- the dashed rule under amounts;
+- Martian money.
+
+**Figma access.** The Figma MCP is rate-limited (Starter plan). Two R2 boards are saved for implementers: `.superpowers/sdd/figma-r2-payment-states.png` and `.superpowers/sdd/figma-r2-identity.png`. For everything else, build from the R5 code patterns and this section.
+
+| Screen | Route | Look reference | Content from |
+|---|---|---|---|
+| Trade, fullscreen | `trade` | R5 as merged. P3 does not restyle it. | T8c only |
+| Payments hub | `payments/index` | R5 (exists), Figma "R5 / Payments" | T1b (fixes only) |
+| Deposit | `payments/deposit` | R2 "Add money" | T2 |
+| UPI pay | `payments/pay/[token]` | R2 "UPI payment" | T3a |
+| Pending, result, receipt | inside `pay/[token]` | R2 "Checking payment", "Payment confirmed", "Completed receipt" (saved PNG) | T3b |
+| USDT pay | inside `pay/[token]` | R2 "UPI payment" frame | T4 |
+| UTR / tx-hash claim | `payments/claim/[id]` | R2 form chrome (labels above fields, as on "Identity details") | T3a, T4 |
+| Withdraw | `payments/withdraw` | R2 "Withdraw" | T5 |
+| History | `history` | R5 (exists), Figma "R5 / History" | T6 |
+| Payment detail | a `Sheet` over History | R2 "Payment details" (saved PNG) | T6 |
+| Account hub | `account/index` | R5 (exists), Figma "R5 / Account" | T8a (additions) |
+| Profile | `account/profile` | R2 "Profile" (saved PNG) | T8a |
+| Language | `account/language` | R2 "Preferences" | T8a |
+| Verify | `account/verify` | R2 "Verify identity" (saved PNG) | T7b (4 captures) |
+| KYC details | `account/kyc-details` | R2 "Identity details" (saved PNG) | T7b |
+| KYC camera | `account/kyc-camera` | N-KycCamera geometry with R5 tokens (R2 "Document capture" is a placeholder) | T7b |
+| Security, PIN | `account/security`, `security-pin` | R2 "Security" | T8b |
+| Support | `account/support` | R2 "Support" | T8b |
+| Currency | `account/currency` | R5 settings rows | T8c |
+| Notifications | `account/notifications` | stub | P4 |
+
+### R1. Primitives, as they are now (replaces "Primitives to use" where they differ)
+
+**Tokens** (`theme/tokens.ts`, R5):
+- surfaces and rules: `ground #080a10`, `surface #131720`, `raised #1d2330`, `rule #303747`, `ruleSoft #222835`;
+- ink: `ink #f4f6fb`, `ink2 #a4acbe`, `ink3 #858fa5` (5.52 on surface, 4.84 on raised);
+- accent: `accent #456ae7` (white on it 4.70), `accentText #a2b8ff`;
+- direction and bonus: `downText #ff827a`, `gold #e4c58b` (bonus only; 9.48 on raised);
+- `up` / `down` / `upInk` are unchanged.
+
+**Removed from the token plan:**
+- The canvas → token map (`#3f6ff2 → accent` …) is deleted.
+- T1b adds **only** `paper #f4f6f8` (the QR card; ground on it 18.3) and `cameraInk #dfe4ea`, with contrast tests.
+- `goldDim`, `goldRule`, `coverTop`, `coverBottom` and `coverRule` are dropped.
+- The deposit bonus box is `raised` with a `ruleSoft` border and `gold` text.
+
+**Typography**
+- `Txt` renders Latin UI in the **system sans** and sets `fontWeight` (the "never sets fontWeight" note is obsolete for Latin).
+- Devanagari stays bundled Anek.
+- `font="fig"` (Martian) is for ASCII-only cells only: countdowns, times, UTR, tx hash, USDT address, references.
+- Never put `font="fig"` on anything that can hold `₹`, `−` or Hindi.
+
+**Money**
+- `<Money>` is a single sans `Txt` with `tabular-nums`.
+- Large figures use `<Money numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>` in a full-width box.
+- The old "Fitting figures" rule (`fitSize` on Martian advances, floor 22) is **obsolete** for money. Do not use `fitSize` / `MARTIAN_ADVANCE_EM` in P3.
+- Sizes:
+  - hub total 40/500 (as R5 Payments);
+  - flow amount 40/600;
+  - receipt and detail 36/600.
+- Every amount still comes from `money()`, with `+` / `−` where shown.
+
+**Header**
+- There is **no `TabHeader`**, and the shared-header rule (amendment I3) is obsolete.
+- Hubs: `<Screen>` + `ScrollView` with padding 20, then a 28/600 `accessibilityRole="header"` title (R5).
+- Trade keeps `TopBar`:
+  - an account selector sheet, `testID` `account-selector` / `account-demo` / `account-live`;
+  - the wallet button → `/payments`.
+- `AppHeader` is flat: `HEADER_ROW` 62, no gradient, no tricolour.
+
+**Buttons**
+- The main flow CTA is `light` (R5 "Add money", Figma R2). The second CTA is `secondary`. Inline links use `text`.
+- `primary` (the accent fill) is not used for flow CTAs.
+- Every CTA testID named below is unchanged.
+
+**`Sheet`**
+- Content mounts **only while presented** (R5). Keep any state that must survive a dismiss in the screen.
+- Example: `AmountSheet` reports its value up through `onDone`, and its draft lives in the screen.
+- e2e flows open a sheet before asserting ids inside it.
+
+**`BottomNav`**
+- It hides on pushed flow screens and on Trade in fullscreen, via `tabBarHidden(route, fullscreen)`.
+
+**`Stamp`**
+- `sm` / `md` stay for existing users. Do not add `xs` / `lg`.
+- Status is shown with the new `StatusTag`.
+
+**`LedgerHeader` / `LedgerRow`**
+- Unchanged: there is no ledger table in P3 (see T6).
+
+**New `src/ui` pieces (T1b):**
+- `BackHeader({ title, onBack?, icon: "arrowLeft" | "close", aside? })`:
+  - a 44×44 `raised` button, radius 12;
+  - a 21/600 title with `flex: 1`.
+- `IconTile` (as below).
+- `KeyValueBox({ rows })`:
+  - a `surface` card, radius 14, padding 16;
+  - each row is a 14 `ink2` label with `flex: 1` and a value with `flexShrink: 0`;
+  - rows are `minHeight` 28.
+- `ListState` (as below).
+- `StatusTag({ tone, label })`:
+  - radius 6, `raised` background, padding 3×8;
+  - the label is 12/600 in the tone colour: up → `up`, caution → `accentText`, down → `downText`, neutral → `ink2`;
+  - `gold` stays bonus-only.
+- `SettingsRow({ icon, title, value?, onPress, testID? })`:
+  - extracted from `account/index.tsx`'s row: `minHeight` 56, an 18 `ink2` icon, the title with `flex: 1`, the value in `ink2` with `flexShrink: 0`, a chevron and a bottom `rule`;
+  - the Account hub switches to it.
+- `AmountFigure({ text, words, onPress?, testID })`:
+  - a fitted 40/600 `Money`, then the words at 14 `ink2`;
+  - pressable, `minHeight` 44, no dashed rule.
+
+**Icons, brand logos and the deposit radiogroup**
+- The icon list and brand logos are as in T1b below.
+- Rows in the deposit radiogroup keep `minHeight` 66.
+
+### R2. "All tasks" changes
+
+- **Design.** Replace "The canvas is the source of truth" with R0. Read the N-board only for content, order and copy.
+- **Fonts and glyphs, and Fitting figures.** Replaced by R1 Typography and R1 Money.
+- **P2 learnings.** Unchanged and binding, now also for any R5 file a task touches:
+  - Hindi shrink-wrap;
+  - `minHeight`;
+  - targets ≥ 44pt;
+  - rules of hooks;
+  - `<Link asChild>`;
+  - `insets.bottom`;
+  - `useNow` in leaf components only.
+- **Queries.**
+  - Screens never declare inline `useQuery`s for wallet, payments, checkout, prefill or profile. Use the `src/api/queries.ts` hooks.
+  - **One query key, one query type.** Never mix `useQuery` and `useInfiniteQuery` on a key.
+  - `useAccountTradesLoaded` is called **only** in `trade.tsx`. Every other screen reads `listLoadedFor(useListLoaded(s => s.loadedFor), account.id, bootstrapTradesAccountId(boot.accounts))`.
+- **Refetch.** The Payments and History hubs refetch on focus (`useFocusEffect`) and have pull-to-refresh.
+- **i18n.**
+  - R5 hub strings live under `redesign.*`. Reuse a key when the copy is the same.
+  - New strings go in the feature namespaces, in both files.
+- **testIDs.**
+  - R5 added `chart-fullscreen`, `account-selector`, `account-demo` and `account-live`.
+  - "`e2e/login-trade.yaml` stays unchanged" now means R5's version of it (account and duration sheets).
+- **Findings superseded below:**
+  - 1 (ledger) → owner Q2;
+  - 4 (Account hub follows the board) → it follows R5;
+  - 5 (Payments cover) → there is no cover.
+
+### R3. Task changes
+
+| Task | Change |
+|---|---|
+| **T1a** | Done (93e1a2e) and correct as merged, except `TabHeader` (dead). See T1a-fix. |
+| **T1a-fix** (new, first) | See R4. |
+| **T1b** | **Shrinks.** No Payments screen rebuild and no cover card. It builds the R1 pieces, adds `paper` / `cameraInk`, the icons and the brand logos. **Payments hub fixes:** see the list under this table. |
+| **T2** | Content unchanged. Look per R0/R1: `BackHeader`, `AmountFigure`, the bonus box (`raised`/`gold`), and the method radiogroup on `surface`. The CTA `deposit-pay` is `light` with `28 + insets.bottom`. `AmountSheet` follows the R1 Sheet rule. |
+| **T3a** | Content unchanged. The status card and chips are on `surface`. "Open <App>" is `light`; the other apps are `secondary`. |
+| **T3b** | The server part is unchanged. **`PayResult` follows R2 "Payment confirmed" / "Checking payment"** (saved PNG). See the list under this table. |
+| **T4** | Unchanged; T3a's frame. |
+| **T5** | Content unchanged, and still **no confirm step** (owner Q1). The look is R2 "Withdraw": labels above fields, a `KeyValueBox` summary, and a `light` CTA. |
+| **T6a** | **Dropped by default** (owner Q2): no ledger route or `LedgerRowSchema`. Only `GET /api/v1/payments/[key]` (with its tests) is kept, and it moves into T6. |
+| **T6b → T6** | See the list under this table. |
+| **T7a** | Unchanged. |
+| **T7b** | Content unchanged: 4 cards (details; Aadhaar front + back; PAN; selfie). They are drawn as R2 "Verify identity" rows (`IconTile`, title, subtitle, and a state: `up` check / "Next" in `accentText` / step number). PENDING / VERIFIED / REJECTED use `StatusTag` instead of `Stamp lg`. The details form follows R2 "Identity details". The camera keeps N-KycCamera geometry. |
+| **T8a** | **Shrinks**: the hub exists. See the list under this table. |
+| **T8b, T8c** | Content unchanged. Look per R0. |
+| **T9** | Unchanged. The testIDs are `deposit-pay`, `deposit-method-<Method>`, `pay-claim`, `withdraw-verify`, `history-seg-<s>`, `keypad-done` and `key-<k>`. Flows open sheets before asserting inside them. |
+
+**T1b, Payments hub fixes (on R5's screen)**
+- The total comes from the socket `balances[live.id]`, else `useWallet()`.
+- `useFocusEffect` refetch plus a `RefreshControl`.
+- The Withdraw button label becomes `withdraw.title`. T1b adds the key ("Withdraw") to en and hi; T5 reuses it.
+- The KYC next-step card shows only for NOT_STARTED / REJECTED, with one title and a `text` link. Fix the duplicated copy.
+- "Bonus ₹x" is pressable and opens `BonusSheet`, which moves here from Trade (owner Q3).
+- Recent activity is the first **5** rows, plus "See all" → `/history?filter=payments`.
+- `PaymentActivity` rows (I6):
+  - tappable → `/history?tx=<key>`, `minHeight` 66;
+  - `+` and `up` on credited deposits;
+  - `−` on withdrawals that moved money;
+  - `ink3` when `paymentMovedNoMoney`;
+  - a `StatusTag` instead of the "· status" text;
+  - the amount has `flexShrink: 0`.
+- The T3a pending-payment slot goes under the buttons.
+- Tests:
+  - `statusTagTone` (pure);
+  - a `paymentFigure(row)` sign/tone helper (pure).
+
+**T3b, `PayResult` (R2 "Payment confirmed" / "Checking payment")**
+- A 64 `up` check circle.
+- "Money added", 28/600.
+- The amount, 40/600.
+- "Your live balance has been updated", in ink2.
+- A `KeyValueBox`: Method, Status (`StatusTag`), Reference (`referenceFor`), Bonus (gold, hidden at 0), UTR (fig), Date.
+- "New balance".
+- Buttons: `light` "Start trading", then `secondary` "Share receipt".
+- No `Stamp lg`, no perforations.
+- EXPIRED / REJECTED use the same frame with a `down` `StatusTag` and the web copy, as T3b already specifies.
+
+**T6 (History upgrade on R5's screen)**
+- Keep R5's Trade | Payments segments and the Trade segment (`TradesBody`), as they are.
+- The Trade segment's `listLoaded` comes from the store (R2 Queries).
+- **Payments segment:**
+  - `usePaymentsInfinite`, with `onEndReached` → `fetchNextPage`;
+  - day groups from client-core `groupByDay` / `dayLabel`, with labels from i18n;
+  - the T1b rows, plus `ListState`;
+  - refetch on focus.
+- **Params:**
+  - `?filter=payments|deposits|withdrawals` selects the Payments segment, and deposits / withdrawals filter it through `itemMatchesFilter`;
+  - `?filter=trades` selects Trade;
+  - `?tx=d:<id>|w:<id>` (P4 contract) selects Payments and opens the detail sheet once, then `router.setParams({ tx: undefined })`.
+- **Detail sheet:** T6b's content, laid out as R2 "Payment details":
+  - the `StatusTag`;
+  - the amount at 36/600;
+  - "UPI deposit · Live account";
+  - a `KeyValueBox` (Reference with copy, Created, Account, Method);
+  - "Payment timeline" with the T6b dots in R5 colours;
+  - Cancel withdrawal (HELD and in its window) as `secondary`.
+- testIDs: `history-seg-trades`, `history-seg-payments`, `history-tx-<key>`.
+- **Dropped:**
+  - the ledger table and the Balance column;
+  - `ledgerSections`, `ledgerFigure` and `money({ symbol: false })`;
+  - the `LedgerRow` gap/padV options;
+  - the currency-change footer.
+
+**T8a (additions to the existing Account hub)**
+- The identity row gets:
+  - the name from `useProfile` (first + last, else the nickname, else the email's local part);
+  - the email;
+  - a KYC `StatusTag` (Verified / In review / Rejected / Not done);
+  - an `accessibilityLabel` that includes the name.
+- The verify card shows only for NOT_STARTED / REJECTED.
+- Rows switch to `SettingsRow` with real icons:
+  - Security (with its value);
+  - Language (`languages`);
+  - Currency (the LIVE currency);
+  - Notifications (`bell`);
+  - Help & support (`lifeBuoy`);
+  - **Reset demo balance** (T8a's flow).
+- Log out gets an `Alert` confirm.
+- Build `profile`, `language` and the `notifications` stub as specified below.
+
+### R4. T1a-fix (do first; small; its own Gate and commit)
+
+1. **B1 (one payments query).**
+   - `PaymentActivity` reads `usePaymentsInfinite()` (flatten `pages`; a `limit?: number` prop).
+   - `payments/index.tsx` uses `useWallet()`.
+   - Delete both inline queries.
+   - Grep: no other `queryKey: ["payments"` and no other `queryKey: ["wallet"` outside `queries.ts`.
+2. **I1 (History list state).**
+   - `history.tsx` drops `useAccountTradesLoaded` and reads `listLoadedFor(...)` from `list-loaded-store`.
+3. **Dead code.**
+   - Delete `src/trade/TabHeader.tsx`.
+   - Remove `TopBar`'s unused `listLoaded` prop and Trade's pass-through. Edit the current file.
+4. **I4 (system sans in inputs).**
+   - `useUiFamily(weight)` returns `undefined` for the Latin script.
+   - `Field`, `PasswordField` and the MarketSheet search add `fontWeight` when the family is `undefined`, as `Txt` does.
+   - Devanagari is unchanged.
+5. **I3 (Hindi shrink-wrap).**
+   - The Payments Withdrawable / Bonus row becomes two `flex: 1` columns, each `numberOfLines={1}`.
+   - The `PaymentActivity` amount and the Account Language value get `flexShrink: 0`.
+6. **Gate** as in All tasks.
+7. **Commit:** `fix(mobile): one payments query, History reads Trade's list state, system sans in inputs after R5`.
+
+### R5. Task list and order (replaces the 15-task list)
+
+There are **14 tasks**: T1a-fix, T1b, T2, T3a, T3b, T4, T5, T6, T7a, T7b, T8a, T8b, T8c, T9.
+- T1a is done.
+- T6a is folded into T6: only the single-payment route survives.
+
+### R6. Owner questions (the defaults are built; confirm in the PR)
+
+1. **Figma R2 flow frames are "Proposal awaiting approval".** Should they bind on content too?
+   - Default: no. They bind on look and layout only, and the task sections bind on behaviour. That resolves three conflicts:
+     - KYC asks for **4 captures** (the R2 frame shows 3 steps);
+     - Withdraw has **no "Review withdrawal" step** (the amount is on the CTA);
+     - the receipt also shows Bonus, UTR and Date.
+2. **History: R5 activity (Trade | Payments) or the Passbook running-balance ledger?**
+   - Default: R5 activity. The server ledger route (old T6a) is dropped.
+   - This replaces old Finding 1.
+3. **R5 removed the Trade bonus chip,** which reverses the Oct-12 decision "bonus chip on /trade only".
+   - Default: accept it. `BonusSheet` moves to Payments (tap "Bonus ₹x").
+   - Deposit keeps its bonus row, the "can't be withdrawn" line and "How it works".
+4. **Payment detail: a sheet over History, or a full screen as in R2?**
+   - Default: a sheet. It keeps `/history?tx=` working, and Back returns to History.
+5. **Owner-only (OWNER-TODO).** Export the "02 · Premium revision" frames as PNGs to `docs/design/r5-figma-2026-10-21/`, because the Figma MCP Starter limit blocks agents. Until then, implementers use R0 and the two saved boards.
+
+---
+
 These amendments override `2026-10-14-mobile-p3-payments-account.md` wherever the two conflict.
 
 **How the controller uses them.** Give each task's implementer and reviewer that task's section plus "All tasks".
