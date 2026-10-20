@@ -112,7 +112,7 @@ export function FormScroll({ children, top = false }: { children: ReactNode; top
 export function TextLink({ href, label, style, align = "left" }: { href: Href; label: string; style?: StyleProp<ViewStyle>; align?: "left" | "right" }) {
   return (
     <Link href={href} asChild>
-      <Pressable accessibilityRole="link" accessibilityLabel={label} style={[styles.link, style]}>
+      <Pressable accessibilityRole="link" accessibilityLabel={label} style={StyleSheet.flatten([styles.link, style])}>
         <Txt size={14} color={color.accentText} style={{ textAlign: align }}>
           {label}
         </Txt>
@@ -125,7 +125,7 @@ export function TextLink({ href, label, style, align = "left" }: { href: Href; l
 export function PromptLink({ href, prompt, label, style, align = "right" }: { href: Href; prompt: string; label: string; style?: StyleProp<ViewStyle>; align?: "left" | "right" }) {
   return (
     <Link href={href} asChild>
-      <Pressable accessibilityRole="link" accessibilityLabel={`${prompt} ${label}`} style={[styles.link, style]}>
+      <Pressable accessibilityRole="link" accessibilityLabel={`${prompt} ${label}`} style={StyleSheet.flatten([styles.link, style])}>
         <Txt size={14} color={color.ink2} style={{ textAlign: align }}>
           {prompt}{" "}
           <Txt size={14} color={color.accentText}>
