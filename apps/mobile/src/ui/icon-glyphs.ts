@@ -1,12 +1,14 @@
 export type IconName =
   | "trade" | "wallet" | "history" | "user" | "chevron" | "chevronDown" | "close" | "more" | "briefcase" | "star"
   | "search" | "lock" | "bolt" | "plus" | "arrowUp" | "arrowDown" | "fingerprint" | "key" | "eye" | "eyeOff"
-  | "delete" | "download";
+  | "delete" | "download" | "expand" | "collapse";
 
 export type Glyph = { paths: string[]; circles?: { cx: number; cy: number; r: number; fill?: boolean }[] };
 
 /** 24×24 outline glyphs (lucide, as drawn on the Passbook canvas). Rects are written as paths. */
 export const GLYPHS: Record<IconName, Glyph> = {
+  expand: { paths: ["M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"] },
+  collapse: { paths: ["M3 8h5V3M16 3v5h5M21 16h-5v5M8 21v-5H3"] },
   trade: {
     paths: [
       "M9 5v4", "M8 9h2a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z", "M9 15v2", "M17 3v2",

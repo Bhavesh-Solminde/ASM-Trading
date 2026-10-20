@@ -33,6 +33,7 @@ export const ExpirySheet = forwardRef<SheetRef, { value: number; onPick: (sec: n
           return (
             <Chip
               key={sec}
+              testID={`expiry-${sec}`}
               label={label}
               height={44}
               size={15}

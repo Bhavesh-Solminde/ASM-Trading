@@ -1,53 +1,14 @@
-import { useState, type ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import type { ReactNode } from "react";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop, Svg } from "react-native-svg";
 import { color } from "@/theme/tokens";
 import { OFFLINE_BANNER_HEIGHT, useOfflineVisible } from "./OfflineBanner";
-import { headerMetrics } from "./header-metrics";
-import { Tricolour } from "./Tricolour";
-
-/** Content row height; with the 2pt tricolour the header is 51pt under the status bar (canvas: height 51). */
-export const HEADER_ROW = 49;
-
-/**
- * The tab screens' header: navy gradient running under the status bar, a soft saffron glow top-right, one 49pt
- * row of content and the tricolour hairline. The status-bar inset is the device's real one (safe area), not the
- * canvas's 28. Static (no animation) so it never costs the chart frames. `below` is an optional second row for
- * content that cannot fit the first (the balance at a large font scale), right-aligned under the same gutters.
- */
+export const HEADER_ROW = 62;
 export function AppHeader({ children, compact = false, below }: { children: ReactNode; compact?: boolean; below?: ReactNode }) {
   const insets = useSafeAreaInsets();
   const offline = useOfflineVisible();
-  const [width, setWidth] = useState(0);
-  const m = headerMetrics(compact);
-  return (
-    <View
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      style={{ paddingTop: insets.top + (offline ? OFFLINE_BANNER_HEIGHT : 0), overflow: "hidden" }}
-    >
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <Svg width="100%" height="100%">
-          <Defs>
-            <LinearGradient id="ixtHeader" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={color.headerTop} />
-              <Stop offset="1" stopColor={color.headerBottom} />
-            </LinearGradient>
-            <RadialGradient id="ixtGlow" cx="50%" cy="50%" r="50%">
-              <Stop offset="0" stopColor={color.saffron} stopOpacity={0.18} />
-              <Stop offset="0.7" stopColor={color.saffron} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#ixtHeader)" />
-          {/* Canvas: a 160x140 glow at right -40, top -60 of the header box. */}
-          {width > 0 ? <Ellipse cx={width - 40} cy={10} rx={80} ry={70} fill="url(#ixtGlow)" /> : null}
-        </Svg>
-      </View>
-      <View style={{ height: HEADER_ROW, flexDirection: "row", alignItems: "center", gap: m.gap, paddingHorizontal: m.padX }}>
-        {children}
-      </View>
-      {below ? <View style={{ paddingHorizontal: m.padX, paddingBottom: 6, alignItems: "flex-end" }}>{below}</View> : null}
-      <Tricolour />
-    </View>
-  );
+  return <View style={{ paddingTop: insets.top + (offline ? OFFLINE_BANNER_HEIGHT : 0), backgroundColor: color.ground }}>
+    <View style={{ minHeight: HEADER_ROW, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: compact ? 12 : 16 }}>{children}</View>
+    {below ? <View style={{ paddingHorizontal: 16, paddingBottom: 6 }}>{below}</View> : null}
+  </View>;
 }

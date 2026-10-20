@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { BackHandler, View } from "react-native";
+import { useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ChartToolbar } from "@/trade/ChartToolbar";
+import { useFullscreen } from "@/trade/fullscreen-store";
+import { TradingSkeleton } from "@/trade/TradingSkeleton";
 import { bootstrapRequestedAt, useBootstrap } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
 import { loadLastUserId, loadResume, saveLastNickname, saveLastUserId } from "@/cache/resume-cache";
@@ -12,17 +17,16 @@ import { BrandMark } from "@/ui/Brand";
 import type { SheetRef } from "@/ui/Sheet";
 import { accountOfType, bootstrapTradesAccountId, canUseLive, resolveAccount, staleBalance, type AppAccount } from "@/trade/accounts";
 import { BonusSheet } from "@/trade/BonusSheet";
-import { CHART_OVERLAY_BOTTOM, OVERLAY_TOP } from "@/trade/chart-overlay";
 import { ChartTools } from "@/trade/ChartTools";
 import { Dock } from "@/trade/Dock";
-import { findAsset, nextBonus, precisionFor, resolveSymbol, toggleFavourite } from "@/trade/markets";
+import { findAsset, precisionFor, resolveSymbol, toggleFavourite } from "@/trade/markets";
 import { useListLoaded } from "@/trade/list-loaded-store";
 import { hasOpenTrade } from "@/trade/open-trades";
 import { MarketPill } from "@/trade/MarketPill";
 import { PositionStrip } from "@/trade/PositionStrip";
 import { useResultFeedback } from "@/trade/ResultToast";
 import { SentimentBar } from "@/trade/SentimentBar";
-import { BonusStamp, StatusLine } from "@/trade/StatusRow";
+import { StatusLine } from "@/trade/StatusRow";
 import { StaleTopBar, TopBar } from "@/trade/TopBar";
 import { TradeChart } from "@/trade/TradeChart";
 import { useUserPrefs } from "@/trade/trade-prefs";
@@ -58,6 +62,14 @@ function BootError({ onRetry, compact }: { onRetry: () => void; compact?: boolea
 }
 
 export default function Trade() {
+  const fullscreen = useFullscreen(s => s.active);
+  const insets = useSafeAreaInsets();
+  useFocusEffect(useCallback(() => {
+    if (!fullscreen) return;
+    const back = BackHandler.addEventListener("hardwareBackPress", () => { useFullscreen.getState().set(false); return true; });
+    return () => back.remove();
+  }, [fullscreen]));
+  useEffect(() => () => useFullscreen.getState().set(false), []);
   const token = useSession((s) => s.token);
   const bootQuery = useBootstrap(!!token);
   const boot = bootQuery.data;
@@ -129,11 +141,8 @@ export default function Trade() {
   const liveArrived = useLiveArrived();
   const candleSnapshot = liveArrived ? null : resume;
 
-  // The chart readout hides while the chart-tools panel is open (it would sit under the panel).
-  const [toolsOpen, setToolsOpen] = useState(false);
 
   const bonusSheet = useRef<SheetRef>(null);
-  const openBonus = useCallback(() => bonusSheet.current?.present(), []);
 
   const selectAccountType = (type: AppAccount["type"]) => {
     const target = boot ? accountOfType(boot.accounts, type) : undefined;
@@ -144,14 +153,13 @@ export default function Trade() {
   const setChartType = (chartType: ChartType) => prefs.set({ chartType });
   const setTimeframe = (next: Timeframe) => prefs.set({ timeframe: next });
 
-  const bonus = boot ? nextBonus(boot.completedDeposits) : null;
   // Until bootstrap arrives the cached balance (dimmed) beats a skeleton; without one, the skeleton stays.
   // A balance the store already holds for the saved account (socket push, HTTP open result) beats the cached one.
   const storedBalance = useSocket((s) => (resume ? s.trades.balances[resume.accountId] : undefined));
   const stale = !boot && !bootFailed ? staleBalance(resume, storedBalance) : null;
 
   return (
-    <Screen bleedTop>
+    <Screen bleedTop style={{ paddingBottom: fullscreen ? insets.bottom : 0 }}>
       {boot && account ? (
         <TopBar
           account={account}
@@ -170,7 +178,8 @@ export default function Trade() {
       )}
       {/* With a resume cache the chart is still showing, so the error is a strip; without one, see below. */}
       {!boot && bootFailed && symbol ? <BootError compact onRetry={retry} /> : null}
-      <View style={{ flex: 1 }}>
+      {boot ? <ChartTools chartType={prefs.chartType} timeframe={timeframe} onChartType={setChartType} onTimeframe={setTimeframe} leading={<MarketPill assets={boot.assets} asset={asset} favourites={prefs.favourites} onPick={pickSymbol} onToggleFavourite={toggleStar} />} /> : null}
+      <View style={{ flex: 1, minHeight: 100 }}>
         {symbol ? (
           <TradeChart
             symbol={symbol}
@@ -180,33 +189,19 @@ export default function Trade() {
             accountId={accountId}
             snapshot={candleSnapshot}
             tradesSnapshot={boot ? null : resume}
-            topInset={CHART_OVERLAY_BOTTOM}
-            hideReadout={toolsOpen}
+            topInset={8}
+            hideReadout={false}
           />
         ) : bootFailed ? (
           <BootError onRetry={retry} />
-        ) : null}
+        ) : <TradingSkeleton />}
         <SentimentBar />
         <View pointerEvents="none" style={{ position: "absolute", left: 12, bottom: 8, right: 120 }}>
           <StatusLine snapshot={candleSnapshot} symbol={symbol} timeframe={timeframe} />
         </View>
-        {boot ? (
-          <View pointerEvents="box-none" style={{ position: "absolute", top: OVERLAY_TOP, left: 12, right: 12 }}>
-            <ChartTools
-              chartType={prefs.chartType}
-              timeframe={timeframe}
-              onChartType={setChartType}
-              onTimeframe={setTimeframe}
-              onOpenChange={setToolsOpen}
-              trailing={bonus?.pct ? <BonusStamp pct={bonus.pct} onPress={openBonus} /> : null}
-              leading={
-                <MarketPill assets={boot.assets} asset={asset} favourites={prefs.favourites} onPick={pickSymbol} onToggleFavourite={toggleStar} />
-              }
-            />
-          </View>
-        ) : null}
+        {boot && account ? <View pointerEvents="box-none" style={{ position: "absolute", bottom: 24, left: 0, right: 0 }}><PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} /></View> : null}
       </View>
-      {boot && account ? <PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} /> : null}
+      {boot && account ? <ChartToolbar timeframe={timeframe} onTimeframe={setTimeframe} accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} /> : null}
       {boot && accountId && asset ? <Dock boot={boot} accountId={accountId} asset={asset} /> : null}
       {boot ? <BonusSheet ref={bonusSheet} completedDeposits={boot.completedDeposits} /> : null}
     </Screen>

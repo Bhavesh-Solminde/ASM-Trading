@@ -45,20 +45,21 @@ export type TxtProps = TextProps & {
   script?: Script;
 };
 
-/** The one text primitive: picks the bundled family by weight and the current language. Never sets fontWeight. */
+/** System sans for R5 Latin UI; bundled Devanagari and chart figure families remain explicit. */
 export function Txt({ variant, font: kind = "ui", weight, size, color: ink, tracking, lineHeight, script, style, ...rest }: TxtProps) {
   const { i18n } = useTranslation();
   const base = variant ? VARIANT[variant] : undefined;
   const w = weight ?? base?.weight ?? 400;
   const s = size ?? base?.size ?? 14;
   const sc = script ?? scriptFor(i18n.language);
-  const family = kind === "fig" ? figFamily(w) : uiFamily(w, sc);
+  const systemSans = kind === "ui" && sc === "latin";
+  const family = systemSans ? undefined : kind === "fig" ? figFamily(w) : uiFamily(w, sc);
   const lh = lineHeight ?? Math.round(s * (kind === "ui" && sc === "devanagari" ? 1.5 : 1.3));
   return (
     <Text
       {...rest}
       style={[
-        { fontFamily: family, fontSize: s, lineHeight: lh, color: ink ?? base?.color ?? color.ink },
+        { fontFamily: family, fontWeight: systemSans ? String(w) as "400" | "500" | "600" : undefined, fontSize: s, lineHeight: lh, color: ink ?? base?.color ?? color.ink },
         tracking !== undefined ? { letterSpacing: tracking * s } : null,
         style,
       ]}

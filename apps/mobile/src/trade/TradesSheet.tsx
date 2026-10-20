@@ -1,3 +1,6 @@
+import { useRef } from "react";
+import { OpenPositionCard } from "./OpenPositionCard";
+import { TradeDetailSheet } from "./TradeDetailSheet";
 import { forwardRef, memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
@@ -15,10 +18,8 @@ import { Money } from "@/ui/Money";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
 import { Stamp } from "@/ui/Stamp";
 import { ledgerStamp } from "./closed-stamp";
-import { countdownText } from "./countdown-text";
 import { dayNetForList } from "./day-total";
 import type { AppAsset } from "./markets";
-import { useLiveTrade } from "./useLiveTrade";
 import { useNow } from "./useNow";
 
 const SNAP_POINTS = ["60%", "90%"];
@@ -61,33 +62,12 @@ function TradeCell({ name, side, up, detail }: { name: string; side: string; up:
 
 /** Ticks on its own each second, so settled rows and the rest of the sheet never re-render for it. */
 const OpenRow = memo(function OpenRow({ trade, assets, currency }: { trade: TradeView; assets: readonly AppAsset[]; currency: string }) {
-  const { t } = useTranslation();
-  const live = useLiveTrade(trade);
-  const { pnl } = live;
+  const sheet = useRef<SheetRef>(null);
   const asset = assetOf(assets, trade.symbol);
-  const name = asset?.displayName ?? trade.symbol;
-  const up = trade.direction === "UP";
-  const side = up ? t("trade.up") : t("trade.down");
-  const time = countdownText(live, t("trade.settling"));
-  const pnlText = pnl === null ? "—" : `${pnl.sign}${money(pnl.amountMinor, currency)}`;
-  const detail = `${money(trade.stake, currency, { trim: true })} · ${fmtPrice(trade.entryPrice, asset?.precision ?? 5)}`;
-  return (
-    <LedgerRow
-      columns={OPEN_COLS}
-      accessibilityLabel={`${name} ${side}, ${time}, ${pnlText}`}
-      cells={[
-        <View key="time" style={{ paddingTop: TIME_NUDGE }}>
-          <FigText text={time} size={live.expired ? 11 : 13} color={color.ink} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7} />
-        </View>,
-        <TradeCell key="trade" name={name} side={side} up={up} detail={detail} />,
-        pnl === null ? (
-          <Money key="result" text="—" size={14} weight={500} color={color.ink3} />
-        ) : (
-          <Money key="result" text={pnlText} size={14} weight={600} color={pnl.tone === "up" ? color.up : color.downText} />
-        ),
-      ]}
-    />
-  );
+  return <View style={{ marginVertical: 6 }}>
+    <OpenPositionCard trade={trade} more={0} name={asset?.displayName ?? trade.symbol} precision={asset?.precision ?? 5} currency={currency} onOpen={() => sheet.current?.present()} />
+    <TradeDetailSheet ref={sheet} trade={trade} assets={assets} currency={currency} />
+  </View>;
 });
 
 const ClosedRow = memo(function ClosedRow({ trade, assets, currency, nowMs }: { trade: TradeView; assets: readonly AppAsset[]; currency: string; nowMs: number }) {
@@ -131,7 +111,7 @@ const ClosedRow = memo(function ClosedRow({ trade, assets, currency, nowMs }: { 
 });
 
 /** Mounted only while the sheet is presented, so the store subscription and the row clocks exist only then. */
-function TradesBody({ accountId, accountType, assets, currency, listLoaded }: { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string; listLoaded: boolean }) {
+export function TradesBody({ accountId, accountType, assets, currency, listLoaded }: { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string; listLoaded: boolean }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("open");
   // The store only ever holds live data (bootstrap + socket), never the resume snapshot's stale trades.

@@ -38,7 +38,7 @@ export function MarketPill({
         hitSlop={2}
         style={({ pressed }) => ({
           height: 40,
-          maxWidth: 220,
+          flex: 1,
           // Shrink (the name truncates) so a long market name never pushes the bonus stamp off the row.
           flexShrink: 1,
           minWidth: 0,
@@ -46,9 +46,9 @@ export function MarketPill({
           alignItems: "center",
           gap: 8,
           paddingHorizontal: 12,
-          borderRadius: radius.pill,
+          borderRadius: radius.md,
           backgroundColor: pressed ? color.raised : color.overlayPill,
-          borderWidth: 1,
+          borderWidth: 0,
           borderColor: color.rule,
         })}
       >

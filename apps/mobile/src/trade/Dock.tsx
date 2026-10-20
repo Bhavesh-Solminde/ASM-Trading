@@ -1,13 +1,12 @@
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
-import { EXPIRY_CHIPS, formatDuration, grossReturnMinor, isChipExpiry, profitForStake } from "@asm/client-core";
+import { formatDuration, grossReturnMinor, profitForStake } from "@asm/client-core";
 import { money } from "@/money/format";
 import type { Bootstrap } from "@asm/contracts";
 import { useSocket } from "@/socket/socket-store";
 import { color, radius } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
-import { Chip } from "@/ui/Chip";
 import { Money } from "@/ui/Money";
 import type { SheetRef } from "@/ui/Sheet";
 import { ExpirySheet } from "./ExpirySheet";
@@ -56,63 +55,18 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
 
   const stakeLabel = stakeTileLabel(stake, currency);
 
-  const moreSelected = !isChipExpiry(expirySec);
 
   return (
     <View style={{ paddingTop: 10, paddingHorizontal: 14, paddingBottom: 8, gap: 10, borderTopWidth: 1, borderTopColor: color.ruleSoft, backgroundColor: color.dock }}>
-      <Pressable
-        testID="stake-tile"
-        accessibilityRole="button"
-        accessibilityLabel={[t("trade.stakeButton", { amount: stakeLabel }), problem].filter(Boolean).join(" ")}
-        onPress={() => keypad.current?.present()}
-        style={({ pressed }) => ({
-          minHeight: 44,
-          paddingTop: 8,
-          paddingBottom: 7,
-          paddingHorizontal: 12,
-          borderRadius: radius.md,
-          borderWidth: 1,
-          borderColor: problem ? color.downText : color.rule,
-          backgroundColor: pressed ? color.raised : color.ground,
-          flexDirection: "row",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          gap: 8,
-        })}
-      >
-        {/* The reason replaces the "Amount" label while there is one, so the dock never grows or jumps. No pinned
-            lineHeight: Hindi keeps Txt's 1.5x Devanagari spacing. */}
-        {problem ? (
-          <Txt accessibilityLiveRegion="polite" size={12} color={color.downText} numberOfLines={1} adjustsFontSizeToFit style={{ flexShrink: 1 }}>
-            {problem}
-          </Txt>
-        ) : (
-          <Txt size={13} color={color.ink3}>
-            {t("trade.amount")}
-          </Txt>
-        )}
-        <Money text={stakeLabel} size={22} weight={600} tracking={-0.03} lineHeight={28} color={problem ? color.downText : color.ink} />
-      </Pressable>
-
-      <View style={{ flexDirection: "row", gap: 6 }}>
-        {EXPIRY_CHIPS.map((c) => (
-          <Chip
-            key={c.sec}
-            testID={`expiry-${c.sec}`}
-            label={formatDuration(c.sec)}
-            accessibilityLabel={t("trade.expiryOption", { label: formatDuration(c.sec) })}
-            selected={expirySec === c.sec}
-            onPress={() => set({ expirySec: c.sec })}
-            style={{ flex: 1, paddingHorizontal: 4 }}
-          />
-        ))}
-        <Chip
-          label={moreSelected ? formatDuration(expirySec) : t("trade.more")}
-          accessibilityLabel={moreSelected ? t("trade.expiryOption", { label: formatDuration(expirySec) }) : t("trade.more")}
-          selected={moreSelected}
-          onPress={() => expiry.current?.present()}
-          style={{ flex: 1, paddingHorizontal: 4 }}
-        />
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <Pressable testID="stake-tile" accessibilityRole="button" accessibilityLabel={[t("trade.stakeButton", { amount: stakeLabel }), problem].filter(Boolean).join(" ")} onPress={() => keypad.current?.present()} style={{ flex: 1, minHeight: 53, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: color.raised, borderWidth: 1, borderColor: problem ? color.downText : color.rule }}>
+          <Txt size={11} color={problem ? color.downText : color.ink2} numberOfLines={1}>{problem || t("trade.amount")}</Txt>
+          <Money text={stakeLabel} size={20} weight={600} numberOfLines={1} adjustsFontSizeToFit />
+        </Pressable>
+        <Pressable testID="expiry-tile" accessibilityRole="button" accessibilityLabel={t("trade.expiryOption", { label: formatDuration(expirySec) })} onPress={() => expiry.current?.present()} style={{ flex: 1, minHeight: 53, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: color.raised, borderWidth: 1, borderColor: color.rule }}>
+          <Txt size={11} color={color.ink2}>{t("redesign.duration")}</Txt>
+          <Txt size={20} weight={600}>{formatDuration(expirySec)}  ⌄</Txt>
+        </Pressable>
       </View>
 
       <View style={{ flexDirection: "row", gap: 10 }}>
@@ -138,6 +92,9 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
         })}
       </View>
 
+      <Txt size={11} color={color.ink2} numberOfLines={1} style={{ textAlign: "center" }}>
+        {t("redesign.potentialProfit")}: {profit === null ? "—" : money(profit, currency)}
+      </Txt>
       <KeypadSheet
         ref={keypad}
         currency={currency}

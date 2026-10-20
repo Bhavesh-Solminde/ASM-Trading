@@ -6,10 +6,10 @@ describe("icon glyphs", () => {
     for (const n of ["trade", "wallet", "history", "user", "chevron", "more", "star", "search", "lock", "bolt", "close", "briefcase"]) {
       expect(ICON_NAMES).toContain(n);
     }
-    for (const n of ["chevronDown", "plus", "arrowUp", "arrowDown", "fingerprint", "key", "eye", "eyeOff", "delete", "download"]) {
+    for (const n of ["chevronDown", "plus", "arrowUp", "arrowDown", "fingerprint", "key", "eye", "eyeOff", "delete", "download", "expand", "collapse"]) {
       expect(ICON_NAMES).toContain(n);
     }
-    expect(ICON_NAMES).toHaveLength(22);
+    expect(ICON_NAMES).toHaveLength(24);
   });
 
   it("has drawable geometry for every name", () => {
