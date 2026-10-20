@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop, Svg } from "react-native-svg";
 import { color } from "@/theme/tokens";
 import { OFFLINE_BANNER_HEIGHT, useOfflineVisible } from "./OfflineBanner";
+import { headerMetrics } from "./header-metrics";
 import { Tricolour } from "./Tricolour";
 
 /** Content row height; with the 2pt tricolour the header is 51pt under the status bar (canvas: height 51). */
@@ -12,12 +13,14 @@ export const HEADER_ROW = 49;
 /**
  * The tab screens' header: navy gradient running under the status bar, a soft saffron glow top-right, one 49pt
  * row of content and the tricolour hairline. The status-bar inset is the device's real one (safe area), not the
- * canvas's 28. Static (no animation) so it never costs the chart frames.
+ * canvas's 28. Static (no animation) so it never costs the chart frames. `below` is an optional second row for
+ * content that cannot fit the first (the balance at a large font scale), right-aligned under the same gutters.
  */
-export function AppHeader({ children, compact = false }: { children: ReactNode; compact?: boolean }) {
+export function AppHeader({ children, compact = false, below }: { children: ReactNode; compact?: boolean; below?: ReactNode }) {
   const insets = useSafeAreaInsets();
   const offline = useOfflineVisible();
   const [width, setWidth] = useState(0);
+  const m = headerMetrics(compact);
   return (
     <View
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
@@ -40,9 +43,10 @@ export function AppHeader({ children, compact = false }: { children: ReactNode; 
           {width > 0 ? <Ellipse cx={width - 40} cy={10} rx={80} ry={70} fill="url(#ixtGlow)" /> : null}
         </Svg>
       </View>
-      <View style={{ height: HEADER_ROW, flexDirection: "row", alignItems: "center", gap: compact ? 6 : 8, paddingHorizontal: compact ? 8 : 12 }}>
+      <View style={{ height: HEADER_ROW, flexDirection: "row", alignItems: "center", gap: m.gap, paddingHorizontal: m.padX }}>
         {children}
       </View>
+      {below ? <View style={{ paddingHorizontal: m.padX, paddingBottom: 6, alignItems: "flex-end" }}>{below}</View> : null}
       <Tricolour />
     </View>
   );
