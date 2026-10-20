@@ -1,7 +1,7 @@
 import { Link, type Href } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View, type TextInputProps } from "react-native";
+import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color, radius } from "@/theme/tokens";
 import { Txt, useUiFamily } from "@/theme/ui";
@@ -105,12 +105,33 @@ export function FormScroll({ children, top = false }: { children: ReactNode; top
 }
 
 /** Text link with a 44pt+ touch target. */
-export function TextLink({ href, label }: { href: Href; label: string }) {
+/**
+ * A tappable text link, at least 44pt tall. The label fills the link's width (`flex: 1` in a row, or the full
+ * row in a column) instead of shrink-wrapping itself, so a multi-word Hindi label wraps inside its box and the
+ * box grows with it, rather than losing its last words below a one-line box.
+ */
+export function TextLink({ href, label, style, align = "left" }: { href: Href; label: string; style?: StyleProp<ViewStyle>; align?: "left" | "right" }) {
   return (
     <Link href={href} asChild>
-      <Pressable accessibilityRole="link" accessibilityLabel={label} style={styles.link}>
-        <Txt size={14} color={color.accentText}>
+      <Pressable accessibilityRole="link" accessibilityLabel={label} style={[styles.link, style]}>
+        <Txt size={14} color={color.accentText} style={{ textAlign: align }}>
           {label}
+        </Txt>
+      </Pressable>
+    </Link>
+  );
+}
+
+/** "New here? Create account": a grey prompt and the accent link in one wrapping, tappable line (see TextLink). */
+export function PromptLink({ href, prompt, label, style, align = "right" }: { href: Href; prompt: string; label: string; style?: StyleProp<ViewStyle>; align?: "left" | "right" }) {
+  return (
+    <Link href={href} asChild>
+      <Pressable accessibilityRole="link" accessibilityLabel={`${prompt} ${label}`} style={[styles.link, style]}>
+        <Txt size={14} color={color.ink2} style={{ textAlign: align }}>
+          {prompt}{" "}
+          <Txt size={14} color={color.accentText}>
+            {label}
+          </Txt>
         </Txt>
       </Pressable>
     </Link>

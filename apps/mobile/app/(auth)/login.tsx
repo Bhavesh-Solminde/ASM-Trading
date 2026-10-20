@@ -10,7 +10,7 @@ import { appConfig } from "@/config";
 import { color } from "@/theme/tokens";
 import { Button, Screen, Txt } from "@/theme/ui";
 import { Wordmark } from "@/ui/Brand";
-import { Field, FormScroll, PasswordField, TextLink } from "@/ui/form";
+import { Field, FormScroll, PasswordField, PromptLink, TextLink } from "@/ui/form";
 import { LanguageSwitch } from "@/ui/LanguageSwitch";
 import { Sparkline } from "@/ui/Sparkline";
 import { Tricolour } from "@/ui/Tricolour";
@@ -86,14 +86,10 @@ export default function Login() {
             <Button testID="login-submit" label={t("auth.login")} onPress={submit} busy={busy} />
             {googleEnabled ? <Button label={t("auth.google")} kind="secondary" onPress={google} disabled={busy} /> : null}
           </View>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" }}>
-            <TextLink href="/forgot" label={t("auth.forgot")} />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Txt size={14} color={color.ink2}>
-                {t("auth.newHere")}
-              </Txt>
-              <TextLink href="/register" label={t("auth.register")} />
-            </View>
+          {/* Two equal halves: each link wraps inside its own box (44pt tall at least) instead of overflowing. */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <TextLink href="/forgot" label={t("auth.forgot")} style={{ flex: 1 }} />
+            <PromptLink href="/register" prompt={t("auth.newHere")} label={t("auth.register")} style={{ flex: 1 }} />
           </View>
         </View>
         <View style={{ flex: 1 }} />

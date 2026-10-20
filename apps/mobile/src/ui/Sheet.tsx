@@ -73,13 +73,16 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, ch
     [],
   );
 
+  // Title and aside share the row with `flex: 1` each, never as shrink-wrapped text: a multi-word Hindi title
+  // that is sized to its own measured width can draw a hair wider than it measured, wrap, and lose its last
+  // words below the row. A definite width wraps cleanly and the row grows with it.
   const heading = title ? (
-    <View style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }, flush ? { paddingHorizontal: 20, paddingBottom: 12 } : null]}>
-      <Txt weight={600} size={20} accessibilityRole="header">
+    <View style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12 }, flush ? { paddingHorizontal: 20, paddingBottom: 12 } : null]}>
+      <Txt weight={600} size={20} accessibilityRole="header" style={{ flex: 1 }}>
         {title}
       </Txt>
       {aside ? (
-        <Txt size={14} color={color.ink3}>
+        <Txt size={14} color={color.ink3} style={{ flex: 1, textAlign: "right" }}>
           {aside}
         </Txt>
       ) : null}
