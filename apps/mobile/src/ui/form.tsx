@@ -2,6 +2,7 @@ import { Link, type Href } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View, type TextInputProps } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color, radius } from "@/theme/tokens";
 import { Txt, useUiFamily } from "@/theme/ui";
 import { Icon } from "./Icon";
@@ -91,8 +92,11 @@ export function useKeyboardHeight(): number {
 /** Keyboard-friendly column for the auth screens; shrinks above the keyboard. `top`: brand-first layout (login). */
 export function FormScroll({ children, top = false }: { children: ReactNode; top?: boolean }) {
   const keyboard = useKeyboardHeight();
+  const insets = useSafeAreaInsets();
+  // Edge-to-edge (SDK 36): with the keyboard hidden, keep the last control (the language pills, the last link)
+  // above the system navigation bar. The keyboard, when up, already covers that bar.
   return (
-    <View style={{ flex: 1, paddingBottom: keyboard }}>
+    <View style={{ flex: 1, paddingBottom: keyboard > 0 ? keyboard : insets.bottom }}>
       <ScrollView contentContainerStyle={top ? styles.top : styles.wrap} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {children}
       </ScrollView>
