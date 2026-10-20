@@ -44,6 +44,18 @@ describe("useSession", () => {
     expect(useSession.getState()).toMatchObject({ token: null, ready: true });
   });
 
+  it("drops the resume cache when the keystore cannot be read (a session nobody can read has no cache worth keeping)", async () => {
+    secure.getItemAsync.mockRejectedValue(new Error("keystore"));
+    await useSession.getState().hydrate();
+    expect(clearResume).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the resume cache when the keystore is readable but empty", async () => {
+    secure.getItemAsync.mockResolvedValue(null);
+    await useSession.getState().hydrate();
+    expect(clearResume).not.toHaveBeenCalled();
+  });
+
   it("signs out remotely once even when several calls overlap", async () => {
     useSession.setState({ token: "tok", ready: true });
     await Promise.all([

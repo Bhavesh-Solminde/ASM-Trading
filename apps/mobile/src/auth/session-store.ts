@@ -28,7 +28,9 @@ export const useSession = create<SessionState>((set, get) => ({
     try {
       token = await SecureStore.getItemAsync(KEY);
     } catch {
-      // An unreadable keystore reads as signed out; the user can log in again.
+      // An unreadable keystore reads as signed out; the user can log in again. Whoever it was, their cached
+      // snapshot is not shown to the next person to sign in on this phone.
+      clearResume();
     }
     set({ token, ready: true });
   },
