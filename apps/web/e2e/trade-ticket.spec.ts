@@ -78,6 +78,15 @@ test.describe("trade ticket keeps amount and time", () => {
     await expect(stake(page)).toHaveValue("100");
   });
 
+  test("focused investment field shows one ring, not two", async ({ page }) => {
+    await openTicket(page);
+    // Keyboard focus, so the global :focus-visible outline would apply.
+    await stake(page).focus();
+    await page.keyboard.press("End");
+    // The box's border turns blue (focus-within); the input itself adds no outline.
+    await expect(stake(page)).toHaveCSS("outline-style", "none");
+  });
+
   test("investment can be a % of balance and never drops below ₹100", async ({ page }, info) => {
     // A ₹5,000 demo balance: 10% = ₹500, and 1% = ₹50, which must become ₹100.
     const viewer = await prisma.user.findUniqueOrThrow({ where: { email: VIEWER_EMAIL }, select: { id: true } });

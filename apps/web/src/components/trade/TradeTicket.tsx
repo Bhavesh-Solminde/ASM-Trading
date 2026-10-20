@@ -570,7 +570,7 @@ export function TradeTicket({
                       const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 3);
                       setPctInput(digits !== "" && Number(digits) > 100 ? "100" : digits);
                     }}
-                    className="w-[3.5ch] bg-transparent text-right font-bold outline-none"
+                    className="w-[3.5ch] bg-transparent text-right font-bold outline-none!"
                   />
                 ) : (
                   <input
@@ -579,7 +579,7 @@ export function TradeTicket({
                     autoComplete="off"
                     value={stakeInput}
                     onChange={(e) => setStakeInput(e.target.value.replace(/[^0-9.]/g, ""))}
-                    className="w-[5ch] bg-transparent font-bold outline-none"
+                    className="w-[5ch] bg-transparent font-bold outline-none!"
                   />
                 )}
                 {inPercent ? "%" : null}
