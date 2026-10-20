@@ -177,6 +177,19 @@ After copying the file: `sudo nginx -t && sudo systemctl reload nginx`. The
 full DDoS plan (Cloudflare, Turnstile, origin lock-down) is in
 `docs/security/ddos-plan.md`.
 
+**Behind Cloudflare.** Install the real-IP config *before* turning the orange
+cloud on, or every visitor shows up as a Cloudflare (datacenter) address and
+the VPN guard blocks the whole site:
+
+```bash
+sudo bash /opt/asmtrader/deploy/nginx/install-cloudflare-realip.sh
+```
+
+Cloudflare SSL/TLS mode must be **Full (strict)** (the origin keeps its Let's
+Encrypt certificate). Once proxied, the Private Relay ipset above no longer
+sees relay users (Cloudflare connects to the origin instead); the app-level
+guard still blocks them via CF-Connecting-IP.
+
 ## Useful commands
 
 ```bash
