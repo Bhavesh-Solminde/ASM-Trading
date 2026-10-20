@@ -11,7 +11,8 @@ import { queryClient } from "@/api/queries";
 import { configureGoogle } from "@/auth/google";
 import { appConfig } from "@/config";
 import { Gatekeeper } from "@/gate/Gatekeeper";
-import { initI18n, localeFromDevice } from "@/i18n";
+import { initI18n, resolveLocale } from "@/i18n";
+import { loadLocale } from "@/i18n/locale-pref";
 import { useLock } from "@/lock/lock-store";
 import { FONT_ASSETS } from "@/theme/font-assets";
 import { color } from "@/theme/tokens";
@@ -20,7 +21,7 @@ import { PrivacyShield } from "@/ui/PrivacyCover";
 import { ToastHost } from "@/ui/Toast";
 
 void SplashScreen.preventAutoHideAsync();
-initI18n(localeFromDevice(getLocales().map((l) => l.languageTag ?? "")));
+initI18n(resolveLocale(loadLocale(), getLocales().map((l) => l.languageTag ?? "")));
 const googleWebClientId = appConfig().googleWebClientId;
 if (googleWebClientId !== "") configureGoogle(googleWebClientId);
 

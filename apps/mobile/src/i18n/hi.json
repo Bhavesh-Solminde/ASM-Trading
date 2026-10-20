@@ -7,10 +7,12 @@
     "haveAccount": "पहले से खाता है? लॉग इन करें", "resetSent": "अगर यह ईमेल रजिस्टर्ड है, तो रीसेट लिंक भेज दिया गया है।",
     "name": "पूरा नाम", "passwordHint": "कम से कम 12 अक्षर", "forgotTitle": "पासवर्ड रीसेट करें",
     "sendReset": "रीसेट लिंक भेजें", "backToLogin": "लॉग इन पर वापस जाएँ",
+    "showPassword": "पासवर्ड दिखाएँ", "hidePassword": "पासवर्ड छिपाएँ",
     "checkDetails": "अपनी जानकारी जाँचें।", "googleFailed": "Google से साइन-इन नहीं हो सका।",
     "errName": "अपना पूरा नाम डालें।", "errEmail": "सही ईमेल पता डालें।",
     "errPassword": "पासवर्ड कम से कम 12 अक्षरों का होना चाहिए।"
   },
+  "lang": { "en": "English", "hi": "हिन्दी" },
   "account": { "logout": "लॉग आउट" },
   "lock": {
     "title": "IndianxTrade अनलॉक करें", "setupTitle": "अपने खाते को सुरक्षित करें", "useBiometric": "फ़िंगरप्रिंट या फ़ेस का इस्तेमाल करें",

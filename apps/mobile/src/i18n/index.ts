@@ -18,4 +18,4 @@ export async function setLocale(locale: Locale): Promise<void> {
   await i18n.changeLanguage(locale);
 }
 
-export { localeFromDevice, type Locale } from "./keys";
+export { localeFromDevice, resolveLocale, type Locale } from "./keys";

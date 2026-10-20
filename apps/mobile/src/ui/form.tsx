@@ -1,18 +1,71 @@
 import { Link, type Href } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View, type TextInputProps } from "react-native";
-import { Txt } from "@/theme/ui";
-import { color, radius, space } from "@/theme/tokens";
+import { color, radius } from "@/theme/tokens";
+import { Txt, useUiFamily } from "@/theme/ui";
+import { Icon } from "./Icon";
 
-/** Labelled text input (the label is the placeholder, mirrored for screen readers). */
-export function Field({ label, ...rest }: TextInputProps & { label: string }) {
+/** Text input with its label above (visible while typing). Focus: blue border + 3pt ring. */
+// A caller's `style` is overridden by ours (set after the spread): every field looks the same.
+export function Field({ label, trailing, onFocus, onBlur, ...rest }: TextInputProps & { label: string; trailing?: ReactNode }) {
+  const [focused, setFocused] = useState(false);
+  const family = useUiFamily(400);
   return (
-    <TextInput
-      {...rest}
-      accessibilityLabel={label}
-      placeholder={label}
-      placeholderTextColor={color.ink2}
-      style={styles.input}
+    <View style={{ gap: 6 }}>
+      <Txt size={14} weight={500} color={color.ink2}>
+        {label}
+      </Txt>
+      <View style={{ margin: -3, borderWidth: 3, borderRadius: radius.md + 3, borderColor: focused ? color.accentDim : "transparent" }}>
+        <TextInput
+          {...rest}
+          accessibilityLabel={label}
+          placeholderTextColor={color.ink3}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+          }}
+          style={{
+            height: 52,
+            borderRadius: radius.md,
+            borderWidth: 1,
+            borderColor: focused ? color.accent : color.rule,
+            backgroundColor: color.surface,
+            color: color.ink,
+            paddingLeft: 14,
+            paddingRight: trailing ? 48 : 14,
+            fontSize: 16,
+            fontFamily: family,
+          }}
+        />
+        {trailing ? <View style={{ position: "absolute", right: 4, top: 4 }}>{trailing}</View> : null}
+      </View>
+    </View>
+  );
+}
+
+/** Password field with a show/hide eye. */
+export function PasswordField(props: Omit<TextInputProps, "secureTextEntry"> & { label: string }) {
+  const { t } = useTranslation();
+  const [shown, setShown] = useState(false);
+  return (
+    <Field
+      {...props}
+      secureTextEntry={!shown}
+      trailing={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={shown ? t("auth.hidePassword") : t("auth.showPassword")}
+          onPress={() => setShown((v) => !v)}
+          style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+        >
+          <Icon name={shown ? "eyeOff" : "eye"} size={20} color={color.ink3} />
+        </Pressable>
+      }
     />
   );
 }
@@ -34,16 +87,12 @@ export function useKeyboardHeight(): number {
   return height;
 }
 
-/** Centered, keyboard-friendly column for the auth screens; shrinks above the keyboard so every control stays reachable. */
-export function FormScroll({ children }: { children: ReactNode }) {
+/** Keyboard-friendly column for the auth screens; shrinks above the keyboard. `top`: brand-first layout (login). */
+export function FormScroll({ children, top = false }: { children: ReactNode; top?: boolean }) {
   const keyboard = useKeyboardHeight();
   return (
     <View style={{ flex: 1, paddingBottom: keyboard }}>
-      <ScrollView
-        contentContainerStyle={styles.wrap}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-      >
+      <ScrollView contentContainerStyle={top ? styles.top : styles.wrap} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {children}
       </ScrollView>
     </View>
@@ -55,28 +104,24 @@ export function TextLink({ href, label }: { href: Href; label: string }) {
   return (
     <Link href={href} asChild>
       <Pressable accessibilityRole="link" accessibilityLabel={label} style={styles.link}>
-        <Txt variant="small">{label}</Txt>
+        <Txt size={14} color={color.accentText}>
+          {label}
+        </Txt>
       </Pressable>
     </Link>
   );
 }
 
 export const formStyles = StyleSheet.create({
-  error: { color: color.down },
+  /** Error text colour. `downText` (7:1 on surface); `down` is fill/stroke only. */
+  error: { color: color.downText },
   /** Room for two lines of message so the layout below does not move when one appears. */
   messageSlot: { minHeight: 40 },
-  links: { marginTop: space(2) },
+  links: { marginTop: 8 },
 });
 
 const styles = StyleSheet.create({
-  wrap: { flexGrow: 1, padding: space(5), gap: space(3), justifyContent: "center" },
-  input: {
-    minHeight: 48,
-    borderRadius: radius.md,
-    backgroundColor: color.tile,
-    color: color.ink,
-    paddingHorizontal: space(4),
-    fontSize: 16,
-  },
-  link: { minHeight: 44, justifyContent: "center", paddingVertical: space(1) },
+  wrap: { flexGrow: 1, padding: 20, gap: 14, justifyContent: "center" },
+  top: { flexGrow: 1, paddingTop: 12 },
+  link: { minHeight: 44, justifyContent: "center" },
 });

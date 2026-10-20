@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import en from "./en.json";
 import hi from "./hi.json";
-import { flattenKeys, localeFromDevice } from "./keys";
+import { flattenKeys, localeFromDevice, resolveLocale } from "./keys";
 
 describe("translations", () => {
   it("define exactly the same keys in English and Hindi", () => {
@@ -33,5 +33,23 @@ describe("localeFromDevice", () => {
   it("falls back to English otherwise", () => {
     expect(localeFromDevice(["en-IN"])).toBe("en");
     expect(localeFromDevice([])).toBe("en");
+  });
+});
+
+describe("resolveLocale", () => {
+  it("prefers the language the user picked", () => {
+    expect(resolveLocale("hi", ["en-IN"])).toBe("hi");
+    expect(resolveLocale("en", ["hi-IN"])).toBe("en");
+  });
+  it("falls back to the device language for nothing or junk", () => {
+    expect(resolveLocale(null, ["hi-IN"])).toBe("hi");
+    expect(resolveLocale("fr", ["en-IN"])).toBe("en");
+  });
+});
+
+describe("language switch strings", () => {
+  it("label each language in its own script, the same in both languages", () => {
+    expect(en.lang).toEqual({ en: "English", hi: "हिन्दी" });
+    expect(hi.lang).toEqual(en.lang);
   });
 });

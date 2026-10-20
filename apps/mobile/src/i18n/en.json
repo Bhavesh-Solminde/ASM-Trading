@@ -7,10 +7,12 @@
     "haveAccount": "Already have an account? Log in", "resetSent": "If that email is registered, a reset link is on its way.",
     "name": "Full name", "passwordHint": "At least 12 characters", "forgotTitle": "Reset your password",
     "sendReset": "Send reset link", "backToLogin": "Back to log in",
+    "showPassword": "Show password", "hidePassword": "Hide password",
     "checkDetails": "Check your details.", "googleFailed": "Google sign-in failed.",
     "errName": "Enter your full name.", "errEmail": "Enter a valid email address.",
     "errPassword": "Password must be at least 12 characters."
   },
+  "lang": { "en": "English", "hi": "हिन्दी" },
   "account": { "logout": "Log out" },
   "lock": {
     "title": "Unlock IndianxTrade", "setupTitle": "Protect your account", "useBiometric": "Use fingerprint or face",
