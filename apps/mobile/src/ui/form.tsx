@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color, radius } from "@/theme/tokens";
-import { Txt, useUiFamily } from "@/theme/ui";
+import { Txt, inputFont, useUiFamily } from "@/theme/ui";
 import { Icon } from "./Icon";
 
 /** Text input with its label above (visible while typing). Focus: blue border + 3pt ring. */
@@ -41,7 +41,7 @@ export function Field({ label, trailing, onFocus, onBlur, ...rest }: TextInputPr
             paddingLeft: 14,
             paddingRight: trailing ? 48 : 14,
             fontSize: 16,
-            fontFamily: family,
+            ...inputFont(family, 400),
           }}
         />
         {trailing ? <View style={{ position: "absolute", right: 4, top: 0, bottom: 0, justifyContent: "center" }}>{trailing}</View> : null}

@@ -6,7 +6,7 @@ import { OFFLINE_BANNER_HEIGHT, useOfflineVisible } from "@/ui/OfflineBanner";
 import { screenTopPadding } from "./screen-padding";
 import { Icon, type IconName } from "@/ui/Icon";
 import { BUTTON_SKIN, type ButtonKind } from "./button-skin";
-import { figFamily, scriptFor, uiFamily, type Script, type Weight } from "./font-families";
+import { figFamily, inputFamily, inputWeight, scriptFor, uiFamily, type Script, type Weight } from "./font-families";
 import { color, radius, space } from "./tokens";
 
 /**
@@ -67,10 +67,18 @@ export function Txt({ variant, font: kind = "ui", weight, size, color: ink, trac
   );
 }
 
-/** Font family for a TextInput (inputs cannot use <Txt>). */
-export function useUiFamily(weight: Weight): string {
+/**
+ * Font family for a TextInput (inputs cannot use <Txt>). `undefined` for Latin: the system sans, as `Txt` renders it.
+ * Spread `inputFont(family, weight)` next to it so the weight still applies.
+ */
+export function useUiFamily(weight: Weight): string | undefined {
   const { i18n } = useTranslation();
-  return uiFamily(weight, scriptFor(i18n.language));
+  return inputFamily(weight, scriptFor(i18n.language));
+}
+
+/** The TextInput font style for `useUiFamily`'s result: the bundled family, or the system sans at `weight`. */
+export function inputFont(family: string | undefined, weight: Weight): { fontFamily?: string; fontWeight?: "400" | "500" | "600" } {
+  return { fontFamily: family, fontWeight: inputWeight(family, weight) };
 }
 
 export type { ButtonKind };

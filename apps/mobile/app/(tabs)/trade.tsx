@@ -102,7 +102,7 @@ export default function Trade() {
   // One fetch of the selected account's trade list (bootstrap carries only the default account's), shared by the
   // top bar's "today" line and the trades sheet's day total: both hide until it has loaded.
   const listLoaded = useAccountTradesLoaded(account?.id ?? "", !!boot && !!account && account.id !== bootstrapTradesAccountId(boot.accounts));
-  // Publish which account's list is complete, so the other tabs' headers (`TabHeader`) read it instead of fetching.
+  // Publish which account's list is complete, so the other tabs (History) read it instead of fetching.
   const publishListLoaded = useListLoaded((s) => s.set);
   const listLoadedAccountId = account && listLoaded ? account.id : null;
   useEffect(() => {
@@ -165,7 +165,6 @@ export default function Trade() {
           account={account}
           liveEnabled={canUseLive(boot.accounts, boot.liveAccess)}
           onSelectType={selectAccountType}
-          listLoaded={listLoaded}
         />
       ) : !bootFailed && stale ? (
         <StaleTopBar totalMinor={stale.totalMinor} type={stale.type} currency={stale.currency} live={stale.live} />

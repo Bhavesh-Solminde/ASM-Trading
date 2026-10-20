@@ -80,8 +80,6 @@ const columnStyle = { flex: 1, alignItems: "flex-end", minWidth: 0 } as const;
 /**
  * Mark, Demo/Live switch, the active account's balance (with today's result above it) and a square Deposit
  * button. Live is greyed (and says why when tapped) unless the user has live access and a live account.
- * `listLoaded` says the active account's trade list is complete (see `useAccountTradesLoaded`, owned by the
- * screen); the "today" line is hidden until it is.
  */
 export function TopBar({
   account,
@@ -91,7 +89,6 @@ export function TopBar({
   account: AppAccount;
   liveEnabled: boolean;
   onSelectType: (type: AppAccount["type"]) => void;
-  listLoaded: boolean;
 }) {
   const { t } = useTranslation();
   const bal = useSocket((s) => s.trades.balances[account.id]) ?? account;

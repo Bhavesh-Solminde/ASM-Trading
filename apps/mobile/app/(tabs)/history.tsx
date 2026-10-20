@@ -5,8 +5,8 @@ import { useBootstrap } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
 import { Screen, Txt, Button, Skeleton } from "@/theme/ui";
 import { useUserPrefs } from "@/trade/trade-prefs";
-import { resolveAccount } from "@/trade/accounts";
-import { useAccountTradesLoaded } from "@/trade/useAccountTrades";
+import { bootstrapTradesAccountId, resolveAccount } from "@/trade/accounts";
+import { listLoadedFor, useListLoaded } from "@/trade/list-loaded-store";
 import { TradesBody } from "@/trade/TradesSheet";
 import { Chip } from "@/ui/Chip";
 import { PaymentActivity } from "@/ui/PaymentActivity";
@@ -17,7 +17,9 @@ export default function History() {
   const boot = query.data;
   const prefs = useUserPrefs(boot?.userId ?? null);
   const account = boot ? resolveAccount(boot.accounts, prefs.accountId, boot.liveAccess) : undefined;
-  const loaded = useAccountTradesLoaded(account?.id ?? "", !!account);
+  // Trade owns the trade-list fetch and publishes which account is complete; History only reads it.
+  const loadedFor = useListLoaded((s) => s.loadedFor);
+  const loaded = listLoadedFor(loadedFor, account?.id, boot ? bootstrapTradesAccountId(boot.accounts) : undefined);
   const [tab, setTab] = useState<"trades" | "payments">("trades");
   return <Screen><ScrollView contentContainerStyle={{ paddingTop: 20, paddingBottom: 24, gap: 24 }}>
     <Txt size={28} weight={600} accessibilityRole="header" style={{ paddingHorizontal: 20 }}>{t("redesign.activity")}</Txt>
