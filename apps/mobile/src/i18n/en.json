@@ -24,7 +24,8 @@
   "gate": {
     "maintenanceTitle": "We'll be right back", "maintenanceBody": "IndianxTrade is under maintenance. We'll reconnect automatically.",
     "blockedTitle": "VPN or proxy detected", "blockedBody": "Turn off your VPN, proxy or Tor and try again.",
-    "updateTitle": "Update required", "updateBody": "This version is no longer supported. Update to keep trading.", "update": "Update now"
+    "updateTitle": "Update to keep trading", "updateBody": "This version of IndianxTrade is no longer supported. Your balance is not affected.", "update": "Update now",
+    "youHave": "You have", "needed": "Needed"
   },
   "trade": {
     "amount": "Amount",

@@ -3,9 +3,11 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSocket } from "@/socket/socket-store";
+import { scriptFor, uiFamily } from "@/theme/font-families";
 import { color, space } from "@/theme/tokens";
 import { shouldShowOffline } from "./offline";
 
+// Not <Txt>: theme/ui imports this file, so importing Txt here would be a cycle.
 /** Height of the strip, so content and toasts can make room for it. */
 export const OFFLINE_BANNER_HEIGHT = 28;
 
@@ -18,7 +20,7 @@ export function useOfflineVisible(): boolean {
 
 /** "No connection" strip under the status bar: shown when NetInfo reports offline or the engine socket has failed twice in a row. */
 export function OfflineBanner() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   if (!useOfflineVisible()) return null;
   return (
@@ -28,7 +30,7 @@ export function OfflineBanner() {
       accessibilityLiveRegion="polite"
       style={[styles.strip, { top: insets.top }]}
     >
-      <Text style={styles.text}>{t("common.offline")}</Text>
+      <Text style={[styles.text, { fontFamily: uiFamily(500, scriptFor(i18n.language)) }]}>{t("common.offline")}</Text>
     </View>
   );
 }
@@ -45,7 +47,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: color.warnBg,
     borderBottomWidth: 1,
-    borderBottomColor: color.down,
+    borderBottomColor: color.downText,
   },
-  text: { fontSize: 12, color: color.downInk },
+  text: { fontSize: 12, lineHeight: 16, color: color.ink },
 });

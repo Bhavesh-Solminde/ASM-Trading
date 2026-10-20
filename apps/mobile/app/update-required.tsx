@@ -10,9 +10,15 @@ export default function UpdateRequired() {
   const cfg = useAppConfig().data;
   const { variant, apiUrl } = appConfig();
   const target = variant === "play" && cfg?.playLive && cfg.playUrl ? cfg.playUrl : `${apiUrl}${cfg?.apkUrl ?? "/download/app"}`;
+  // The Gatekeeper decides (useBelowMin) that this screen shows; here the card only displays the two versions.
+  const needed = cfg?.minVersion;
   return (
-    <GateScreen title={t("gate.updateTitle")} body={t("gate.updateBody")}>
-      <Button label={t("gate.update")} onPress={() => void Linking.openURL(target).catch(() => {})} />
+    <GateScreen
+      title={t("gate.updateTitle")}
+      body={t("gate.updateBody")}
+      info={needed ? [{ label: t("gate.youHave"), value: appConfig().version }, { label: t("gate.needed"), value: needed, strong: true }] : undefined}
+    >
+      <Button label={t("gate.update")} icon="download" onPress={() => void Linking.openURL(target).catch(() => {})} />
     </GateScreen>
   );
 }

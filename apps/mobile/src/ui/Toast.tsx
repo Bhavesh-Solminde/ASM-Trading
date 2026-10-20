@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { create } from "zustand";
 import { color, radius, space } from "@/theme/tokens";
+import { Txt } from "@/theme/ui";
 import { OFFLINE_BANNER_HEIGHT, useOfflineVisible } from "./OfflineBanner";
 
 type ToastItem = { id: number; message: string; tone: "neutral" | "up" | "down" };
@@ -33,12 +34,13 @@ function ToastRow({ item }: { item: ToastItem }) {
     const timer = setTimeout(() => drop(item.id), 3500);
     return () => clearTimeout(timer);
   }, [drop, item.id]);
-  const border = item.tone === "up" ? color.up : item.tone === "down" ? color.down : color.rule;
+  const bar = item.tone === "up" ? color.up : item.tone === "down" ? color.downText : color.rule;
   return (
-    <Animated.View entering={FadeInUp} exiting={FadeOutUp} style={[styles.toast, { borderColor: border }]}>
-      <Text testID="toast" style={styles.text}>
+    <Animated.View entering={FadeInUp} exiting={FadeOutUp} style={styles.toast}>
+      <View style={[styles.bar, { backgroundColor: bar }]} />
+      <Txt testID="toast" weight={500} size={14} style={{ flex: 1 }}>
         {item.message}
-      </Text>
+      </Txt>
     </Animated.View>
   );
 }
@@ -59,6 +61,15 @@ export function ToastHost() {
 
 const styles = StyleSheet.create({
   host: { position: "absolute", left: space(4), right: space(4), gap: space(2) },
-  toast: { backgroundColor: color.panel, borderWidth: 1, borderRadius: radius.md, padding: space(3) },
-  text: { color: color.ink, fontSize: 14 },
+  toast: {
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: color.raised,
+    borderWidth: 1,
+    borderColor: color.rule,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  bar: { width: 3, borderRadius: 2, alignSelf: "stretch" },
 });
