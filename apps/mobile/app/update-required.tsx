@@ -9,7 +9,7 @@ import { GateScreen } from "@/ui/GateScreen";
 export default function UpdateRequired() {
   const { t } = useTranslation();
   const cfg = useAppConfig().data;
-  const { variant, apiUrl } = appConfig();
+  const { variant, apiUrl, version } = appConfig();
   const target = variant === "play" && cfg?.playLive && cfg.playUrl ? cfg.playUrl : `${apiUrl}${cfg?.apkUrl ?? "/download/app"}`;
   // The Gatekeeper decides (useBelowMin, or a server 426) that this screen shows; here the card only displays the
   // two versions. Only when the cached config agrees this version is too old: after a 426 that config can be up
@@ -20,7 +20,7 @@ export default function UpdateRequired() {
     <GateScreen
       title={t("gate.updateTitle")}
       body={t("gate.updateBody")}
-      info={needed ? [{ label: t("gate.youHave"), value: appConfig().version }, { label: t("gate.needed"), value: needed, strong: true }] : undefined}
+      info={needed ? [{ label: t("gate.youHave"), value: version }, { label: t("gate.needed"), value: needed, strong: true }] : undefined}
     >
       <Button label={t("gate.update")} icon="download" onPress={() => void Linking.openURL(target).catch(() => {})} />
     </GateScreen>

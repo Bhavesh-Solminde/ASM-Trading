@@ -44,7 +44,7 @@ export function Field({ label, trailing, onFocus, onBlur, ...rest }: TextInputPr
             fontFamily: family,
           }}
         />
-        {trailing ? <View style={{ position: "absolute", right: 4, top: 4 }}>{trailing}</View> : null}
+        {trailing ? <View style={{ position: "absolute", right: 4, top: 0, bottom: 0, justifyContent: "center" }}>{trailing}</View> : null}
       </View>
     </View>
   );

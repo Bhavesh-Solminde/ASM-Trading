@@ -54,8 +54,10 @@ export function PinPad({
               key={k}
               accessibilityRole="button"
               accessibilityLabel={leftKey.label}
+              accessibilityState={{ disabled: !!disabled }}
+              disabled={disabled}
               onPress={leftKey.onPress}
-              style={({ pressed }) => [cell, pressed ? { backgroundColor: color.raised } : null]}
+              style={({ pressed }) => [cell, { opacity: disabled ? 0.5 : 1 }, pressed ? { backgroundColor: color.raised } : null]}
             >
               <Icon name={leftKey.icon} size={26} color={color.accentText} />
             </Pressable>

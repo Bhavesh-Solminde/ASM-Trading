@@ -78,7 +78,7 @@ export default function Login() {
           />
           <PasswordField testID="login-password" label={t("auth.password")} autoComplete="password" value={password} onChangeText={setPassword} onSubmitEditing={submit} />
           {error ? (
-            <Txt accessibilityRole="alert" size={14} color={color.downText}>
+            <Txt accessibilityRole="alert" accessibilityLiveRegion="polite" size={14} color={color.downText}>
               {error}
             </Txt>
           ) : null}

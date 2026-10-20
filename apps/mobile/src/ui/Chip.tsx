@@ -2,7 +2,7 @@ import { Pressable, type StyleProp, type ViewStyle } from "react-native";
 import type { Script } from "@/theme/font-families";
 import { color, radius } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
-import { chipHitSlop } from "./chip-metrics";
+import { chipA11yState, chipHitSlop } from "./chip-metrics";
 import { FigText } from "./FigText";
 
 /**
@@ -47,7 +47,7 @@ export function Chip({
       testID={testID}
       accessibilityRole={role}
       accessibilityLabel={accessibilityLabel ?? (count !== undefined ? `${label}, ${count}` : label)}
-      accessibilityState={{ selected, disabled }}
+      accessibilityState={chipA11yState(role, selected, disabled)}
       disabled={disabled}
       onPress={onPress}
       hitSlop={{ top: slop, bottom: slop }}

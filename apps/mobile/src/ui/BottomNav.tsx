@@ -11,13 +11,17 @@ const ICONS: Record<string, IconName> = { trade: "trade", payments: "wallet", hi
 /** Height of the tab row above the bottom inset: 30pt pill + 2pt gap + 16pt label. */
 export const BOTTOM_NAV_ROW = 48;
 
-/** 48pt bottom nav (canvas): active tab = blue pill behind the icon + bold label. Adds the bottom safe-area inset. */
+/** Gap above the tab row, so the active pill clears the top hairline (canvas: 8px). */
+const BOTTOM_NAV_TOP_GAP = 8;
+
+/** 48pt bottom nav (canvas): active tab = blue pill behind the icon + bold label, 8pt below the top hairline. Adds the bottom safe-area inset. */
 export function BottomNav({ state, descriptors, navigation, insets }: BottomTabBarProps) {
   return (
     <View
       accessibilityRole="tablist"
       style={{
         flexDirection: "row",
+        paddingTop: BOTTOM_NAV_TOP_GAP,
         paddingBottom: Math.max(insets.bottom, 4),
         borderTopWidth: 1,
         borderTopColor: color.ruleSoft,

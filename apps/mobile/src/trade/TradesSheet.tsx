@@ -19,6 +19,7 @@ import { countdownText } from "./countdown-text";
 import { dayNetForList } from "./day-total";
 import type { AppAsset } from "./markets";
 import { useLiveTrade } from "./useLiveTrade";
+import { useNow } from "./useNow";
 
 const SNAP_POINTS = ["60%", "90%"];
 const NO_TRADES: readonly TradeView[] = [];
@@ -142,7 +143,8 @@ function TradesBody({ accountId, accountType, assets, currency, listLoaded }: { 
     }),
     [trades],
   );
-  const nowMs = Date.now();
+  // Once a minute: a sheet left open across midnight rolls the "Today" total and the dd/mm stamps over.
+  const nowMs = useNow(60_000);
   // The rows above may be partial until the list has loaded; the total is hidden then (see dayNetForList).
   const net = dayNetForList(trades, listLoaded, nowMs);
   const shown = tab === "open" ? open : closed;

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLock } from "@/lock/lock-store";
 import { PinBoxes } from "@/lock/PinBoxes";
+import { biometricLabelKey } from "@/lock/biometric-label";
 import { PinPad } from "@/lock/PinPad";
 import { isValidPin } from "@/lock/pin";
 import { color, radius } from "@/theme/tokens";
@@ -73,6 +74,7 @@ export default function LockSetup() {
   const { enableBiometric, setPin, skipSetup } = useLock();
   const [step, setStep] = useState<"choose" | "pin" | "confirm">("choose");
   const [biometric, setBiometric] = useState(false);
+  const [bioLabelKey, setBioLabelKey] = useState<ReturnType<typeof biometricLabelKey>>("lock.useBiometric");
   const [first, setFirst] = useState("");
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +85,13 @@ export default function LockSetup() {
     void (async () => {
       try {
         const ok = (await LocalAuth.hasHardwareAsync()) && (await LocalAuth.isEnrolledAsync());
-        if (live) setBiometric(ok);
+        // A failed type lookup keeps the generic label; the row itself still shows.
+        const types = ok ? await LocalAuth.supportedAuthenticationTypesAsync().catch(() => []) : [];
+        const labelKey = biometricLabelKey(types);
+        if (live) {
+          setBioLabelKey(labelKey);
+          setBiometric(ok);
+        }
       } catch {
         // No usable biometrics reads as unavailable; the PIN path still works.
       }
@@ -153,13 +161,13 @@ export default function LockSetup() {
             </Txt>
           </View>
           {error ? (
-            <Txt accessibilityRole="alert" size={15} color={color.downText}>
+            <Txt accessibilityRole="alert" accessibilityLiveRegion="polite" size={15} color={color.downText}>
               {error}
             </Txt>
           ) : null}
           <View style={{ borderWidth: 1, borderColor: color.ruleSoft, borderRadius: radius.lg, backgroundColor: color.surface, overflow: "hidden" }}>
             {biometric ? (
-              <OptionRow icon="fingerprint" tone="accent" title={t("lock.fingerprint")} hint={t("lock.fingerprintHint")} onPress={useBiometric} disabled={busy} />
+              <OptionRow icon="fingerprint" tone="accent" title={t(bioLabelKey)} hint={t("lock.fingerprintHint")} onPress={useBiometric} disabled={busy} />
             ) : null}
             <OptionRow testID="lock-set-pin" icon="key" tone="muted" title={t("lock.setPin")} hint={t("lock.pinHint")} onPress={() => setStep("pin")} disabled={busy} last />
           </View>
@@ -177,7 +185,7 @@ export default function LockSetup() {
         </Txt>
         <PinBoxes length={value.length} error={!!error} label={t("lock.pinEntered", { count: value.length })} />
         {/* Reserved slot: the pad sits outside this block, so the message appearing never moves the keys. */}
-        <Txt accessibilityRole={error ? "alert" : undefined} numberOfLines={2} size={15} color={color.downText} style={{ minHeight: 40, textAlign: "center" }}>
+        <Txt accessibilityRole={error ? "alert" : undefined} accessibilityLiveRegion="polite" numberOfLines={2} size={15} color={color.downText} style={{ minHeight: 40, textAlign: "center" }}>
           {error}
         </Txt>
       </View>

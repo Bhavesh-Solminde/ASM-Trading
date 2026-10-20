@@ -1,15 +1,33 @@
+import { useState } from "react";
 import { View } from "react-native";
 import { color } from "@/theme/tokens";
-import { pinBoxState } from "./pin-box-state";
+import { nextErrorLook, pinBoxState, type ErrorLook } from "./pin-box-state";
 
 const BOXES = [0, 1, 2, 3] as const;
 
 /**
  * One bank-form box per PIN digit (60×70). Filled = a dot; the next box = blue border + ring; `error` turns the
- * filled boxes red while a wrong-PIN message shows; `idle` = no active box (the lock-setup preview).
+ * filled boxes red until the first digit (or delete) of the next attempt; a new failure is a new `errorKey`; `idle` = no active box (the lock-setup preview).
  * Pass `label` to expose "n of 4 digits entered" to TalkBack; without it the boxes are decorative.
  */
-export function PinBoxes({ length, error = false, idle = false, label }: { length: number; error?: boolean; idle?: boolean; label?: string }) {
+export function PinBoxes({
+  length,
+  error = false,
+  errorKey = 0,
+  idle = false,
+  label,
+}: {
+  length: number;
+  error?: boolean;
+  /** Changes with each new failure, so a repeated error looks red again. */
+  errorKey?: string | number;
+  idle?: boolean;
+  label?: string;
+}) {
+  const [look, setLook] = useState<ErrorLook | null>(null);
+  const nextLook = nextErrorLook(look, error, errorKey, length);
+  if (nextLook !== look) setLook(nextLook);
+  const showError = nextLook?.shown ?? false;
   return (
     <View
       accessible={label !== undefined}
@@ -18,7 +36,7 @@ export function PinBoxes({ length, error = false, idle = false, label }: { lengt
       style={{ flexDirection: "row", gap: 12, justifyContent: "center" }}
     >
       {BOXES.map((i) => {
-        const state = pinBoxState(i, length, { error, idle });
+        const state = pinBoxState(i, length, { error: showError, idle });
         const border = state === "active" ? color.accent : state === "error" ? color.downText : state === "filled" ? color.ink3 : color.rule;
         return (
           <View key={i} style={{ margin: -3, borderWidth: 3, borderRadius: 13, borderColor: state === "active" ? color.accentDim : "transparent" }}>

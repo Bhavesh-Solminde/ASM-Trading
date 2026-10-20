@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View } from "react-native";
 import { Circle, Defs, LinearGradient, Path, Stop, Svg } from "react-native-svg";
 import { color } from "@/theme/tokens";
@@ -7,7 +7,8 @@ import { sparkline } from "./sparkline-path";
 /** The login screen's market line. Decorative: no price, no market name (no real quote is available signed out). */
 export function Sparkline({ seed = 7, height = 128 }: { seed?: number; height?: number }) {
   const [width, setWidth] = useState(0);
-  const s = width > 0 ? sparkline(seed, width - 4, height, 70) : null;
+  // Login re-renders on every keystroke; the 70-point path only changes with the seed or the size.
+  const s = useMemo(() => (width > 0 ? sparkline(seed, width - 4, height, 70) : null), [seed, width, height]);
   return (
     <View
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}

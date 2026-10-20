@@ -92,11 +92,12 @@ export default function Lock() {
         </View>
         {method === "pin" ? (
           <>
-            <PinBoxes length={value.length} error={message !== ""} label={t("lock.pinEntered", { count: value.length })} />
+            <PinBoxes length={value.length} error={message !== ""} errorKey={attempts} label={t("lock.pinEntered", { count: value.length })} />
             {/* The pad sits outside this block, so a taller message only re-centres the boxes, it never moves the keys. */}
             <Txt
               testID="lock-message"
               accessibilityRole={message ? "alert" : undefined}
+              accessibilityLiveRegion="polite"
               numberOfLines={2}
               size={15}
               color={color.downText}

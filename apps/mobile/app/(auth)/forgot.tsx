@@ -45,7 +45,7 @@ export default function Forgot() {
             {t("auth.forgotTitle")}
           </Txt>
           {sent ? (
-            <Txt accessibilityRole="alert" size={16} color={color.ink2}>
+            <Txt accessibilityRole="alert" accessibilityLiveRegion="polite" size={16} color={color.ink2}>
               {t("auth.resetSent")}
             </Txt>
           ) : (
@@ -60,7 +60,7 @@ export default function Forgot() {
                 onSubmitEditing={submit}
               />
               {error ? (
-                <Txt accessibilityRole="alert" size={14} color={color.downText}>
+                <Txt accessibilityRole="alert" accessibilityLiveRegion="polite" size={14} color={color.downText}>
                   {error}
                 </Txt>
               ) : null}

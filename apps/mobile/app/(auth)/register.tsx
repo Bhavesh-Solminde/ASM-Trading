@@ -53,7 +53,7 @@ export default function Register() {
             {t("auth.passwordHint")}
           </Txt>
           {error ? (
-            <Txt accessibilityRole="alert" size={14} color={color.downText}>
+            <Txt accessibilityRole="alert" accessibilityLiveRegion="polite" size={14} color={color.downText}>
               {error}
             </Txt>
           ) : null}

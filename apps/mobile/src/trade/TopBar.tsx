@@ -26,7 +26,7 @@ const switchBox = {
 } as const;
 
 /**
- * "today +₹186.00": net of today's settled trades on this account. Shown only when this device provably holds the
+ * "+₹186.00 today": net of today's settled trades on this account. Shown only when this device provably holds the
  * whole IST day for the account (see `dayNetMinor`); hidden while a non-default account's list is still loading.
  * Ticks once a minute for the day boundary.
  */
@@ -43,6 +43,7 @@ function TodayLine({ account, listLoaded }: { account: AppAccount; listLoaded: b
       size={10}
       weight={500}
       lineHeight={12}
+      tracking={-0.02}
       color={net > 0 ? color.up : net < 0 ? color.downText : color.switchInk}
     />
   );
