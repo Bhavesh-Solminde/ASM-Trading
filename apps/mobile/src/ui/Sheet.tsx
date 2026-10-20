@@ -7,6 +7,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 import { BackHandler, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color, radius } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 
@@ -37,6 +38,10 @@ const bodyFlush = { paddingTop: 4, paddingBottom: 0 } as const;
 export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, children, snapPoints, scroll, onDismiss, aside, flush }, ref) {
   const inner = useRef<BottomSheetModal>(null);
   const [presented, setPresented] = useState(false);
+  // Edge-to-edge (SDK 36): every sheet's last row clears the system navigation bar (3-button nav is ~48dp).
+  const bottomInset = useSafeAreaInsets().bottom;
+  const pad = flush ? bodyFlush : body;
+  const bodyStyle = [pad, { paddingBottom: pad.paddingBottom + bottomInset }];
 
   useImperativeHandle(ref, () => ({
     present: () => {
@@ -101,12 +106,12 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, ch
       {...(scroll ? { keyboardBehavior: "extend", keyboardBlurBehavior: "restore", android_keyboardInputMode: "adjustResize" } : {})}
     >
       {scroll ? (
-        <BottomSheetScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={flush ? bodyFlush : body}>
+        <BottomSheetScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={bodyStyle}>
           {heading}
           {children}
         </BottomSheetScrollView>
       ) : (
-        <BottomSheetView style={flush ? bodyFlush : body}>
+        <BottomSheetView style={bodyStyle}>
           {heading}
           {children}
         </BottomSheetView>

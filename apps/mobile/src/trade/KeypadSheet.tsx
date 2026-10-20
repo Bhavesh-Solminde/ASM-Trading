@@ -2,7 +2,6 @@ import * as Haptics from "expo-haptics";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { stakePresets, stakeToMinor } from "@asm/client-core";
 import { money } from "@/money/format";
 import { color } from "@/theme/tokens";
@@ -42,7 +41,6 @@ export const KeypadSheet = forwardRef<
   }
 >(function KeypadSheet({ currency, accountType, payoutPct, value, onKey, onPreset, onDone }, ref) {
   const { t, i18n } = useTranslation();
-  const insets = useSafeAreaInsets();
   const opts = stakeAmountOpts(currency);
   const { figure, words, winMinor } = keypadModel(value, currency, payoutPct, i18n.language.startsWith("hi") ? "hi" : "en");
 
@@ -145,7 +143,7 @@ export const KeypadSheet = forwardRef<
         ))}
       </View>
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 + insets.bottom }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 }}>
         <Button testID="keypad-done" kind="light" label={t("common.done")} onPress={onDone} />
       </View>
     </Sheet>
