@@ -41,22 +41,6 @@ export const color = {
   overlayPill: "#0f141bdd",
   scrim: "rgba(0, 0, 0, 0.62)",
   warnBg: "#2a1210",
-  /** @deprecated use surface (removed in Task 13) */
-  panel: "#0f141b",
-  /** @deprecated use raised (removed in Task 13) */
-  tile: "#171d26",
-  /** @deprecated use raised (removed in Task 13) */
-  tileHi: "#1f2733",
-  /** @deprecated use accentText for text/lines or accent for fills (removed in Task 13) */
-  brand: "#86a6ff",
-  /** @deprecated use onAccent (removed in Task 13) */
-  brandInk: "#ffffff",
-  /** @deprecated use accent (removed in Task 13) */
-  brandFill: "#3d6cf0",
-  /** @deprecated use accentDim (removed in Task 13) */
-  brandDim: "#142247",
-  /** @deprecated use gold (removed in Task 13) */
-  caution: "#e2b54c",
 } as const;
 
 export const gradient = {
@@ -67,11 +51,4 @@ export const gradient = {
 
 export const radius = { xs: 3, sm: 8, md: 12, lg: 14, sheet: 22, pill: 999 } as const;
 export const space = (n: number) => n * 4;
-/** @deprecated use <Txt> props (removed in Task 13) */
-export const font = {
-  regular: { fontSize: 14, color: color.ink },
-  small: { fontSize: 12, color: color.ink2 },
-  title: { fontSize: 18, fontWeight: "700" as const, color: color.ink },
-  number: { fontVariant: ["tabular-nums" as const] },
-};
 export const tokens = { color, gradient, radius, space };

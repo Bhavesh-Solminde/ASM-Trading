@@ -143,6 +143,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: space(4),
   },
-  card: { backgroundColor: color.panel, borderRadius: radius.lg, padding: space(4) },
+  card: { backgroundColor: color.surface, borderRadius: radius.lg, padding: space(4) },
   row: { flexDirection: "row", alignItems: "center" },
 });

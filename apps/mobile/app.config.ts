@@ -34,7 +34,7 @@ const config: ExpoConfig = {
     versionCode: 1,
     // The MMKV caches (resume snapshot with balances and trades, prefs) must not be copied into a cloud backup.
     allowBackup: false,
-    adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#000000" },
+    adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#06080b" },
     permissions: ["android.permission.INTERNET", "android.permission.USE_BIOMETRIC", "android.permission.VIBRATE"],
   },
   plugins: [
@@ -44,7 +44,7 @@ const config: ExpoConfig = {
     "expo-web-browser",
     "@react-native-google-signin/google-signin",
     // SDK 57 dropped the top-level `splash` key; the splash is configured via this plugin.
-    ["expo-splash-screen", { image: "./assets/splash.png", imageWidth: 200, resizeMode: "contain", backgroundColor: "#000000" }],
+    ["expo-splash-screen", { image: "./assets/splash.png", imageWidth: 200, resizeMode: "contain", backgroundColor: "#06080b" }],
     [
       "expo-build-properties",
       // Release stays cleartext-free; Expo's debug manifest already allows cleartext for the dev server.

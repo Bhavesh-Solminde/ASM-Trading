@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { bootstrapRequestedAt, useBootstrap } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
 import { loadLastUserId, loadResume, saveLastNickname, saveLastUserId } from "@/cache/resume-cache";
 import { useSocket } from "@/socket/socket-store";
 import { color, space } from "@/theme/tokens";
-import { Button, Screen, Skeleton } from "@/theme/ui";
+import { Button, Screen, Skeleton, Txt } from "@/theme/ui";
 import { AppHeader } from "@/ui/AppHeader";
 import { BrandMark } from "@/ui/Brand";
 import type { SheetRef } from "@/ui/Sheet";
@@ -39,15 +39,16 @@ function BootError({ onRetry, compact }: { onRetry: () => void; compact?: boolea
   return (
     <View
       accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
       style={
         compact
           ? { flexDirection: "row", alignItems: "center", gap: space(3), paddingHorizontal: space(3), minHeight: 52 }
           : { flex: 1, alignItems: "center", justifyContent: "center", gap: space(4), padding: space(6) }
       }
     >
-      <Text style={{ color: color.ink2, fontSize: 14, flex: compact ? 1 : undefined, textAlign: compact ? "left" : "center" }}>
+      <Txt color={color.ink2} style={{ flex: compact ? 1 : undefined, textAlign: compact ? "left" : "center" }}>
         {t("common.genericError")}
-      </Text>
+      </Txt>
       <View style={compact ? undefined : { alignSelf: "stretch" }}>
         <Button kind="secondary" label={t("common.retry")} onPress={onRetry} />
       </View>

@@ -16,7 +16,7 @@ export function BrandMark({ width }: { width: number }) {
   );
 }
 
-/** The chrome "INDIAN X TRADE" wordmark (750×246, black ground that disappears on the #06080b ground). */
+/** The chrome "INDIAN X TRADE" wordmark (750×246, black ground that disappears on the ground colour). */
 export function Wordmark({ width }: { width: number }) {
   return (
     <Image

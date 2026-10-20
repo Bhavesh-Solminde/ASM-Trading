@@ -7,7 +7,6 @@ import { scriptFor, uiFamily } from "@/theme/font-families";
 import { color, space } from "@/theme/tokens";
 import { shouldShowOffline } from "./offline";
 
-// Not <Txt>: theme/ui imports this file, so importing Txt here would be a cycle.
 /** Height of the strip, so content and toasts can make room for it. */
 export const OFFLINE_BANNER_HEIGHT = 28;
 
@@ -23,6 +22,7 @@ export function OfflineBanner() {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   if (!useOfflineVisible()) return null;
+  const devanagari = scriptFor(i18n.language) === "devanagari";
   return (
     <View
       pointerEvents="none"
@@ -30,7 +30,14 @@ export function OfflineBanner() {
       accessibilityLiveRegion="polite"
       style={[styles.strip, { top: insets.top }]}
     >
-      <Text style={[styles.text, { fontFamily: uiFamily(500, scriptFor(i18n.language)) }]}>{t("common.offline")}</Text>
+      {/* RN Text, not <Txt>: theme/ui imports this file, so importing Txt here would be a cycle. */}
+      <Text
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.2}
+        style={[styles.text, { fontFamily: uiFamily(500, scriptFor(i18n.language)), lineHeight: devanagari ? 18 : 16 }]}
+      >
+        {t("common.offline")}
+      </Text>
     </View>
   );
 }
@@ -49,5 +56,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: color.downText,
   },
-  text: { fontSize: 12, lineHeight: 16, color: color.ink },
+  text: { fontSize: 12, color: color.ink },
 });
