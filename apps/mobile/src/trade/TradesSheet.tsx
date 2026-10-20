@@ -10,7 +10,7 @@ import { fmtPrice } from "@/chart/format-price";
 import { money } from "@/money/format";
 import { useSocket } from "@/socket/socket-store";
 import { color } from "@/theme/tokens";
-import { Txt } from "@/theme/ui";
+import { Skeleton, Txt } from "@/theme/ui";
 import { Chip } from "@/ui/Chip";
 import { FigText } from "@/ui/FigText";
 import { LedgerHeader, LedgerRow, type LedgerColumn } from "@/ui/Ledger";
@@ -20,6 +20,7 @@ import { Stamp } from "@/ui/Stamp";
 import { ledgerStamp } from "./closed-stamp";
 import { dayNetForList } from "./day-total";
 import type { AppAsset } from "./markets";
+import { tradesListState } from "./trades-list-state";
 import { useNow } from "./useNow";
 
 const SNAP_POINTS = ["60%", "90%"];
@@ -111,7 +112,7 @@ const ClosedRow = memo(function ClosedRow({ trade, assets, currency, nowMs }: { 
 });
 
 /** Mounted only while the sheet is presented, so the store subscription and the row clocks exist only then. */
-export function TradesBody({ accountId, accountType, assets, currency, listLoaded }: { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string; listLoaded: boolean }) {
+export function TradesBody({ accountId, accountType, assets, currency, listLoaded, loadingWhenEmpty = false }: { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string; listLoaded: boolean; loadingWhenEmpty?: boolean }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("open");
   // The store only ever holds live data (bootstrap + socket), never the resume snapshot's stale trades.
@@ -128,6 +129,8 @@ export function TradesBody({ accountId, accountType, assets, currency, listLoade
   // The rows above may be partial until the list has loaded; the total is hidden then (see dayNetForList).
   const net = dayNetForList(trades, listLoaded, nowMs);
   const shown = tab === "open" ? open : closed;
+  // History can open before Trade has fetched the list: an empty tab is then "loading", not "No trades".
+  const listState = tradesListState(shown.length, loadingWhenEmpty && !listLoaded);
   return (
     <View>
       <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 8, paddingHorizontal: 20, paddingBottom: 10 }}>
@@ -136,7 +139,9 @@ export function TradesBody({ accountId, accountType, assets, currency, listLoade
       </View>
       <View style={{ paddingHorizontal: 20 }}>
         <LedgerHeader columns={tab === "open" ? OPEN_COLS : COLS} labels={[t("trade.colTime"), t("trade.colTrade"), t("trade.colResult")]} />
-        {shown.length === 0 ? (
+        {listState === "loading" ? (
+          <View style={{ paddingVertical: 16 }}><Skeleton height={64} /></View>
+        ) : listState === "empty" ? (
           <Txt color={color.ink2} style={{ textAlign: "center", paddingVertical: 32 }}>
             {t("trade.noTrades")}
           </Txt>

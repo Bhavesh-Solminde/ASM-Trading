@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { AppState } from "react-native";
 import { queryClient } from "@/api/queries";
 import { refreshBootstrap } from "@/api/refresh-bootstrap";
-import { useSession } from "@/auth/session-store";
+import { useSessionLive } from "@/auth/use-session-live";
 import { useLocaleSync } from "@/i18n/use-locale-sync";
 import { useLock } from "@/lock/lock-store";
 import { useSocket } from "@/socket/socket-store";
@@ -17,10 +17,7 @@ export default function TabsLayout() {
   // A deep-link cold start mounts the tabs before the session has hydrated: no socket until there is an
   // unlocked session, or its ticket request goes out without a token. Nor before the lock state is known
   // (`locked` is only a guess until load() settles). Every hook runs on every render; only the values combine.
-  const sessionLive = useSession((s) => s.ready && s.token !== null);
-  const lockLoaded = useLock((s) => s.loaded);
-  const locked = useLock((s) => s.locked);
-  const live = sessionLive && lockLoaded && !locked;
+  const live = useSessionLive();
 
   // The server's locale (the language of push notifications) follows the app's language, quietly.
   useLocaleSync(live);

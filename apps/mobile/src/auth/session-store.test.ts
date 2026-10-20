@@ -20,6 +20,7 @@ vi.mock("@/ui/Toast", () => ({ toast: vi.fn(), clearToasts }));
 vi.mock("./google", () => ({ signOutOfGoogle }));
 vi.mock("@/socket/socket-store", () => ({ useSocket: { getState: () => ({ reset: resetSocket }) } }));
 
+import { useListLoaded } from "@/trade/list-loaded-store";
 import { useSession } from "./session-store";
 
 beforeEach(() => {
@@ -81,6 +82,13 @@ describe("useSession", () => {
     expect(clearToasts).toHaveBeenCalledTimes(1);
     expect(signOutOfGoogle).toHaveBeenCalledTimes(1);
     expect(useSession.getState().token).toBeNull();
+  });
+
+  it("forgets which account's trade list was loaded", async () => {
+    useSession.setState({ token: "tok", ready: true });
+    useListLoaded.getState().set("acct-1");
+    await useSession.getState().signOut({ remote: false });
+    expect(useListLoaded.getState().loadedFor).toBeNull();
   });
 
   it("does nothing when already signed out", async () => {

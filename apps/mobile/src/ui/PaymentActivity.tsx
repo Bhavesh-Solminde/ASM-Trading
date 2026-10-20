@@ -1,6 +1,7 @@
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { usePaymentsInfinite } from "@/api/queries";
+import { useSessionLive } from "@/auth/use-session-live";
 import { paymentRows } from "@/api/payment-rows";
 import { Button, Skeleton, Txt } from "@/theme/ui";
 import { color } from "@/theme/tokens";
@@ -9,7 +10,7 @@ import { Icon } from "./Icon";
 /** Deposit and withdrawal rows from the shared infinite payments query; `limit` caps the rows (the Payments preview). */
 export function PaymentActivity({ limit }: { limit?: number } = {}) {
   const { t } = useTranslation();
-  const query = usePaymentsInfinite();
+  const query = usePaymentsInfinite(useSessionLive());
   const rows = paymentRows(query.data, limit);
   if (query.isPending) return <Skeleton height={80} />;
   if (query.isError) return <Button label={t("common.retry")} kind="secondary" onPress={() => void query.refetch()} />;

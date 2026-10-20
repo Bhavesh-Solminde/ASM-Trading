@@ -4,6 +4,7 @@ import { api, configureApi } from "@/api/client";
 import { queryClient } from "@/api/queries";
 import { clearResume } from "@/cache/resume-cache";
 import { useSocket } from "@/socket/socket-store";
+import { useListLoaded } from "@/trade/list-loaded-store";
 import { clearToasts, toast } from "@/ui/Toast";
 import { signOutOfGoogle } from "./google";
 import { SESSION_KEY as KEY } from "./session-key";
@@ -48,6 +49,7 @@ export const useSession = create<SessionState>((set, get) => ({
         queryClient.clear();
         // The next user to sign in must not see this user's trades or balances.
         useSocket.getState().reset();
+        useListLoaded.getState().set(null);
         // Nor may it see this user's cached balances on the next cold start.
         clearResume();
         // Nor a "Won ₹…" toast still queued for this user.

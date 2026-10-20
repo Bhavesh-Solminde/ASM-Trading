@@ -3,6 +3,7 @@ import { ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useBootstrap, useWallet } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
+import { useSessionLive } from "@/auth/use-session-live";
 import { Button, Card, Screen, Skeleton, Txt } from "@/theme/ui";
 import { color } from "@/theme/tokens";
 import { money } from "@/money/format";
@@ -11,7 +12,7 @@ export default function Payments() {
   const { t } = useTranslation();
   const token = useSession(s => s.token);
   const boot = useBootstrap(!!token).data;
-  const wallet = useWallet();
+  const wallet = useWallet(useSessionLive());
   const live = wallet.data?.accounts.find(a => a.type === "LIVE");
   return <Screen><ScrollView contentContainerStyle={{ padding: 20, gap: 28 }}>
     <Txt size={28} weight={600} accessibilityRole="header">{t("redesign.yourMoney")}</Txt>

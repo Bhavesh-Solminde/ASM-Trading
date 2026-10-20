@@ -27,6 +27,6 @@ export default function History() {
       <Chip label={t("tabs.trade")} selected={tab === "trades"} onPress={() => setTab("trades")} />
       <Chip label={t("tabs.payments")} selected={tab === "payments"} onPress={() => setTab("payments")} />
     </View>
-    {tab === "payments" ? <View style={{ paddingHorizontal: 20 }}><PaymentActivity /></View> : boot && account ? <TradesBody accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={loaded} /> : query.isError ? <Button label={t("common.retry")} onPress={() => void query.refetch()} /> : <Skeleton height={100} />}
+    {tab === "payments" ? <View style={{ paddingHorizontal: 20 }}><PaymentActivity /></View> : boot && account ? <TradesBody accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={loaded} loadingWhenEmpty /> : query.isError ? <Button label={t("common.retry")} onPress={() => void query.refetch()} /> : <Skeleton height={100} />}
   </ScrollView></Screen>;
 }

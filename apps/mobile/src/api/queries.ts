@@ -42,36 +42,41 @@ export const useAppConfig = () =>
     staleTime: 5 * 60_000,
   });
 
+/** Every hook below takes `enabled` (the live session: `useSessionLive()`), so none fetches before hydrate, after sign-out, or while locked. */
+
 /** The LIVE account's wallet (`GET /api/v1/wallet` always reports LIVE). */
-export const useWallet = () => useQuery({ queryKey: ["wallet"], queryFn: () => api("/api/v1/wallet", { schema: WalletSchema }) });
+export const useWallet = (enabled: boolean) =>
+  useQuery({ queryKey: ["wallet"], queryFn: () => api("/api/v1/wallet", { schema: WalletSchema }), enabled });
 
 /** Deposits and withdrawals, newest first, 20 per page; the cursor is the last row's `createdAt`. */
-export const usePaymentsInfinite = () =>
+export const usePaymentsInfinite = (enabled: boolean) =>
   useInfiniteQuery({
     queryKey: ["payments"],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
       api(`/api/v1/payments?limit=20${pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : ""}`, { schema: PaymentsPageSchema }),
     getNextPageParam: (last) => last.nextCursor,
+    enabled,
   });
 
-export const useDepositConfig = () =>
-  useQuery({ queryKey: ["deposit-config"], queryFn: () => api("/api/v1/deposit-config", { schema: DepositConfigSchema }) });
+export const useDepositConfig = (enabled: boolean) =>
+  useQuery({ queryKey: ["deposit-config"], queryFn: () => api("/api/v1/deposit-config", { schema: DepositConfigSchema }), enabled });
 
 /** One deposit checkout by its token. T3a adds the `poll` option. */
-export const useCheckout = (token: string) =>
+export const useCheckout = (token: string, enabled: boolean) =>
   useQuery({
     queryKey: ["checkout", token],
     queryFn: () => api(`/api/v1/checkout/${encodeURIComponent(token)}`, { schema: CheckoutViewSchema }),
+    enabled,
   });
 
-export const useWithdrawalPrefill = () =>
-  useQuery({ queryKey: ["withdrawal-prefill"], queryFn: () => api("/api/v1/withdrawal-prefill", { schema: WithdrawalPrefillSchema }) });
+export const useWithdrawalPrefill = (enabled: boolean) =>
+  useQuery({ queryKey: ["withdrawal-prefill"], queryFn: () => api("/api/v1/withdrawal-prefill", { schema: WithdrawalPrefillSchema }), enabled });
 
 const ProfileResponse = z.object({ profile: ProfileViewSchema });
 /** The signed-in user's profile (`GET /api/account` wraps it in `{ profile }`). */
-export const useProfile = () =>
-  useQuery({ queryKey: ["profile"], queryFn: async () => (await api("/api/account", { schema: ProfileResponse })).profile });
+export const useProfile = (enabled: boolean) =>
+  useQuery({ queryKey: ["profile"], queryFn: async () => (await api("/api/account", { schema: ProfileResponse })).profile, enabled });
 
 /** After any money movement: refetch wallet, payments, ledger, payment details and deposit config, then the bootstrap. */
 export const invalidateMoney = () => invalidateMoneyOn(queryClient);

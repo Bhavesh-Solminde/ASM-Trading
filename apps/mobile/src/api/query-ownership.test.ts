@@ -21,12 +21,35 @@ const rel = (file: string) => relative(join(__dirname, "..", ".."), file);
 const read = (file: string) => readFileSync(file, "utf8");
 
 describe("query ownership", () => {
-  it("declares the wallet and payments keys only in queries.ts", () => {
+  it("declares the wallet and payments keys once, in queries.ts", () => {
+    const queries = read(join(SRC, "api", "queries.ts"));
+    for (const key of ["wallet", "payments"]) {
+      // One `queryKey:` declaration, and no other literal of the key in the file (a constant, a second hook, a
+      // setQueryData): every occurrence of the bare array is that one declaration.
+      expect(queries.match(new RegExp(String.raw`queryKey:\s*\[\s*["']${key}["']\s*[\],]`, "g"))).toHaveLength(1);
+      expect(queries.match(new RegExp(String.raw`\[\s*["']${key}["']\s*[\],]`, "g"))).toHaveLength(1);
+    }
+  });
+
+  it("never names the wallet or payments key as an array literal outside queries.ts and invalidate-money.ts", () => {
+    // Covers an inline useQuery, a key held in a constant, and getQueryData / setQueryData on the cache.
     const bad = all
-      .filter((file) => rel(file) !== "src/api/queries.ts")
-      .filter((file) => /queryKey:\s*\[\s*"(payments|wallet)"/.test(read(file)))
+      .filter((file) => !["src/api/queries.ts", "src/api/invalidate-money.ts"].includes(rel(file)))
+      .filter((file) => /\[\s*["'](payments|wallet)["']\s*[\],]/.test(read(file)))
       .map(rel);
     expect(bad).toEqual([]);
+  });
+
+  it("gates every money hook on the session: each takes `enabled` and passes it to its query", () => {
+    const queries = read(join(SRC, "api", "queries.ts"));
+    for (const hook of ["useWallet", "usePaymentsInfinite", "useDepositConfig", "useWithdrawalPrefill", "useCheckout", "useProfile"]) {
+      const start = queries.indexOf(`export const ${hook} =`);
+      expect(start, hook).toBeGreaterThan(-1);
+      const next = queries.indexOf("\nexport ", start + 1);
+      const block = queries.slice(start, next === -1 ? undefined : next);
+      expect(block, `${hook} signature`).toMatch(/enabled: boolean\)/);
+      expect(block.match(/\benabled\b/g)?.length, `${hook} passes enabled on`).toBeGreaterThanOrEqual(2);
+    }
   });
 
   it("uses useAccountTradesLoaded only in trade.tsx (the one owner of the trade-list fetch)", () => {
