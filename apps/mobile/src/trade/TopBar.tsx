@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { PixelRatio, Pressable, useWindowDimensions, View } from "react-native";
 import { money } from "@/money/format";
 import { useSocket } from "@/socket/socket-store";
 import { color, radius } from "@/theme/tokens";
@@ -9,9 +10,11 @@ import { AppHeader } from "@/ui/AppHeader";
 import { BrandMark } from "@/ui/Brand";
 import { Icon } from "@/ui/Icon";
 import { Money } from "@/ui/Money";
+import { PillFill } from "@/ui/PillFill";
 import { toast } from "@/ui/Toast";
 import type { AppAccount } from "./accounts";
 import { dayNetForAccount } from "./day-total";
+import { fitFigureSize, isCompactWidth } from "./header-fit";
 import { useNow } from "./useNow";
 
 const TYPES = ["DEMO", "LIVE"] as const;
@@ -30,22 +33,51 @@ const switchBox = {
  * whole IST day for the account (see `dayNetMinor`); hidden while a non-default account's list is still loading.
  * Ticks once a minute for the day boundary.
  */
-function TodayLine({ account, listLoaded }: { account: AppAccount; listLoaded: boolean }) {
+function TodayLine({ account, listLoaded, room }: { account: AppAccount; listLoaded: boolean; room: number | null }) {
   const { t } = useTranslation();
   const tradesByAccount = useSocket((s) => s.trades.tradesByAccount);
   const now = useNow(60_000);
   const net = dayNetForAccount(tradesByAccount, account.id, listLoaded, now);
   if (net === null) return null;
   const amount = `${net > 0 ? "+" : ""}${money(net, account.currency)}`;
+  const line = t("trade.today", { amount });
   return (
     <Money
-      text={t("trade.today", { amount })}
-      size={10}
+      text={line}
+      size={fitFigureSize({ text: line, available: room, base: 10, min: 8, fontScale: PixelRatio.getFontScale() })}
+      numberOfLines={1}
       weight={500}
       lineHeight={12}
       tracking={-0.02}
       color={net > 0 ? color.up : net < 0 ? color.downText : color.switchInk}
     />
+  );
+}
+
+/**
+ * The balance column: an optional line above and the figure, right-aligned in whatever room the row leaves.
+ * The figure's size is fitted to that measured room (never a clipped or ellipsised amount): a wrong-looking
+ * balance is worse than a small one.
+ */
+function BalanceColumn({ text, color: ink, label, above }: { text: string; color?: string; label: string; above?: (room: number | null) => ReactNode }) {
+  const [room, setRoom] = useState<number | null>(null);
+  const size = fitFigureSize({ text, available: room, base: 16, min: 10, fontScale: PixelRatio.getFontScale() });
+  return (
+    <View style={{ flex: 1, alignItems: "flex-end", minWidth: 0 }} onLayout={(e) => setRoom(Math.floor(e.nativeEvent.layout.width))}>
+      {above?.(room)}
+      <Money
+        text={text}
+        size={size}
+        weight={600}
+        tracking={-0.04}
+        lineHeight={19}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        {...(ink ? { color: ink } : null)}
+        accessibilityLabel={label}
+      />
+    </View>
   );
 }
 
@@ -69,9 +101,11 @@ export function TopBar({
   const { t } = useTranslation();
   const bal = useSocket((s) => s.trades.balances[account.id]) ?? account;
   const text = money(Math.round(bal.realBalance + bal.bonusBalance), account.currency);
+  // 320dp and 360dp phones: a smaller mark, tighter gutters and pills leave the balance room for every digit.
+  const compact = isCompactWidth(useWindowDimensions().width);
   return (
-    <AppHeader>
-      <BrandMark width={34} />
+    <AppHeader compact={compact}>
+      <BrandMark width={compact ? 28 : 34} />
       <View accessibilityRole="radiogroup" style={switchBox}>
         {TYPES.map((type) => {
           const selected = account.type === type;
@@ -88,14 +122,14 @@ export function TopBar({
               style={{
                 height: 30,
                 minWidth: 44,
-                paddingHorizontal: 11,
-                borderRadius: radius.pill,
+                paddingHorizontal: compact ? 8 : 11,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: selected ? color.ink : "transparent",
                 opacity: blocked ? 0.45 : 1,
               }}
             >
+              {/* Drawn by SVG: a view whose backgroundColor toggles loses its rounded corners on Android. */}
+              <PillFill fill={selected ? color.ink : null} height={30} />
               <Txt weight={600} size={13} lineHeight={16} color={selected ? color.ground : color.switchInk}>
                 {type === "DEMO" ? t("trade.demo") : t("trade.live")}
               </Txt>
@@ -103,19 +137,11 @@ export function TopBar({
           );
         })}
       </View>
-      <View style={{ flex: 1, alignItems: "flex-end", minWidth: 0 }}>
-        <TodayLine account={account} listLoaded={listLoaded} />
-        <Money
-          text={text}
-          size={16}
-          weight={600}
-          tracking={-0.04}
-          lineHeight={19}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          accessibilityLabel={`${t("trade.balance")}: ${text}`}
-        />
-      </View>
+      <BalanceColumn
+        text={text}
+        label={`${t("trade.balance")}: ${text}`}
+        above={(room) => <TodayLine account={account} listLoaded={listLoaded} room={room} />}
+      />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("trade.deposit")}
@@ -158,29 +184,22 @@ export function StaleTopBar({
 }) {
   const { t } = useTranslation();
   const text = money(totalMinor, currency);
+  const compact = isCompactWidth(useWindowDimensions().width);
   return (
-    <AppHeader>
-      <BrandMark width={34} />
+    <AppHeader compact={compact}>
+      <BrandMark width={compact ? 28 : 34} />
       <View style={switchBox}>
-        <View style={{ height: 30, paddingHorizontal: 11, justifyContent: "center" }}>
+        <View style={{ height: 30, paddingHorizontal: compact ? 8 : 11, justifyContent: "center" }}>
           <Txt weight={600} size={13} lineHeight={16} color={color.switchInk}>
             {type === "DEMO" ? t("trade.demo") : t("trade.live")}
           </Txt>
         </View>
       </View>
-      <View style={{ flex: 1, alignItems: "flex-end", minWidth: 0 }}>
-        <Money
-          text={text}
-          size={16}
-          weight={600}
-          tracking={-0.04}
-          lineHeight={19}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          color={live ? color.ink : color.ink2}
-          accessibilityLabel={live ? `${t("trade.balance")}: ${text}` : `${t("trade.balance")}: ${text}. ${t("trade.stale")}`}
-        />
-      </View>
+      <BalanceColumn
+        text={text}
+        color={live ? color.ink : color.ink2}
+        label={live ? `${t("trade.balance")}: ${text}` : `${t("trade.balance")}: ${text}. ${t("trade.stale")}`}
+      />
     </AppHeader>
   );
 }

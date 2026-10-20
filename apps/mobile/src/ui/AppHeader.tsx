@@ -14,7 +14,7 @@ export const HEADER_ROW = 49;
  * row of content and the tricolour hairline. The status-bar inset is the device's real one (safe area), not the
  * canvas's 28. Static (no animation) so it never costs the chart frames.
  */
-export function AppHeader({ children }: { children: ReactNode }) {
+export function AppHeader({ children, compact = false }: { children: ReactNode; compact?: boolean }) {
   const insets = useSafeAreaInsets();
   const offline = useOfflineVisible();
   const [width, setWidth] = useState(0);
@@ -40,7 +40,9 @@ export function AppHeader({ children }: { children: ReactNode }) {
           {width > 0 ? <Ellipse cx={width - 40} cy={10} rx={80} ry={70} fill="url(#ixtGlow)" /> : null}
         </Svg>
       </View>
-      <View style={{ height: HEADER_ROW, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12 }}>{children}</View>
+      <View style={{ height: HEADER_ROW, flexDirection: "row", alignItems: "center", gap: compact ? 6 : 8, paddingHorizontal: compact ? 8 : 12 }}>
+        {children}
+      </View>
       <Tricolour />
     </View>
   );
