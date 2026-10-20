@@ -14,7 +14,7 @@ import { useNow } from "./useNow";
 function EndsAt({ sec }: { sec: number }) {
   const now = useNow(1000);
   return (
-    <Txt font="fig" weight={600} size={16} tracking={-0.02} accessibilityLiveRegion="none">
+    <Txt font="fig" weight={600} size={16} tracking={-0.02} accessibilityLiveRegion="none" style={{ flexShrink: 0 }}>
       {clockTime(Math.floor(now / 1000) + sec)}
     </Txt>
   );
@@ -58,7 +58,7 @@ export const ExpirySheet = forwardRef<SheetRef, { value: number; onPick: (sec: n
           gap: 12,
         }}
       >
-        <Txt size={15} color={color.ink2} style={{ flexShrink: 1 }}>
+        <Txt size={15} color={color.ink2} style={{ flex: 1 }}>
           {t("trade.endsAt")}
         </Txt>
         <EndsAt sec={value} />

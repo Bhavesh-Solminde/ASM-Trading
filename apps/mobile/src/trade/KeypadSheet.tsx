@@ -89,14 +89,15 @@ export const KeypadSheet = forwardRef<
       </View>
 
       {payoutPct !== null ? (
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
-          <Txt size={15} color={color.ink2}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
+          {/* The label takes the room the figure leaves (a definite width), so multi-word Hindi wraps instead of clipping. */}
+          <Txt size={15} color={color.ink2} style={{ flex: 1 }}>
             {t("trade.ifYouWin", { pct: payoutPct })}
           </Txt>
           {winMinor !== null ? (
-            <Money text={money(winMinor, currency)} size={15} weight={600} color={color.up} />
+            <Money text={money(winMinor, currency)} size={15} weight={600} color={color.up} style={{ flexShrink: 0 }} />
           ) : (
-            <Money text="—" size={15} color={color.ink3} />
+            <Money text="—" size={15} color={color.ink3} style={{ flexShrink: 0 }} />
           )}
         </View>
       ) : (

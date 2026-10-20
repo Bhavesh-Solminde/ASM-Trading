@@ -171,11 +171,18 @@ function TradesBody({ accountId, accountType, assets, currency, listLoaded }: { 
         )}
       </View>
       {net !== null ? (
-        <View style={{ marginTop: 12, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 28, borderTopWidth: 1, borderTopColor: color.rule, flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
-          <Txt size={15} color={color.ink2}>
+        <View style={{ marginTop: 12, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 28, borderTopWidth: 1, borderTopColor: color.rule, flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+          {/* flex: 1 gives the label a definite width, so multi-word Hindi wraps instead of clipping. */}
+          <Txt size={15} color={color.ink2} style={{ flex: 1 }}>
             {t("trade.todayAccount", { account: accountType === "LIVE" ? t("trade.live") : t("trade.demo") })}
           </Txt>
-          <Money text={`${net > 0 ? "+" : ""}${money(net, currency)}`} size={16} weight={600} color={net > 0 ? color.up : net < 0 ? color.downText : color.ink2} />
+          <Money
+            text={`${net > 0 ? "+" : ""}${money(net, currency)}`}
+            size={16}
+            weight={600}
+            color={net > 0 ? color.up : net < 0 ? color.downText : color.ink2}
+            style={{ flexShrink: 0 }}
+          />
         </View>
       ) : (
         <View style={{ height: 28 }} />

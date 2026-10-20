@@ -49,10 +49,10 @@ export function GateScreen({
           >
             {info.map((row) => (
               <View key={row.label} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, minHeight: 24 }}>
-                <Txt size={15} color={color.ink3} style={{ flexShrink: 1 }}>
+                <Txt size={15} color={color.ink3} style={{ flex: 1 }}>
                   {row.label}
                 </Txt>
-                <FigText text={row.value} size={15} weight={row.strong ? 600 : 400} />
+                <FigText text={row.value} size={15} weight={row.strong ? 600 : 400} style={{ flexShrink: 0 }} />
               </View>
             ))}
           </View>

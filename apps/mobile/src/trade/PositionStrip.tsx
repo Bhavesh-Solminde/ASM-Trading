@@ -89,14 +89,15 @@ const StripBody = memo(function StripBody({
         </Txt>
         <FigText text={detail} size={12} tracking={-0.02} color={color.ink3} numberOfLines={1} />
       </View>
-      <View style={{ alignItems: "flex-end" }}>
+      <View style={{ alignItems: "flex-end", flexShrink: 0 }}>
         <Money
           text={pnl === null ? "—" : `${pnl.sign}${money(pnl.amountMinor, currency)}`}
           size={15}
           weight={600}
           color={pnl === null ? color.ink3 : pnl.tone === "up" ? color.up : color.downText}
         />
-        <Txt size={12} color={color.ink3}>
+        {/* One line, never a shrink-wrapped two-line box: multi-word Devanagari measured at its own width can wrap and clip. */}
+        <Txt size={12} color={color.ink3} numberOfLines={1}>
           {t("trade.ifClosedNow")}
         </Txt>
       </View>
