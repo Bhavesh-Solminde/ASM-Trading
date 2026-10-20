@@ -5,9 +5,19 @@ import { Icon } from "@/components/shell/Icon";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
 import { useScrollLock } from "@/lib/use-scroll-lock";
 import { grossReturnMinor } from "./pnl-display";
-import { groupAmount, profitForStake, stakePresets, stakeToMinor } from "./stake";
+import {
+  PERCENT_PRESETS,
+  groupAmount,
+  percentValue,
+  profitForStake,
+  stakeFromPercent,
+  stakePresets,
+  stakeToMinor,
+  type StakeUnit,
+} from "./stake";
 
 const MAX_LEN = 7;
+const PCT_MAX_LEN = 3;
 
 /** Delete-key glyph (the icon set has no backspace; a left chevron would read as "back"). */
 function BackspaceGlyph() {
@@ -23,12 +33,16 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "00", "0", "back"] as
 /**
  * Phone stake keypad: a bottom sheet with a big amount, a hint line (balance or
  * minimum), the payout it would earn, quick chips and a 3x4 keypad. It never
- * raises the native keyboard. "Set" writes the amount to the ticket; Esc, the
- * close button and a backdrop tap leave the stake untouched.
+ * raises the native keyboard. A ₹ / % switch types either an amount or a
+ * percentage of the balance (never below the minimum stake). "Set" writes the
+ * value and its unit to the ticket; Esc, the close button and a backdrop tap
+ * leave the stake untouched.
  */
 export function StakeSheet({
   currency,
   initial,
+  initialPercent,
+  unit: initialUnit,
   balanceMinor,
   minStakeMinor,
   payoutPct,
@@ -39,38 +53,54 @@ export function StakeSheet({
   currency: string;
   /** The ticket's current stake text, e.g. "100". */
   initial: string;
+  /** The ticket's current percentage text, e.g. "10". */
+  initialPercent: string;
+  unit: StakeUnit;
   /** Spendable balance (real + bonus) of the active account; null while unknown. */
   balanceMinor: number | null;
   minStakeMinor: number;
   payoutPct: number | null;
   accountLabel: "Demo" | "Live";
-  onSet: (stake: string) => void;
+  onSet: (value: string, unit: StakeUnit) => void;
   onClose: () => void;
 }) {
+  const [unit, setUnit] = useState<StakeUnit>(initialUnit);
   const [amount, setAmount] = useState(initial === "" ? "0" : initial);
+  const [percent, setPercent] = useState(initialPercent === "" ? "0" : initialPercent);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const inPercent = unit === "percent";
 
-  const amountMinor = stakeToMinor(amount);
-  const tooLow = amountMinor < minStakeMinor;
+  const pct = percentValue(percent);
+  // In percent mode the stake is a share of the balance, never below the minimum.
+  const pctStake = stakeFromPercent(pct, balanceMinor, minStakeMinor);
+  const amountMinor = inPercent ? (pctStake ?? 0) : stakeToMinor(amount);
+  const tooLow = inPercent ? pct === 0 : amountMinor < minStakeMinor;
   const tooHigh = balanceMinor !== null && amountMinor > balanceMinor;
+  const atMinimum =
+    inPercent && balanceMinor !== null && pct > 0 && Math.floor((balanceMinor * pct) / 100) < minStakeMinor;
   const profit = profitForStake(amountMinor, payoutPct);
   const symbol = currencySymbol(currency);
   const maxMajor = balanceMinor === null ? 0 : Math.floor(balanceMinor / 100);
   const maxUsable = maxMajor >= minStakeMinor / 100;
 
-  const press = useCallback((key: (typeof KEYS)[number]) => {
-    setAmount((prev) => {
-      if (key === "back") return prev.slice(0, -1) || "0";
-      const cur = prev === "0" ? "" : prev;
-      if ((cur + key).length > MAX_LEN) return prev;
-      return (cur + key).replace(/^0+(?=\d)/, "") || "0";
-    });
-  }, []);
+  const press = useCallback(
+    (key: (typeof KEYS)[number]) => {
+      const maxLen = inPercent ? PCT_MAX_LEN : MAX_LEN;
+      (inPercent ? setPercent : setAmount)((prev) => {
+        if (key === "back") return prev.slice(0, -1) || "0";
+        const cur = prev === "0" ? "" : prev;
+        if ((cur + key).length > maxLen) return prev;
+        const next = (cur + key).replace(/^0+(?=\d)/, "") || "0";
+        return inPercent && Number(next) > 100 ? "100" : next;
+      });
+    },
+    [inPercent],
+  );
 
   function commit(): void {
     if (tooLow) return;
     // Normalise "0250" / trailing "." noise before it reaches the ticket field.
-    onSet(String(Number(amount)));
+    onSet(inPercent ? String(pct) : String(Number(amount)), unit);
   }
 
   // Focus the dialog on open (no input is focused, so no native keyboard) and
@@ -136,21 +166,45 @@ export function StakeSheet({
         </div>
 
         <div className="grid justify-items-center gap-1 pt-1.5">
+          <div role="radiogroup" aria-label="Investment unit" className="mb-1 grid grid-cols-2 gap-0.5 rounded-full bg-tile p-0.5">
+            {(["amount", "percent"] as const).map((u) => (
+              <button
+                key={u}
+                type="button"
+                role="radio"
+                aria-checked={unit === u}
+                aria-label={u === "amount" ? "Amount" : "Percentage of balance"}
+                onClick={() => setUnit(u)}
+                className={`h-8 min-w-16 rounded-full px-4 text-[13px] font-bold transition-colors ${
+                  unit === u ? "bg-brand-fill text-white" : "text-ink-2 hover:text-ink"
+                }`}
+              >
+                {u === "amount" ? symbol : "%"}
+              </button>
+            ))}
+          </div>
           <div className="flex items-baseline gap-1.5" aria-live="polite" aria-atomic="true">
-            <span className="text-[26px] font-bold leading-none text-ink-3">{symbol}</span>
+            {inPercent ? null : <span className="text-[26px] font-bold leading-none text-ink-3">{symbol}</span>}
             <span className="text-[52px] font-extrabold leading-none tracking-[-0.03em] text-ink land:text-[36px]">
-              {groupAmount(amount)}
+              {inPercent ? percent : groupAmount(amount)}
             </span>
+            {inPercent ? <span className="text-[26px] font-bold leading-none text-ink-3">%</span> : null}
             <span aria-hidden className="h-10 w-0.5 self-center bg-brand" />
           </div>
           <p className={`text-[13px] ${tooLow || tooHigh ? "text-down" : "text-ink-2"}`}>
-            {tooLow
-              ? `Minimum investment is ${formatMinor(minStakeMinor, currency)}`
-              : tooHigh
-                ? "More than your available balance"
-                : balanceMinor === null
+            {inPercent
+              ? tooLow
+                ? "Enter a percentage of your balance"
+                : pctStake === null
                   ? " "
-                  : `${accountLabel} balance ${formatMinor(balanceMinor, currency)}`}
+                  : `= ${formatMinor(pctStake, currency)}${atMinimum ? " (minimum)" : ""} of ${accountLabel.toLowerCase()} balance ${formatMinor(balanceMinor ?? 0, currency)}`
+              : tooLow
+                ? `Minimum investment is ${formatMinor(minStakeMinor, currency)}`
+                : tooHigh
+                  ? "More than your available balance"
+                  : balanceMinor === null
+                    ? " "
+                    : `${accountLabel} balance ${formatMinor(balanceMinor, currency)}`}
           </p>
         </div>
 
@@ -161,33 +215,49 @@ export function StakeSheet({
           </span>
         </div>
 
-        <div className="grid grid-cols-6 gap-1.5">
-          {stakePresets(currency).map((value) => (
+        {inPercent ? (
+          <div className="grid grid-cols-6 gap-1.5">
+            {[...PERCENT_PRESETS, 100].map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={pct === value}
+                onClick={() => setPercent(String(value))}
+                className={`${chipBase} ${pct === value ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"}`}
+              >
+                {value === 100 ? "Max" : `${value}%`}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-6 gap-1.5">
+            {stakePresets(currency).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={Number(amount) === value}
+                onClick={() => setAmount(String(value))}
+                className={`${chipBase} ${
+                  Number(amount) === value ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"
+                }`}
+              >
+                {symbol}
+                {value.toLocaleString("en-US")}
+              </button>
+            ))}
             <button
-              key={value}
               type="button"
-              aria-pressed={Number(amount) === value}
-              onClick={() => setAmount(String(value))}
-              className={`${chipBase} ${
-                Number(amount) === value ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"
+              disabled={!maxUsable}
+              aria-pressed={maxUsable && Number(amount) === maxMajor}
+              onClick={() => setAmount(String(maxMajor))}
+              className={`${chipBase} disabled:opacity-40 ${
+                maxUsable && Number(amount) === maxMajor ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"
               }`}
             >
-              {symbol}
-              {value.toLocaleString("en-US")}
+              Max
             </button>
-          ))}
-          <button
-            type="button"
-            disabled={!maxUsable}
-            aria-pressed={maxUsable && Number(amount) === maxMajor}
-            onClick={() => setAmount(String(maxMajor))}
-            className={`${chipBase} disabled:opacity-40 ${
-              maxUsable && Number(amount) === maxMajor ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"
-            }`}
-          >
-            Max
-          </button>
-        </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-1.5">
           {KEYS.map((key) => (
@@ -209,8 +279,7 @@ export function StakeSheet({
           onClick={commit}
           className="h-[54px] rounded-2xl bg-brand-fill text-base font-bold text-white transition-colors hover:bg-brand-fill-hi disabled:opacity-40 land:h-11"
         >
-          Set {symbol}
-          {groupAmount(amount)}
+          {inPercent ? `Set ${pct}%` : `Set ${symbol}${groupAmount(amount)}`}
         </button>
       </div>
     </div>

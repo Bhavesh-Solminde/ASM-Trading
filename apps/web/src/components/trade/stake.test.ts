@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseSavedExpiry, parseSavedStake, stakeStorageKey } from "./stake";
+import {
+  parseSavedExpiry,
+  parseSavedPercent,
+  parseSavedStake,
+  parseSavedUnit,
+  percentValue,
+  stakeFromPercent,
+  stakeStorageKey,
+} from "./stake";
 
 describe("parseSavedStake", () => {
   it("keeps a positive amount with up to two decimals", () => {
@@ -45,5 +53,37 @@ describe("parseSavedExpiry", () => {
     expect(parseSavedExpiry("{not json", NOW)).toBeNull();
     expect(parseSavedExpiry(JSON.stringify({ durationSec: 42, mode: "timer" }), NOW)).toBeNull();
     expect(parseSavedExpiry("7", NOW)).toBeNull();
+  });
+});
+
+describe("percent stakes", () => {
+  it("takes a share of the balance, rounded down to whole units", () => {
+    // ₹9,853.47 balance, 10% -> ₹985 (not ₹985.34)
+    expect(stakeFromPercent(10, 985_347, 100_00)).toBe(985_00);
+    expect(stakeFromPercent(100, 985_347, 100_00)).toBe(9853_00);
+  });
+
+  it("never goes below the ₹100 / $1 minimum, even at a tiny percentage or balance", () => {
+    expect(stakeFromPercent(1, 5000_00, 100_00)).toBe(100_00); // 1% of ₹5,000 = ₹50 -> ₹100
+    expect(stakeFromPercent(50, 0, 100_00)).toBe(100_00);
+    expect(stakeFromPercent(1, 50_00, 1_00)).toBe(1_00); // $0.50 -> $1
+  });
+
+  it("caps the percentage at 100 and has no answer before the balance loads", () => {
+    expect(stakeFromPercent(250, 1000_00, 100_00)).toBe(1000_00);
+    expect(stakeFromPercent(10, null, 100_00)).toBeNull();
+    expect(stakeFromPercent(0, 1000_00, 100_00)).toBeNull();
+  });
+
+  it("reads the typed percentage and the saved settings defensively", () => {
+    expect(percentValue("25")).toBe(25);
+    expect(percentValue("150")).toBe(100);
+    expect(percentValue("")).toBe(0);
+    expect(percentValue("abc")).toBe(0);
+    expect(parseSavedPercent("25")).toBe("25");
+    for (const raw of [null, "", "0", "101", "2.5", "-3", "x"]) expect(parseSavedPercent(raw)).toBeNull();
+    expect(parseSavedUnit("percent")).toBe("percent");
+    expect(parseSavedUnit("amount")).toBe("amount");
+    expect(parseSavedUnit("pct")).toBeNull();
   });
 });

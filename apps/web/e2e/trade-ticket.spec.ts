@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { prisma } from "@asm/db";
+import { VIEWER_EMAIL } from "./seed";
 
 /**
  * Issue 3: the amount and time the trader set must survive (a) entering and
@@ -74,5 +76,80 @@ test.describe("trade ticket keeps amount and time", () => {
   test("a fresh ticket still opens on the default stake", async ({ page }) => {
     await openTicket(page);
     await expect(stake(page)).toHaveValue("100");
+  });
+
+  test("focused investment field shows one ring, not two", async ({ page }) => {
+    await openTicket(page);
+    // Keyboard focus, so the global :focus-visible outline would apply.
+    await stake(page).focus();
+    await page.keyboard.press("End");
+    // The box's border turns blue (focus-within); the input itself adds no outline.
+    await expect(stake(page)).toHaveCSS("outline-style", "none");
+  });
+
+  test("investment can be a % of balance and never drops below ₹100", async ({ page }, info) => {
+    // A ₹5,000 demo balance: 10% = ₹500, and 1% = ₹50, which must become ₹100.
+    const viewer = await prisma.user.findUniqueOrThrow({ where: { email: VIEWER_EMAIL }, select: { id: true } });
+    const demo = await prisma.account.findFirstOrThrow({ where: { userId: viewer.id, type: "DEMO" } });
+    await prisma.account.update({ where: { id: demo.id }, data: { realBalance: 5_000_00, bonusBalance: 0 } });
+    try {
+      const row = page.getByTestId("pct-investment");
+      await openTicket(page);
+      await expect(row).toHaveCount(0);
+      await page.getByRole("button", { name: "Switch investment to a percentage of balance" }).click();
+      await stake(page).fill("10");
+      await expect(row).toHaveText(/Investment\s*₹500\.00/);
+      await info.attach("1-ten-percent-of-5000", { body: await page.screenshot(), contentType: "image/png" });
+
+      await stake(page).fill("1");
+      await expect(row).toHaveText(/Investment \(minimum\)\s*₹100\.00/);
+      await info.attach("2-one-percent-floored-at-100", { body: await page.screenshot(), contentType: "image/png" });
+
+      // The % choice survives fullscreen and a refresh, like the amount does.
+      await page.getByRole("button", { name: "Fullscreen chart" }).click();
+      await expect(stake(page)).toHaveValue("1");
+      await page.getByRole("button", { name: "Exit fullscreen" }).click();
+      await page.reload();
+      await expect(stake(page)).toHaveValue("1");
+      await expect(row).toHaveText(/₹100\.00/);
+      await info.attach("3-after-refresh-still-percent", { body: await page.screenshot(), contentType: "image/png" });
+
+      await page.getByRole("button", { name: "Switch investment to an amount" }).click();
+      await expect(stake(page)).toHaveValue("100");
+      await expect(row).toHaveCount(0);
+    } finally {
+      await prisma.account.update({
+        where: { id: demo.id },
+        data: { realBalance: demo.realBalance, bonusBalance: demo.bonusBalance },
+      });
+    }
+  });
+
+  test("phone keypad can switch to % and still respects the ₹100 floor", async ({ page }, info) => {
+    const viewer = await prisma.user.findUniqueOrThrow({ where: { email: VIEWER_EMAIL }, select: { id: true } });
+    const demo = await prisma.account.findFirstOrThrow({ where: { userId: viewer.id, type: "DEMO" } });
+    await prisma.account.update({ where: { id: demo.id }, data: { realBalance: 5_000_00, bonusBalance: 0 } });
+    try {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto("/trade");
+      const tile = page.getByRole("button", { name: /^Investment / });
+      await tile.click();
+      const sheet = page.getByRole("dialog", { name: "Investment" });
+      await sheet.getByRole("radio", { name: "Percentage of balance" }).click();
+      await sheet.getByRole("button", { name: "1%", exact: true }).click();
+      await expect(sheet).toContainText("= ₹100.00 (minimum) of demo balance ₹5,000.00");
+      await info.attach("1-phone-sheet-one-percent", { body: await page.screenshot(), contentType: "image/png" });
+
+      await sheet.getByRole("button", { name: "10%", exact: true }).click();
+      await expect(sheet).toContainText("= ₹500.00 of demo balance ₹5,000.00");
+      await sheet.getByRole("button", { name: "Set 10%" }).click();
+      await expect(tile).toHaveAccessibleName(/₹500\.00 \(10% of balance\)/);
+      await info.attach("2-phone-tile-ten-percent", { body: await page.screenshot(), contentType: "image/png" });
+    } finally {
+      await prisma.account.update({
+        where: { id: demo.id },
+        data: { realBalance: demo.realBalance, bonusBalance: demo.bonusBalance },
+      });
+    }
   });
 });

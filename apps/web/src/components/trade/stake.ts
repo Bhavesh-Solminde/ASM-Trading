@@ -94,3 +94,44 @@ export function parseSavedExpiry(raw: string | null, nowMs: number): SavedExpiry
   }
   return { durationSec, mode: "timer", targetMs: null };
 }
+
+/**
+ * The investment field holds either an amount or a percentage of the
+ * account's spendable balance (Quotex's "SWITCH"). The choice and the
+ * percentage persist like the stake does.
+ */
+export type StakeUnit = "amount" | "percent";
+export const STAKE_UNIT_STORAGE_KEY = "asm_ticket_stake_unit";
+export const STAKE_PCT_STORAGE_KEY = "asm_ticket_stake_pct";
+export const DEFAULT_STAKE_PCT = "10";
+/** Quick-pick percentages; 100% is the phone sheet's "Max". */
+export const PERCENT_PRESETS: readonly number[] = [1, 5, 10, 25, 50];
+
+export function parseSavedUnit(raw: string | null): StakeUnit | null {
+  return raw === "amount" || raw === "percent" ? raw : null;
+}
+
+/** A whole percentage 1–100 as text, or null. */
+export function parseSavedPercent(raw: string | null): string | null {
+  if (raw === null || !/^\d{1,3}$/.test(raw)) return null;
+  const n = Number(raw);
+  return n >= 1 && n <= 100 ? String(n) : null;
+}
+
+/** Percentage typed into the field, clamped to 1–100; 0 when empty or not a number. */
+export function percentValue(text: string): number {
+  const n = Math.floor(Number(text));
+  return Number.isFinite(n) && n > 0 ? Math.min(100, n) : 0;
+}
+
+/**
+ * The stake (minor units) a percentage of the balance comes to: rounded down
+ * to whole rupees/dollars and never below the currency minimum (₹100 / $1),
+ * however small the balance or the percentage. Null while the balance is
+ * unknown or no percentage is set.
+ */
+export function stakeFromPercent(pct: number, balanceMinor: number | null, minStakeMinor: number): number | null {
+  if (balanceMinor === null || pct <= 0) return null;
+  const raw = Math.floor((Math.max(0, balanceMinor) * Math.min(100, pct)) / 100);
+  return Math.max(minStakeMinor, raw - (raw % 100));
+}

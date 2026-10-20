@@ -14,16 +14,25 @@ import { useMarketClosed, useNowSec } from "@/lib/use-now";
 import { grossReturnMinor } from "./pnl-display";
 import { StakeSheet } from "./StakeSheet";
 import {
+  DEFAULT_STAKE_PCT,
   EXPIRY_CHIPS,
   EXPIRY_STORAGE_KEY,
+  PERCENT_PRESETS,
+  STAKE_PCT_STORAGE_KEY,
+  STAKE_UNIT_STORAGE_KEY,
   defaultStake,
   formatDuration,
   groupAmount,
   isChipExpiry,
   parseSavedExpiry,
+  parseSavedPercent,
   parseSavedStake,
+  parseSavedUnit,
+  percentValue,
+  stakeFromPercent,
   stakePresets,
   stakeStorageKey,
+  type StakeUnit,
   type TimeMode,
 } from "./stake";
 
@@ -100,6 +109,9 @@ export function TradeTicket({
   }, []);
   useDismiss(expiryRef, gridOpen, closeGrid);
   const [stakeInput, setStakeInput] = useState(() => defaultStake(currency));
+  // Amount, or a percentage of the spendable balance ("Switch").
+  const [stakeUnit, setStakeUnit] = useState<StakeUnit>("amount");
+  const [pctInput, setPctInput] = useState(DEFAULT_STAKE_PCT);
   // Phone dock: the keypad sheet, and the tile that opened it (focus returns there).
   const [stakeOpen, setStakeOpen] = useState(false);
   const tileRef = useRef<HTMLButtonElement | null>(null);
@@ -130,6 +142,15 @@ export function TradeTicket({
       // As above.
     }
   }, [durationSec, mode, targetMs]);
+  useEffect(() => {
+    if (restoredFor.current === null) return;
+    try {
+      localStorage.setItem(STAKE_UNIT_STORAGE_KEY, stakeUnit);
+      localStorage.setItem(STAKE_PCT_STORAGE_KEY, pctInput);
+    } catch {
+      // As above.
+    }
+  }, [stakeUnit, pctInput]);
 
   // Restore the trader's last stake for this currency (else its default, so an
   // INR ticket never opens below the ₹100 minimum) and, on mount, their last
@@ -157,16 +178,28 @@ export function TradeTicket({
         setMode(saved.mode);
         setTargetMs(saved.targetMs);
       }
+      try {
+        setStakeUnit(parseSavedUnit(localStorage.getItem(STAKE_UNIT_STORAGE_KEY)) ?? "amount");
+        setPctInput(parseSavedPercent(localStorage.getItem(STAKE_PCT_STORAGE_KEY)) ?? DEFAULT_STAKE_PCT);
+      } catch {
+        // Unreadable storage: stay on amount.
+      }
     }
     restoredFor.current = currency;
   }, [currency]);
 
-  const stakeMajor = Number(stakeInput);
-  const stakeMinor = Number.isFinite(stakeMajor) && stakeMajor > 0 ? Math.round(stakeMajor * 100) : 0;
-  const profitMinor =
-    payoutPct === null || stakeMinor === 0 ? null : Math.floor((stakeMinor * payoutPct) / 100);
   const accountBalance = balances[accountId];
   const balanceMinor = accountBalance ? accountBalance.realBalance + accountBalance.bonusBalance : null;
+  const stakeMajor = Number(stakeInput);
+  const amountMinor = Number.isFinite(stakeMajor) && stakeMajor > 0 ? Math.round(stakeMajor * 100) : 0;
+  const pct = percentValue(pctInput);
+  const inPercent = stakeUnit === "percent";
+  // In percent mode the stake follows the balance, floored at the minimum.
+  const stakeMinor = inPercent ? (stakeFromPercent(pct, balanceMinor, minStake) ?? 0) : amountMinor;
+  const pctAtMinimum =
+    inPercent && balanceMinor !== null && pct > 0 && Math.floor((balanceMinor * pct) / 100) < minStake;
+  const profitMinor =
+    payoutPct === null || stakeMinor === 0 ? null : Math.floor((stakeMinor * payoutPct) / 100);
   const accountLabel = accounts.find((a) => a.id === accountId)?.type === "LIVE" ? "Live" : "Demo";
   const durationIndex = DURATIONS_SEC.indexOf(durationSec as (typeof DURATIONS_SEC)[number]);
 
@@ -206,10 +239,19 @@ export function TradeTicket({
     mode === "time" && targetMs !== null ? durationForTargetTime(Date.now(), targetMs) : durationSec;
 
   function nudge(delta: number): void {
+    if (inPercent) {
+      setPctInput(String(Math.min(100, Math.max(1, (pct || 1) + delta))));
+      return;
+    }
     const step = currency === "INR" ? 10 : 1;
     const minMajor = minStake / 100;
     const current = Number.isFinite(stakeMajor) ? Math.floor(stakeMajor) : minMajor;
     setStakeInput(String(Math.max(minMajor, current + delta * step)));
+  }
+
+  function toggleUnit(): void {
+    setStakeUnit((u) => (u === "amount" ? "percent" : "amount"));
+    setError(null);
   }
 
   function closeStake(): void {
@@ -219,7 +261,13 @@ export function TradeTicket({
 
   async function place(direction: "UP" | "DOWN"): Promise<void> {
     if (stakeMinor === 0) {
-      setError("Enter an investment amount.");
+      setError(
+        !inPercent
+          ? "Enter an investment amount."
+          : pct === 0
+            ? "Enter a percentage of your balance."
+            : "Your balance is still loading. Try again in a moment.",
+      );
       return;
     }
     if (stakeMinor < minStake) {
@@ -474,21 +522,25 @@ export function TradeTicket({
             type="button"
             aria-haspopup="dialog"
             aria-expanded={stakeOpen}
-            aria-label={`Investment ${formatMinor(stakeMinor, currency)}${
+            aria-label={`Investment ${formatMinor(stakeMinor, currency)}${inPercent ? ` (${pct}% of balance)` : ""}${
               payoutPct === null ? "" : `, payout ${payoutPct}%`
             }. Change investment`}
             onClick={() => setStakeOpen(true)}
             className="hidden h-14 w-full items-center gap-3 rounded-[14px] bg-tile px-3.5 text-left transition-colors active:bg-tile-hi phone:flex land:h-12"
           >
             <span className="grid gap-0.5">
-              <span className="text-[11px] leading-none text-ink-2">Investment</span>
+              <span className="text-[11px] leading-none text-ink-2">
+                {inPercent ? `Investment · ${pct}% of balance` : "Investment"}
+              </span>
               <span
                 className={`text-[22px] font-extrabold leading-none tracking-[-0.02em] tabular-nums ${
                   stakeMinor < minStake ? "text-down" : "text-ink"
                 }`}
               >
                 {currencySymbol(currency)}
-                {groupAmount(stakeInput === "" ? "0" : stakeInput)}
+                {inPercent
+                  ? groupAmount(String(Math.floor(stakeMinor / 100)))
+                  : groupAmount(stakeInput === "" ? "0" : stakeInput)}
               </span>
             </span>
             <span className="ml-auto grid justify-items-end gap-0.5">
@@ -507,39 +559,85 @@ export function TradeTicket({
             </button>
             <div className={`${DISPLAY} focus-within:border-brand`}>
               <span className="flex items-center justify-center gap-0.5 text-[22px] font-bold phone:text-[13px]">
-                {currencySymbol(currency)}
-                <input
-                  id="stake"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={stakeInput}
-                  onChange={(e) => setStakeInput(e.target.value.replace(/[^0-9.]/g, ""))}
-                  className="w-[5ch] bg-transparent font-bold outline-none"
-                />
+                {inPercent ? null : currencySymbol(currency)}
+                {inPercent ? (
+                  <input
+                    id="stake"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={pctInput}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 3);
+                      setPctInput(digits !== "" && Number(digits) > 100 ? "100" : digits);
+                    }}
+                    className="w-[3.5ch] bg-transparent text-right font-bold outline-none!"
+                  />
+                ) : (
+                  <input
+                    id="stake"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={stakeInput}
+                    onChange={(e) => setStakeInput(e.target.value.replace(/[^0-9.]/g, ""))}
+                    className="w-[5ch] bg-transparent font-bold outline-none!"
+                  />
+                )}
+                {inPercent ? "%" : null}
               </span>
             </div>
             <button type="button" aria-label="Increase investment" onClick={() => nudge(1)} className={STEP}>
               <Icon name="plus" className={STEP_ICON} />
             </button>
           </div>
+          {/* Quotex-style "Switch": the field takes an amount or a % of the balance. */}
+          <button
+            type="button"
+            onClick={toggleUnit}
+            aria-label={inPercent ? "Switch investment to an amount" : "Switch investment to a percentage of balance"}
+            className="-mt-0.5 justify-self-center px-2 text-[11px] font-bold uppercase tracking-[0.1em] text-brand hover:underline phone:hidden"
+          >
+            {inPercent ? `Switch to ${currencySymbol(currency)}` : "Switch to %"}
+          </button>
         </div>
       </div>
 
       <div className="grid grid-cols-5 gap-1 phone:hidden">
-        {stakePresets(currency).map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setStakeInput(String(value))}
-            className={`h-7 min-w-0 whitespace-nowrap rounded-[2px] border bg-panel text-xs font-semibold tabular-nums ${
-              stakeMajor === value ? "border-up text-up" : "border-rule text-ink-2 hover:text-ink"
-            }`}
-          >
-            {currencySymbol(currency)}
-            {value.toLocaleString("en-US")}
-          </button>
-        ))}
+        {inPercent
+          ? PERCENT_PRESETS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setPctInput(String(value))}
+                className={`h-7 min-w-0 whitespace-nowrap rounded-[2px] border bg-panel text-xs font-semibold tabular-nums ${
+                  pct === value ? "border-up text-up" : "border-rule text-ink-2 hover:text-ink"
+                }`}
+              >
+                {value}%
+              </button>
+            ))
+          : stakePresets(currency).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setStakeInput(String(value))}
+                className={`h-7 min-w-0 whitespace-nowrap rounded-[2px] border bg-panel text-xs font-semibold tabular-nums ${
+                  stakeMajor === value ? "border-up text-up" : "border-rule text-ink-2 hover:text-ink"
+                }`}
+              >
+                {currencySymbol(currency)}
+                {value.toLocaleString("en-US")}
+              </button>
+            ))}
       </div>
+
+      {inPercent ? (
+        <div className="flex items-center justify-between text-xs text-ink-3 phone:hidden" data-testid="pct-investment">
+          <span>Investment{pctAtMinimum ? " (minimum)" : ""}</span>
+          <b className="font-semibold tabular-nums text-ink-2">
+            {stakeMinor === 0 ? "—" : formatMinor(stakeMinor, currency)}
+          </b>
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between border-t border-dashed border-rule pb-0.5 pt-2.5 phone:hidden">
         <span className="legend self-center">Payout</span>
@@ -605,12 +703,16 @@ export function TradeTicket({
         <StakeSheet
           currency={currency}
           initial={stakeInput}
+          initialPercent={pctInput}
+          unit={stakeUnit}
           balanceMinor={balanceMinor}
           minStakeMinor={minStake}
           payoutPct={payoutPct}
           accountLabel={accountLabel}
-          onSet={(stake) => {
-            setStakeInput(stake);
+          onSet={(value, unit) => {
+            if (unit === "percent") setPctInput(value);
+            else setStakeInput(value);
+            setStakeUnit(unit);
             setError(null);
             closeStake();
           }}
