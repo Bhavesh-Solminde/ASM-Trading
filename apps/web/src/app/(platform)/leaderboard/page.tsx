@@ -19,7 +19,7 @@ export default async function LeaderboardPage() {
   const result = await dailyLeaderboard({
     sinceMs: startOfDayMs(Date.now()),
     viewerUserId: session.userId,
-    limit: 100,
+    limit: 10,
     includeBots: INCLUDE_BOTS,
     displayCurrency: currency,
   });
