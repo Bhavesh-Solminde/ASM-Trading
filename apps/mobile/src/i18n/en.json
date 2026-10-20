@@ -3,7 +3,7 @@
   "tabs": { "trade": "Trade", "payments": "Payments", "history": "History", "account": "Account", "soon": "This screen arrives in the next update." },
   "auth": {
     "login": "Log in", "register": "Create account", "email": "Email", "password": "Password",
-    "forgot": "Forgot password?", "google": "Continue with Google", "noAccount": "New here? Create an account",
+    "forgot": "Forgot password?", "google": "Continue with Google", "newHere": "New here?", "noAccount": "New here? Create an account",
     "haveAccount": "Already have an account? Log in", "resetSent": "If that email is registered, a reset link is on its way.",
     "name": "Full name", "passwordHint": "At least 12 characters", "forgotTitle": "Reset your password",
     "sendReset": "Send reset link", "backToLogin": "Back to log in",

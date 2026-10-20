@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { View } from "react-native";
 import { RegisterSchema } from "@asm/contracts";
 import { api } from "@/api/client";
 import { TokenResult, finishSignIn } from "@/auth/finish-sign-in";
 import { errorText, validationKey } from "@/auth/messages";
+import { color } from "@/theme/tokens";
 import { Button, Screen, Txt } from "@/theme/ui";
-import { Field, FormScroll, TextLink, formStyles } from "@/ui/form";
+import { Wordmark } from "@/ui/Brand";
+import { Field, FormScroll, PasswordField, TextLink } from "@/ui/form";
+import { Tricolour } from "@/ui/Tricolour";
 
 export default function Register() {
   const { t } = useTranslation();
@@ -33,29 +37,29 @@ export default function Register() {
 
   return (
     <Screen>
-      <FormScroll>
-        <Txt variant="title">{t("auth.register")}</Txt>
-        <Field label={t("auth.name")} autoComplete="name" autoCapitalize="words" value={name} onChangeText={setName} />
-        <Field
-          label={t("auth.email")}
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <Field
-          label={t("auth.password")}
-          secureTextEntry
-          autoComplete="new-password"
-          value={password}
-          onChangeText={setPassword}
-          onSubmitEditing={submit}
-        />
-        <Txt variant="small">{t("auth.passwordHint")}</Txt>
-        {error ? <Txt accessibilityRole="alert" style={formStyles.error}>{error}</Txt> : null}
-        <Button label={t("auth.register")} onPress={submit} busy={busy} />
-        <TextLink href="/login" label={t("auth.haveAccount")} />
+      <FormScroll top>
+        <View style={{ paddingHorizontal: 20, gap: 14 }}>
+          <View>
+            <Wordmark width={200} />
+            <Tricolour fade width={200} style={{ marginTop: 2 }} />
+          </View>
+          <Txt weight={600} size={28} tracking={-0.01} accessibilityRole="header">
+            {t("auth.register")}
+          </Txt>
+          <Field label={t("auth.name")} autoComplete="name" autoCapitalize="words" value={name} onChangeText={setName} />
+          <Field label={t("auth.email")} autoCapitalize="none" autoComplete="email" keyboardType="email-address" value={email} onChangeText={setEmail} />
+          <PasswordField label={t("auth.password")} autoComplete="new-password" value={password} onChangeText={setPassword} onSubmitEditing={submit} />
+          <Txt size={13} color={color.ink3}>
+            {t("auth.passwordHint")}
+          </Txt>
+          {error ? (
+            <Txt accessibilityRole="alert" size={14} color={color.downText}>
+              {error}
+            </Txt>
+          ) : null}
+          <Button label={t("auth.register")} onPress={submit} busy={busy} />
+          <TextLink href="/login" label={t("auth.haveAccount")} />
+        </View>
       </FormScroll>
     </Screen>
   );

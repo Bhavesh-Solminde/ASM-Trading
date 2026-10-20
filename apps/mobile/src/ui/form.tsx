@@ -13,7 +13,8 @@ export function Field({ label, trailing, onFocus, onBlur, ...rest }: TextInputPr
   const family = useUiFamily(400);
   return (
     <View style={{ gap: 6 }}>
-      <Txt size={14} weight={500} color={color.ink2}>
+      {/* The input carries the label for screen readers; the visible copy must not be a second stop. */}
+      <Txt size={14} weight={500} color={color.ink2} importantForAccessibility="no" accessibilityElementsHidden>
         {label}
       </Txt>
       <View style={{ margin: -3, borderWidth: 3, borderRadius: radius.md + 3, borderColor: focused ? color.accentDim : "transparent" }}>
@@ -30,7 +31,7 @@ export function Field({ label, trailing, onFocus, onBlur, ...rest }: TextInputPr
             onBlur?.(e);
           }}
           style={{
-            height: 52,
+            minHeight: 52,
             borderRadius: radius.md,
             borderWidth: 1,
             borderColor: focused ? color.accent : color.rule,

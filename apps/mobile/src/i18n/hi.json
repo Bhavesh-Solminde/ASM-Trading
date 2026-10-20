@@ -3,7 +3,7 @@
   "tabs": { "trade": "ट्रेड", "payments": "भुगतान", "history": "इतिहास", "account": "खाता", "soon": "यह स्क्रीन अगले अपडेट में आएगी।" },
   "auth": {
     "login": "लॉग इन", "register": "खाता बनाएँ", "email": "ईमेल", "password": "पासवर्ड",
-    "forgot": "पासवर्ड भूल गए?", "google": "Google से जारी रखें", "noAccount": "नए हैं? खाता बनाएँ",
+    "forgot": "पासवर्ड भूल गए?", "google": "Google से जारी रखें", "newHere": "नए हैं?", "noAccount": "नए हैं? खाता बनाएँ",
     "haveAccount": "पहले से खाता है? लॉग इन करें", "resetSent": "अगर यह ईमेल रजिस्टर्ड है, तो रीसेट लिंक भेज दिया गया है।",
     "name": "पूरा नाम", "passwordHint": "कम से कम 12 अक्षर", "forgotTitle": "पासवर्ड रीसेट करें",
     "sendReset": "रीसेट लिंक भेजें", "backToLogin": "लॉग इन पर वापस जाएँ",
