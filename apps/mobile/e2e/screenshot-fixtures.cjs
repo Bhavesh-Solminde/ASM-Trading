@@ -1,3 +1,5 @@
+/* global require, URL, console */
+/* eslint-disable @typescript-eslint/no-require-imports -- a plain Node script (CommonJS), not app code. */
 // Local screenshot-only fixture server. Never connects to production or accepts money actions.
 const http = require('node:http');
 const { createRequire } = require('node:module');

@@ -18,10 +18,8 @@ import { Money } from "@/ui/Money";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
 import { Stamp } from "@/ui/Stamp";
 import { ledgerStamp } from "./closed-stamp";
-import { countdownText } from "./countdown-text";
 import { dayNetForList } from "./day-total";
 import type { AppAsset } from "./markets";
-import { useLiveTrade } from "./useLiveTrade";
 import { useNow } from "./useNow";
 
 const SNAP_POINTS = ["60%", "90%"];

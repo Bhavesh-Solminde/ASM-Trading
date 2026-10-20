@@ -10,7 +10,7 @@ import { useSocket } from "@/socket/socket-store";
 import { fmtPrice } from "@/chart/format-price";
 import { OpenPositionCard } from "./OpenPositionCard";
 import type { AppAsset } from "./markets";
-export const TradeDetailSheet = forwardRef<SheetRef, { trade: TradeView | null; accountId?: string; accountType?: "LIVE" | "DEMO"; assets: readonly AppAsset[]; currency: string }>(function TradeDetailSheet({ trade, accountId, accountType, assets, currency }, ref) {
+export const TradeDetailSheet = forwardRef<SheetRef, { trade: TradeView | null; accountId?: string; accountType?: "LIVE" | "DEMO"; assets: readonly AppAsset[]; currency: string }>(function TradeDetailSheet({ trade, accountType, assets, currency }, ref) {
   const { t } = useTranslation();
   const inner = useRef<SheetRef>(null);
   // Freeze selection on opening; settlement must not silently switch the sheet to the next trade.

@@ -9,7 +9,7 @@ import { color, radius } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 import { AppHeader } from "@/ui/AppHeader";
 import { BrandMark } from "@/ui/Brand";
-import { headerMetrics, PILL_FONT, PILL_MIN_WIDTH } from "@/ui/header-metrics";
+import { headerMetrics, PILL_FONT } from "@/ui/header-metrics";
 import { Icon } from "@/ui/Icon";
 import { Money } from "@/ui/Money";
 import { toast } from "@/ui/Toast";
