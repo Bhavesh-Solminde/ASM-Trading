@@ -1,9 +1,10 @@
 import { redis } from "@/lib/redis";
 import { classifyIpapi, countryFromIpapi, isIpVerdict, type IpVerdict } from "./classify";
+import { classifyLocal, currentIntel, type IpIntel } from "./intel";
 
 export type LookupResult = IpVerdict | "unknown";
 
-/** One provider answer: the verdict plus where the address is, when known. */
+/** One answer about an address: the verdict plus where it is, when known. */
 export interface IpDetails {
   readonly verdict: LookupResult;
   readonly country: string | null;
@@ -38,8 +39,10 @@ function parseCached(raw: string | null): IpDetails | null {
   }
 }
 
-export async function lookupIpDetails(
+/** Asks ipapi.is (paid, optional): only used when IPAPI_KEY is set. */
+export async function lookupIpapi(
   ip: string,
+  apiKey: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<IpDetails> {
   const key = verdictCacheKey(ip);
@@ -48,8 +51,7 @@ export async function lookupIpDetails(
 
   const url = new URL("https://api.ipapi.is/");
   url.searchParams.set("q", ip);
-  const apiKey = process.env.IPAPI_KEY;
-  if (apiKey) url.searchParams.set("key", apiKey);
+  url.searchParams.set("key", apiKey);
 
   let verdict: IpVerdict | null = null;
   let country: string | null = null;
@@ -74,6 +76,35 @@ export async function lookupIpDetails(
   return result;
 }
 
-export async function lookupIp(ip: string, fetchImpl: typeof fetch = fetch): Promise<LookupResult> {
-  return (await lookupIpDetails(ip, fetchImpl)).verdict;
+export interface LookupDeps {
+  intel(): IpIntel | null;
+  /** The optional paid second opinion; absent when no IPAPI_KEY is configured. */
+  ipapi?: (ip: string) => Promise<IpDetails>;
+}
+
+function defaultLookupDeps(): LookupDeps {
+  const apiKey = process.env.IPAPI_KEY;
+  return apiKey ? { intel: currentIntel, ipapi: (ip) => lookupIpapi(ip, apiKey) } : { intel: currentIntel };
+}
+
+/**
+ * Checks the address against the free public lists held in memory. With an
+ * IPAPI_KEY, an address the lists call clean also gets ipapi.is's opinion,
+ * which knows a few more VPN ranges; without one, nothing leaves the server.
+ */
+export async function lookupIpDetails(ip: string, deps: LookupDeps = defaultLookupDeps()): Promise<IpDetails> {
+  const intel = deps.intel();
+  const local = intel ? classifyLocal(ip, intel) : null;
+  const country = intel?.country?.get(ip) ?? null;
+  if ((local && local !== "clean") || !deps.ipapi) return { verdict: local ?? "unknown", country };
+
+  const remote = await deps.ipapi(ip);
+  return {
+    verdict: remote.verdict === "unknown" ? (local ?? "unknown") : remote.verdict,
+    country: country ?? remote.country,
+  };
+}
+
+export async function lookupIp(ip: string, deps?: LookupDeps): Promise<LookupResult> {
+  return (await lookupIpDetails(ip, deps)).verdict;
 }

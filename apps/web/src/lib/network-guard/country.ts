@@ -11,8 +11,8 @@ export interface CountryFillDeps {
 }
 
 const defaultDeps: CountryFillDeps = {
-  // Rides on the VPN guard's provider budget, so it is off wherever the guard
-  // is (dev, tests, CI never call ipapi.is).
+  // Reads the guard's in-memory lists, so it is off wherever the guard is
+  // (dev, tests and CI never download them).
   enabled: () => guardMode() !== "off",
   lookup: (ip) => lookupIpDetails(ip),
   setIfMissing: async (userId, country) =>
