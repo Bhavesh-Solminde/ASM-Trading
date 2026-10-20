@@ -8,6 +8,7 @@ import { useUserPrefs } from "@/trade/trade-prefs";
 import { bootstrapTradesAccountId, resolveAccount } from "@/trade/accounts";
 import { listLoadedFor, useListLoaded } from "@/trade/list-loaded-store";
 import { TradesBody } from "@/trade/TradesSheet";
+import { useAccountTradesLoaded } from "@/trade/useAccountTrades";
 import { Chip } from "@/ui/Chip";
 import { PaymentActivity } from "@/ui/PaymentActivity";
 export default function History() {
@@ -19,7 +20,11 @@ export default function History() {
   const account = boot ? resolveAccount(boot.accounts, prefs.accountId, boot.liveAccess) : undefined;
   // Trade owns the trade-list fetch and publishes which account is complete; History only reads it.
   const loadedFor = useListLoaded((s) => s.loadedFor);
-  const loaded = listLoadedFor(loadedFor, account?.id, boot ? bootstrapTradesAccountId(boot.accounts) : undefined);
+  const loadedByTrade = listLoadedFor(loadedFor, account?.id, boot ? bootstrapTradesAccountId(boot.accounts) : undefined);
+  // Opened straight from a link before Trade ever mounted: fetch this account's list here, once, rather than
+  // showing the skeleton until the user visits Trade. Once Trade has published, this does nothing.
+  const loadedHere = useAccountTradesLoaded(account?.id ?? "", !!account && !loadedByTrade);
+  const loaded = loadedByTrade || loadedHere;
   const [tab, setTab] = useState<"trades" | "payments">("trades");
   return <Screen><ScrollView contentContainerStyle={{ paddingTop: 20, paddingBottom: 24, gap: 24 }}>
     <Txt size={28} weight={600} accessibilityRole="header" style={{ paddingHorizontal: 20 }}>{t("redesign.activity")}</Txt>

@@ -52,16 +52,19 @@ describe("query ownership", () => {
     }
   });
 
-  it("uses useAccountTradesLoaded only in trade.tsx (the one owner of the trade-list fetch)", () => {
+  it("uses useAccountTradesLoaded only in trade.tsx (the owner) and History's cold-link fallback", () => {
     const bad = all
-      .filter((file) => !/useAccountTrades\.ts$/.test(file) && !/\(tabs\)[\\/]trade\.tsx$/.test(file))
+      .filter((file) => !/useAccountTrades\.ts$/.test(file) && !/\(tabs\)[\\/](trade|history)\.tsx$/.test(file))
       .filter((file) => /import[^;]*useAccountTradesLoaded|useAccountTradesLoaded\(/.test(read(file)))
       .map(rel);
     expect(bad).toEqual([]);
   });
 
-  it("History reads the published list state", () => {
-    expect(read(join(APP, "(tabs)", "history.tsx"))).toContain("listLoadedFor(");
+  it("History reads the published list state and fetches only when Trade has not loaded it", () => {
+    const history = read(join(APP, "(tabs)", "history.tsx"));
+    expect(history).toContain("listLoadedFor(");
+    // The fallback fetch is gated on "not loaded by Trade", so it never runs alongside Trade's.
+    expect(history).toMatch(/useAccountTradesLoaded\([^,]+,\s*!!account && !loadedByTrade\)/);
   });
 
   it("has no dead TabHeader and no unused TopBar listLoaded prop", () => {
