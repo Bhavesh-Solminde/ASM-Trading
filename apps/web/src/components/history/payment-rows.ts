@@ -100,11 +100,4 @@ export function withdrawalRow(w: WithdrawalSource): PaymentRow {
   };
 }
 
-/**
- * Short reference shown to the user, e.g. "WD-8F3K2Q1A". It keeps the first 8
- * characters of the id, the same slice the old history table showed, so a
- * reference a customer already quoted still matches.
- */
-export function referenceFor(row: Pick<PaymentRow, "kind" | "id">): string {
-  return `${row.kind === "deposit" ? "DP" : "WD"}-${row.id.slice(0, 8).toUpperCase()}`;
-}
+export { referenceFor } from "@asm/client-core";

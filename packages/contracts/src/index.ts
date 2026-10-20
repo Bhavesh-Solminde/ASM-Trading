@@ -85,6 +85,8 @@ export {
   UpdateProfileSchema,
   TwoFaToggleSchema,
   TwoFaVerifySchema,
+  ProfileViewSchema,
+  type ProfileViewDto,
   type UpdateProfileInput,
   type TwoFaToggleInput,
   type TwoFaVerifyInput,
