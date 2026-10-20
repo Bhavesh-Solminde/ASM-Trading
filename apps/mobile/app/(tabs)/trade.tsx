@@ -16,6 +16,7 @@ import { CHART_OVERLAY_BOTTOM, OVERLAY_TOP } from "@/trade/chart-overlay";
 import { ChartTools } from "@/trade/ChartTools";
 import { Dock } from "@/trade/Dock";
 import { findAsset, nextBonus, precisionFor, resolveSymbol, toggleFavourite } from "@/trade/markets";
+import { useListLoaded } from "@/trade/list-loaded-store";
 import { hasOpenTrade } from "@/trade/open-trades";
 import { MarketPill } from "@/trade/MarketPill";
 import { PositionStrip } from "@/trade/PositionStrip";
@@ -89,6 +90,12 @@ export default function Trade() {
   // One fetch of the selected account's trade list (bootstrap carries only the default account's), shared by the
   // top bar's "today" line and the trades sheet's day total: both hide until it has loaded.
   const listLoaded = useAccountTradesLoaded(account?.id ?? "", !!boot && !!account && account.id !== bootstrapTradesAccountId(boot.accounts));
+  // Publish which account's list is complete, so the other tabs' headers (`TabHeader`) read it instead of fetching.
+  const publishListLoaded = useListLoaded((s) => s.set);
+  const listLoadedAccountId = account && listLoaded ? account.id : null;
+  useEffect(() => {
+    publishListLoaded(listLoadedAccountId);
+  }, [listLoadedAccountId, publishListLoaded]);
   useResultFeedback(account?.id ?? null, account?.currency ?? null, boot?.assets);
 
   // Every successful bootstrap fetch (first load, post-deposit invalidation, foreground, watchdog and reconnect

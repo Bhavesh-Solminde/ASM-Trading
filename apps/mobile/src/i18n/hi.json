@@ -77,5 +77,11 @@
     "colDeposit": "डिपॉज़िट",
     "colBonus": "बोनस",
     "colStatus": "स्थिति"
+  },
+  "pay": {
+    "status": { "AWAITING_PAYMENT": "भुगतान की प्रतीक्षा", "PENDING_CONFIRMATION": "प्रोसेस हो रहा है", "COMPLETED": "जमा हो गया", "REJECTED": "अस्वीकृत", "EXPIRED": "समय समाप्त", "REQUESTED": "समीक्षा में", "APPROVED": "स्वीकृत", "PAID": "भुगतान हो गया", "HELD": "रोका गया", "CANCELLED_BY_USER": "रद्द किया", "OPEN": "खुला", "WON": "जीत", "LOST": "हार", "REFUNDED": "वापस किया" }
+  },
+  "history": {
+    "title": { "deposit": "जमा", "withdrawal": "निकासी" }
   }
 }

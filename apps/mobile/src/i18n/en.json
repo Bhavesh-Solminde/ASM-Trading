@@ -77,5 +77,11 @@
     "colDeposit": "Deposit",
     "colBonus": "Bonus",
     "colStatus": "Status"
+  },
+  "pay": {
+    "status": { "AWAITING_PAYMENT": "Awaiting payment", "PENDING_CONFIRMATION": "Processing", "COMPLETED": "Credited", "REJECTED": "Rejected", "EXPIRED": "Expired", "REQUESTED": "In review", "APPROVED": "Approved", "PAID": "Paid", "HELD": "On hold", "CANCELLED_BY_USER": "Cancelled", "OPEN": "Open", "WON": "Won", "LOST": "Lost", "REFUNDED": "Refunded" }
+  },
+  "history": {
+    "title": { "deposit": "Deposit", "withdrawal": "Withdrawal" }
   }
 }

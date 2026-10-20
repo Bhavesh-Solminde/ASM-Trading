@@ -169,8 +169,7 @@ export function TopBar({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("trade.deposit")}
-        // The real deposit flow arrives with the payments work; until then this opens the Payments tab.
-        onPress={() => router.navigate("/payments")}
+        onPress={() => router.navigate("/payments/deposit")}
         // 40pt square + 2pt around = the 44pt target.
         hitSlop={2}
         style={({ pressed }) => ({

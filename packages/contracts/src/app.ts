@@ -9,7 +9,7 @@ import { PAYOUT_METHODS } from "./withdrawal";
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
 const minor = z.number().int();
-const KycStatusSchema = z.enum(["NOT_STARTED", "PENDING", "VERIFIED", "REJECTED"]);
+export const KycStatusSchema = z.enum(["NOT_STARTED", "PENDING", "VERIFIED", "REJECTED"]);
 
 export const LocaleSchema = z.enum(["en", "hi"]);
 export type Locale = z.infer<typeof LocaleSchema>;

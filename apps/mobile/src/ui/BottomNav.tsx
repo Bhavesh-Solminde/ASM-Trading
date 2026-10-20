@@ -4,6 +4,7 @@ import { color } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 import { Icon, type IconName } from "./Icon";
 import { PillFill } from "./PillFill";
+import { tabBarHidden } from "./tab-bar";
 
 export type { BottomTabBarProps };
 
@@ -19,6 +20,9 @@ const BOTTOM_NAV_TOP_GAP = 8;
 
 /** 48pt bottom nav (canvas): active tab = blue pill behind the icon + bold label, 8pt below the top hairline. Adds the bottom safe-area inset. */
 export function BottomNav({ state, descriptors, navigation, insets }: BottomTabBarProps) {
+  // A pushed flow screen (deposit, withdraw, KYC...) owns the whole screen, bottom edge included.
+  const focusedRoute = state.routes[state.index];
+  if (focusedRoute && tabBarHidden(focusedRoute)) return null;
   return (
     <View
       accessibilityRole="tablist"
