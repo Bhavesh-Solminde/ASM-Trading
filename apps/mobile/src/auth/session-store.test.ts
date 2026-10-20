@@ -56,6 +56,15 @@ describe("useSession", () => {
     expect(clearResume).not.toHaveBeenCalled();
   });
 
+  it("clears the in-memory token even when a cleanup step throws (a live token must not outlive a sign-out)", async () => {
+    useSession.setState({ token: "tok", ready: true });
+    clear.mockImplementationOnce(() => {
+      throw new Error("boom");
+    });
+    await expect(useSession.getState().signOut()).rejects.toThrow("boom");
+    expect(useSession.getState().token).toBeNull();
+  });
+
   it("signs out remotely once even when several calls overlap", async () => {
     useSession.setState({ token: "tok", ready: true });
     await Promise.all([

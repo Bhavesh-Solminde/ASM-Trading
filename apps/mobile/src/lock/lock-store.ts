@@ -141,7 +141,18 @@ export const useLock = create<LockState>((set, get) => ({
     await put(K.attempts, String(next.attempts)).catch(() => {});
     if (next.logout) {
       // Sign out first: wiping the lock while the session is still live would leave the app open.
-      await useSession.getState().signOut().catch(() => {});
+      let signedOut = true;
+      try {
+        await useSession.getState().signOut();
+      } catch {
+        signedOut = false;
+      }
+      // Fail closed: if the sign-out failed or the session token is still live, keep the app locked with its lock
+      // intact. The next miss retries the sign-out (the count is already past the limit).
+      if (!signedOut || useSession.getState().token) {
+        set({ locked: true });
+        return "wrong";
+      }
       await get().reset();
       return "logout";
     }
@@ -174,7 +185,10 @@ export const useLock = create<LockState>((set, get) => ({
       await get().reset();
       await put(K.owner, userId).catch(() => {});
     }
-    set({ locked: false, backgroundedAt: null });
+    // A password login is stronger proof than the PIN, so a miss count left over from before the session
+    // expired does not carry into the new one.
+    await SecureStore.deleteItemAsync(K.attempts).catch(() => {});
+    set({ locked: false, backgroundedAt: null, attempts: 0 });
   },
   skipSetup: () => set({ skippedThisSession: true }),
   disable: async () => {

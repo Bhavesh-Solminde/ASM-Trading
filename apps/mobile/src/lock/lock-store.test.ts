@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const disk = vi.hoisted(() => new Map<string, string>());
 const signOut = vi.hoisted(() => vi.fn());
+const session = vi.hoisted(() => ({ token: null as string | null }));
 const fail = vi.hoisted(() => ({ get: new Set<string>(), set: new Set<string>(), del: new Set<string>(), delAll: false }));
 const auth = vi.hoisted(() => ({ hardware: vi.fn(), enrolled: vi.fn(), authenticate: vi.fn() }));
 
@@ -32,7 +33,7 @@ vi.mock("expo-local-authentication", () => ({
   authenticateAsync: () => auth.authenticate(),
 }));
 vi.mock("i18next", () => ({ default: { t: (k: string) => k } }));
-vi.mock("@/auth/session-store", () => ({ useSession: { getState: () => ({ signOut }) } }));
+vi.mock("@/auth/session-store", () => ({ useSession: { getState: () => ({ signOut, token: session.token }) } }));
 
 import { useLock } from "./lock-store";
 
@@ -50,6 +51,7 @@ beforeEach(() => {
   disk.clear();
   signOut.mockReset();
   signOut.mockResolvedValue(undefined);
+  session.token = null;
   fail.get.clear();
   fail.set.clear();
   fail.del.clear();
@@ -159,12 +161,27 @@ describe("useLock keystore failures", () => {
     expect(useLock.getState()).toMatchObject({ attempts: 1 });
   });
 
-  it("still wipes the lock if sign-out throws", async () => {
+  it("fails closed when sign-out throws: the app stays locked with its lock intact, and the next miss retries the sign-out", async () => {
     await useLock.getState().setPin("1234");
+    useLock.setState({ locked: true });
     signOut.mockRejectedValue(new Error("boom"));
     for (let i = 0; i < 4; i++) await useLock.getState().verifyPin("0000");
+    expect(await useLock.getState().verifyPin("0000")).toBe("wrong");
+    expect(useLock.getState()).toMatchObject({ locked: true, method: "pin", enabled: true });
+    expect(disk.has("ixt.lock.pin")).toBe(true);
+    signOut.mockResolvedValue(undefined);
     expect(await useLock.getState().verifyPin("0000")).toBe("logout");
+    expect(signOut).toHaveBeenCalledTimes(2);
     expect(useLock.getState().method).toBeNull();
+  });
+
+  it("fails closed when sign-out resolves but the session token is still live", async () => {
+    await useLock.getState().setPin("1234");
+    useLock.setState({ locked: true });
+    session.token = "still-here";
+    for (let i = 0; i < 4; i++) await useLock.getState().verifyPin("0000");
+    expect(await useLock.getState().verifyPin("0000")).toBe("wrong");
+    expect(useLock.getState()).toMatchObject({ locked: true, method: "pin" });
   });
 
   it("reads a throwing biometric probe as not available", async () => {
@@ -229,6 +246,18 @@ describe("useLock owner", () => {
     useLock.setState({ ...fresh });
     await useLock.getState().load();
     expect(useLock.getState()).toMatchObject({ method: null, locked: false });
+  });
+
+  it("a password sign-in resets the persisted wrong-PIN count (it is stronger proof than the PIN)", async () => {
+    await useLock.getState().startFreshSession("user-a");
+    await useLock.getState().setPin("1234");
+    await useLock.getState().verifyPin("0000");
+    await useLock.getState().verifyPin("0000");
+    await useLock.getState().verifyPin("0000");
+    expect(disk.get("ixt.lock.attempts")).toBe("3");
+    await useLock.getState().startFreshSession("user-a");
+    expect(useLock.getState().attempts).toBe(0);
+    expect(disk.has("ixt.lock.attempts")).toBe(false);
   });
 
   it("keeps the lock when the same user signs in again (e.g. after a server-side expiry)", async () => {

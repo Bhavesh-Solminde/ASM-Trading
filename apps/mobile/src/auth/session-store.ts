@@ -57,6 +57,8 @@ export const useSession = create<SessionState>((set, get) => ({
         signOutOfGoogle();
         set({ token: null });
       } finally {
+        // A cleanup step that threw must not leave the session alive: the token goes regardless.
+        if (get().token !== null) set({ token: null });
         signingOut = null;
       }
       // Best effort in the background, with the captured token since the session no longer holds it.
