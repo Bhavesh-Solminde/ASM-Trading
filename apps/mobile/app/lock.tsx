@@ -1,11 +1,12 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "@/auth/session-store";
 import { loadLastNickname } from "@/cache/resume-cache";
 import { useLock } from "@/lock/lock-store";
+import { lockLayout } from "@/lock/lock-layout";
 import { PinBoxes } from "@/lock/PinBoxes";
 import { PinPad } from "@/lock/PinPad";
 import { isValidPin } from "@/lock/pin";
@@ -18,6 +19,8 @@ import { BrandMark } from "@/ui/Brand";
 export default function Lock() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  // A short screen (640dp, or a big font) tightens the logo and gaps so the logo never reaches the status bar.
+  const layout = lockLayout(useWindowDimensions().height);
   const method = useLock((s) => s.method);
   const attempts = useLock((s) => s.attempts);
   const { verifyPin, unlockWithBiometric, reset } = useLock();
@@ -78,9 +81,9 @@ export default function Lock() {
 
   return (
     <Screen style={{ paddingBottom: insets.bottom }}>
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 22, paddingHorizontal: 20 }}>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: layout.gap, paddingHorizontal: 20, paddingTop: layout.topPad }}>
         <View style={{ alignItems: "center", gap: 10 }}>
-          <BrandMark width={72} />
+          <BrandMark width={layout.logoWidth} />
           <Txt weight={600} size={24} accessibilityRole="header" numberOfLines={1} style={{ textAlign: "center" }}>
             {name ? t("lock.welcomeName", { name }) : t("lock.welcome")}
           </Txt>
