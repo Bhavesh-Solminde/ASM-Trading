@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INR_MAX, INR_MIN, USDT_MAX_USD, USDT_MIN_USD, methodAmountProblem, methodLimits, overallLimits } from "./deposit-limits";
+import { methodAmountProblem, methodLimits, overallLimits } from "./deposit-limits";
 
 describe("per-method limits", () => {
   it("converts the USDT bounds to rupees at ₹100 = $1", () => {

@@ -32,9 +32,11 @@ jobs:
           cache: pnpm
 
       - name: Install workspace deps (skip mobile app)
-        # `--filter !@asm/relay` avoids installing Expo/React Native
-        # toolchain that this workflow does not deploy.
-        run: pnpm install --frozen-lockfile --filter '!@asm/relay...'
+        # `--filter !@asm/relay...` avoids installing Expo/React Native
+        # toolchain that this workflow does not deploy. `!@asm/mobile` has no
+        # trailing `...` on purpose: that would also exclude @asm/client-core
+        # and @asm/contracts, which web and the typecheck step need.
+        run: pnpm install --frozen-lockfile --filter '!@asm/relay...' --filter '!@asm/mobile'
 
       - name: Generate Prisma client
         # pnpm v10 silently skips the @asm/db postinstall `prisma generate` hook
@@ -75,7 +77,7 @@ jobs:
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes" \
             --exclude .git --exclude node_modules --exclude .next \
-            --exclude apps/harness --exclude apps/relay \
+            --exclude apps/harness --exclude apps/relay --exclude apps/mobile \
             --exclude '.env' --exclude '.env.local' --exclude '.env.production' \
             --exclude reference --exclude skill-observations --exclude 'demo.html' \
             --exclude 'docs' --exclude '.claude' --exclude 'graphify-out' \

@@ -1,0 +1,95 @@
+import { router, usePathname } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
+import { useAppConfig } from "@/api/queries";
+import { useSession } from "@/auth/session-store";
+import { onAppStateChange, useAppStatus } from "@/lock/app-state";
+import { useLock } from "@/lock/lock-store";
+import { useGate } from "./gate-store";
+import { failsafeRoute, redirectFor, routeFor } from "./route-for";
+import { useBelowMin } from "./use-below-min";
+import { useNavReady } from "./use-nav-ready";
+
+/** Longest the native splash may cover a stuck boot before the app shows whatever it has. */
+const SPLASH_FAILSAFE_MS = 4_000;
+
+const hideSplash = () => void SplashScreen.hideAsync().catch(() => {});
+
+/**
+ * Renders nothing. Boots the session and lock stores, relocks on foreground, and keeps the
+ * current route consistent with the session / lock / gate state.
+ */
+export function Gatekeeper({ fontsReady }: { fontsReady: boolean }) {
+  const ready = useSession((s) => s.ready);
+  const token = useSession((s) => s.token);
+  const locked = useLock((s) => s.locked);
+  const method = useLock((s) => s.method);
+  const skipped = useLock((s) => s.skippedThisSession);
+  const gate = useGate((s) => s.gate);
+  const cfg = useAppConfig();
+  // Success or failure: either way the min-version / maintenance answer is in.
+  const cfgSettled = cfg.isSuccess || cfg.isError;
+  const pathname = usePathname();
+  const navReady = useNavReady();
+  const [booted, setBooted] = useState(false);
+  const started = useRef(false);
+  const bootedRef = useRef(false);
+  bootedRef.current = booted;
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    void Promise.allSettled([useSession.getState().hydrate(), useLock.getState().load()]).then(([session]) => {
+      // A rejected hydrate would leave the splash route forever; treat it as signed out.
+      if (session.status === "rejected") useSession.setState({ ready: true });
+      setBooted(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    // Catch up on a state change that landed before this listener was attached.
+    useAppStatus.setState({ appState: AppState.currentState });
+    // Relock decision and privacy-cover state are ordered inside `onAppStateChange`; navigation stays below.
+    const sub = AppState.addEventListener("change", (state) => onAppStateChange(state, Date.now()));
+    return () => sub.remove();
+  }, []);
+
+  const belowMin = useBelowMin();
+  // Until the lock store has loaded too, `method` is unknown: route nowhere rather than briefly to /lock-setup.
+  const target = routeFor({ ready: ready && booted, token, locked, lockChosen: method !== null || skipped, gate, belowMin });
+  const redirect = redirectFor(target, pathname);
+
+  // `pathname` too: if the route moves to another wrong one while `redirect` keeps its value, correct it again.
+  useEffect(() => {
+    if (navReady && redirect) router.replace(redirect);
+  }, [navReady, redirect, pathname]);
+
+  // Hide the splash only once the user is on the right screen, the app-config answer is in and the fonts are
+  // registered (text drawn before that would flash in the system font), so a signed-out, locked, below-min or
+  // maintenance user never sees the tabs.
+  const settled = booted && navReady && ready && cfgSettled && fontsReady && redirect === null;
+  useEffect(() => {
+    if (settled) hideSplash();
+  }, [settled]);
+
+  // Armed on mount, so a keystore call that never settles cannot hold the native splash up forever. If the
+  // boot is still unfinished the session / lock state is unknown: leave whatever a deep link mounted for the
+  // blank ground route first, so lifting the splash never shows a privileged screen unlocked.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const ground = failsafeRoute(bootedRef.current);
+      if (ground) {
+        try {
+          router.replace(ground);
+        } catch {
+          // Navigation not ready: no route is mounted yet either.
+        }
+      }
+      hideSplash();
+    }, SPLASH_FAILSAFE_MS);
+    return () => clearTimeout(id);
+  }, []);
+
+  return null;
+}
