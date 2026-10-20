@@ -36,7 +36,10 @@ export function useTradeSubmit(input: SubmitInput): { submit: (direction: "UP" |
         toast,
         haptic: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
         invalidateBootstrap: () => refreshBootstrap(queryClient),
-        refetchTrades: (id) => void fetchAccountTrades(id).catch(() => {}),
+        refetchTrades: (id) => fetchAccountTrades(id).then(
+          () => {},
+          () => {},
+        ),
         session: () => useSession.getState().token,
         setBusy,
         t,

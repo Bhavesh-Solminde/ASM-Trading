@@ -119,6 +119,22 @@ describe("createSubmitter", () => {
     expect(deps.setBusy.mock.calls.at(-1)).toEqual([false]);
   });
 
+  it("after a timeout the Dock stays busy until the account's trades are refetched, so a second tap cannot double the trade", async () => {
+    let releaseRefetch!: () => void;
+    const { deps, submit } = setup(async () => {
+      throw new ApiError("Timed out.", 0, "timeout");
+    });
+    deps.refetchTrades.mockImplementation(() => new Promise<void>((r) => (releaseRefetch = r)));
+    const first = submit(req);
+    await vi.waitFor(() => expect(deps.refetchTrades).toHaveBeenCalled());
+    await submit(req); // a second tap while the refetch is pending
+    expect(deps.openTrade).toHaveBeenCalledTimes(1);
+    expect(deps.setBusy.mock.calls.at(-1)).toEqual([true]);
+    releaseRefetch();
+    await first;
+    expect(deps.setBusy.mock.calls.at(-1)).toEqual([false]);
+  });
+
   it("a min_stake refusal reads the existing minimum-stake copy with the currency's minimum", async () => {
     const { deps, submit } = setup(async () => {
       throw new ApiError("Stake is below the minimum.", 400, "min_stake");

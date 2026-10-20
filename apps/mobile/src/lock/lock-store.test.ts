@@ -175,6 +175,25 @@ describe("useLock keystore failures", () => {
     expect(useLock.getState().method).toBeNull();
   });
 
+  it("fails closed when the stored session token survived the sign-out (keystore delete failed)", async () => {
+    await useLock.getState().setPin("1234");
+    useLock.setState({ locked: true });
+    disk.set("ixt.session", "persisted");
+    for (let i = 0; i < 4; i++) await useLock.getState().verifyPin("0000");
+    expect(await useLock.getState().verifyPin("0000")).toBe("wrong");
+    expect(useLock.getState()).toMatchObject({ locked: true, method: "pin", enabled: true });
+    expect(disk.has("ixt.lock.pin")).toBe(true);
+  });
+
+  it("fails closed when the stored session token cannot be read after the sign-out", async () => {
+    await useLock.getState().setPin("1234");
+    useLock.setState({ locked: true });
+    fail.get.add("ixt.session");
+    for (let i = 0; i < 4; i++) await useLock.getState().verifyPin("0000");
+    expect(await useLock.getState().verifyPin("0000")).toBe("wrong");
+    expect(useLock.getState()).toMatchObject({ locked: true, method: "pin" });
+  });
+
   it("fails closed when sign-out resolves but the session token is still live", async () => {
     await useLock.getState().setPin("1234");
     useLock.setState({ locked: true });

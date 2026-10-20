@@ -6,8 +6,7 @@ import { clearResume } from "@/cache/resume-cache";
 import { useSocket } from "@/socket/socket-store";
 import { clearToasts, toast } from "@/ui/Toast";
 import { signOutOfGoogle } from "./google";
-
-const KEY = "ixt.session";
+import { SESSION_KEY as KEY } from "./session-key";
 
 interface SessionState {
   token: string | null;

@@ -45,7 +45,8 @@ const config: ExpoConfig = {
     ],
   },
   plugins: [
-    "expo-router",
+    // No `/_sitemap` page in the app: a deep link to it would list every route.
+    ["expo-router", { sitemap: false }],
     "expo-secure-store",
     "expo-localization",
     "expo-web-browser",

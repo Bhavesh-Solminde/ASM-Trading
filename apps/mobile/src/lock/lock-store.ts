@@ -3,6 +3,7 @@ import * as LocalAuth from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import i18n from "i18next";
 import { create } from "zustand";
+import { SESSION_KEY } from "@/auth/session-key";
 import { useSession } from "@/auth/session-store";
 import { hashPin } from "./pin";
 import { nextAttempt, parseAttempts, shouldLock } from "./rules";
@@ -149,7 +150,15 @@ export const useLock = create<LockState>((set, get) => ({
       }
       // Fail closed: if the sign-out failed or the session token is still live, keep the app locked with its lock
       // intact. The next miss retries the sign-out (the count is already past the limit).
-      if (!signedOut || useSession.getState().token) {
+      // The stored token counts too: if the keystore delete failed, wiping the lock now would leave the next cold
+      // start signed in with no lock. Unreadable counts as still there.
+      let stored: string | null = "unknown";
+      try {
+        stored = await SecureStore.getItemAsync(SESSION_KEY);
+      } catch {
+        // keep "unknown"
+      }
+      if (!signedOut || useSession.getState().token || stored !== null) {
         set({ locked: true });
         return "wrong";
       }

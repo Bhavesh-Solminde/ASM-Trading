@@ -10,8 +10,11 @@ export interface SubmitDeps {
   toast: (message: string, tone: "down") => void;
   haptic: () => void;
   invalidateBootstrap: () => void;
-  /** Refetches one account's trade list: a bootstrap carries only the demo account's, so it cannot show a LIVE trade. */
-  refetchTrades: (accountId: string) => void;
+  /**
+   * Refetches one account's trade list: a bootstrap carries only the demo account's, so it cannot show a LIVE trade.
+   * Settles (never rejects) when the list has landed or failed.
+   */
+  refetchTrades: (accountId: string) => Promise<void> | void;
   /** Identifies the signed-in session (its token); a result that arrives under a different one is dropped. */
   session: () => string | null;
   setBusy: (busy: boolean) => void;
@@ -33,6 +36,9 @@ export interface SubmitRequest {
  * app for maintenance / blocked / upgrade, and `unauthenticated` signs the user out. A toast on top would be
  * a duplicate or noise.
  */
+/** Longest the Dock waits for the trade list after a timed-out open before it frees Up/Down again. */
+const RECONCILE_WAIT_MS = 10_000;
+
 const HANDLED_ELSEWHERE = new Set(["rate_limited", "maintenance", "blocked", "upgrade", "unauthenticated"]);
 
 /**
@@ -65,8 +71,10 @@ export function createSubmitter(deps: SubmitDeps): (req: SubmitRequest) => Promi
       if (deps.session() !== session) return;
       if (e instanceof ApiError && e.code === "timeout") {
         // No answer in time: the trade may have been placed, so never retry; reconcile and point at Your trades.
+        // The Dock stays busy until that account's list has landed (capped), so a second tap cannot open a
+        // duplicate before the first trade shows up.
         deps.invalidateBootstrap();
-        deps.refetchTrades(req.accountId);
+        await Promise.race([deps.refetchTrades(req.accountId), new Promise((r) => setTimeout(r, RECONCILE_WAIT_MS))]);
       }
       if (!(e instanceof ApiError && e.code !== null && HANDLED_ELSEWHERE.has(e.code))) {
         deps.toast(tradeErrorText(e, req.currency, deps.t), "down");
