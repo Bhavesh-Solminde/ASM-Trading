@@ -18,7 +18,8 @@ import { FONT_ASSETS } from "@/theme/font-assets";
 import { color } from "@/theme/tokens";
 import { OfflineBanner } from "@/ui/OfflineBanner";
 import { PrivacyShield } from "@/ui/PrivacyCover";
-import { ToastHost } from "@/ui/Toast";
+import { clearToasts, ToastHost } from "@/ui/Toast";
+import { clearOnLock } from "@/ui/toast-on-lock";
 
 void SplashScreen.preventAutoHideAsync();
 initI18n(resolveLocale(loadLocale(), getLocales().map((l) => l.languageTag ?? "")));
@@ -27,7 +28,7 @@ if (googleWebClientId !== "") configureGoogle(googleWebClientId);
 
 /**
  * Sheets render through the provider's portal, above the Stack: a trades or keypad sheet left open would
- * be drawn over /lock. Close them the moment the app relocks.
+ * be drawn over /lock. Close them (and any toast) the moment the app relocks.
  */
 function DismissSheetsOnLock() {
   const locked = useLock((s) => s.locked);
@@ -35,6 +36,8 @@ function DismissSheetsOnLock() {
   useEffect(() => {
     if (locked) dismissAll();
   }, [locked, dismissAll]);
+  // Result toasts too: their timer is paused while backgrounded, so one could outlive the relock.
+  useEffect(() => clearOnLock(useLock, clearToasts), []);
   return null;
 }
 

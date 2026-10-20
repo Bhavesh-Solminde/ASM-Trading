@@ -36,6 +36,13 @@ const config: ExpoConfig = {
     allowBackup: false,
     adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#06080b" },
     permissions: ["android.permission.INTERNET", "android.permission.USE_BIOMETRIC", "android.permission.VIBRATE"],
+    // The Expo/RN templates merge in an overlay permission and legacy storage permissions this app never uses; a
+    // real-money app should not ask Play (or the user) for them. `tools:node="remove"` strips them from the merge.
+    blockedPermissions: [
+      "android.permission.SYSTEM_ALERT_WINDOW",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+    ],
   },
   plugins: [
     "expo-router",

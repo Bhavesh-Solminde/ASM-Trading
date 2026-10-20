@@ -25,6 +25,7 @@
     "maintenanceTitle": "हम जल्द लौटेंगे", "maintenanceBody": "IndianxTrade पर रखरखाव चल रहा है। हम अपने आप दोबारा जुड़ जाएँगे।",
     "blockedTitle": "VPN या प्रॉक्सी मिला", "blockedBody": "अपना VPN, प्रॉक्सी या Tor बंद करके फिर कोशिश करें।",
     "updateTitle": "ट्रेडिंग जारी रखने के लिए अपडेट करें", "updateBody": "IndianxTrade का यह वर्ज़न अब सपोर्टेड नहीं है। आपके बैलेंस पर कोई असर नहीं पड़ा है।", "update": "अभी अपडेट करें",
+    "notFoundTitle": "पेज नहीं मिला", "notFoundBody": "यह लिंक ऐप में कहीं नहीं ले जाता।", "notFound": "ट्रेड पर जाएँ",
     "youHave": "आपके पास", "needed": "ज़रूरी"
   },
   "trade": {
