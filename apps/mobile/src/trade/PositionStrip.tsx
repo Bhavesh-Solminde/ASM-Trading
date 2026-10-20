@@ -114,11 +114,14 @@ export function PositionStrip({
   accountType,
   assets,
   currency,
+  listLoaded,
 }: {
   accountId: string;
   accountType: "DEMO" | "LIVE";
   assets: readonly AppAsset[];
   currency: string;
+  /** Whether this account's trade list is known complete (`useAccountTradesLoaded`); the sheet hides today's total until then. */
+  listLoaded: boolean;
 }) {
   const trades = useSocket((s) => s.trades.tradesByAccount[accountId]) ?? NO_TRADES;
   const soonest = useMemo(() => soonestOpen(trades), [trades]);
@@ -140,7 +143,7 @@ export function PositionStrip({
           />
         </View>
       ) : null}
-      <TradesSheet ref={sheet} accountId={accountId} accountType={accountType} assets={assets} currency={currency} />
+      <TradesSheet ref={sheet} accountId={accountId} accountType={accountType} assets={assets} currency={currency} listLoaded={listLoaded} />
     </>
   );
 }

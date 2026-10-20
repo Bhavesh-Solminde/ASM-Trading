@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TradeView } from "@asm/contracts";
-import { dayNetForAccount, dayNetMinor, istDayStartMs } from "./day-total";
+import { dayNetForAccount, dayNetForList, dayNetMinor, istDayStartMs } from "./day-total";
 
 const sec = (ms: number) => Math.floor(ms / 1000);
 const trade = (id: string, status: TradeView["status"], pnl: number, expiryMs: number, accountId = "a"): TradeView => ({
@@ -90,5 +90,23 @@ describe("dayNetForAccount", () => {
   });
   it("is null while the account's list is not known to be loaded (a fetch in flight)", () => {
     expect(dayNetForAccount(byAccount, "live", false, NOW)).toBeNull();
+  });
+});
+
+describe("dayNetForList", () => {
+  const partial = [trade("s1", "WON", 9_300, Date.UTC(2026, 9, 14, 10, 0))];
+  it("hides a list that is not known to be complete, even though its rows sum to a plausible figure", () => {
+    expect(dayNetMinor(partial, NOW)).toBe(9_300);
+    expect(dayNetForList(partial, false, NOW)).toBeNull();
+  });
+  it("is the list's day total once it is known to be complete", () => {
+    expect(dayNetForList(partial, true, NOW)).toBe(9_300);
+  });
+  it("is null for an account with no list at all", () => {
+    expect(dayNetForList(undefined, true, NOW)).toBeNull();
+  });
+  it("is what dayNetForAccount reads for one account's list", () => {
+    expect(dayNetForAccount({ a: partial }, "a", false, NOW)).toBe(dayNetForList(partial, false, NOW));
+    expect(dayNetForAccount({ a: partial }, "a", true, NOW)).toBe(dayNetForList(partial, true, NOW));
   });
 });

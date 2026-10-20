@@ -34,17 +34,22 @@ export function dayNetMinor(trades: readonly TradeView[], nowMs: number): number
 }
 
 /**
- * Today's net for ONE account from the store's per-account lists. `listLoaded` is false while that account's
- * list is not known to be complete (a non-default account whose `GET /api/trades` is still in flight): hidden,
- * so another account's figure is never shown under it.
+ * Today's net for ONE account's list. `listLoaded` is false while that list is not known to be complete (a
+ * non-default account whose `GET /api/trades` is still in flight or failed): hidden, because until then the store
+ * holds only what the socket delivered this session, a partial sum that would read as the real figure.
+ * Every place that shows "today" goes through this, so the top bar and the trades sheet cannot disagree.
  */
+export function dayNetForList(list: readonly TradeView[] | undefined, listLoaded: boolean, nowMs: number): number | null {
+  if (!listLoaded || !list) return null;
+  return dayNetMinor(list, nowMs);
+}
+
+/** `dayNetForList` for the account `accountId` out of the store's per-account lists. */
 export function dayNetForAccount(
   tradesByAccount: Readonly<Record<string, readonly TradeView[]>>,
   accountId: string,
   listLoaded: boolean,
   nowMs: number,
 ): number | null {
-  if (!listLoaded) return null;
-  const list = tradesByAccount[accountId];
-  return list ? dayNetMinor(list, nowMs) : null;
+  return dayNetForList(tradesByAccount[accountId], listLoaded, nowMs);
 }

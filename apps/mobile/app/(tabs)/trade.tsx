@@ -26,6 +26,7 @@ import { StaleTopBar, TopBar } from "@/trade/TopBar";
 import { TradeChart } from "@/trade/TradeChart";
 import { useUserPrefs } from "@/trade/trade-prefs";
 import { useKeepAwakeWhileOpen } from "@/trade/useKeepAwakeWhileOpen";
+import { useAccountTradesLoaded } from "@/trade/useAccountTrades";
 import { useLiveArrived } from "@/trade/useLiveArrived";
 import { useResumeSave } from "@/trade/useResumeSave";
 import { useSettlementWatchdog } from "@/trade/useSettlementWatchdog";
@@ -84,6 +85,9 @@ export default function Trade() {
   const hasOpenTrades = useSocket((s) => hasOpenTrade(s.trades.tradesByAccount));
   useKeepAwakeWhileOpen();
   useSettlementWatchdog(hasOpenTrades);
+  // One fetch of the selected account's trade list (bootstrap carries only the default account's), shared by the
+  // top bar's "today" line and the trades sheet's day total: both hide until it has loaded.
+  const listLoaded = useAccountTradesLoaded(account?.id ?? "", !!boot && !!account && account.id !== bootstrapTradesAccountId(boot.accounts));
   useResultFeedback(account?.id ?? null, account?.currency ?? null, boot?.assets);
 
   // Every successful bootstrap fetch (first load, post-deposit invalidation, foreground, watchdog and reconnect
@@ -138,7 +142,7 @@ export default function Trade() {
           account={account}
           liveEnabled={canUseLive(boot.accounts, boot.liveAccess)}
           onSelectType={selectAccountType}
-          bootstrapTradesAccountId={bootstrapTradesAccountId(boot.accounts)}
+          listLoaded={listLoaded}
         />
       ) : !bootFailed && stale ? (
         <StaleTopBar totalMinor={stale.totalMinor} type={stale.type} currency={stale.currency} live={stale.live} />
@@ -187,7 +191,7 @@ export default function Trade() {
           </View>
         ) : null}
       </View>
-      {boot && account ? <PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} /> : null}
+      {boot && account ? <PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} /> : null}
       {boot && accountId && asset ? <Dock boot={boot} accountId={accountId} asset={asset} /> : null}
       {boot ? <BonusSheet ref={bonusSheet} completedDeposits={boot.completedDeposits} /> : null}
     </Screen>

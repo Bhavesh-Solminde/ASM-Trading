@@ -12,7 +12,6 @@ import { Money } from "@/ui/Money";
 import { toast } from "@/ui/Toast";
 import type { AppAccount } from "./accounts";
 import { dayNetForAccount } from "./day-total";
-import { useAccountTradesLoaded } from "./useAccountTrades";
 import { useNow } from "./useNow";
 
 const TYPES = ["DEMO", "LIVE"] as const;
@@ -31,12 +30,11 @@ const switchBox = {
  * whole IST day for the account (see `dayNetMinor`); hidden while a non-default account's list is still loading.
  * Ticks once a minute for the day boundary.
  */
-function TodayLine({ account, listFromBootstrap }: { account: AppAccount; listFromBootstrap: boolean }) {
+function TodayLine({ account, listLoaded }: { account: AppAccount; listLoaded: boolean }) {
   const { t } = useTranslation();
   const tradesByAccount = useSocket((s) => s.trades.tradesByAccount);
-  const loaded = useAccountTradesLoaded(account.id, !listFromBootstrap);
   const now = useNow(60_000);
-  const net = dayNetForAccount(tradesByAccount, account.id, loaded, now);
+  const net = dayNetForAccount(tradesByAccount, account.id, listLoaded, now);
   if (net === null) return null;
   const amount = `${net > 0 ? "+" : ""}${money(net, account.currency)}`;
   return (
@@ -53,19 +51,19 @@ function TodayLine({ account, listFromBootstrap }: { account: AppAccount; listFr
 /**
  * Mark, Demo/Live switch, the active account's balance (with today's result above it) and a square Deposit
  * button. Live is greyed (and says why when tapped) unless the user has live access and a live account.
- * `bootstrapTradesAccountId` is the account whose trades bootstrap already carries; any other account's trades
- * are fetched for the "today" line.
+ * `listLoaded` says the active account's trade list is complete (see `useAccountTradesLoaded`, owned by the
+ * screen); the "today" line is hidden until it is.
  */
 export function TopBar({
   account,
   liveEnabled,
   onSelectType,
-  bootstrapTradesAccountId,
+  listLoaded,
 }: {
   account: AppAccount;
   liveEnabled: boolean;
   onSelectType: (type: AppAccount["type"]) => void;
-  bootstrapTradesAccountId?: string;
+  listLoaded: boolean;
 }) {
   const { t } = useTranslation();
   const bal = useSocket((s) => s.trades.balances[account.id]) ?? account;
@@ -105,7 +103,7 @@ export function TopBar({
         })}
       </View>
       <View style={{ flex: 1, alignItems: "flex-end", minWidth: 0 }}>
-        <TodayLine account={account} listFromBootstrap={account.id === bootstrapTradesAccountId} />
+        <TodayLine account={account} listLoaded={listLoaded} />
         <Money
           text={text}
           size={16}

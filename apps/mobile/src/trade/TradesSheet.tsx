@@ -16,7 +16,7 @@ import { Sheet, type SheetRef } from "@/ui/Sheet";
 import { Stamp } from "@/ui/Stamp";
 import { ledgerStamp } from "./closed-stamp";
 import { countdownText } from "./countdown-text";
-import { dayNetMinor } from "./day-total";
+import { dayNetForList } from "./day-total";
 import type { AppAsset } from "./markets";
 import { useLiveTrade } from "./useLiveTrade";
 
@@ -130,7 +130,7 @@ const ClosedRow = memo(function ClosedRow({ trade, assets, currency, nowMs }: { 
 });
 
 /** Mounted only while the sheet is presented, so the store subscription and the row clocks exist only then. */
-function TradesBody({ accountId, accountType, assets, currency }: { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string }) {
+function TradesBody({ accountId, accountType, assets, currency, listLoaded }: { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string; listLoaded: boolean }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("open");
   // The store only ever holds live data (bootstrap + socket), never the resume snapshot's stale trades.
@@ -143,7 +143,8 @@ function TradesBody({ accountId, accountType, assets, currency }: { accountId: s
     [trades],
   );
   const nowMs = Date.now();
-  const net = dayNetMinor(trades, nowMs);
+  // The rows above may be partial until the list has loaded; the total is hidden then (see dayNetForList).
+  const net = dayNetForList(trades, listLoaded, nowMs);
   const shown = tab === "open" ? open : closed;
   return (
     <View>
@@ -182,14 +183,14 @@ function TradesBody({ accountId, accountType, assets, currency }: { accountId: s
 }
 
 /** The selected account's trades as a small passbook: Open (live countdown) and Closed (stamped), with today's total. */
-export const TradesSheet = forwardRef<SheetRef, { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string }>(function TradesSheet(
-  { accountId, accountType, assets, currency },
+export const TradesSheet = forwardRef<SheetRef, { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string; listLoaded: boolean }>(function TradesSheet(
+  { accountId, accountType, assets, currency, listLoaded },
   ref,
 ) {
   const { t } = useTranslation();
   return (
     <Sheet ref={ref} title={t("trade.yourTrades")} snapPoints={SNAP_POINTS} scroll flush>
-      <TradesBody accountId={accountId} accountType={accountType} assets={assets} currency={currency} />
+      <TradesBody accountId={accountId} accountType={accountType} assets={assets} currency={currency} listLoaded={listLoaded} />
     </Sheet>
   );
 });
