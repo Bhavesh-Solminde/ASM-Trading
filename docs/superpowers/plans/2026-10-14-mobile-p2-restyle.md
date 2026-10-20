@@ -16,7 +16,7 @@
 
 - **Design canvas** (owner hand-edits it): https://claude.ai/artifact/XUsig5HrPUY12P4PnLF92t, published from the owner's *other* Claude account, so it is **not readable** from the account that wrote this plan (Artifact read: "not found"). The proposal artifact https://claude.ai/artifact/TceTk68TDHc7XGs3QavP9Z is in the same state.
 - The canvas source was recovered from the session that built it (e391f361) and is committed with this plan at `docs/design/passbook-canvas-2026-10-14/`:
-  - `Main.dc.html` = "After · Trade", fetched from the live canvas at 21:07 on 2026-10-14, **after** the owner's edits (bull `left: 105px`, header 51px, no words on Trade). Authoritative.
+  - `Main.dc.html` = "After · Trade", refreshed from the live canvas in 2495f9a and 0f9871d (2026-10-14), **after** the owner's edits (bull `left: 105px`, header 51px, no words on Trade, bear in a 59×68 box). Authoritative.
   - `A-*.dc.html` (After boards), `N-*.dc.html` (P3/P4 boards), `B-*.dc.html` (Before), `canvas.json` = the session's last push (19:06–20:35). The owner's later hand-edits, if any, to boards other than Main are **not** captured. The device verifier should compare against the live canvas (owner's browser) when possible and report differences.
   - `proposal.html` = the written proposal (rationale; some details superseded: it still has amount-in-words and a "Demo balance" label on Trade, both removed by the owner).
 - **Art and logo files** (the canvas `/_blob/...` ids could not be downloaded; the original files were recovered by byte size from the upload log of session e391f361 and committed unconverted):
@@ -32,12 +32,12 @@
 - Compact header: one 51pt row under the status bar (IXT mark, Demo/Live switch, balance with "+₹x today" above it, square Deposit button), navy gradient, saffron glow, tricolour hairline. No bell. The status-bar area stays (the gradient runs under it).
 - No amount-in-words on the Trade screen. Allowed on the keypad sheet (and in P3 deposit/withdraw).
 - Bottom nav 48pt.
-- Up/Down art: bull B3 bust + bear R1 swipe, overlay blend at opacity **1.0**; bull at `left 105, top −3, height 88` in the 176-wide canvas button; bear at `right −2, bottom −6, height 84`.
+- Up/Down art: bull B3 bust + bear R1 swipe, overlay blend at opacity **1.0**; bull at `left 105, top −3, height 88` in the 176-wide canvas button; bear in a 59×68 box at `right −1, bottom −5` with object-fit cover and object-position 49.58% 73.22%.
 - Accepted but must be flagged for owner confirmation in the PR body: Indian digit grouping, bundled fonts (real size below), "Up/Down" labels instead of "Buy/Sell".
 
 ## Decisions this plan makes (and why)
 
-1. **Engraved-art blend: Skia, not pre-composited images.** React Native has no `mix-blend-mode`. Each Up/Down button draws its gradient and the art in one small Skia `<Canvas>` with `<Image blendMode="overlay" opacity={1}>`. Skia's `overlay` is the same W3C formula the canvas used, so the result matches exactly at every button width; a pre-tinted PNG could only approximate it because overlay depends on the gradient pixel underneath, which shifts with button width. Skia 2.6.2 is already installed and the chart already uses it; two tiny static canvases cost nothing per frame.
+1. **Engraved-art blend: Skia, not pre-composited images.** RN 0.86 has `mixBlendMode` (new arch), but Android only applies it from API 29 and minSdk is 26; Skia gives the same overlay on every device. Each Up/Down button draws its gradient and the art in one small Skia `<Canvas>` with `<Image blendMode="overlay" opacity={1}>`. Skia's `overlay` is the same W3C formula the canvas used, so the result matches exactly at every button width; a pre-tinted PNG could only approximate it because overlay depends on the gradient pixel underneath, which shifts with button width. Skia 2.6.2 is already installed and the chart already uses it; two tiny static canvases cost nothing per frame.
 2. **Fonts load at runtime with `expo-font`'s `useFonts`**, gated in the Gatekeeper so the native splash hides only after fonts are ready (4 s failsafe unchanged). `expo-font`'s native module is already autolinked through `expo` (verified with `expo/bin/autolinking search`), so **no dev-client rebuild** is needed. Static weight files come from `@expo-google-fonts/*` (Google Fonts, OFL-1.1) imported per weight (`/400Regular` subpaths) so only the chosen files are bundled.
 3. **Bundled weights** (canvas weights 620/650 map to SemiBold): Anek Latin 400/500/600 (≈111 KB each), Martian Mono 400/500/600 (≈48 KB each), Anek Devanagari 400/600 (≈414 KB each; Medium maps to Regular in Hindi). Total ≈ **1.31 MB raw**, not the ~300 KB first quoted (Devanagari is the bulk; subsetting to Devanagari + Latin saves only ~6%, measured with fontTools). Flag in the PR; if the owner prefers, dropping Anek Devanagari (−828 KB) falls back to the system Noto Devanagari (one constant in `font-families.ts`).
 4. **Martian Mono has no ₹ glyph** (checked with fontTools). Figures render through `<Money>`, which sets the currency symbol in Anek and the digits in Martian Mono.
@@ -88,8 +88,8 @@ All sizes are canvas CSS px at a 390×844 artboard = RN points.
 | raised | `#171d26` | pressed keys, toasts, muted icon tiles |
 | rule | `#252d39` | borders, chip outlines, ledger header rule |
 | ruleSoft | `#1a212b` | ledger row rules, keypad grid lines, card borders |
-| ink / ink2 / ink3 | `#edf1f6` / `#a6b0be` / `#737d8c` | text levels |
-| accent | `#3f6ff2` | primary buttons, focus border, Deposit square |
+| ink / ink2 / ink3 | `#edf1f6` / `#a6b0be` / `#7c8695` | text levels (ink3: 5.02 on surface, 4.60 on raised; never on the header) |
+| accent | `#3d6cf0` | primary buttons, focus border, Deposit square (white on it 4.56:1) |
 | onAccent | `#ffffff` | text on accent |
 | accentText | `#86a6ff` | links, text buttons, nav active icon |
 | accentDim | `#142247` | focus ring, nav active pill, icon tiles |
@@ -311,8 +311,8 @@ export const color = {
   ruleSoft: "#1a212b",
   ink: "#edf1f6",
   ink2: "#a6b0be",
-  ink3: "#737d8c",
-  accent: "#3f6ff2",
+  ink3: "#7c8695",
+  accent: "#3d6cf0",
   onAccent: "#ffffff",
   accentText: "#86a6ff",
   accentDim: "#142247",
@@ -348,7 +348,7 @@ export const color = {
   /** @deprecated use onAccent (removed in Task 13) */
   brandInk: "#ffffff",
   /** @deprecated use accent (removed in Task 13) */
-  brandFill: "#3f6ff2",
+  brandFill: "#3d6cf0",
   /** @deprecated use accentDim (removed in Task 13) */
   brandDim: "#142247",
   /** @deprecated use gold (removed in Task 13) */
@@ -400,7 +400,7 @@ describe("Passbook tokens", () => {
       accentDim: color.accentDim, up: color.up, upInk: color.upInk, down: color.down, downText: color.downText, gold: color.gold,
     }).toEqual({
       ground: "#06080b", surface: "#0f141b", raised: "#171d26", rule: "#252d39", ruleSoft: "#1a212b",
-      ink: "#edf1f6", ink2: "#a6b0be", ink3: "#737d8c", accent: "#3f6ff2", accentText: "#86a6ff",
+      ink: "#edf1f6", ink2: "#a6b0be", ink3: "#7c8695", accent: "#3d6cf0", accentText: "#86a6ff",
       accentDim: "#142247", up: "#2ecf7a", upInk: "#04170c", down: "#d63a30", downText: "#ff7468", gold: "#e2b54c",
     });
     expect(gradient.up.colors).toEqual(["#43e08f", "#2ecf7a", "#1fae63"]);
@@ -418,8 +418,10 @@ describe("Passbook tokens", () => {
     expect(contrast(color.gold, color.surface)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("documents the one owner-chosen pair just under AA: white on the accent (4.41:1, labels are 17pt semibold)", () => {
-    expect(contrast(color.onAccent, color.accent)).toBeGreaterThan(4.4);
+  it("keeps white on the accent at AA (4.56:1; the 17px/600 labels are not WCAG large text)", () => {
+    expect(contrast(color.onAccent, color.accent)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(color.ink3, color.surface)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(color.ink3, color.raised)).toBeGreaterThanOrEqual(4.5);
   });
 
   it("space() is a 4pt grid", () => {
@@ -1964,16 +1966,16 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: `gradient`, `color`, `radius`, `Txt`, `Icon`, `money`.
-- Produces: `cssGradientPoints(angleDeg, w, h): { start: {x,y}; end: {x,y} }`; `BUTTON_H = 62`, `BEAST_OPACITY = 1`, `bullFrame(buttonW)`, `bearFrame(buttonW, buttonH?)` → `{ x, y, w, h }`; `TradeButton({ direction: "UP"|"DOWN", label, sub: string|null, disabled, busy, onPress, testID, accessibilityLabel })`; i18n `trade.up`, `trade.down`, `trade.win`.
+- Produces: `cssGradientPoints(angleDeg, w, h): { start: {x,y}; end: {x,y} }`; `BUTTON_H = 62`, `BEAST_OPACITY = 1`, `bullFrame(buttonW)`, `bearFrame(buttonW)` → `{ x, y, w, h }`; `TradeButton({ direction: "UP"|"DOWN", label, sub: string|null, disabled, busy, onPress, testID, accessibilityLabel })`; i18n `trade.up`, `trade.down`, `trade.win`.
 
-- [ ] **Step 1: Export the art at 2x/3x** (the button draws the bull 88pt and the bear 84pt tall)
+- [ ] **Step 1: Export the art at 2x/3x** (the button draws the bull 88pt tall and the bear 59pt wide, 79pt tall before the 68pt box crops it)
 
 ```bash
 cd $W/apps/mobile/assets/art
 cwebp -quiet -q 80 -alpha_q 90 -m 6 -resize 0 264 source/bull-b3-bust.webp -o bull-b3@3x.webp
 cwebp -quiet -q 80 -alpha_q 90 -m 6 -resize 0 176 source/bull-b3-bust.webp -o bull-b3@2x.webp
-cwebp -quiet -q 80 -alpha_q 90 -m 6 -resize 0 252 source/bear-r1-swipe.webp -o bear-r1@3x.webp
-cwebp -quiet -q 80 -alpha_q 90 -m 6 -resize 0 168 source/bear-r1-swipe.webp -o bear-r1@2x.webp
+cwebp -quiet -q 80 -alpha_q 90 -m 6 -resize 0 238 source/bear-r1-swipe.webp -o bear-r1@3x.webp
+cwebp -quiet -q 80 -alpha_q 90 -m 6 -resize 0 159 source/bear-r1-swipe.webp -o bear-r1@2x.webp
 ls -l *.webp   # expect four files, each under ~30 KB (bull@3x was 26.8 KB in a dry run)
 ```
 
@@ -2011,7 +2013,7 @@ describe("cssGradientPoints", () => {
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { BUTTON_H, bearFrame, bullFrame } from "./beast-frame";
+import { bearFrame, bullFrame } from "./beast-frame";
 
 describe("bullFrame", () => {
   it("sits where the owner put it on the 176pt canvas button", () => {
@@ -2021,18 +2023,23 @@ describe("bullFrame", () => {
     expect(f.h).toBe(88);
     expect(f.w).toBeCloseTo((88 * 380) / 513);
   });
-  it("scales its left offset with the button so narrow phones do not crop the head", () => {
-    const f = bullFrame(161);
-    expect(f.x + f.w).toBeLessThanOrEqual(161.5);
+  it("is anchored to the button's right edge, so every phone width keeps the head uncropped", () => {
+    for (const w of [161, 176, 206]) {
+      const f = bullFrame(w);
+      expect(f.x + f.w).toBeCloseTo(w - 5.8);
+    }
   });
 });
 
 describe("bearFrame", () => {
-  it("hangs 2pt past the right edge and 6pt below the bottom", () => {
-    const f = bearFrame(176);
-    expect(f.h).toBe(84);
-    expect(f.x + f.w).toBeCloseTo(178);
-    expect(f.y + f.h).toBeCloseTo(BUTTON_H + 6);
+  it("fills the canvas's 59×68 box (right −1, bottom −5, cover crop at object-position 49.58% 73.22%)", () => {
+    for (const w of [161, 176, 206]) {
+      const f = bearFrame(w);
+      expect(f.w).toBe(59);
+      expect(f.h).toBeCloseTo(79.18);
+      expect(f.y).toBeCloseTo(-9.19);
+      expect(f.x + f.w).toBeCloseTo(w + 1);
+    }
   });
 });
 ```
@@ -2072,10 +2079,8 @@ export function cssGradientPoints(angleDeg: number, w: number, h: number): Gradi
 export const BUTTON_H = 62;
 /** Owner set the engraved art to 100% (overlay blend). */
 export const BEAST_OPACITY = 1;
-/** Button width on the 390pt artboard: (390 − 2×14 dock padding − 10 gap) / 2. */
-const CANVAS_BUTTON_W = 176;
-const BULL = { w: 380, h: 513, drawH: 88, left: 105, top: -3 };
-const BEAR = { w: 380, h: 510, drawH: 84, right: -2, bottom: -6 };
+const BULL = { w: 380, h: 513, drawH: 88, rightGap: 5.8, top: -3 };
+const BEAR = { w: 380, h: 510, drawW: 59, right: -1, top: -9.19 };
 
 export interface Frame {
   x: number;
@@ -2084,16 +2089,17 @@ export interface Frame {
   h: number;
 }
 
-/** Bull "B3 bust": owner's `left 105, top −3, height 88` on the canvas button, left offset scaled with width. */
+/** Bull "B3 bust": anchored to the button's right edge so narrow and wide phones all keep the head uncropped. x = 105 at the 176pt canvas width. */
 export function bullFrame(buttonW: number): Frame {
-  const w = (BULL.drawH * BULL.w) / BULL.h;
-  return { x: (buttonW * BULL.left) / CANVAS_BUTTON_W, y: BULL.top, w, h: BULL.drawH };
+  const w = (BULL.drawH * BULL.w) / BULL.h; // 65.2
+  return { x: buttonW - BULL.rightGap - w, y: BULL.top, w, h: BULL.drawH };
 }
 
-/** Bear "R1 swipe": `right −2, bottom −6, height 84`. */
-export function bearFrame(buttonW: number, buttonH: number = BUTTON_H): Frame {
-  const w = (BEAR.drawH * BEAR.w) / BEAR.h;
-  return { x: buttonW - BEAR.right - w, y: buttonH - BEAR.bottom - BEAR.drawH, w, h: BEAR.drawH };
+/** Bear "R1 swipe": the canvas box is 59×68 at right −1, bottom −5 with object-fit cover and object-position 49.58% 73.22%. */
+export function bearFrame(buttonW: number): Frame {
+  const w = BEAR.drawW; // 59
+  const h = (BEAR.drawW * BEAR.h) / BEAR.w; // 79.18: cover scale max(59/380, 68/510) = 0.15526; the button clips the 68pt box
+  return { x: buttonW - BEAR.drawW - BEAR.right, y: BEAR.top, w, h }; // y = −1 − 11.18 × 0.7322 = −9.19
 }
 ```
 
@@ -2114,7 +2120,7 @@ import { Icon } from "@/ui/Icon";
 import { BEAST_OPACITY, BUTTON_H, bearFrame, bullFrame } from "./beast-frame";
 
 /**
- * Up/Down button. RN has no mix-blend-mode, so the gradient and the engraved art share one Skia canvas and the
+ * Up/Down button. RN 0.86 has `mixBlendMode`, but Android only applies it from API 29 and minSdk is 26, so the gradient and the engraved art share one Skia canvas and the
  * art is drawn with blendMode "overlay" (the same W3C formula the design canvas used). Text and arrow are RN on
  * top. Until the art decodes the plain gradient shows.
  */
@@ -4759,7 +4765,7 @@ Flag for owner confirmation (accepted on the canvas, confirm before merge):
 2. **Bundled fonts**: Anek Latin 400/500/600, Anek Devanagari 400/600, Martian Mono 400/500/600 ≈ **1.31 MB raw** (Devanagari ≈ 0.83 MB of that) instead of the ~300 KB first estimated. Option: drop Anek Devanagari and use the system Hindi font.
 3. **"Up/Down"** replaces "Buy/Sell" (buttons, strip, trades sheet, chart tags). The website still says Buy/Sell.
 
-Also call out: the header's "today" figure is the true net P&L (the canvas sample added gross wins); login line is decorative; markets sheet has no price/change/closed columns (no data yet); keypad quick amounts unchanged (₹250 not ₹5,000); white on the accent blue is 4.41:1 (just under AA 4.5 for 17pt semibold labels) and white on the lightest corner of the Down gradient is 3.6:1 for the 12pt "win" line — owner's colours, noted; the lock screen shows the cached nickname to whoever holds the phone.
+Also call out: the header's "today" figure is the true net P&L (the canvas sample added gross wins); login line is decorative; markets sheet has no price/change/closed columns (no data yet); keypad quick amounts unchanged (₹250 not ₹5,000); accent blue darkened from `#3f6ff2` to `#3d6cf0` (4.56:1 with white) and `ink3` from `#737d8c` to `#7c8695` so every text pair passes AA; white on the lightest corner of the Down gradient is 3.6:1 for the 12pt "win" line, owner's colour, noted; the lock screen shows the cached nickname to whoever holds the phone.
 
 ## Self-review
 
