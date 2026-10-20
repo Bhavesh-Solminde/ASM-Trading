@@ -46,7 +46,7 @@ export function PaymentActivity({ limit }: { limit?: number } = {}) {
             </View>
             <View style={{ flexShrink: 0, maxWidth: "55%", alignItems: "flex-end", gap: 4 }}>
               <Txt size={14} weight={600} numberOfLines={1} color={color[figure.tone]} style={{ flexShrink: 0 }}>{amount}</Txt>
-              <StatusTag tone={statusTagTone(row.status)} label={status} />
+              <StatusTag tone={statusTagTone(row.status)} label={status} align="flex-end" />
             </View>
           </Pressable>
         );

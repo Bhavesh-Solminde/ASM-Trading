@@ -2,7 +2,8 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { usePaymentsInfinite, useBootstrap, useWallet } from "@/api/queries";
+import { queryClient, usePaymentsInfinite, useBootstrap, useWallet } from "@/api/queries";
+import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSession } from "@/auth/session-store";
 import { useSessionLive } from "@/auth/use-session-live";
 import { hubBalances, RECENT_LIMIT, showKycNextStep } from "@/payments/hub-model";
@@ -33,14 +34,18 @@ export default function Payments() {
   const { refetch: refetchPayments } = payments;
   // Never cancel a request that is already in flight (the first focus lands while the mount fetch is running).
   // `refetch` ignores `enabled`, so the session gate is checked here: nothing fetches while locked or signed out.
+  // The socket only moves balances on trades: a deposit credited, a withdrawal paid or a refund while away is
+  // only in a fresh bootstrap, which re-seeds `balances` (timestamp rule), so focus and pull refresh it too.
   useFocusEffect(useCallback(() => {
     if (!sessionLive) return;
     void refetchWallet({ cancelRefetch: false });
     void refetchPayments({ cancelRefetch: false });
+    refreshBootstrap(queryClient);
   }, [sessionLive, refetchWallet, refetchPayments]));
   const refresh = async () => {
     if (!sessionLive) return;
     setRefreshing(true);
+    refreshBootstrap(queryClient);
     try { await Promise.all([refetchWallet(), refetchPayments()]); } finally { setRefreshing(false); }
   };
   return <Screen><ScrollView contentContainerStyle={{ padding: 20, gap: 28 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={color.accentText} colors={[color.accent]} />}>
