@@ -20,7 +20,8 @@ export default function Lock() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   // A short screen (640dp, or a big font) tightens the logo and gaps so the logo never reaches the status bar.
-  const layout = lockLayout(useWindowDimensions().height);
+  const { height, fontScale } = useWindowDimensions();
+  const layout = lockLayout(height, fontScale);
   const method = useLock((s) => s.method);
   const attempts = useLock((s) => s.attempts);
   const { verifyPin, unlockWithBiometric, reset } = useLock();

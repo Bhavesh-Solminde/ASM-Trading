@@ -86,10 +86,10 @@ export default function Login() {
             <Button testID="login-submit" label={t("auth.login")} onPress={submit} busy={busy} />
             {googleEnabled ? <Button label={t("auth.google")} kind="secondary" onPress={google} disabled={busy} /> : null}
           </View>
-          {/* Two equal halves: each link wraps inside its own box (44pt tall at least) instead of overflowing. */}
+          {/* A 2:3 split (the long prompt gets the larger share): each link wraps inside its own box (44pt tall at least). */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <TextLink href="/forgot" label={t("auth.forgot")} style={{ flex: 1 }} />
-            <PromptLink href="/register" prompt={t("auth.newHere")} label={t("auth.register")} style={{ flex: 1 }} />
+            <TextLink href="/forgot" label={t("auth.forgot")} style={{ flex: 2 }} />
+            <PromptLink href="/register" prompt={t("auth.newHere")} label={t("auth.register")} style={{ flex: 3 }} />
           </View>
         </View>
         <View style={{ flex: 1 }} />

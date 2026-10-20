@@ -104,7 +104,6 @@ export function FormScroll({ children, top = false }: { children: ReactNode; top
   );
 }
 
-/** Text link with a 44pt+ touch target. */
 /**
  * A tappable text link, at least 44pt tall. The label fills the link's width (`flex: 1` in a row, or the full
  * row in a column) instead of shrink-wrapping itself, so a multi-word Hindi label wraps inside its box and the
