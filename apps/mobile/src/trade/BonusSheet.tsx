@@ -69,7 +69,7 @@ export const BonusSheet = forwardRef<SheetRef, { completedDeposits: number }>(fu
           label={t("trade.deposit")}
           onPress={() => {
             inner.current?.dismiss();
-            router.navigate("/payments");
+            router.navigate("/payments/deposit");
           }}
         />
       ) : (

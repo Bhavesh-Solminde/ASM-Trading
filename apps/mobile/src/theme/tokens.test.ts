@@ -14,16 +14,16 @@ function contrast(a: string, b: string): number {
   return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
 }
 
-describe("Passbook tokens", () => {
+describe("R5 tokens", () => {
   it("match the design canvas", () => {
     expect({
       ground: color.ground, surface: color.surface, raised: color.raised, rule: color.rule, ruleSoft: color.ruleSoft,
       ink: color.ink, ink2: color.ink2, ink3: color.ink3, accent: color.accent, accentText: color.accentText,
       accentDim: color.accentDim, up: color.up, upInk: color.upInk, down: color.down, downText: color.downText, gold: color.gold,
     }).toEqual({
-      ground: "#06080b", surface: "#0f141b", raised: "#171d26", rule: "#252d39", ruleSoft: "#1a212b",
-      ink: "#edf1f6", ink2: "#a6b0be", ink3: "#7c8695", accent: "#3d6cf0", accentText: "#86a6ff",
-      accentDim: "#142247", up: "#2ecf7a", upInk: "#04170c", down: "#d63a30", downText: "#ff7468", gold: "#e2b54c",
+      ground: "#080a10", surface: "#131720", raised: "#1d2330", rule: "#303747", ruleSoft: "#222835",
+      ink: "#f4f6fb", ink2: "#a4acbe", ink3: "#858fa5", accent: "#456ae7", accentText: "#a2b8ff",
+      accentDim: "#142247", up: "#2ecf7a", upInk: "#04170c", down: "#d63a30", downText: "#ff827a", gold: "#e4c58b",
     });
     expect(gradient.up.colors).toEqual(["#43e08f", "#2ecf7a", "#1fae63"]);
     expect(gradient.down.colors).toEqual(["#ea5248", "#d63a30", "#b02a22"]);
