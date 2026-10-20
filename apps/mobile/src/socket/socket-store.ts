@@ -88,7 +88,10 @@ const initial = () => ({
 });
 
 export const useSocket = create<SocketStore>((set, get) => {
-  const onMessage = (m: ServerMessage) =>
+  const onMessage = (m: ServerMessage) => {
+    // The socket's JSON is not validated (a cast). A balance that is not a number would poison the store and every
+    // figure derived from it, so such a message is ignored; the next bootstrap carries the real balance.
+    if (m.type === "balance:update" && !(Number.isFinite(m.realBalance) && Number.isFinite(m.bonusBalance))) return;
     set((s) => {
       const next: Partial<SocketStore> = {
         chart: applyChartMessage(s.chart, m),
@@ -98,6 +101,7 @@ export const useSocket = create<SocketStore>((set, get) => {
       if (m.type === "balance:update") next.balanceAt = { ...s.balanceAt, [m.accountId]: Date.now() };
       return next;
     });
+  };
 
   const fetchTicket = async (): Promise<string> => {
     try {

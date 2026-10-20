@@ -47,7 +47,7 @@
     "liveLocked": "Live trading isn't available on your account yet.", "deposit": "Deposit", "balance": "Balance",
     "noMarkets": "No markets match your search", "addFavourite": "Add {{name}} to favourites",
     "removeFavourite": "Remove {{name}} from favourites", "selectMarket": "Market: {{name}}. Tap to change.",
-    "failed": "Trade failed.", "maxStake": "Maximum stake is {{amount}}", "delete": "Delete", "point": "Decimal point",
+    "timedOut": "No reply yet. Check Your trades before trying again.", "failed": "Trade failed.", "maxStake": "Maximum stake is {{amount}}", "delete": "Delete", "point": "Decimal point",
     "expiryOption": "Expiry {{label}}", "stakeButton": "Amount {{amount}}. Tap to change.",
     "moreOpen": "+{{n}} more", "ifClosedNow": "if it ends now", "at": "{{stake}} at {{price}}",
     "positionLabel": "{{side}} {{name}}, stake {{stake}}, {{time}} left. Tap to see your trades.",

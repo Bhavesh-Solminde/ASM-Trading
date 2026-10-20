@@ -1,5 +1,5 @@
 import { ApiError } from "@/api/errors";
-import { tradeErrorKey } from "./trade-errors";
+import { tradeErrorText } from "./trade-errors";
 import { OpenTradeResultSchema, buildOpenTradeBody } from "./trade-request";
 import type { OpenTradeInput, OpenTradeResult } from "@asm/contracts";
 
@@ -10,8 +10,12 @@ export interface SubmitDeps {
   toast: (message: string, tone: "down") => void;
   haptic: () => void;
   invalidateBootstrap: () => void;
+  /** Refetches one account's trade list: a bootstrap carries only the demo account's, so it cannot show a LIVE trade. */
+  refetchTrades: (accountId: string) => void;
+  /** Identifies the signed-in session (its token); a result that arrives under a different one is dropped. */
+  session: () => string | null;
   setBusy: (busy: boolean) => void;
-  t: (key: string) => string;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }
 
 export interface SubmitRequest {
@@ -20,6 +24,8 @@ export interface SubmitRequest {
   direction: "UP" | "DOWN";
   stakeMinor: number;
   durationSec: number;
+  /** The account's currency (for the minimum-stake copy). */
+  currency: string;
 }
 
 /**
@@ -40,19 +46,30 @@ export function createSubmitter(deps: SubmitDeps): (req: SubmitRequest) => Promi
     inFlight = true;
     deps.setBusy(true);
     deps.haptic();
+    const session = deps.session();
     try {
       const body = buildOpenTradeBody(req);
-      const parsed = OpenTradeResultSchema.safeParse(await deps.openTrade(body));
+      const raw = await deps.openTrade(body);
+      // Sign-out (or another user signing in) while the request was in flight: it belongs to nobody now.
+      if (deps.session() !== session) return;
+      const parsed = OpenTradeResultSchema.safeParse(raw);
       if (parsed.success) {
         deps.applyOpenResult(parsed.data);
       } else {
-        // The server accepted the trade but answered in a shape we cannot read: reconcile from bootstrap.
+        // The server accepted the trade but answered in a shape we cannot read: reconcile from the server.
         deps.invalidateBootstrap();
+        deps.refetchTrades(req.accountId);
         deps.toast(deps.t("common.genericError"), "down");
       }
     } catch (e) {
+      if (deps.session() !== session) return;
+      if (e instanceof ApiError && e.code === "timeout") {
+        // No answer in time: the trade may have been placed, so never retry; reconcile and point at Your trades.
+        deps.invalidateBootstrap();
+        deps.refetchTrades(req.accountId);
+      }
       if (!(e instanceof ApiError && e.code !== null && HANDLED_ELSEWHERE.has(e.code))) {
-        deps.toast(deps.t(tradeErrorKey(e)), "down");
+        deps.toast(tradeErrorText(e, req.currency, deps.t), "down");
       }
     } finally {
       inFlight = false;

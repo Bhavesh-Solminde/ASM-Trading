@@ -44,7 +44,7 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
 
   const available = bal ? bal.realBalance + bal.bonusBalance : 0;
   const check = validateStake(stake, currency, available);
-  const { submit, busy } = useTradeSubmit({ accountId, symbol: asset.symbol, stakeMinor: check.ok ? check.minor : null, durationSec: expirySec });
+  const { submit, busy } = useTradeSubmit({ accountId, symbol: asset.symbol, stakeMinor: check.ok ? check.minor : null, durationSec: expirySec, currency });
   const keypad = useRef<SheetRef>(null);
   const expiry = useRef<SheetRef>(null);
 

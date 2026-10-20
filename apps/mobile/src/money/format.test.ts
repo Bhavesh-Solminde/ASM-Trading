@@ -31,8 +31,12 @@ describe("money", () => {
     expect(money(-1400, "INR")).toBe("−₹14.00");
     expect(money(-100, "USD")).toBe("−$1.00");
   });
-  it("rejects fractional minor units", () => {
-    expect(() => money(1.5, "INR")).toThrow();
+  it("never throws on a figure from an unvalidated source: a fractional minor unit rounds, a non-number is a dash", () => {
+    expect(money(150.4, "INR")).toBe("₹1.50");
+    expect(money(-150.6, "INR")).toBe("−₹1.51");
+    expect(money(Number.NaN, "INR")).toBe("—");
+    expect(money(Number.POSITIVE_INFINITY, "USD")).toBe("—");
+    expect(money(1e300, "INR")).toBe("—");
   });
 });
 

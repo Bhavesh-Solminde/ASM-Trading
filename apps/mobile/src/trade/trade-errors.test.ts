@@ -9,6 +9,7 @@ describe("tradeErrorKey", () => {
     ["account_not_active", "trade.accountPaused"],
     ["unknown_asset", "trade.assetUnavailable"],
     ["trading_unavailable", "trade.unavailable"],
+    ["timeout", "trade.timedOut"],
   ])("maps the server code %s to %s", (code, key) => {
     expect(tradeErrorKey(new ApiError("English server text", 409, code))).toBe(key);
   });

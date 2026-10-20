@@ -72,3 +72,48 @@ describe("api() session-loss path", () => {
     await expect(api("/api/v1/account/preferences", { method: "PATCH", body: { locale: "hi" } })).resolves.toBeNull();
   });
 });
+
+describe("api() timeout", () => {
+  it("aborts a request that never answers and rejects with the timeout code", async () => {
+    vi.useFakeTimers();
+    try {
+      current = "tok-a";
+      vi.stubGlobal(
+        "fetch",
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          }),
+      );
+      const pending = api("/api/trades", { method: "POST", body: {}, timeoutMs: 15_000 });
+      const settled = expect(pending).rejects.toMatchObject({ code: "timeout" });
+      await vi.advanceTimersByTimeAsync(15_000);
+      await settled;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not time out a request that answers in time", async () => {
+    vi.useFakeTimers();
+    try {
+      current = "tok-a";
+      vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ ok: 1 }), { status: 200 }));
+      await expect(api("/api/trades", { timeoutMs: 15_000 })).resolves.toEqual({ ok: 1 });
+      await vi.advanceTimersByTimeAsync(60_000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sends no abort signal when no timeout is asked for", async () => {
+    current = "tok-a";
+    let signal: AbortSignal | null | undefined;
+    vi.stubGlobal("fetch", async (_u: string, init: RequestInit) => {
+      signal = init.signal;
+      return new Response("{}", { status: 200 });
+    });
+    await api("/api/v1/bootstrap");
+    expect(signal ?? null).toBeNull();
+  });
+});

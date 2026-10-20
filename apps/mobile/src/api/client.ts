@@ -26,6 +26,12 @@ export async function api<T = unknown>(
     token?: string;
     /** Throw on a 429 instead of toasting it: for callers that back off and retry on their own. */
     silentRateLimit?: boolean;
+    /**
+     * Abort after this many ms and throw an ApiError with code "timeout". React Native's fetch has no timeout of its
+     * own, so a request stalled on a dead connection would otherwise wait forever. The server may still have acted:
+     * the caller must reconcile, not retry.
+     */
+    timeoutMs?: number;
   } = {},
 ): Promise<T> {
   const { apiUrl, version } = appConfig();
@@ -44,14 +50,24 @@ export async function api<T = unknown>(
     body = JSON.stringify(opts.body);
   }
 
+  const controller = opts.timeoutMs !== undefined ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), opts.timeoutMs) : null;
+  const timedOut = () => new ApiError("The request timed out.", 0, "timeout");
   let res: Response;
+  let json: unknown;
   try {
-    res = await fetch(`${apiUrl}${path}`, { method: opts.method ?? (body ? "POST" : "GET"), headers, body });
-  } catch {
-    throw new ApiError("No connection.", 0, "offline");
+    try {
+      res = await fetch(`${apiUrl}${path}`, { method: opts.method ?? (body ? "POST" : "GET"), headers, body, ...(controller ? { signal: controller.signal } : {}) });
+    } catch {
+      throw controller?.signal.aborted ? timedOut() : new ApiError("No connection.", 0, "offline");
+    }
+    json = res.status === 204 ? null : await res.json().catch(() => null);
+    // The body read is covered by the same deadline: an abort mid-body is a timeout, not an empty answer.
+    if (controller?.signal.aborted) throw timedOut();
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 
-  const json: unknown = res.status === 204 ? null : await res.json().catch(() => null);
   const verdict = classifyResponse(res.status, json, { authed, silentRateLimit: opts.silentRateLimit });
   switch (verdict.kind) {
     case "ok":

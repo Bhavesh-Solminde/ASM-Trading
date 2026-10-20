@@ -21,12 +21,15 @@ export interface MoneyOpts {
 
 /**
  * The app's money text. INR uses Indian grouping (₹9,99,600.00); other currencies keep @asm/client-core's
- * formatMinor ($1,234.56). A negative amount leads with "−". The website never imports this.
+ * formatMinor ($1,234.56). A negative amount leads with "−". A fractional input rounds and a non-number reads "—"
+ * (it never throws). The website never imports this.
  */
 export function money(minor: number, currency: string, opts: MoneyOpts = {}): string {
-  if (!Number.isInteger(minor)) throw new Error(`money: expected an integer, received ${minor}`);
-  const sign = minor < 0 ? "−" : "";
-  const abs = Math.abs(minor);
+  // Figures can come off the socket unvalidated, and this runs during render: a throw here would crash the screen.
+  // A fractional minor unit rounds; anything that is not a usable number shows a dash.
+  const abs = Math.round(Math.abs(minor));
+  if (!Number.isSafeInteger(abs)) return "—";
+  const sign = minor < 0 && abs > 0 ? "−" : "";
   const whole = abs % 100 === 0;
   if (currency !== "INR") {
     const text = formatMinor(abs, currency);

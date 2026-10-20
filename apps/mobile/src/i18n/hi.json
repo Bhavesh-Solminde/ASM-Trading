@@ -47,7 +47,7 @@
     "liveLocked": "आपके खाते पर लाइव ट्रेडिंग अभी उपलब्ध नहीं है।", "deposit": "जमा करें", "balance": "बैलेंस",
     "noMarkets": "आपकी खोज से कोई मार्केट नहीं मिला", "addFavourite": "{{name}} को पसंदीदा में जोड़ें",
     "removeFavourite": "{{name}} को पसंदीदा से हटाएं", "selectMarket": "मार्केट: {{name}}। बदलने के लिए टैप करें।",
-    "failed": "ट्रेड नहीं हो सका।", "maxStake": "अधिकतम राशि {{amount}} है", "delete": "मिटाएं", "point": "दशमलव बिंदु",
+    "timedOut": "अभी तक कोई जवाब नहीं आया। दोबारा कोशिश करने से पहले आपके ट्रेड देखें।", "failed": "ट्रेड नहीं हो सका।", "maxStake": "अधिकतम राशि {{amount}} है", "delete": "मिटाएं", "point": "दशमलव बिंदु",
     "expiryOption": "समय {{label}}", "stakeButton": "राशि {{amount}}। बदलने के लिए टैप करें।",
     "moreOpen": "+{{n}} और", "ifClosedNow": "अभी खत्म हो तो", "at": "{{price}} पर {{stake}}",
     "positionLabel": "{{side}} {{name}}, राशि {{stake}}, {{time}} बाकी। अपने ट्रेड देखने के लिए टैप करें।",

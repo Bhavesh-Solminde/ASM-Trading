@@ -137,6 +137,17 @@ describe("useSocket", () => {
     expect(seenIds).toEqual(["t1", "t2"]);
   });
 
+  it("ignores a balance:update whose figures are not numbers instead of poisoning the store", async () => {
+    useSocket.getState().seed(boot);
+    useSocket.getState().subscribe("EURUSD", "1m");
+    const ws = await connect();
+    const before = useSocket.getState().trades.balances["a1"];
+    ws.receive({ type: "balance:update", accountId: "a1", realBalance: null, bonusBalance: 2 });
+    ws.receive({ type: "balance:update", accountId: "a1", realBalance: "7", bonusBalance: 2 });
+    expect(useSocket.getState().trades.balances["a1"]).toEqual(before);
+    expect(useSocket.getState().balanceAt["a1"]).toBeUndefined();
+  });
+
   it("publishes a settlement recovered by a bootstrap (open in the store, settled in the response) as `recovered`, once", () => {
     useSocket.getState().seed(boot);
     expect(useSocket.getState().recovered).toEqual([]);

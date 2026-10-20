@@ -3,7 +3,7 @@ import { ApiError } from "@/api/errors";
 import { createSubmitter, type SubmitDeps } from "./submit-flow";
 
 const ACCOUNT = "0b7d7e6e-5f0e-4c43-9a4f-2d3c1b0a9e11";
-const req = { accountId: ACCOUNT, symbol: "EURUSD", direction: "UP", stakeMinor: 10_000, durationSec: 30 } as const;
+const req = { accountId: ACCOUNT, symbol: "EURUSD", direction: "UP", stakeMinor: 10_000, durationSec: 30, currency: "INR" } as const;
 const trade = {
   id: "t1", accountId: ACCOUNT, symbol: "EURUSD", direction: "UP", stake: 10000, payoutPct: 85,
   entryPrice: 1.1, entryTs: 100, expiryTs: 160, exitPrice: null, status: "OPEN", pnl: 0,
@@ -17,8 +17,10 @@ function setup(openTrade: SubmitDeps["openTrade"]) {
     toast: vi.fn(),
     haptic: vi.fn(),
     invalidateBootstrap: vi.fn(),
+    refetchTrades: vi.fn(),
+    session: vi.fn(() => "tok-A" as string | null),
     setBusy: vi.fn(),
-    t: (k: string) => `<${k}>`,
+    t: (k: string, o?: Record<string, unknown>) => `<${k}${o ? JSON.stringify(o) : ""}>`,
   };
   return { deps, submit: createSubmitter(deps) };
 }
@@ -97,6 +99,54 @@ describe("createSubmitter", () => {
     expect(deps.applyOpenResult).not.toHaveBeenCalled();
     expect(deps.invalidateBootstrap).toHaveBeenCalledTimes(1);
     expect(deps.toast).toHaveBeenCalledWith("<common.genericError>", "down");
+  });
+
+  it("an unreadable 2xx also refetches the account's trades (bootstrap cannot bring back a LIVE trade)", async () => {
+    const { deps, submit } = setup(async () => ({ nope: true }));
+    await submit(req);
+    expect(deps.refetchTrades).toHaveBeenCalledWith(ACCOUNT);
+  });
+
+  it("a timed-out request says to check Your trades, reconciles, never retries, and frees the Dock", async () => {
+    const { deps, submit } = setup(async () => {
+      throw new ApiError("Timed out.", 0, "timeout");
+    });
+    await submit(req);
+    expect(deps.openTrade).toHaveBeenCalledTimes(1);
+    expect(deps.toast).toHaveBeenCalledWith("<trade.timedOut>", "down");
+    expect(deps.invalidateBootstrap).toHaveBeenCalledTimes(1);
+    expect(deps.refetchTrades).toHaveBeenCalledWith(ACCOUNT);
+    expect(deps.setBusy.mock.calls.at(-1)).toEqual([false]);
+  });
+
+  it("a min_stake refusal reads the existing minimum-stake copy with the currency's minimum", async () => {
+    const { deps, submit } = setup(async () => {
+      throw new ApiError("Stake is below the minimum.", 400, "min_stake");
+    });
+    await submit(req);
+    expect(deps.toast).toHaveBeenCalledWith('<trade.minStake{"amount":"₹100.00"}>', "down");
+  });
+
+  it("drops the result, and any error toast, when the session changed while the request was in flight", async () => {
+    let signedIn: string | null = "tok-A";
+    const { deps, submit } = setup(async () => {
+      signedIn = "tok-B";
+      return okResult;
+    });
+    deps.session.mockImplementation(() => signedIn);
+    await submit(req);
+    expect(deps.applyOpenResult).not.toHaveBeenCalled();
+    expect(deps.toast).not.toHaveBeenCalled();
+    expect(deps.setBusy.mock.calls.at(-1)).toEqual([false]);
+
+    signedIn = "tok-A";
+    const failing = setup(async () => {
+      signedIn = null;
+      throw new ApiError("Not enough balance.", 409, "insufficient_funds");
+    });
+    failing.deps.session.mockImplementation(() => signedIn);
+    await failing.submit(req);
+    expect(failing.deps.toast).not.toHaveBeenCalled();
   });
 
   it("a request the contract would reject never reaches the network", async () => {
