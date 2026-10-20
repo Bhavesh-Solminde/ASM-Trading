@@ -373,6 +373,28 @@ describe("useSocket", () => {
       expect(by["a1"]?.map((t) => t.id)).toEqual(["t1"]);
     });
 
+    it("publishes a settlement it recovered (open here, settled in the fetched list) as `recovered`, once, and touches no balance", () => {
+      const liveOpen = { ...trade, id: "l1", accountId: "a2" };
+      useSocket.getState().seed({ ...boot, recentTrades: [liveOpen] } as unknown as Bootstrap);
+      useSocket.getState().mergeFetchedTrades("a2", [liveOpen]);
+      expect(useSocket.getState().recovered).toEqual([]);
+      const balancesBefore = useSocket.getState().trades.balances;
+      const settled = { ...liveOpen, status: "WON", pnl: 85, exitPrice: 1.2 };
+      useSocket.getState().mergeFetchedTrades("a2", [settled]);
+      expect(useSocket.getState().recovered.map((t) => t.id)).toEqual(["l1"]);
+      expect(useSocket.getState().trades.balances).toEqual(balancesBefore);
+      expect(useSocket.getState().balanceRefetch).toEqual([]);
+      const first = useSocket.getState().recovered;
+      useSocket.getState().mergeFetchedTrades("a2", [settled]);
+      expect(useSocket.getState().recovered).toBe(first);
+    });
+
+    it("does not publish history it never saw open", () => {
+      useSocket.getState().seed(boot);
+      useSocket.getState().mergeFetchedTrades("a2", [{ ...trade, id: "old", accountId: "a2", status: "LOST", pnl: -1 }]);
+      expect(useSocket.getState().recovered).toEqual([]);
+    });
+
     it("never rolls back a settlement the socket delivered while the request was in flight", async () => {
       useSocket.getState().seed(boot);
       useSocket.getState().subscribe("EURUSD", "1m");

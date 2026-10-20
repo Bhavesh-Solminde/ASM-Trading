@@ -1,10 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { TradeView } from "@asm/contracts";
-import { createGapTracker, needsBalanceFollowUp, shouldRefetchSettlements, WATCHDOG_MIN_INTERVAL_SEC } from "./settlement-watch";
+import {
+  accountsNeedingTradeFetch,
+  createGapTracker,
+  needsBalanceFollowUp,
+  runWatchdogTick,
+  shouldRefetchSettlements,
+  WATCHDOG_MIN_INTERVAL_SEC,
+} from "./settlement-watch";
 
-const open = (expiryTs: number, id = "t"): TradeView => ({
+const open = (expiryTs: number, id = "t", accountId = "a"): TradeView => ({
   id,
-  accountId: "a",
+  accountId,
   symbol: "EURUSD",
   direction: "UP",
   stake: 10_000,
@@ -95,5 +102,50 @@ describe("needsBalanceFollowUp", () => {
   it("is false when nothing is pending", () => {
     expect(needsBalanceFollowUp(["a"], [])).toBe(false);
     expect(needsBalanceFollowUp([], [])).toBe(false);
+  });
+});
+
+describe("accountsNeedingTradeFetch", () => {
+  it("names accounts the bootstrap does not carry that hold an overdue open trade", () => {
+    const trades = [open(100, "d1", "demo"), open(100, "l1", "live")];
+    expect(accountsNeedingTradeFetch({ trades, nowSec: 103, bootstrapAccountId: "demo" })).toEqual(["live"]);
+  });
+  it("is empty while the trade is inside its time, or when only the bootstrap account is overdue", () => {
+    expect(accountsNeedingTradeFetch({ trades: [open(100, "l1", "live")], nowSec: 102, bootstrapAccountId: "demo" })).toEqual([]);
+    expect(accountsNeedingTradeFetch({ trades: [open(100, "d1", "demo")], nowSec: 500, bootstrapAccountId: "demo" })).toEqual([]);
+  });
+  it("lists each account once, and ignores settled trades", () => {
+    const settled = { ...open(100, "l3", "live"), status: "WON" as const };
+    const trades = [open(100, "l1", "live"), open(90, "l2", "live"), settled, open(100, "x1", "other")];
+    expect(accountsNeedingTradeFetch({ trades, nowSec: 500, bootstrapAccountId: "demo" })).toEqual(["live", "other"]);
+  });
+  it("treats every account as uncarried while the bootstrap account is unknown", () => {
+    expect(accountsNeedingTradeFetch({ trades: [open(100, "d1", "demo")], nowSec: 500, bootstrapAccountId: undefined })).toEqual(["demo"]);
+  });
+});
+
+describe("runWatchdogTick", () => {
+  const make = () => ({ refreshBootstrap: vi.fn(), fetchTrades: vi.fn() });
+
+  it("an overdue LIVE trade refetches that account's trades (bootstrap cannot settle it), plus the bootstrap", () => {
+    const d = make();
+    const last = runWatchdogTick({ trades: [open(100, "l1", "live")], nowSec: 103, lastAttemptSec: null, bootstrapAccountId: "demo", ...d });
+    expect(d.fetchTrades).toHaveBeenCalledTimes(1);
+    expect(d.fetchTrades).toHaveBeenCalledWith("live");
+    expect(d.refreshBootstrap).toHaveBeenCalledTimes(1);
+    expect(last).toBe(103);
+  });
+  it("an overdue bootstrap-account trade only refreshes the bootstrap", () => {
+    const d = make();
+    runWatchdogTick({ trades: [open(100, "d1", "demo")], nowSec: 103, lastAttemptSec: null, bootstrapAccountId: "demo", ...d });
+    expect(d.fetchTrades).not.toHaveBeenCalled();
+    expect(d.refreshBootstrap).toHaveBeenCalledTimes(1);
+  });
+  it("does nothing, and keeps the last attempt, inside the throttle or with nothing overdue", () => {
+    const d = make();
+    expect(runWatchdogTick({ trades: [open(100, "l1", "live")], nowSec: 105, lastAttemptSec: 100, bootstrapAccountId: "demo", ...d })).toBe(100);
+    expect(runWatchdogTick({ trades: [open(100, "l1", "live")], nowSec: 99, lastAttemptSec: null, bootstrapAccountId: "demo", ...d })).toBeNull();
+    expect(d.fetchTrades).not.toHaveBeenCalled();
+    expect(d.refreshBootstrap).not.toHaveBeenCalled();
   });
 });

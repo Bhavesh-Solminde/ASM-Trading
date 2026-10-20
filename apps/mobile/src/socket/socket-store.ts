@@ -57,6 +57,7 @@ interface SocketStore {
   /**
    * Folds one account's freshly fetched trade list (`GET /api/trades?accountId=`) in, merge-safe like `seed`: a
    * settled version always beats an open one. Rows that are malformed or belong to another account are skipped.
+   * Publishes `recovered` like `seed` does, so a recovered settlement is announced once.
    */
   mergeFetchedTrades: (accountId: string, rows: readonly unknown[]) => void;
   start: () => void;
@@ -145,13 +146,18 @@ export const useSocket = create<SocketStore>((set, get) => {
         return stale.length > 0 ? { trades, recovered, balanceRefetch: stale } : { trades, recovered };
       }),
     mergeFetchedTrades: (accountId, rows) =>
-      set((s) => ({
-        trades: withFetchedTrades(
+      set((s) => {
+        const trades = withFetchedTrades(
           s.trades,
           accountId,
           parseTrades(rows).filter((t) => t.accountId === accountId),
-        ),
-      })),
+        );
+        // Same as `seed`: a trade held open here and settled in the list is a settlement the socket never delivered
+        // (a non-default account's bootstrap carries no trades, so this is its only recovery path). It touches no
+        // balance, so there is no follow-up to request.
+        const recovered = recoveredSettlements(s.trades, trades);
+        return recovered.length === 0 ? { trades } : { trades, recovered };
+      }),
     start: () => {
       watchNet();
       ensure().start();

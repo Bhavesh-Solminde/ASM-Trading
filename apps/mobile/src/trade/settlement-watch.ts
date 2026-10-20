@@ -54,3 +54,45 @@ export function createGapTracker(): (phase: SocketStatus["phase"]) => boolean {
 export function needsBalanceFollowUp(prev: readonly string[], next: readonly string[]): boolean {
   return next !== prev && next.length > 0;
 }
+
+/**
+ * Accounts with an overdue open trade that the bootstrap's `recentTrades` does NOT carry (it holds only the DEMO
+ * account's list, see `bootstrapTradesAccountId`). A bootstrap refetch can never settle those, so each needs its own
+ * `GET /api/trades?accountId=` (the web watchdog refetches the active account's list the same way). Same overdue
+ * rule as `shouldRefetchSettlements`; each account once, in order of first appearance. While the bootstrap account
+ * is unknown every account counts as uncarried.
+ */
+export function accountsNeedingTradeFetch(input: {
+  trades: readonly TradeView[];
+  nowSec: number;
+  bootstrapAccountId: string | undefined;
+}): string[] {
+  const out: string[] = [];
+  for (const t of input.trades) {
+    if (t.accountId === input.bootstrapAccountId || out.includes(t.accountId)) continue;
+    if (shouldReconcile({ trades: [t], nowSec: input.nowSec, lastAttemptSec: null })) out.push(t.accountId);
+  }
+  return out;
+}
+
+/**
+ * One watchdog check. Past the throttle with something overdue it refetches the bootstrap (the default account's
+ * trades, and every account's balance) and, for every other account holding an overdue trade, that account's own
+ * trade list. Returns the new "last attempt" (unchanged when it did nothing).
+ */
+export function runWatchdogTick(input: {
+  trades: readonly TradeView[];
+  nowSec: number;
+  lastAttemptSec: number | null;
+  bootstrapAccountId: string | undefined;
+  refreshBootstrap: () => void;
+  fetchTrades: (accountId: string) => void;
+}): number | null {
+  const { trades, nowSec, lastAttemptSec } = input;
+  if (!shouldRefetchSettlements({ trades, nowSec, lastAttemptSec })) return lastAttemptSec;
+  input.refreshBootstrap();
+  for (const accountId of accountsNeedingTradeFetch({ trades, nowSec, bootstrapAccountId: input.bootstrapAccountId })) {
+    input.fetchTrades(accountId);
+  }
+  return nowSec;
+}

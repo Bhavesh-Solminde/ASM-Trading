@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
-import { z } from "zod";
-import { api } from "@/api/client";
 import { useSocket } from "@/socket/socket-store";
-
-const TradesResponse = z.object({ trades: z.array(z.unknown()) });
+import { fetchAccountTrades } from "./fetch-account-trades";
 
 /**
  * Whether `accountId`'s trade list in the store is complete (its last 50 are all there). Bootstrap carries only the
@@ -18,10 +15,9 @@ export function useAccountTradesLoaded(accountId: string, needsFetch: boolean): 
   useEffect(() => {
     if (!needsFetch) return;
     let stale = false;
-    api("/api/trades?accountId=" + encodeURIComponent(accountId), { schema: TradesResponse, silentRateLimit: true }).then(
-      (res) => {
-        if (stale) return;
-        useSocket.getState().mergeFetchedTrades(accountId, res.trades);
+    fetchAccountTrades(accountId).then(
+      (applied) => {
+        if (stale || !applied) return;
         setLoadedFor(accountId);
       },
       () => {
