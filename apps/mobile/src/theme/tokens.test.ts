@@ -44,6 +44,18 @@ describe("R5 tokens", () => {
     expect(contrast(color.switchInk, color.headerTop)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("keeps every StatusTag label readable on its raised chip", () => {
+    for (const ink of [color.up, color.accentText, color.downText, color.ink2]) expect(contrast(ink, color.raised)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("adds the QR paper and camera ink tokens, readable where they are used", () => {
+    expect({ paper: color.paper, cameraInk: color.cameraInk }).toEqual({ paper: "#f4f6f8", cameraInk: "#dfe4ea" });
+    expect(contrast(color.ground, color.paper)).toBeGreaterThanOrEqual(18);
+    expect(contrast(color.ink, color.paper)).toBeLessThan(2);
+    expect(contrast(color.cameraInk, "#000000")).toBeGreaterThanOrEqual(16);
+    expect(contrast(color.cameraInk, color.ground)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("space() is a 4pt grid", () => {
     expect(space(0)).toBe(0);
     expect(space(3)).toBe(12);

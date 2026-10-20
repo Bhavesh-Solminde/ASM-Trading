@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BackHandler, View } from "react-native";
 import { useFocusEffect } from "expo-router";
@@ -14,9 +14,7 @@ import { color, space } from "@/theme/tokens";
 import { Button, Screen, Skeleton, Txt } from "@/theme/ui";
 import { AppHeader } from "@/ui/AppHeader";
 import { BrandMark } from "@/ui/Brand";
-import type { SheetRef } from "@/ui/Sheet";
 import { accountOfType, bootstrapTradesAccountId, canUseLive, resolveAccount, staleBalance, type AppAccount } from "@/trade/accounts";
-import { BonusSheet } from "@/trade/BonusSheet";
 import { ChartTools } from "@/trade/ChartTools";
 import { Dock } from "@/trade/Dock";
 import { findAsset, precisionFor, resolveSymbol, toggleFavourite } from "@/trade/markets";
@@ -141,9 +139,6 @@ export default function Trade() {
   const liveArrived = useLiveArrived();
   const candleSnapshot = liveArrived ? null : resume;
 
-
-  const bonusSheet = useRef<SheetRef>(null);
-
   const selectAccountType = (type: AppAccount["type"]) => {
     const target = boot ? accountOfType(boot.accounts, type) : undefined;
     if (target) prefs.set({ accountId: target.id });
@@ -202,7 +197,6 @@ export default function Trade() {
       </View>
       {boot && account ? <ChartToolbar timeframe={timeframe} onTimeframe={setTimeframe} accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} /> : null}
       {boot && accountId && asset ? <Dock boot={boot} accountId={accountId} asset={asset} /> : null}
-      {boot ? <BonusSheet ref={bonusSheet} completedDeposits={boot.completedDeposits} /> : null}
     </Screen>
   );
 }

@@ -5,7 +5,11 @@
     "done": "Done",
     "offline": "No connection — reconnecting…",
     "genericError": "Something went wrong.",
-    "noConnection": "No connection. Check your internet and try again."
+    "noConnection": "No connection. Check your internet and try again.",
+    "back": "Back",
+    "close": "Close",
+    "seeAll": "See all",
+    "loading": "Loading…"
   },
   "tabs": {
     "trade": "Trade",
@@ -228,5 +232,12 @@
     "currency": "Currency",
     "notifications": "Notifications",
     "support": "Help & support"
+  },
+  "withdraw": {
+    "title": "Withdraw"
+  },
+  "payments": {
+    "verifyAction": "Start verification",
+    "bonusHint": "See how deposit bonuses work"
   }
 }

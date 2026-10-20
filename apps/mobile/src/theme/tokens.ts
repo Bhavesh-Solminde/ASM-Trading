@@ -24,6 +24,10 @@ export const color = {
   downText: "#ff827a",
   /** Bonus only. */
   gold: "#e4c58b",
+  /** The light card behind a QR code (a scanner needs dark-on-light). `ground` text on it is 18.3:1. */
+  paper: "#f4f6f8",
+  /** The KYC camera hint text, drawn over the live preview (16.4:1 on black, 15.5:1 on ground). */
+  cameraInk: "#dfe4ea",
   saffron: "#ff9933",
   tricolourWhite: "#f3f1ea",
   indiaGreen: "#1f9a12",

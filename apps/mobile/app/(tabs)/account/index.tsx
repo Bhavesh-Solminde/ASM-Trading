@@ -6,6 +6,7 @@ import { useBootstrap } from "@/api/queries";
 import { color } from "@/theme/tokens";
 import { Button, Card, Screen, Skeleton, Txt } from "@/theme/ui";
 import { Icon, type IconName } from "@/ui/Icon";
+import { SettingsRow } from "@/ui/SettingsRow";
 const ROWS: { key: string; icon: IconName; route: Href }[] = [
   { key: "security", icon: "lock", route: "/account/security" },
   { key: "language", icon: "user", route: "/account/language" },
@@ -28,7 +29,7 @@ export default function Account() {
     </Pressable>
     {query.isError ? <Button label={t("common.retry")} onPress={() => void query.refetch()} /> : null}
     {profile && profile.kycStatus !== "VERIFIED" ? <Pressable accessibilityRole="button" onPress={() => router.push("/account/verify")}><Card><View style={{ flexDirection: "row", gap: 14, alignItems: "center" }}><Icon name="lock" size={24} color={color.accentText} /><View style={{ flex: 1 }}><Txt size={16} weight={600}>{t("redesign.verify")}</Txt><Txt size={12} color={color.ink2}>{t("redesign.verificationHint")}</Txt></View><Icon name="chevron" size={16} color={color.accentText} /></View></Card></Pressable> : null}
-    <View><Txt size={12} color={color.ink3} style={{ marginBottom: 12 }}>{t("redesign.preferences")}</Txt>{ROWS.map(row => <Pressable key={row.key} accessibilityRole="button" onPress={() => router.push(row.route)} style={{ minHeight: 56, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: color.rule }}><Icon name={row.icon} size={18} color={color.ink2} /><Txt style={{ flex: 1 }}>{t(`redesign.${row.key}`)}</Txt>{row.key === "language" ? <Txt size={12} color={color.ink2} style={{ flexShrink: 0 }}>{t(i18n.language.startsWith("hi") ? "lang.hi" : "lang.en")}</Txt> : null}<Icon name="chevron" size={16} color={color.ink3} /></Pressable>)}</View>
+    <View><Txt size={12} color={color.ink3} style={{ marginBottom: 12 }}>{t("redesign.preferences")}</Txt>{ROWS.map(row => <SettingsRow key={row.key} icon={row.icon} title={t(`redesign.${row.key}`)} {...(row.key === "language" ? { value: t(i18n.language.startsWith("hi") ? "lang.hi" : "lang.en") } : null)} onPress={() => router.push(row.route)} />)}</View>
     <Button label={t("account.logout")} kind="text" onPress={() => void signOut()} />
   </ScrollView></Screen>;
 }

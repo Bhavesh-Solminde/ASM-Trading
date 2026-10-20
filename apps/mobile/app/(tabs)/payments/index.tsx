@@ -1,28 +1,71 @@
-import { router } from "expo-router";
-import { ScrollView, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useRef, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useBootstrap, useWallet } from "@/api/queries";
+import { usePaymentsInfinite, useBootstrap, useWallet } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
 import { useSessionLive } from "@/auth/use-session-live";
+import { hubBalances, RECENT_LIMIT, showKycNextStep } from "@/payments/hub-model";
+import { BonusSheet } from "@/payments/BonusSheet";
+import { useSocket } from "@/socket/socket-store";
 import { Button, Card, Screen, Skeleton, Txt } from "@/theme/ui";
 import { color } from "@/theme/tokens";
 import { money } from "@/money/format";
+import { Icon } from "@/ui/Icon";
+import { Money } from "@/ui/Money";
 import { PaymentActivity } from "@/ui/PaymentActivity";
+import type { SheetRef } from "@/ui/Sheet";
+
 export default function Payments() {
   const { t } = useTranslation();
   const token = useSession(s => s.token);
   const boot = useBootstrap(!!token).data;
-  const wallet = useWallet(useSessionLive());
-  const live = wallet.data?.accounts.find(a => a.type === "LIVE");
-  return <Screen><ScrollView contentContainerStyle={{ padding: 20, gap: 28 }}>
+  const sessionLive = useSessionLive();
+  const wallet = useWallet(sessionLive);
+  const payments = usePaymentsInfinite(sessionLive);
+  const bonusSheet = useRef<SheetRef>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const live = wallet.data?.accounts.find(a => a.type === "LIVE") ?? boot?.accounts.find(a => a.type === "LIVE");
+  // The socket's balance moves with every trade; the wallet is the fallback until it has one.
+  const socketBalance = useSocket(s => (live ? s.trades.balances[live.id] : undefined));
+  const balances = hubBalances({ live, socket: socketBalance, withdrawable: wallet.data?.withdrawable, lockedBonus: wallet.data?.lockedBonus });
+  const { refetch: refetchWallet } = wallet;
+  const { refetch: refetchPayments } = payments;
+  // Never cancel a request that is already in flight (the first focus lands while the mount fetch is running).
+  // `refetch` ignores `enabled`, so the session gate is checked here: nothing fetches while locked or signed out.
+  useFocusEffect(useCallback(() => {
+    if (!sessionLive) return;
+    void refetchWallet({ cancelRefetch: false });
+    void refetchPayments({ cancelRefetch: false });
+  }, [sessionLive, refetchWallet, refetchPayments]));
+  const refresh = async () => {
+    if (!sessionLive) return;
+    setRefreshing(true);
+    try { await Promise.all([refetchWallet(), refetchPayments()]); } finally { setRefreshing(false); }
+  };
+  return <Screen><ScrollView contentContainerStyle={{ padding: 20, gap: 28 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={color.accentText} colors={[color.accent]} />}>
     <Txt size={28} weight={600} accessibilityRole="header">{t("redesign.yourMoney")}</Txt>
     <View style={{ gap: 12 }}>
       <Txt size={13} color={color.up}>{t("trade.liveAccount")}</Txt>
-      {wallet.isError ? <Button label={t("common.retry")} kind="secondary" onPress={() => void wallet.refetch()} /> : wallet.isPending ? <Skeleton height={52} /> : <Txt size={40} weight={500} numberOfLines={1} adjustsFontSizeToFit>{live ? money(live.realBalance + live.bonusBalance, live.currency) : "—"}</Txt>}
-      {live && wallet.data ? <View style={{ flexDirection: "row", gap: 12 }}><View style={{ flex: 1 }}><Txt size={12} color={color.ink2} numberOfLines={1}>{t("redesign.withdrawable")} {money(wallet.data.withdrawable, live.currency)}</Txt></View><View style={{ flex: 1 }}><Txt size={12} color={color.gold} numberOfLines={1} style={{ textAlign: "right" }}>{t("redesign.bonus")} {money(wallet.data.lockedBonus, live.currency)}</Txt></View></View> : null}
+      {balances ? <View style={{ width: "100%" }}><Money text={money(balances.totalMinor, balances.currency)} size={40} weight={500} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} /></View> : wallet.isError ? <Button label={t("common.retry")} kind="secondary" onPress={() => void wallet.refetch()} /> : <Skeleton height={52} />}
+      {balances ? <View style={{ flexDirection: "row", gap: 12 }}>
+        <View style={{ flex: 1, minHeight: 44, justifyContent: "center" }}>{balances.withdrawableMinor === null ? <Skeleton height={14} width="70%" /> : <Txt size={12} color={color.ink2} numberOfLines={1}>{t("redesign.withdrawable")} {money(balances.withdrawableMinor, balances.currency)}</Txt>}</View>
+        <Pressable testID="payments-bonus" accessibilityRole="button" accessibilityLabel={`${t("redesign.bonus")} ${money(balances.bonusMinor, balances.currency)}`} accessibilityHint={t("payments.bonusHint")} onPress={() => bonusSheet.current?.present()} style={{ flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+          <Txt size={12} color={color.gold} numberOfLines={1} style={{ flexShrink: 1, textAlign: "right" }}>{t("redesign.bonus")} {money(balances.bonusMinor, balances.currency)}</Txt>
+          <Icon name="chevron" size={14} color={color.gold} />
+        </Pressable>
+      </View> : null}
     </View>
-    <View style={{ flexDirection: "row", gap: 12 }}><View style={{ flex: 1 }}><Button label={t("history.title.withdrawal")} kind="secondary" onPress={() => router.push("/payments/withdraw")} /></View><View style={{ flex: 1 }}><Button label={t("redesign.addMoney")} kind="light" onPress={() => router.push("/payments/deposit")} /></View></View>
-    {boot && boot.profile.kycStatus !== "VERIFIED" ? <Card><Txt size={12} color={color.accentText}>{t("redesign.nextStep")}</Txt><Txt size={20} weight={600} style={{ marginVertical: 8 }}>{t("redesign.verify")}</Txt><Button label={t("redesign.verify")} kind="text" onPress={() => router.push("/account/verify")} /></Card> : null}
-    <View><Txt size={20} weight={600}>{t("redesign.recentActivity")}</Txt><PaymentActivity /></View>
-  </ScrollView></Screen>;
+    <View style={{ flexDirection: "row", gap: 12 }}><View style={{ flex: 1 }}><Button label={t("withdraw.title")} kind="secondary" onPress={() => router.push("/payments/withdraw")} /></View><View style={{ flex: 1 }}><Button label={t("redesign.addMoney")} kind="light" onPress={() => router.push("/payments/deposit")} /></View></View>
+    {/* T3a puts the pending-payment row here, under the buttons. */}
+    {showKycNextStep(boot?.profile.kycStatus) ? <Card><Txt size={12} color={color.accentText}>{t("redesign.nextStep")}</Txt><Txt size={20} weight={600} style={{ marginTop: 8 }}>{t("redesign.verify")}</Txt><Txt size={14} color={color.ink2} style={{ marginVertical: 8 }}>{t("redesign.verificationHint")}</Txt><Button label={t("payments.verifyAction")} kind="text" onPress={() => router.push("/account/verify")} /></Card> : null}
+    <View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <Txt size={20} weight={600} style={{ flex: 1 }}>{t("redesign.recentActivity")}</Txt>
+        <Pressable testID="payments-see-all" accessibilityRole="link" onPress={() => router.push({ pathname: "/history", params: { filter: "payments" } })} style={{ minHeight: 44, justifyContent: "center", flexShrink: 0 }}><Txt size={14} weight={600} color={color.accentText}>{t("common.seeAll")}</Txt></Pressable>
+      </View>
+      <PaymentActivity limit={RECENT_LIMIT} />
+    </View>
+  </ScrollView>
+  <BonusSheet ref={bonusSheet} completedDeposits={wallet.data?.completedDeposits ?? boot?.completedDeposits ?? 0} /></Screen>;
 }

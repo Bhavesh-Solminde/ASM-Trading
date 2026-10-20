@@ -1,7 +1,11 @@
 export type IconName =
   | "trade" | "wallet" | "history" | "user" | "chevron" | "chevronDown" | "close" | "more" | "briefcase" | "star"
   | "search" | "lock" | "bolt" | "plus" | "arrowUp" | "arrowDown" | "fingerprint" | "key" | "eye" | "eyeOff"
-  | "delete" | "download" | "expand" | "collapse";
+  | "delete" | "download" | "expand" | "collapse"
+  | "arrowLeft" | "arrowUpRight" | "check" | "badgeCheck"
+  | "copy" | "timer" | "atSign" | "indianRupee" | "rotateCcw"
+  | "idCard" | "creditCard" | "scanFace" | "flashlight" | "image"
+  | "bell" | "shieldCheck" | "languages" | "lifeBuoy";
 
 export type Glyph = { paths: string[]; circles?: { cx: number; cy: number; r: number; fill?: boolean }[] };
 
@@ -67,6 +71,25 @@ export const GLYPHS: Record<IconName, Glyph> = {
     ],
   },
   download: { paths: ["M12 15V3", "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "m7 10 5 5 5-5"] },
+  // Payments and identity (lucide 0.546). Rects and lines are written as paths; `lifeBuoy`'s rings are arcs.
+  arrowLeft: { paths: ["m12 19-7-7 7-7", "M19 12H5"] },
+  arrowUpRight: { paths: ["M7 7h10v10", "M7 17 17 7"] },
+  check: { paths: ["M20 6 9 17l-5-5"] },
+  badgeCheck: { paths: ["M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z", "m9 12 2 2 4-4"] },
+  copy: { paths: ["M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2z", "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"] },
+  timer: { paths: ["M10 2L14 2", "M12 14L15 11"], circles: [{ cx: 12, cy: 14, r: 8 }] },
+  atSign: { paths: ["M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"], circles: [{ cx: 12, cy: 12, r: 4 }] },
+  indianRupee: { paths: ["M6 3h12", "M6 8h12", "m6 13 8.5 8", "M6 13h3", "M9 13c6.667 0 6.667-10 0-10"] },
+  rotateCcw: { paths: ["M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", "M3 3v5h5"] },
+  idCard: { paths: ["M16 10h2", "M16 14h2", "M6.17 15a3 3 0 0 1 5.66 0", "M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-16a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2z"], circles: [{ cx: 9, cy: 11, r: 2 }] },
+  creditCard: { paths: ["M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-16a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2z", "M2 10L22 10"] },
+  scanFace: { paths: ["M3 7V5a2 2 0 0 1 2-2h2", "M17 3h2a2 2 0 0 1 2 2v2", "M21 17v2a2 2 0 0 1-2 2h-2", "M7 21H5a2 2 0 0 1-2-2v-2", "M8 14s1.5 2 4 2 4-2 4-2", "M9 9h.01", "M15 9h.01"] },
+  flashlight: { paths: ["M18 6c0 2-2 2-2 4v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V10c0-2-2-2-2-4V2h12z", "M6 6L18 6", "M12 12h.01"] },
+  image: { paths: ["M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-14a2 2 0 0 1 2-2z", "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"], circles: [{ cx: 9, cy: 9, r: 2 }] },
+  bell: { paths: ["M10.268 21a2 2 0 0 0 3.464 0", "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"] },
+  shieldCheck: { paths: ["M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z", "m9 12 2 2 4-4"] },
+  languages: { paths: ["m5 8 6 6", "m4 14 6-6 2-3", "M2 5h12", "M7 2h1", "m22 22-5-10-5 10", "M14 18h6"] },
+  lifeBuoy: { paths: ["M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0", "m4.93 4.93 4.24 4.24", "m14.83 9.17 4.24-4.24", "m14.83 14.83 4.24 4.24", "m9.17 14.83-4.24 4.24", "M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0"] },
 };
 
 export const ICON_NAMES = Object.keys(GLYPHS) as IconName[];
