@@ -24,7 +24,18 @@ export function Stamp({ label, tone, size = "sm" }: { label: string; tone: keyof
   return (
     <View accessible accessibilityLabel={label}>
       <View style={{ borderWidth: 1.5, borderColor: c, borderRadius: 3, paddingHorizontal: md ? 7 : 6, paddingVertical: md ? 2 : 1 }}>
-        <Txt font={hindi ? "ui" : "fig"} weight={600} size={md ? 11 : 10} tracking={md ? 0.06 : 0.08} lineHeight={md ? 14 : 13} color={c}>
+        {/* One line that shrinks rather than wraps: a stamp is a single word-group, and a wrapped second line is cut off. */}
+        <Txt
+          font={hindi ? "ui" : "fig"}
+          weight={600}
+          size={md ? 11 : 10}
+          tracking={md ? 0.06 : 0.08}
+          lineHeight={md ? 14 : 13}
+          color={c}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
           {label.toUpperCase()}
         </Txt>
       </View>

@@ -16,9 +16,8 @@ export function PillFill({ fill, height, radius = 999 }: { fill: string | null; 
       pointerEvents="none"
       importantForAccessibility="no-hide-descendants"
       accessibilityElementsHidden
-      width="100%"
       height={height}
-      style={{ position: "absolute", left: 0, top: 0 }}
+      style={{ position: "absolute", left: 0, right: 0, top: 0 }}
     >
       <Rect x={0} y={0} width="100%" height={height} rx={r} ry={r} fill={fill ?? "none"} />
     </Svg>

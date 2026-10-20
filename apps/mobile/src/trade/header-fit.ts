@@ -28,6 +28,13 @@ export const FIGURE = { base: 16, floor: 11, tracking: -0.04 } as const;
 /** The "+₹186.00 today" line above the balance. */
 export const TODAY = { base: 10, floor: 8, tracking: -0.02 } as const;
 
+/**
+ * Style for the figures in the header's balance column. The platform measures a text's width itself and, on Android,
+ * can come out a hair short of what it then draws, which showed as "आज +₹172.0…" with room to spare. A stretched,
+ * right-aligned text takes the column's width instead, so the amount is never cut by its own measure.
+ */
+export const FILL_RIGHT = { alignSelf: "stretch", textAlign: "right" } as const;
+
 /** Width of `text` in em at size 1, tracking included on every character (letterSpacing applies to each glyph). */
 export function textEm(text: string, tracking: number): number {
   let em = 0;
@@ -69,7 +76,7 @@ export function fitSize({
 }
 
 /** Width of a Demo/Live pill: the label plus its padding, at least the 44pt target when it is a tap target. */
-function pillWidth(label: string, fontScale: number, pillPad: number, minWidth: number): number {
+export function pillWidth(label: string, fontScale: number, pillPad: number, minWidth: number): number {
   const text = [...label].length * LABEL_ADVANCE_EM * FIT_MARGIN * PILL_FONT * fontScale;
   return Math.max(minWidth, text + 2 * pillPad);
 }

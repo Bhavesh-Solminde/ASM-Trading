@@ -14,7 +14,9 @@ import {
   TODAY,
   fitHeader,
   fitSize,
+  FILL_RIGHT,
   isCompactWidth,
+  pillWidth,
   textEm,
 } from "./header-fit";
 
@@ -226,5 +228,25 @@ describe("fitHeader: the balance is never clipped or ellipsised", () => {
     const fit = fitHeader({ windowWidth: 320, fontScale: 2, pillLabels: [en.trade.demo, en.trade.live], hasDeposit: true, figure: "₹99,99,99,999.00", today: "−₹99,99,99,999.00 today" });
     expect(fit.stacked).toBe(true);
     expect(realWidth("₹99,99,99,999.00", fit.figureSize, 2, FIGURE.tracking, 600, false)).toBeLessThanOrEqual(320 - 16);
+  });
+});
+
+describe("estimates against widths measured on a device (Android emulator, 411dp, font scale 1)", () => {
+  it("the Hindi today line \"आज +₹172.00\" at 10dp measured 73.5dp: the estimate counts the prefix and stays above it", () => {
+    const estimate = textEm("आज +₹172.00", TODAY.tracking) * FIT_MARGIN * 10;
+    expect(estimate).toBeGreaterThanOrEqual(73.5);
+    // and the prefix really is counted: without it the estimate would sit under the measured width
+    expect(textEm("+₹172.00", TODAY.tracking) * FIT_MARGIN * 10).toBeLessThan(73.5);
+  });
+
+  it("the Hindi Demo / Live pills measured 43.8 and 51.8dp wide: the estimate is never narrower", () => {
+    expect(pillWidth(hi.trade.demo, 1, headerMetrics(false).pillPad, 44)).toBeGreaterThanOrEqual(43.8);
+    expect(pillWidth(hi.trade.live, 1, headerMetrics(false).pillPad, 44)).toBeGreaterThanOrEqual(51.8);
+  });
+});
+
+describe("FILL_RIGHT", () => {
+  it("makes a header figure fill its column and right-align, so its width never rests on the platform's text measure", () => {
+    expect(FILL_RIGHT).toEqual({ alignSelf: "stretch", textAlign: "right" });
   });
 });

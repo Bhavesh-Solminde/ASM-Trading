@@ -14,7 +14,7 @@ import { PillFill } from "@/ui/PillFill";
 import { toast } from "@/ui/Toast";
 import type { AppAccount } from "./accounts";
 import { dayNetForAccount } from "./day-total";
-import { FIGURE, TODAY, fitHeader, isCompactWidth } from "./header-fit";
+import { FIGURE, FILL_RIGHT, TODAY, fitHeader, isCompactWidth } from "./header-fit";
 import { useNow } from "./useNow";
 
 const TYPES = ["DEMO", "LIVE"] as const;
@@ -71,7 +71,7 @@ function BalanceBlock({
   return (
     <>
       {today && todaySize !== null ? (
-        <Money text={today.line} size={todaySize} numberOfLines={1} weight={500} lineHeight={12} tracking={TODAY.tracking} color={today.ink} />
+        <Money text={today.line} size={todaySize} style={FILL_RIGHT} numberOfLines={1} weight={500} lineHeight={12} tracking={TODAY.tracking} color={today.ink} />
       ) : null}
       <Money
         text={text}
@@ -80,6 +80,7 @@ function BalanceBlock({
         tracking={FIGURE.tracking}
         lineHeight={19}
         numberOfLines={1}
+        style={FILL_RIGHT}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
         {...(ink ? { color: ink } : null)}
