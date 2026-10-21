@@ -239,5 +239,37 @@
   "payments": {
     "verifyAction": "Start verification",
     "bonusHint": "See how deposit bonuses work"
+  },
+  "deposit": {
+    "title": "Add money",
+    "amount": "Amount",
+    "tapToEnter": "Tap to enter an amount",
+    "enterAmount": "Enter an amount",
+    "bonusRow": "{{nth}} deposit bonus, {{pct}}%",
+    "nth1": "1st",
+    "nth2": "2nd",
+    "nth3": "3rd",
+    "nth4": "4th",
+    "bonusNote": "Bonus is for trading only and can't be withdrawn.",
+    "howItWorks": "How it works",
+    "payWithHeading": "Pay with",
+    "payWith": "Pay {{amount}} with {{method}}",
+    "method": {
+      "PhonePe": "PhonePe",
+      "Gpay": "Google Pay",
+      "PayTM": "Paytm",
+      "UPI": "Any UPI app",
+      "USDT": "USDT"
+    },
+    "opensApp": "Opens the app",
+    "pickApp": "Pick from your apps",
+    "from": "From {{amount}}",
+    "comingSoon": "Coming soon",
+    "min": "Minimum {{amount}}",
+    "max": "Maximum {{amount}}",
+    "network": "Network",
+    "recommended": "Recommended",
+    "networkHint": "Send on the network you pick here. Money sent on another network can't be credited.",
+    "timedOut": "No reply yet. Check Payments before trying again."
   }
 }

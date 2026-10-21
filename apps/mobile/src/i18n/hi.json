@@ -239,5 +239,37 @@
   "payments": {
     "verifyAction": "पुष्टि शुरू करें",
     "bonusHint": "देखें कि जमा बोनस कैसे काम करता है"
+  },
+  "deposit": {
+    "title": "पैसे जोड़ें",
+    "amount": "राशि",
+    "tapToEnter": "राशि दर्ज करने के लिए छुएँ",
+    "enterAmount": "राशि दर्ज करें",
+    "bonusRow": "{{nth}} डिपॉज़िट बोनस, {{pct}}%",
+    "nth1": "पहला",
+    "nth2": "दूसरा",
+    "nth3": "तीसरा",
+    "nth4": "चौथा",
+    "bonusNote": "बोनस सिर्फ़ ट्रेडिंग के लिए है और निकाला नहीं जा सकता।",
+    "howItWorks": "यह कैसे काम करता है",
+    "payWithHeading": "भुगतान का तरीका",
+    "payWith": "{{method}} से {{amount}} चुकाएँ",
+    "method": {
+      "PhonePe": "PhonePe",
+      "Gpay": "Google Pay",
+      "PayTM": "Paytm",
+      "UPI": "कोई भी UPI ऐप",
+      "USDT": "USDT"
+    },
+    "opensApp": "ऐप खुलेगा",
+    "pickApp": "अपने ऐप्स में से चुनें",
+    "from": "{{amount}} से",
+    "comingSoon": "जल्द आ रहा है",
+    "min": "न्यूनतम {{amount}}",
+    "max": "अधिकतम {{amount}}",
+    "network": "नेटवर्क",
+    "recommended": "सुझाया गया",
+    "networkHint": "यहाँ चुने गए नेटवर्क पर ही भेजें। दूसरे नेटवर्क पर भेजा गया पैसा जमा नहीं हो सकता।",
+    "timedOut": "अभी तक जवाब नहीं आया। दोबारा कोशिश करने से पहले भुगतान देखें।"
   }
 }
