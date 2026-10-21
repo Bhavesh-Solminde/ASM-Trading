@@ -12,7 +12,7 @@ import { Money } from "@/ui/Money";
 import { StatusTag } from "@/ui/StatusTag";
 import { toast } from "@/ui/Toast";
 import { methodLabel, receiptModel, receiptShareText } from "./receipt-model";
-import { endedNoteKey, showsSupportLink } from "./result-model";
+import { amountText, endedNoteKey, requestedAmount, showsSupportLink } from "./result-model";
 import { statusTagTone } from "./status-tone";
 
 /** A 64 round mark: the green check of a credit, or the `raised` cross of one that ended without money. */
@@ -76,7 +76,7 @@ function Receipt({ view }: { view: CheckoutView }) {
         <Txt testID="receipt-title" size={28} weight={600} style={{ textAlign: "center" }}>
           {t("pay.receipt.moneyAdded")}
         </Txt>
-        <BigAmount text={money(model.amountMinor, model.currency)} />
+        <BigAmount text={amountText(model.amountMinor, model.currency)} />
         <Txt size={14} color={color.ink2} style={{ textAlign: "center" }}>
           {t("pay.receipt.balanceUpdated")}
         </Txt>
@@ -104,6 +104,7 @@ function Receipt({ view }: { view: CheckoutView }) {
 function Ended({ view }: { view: CheckoutView }) {
   const { t } = useTranslation();
   const rejected = view.status === "REJECTED";
+  const asked = requestedAmount(view);
   return (
     <View testID="pay-result" style={{ flexGrow: 1, gap: 20 }}>
       <View style={{ alignItems: "center", gap: 14, paddingTop: 12 }}>
@@ -111,7 +112,7 @@ function Ended({ view }: { view: CheckoutView }) {
         <Txt testID="ended-title" size={28} weight={600} style={{ textAlign: "center" }}>
           {t(rejected ? "pay.ended.rejectedTitle" : "pay.ended.expiredTitle")}
         </Txt>
-        <BigAmount text={money(view.amountInr, "INR")} />
+        <BigAmount text={amountText(asked.minor, asked.currency)} />
         <Txt testID="ended-note" size={14} color={color.ink2} style={{ textAlign: "center" }}>
           {t(endedNoteKey({ status: view.status, isGateway: view.isGateway }))}
         </Txt>

@@ -1,3 +1,4 @@
+import { money } from "@/money/format";
 /** Which frame the pay screen draws for a checkout status. */
 export type PayScreen = "pay" | "pending" | "receipt" | "ended";
 
@@ -33,4 +34,18 @@ export function endedNoteKey(input: { status: string; isGateway: boolean }): "pa
 /** A rejection can be taken to support; an expired payment has nothing to appeal. */
 export function showsSupportLink(status: string): boolean {
   return status === "REJECTED";
+}
+
+/**
+ * The amount a deposit asked for, in its own unit. A USDT deposit stores `amountInr` as minus its USDT cents (the
+ * server's convention), so it is shown in USDT, never as a negative rupee figure.
+ */
+export function requestedAmount(view: { method: string; amountInr: number; amountUsdtMinor: number | null }): { minor: number; currency: string } {
+  if (view.method === "USDT") return { minor: view.amountUsdtMinor ?? Math.abs(view.amountInr), currency: "USDT" };
+  return { minor: view.amountInr, currency: "INR" };
+}
+
+/** `money()` with the unit spelled out for USDT, which has no symbol. */
+export function amountText(minor: number, currency: string): string {
+  return currency === "USDT" ? `${money(minor, "USDT")} USDT` : money(minor, currency);
 }

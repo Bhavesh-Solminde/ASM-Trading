@@ -5,6 +5,7 @@ const credited: ReceiptSource = {
   id: "1a2b3c4d-0000-0000-0000-000000000000",
   method: "PhonePe",
   amountInr: 200000,
+  amountUsdtMinor: null,
   creditedAt: "2026-10-14T12:52:00.000Z",
   creditedMinor: 200000,
   creditedCurrency: "INR",
@@ -96,5 +97,12 @@ describe("receiptShareText", () => {
     const text = receiptShareText(m, labels);
     expect(text).not.toMatch(/Bonus|UTR|Date/);
     expect(text).toContain("Reference: DP-1A2B3C4D");
+  });
+});
+
+describe("receiptModel for a USDT deposit an older server sent without credit fields", () => {
+  it("shows the USDT asked for, not the negative rupee figure", () => {
+    const m = receiptModel({ ...credited, method: "USDT", amountInr: -2000, amountUsdtMinor: 2000, creditedMinor: null, creditedCurrency: null }, { tzOffsetMin: 330 });
+    expect(m).toMatchObject({ amountMinor: 2000, currency: "USDT" });
   });
 });

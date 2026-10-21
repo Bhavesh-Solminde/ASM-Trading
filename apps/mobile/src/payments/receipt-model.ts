@@ -2,9 +2,10 @@ import { referenceFor } from "@asm/client-core";
 import type { CheckoutView } from "@asm/contracts";
 import { money } from "@/money/format";
 import { brandKey } from "./method-key";
+import { amountText, requestedAmount } from "./result-model";
 
 /** The part of the checkout view a receipt reads. */
-export type ReceiptSource = Pick<CheckoutView, "id" | "method" | "amountInr" | "creditedAt" | "creditedMinor" | "creditedCurrency" | "bonusMinor" | "balanceAfterMinor" | "utr">;
+export type ReceiptSource = Pick<CheckoutView, "id" | "method" | "amountInr" | "amountUsdtMinor" | "creditedAt" | "creditedMinor" | "creditedCurrency" | "bonusMinor" | "balanceAfterMinor" | "utr">;
 
 export interface ReceiptModel {
   /** What reached the account, in `currency`; the INR asked for only when an older server sent no credit. */
@@ -58,9 +59,10 @@ export function methodLabel(method: string): string {
 export function receiptModel(view: ReceiptSource, opts: { tzOffsetMin: number }): ReceiptModel {
   const credited = view.creditedMinor !== null && view.creditedCurrency !== null;
   const utr = view.utr?.trim() ?? "";
+  const asked = requestedAmount(view);
   return {
-    amountMinor: credited ? view.creditedMinor! : view.amountInr,
-    currency: credited ? view.creditedCurrency! : "INR",
+    amountMinor: credited ? view.creditedMinor! : asked.minor,
+    currency: credited ? view.creditedCurrency! : asked.currency,
     bonusMinor: view.bonusMinor !== null && view.bonusMinor > 0 ? view.bonusMinor : null,
     balanceAfterMinor: view.balanceAfterMinor,
     method: methodLabel(view.method),
@@ -82,7 +84,7 @@ export interface ShareLabels {
 
 /** The text "Share receipt" hands to the system share sheet: plain lines, only what is known. Amounts go through `money()`. */
 export function receiptShareText(model: ReceiptModel, labels: ShareLabels): string {
-  const lines = [labels.title, `${labels.amount}: ${money(model.amountMinor, model.currency)}`];
+  const lines = [labels.title, `${labels.amount}: ${amountText(model.amountMinor, model.currency)}`];
   if (model.bonusMinor !== null) lines.push(`${labels.bonus}: +${money(model.bonusMinor, model.currency)}`);
   lines.push(`${labels.method}: ${model.method}`);
   if (model.utr !== null) lines.push(`${labels.utr}: ${model.utr}`);

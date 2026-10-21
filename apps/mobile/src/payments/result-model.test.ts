@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { endedNoteKey, payScreenFor, showsSupportLink } from "./result-model";
+import { amountText, endedNoteKey, payScreenFor, requestedAmount, showsSupportLink } from "./result-model";
 
 describe("payScreenFor", () => {
   it("shows the way to pay while the payment is open", () => {
@@ -38,5 +38,23 @@ describe("showsSupportLink", () => {
     expect(showsSupportLink("REJECTED")).toBe(true);
     expect(showsSupportLink("EXPIRED")).toBe(false);
     expect(showsSupportLink("COMPLETED")).toBe(false);
+  });
+});
+
+describe("requestedAmount / amountText", () => {
+  it("an INR deposit is its rupees", () => {
+    const a = requestedAmount({ method: "UPI", amountInr: 200000, amountUsdtMinor: null });
+    expect(a).toEqual({ minor: 200000, currency: "INR" });
+    expect(amountText(a.minor, a.currency)).toBe("₹2,000.00");
+  });
+
+  it("a USDT deposit is its USDT, never the negative rupee figure the server stores for it", () => {
+    const a = requestedAmount({ method: "USDT", amountInr: -2000, amountUsdtMinor: 2000 });
+    expect(a).toEqual({ minor: 2000, currency: "USDT" });
+    expect(amountText(a.minor, a.currency)).toBe("20.00 USDT");
+  });
+
+  it("a USDT deposit from an older server without amountUsdtMinor uses the magnitude", () => {
+    expect(requestedAmount({ method: "USDT", amountInr: -2000, amountUsdtMinor: null })).toEqual({ minor: 2000, currency: "USDT" });
   });
 });
