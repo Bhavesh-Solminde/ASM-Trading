@@ -96,7 +96,12 @@ test.describe("trade ticket keeps amount and time", () => {
       const row = page.getByTestId("pct-investment");
       await openTicket(page);
       await expect(row).toHaveCount(0);
-      await page.getByRole("button", { name: "Switch investment to a percentage of balance" }).click();
+      const toggle = page.getByRole("button", { name: "Switch investment to a percentage of balance" });
+      await expect(toggle).toHaveText("Switch");
+      await toggle.click();
+      // Switching to % always starts from 100%.
+      await expect(stake(page)).toHaveValue("100");
+      await expect(row).toHaveText(/Investment\s*₹5,000\.00/);
       await stake(page).fill("10");
       await expect(row).toHaveText(/Investment\s*₹500\.00/);
       await info.attach("1-ten-percent-of-5000", { body: await page.screenshot(), contentType: "image/png" });
@@ -117,6 +122,16 @@ test.describe("trade ticket keeps amount and time", () => {
       await page.getByRole("button", { name: "Switch investment to an amount" }).click();
       await expect(stake(page)).toHaveValue("100");
       await expect(row).toHaveCount(0);
+
+      // Every switch to % starts again from 100%, even though 1% was saved before.
+      await toggle.click();
+      await expect(stake(page)).toHaveValue("100");
+
+      // "Switch" sits on the field's bottom border, not on its own row below it.
+      const field = (await page.locator("div:has(> span > #stake)").boundingBox())!;
+      const sw = (await page.getByRole("button", { name: /^Switch investment/ }).boundingBox())!;
+      expect(Math.abs(sw.y + sw.height / 2 - (field.y + field.height))).toBeLessThanOrEqual(2);
+      await info.attach("4-switch-on-border", { body: await page.screenshot(), contentType: "image/png" });
     } finally {
       await prisma.account.update({
         where: { id: demo.id },
@@ -136,6 +151,7 @@ test.describe("trade ticket keeps amount and time", () => {
       await tile.click();
       const sheet = page.getByRole("dialog", { name: "Investment" });
       await sheet.getByRole("radio", { name: "Percentage of balance" }).click();
+      await expect(sheet).toContainText("= ₹5,000.00 of demo balance ₹5,000.00");
       await sheet.getByRole("button", { name: "1%", exact: true }).click();
       await expect(sheet).toContainText("= ₹100.00 (minimum) of demo balance ₹5,000.00");
       await info.attach("1-phone-sheet-one-percent", { body: await page.screenshot(), contentType: "image/png" });

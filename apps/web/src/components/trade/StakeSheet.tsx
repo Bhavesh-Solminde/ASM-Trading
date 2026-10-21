@@ -174,7 +174,11 @@ export function StakeSheet({
                 role="radio"
                 aria-checked={unit === u}
                 aria-label={u === "amount" ? "Amount" : "Percentage of balance"}
-                onClick={() => setUnit(u)}
+                onClick={() => {
+                  // Switching to % always starts from 100%, like the desktop ticket.
+                  if (u === "percent" && unit !== "percent") setPercent("100");
+                  setUnit(u);
+                }}
                 className={`h-8 min-w-16 rounded-full px-4 text-[13px] font-bold transition-colors ${
                   unit === u ? "bg-brand-fill text-white" : "text-ink-2 hover:text-ink"
                 }`}

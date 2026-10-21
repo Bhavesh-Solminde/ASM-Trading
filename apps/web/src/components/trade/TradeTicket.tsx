@@ -250,6 +250,8 @@ export function TradeTicket({
   }
 
   function toggleUnit(): void {
+    // Switching to % always starts from 100%, like Quotex.
+    if (stakeUnit === "amount") setPctInput("100");
     setStakeUnit((u) => (u === "amount" ? "percent" : "amount"));
     setError(null);
   }
@@ -557,7 +559,7 @@ export function TradeTicket({
             <button type="button" aria-label="Decrease investment" onClick={() => nudge(-1)} className={STEP}>
               <Icon name="minus" className={STEP_ICON} />
             </button>
-            <div className={`${DISPLAY} focus-within:border-brand`}>
+            <div className={`${DISPLAY} relative focus-within:border-brand`}>
               <span className="flex items-center justify-center gap-0.5 text-[22px] font-bold phone:text-[13px]">
                 {inPercent ? null : currencySymbol(currency)}
                 {inPercent ? (
@@ -584,20 +586,21 @@ export function TradeTicket({
                 )}
                 {inPercent ? "%" : null}
               </span>
+              {/* Quotex-style "Switch" set into the bottom border: the field takes an amount or a % of the balance.
+                  The two-tone fill matches the box above the border line and the ticket below it. */}
+              <button
+                type="button"
+                onClick={toggleUnit}
+                aria-label={inPercent ? "Switch investment to an amount" : "Switch investment to a percentage of balance"}
+                className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-[linear-gradient(to_bottom,var(--color-panel)_50%,var(--color-ground)_50%)] px-2 text-[11px] font-bold uppercase leading-[14px] tracking-[0.1em] text-brand hover:underline"
+              >
+                Switch
+              </button>
             </div>
             <button type="button" aria-label="Increase investment" onClick={() => nudge(1)} className={STEP}>
               <Icon name="plus" className={STEP_ICON} />
             </button>
           </div>
-          {/* Quotex-style "Switch": the field takes an amount or a % of the balance. */}
-          <button
-            type="button"
-            onClick={toggleUnit}
-            aria-label={inPercent ? "Switch investment to an amount" : "Switch investment to a percentage of balance"}
-            className="-mt-0.5 justify-self-center px-2 text-[11px] font-bold uppercase tracking-[0.1em] text-brand hover:underline phone:hidden"
-          >
-            {inPercent ? `Switch to ${currencySymbol(currency)}` : "Switch to %"}
-          </button>
         </div>
       </div>
 
