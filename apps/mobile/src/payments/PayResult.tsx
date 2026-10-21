@@ -12,7 +12,7 @@ import { Money } from "@/ui/Money";
 import { StatusTag } from "@/ui/StatusTag";
 import { toast } from "@/ui/Toast";
 import { methodLabel, receiptModel, receiptShareText } from "./receipt-model";
-import { amountText, endedNoteKey, requestedAmount, showsSupportLink } from "./result-model";
+import { amountText, endedNoteKey, endedUsdtLink, requestedAmount, showsSupportLink } from "./result-model";
 import { statusTagTone } from "./status-tone";
 
 /** A 64 round mark: the green check of a credit, or the `raised` cross of one that ended without money. */
@@ -98,13 +98,14 @@ function Receipt({ view }: { view: CheckoutView }) {
 
 /**
  * REJECTED / EXPIRED: the same frame without the credit. A `down` tag, the amount that was asked for, the website's
- * copy and "New deposit". There is no UTR link here (the claim route takes only an open payment), and a rejection
- * offers support. An expired payment says plainly that a payment already sent is still credited and must not be sent again.
+ * copy and "New deposit". There is no UTR link here (the UTR claim takes only an open payment); an expired manual
+ * USDT deposit still takes a transaction hash, so it offers that (a gateway one, support), and a rejection offers support. An expired payment says plainly that a payment already sent is still credited and must not be sent again.
  */
-function Ended({ view }: { view: CheckoutView }) {
+function Ended({ view, token }: { view: CheckoutView; token: string }) {
   const { t } = useTranslation();
   const rejected = view.status === "REJECTED";
   const asked = requestedAmount(view);
+  const usdtLink = endedUsdtLink(view);
   return (
     <View testID="pay-result" style={{ flexGrow: 1, gap: 20 }}>
       <View style={{ alignItems: "center", gap: 14, paddingTop: 12 }}>
@@ -127,6 +128,15 @@ function Ended({ view }: { view: CheckoutView }) {
       <View style={{ flexGrow: 1, minHeight: 8 }} />
       <View style={{ gap: 12 }}>
         <Button testID="pay-new-deposit" kind="light" label={t("pay.ended.newDeposit")} onPress={() => router.replace("/payments/deposit")} />
+        {usdtLink === "claim" ? (
+          <Button
+            testID="pay-claim"
+            kind="text"
+            label={t("usdt.endedClaim")}
+            onPress={() => router.push({ pathname: "/payments/claim/[id]", params: { id: view.id, kind: "usdt", token } })}
+          />
+        ) : null}
+        {usdtLink === "support" ? <Button testID="pay-contact-support" kind="text" label={t("usdt.endedSupport")} onPress={() => router.push("/account/support")} /> : null}
         {showsSupportLink(view.status) ? <Button testID="pay-contact-support" kind="text" label={t("pay.ended.contactSupport")} onPress={() => router.push("/account/support")} /> : null}
       </View>
     </View>
@@ -134,6 +144,6 @@ function Ended({ view }: { view: CheckoutView }) {
 }
 
 /** A payment that has ended: the receipt when it was credited, the ended frame when it was rejected or expired. */
-export function PayResult({ view }: { view: CheckoutView }) {
-  return view.status === "COMPLETED" ? <Receipt view={view} /> : <Ended view={view} />;
+export function PayResult({ view, token }: { view: CheckoutView; token: string }) {
+  return view.status === "COMPLETED" ? <Receipt view={view} /> : <Ended view={view} token={token} />;
 }

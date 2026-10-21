@@ -84,5 +84,7 @@ export function pendingFromView(input: {
   if (input.existing && input.existing.token !== input.token) return null;
   const expiresAt = Date.parse(input.view.expiresAt);
   if (!Number.isFinite(expiresAt)) return null;
-  return { token: input.token, expiresAt, amountInr: input.view.amountInr };
+  // A USDT deposit stores `amountInr` as minus its USDT cents: that is not rupees, so no amount is saved for it
+  // (Payments takes the figure from the server's answer anyway).
+  return { token: input.token, expiresAt, amountInr: input.view.amountInr > 0 ? input.view.amountInr : null };
 }

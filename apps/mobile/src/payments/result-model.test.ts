@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { amountText, endedNoteKey, payScreenFor, requestedAmount, showsSupportLink } from "./result-model";
+import { amountText, endedNoteKey, endedUsdtLink, payScreenFor, payTitleAmount, requestedAmount, showsSupportLink } from "./result-model";
 
 describe("payScreenFor", () => {
   it("shows the way to pay while the payment is open", () => {
@@ -56,5 +56,31 @@ describe("requestedAmount / amountText", () => {
 
   it("a USDT deposit from an older server without amountUsdtMinor uses the magnitude", () => {
     expect(requestedAmount({ method: "USDT", amountInr: -2000, amountUsdtMinor: null })).toEqual({ minor: 2000, currency: "USDT" });
+  });
+});
+
+describe("payTitleAmount", () => {
+  it("is the rupees, trimmed when whole, for a UPI payment", () => {
+    expect(payTitleAmount({ method: "UPI", amountInr: 193_000, amountUsdtMinor: null })).toBe("₹1,930");
+    expect(payTitleAmount({ method: "PhonePe", amountInr: 200_037, amountUsdtMinor: null })).toBe("₹2,000.37");
+  });
+  it("is the USDT, with its unit, for a USDT payment: never the negative rupee figure the server stores", () => {
+    expect(payTitleAmount({ method: "USDT", amountInr: -2000, amountUsdtMinor: 2000 })).toBe("20.00 USDT");
+    expect(payTitleAmount({ method: "USDT", amountInr: -123_456, amountUsdtMinor: 123_456 })).toBe("1,234.56 USDT");
+  });
+});
+
+describe("endedUsdtLink", () => {
+  const expired = { method: "USDT", isGateway: false, status: "EXPIRED" };
+  it("offers the tx-hash claim on an expired manual USDT deposit, as the website does", () => {
+    expect(endedUsdtLink(expired)).toBe("claim");
+  });
+  it("sends an expired gateway deposit to support with its hash (it lands in review by itself)", () => {
+    expect(endedUsdtLink({ ...expired, isGateway: true })).toBe("support");
+  });
+  it("offers nothing on a rejected USDT deposit (the server takes no claim), a credited one, or a UPI one", () => {
+    expect(endedUsdtLink({ ...expired, status: "REJECTED" })).toBeNull();
+    expect(endedUsdtLink({ ...expired, status: "COMPLETED" })).toBeNull();
+    expect(endedUsdtLink({ ...expired, method: "UPI" })).toBeNull();
   });
 });

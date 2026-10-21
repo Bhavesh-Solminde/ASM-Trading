@@ -3,12 +3,12 @@ import { ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError } from "@/api/errors";
-import { money } from "@/money/format";
 import { ExpiryClock } from "@/payments/ExpiryClock";
 import { PayPending } from "@/payments/PayPending";
 import { PayResult } from "@/payments/PayResult";
-import { payScreenFor } from "@/payments/result-model";
+import { payScreenFor, payTitleAmount } from "@/payments/result-model";
 import { UpiPay } from "@/payments/UpiPay";
+import { UsdtPay } from "@/payments/UsdtPay";
 import { usePayCheckout } from "@/payments/usePayCheckout";
 import { color } from "@/theme/tokens";
 import { Button, Screen, Skeleton, Txt } from "@/theme/ui";
@@ -18,7 +18,7 @@ import { BackHeader } from "@/ui/BackHeader";
  * `/payments/pay/<checkout token>`: pay a deposit. The checkout is polled every 4s while this screen is in front
  * (`usePayCheckout`), and what it draws follows the status (`payScreenFor`): the way to pay, "checking your payment"
  * once the UTR is in, then the receipt (credited) or the ended frame (rejected, expired).
- * UPI payments are drawn here (T3a); a USDT payment's screen is T4's, so it shows a plain notice until then.
+ * A UPI payment is drawn by `UpiPay`, a USDT payment by `UsdtPay` (its address, network warning and tx-hash claim).
  */
 export default function Pay() {
   const { t } = useTranslation();
@@ -32,21 +32,14 @@ export default function Pay() {
   // The way to pay keeps its close button and clock; the frames after it are a destination, so a back arrow to Payments.
   const paying = screen === "pay";
   let title = t("pay.heading");
-  if (view) title = paying ? t("pay.title", { amount: money(view.amountInr, "INR", { trim: true }) }) : t(screen === "receipt" ? "pay.confirmedTitle" : "pay.statusTitle");
+  if (view) title = paying ? t("pay.title", { amount: payTitleAmount(view) }) : t(screen === "receipt" ? "pay.confirmedTitle" : "pay.statusTitle");
 
   let body;
   if (view && (screen === "receipt" || screen === "ended")) {
-    body = <PayResult view={view} />;
+    body = <PayResult view={view} token={checkoutToken} />;
   } else if (view && view.method === "USDT") {
-    // T4 draws the address, QR and tx-hash claim. Until then say so rather than show a blank screen.
-    body = (
-      <View style={{ gap: 16 }}>
-        <Txt testID="pay-usdt-soon" size={15} color={color.ink2}>
-          {t("pay.usdtSoon")}
-        </Txt>
-        <Button kind="light" label={t("pay.backToPayments")} onPress={() => router.replace("/payments")} />
-      </View>
-    );
+    // A USDT payment has no UTR to wait on, so even "processing" keeps its own screen (address, status, claim).
+    body = <UsdtPay view={view} token={checkoutToken} />;
   } else if (view && screen === "pending") {
     body = <PayPending view={view} />;
   } else if (view) {

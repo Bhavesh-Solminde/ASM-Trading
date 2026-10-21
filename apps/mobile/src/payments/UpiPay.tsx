@@ -2,8 +2,6 @@ import * as Clipboard from "expo-clipboard";
 import { useEffect, useMemo, useState } from "react";
 import { Linking, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import QRCode from "react-native-qrcode-svg";
-import { Circle, Svg } from "react-native-svg";
 import type { CheckoutView } from "@asm/contracts";
 import { money } from "@/money/format";
 import { color } from "@/theme/tokens";
@@ -14,6 +12,7 @@ import { IconTile } from "@/ui/IconTile";
 import { toast } from "@/ui/Toast";
 import { BUTTON_SKIN } from "@/theme/button-skin";
 import { ClaimLink } from "./ClaimLink";
+import { QrCard, WaitingRing } from "./PayParts";
 import { detectInstalledUpiApps, openUpiApp } from "./open-upi";
 import { payInstrumentsVisible, statusLineKey } from "./pay-model";
 import { buttonPlan, orderUpiApps, upiAppName, type NamedUpiApp, type UpiApp } from "./upi-apps";
@@ -65,30 +64,6 @@ function AppButton({ app, big, onPress }: { app: UpiApp; big: boolean; onPress: 
   );
 }
 
-/** A 30% arc over a rule-coloured ring: "we are waiting", as on the board. Decorative. */
-function WaitingRing() {
-  const r = 9;
-  const c = 2 * Math.PI * r;
-  return (
-    <Svg width={22} height={22} viewBox="0 0 22 22" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-      <Circle cx={11} cy={11} r={r} stroke={color.rule} strokeWidth={3} fill="none" />
-      <Circle cx={11} cy={11} r={r} stroke={color.accentText} strokeWidth={3} fill="none" strokeLinecap="round" strokeDasharray={`${c * 0.3} ${c}`} rotation={-90} origin="11, 11" />
-    </Svg>
-  );
-}
-
-/** The scannable card: dark modules on `paper`, 196 square with 12 padding. Falls back to nothing if the code cannot be drawn. */
-function QrCard({ value }: { value: string }) {
-  const { t } = useTranslation();
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
-  return (
-    <View accessible accessibilityRole="image" accessibilityLabel={t("pay.qrLabel")} style={{ width: 196, minHeight: 196, padding: 12, borderRadius: 14, backgroundColor: color.paper }}>
-      <QRCode value={value} size={172} color={color.ground} backgroundColor={color.paper} quietZone={0} ecl="M" onError={() => setFailed(true)} />
-    </View>
-  );
-}
-
 /**
  * The open UPI payment: scan the QR or hand it to a UPI app, copy the UPI ID, and a status card that says what we
  * are waiting for. The apps are the installed ones among PhonePe / Google Pay / Paytm (a probe each), the method the
@@ -129,7 +104,7 @@ export function UpiPay({ view, token }: { view: CheckoutView; token: string }) {
     <View style={{ gap: 22 }}>
       {showPay ? (
         <View style={{ alignItems: "center", gap: 12 }}>
-          {upiUri ? <QrCard value={upiUri} /> : null}
+          {upiUri ? <QrCard value={upiUri} label={t("pay.qrLabel")} /> : null}
           <Txt size={14} color={color.ink2} style={{ textAlign: "center" }}>
             {t("pay.scanHint")}
           </Txt>

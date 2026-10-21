@@ -8,19 +8,23 @@ import { useNow } from "@/trade/useNow";
 import { Icon } from "@/ui/Icon";
 import { IconTile } from "@/ui/IconTile";
 import { Money } from "@/ui/Money";
-import { pendingPaymentRow } from "./hub-model";
+import { pendingPaymentRow, type PendingRow } from "./hub-model";
+import { amountText } from "./result-model";
 
 /**
  * "Payment in progress · ₹x · Continue": the way back to a deposit the user started and has not finished. A leaf: it
  * checks the clock every 15s so the row goes away by itself when the payment window ends. The server-confirmed open
  * checkout from `pendingRowDecision`.
  */
-export function PendingPaymentRow({ pending }: { pending: { token: string; amountInr: number | null; expiresAt: number | null } }) {
+export function PendingPaymentRow({ pending }: { pending: PendingRow }) {
   const { t } = useTranslation();
   const now = useNow(15_000);
   const row = pendingPaymentRow(pending, now);
   if (!row) return null;
-  const amount = row.amountInr !== null ? money(row.amountInr, "INR", { trim: true }) : null;
+  // The amount in its own unit: a USDT payment is "20.00 USDT", never a rupee figure.
+  let amount: string | null = null;
+  if (pending.usdtMinor !== null) amount = amountText(pending.usdtMinor, "USDT");
+  else if (row.amountInr !== null) amount = money(row.amountInr, "INR", { trim: true });
   return (
     <Pressable
       testID="payments-pending"

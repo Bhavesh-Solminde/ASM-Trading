@@ -87,6 +87,9 @@ describe("pendingFromView", () => {
   it("leaves a newer deposit's saved checkout alone when an older payment's screen is open", () => {
     expect(pendingFromView({ existing: { token: "newer", expiresAt: null, amountInr: null }, token: "tok", view })).toBeNull();
   });
+  it("saves no amount for a USDT payment: the server stores it as minus its USDT cents, which is not rupees", () => {
+    expect(pendingFromView({ existing: null, token: "tok", view: { ...view, amountInr: -2000 } })).toEqual({ token: "tok", expiresAt, amountInr: null });
+  });
   it("saves nothing for a final payment (it is cleared instead) or an expiry it cannot read", () => {
     expect(pendingFromView({ existing: null, token: "tok", view: { ...view, status: "COMPLETED" } })).toBeNull();
     expect(pendingFromView({ existing: null, token: "tok", view: { ...view, expiresAt: "soon" } })).toBeNull();

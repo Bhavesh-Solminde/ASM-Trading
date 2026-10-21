@@ -1,4 +1,5 @@
 import { money } from "@/money/format";
+import { usdtClaimEntry } from "./usdt-claim";
 /** Which frame the pay screen draws for a checkout status. */
 export type PayScreen = "pay" | "pending" | "receipt" | "ended";
 
@@ -23,8 +24,8 @@ export function payScreenFor(status: string): PayScreen {
 
 /**
  * The i18n key of the ended frame's note, from the web deposit page's copy. An expired payment may still be credited
- * if it was already sent, so the note says not to pay again; a USDT gateway deposit is credited by itself. No claim
- * link here: the claim route takes only an open UPI payment, and the USDT transaction claim is T4's.
+ * if it was already sent, so the note says not to pay again; a USDT gateway deposit is credited by itself. No UTR
+ * claim link here (that route takes only an open UPI payment); an expired USDT deposit's own link is `endedUsdtLink`.
  */
 export function endedNoteKey(input: { status: string; isGateway: boolean }): "pay.ended.rejected" | "pay.ended.expired" | "pay.ended.expiredGateway" {
   if (input.status === "REJECTED") return "pay.ended.rejected";
@@ -48,4 +49,24 @@ export function requestedAmount(view: { method: string; amountInr: number; amoun
 /** `money()` with the unit spelled out for USDT, which has no symbol. */
 export function amountText(minor: number, currency: string): string {
   return currency === "USDT" ? `${money(minor, "USDT")} USDT` : money(minor, currency);
+}
+
+/** The amount in the pay screen's title: "₹1,930" for UPI, "20.00 USDT" for USDT (whose server-side rupee figure is negative). */
+export function payTitleAmount(view: { method: string; amountInr: number; amountUsdtMinor: number | null }): string {
+  if (view.method === "USDT") {
+    const asked = requestedAmount(view);
+    return amountText(asked.minor, asked.currency);
+  }
+  return money(view.amountInr, "INR", { trim: true });
+}
+
+/**
+ * The extra way out on an expired USDT deposit, from the website's expired page: a manual (shared-address) one can
+ * still be claimed with its transaction hash ("claim"); a gateway one lands in review by itself, so the user is sent
+ * to support with their hash ("support"). Nothing for a rejected, credited or UPI payment: the server takes no
+ * claim on them.
+ */
+export function endedUsdtLink(view: { method: string; isGateway: boolean; status: string }): "claim" | "support" | null {
+  if (view.method !== "USDT" || view.status !== "EXPIRED") return null;
+  return usdtClaimEntry(view) ? "claim" : "support";
 }

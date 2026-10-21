@@ -1,5 +1,6 @@
 import { isFinalStatus } from "./checkout-poll";
 import type { PendingCheckout } from "./pending-checkout";
+import { requestedAmount } from "./result-model";
 
 /** How many recent payments the Payments tab previews before "See all". */
 export const RECENT_LIMIT = 5;
@@ -64,7 +65,19 @@ interface CheckoutAnswer {
   status: string;
   method: string;
   amountInr: number;
+  /** USDT cents; null or absent from an older server. */
+  amountUsdtMinor?: number | null;
   expiresAt: string;
+}
+
+/** What the "Payment in progress" row shows: the token to open, the amount in its own unit (rupees, or USDT cents for USDT), and when it ends. */
+export interface PendingRow {
+  token: string;
+  /** Paise, for a UPI payment; null for USDT and while unknown. */
+  amountInr: number | null;
+  /** USDT cents, for a USDT payment; null otherwise. */
+  usdtMinor: number | null;
+  expiresAt: number | null;
 }
 
 /**
@@ -75,15 +88,15 @@ interface CheckoutAnswer {
  * payment that has already ended. The server's amount and expiry win over the saved ones (an entry saved before the
  * pay screen loaded has neither). Forget it (`clear`) on a final status, a 404, or an expiry that has passed (the
  * saved one, or the server's for an entry saved without one). Not knowing yet (loading, offline, 5xx) hides the row
- * and keeps the entry: that is not an ending. A USDT checkout is hidden but kept: the app cannot pay it until T4
- * draws its screen, and a row into "can't be paid in the app yet" would be a dead end.
+ * and keeps the entry: that is not an ending. A USDT checkout shows like a UPI one, in USDT: the server stores its
+ * `amountInr` as minus its USDT cents, which is never offered as rupees.
  */
 export function pendingRowDecision(input: {
   pending: PendingCheckout | null;
   nowMs: number;
   view: CheckoutAnswer | null;
   errorStatus: number | null;
-}): { row: { token: string; amountInr: number | null; expiresAt: number | null } | null; clear: boolean } {
+}): { row: PendingRow | null; clear: boolean } {
   const { pending, nowMs, view } = input;
   const none = { row: null, clear: false };
   if (!pending) return none;
@@ -93,6 +106,9 @@ export function pendingRowDecision(input: {
   const expiresAt = Date.parse(view.expiresAt);
   if (!Number.isFinite(expiresAt)) return none;
   if (nowMs >= expiresAt) return { row: null, clear: true };
-  if (view.method === "USDT") return none;
-  return { row: { token: pending.token, amountInr: view.amountInr, expiresAt }, clear: false };
+  if (view.method === "USDT") {
+    const asked = requestedAmount({ method: view.method, amountInr: view.amountInr, amountUsdtMinor: view.amountUsdtMinor ?? null });
+    return { row: { token: pending.token, amountInr: null, usdtMinor: asked.minor, expiresAt }, clear: false };
+  }
+  return { row: { token: pending.token, amountInr: view.amountInr, usdtMinor: null, expiresAt }, clear: false };
 }

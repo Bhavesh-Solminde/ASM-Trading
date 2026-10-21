@@ -77,10 +77,10 @@ describe("pendingRowDecision", () => {
   const decide = (over: Partial<Parameters<typeof pendingRowDecision>[0]> = {}) => pendingRowDecision({ pending: saved, nowMs: now, view: view(), errorStatus: null, ...over });
 
   it("shows the row, with the server's amount and expiry, for an open UPI checkout", () => {
-    expect(decide()).toEqual({ row: { token: "tok", amountInr: 200_037, expiresAt: now + 600_000 }, clear: false });
+    expect(decide()).toEqual({ row: { token: "tok", amountInr: 200_037, usdtMinor: null, expiresAt: now + 600_000 }, clear: false });
   });
   it("shows an open payment that was saved before the pay screen loaded it (no expiry, no amount) with the server's figures", () => {
-    expect(decide({ pending: { token: "tok", expiresAt: null, amountInr: null } }).row).toEqual({ token: "tok", amountInr: 200_037, expiresAt: now + 600_000 });
+    expect(decide({ pending: { token: "tok", expiresAt: null, amountInr: null } }).row).toEqual({ token: "tok", amountInr: 200_037, usdtMinor: null, expiresAt: now + 600_000 });
   });
   it("is nothing, and clears nothing, when nothing is saved", () => {
     expect(decide({ pending: null, view: null })).toEqual({ row: null, clear: false });
@@ -106,8 +106,15 @@ describe("pendingRowDecision", () => {
   it("clears when the server's own expiry has passed, for an entry with no saved expiry", () => {
     expect(decide({ pending: { token: "tok", expiresAt: null, amountInr: null }, view: view({ expiresAt: new Date(now - 1).toISOString() }) })).toEqual({ row: null, clear: true });
   });
-  it("hides a USDT checkout (the app cannot pay it until T4) without forgetting it", () => {
-    expect(decide({ view: view({ method: "USDT" }) })).toEqual({ row: null, clear: false });
+  it("shows an open USDT checkout in its own unit: the server's minus-cents figure is never offered as rupees", () => {
+    expect(decide({ view: view({ method: "USDT", amountInr: -2000, amountUsdtMinor: 2000 }) })).toEqual({ row: { token: "tok", amountInr: null, usdtMinor: 2000, expiresAt: now + 600_000 }, clear: false });
+  });
+  it("shows a USDT checkout from an older server (no amountUsdtMinor) by the magnitude of the stored figure", () => {
+    expect(decide({ view: view({ method: "USDT", amountInr: -2000 }) }).row).toEqual({ token: "tok", amountInr: null, usdtMinor: 2000, expiresAt: now + 600_000 });
+  });
+  it("clears a final or expired USDT checkout like any other", () => {
+    expect(decide({ view: view({ method: "USDT", status: "EXPIRED" }) })).toEqual({ row: null, clear: true });
+    expect(decide({ view: view({ method: "USDT", expiresAt: new Date(now - 1).toISOString() }) })).toEqual({ row: null, clear: true });
   });
   it("hides, without clearing, when the server's expiry cannot be read (never invent an ending)", () => {
     expect(decide({ view: view({ expiresAt: "soon" }) }).clear).toBe(false);
