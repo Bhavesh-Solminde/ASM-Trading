@@ -6,7 +6,9 @@ import { queryClient, usePaymentsInfinite, useBootstrap, useWallet } from "@/api
 import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSession } from "@/auth/session-store";
 import { useSessionLive } from "@/auth/use-session-live";
-import { hubBalances, RECENT_LIMIT, showKycNextStep } from "@/payments/hub-model";
+import { hubBalances, pendingIsStale, RECENT_LIMIT, showKycNextStep } from "@/payments/hub-model";
+import { PendingPaymentRow } from "@/payments/PendingPaymentRow";
+import { clearPendingCheckout, loadPendingCheckout, type PendingCheckout } from "@/payments/pending-checkout";
 import { BonusSheet } from "@/payments/BonusSheet";
 import { useSocket } from "@/socket/socket-store";
 import { Button, Card, Screen, Skeleton, Txt } from "@/theme/ui";
@@ -26,6 +28,7 @@ export default function Payments() {
   const payments = usePaymentsInfinite(sessionLive);
   const bonusSheet = useRef<SheetRef>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [pending, setPending] = useState<PendingCheckout | null>(null);
   const live = wallet.data?.accounts.find(a => a.type === "LIVE") ?? boot?.accounts.find(a => a.type === "LIVE");
   // The socket's balance moves with every trade; the wallet is the fallback until it has one.
   const socketBalance = useSocket(s => (live ? s.trades.balances[live.id] : undefined));
@@ -42,6 +45,14 @@ export default function Payments() {
     void refetchPayments({ cancelRefetch: false });
     refreshBootstrap(queryClient);
   }, [sessionLive, refetchWallet, refetchPayments]));
+  // The deposit the user started and has not finished: read on every focus (the pay screen may have just ended it), and
+  // forgotten once its window has passed. Per user, so a shared phone never offers one person the other's payment.
+  const userId = boot?.userId;
+  useFocusEffect(useCallback(() => {
+    const saved = userId ? loadPendingCheckout(userId) : null;
+    if (userId && pendingIsStale(saved, Date.now())) clearPendingCheckout(userId);
+    setPending(saved && !pendingIsStale(saved, Date.now()) ? saved : null);
+  }, [userId]));
   const refresh = async () => {
     if (!sessionLive) return;
     setRefreshing(true);
@@ -62,7 +73,7 @@ export default function Payments() {
       </View> : null}
     </View>
     <View style={{ flexDirection: "row", gap: 12 }}><View style={{ flex: 1 }}><Button label={t("withdraw.title")} kind="secondary" onPress={() => router.push("/payments/withdraw")} /></View><View style={{ flex: 1 }}><Button label={t("redesign.addMoney")} kind="light" onPress={() => router.push("/payments/deposit")} /></View></View>
-    {/* T3a puts the pending-payment row here, under the buttons. */}
+    {pending ? <PendingPaymentRow pending={pending} /> : null}
     {showKycNextStep(boot?.profile.kycStatus) ? <Card><Txt size={12} color={color.accentText}>{t("redesign.nextStep")}</Txt><Txt size={20} weight={600} style={{ marginTop: 8 }}>{t("redesign.verify")}</Txt><Txt size={14} color={color.ink2} style={{ marginVertical: 8 }}>{t("redesign.verificationHint")}</Txt><Button label={t("payments.verifyAction")} kind="text" onPress={() => router.push("/account/verify")} /></Card> : null}
     <View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>

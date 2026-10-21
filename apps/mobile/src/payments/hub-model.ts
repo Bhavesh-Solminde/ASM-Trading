@@ -1,3 +1,5 @@
+import type { PendingCheckout } from "./pending-checkout";
+
 /** How many recent payments the Payments tab previews before "See all". */
 export const RECENT_LIMIT = 5;
 
@@ -40,4 +42,18 @@ export function hubBalances(input: {
 /** The "next step" card is for people who have not started verification or were rejected; in review and verified hide it. */
 export function showKycNextStep(status: string | undefined): boolean {
   return status === "NOT_STARTED" || status === "REJECTED";
+}
+
+/** A saved checkout whose known expiry has passed: nothing to continue, so Payments clears it. An unknown expiry is not stale. */
+export function pendingIsStale(pending: PendingCheckout | null, nowMs: number): boolean {
+  return !!pending && pending.expiresAt !== null && nowMs >= pending.expiresAt;
+}
+
+/**
+ * The "Payment in progress / Continue" row on Payments: the saved checkout while it can still be paid. The amount is
+ * null until the pay screen has loaded the checkout once (the row then shows without one rather than guessing).
+ */
+export function pendingPaymentRow(pending: PendingCheckout | null, nowMs: number): { token: string; amountInr: number | null } | null {
+  if (!pending || pendingIsStale(pending, nowMs)) return null;
+  return { token: pending.token, amountInr: pending.amountInr };
 }

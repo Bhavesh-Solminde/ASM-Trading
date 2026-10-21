@@ -198,7 +198,30 @@
       "WON": "Won",
       "LOST": "Lost",
       "REFUNDED": "Refunded"
-    }
+    },
+    "title": "Pay {{amount}}",
+    "scanHint": "Scan with any UPI app, or pay below",
+    "qrLabel": "UPI payment QR code",
+    "copied": "UPI ID copied",
+    "copyId": "Copy UPI ID {{vpa}}",
+    "exactAmount": "Pay exactly {{amount}}. The paise identify your payment, so a different amount can't be matched.",
+    "openApp": "Open {{app}}",
+    "openUpiApp": "Open UPI app",
+    "otherApps": "Other apps",
+    "noApp": "No UPI app could open this. Scan the QR code or copy the UPI ID instead.",
+    "waiting": "Waiting for your payment. This updates by itself.",
+    "gotUtr": "We got your UTR. We'll confirm it shortly.",
+    "claimLink": "I've paid, add my UTR",
+    "notFound": "We couldn't find this payment.",
+    "usdtSoon": "This USDT deposit can't be paid in the app yet. Pay it on the website, or start a new deposit.",
+    "backToPayments": "Back to Payments",
+    "resultNote": {
+      "COMPLETED": "Your deposit has been credited to your live account.",
+      "REJECTED": "This deposit was not approved.",
+      "EXPIRED": "This payment window has ended. If you already paid, it will still be credited. Don't pay again."
+    },
+    "heading": "Payment",
+    "timeLeft": "Time left to pay"
   },
   "history": {
     "title": {
@@ -238,7 +261,9 @@
   },
   "payments": {
     "verifyAction": "Start verification",
-    "bonusHint": "See how deposit bonuses work"
+    "bonusHint": "See how deposit bonuses work",
+    "inProgress": "Payment in progress",
+    "continue": "Continue"
   },
   "deposit": {
     "title": "Add money",
@@ -270,6 +295,17 @@
     "network": "Network",
     "recommended": "Recommended",
     "networkHint": "Send on the network you pick here. Money sent on another network can't be credited.",
+    "timedOut": "No reply yet. Check Payments before trying again.",
+    "unavailable": "This payment option isn't available right now. Try another one, or try again later."
+  },
+  "claim": {
+    "title": "Add UTR",
+    "utr": "UTR / UPI reference number",
+    "placeholder": "12-digit reference",
+    "help": "Find it in your payment app, in the details of this payment. We'll match it to your payment, which can take up to 48 hours.",
+    "submit": "Submit",
+    "required": "Enter the reference number from your payment app.",
+    "format": "That reference isn't valid. It has 9 to 22 digits, numbers only.",
     "timedOut": "No reply yet. Check Payments before trying again."
   }
 }

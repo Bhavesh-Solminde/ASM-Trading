@@ -11,7 +11,8 @@ import {
 } from "@asm/contracts";
 import { z } from "zod";
 import { api } from "./client";
-import { shouldRetry } from "./errors";
+import { pollIntervalMs } from "@/payments/checkout-poll";
+import { ApiError, shouldRetry } from "./errors";
 import { invalidateMoneyOn } from "./invalidate-money";
 import { latestStamp } from "./request-stamp";
 
@@ -62,12 +63,25 @@ export const usePaymentsInfinite = (enabled: boolean) =>
 export const useDepositConfig = (enabled: boolean) =>
   useQuery({ queryKey: ["deposit-config"], queryFn: () => api("/api/v1/deposit-config", { schema: DepositConfigSchema }), enabled });
 
-/** One deposit checkout by its token. T3a adds the `poll` option. */
-export const useCheckout = (token: string, enabled: boolean) =>
+/**
+ * One deposit checkout by its token (`GET /api/v1/checkout/:token`: the only status source for the app; the web's
+ * `/api/deposits/<token>/status` is a different, USDT-only route). With `poll` it refetches every 4s until the status
+ * is final: `poll` is true only while the screen is focused, the app is in front and the session is live, so the
+ * clock stops the moment any of those ends (see `pollIntervalMs`). The interval is re-read after every fetch and
+ * whenever `poll` changes.
+ */
+export const useCheckout = (token: string, enabled: boolean, opts: { poll?: boolean } = {}) =>
   useQuery({
     queryKey: ["checkout", token],
     queryFn: () => api(`/api/v1/checkout/${encodeURIComponent(token)}`, { schema: CheckoutViewSchema }),
     enabled,
+    refetchInterval: (query) =>
+      pollIntervalMs({
+        poll: opts.poll === true,
+        status: query.state.data?.status,
+        errorStatus: query.state.error instanceof ApiError ? query.state.error.status : null,
+      }),
+    refetchIntervalInBackground: false,
   });
 
 export const useWithdrawalPrefill = (enabled: boolean) =>

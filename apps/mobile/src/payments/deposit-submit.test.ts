@@ -27,8 +27,12 @@ describe("depositErrorText", () => {
   it("translates offline, timeout and server errors, never showing the server's English for a 5xx", () => {
     expect(depositErrorText(new ApiError("No connection.", 0, "offline"), t)).toBe("t:common.noConnection");
     expect(depositErrorText(new ApiError("The request timed out.", 0, "timeout"), t)).toBe("t:deposit.timedOut");
-    expect(depositErrorText(new ApiError("boom", 503, null), t)).toBe("t:common.genericError");
+    expect(depositErrorText(new ApiError("Something went wrong.", 503, null), t)).toBe("t:common.genericError");
     expect(depositErrorText(new ApiError("x", 500, null), t)).toBe("t:common.genericError");
+  });
+  it("explains a 503 the deposit route answered itself (a network, a method or the amounts are unavailable right now) in the user's language", () => {
+    expect(depositErrorText(new ApiError("USDT on TRON is temporarily unavailable. Try again later.", 503, null), t)).toBe("t:deposit.unavailable");
+    expect(depositErrorText(new ApiError("PhonePe deposits are coming soon. Use USDT for now.", 503, null), t)).toBe("t:deposit.unavailable");
   });
   it("shows another 4xx's own message, as the rules say, but the translated generic for a bare one", () => {
     expect(depositErrorText(new ApiError("Other TRON deposits are in progress. Try again in about 3 minutes.", 409, null), t)).toBe(
@@ -91,7 +95,8 @@ describe("createDepositSubmitter", () => {
       throw new ApiError("No connection.", 0, "offline");
     });
     await run(body);
-    expect(calls).toEqual(["toast:t:common.noConnection"]);
+    // The request may have reached the server before the connection dropped, so it reconciles as a timeout does.
+    expect(calls).toEqual(["invalidate", "toast:t:common.noConnection"]);
     expect(busy).toEqual([true, false]);
   });
 

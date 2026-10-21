@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { api, configureApi } from "@/api/client";
 import { queryClient } from "@/api/queries";
 import { clearResume } from "@/cache/resume-cache";
+import { clearAllPendingCheckouts } from "@/payments/pending-checkout";
 import { useSocket } from "@/socket/socket-store";
 import { useListLoaded } from "@/trade/list-loaded-store";
 import { clearToasts, toast } from "@/ui/Toast";
@@ -31,6 +32,7 @@ export const useSession = create<SessionState>((set, get) => ({
       // An unreadable keystore reads as signed out; the user can log in again. Whoever it was, their cached
       // snapshot is not shown to the next person to sign in on this phone.
       clearResume();
+      clearAllPendingCheckouts();
     }
     set({ token, ready: true });
   },
@@ -52,6 +54,8 @@ export const useSession = create<SessionState>((set, get) => ({
         useListLoaded.getState().set(null);
         // Nor may it see this user's cached balances on the next cold start.
         clearResume();
+        // Nor be offered this user's unfinished deposit on the Payments tab.
+        clearAllPendingCheckouts();
         // Nor a "Won ₹…" toast still queued for this user.
         clearToasts();
         // On a shared phone the next "Continue with Google" must ask which account.

@@ -34,6 +34,8 @@ export function depositErrorText(e: unknown, t: DepositSubmitDeps["t"]): string 
     if (e.code === "offline") return t("common.noConnection");
     if (e.code === "timeout") return t("deposit.timedOut");
     if (e.status >= 400 && e.status < 500 && e.message !== GENERIC_ERROR && e.message.trim() !== "") return e.message;
+    // The route's own 503s ("USDT on X is temporarily unavailable", "coming soon"): say it in the user's language.
+    if (e.status === 503 && e.code === null && e.message !== GENERIC_ERROR && e.message.trim() !== "") return t("deposit.unavailable");
   }
   return t("common.genericError");
 }
@@ -70,7 +72,8 @@ export function createDepositSubmitter(deps: DepositSubmitDeps): (body: CreateDe
       deps.navigate(parsed.data.checkoutToken);
     } catch (e) {
       if (deps.session() !== session) return;
-      if (e instanceof ApiError && e.code === "timeout") deps.invalidateMoney();
+      // Either may have happened after the server created the deposit: reconcile, never retry.
+      if (e instanceof ApiError && (e.code === "timeout" || e.code === "offline")) deps.invalidateMoney();
       if (!(e instanceof ApiError && e.code !== null && HANDLED_ELSEWHERE.has(e.code))) {
         deps.toast(depositErrorText(e, deps.t), "down");
       }

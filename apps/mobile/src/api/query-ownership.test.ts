@@ -47,7 +47,7 @@ describe("query ownership", () => {
       expect(start, hook).toBeGreaterThan(-1);
       const next = queries.indexOf("\nexport ", start + 1);
       const block = queries.slice(start, next === -1 ? undefined : next);
-      expect(block, `${hook} signature`).toMatch(/enabled: boolean\)/);
+      expect(block, `${hook} signature`).toMatch(/enabled: boolean[,)]/);
       expect(block.match(/\benabled\b/g)?.length, `${hook} passes enabled on`).toBeGreaterThanOrEqual(2);
     }
   });

@@ -25,8 +25,8 @@ export default tseslint.config(
     ],
   },
   {
-    // apps/mobile's Metro/Babel configs are CommonJS by Expo convention.
-    files: ["apps/mobile/*.config.js"],
+    // apps/mobile's Metro/Babel configs and Expo config plugins are CommonJS by Expo convention.
+    files: ["apps/mobile/*.config.js", "apps/mobile/plugins/*.js"],
     languageOptions: {
       sourceType: "commonjs",
       globals: { module: "writable", require: "readonly", __dirname: "readonly" },

@@ -1,15 +1,8 @@
-import { useTranslation } from "react-i18next";
-import { color } from "@/theme/tokens";
-import { Screen, Txt } from "@/theme/ui";
+import { useLocalSearchParams } from "expo-router";
+import { ClaimForm } from "@/payments/ClaimForm";
 
-/** Stub: a later P3 task replaces this screen. It exists now so every link to it type-checks. */
-export default function Stub() {
-  const { t } = useTranslation();
-  return (
-    <Screen style={{ paddingHorizontal: 20, paddingTop: 24 }}>
-      <Txt size={15} color={color.ink2}>
-        {t("tabs.soon")}
-      </Txt>
-    </Screen>
-  );
+/** `/payments/claim/<deposit id>`: add the UTR of a UPI payment the automatic match has not found. */
+export default function Claim() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return <ClaimForm depositId={typeof id === "string" ? id : ""} />;
 }

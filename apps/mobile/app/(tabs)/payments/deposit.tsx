@@ -13,7 +13,7 @@ import { money, groupTyped } from "@/money/format";
 import { amountInWords } from "@/money/words";
 import { AmountSheet } from "@/payments/AmountSheet";
 import { BonusSheet } from "@/payments/BonusSheet";
-import { DEPOSIT_AMOUNT_OPTS, depositBody, depositModel, type DepositMethod, type MethodRow } from "@/payments/deposit-form";
+import { DEPOSIT_AMOUNT_OPTS, RECOMMENDED_NETWORK, depositBody, depositModel, type DepositMethod, type MethodRow } from "@/payments/deposit-form";
 import { CREATE_DEPOSIT_TIMEOUT_MS, createDepositSubmitter } from "@/payments/deposit-submit";
 import { savePendingCheckout } from "@/payments/pending-checkout";
 import { color } from "@/theme/tokens";
@@ -65,7 +65,7 @@ export default function Deposit() {
       post: (body) => api("/api/deposits", { method: "POST", body, timeoutMs: CREATE_DEPOSIT_TIMEOUT_MS }),
       savePending: (checkoutToken) => {
         const userId = latest.current.userId;
-        if (userId) savePendingCheckout(userId, { token: checkoutToken, expiresAt: null });
+        if (userId) savePendingCheckout(userId, { token: checkoutToken, expiresAt: null, amountInr: null });
       },
       invalidateMoney,
       navigate: (checkoutToken) => router.replace({ pathname: "/payments/pay/[token]", params: { token: checkoutToken } }),
@@ -231,7 +231,7 @@ export default function Deposit() {
                 {networks.map((n) => (
                   <View key={n} style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                     <Chip testID={`deposit-network-${n}`} role="radio" label={USDT_NETWORK_INFO[n].shortLabel} selected={model.network === n} onPress={() => setPickedNetwork(n)} />
-                    {n === "bsc" ? <StatusTag tone="up" label={t("deposit.recommended")} /> : null}
+                    {n === RECOMMENDED_NETWORK ? <StatusTag tone="up" label={t("deposit.recommended")} /> : null}
                   </View>
                 ))}
               </View>

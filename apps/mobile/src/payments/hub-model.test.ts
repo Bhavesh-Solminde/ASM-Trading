@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hubBalances, RECENT_LIMIT, showKycNextStep } from "./hub-model";
+import { hubBalances, pendingIsStale, pendingPaymentRow, RECENT_LIMIT, showKycNextStep } from "./hub-model";
 
 const live = { id: "live-1", currency: "INR", realBalance: 1_000_00, bonusBalance: 200_00 };
 
@@ -38,5 +38,34 @@ describe("showKycNextStep", () => {
 describe("RECENT_LIMIT", () => {
   it("is 5", () => {
     expect(RECENT_LIMIT).toBe(5);
+  });
+});
+
+describe("pendingPaymentRow", () => {
+  const now = 1_800_000_000_000;
+  it("offers the payment in progress, with its amount, while it has not run out", () => {
+    expect(pendingPaymentRow({ token: "tok", expiresAt: now + 60_000, amountInr: 200_037 }, now)).toEqual({ token: "tok", amountInr: 200_037 });
+  });
+  it("offers it with no amount before the pay screen has loaded the checkout (expiry not known yet)", () => {
+    expect(pendingPaymentRow({ token: "tok", expiresAt: null, amountInr: null }, now)).toEqual({ token: "tok", amountInr: null });
+  });
+  it("is nothing when there is no pending checkout", () => {
+    expect(pendingPaymentRow(null, now)).toBeNull();
+  });
+  it("is nothing from the moment it expires: the row only ever leads to a payment that can still be made", () => {
+    expect(pendingPaymentRow({ token: "tok", expiresAt: now + 1, amountInr: 1 }, now)).not.toBeNull();
+    expect(pendingPaymentRow({ token: "tok", expiresAt: now, amountInr: 100 }, now)).toBeNull();
+    expect(pendingPaymentRow({ token: "tok", expiresAt: now - 1, amountInr: 100 }, now)).toBeNull();
+  });
+});
+
+describe("pendingIsStale", () => {
+  const now = 1_800_000_000_000;
+  it("is true only for a known expiry that has passed (then the saved checkout is cleared)", () => {
+    expect(pendingIsStale({ token: "t", expiresAt: now - 1, amountInr: null }, now)).toBe(true);
+    expect(pendingIsStale({ token: "t", expiresAt: now, amountInr: null }, now)).toBe(true);
+    expect(pendingIsStale({ token: "t", expiresAt: now + 1, amountInr: null }, now)).toBe(false);
+    expect(pendingIsStale({ token: "t", expiresAt: null, amountInr: null }, now)).toBe(false);
+    expect(pendingIsStale(null, now)).toBe(false);
   });
 });
