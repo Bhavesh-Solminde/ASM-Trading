@@ -2,6 +2,7 @@ import { forwardRef, useImperativeHandle, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import * as Haptics from "expo-haptics";
+import { currencySymbol } from "@asm/client-core";
 import { money, groupTyped } from "@/money/format";
 import { amountInWords } from "@/money/words";
 import { color } from "@/theme/tokens";
@@ -13,24 +14,37 @@ import { Sheet, type SheetRef } from "@/ui/Sheet";
 import { DEPOSIT_AMOUNT_OPTS, parseRupees } from "./deposit-form";
 
 /**
- * The deposit amount keypad. The typed amount lives in the SCREEN (the sheet's content mounts only while it is
- * open, so nothing here may hold state worth keeping); this shows `value` and only reports presses, which the
- * screen applies to its latest amount so fast presses cannot drop a digit. Rupees only: no decimal point.
+ * The amount keypad of the Add money and Withdraw screens. The typed amount lives in the SCREEN (the sheet's content
+ * mounts only while it is open, so nothing here may hold state worth keeping); this shows `value` and only reports
+ * presses, which the screen applies to its latest amount so fast presses cannot drop a digit. On INR (the default) it
+ * is whole rupees with no decimal point and the amount in words; another currency (a USD live account) takes cents.
+ * `quick` presets are whole rupees, so they are only for INR.
  */
 export const AmountSheet = forwardRef<
   SheetRef,
-  { value: string; quick: readonly number[]; onKey: (key: string) => void; onPreset: (text: string) => void; onDone?: () => void }
->(function AmountSheet({ value, quick, onKey, onPreset, onDone }, ref) {
+  {
+    value: string;
+    quick: readonly number[];
+    onKey: (key: string) => void;
+    onPreset: (text: string) => void;
+    onDone?: () => void;
+    currency?: string;
+    /** The sheet's heading; defaults to the deposit screen's "Amount". */
+    title?: string;
+  }
+>(function AmountSheet({ value, quick, onKey, onPreset, onDone, currency = "INR", title }, ref) {
   const { t, i18n } = useTranslation();
   const inner = useRef<SheetRef>(null);
   useImperativeHandle(ref, () => ({ present: () => inner.current?.present(), dismiss: () => inner.current?.dismiss() }));
-  const rupees = parseRupees(value);
-  const figure = `₹ ${groupTyped(value, "INR")}`;
+  const inr = currency === "INR";
+  const rupees = inr ? parseRupees(value) : 0;
+  const heading = title ?? t("deposit.amount");
+  const figure = `${currencySymbol(currency)} ${groupTyped(value, currency)}`.trim();
   const words = rupees > 0 ? amountInWords(rupees, i18n.language.startsWith("hi") ? "hi" : "en") : "";
   return (
-    <Sheet ref={inner} title={t("deposit.amount")} aside={t("trade.liveAccount")} flush>
+    <Sheet ref={inner} title={heading} aside={t("trade.liveAccount")} flush>
       <View style={{ paddingHorizontal: 20, gap: 4 }}>
-        <Money text={figure} size={40} weight={600} lineHeight={48} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} accessibilityLabel={`${t("deposit.amount")}: ${figure}`} accessibilityLiveRegion="polite" />
+        <Money text={figure} size={40} weight={600} lineHeight={48} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} accessibilityLabel={`${heading}: ${figure}`} accessibilityLiveRegion="polite" />
         {words ? (
           <Txt size={14} color={color.ink2}>
             {words}
@@ -59,7 +73,7 @@ export const AmountSheet = forwardRef<
         <View style={{ minHeight: 16 }} />
       )}
 
-      <AmountKeypad decimals={DEPOSIT_AMOUNT_OPTS.decimals} onKey={onKey} onClear={() => onPreset("")} />
+      <AmountKeypad decimals={inr ? DEPOSIT_AMOUNT_OPTS.decimals : true} onKey={onKey} onClear={() => onPreset("")} />
 
       <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 }}>
         <Button
