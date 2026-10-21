@@ -27,9 +27,11 @@ export function payScreenFor(status: string): PayScreen {
  * if it was already sent, so the note says not to pay again; a USDT gateway deposit is credited by itself. No UTR
  * claim link here (that route takes only an open UPI payment); an expired USDT deposit's own link is `endedUsdtLink`.
  */
-export function endedNoteKey(input: { status: string; isGateway: boolean }): "pay.ended.rejected" | "pay.ended.expired" | "pay.ended.expiredGateway" {
+export function endedNoteKey(input: { status: string; isGateway: boolean; isUsdt?: boolean }): "pay.ended.rejected" | "pay.ended.expired" | "pay.ended.expiredGateway" | "pay.ended.expiredUsdt" {
   if (input.status === "REJECTED") return "pay.ended.rejected";
-  return input.isGateway ? "pay.ended.expiredGateway" : "pay.ended.expired";
+  if (input.isGateway) return "pay.ended.expiredGateway";
+  // A manual or slot USDT address is shared: after the window it goes to another user, so do not send to it any more.
+  return input.isUsdt ? "pay.ended.expiredUsdt" : "pay.ended.expired";
 }
 
 /** A rejection can be taken to support; an expired payment has nothing to appeal. */

@@ -115,7 +115,7 @@ function Ended({ view, token }: { view: CheckoutView; token: string }) {
         </Txt>
         <BigAmount text={amountText(asked.minor, asked.currency)} />
         <Txt testID="ended-note" size={14} color={color.ink2} style={{ textAlign: "center" }}>
-          {t(endedNoteKey({ status: view.status, isGateway: view.isGateway }))}
+          {t(endedNoteKey({ status: view.status, isGateway: view.isGateway, isUsdt: view.method === "USDT" }))}
         </Txt>
       </View>
       <KeyValueBox
@@ -132,7 +132,7 @@ function Ended({ view, token }: { view: CheckoutView; token: string }) {
           <Button
             testID="pay-claim"
             kind="text"
-            label={t("usdt.endedClaim")}
+            label={t(view.claimedTxHash ? "usdt.updateProof" : "usdt.endedClaim")}
             onPress={() => router.push({ pathname: "/payments/claim/[id]", params: { id: view.id, kind: "usdt", token } })}
           />
         ) : null}

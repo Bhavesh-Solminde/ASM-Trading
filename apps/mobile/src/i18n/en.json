@@ -248,6 +248,7 @@
       "rejectedTitle": "Deposit not approved",
       "expired": "Your payment window ended. If you already sent your payment before the timer ran out, it will still be credited. Don't send it again. Otherwise, start a new deposit.",
       "expiredGateway": "Your payment window ended. If you already sent your payment before the timer ran out, it will still be credited automatically. Don't send it again. Otherwise, start a new deposit.",
+      "expiredUsdt": "Your payment window ended and nothing was added to your account. Don't send USDT to this address any more: start a new deposit.",
       "rejected": "This deposit was not approved.",
       "newDeposit": "New deposit",
       "contactSupport": "Contact support"

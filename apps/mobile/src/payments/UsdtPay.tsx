@@ -11,7 +11,7 @@ import { Money } from "@/ui/Money";
 import { toast } from "@/ui/Toast";
 import { QrCard, WaitingRing } from "./PayParts";
 import { amountText, requestedAmount } from "./result-model";
-import { networkLabel, networkNote, usdtAddressNoteKey, usdtAmountText, usdtHintKey, usdtStatusLineKey } from "./usdt-display";
+import { networkLabel, networkNote, usdtAddressNoteKey, usdtAmountText, usdtHintKey, usdtSendExactlyAmount, usdtStatusLineKey } from "./usdt-display";
 import { shownTxHash, usdtClaimEntry } from "./usdt-claim";
 
 /** Copy `text`, say so in a toast; a clipboard that refuses says the generic error instead of failing silently. */
@@ -63,13 +63,14 @@ export function UsdtPay({ view, token }: { view: CheckoutView; token: string }) 
   const label = networkLabel(view.network);
   const statusKey = usdtStatusLineKey({ status: view.status, isGateway: view.isGateway });
   const addressNoteKey = usdtAddressNoteKey({ isGateway: view.isGateway, isSlot: view.isSlot });
+  const sendExactly = usdtSendExactlyAmount(view);
   const failed = t("common.genericError");
 
   return (
     <View style={{ gap: 20 }}>
       <View style={{ alignItems: "center", gap: 12 }}>
         <View testID="usdt-network" accessible accessibilityLabel={t("usdt.network", { network: label })} style={{ maxWidth: "100%", minHeight: 32, justifyContent: "center", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: color.rule, backgroundColor: color.raised }}>
-          <Txt size={13} weight={600} color={color.accentText} style={{ textAlign: "center" }}>
+          <Txt size={13} weight={600} color={color.accentText} style={{ textAlign: "center", alignSelf: "stretch" }}>
             {t("usdt.network", { network: label })}
           </Txt>
         </View>
@@ -87,9 +88,9 @@ export function UsdtPay({ view, token }: { view: CheckoutView; token: string }) 
         </Txt>
       </View>
 
-      {view.isSlot ? (
+      {sendExactly ? (
         <Txt testID="usdt-send-exactly" size={17} weight={600} style={{ textAlign: "center" }}>
-          {t("usdt.sendExactly", { amount: shownAmount })}
+          {t("usdt.sendExactly", { amount: sendExactly })}
         </Txt>
       ) : null}
 
@@ -99,7 +100,7 @@ export function UsdtPay({ view, token }: { view: CheckoutView; token: string }) 
         </CopyCard>
         {address ? (
           <CopyCard testID="usdt-copy-address" label={t("usdt.address")} hint={t("usdt.copyAddress")} onCopy={() => void copyText(address, t("usdt.addressCopied"), failed)}>
-            <Txt font="fig" size={13} numberOfLines={3} lineHeight={20}>
+            <Txt font="fig" size={13} lineHeight={20}>
               {address}
             </Txt>
           </CopyCard>
@@ -157,7 +158,7 @@ function UsdtClaimEntry({ view, token }: { view: CheckoutView; token: string }) 
         onPress={() => router.push({ pathname: "/payments/claim/[id]", params: { id: view.id, kind: "usdt", token } })}
         style={{ minHeight: 52, alignItems: "center", justifyContent: "center", paddingHorizontal: 16 }}
       >
-        <Txt size={15} weight={500} color={color.accentText} style={{ textAlign: "center" }}>
+        <Txt size={15} weight={500} color={color.accentText} style={{ textAlign: "center", alignSelf: "stretch" }}>
           {t(sent ? "usdt.updateProof" : "usdt.claimLink")}
         </Txt>
       </Pressable>

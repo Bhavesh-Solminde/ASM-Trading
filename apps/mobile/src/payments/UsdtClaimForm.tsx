@@ -74,6 +74,7 @@ export function UsdtClaimForm({ depositId, token }: { depositId: string; token: 
                 {t(view.status === "COMPLETED" ? "usdtClaim.alreadyCredited" : "usdtClaim.closed")}
               </Txt>
               <Button kind="light" label={t("pay.backToPayments")} onPress={() => router.replace("/payments")} />
+              {view.status === "COMPLETED" ? null : <Button testID="usdt-claim-support" kind="text" label={t("pay.ended.contactSupport")} onPress={() => router.push("/account/support")} />}
             </View>
           ) : (
             <>

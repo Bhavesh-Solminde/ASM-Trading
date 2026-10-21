@@ -27,6 +27,12 @@ describe("endedNoteKey", () => {
   it("says the gateway credits a late USDT payment by itself", () => {
     expect(endedNoteKey({ status: "EXPIRED", isGateway: true })).toBe("pay.ended.expiredGateway");
   });
+  it("tells a non-gateway USDT deposit not to send to the address any more (a slot address passes to another user)", () => {
+    expect(endedNoteKey({ status: "EXPIRED", isGateway: false, isUsdt: true })).toBe("pay.ended.expiredUsdt");
+    expect(endedNoteKey({ status: "EXPIRED", isGateway: true, isUsdt: true })).toBe("pay.ended.expiredGateway");
+    expect(endedNoteKey({ status: "EXPIRED", isGateway: false, isUsdt: false })).toBe("pay.ended.expired");
+    expect(endedNoteKey({ status: "REJECTED", isGateway: false, isUsdt: true })).toBe("pay.ended.rejected");
+  });
   it("says a rejected deposit was not approved, gateway or not", () => {
     expect(endedNoteKey({ status: "REJECTED", isGateway: false })).toBe("pay.ended.rejected");
     expect(endedNoteKey({ status: "REJECTED", isGateway: true })).toBe("pay.ended.rejected");

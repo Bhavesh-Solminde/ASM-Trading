@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { networkLabel, networkNote, usdtAddressNoteKey, usdtAmountText, usdtHintKey, usdtStatusLineKey } from "./usdt-display";
+import { networkLabel, networkNote, usdtAddressNoteKey, usdtAmountText, usdtHintKey, usdtSendExactlyAmount, usdtStatusLineKey } from "./usdt-display";
 
 describe("usdtAmountText", () => {
   it("formats USDT cents with two decimals", () => {
@@ -72,5 +72,25 @@ describe("usdtAddressNoteKey", () => {
     expect(usdtAddressNoteKey({ isGateway: true, isSlot: false })).toBe("usdt.addressUnique");
     expect(usdtAddressNoteKey({ isGateway: false, isSlot: true })).toBe("usdt.addressReserved");
     expect(usdtAddressNoteKey({ isGateway: false, isSlot: false })).toBeNull();
+  });
+});
+
+describe("usdtSendExactlyAmount", () => {
+  // A manual deposit asked for 20.00 and reserved 20.87 (the server adds a unique offset of up to 0.99); the matcher
+  // wants exactly 20.87, so that is the figure the emphasised line must carry. A USDT view stores its rupee figure negative.
+  const base = { method: "USDT", amountInr: -2000, amountUsdtMinor: 2087 as number | null };
+
+  it("manual (shared address): the exact line, with the reserved amount, not the one asked for", () => {
+    expect(usdtSendExactlyAmount({ ...base, isGateway: false, isSlot: false })).toBe("20.87 USDT");
+  });
+  it("slot (within 3%, or from the registered sender): no 'exactly' line, the hint already says what is credited", () => {
+    expect(usdtSendExactlyAmount({ ...base, isGateway: false, isSlot: true })).toBeNull();
+  });
+  it("gateway (at least the amount): no 'exactly' line", () => {
+    expect(usdtSendExactlyAmount({ ...base, isGateway: true, isSlot: false })).toBeNull();
+    expect(usdtSendExactlyAmount({ ...base, isGateway: true, isSlot: true })).toBeNull();
+  });
+  it("falls back to the absolute rupee figure only if the server leaves the USDT amount out of a manual deposit", () => {
+    expect(usdtSendExactlyAmount({ ...base, amountUsdtMinor: null, isGateway: false, isSlot: false })).toBe("20.00 USDT");
   });
 });

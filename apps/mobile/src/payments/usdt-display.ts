@@ -1,4 +1,5 @@
 import { USDT_NETWORK_INFO, isUsdtNetwork } from "@asm/contracts";
+import { amountText, requestedAmount } from "./result-model";
 
 /**
  * USDT cents as a plain two-decimal number: "12.34". No grouping and no unit, because this is also the text that is
@@ -25,7 +26,9 @@ export function networkNote(network: string | null): { chain: string; lookalike:
   return { chain: "USDT", lookalike: false };
 }
 
-/** The i18n key of the status card's line for an open USDT payment; null for a final status (the result screen takes over). */
+/** The i18n key of the status card's line for an open USDT payment; null for a final status (the result screen takes over).
+ * `usdt.confirming` (PENDING_CONFIRMATION) is a defence: today's server has no writer that moves a USDT deposit there
+ * (only the UTR claim does), so on-chain progress comes from `usdt-progress.ts` instead. */
 export function usdtStatusLineKey(input: { status: string; isGateway: boolean }): "usdt.detectAuto" | "pay.waiting" | "usdt.confirming" | null {
   if (input.status === "AWAITING_PAYMENT") return input.isGateway ? "usdt.detectAuto" : "pay.waiting";
   if (input.status === "PENDING_CONFIRMATION") return "usdt.confirming";
@@ -42,4 +45,17 @@ export function usdtHintKey(input: { isGateway: boolean; isSlot: boolean }): "us
 export function usdtAddressNoteKey(input: { isGateway: boolean; isSlot: boolean }): "usdt.addressUnique" | "usdt.addressReserved" | null {
   if (input.isGateway) return "usdt.addressUnique";
   return input.isSlot ? "usdt.addressReserved" : null;
+}
+
+/**
+ * The figure for the emphasised "Send exactly X" line, or null when the rail has no such rule. Only a MANUAL
+ * (shared-address, non-slot) deposit needs it: the server reserves a unique amount (the asked amount plus an offset of
+ * up to 0.99), and a different amount is not matched automatically. A slot deposit is the tolerant rail (within 3%, or
+ * anything from the registered sender) and a gateway one takes "at least", so "exactly" would be wrong for both.
+ * X is the checkout's `amountUsdtMinor`, the reserved amount the matcher expects, never the amount that was asked for.
+ */
+export function usdtSendExactlyAmount(view: { method: string; amountInr: number; amountUsdtMinor: number | null; isGateway: boolean; isSlot: boolean }): string | null {
+  if (view.isGateway || view.isSlot) return null;
+  const asked = requestedAmount(view);
+  return amountText(asked.minor, asked.currency);
 }
