@@ -10,9 +10,11 @@ import { Icon } from "@/ui/Icon";
 import { Money } from "@/ui/Money";
 import { toast } from "@/ui/Toast";
 import { QrCard, WaitingRing } from "./PayParts";
+import { UsdtProgressCard } from "./UsdtProgressCard";
 import { amountText, requestedAmount } from "./result-model";
 import { networkLabel, networkNote, usdtAddressNoteKey, usdtAmountText, usdtHintKey, usdtSendExactlyAmount, usdtStatusLineKey } from "./usdt-display";
 import { shownTxHash, usdtClaimEntry } from "./usdt-claim";
+import type { UsdtProgress } from "./usdt-progress";
 
 /** Copy `text`, say so in a toast; a clipboard that refuses says the generic error instead of failing silently. */
 async function copyText(text: string, doneMessage: string, failedMessage: string) {
@@ -51,9 +53,10 @@ function CopyCard({ testID, label, hint, onCopy, children }: { testID: string; l
  * The open USDT payment, in the UPI screen's frame: the address as a `paper` QR, the network and a prominent "send
  * only on this network" warning (a wrong network loses the money), the amount and the address with copy, and the rail's
  * sending rule. A gateway deposit has its own address and is detected by itself; a manual (shared-address) one also
- * offers "submit your transaction", the tx-hash claim. Polling lives in the screen. The clock is the header's.
+ * offers "submit your transaction", the tx-hash claim. Polling lives in the screen, which passes the on-chain
+ * `progress`: once a transfer has been seen, the progress card replaces the waiting line. The clock is the header's.
  */
-export function UsdtPay({ view, token }: { view: CheckoutView; token: string }) {
+export function UsdtPay({ view, token, progress }: { view: CheckoutView; token: string; progress: UsdtProgress }) {
   const { t } = useTranslation();
   const address = view.receivingAddress;
   const asked = requestedAmount(view);
@@ -115,7 +118,8 @@ export function UsdtPay({ view, token }: { view: CheckoutView; token: string }) 
         </Txt>
       </View>
 
-      {statusKey ? (
+      {progress.detected ? <UsdtProgressCard progress={progress} /> : null}
+      {statusKey && !progress.detected ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, padding: 16, borderRadius: 14, backgroundColor: color.surface }}>
           <WaitingRing />
           <Txt testID="pay-status" accessibilityLiveRegion="polite" size={14} color={color.ink2} style={{ flex: 1 }}>

@@ -12,6 +12,7 @@ import {
 import { z } from "zod";
 import { api } from "./client";
 import { pollIntervalMs } from "@/payments/checkout-poll";
+import { UsdtChainStatusSchema } from "@/payments/usdt-progress";
 import { ApiError, shouldRetry } from "./errors";
 import { invalidateMoneyOn } from "./invalidate-money";
 import { latestStamp } from "./request-stamp";
@@ -79,6 +80,26 @@ export const useCheckout = (token: string, enabled: boolean, opts: { poll?: bool
       pollIntervalMs({
         poll: opts.poll === true,
         status: query.state.data?.status,
+        errorStatus: query.state.error instanceof ApiError ? query.state.error.status : null,
+      }),
+    refetchIntervalInBackground: false,
+  });
+
+/**
+ * A USDT deposit's on-chain progress (`GET /api/deposits/:token/status`, the website's USDT poller: Bearer, ownership
+ * checked, 60 requests a minute per user). Polled like the checkout, every 4s while `poll` (the pay screen is in front),
+ * and stopped on the same conditions (see `pollIntervalMs`). This is the ONLY place it is polled: exactly one screen
+ * hook (`useUsdtProgress`) calls it. A rate limit is silent (the checkout's own poll is the one the user depends on).
+ */
+export const useUsdtChainStatus = (token: string, enabled: boolean, opts: { poll?: boolean } = {}) =>
+  useQuery({
+    queryKey: ["usdt-chain-status", token],
+    queryFn: () => api(`/api/deposits/${encodeURIComponent(token)}/status`, { schema: UsdtChainStatusSchema, silentRateLimit: true }),
+    enabled,
+    refetchInterval: (query) =>
+      pollIntervalMs({
+        poll: opts.poll === true,
+        status: query.state.data?.status ?? undefined,
         errorStatus: query.state.error instanceof ApiError ? query.state.error.status : null,
       }),
     refetchIntervalInBackground: false,

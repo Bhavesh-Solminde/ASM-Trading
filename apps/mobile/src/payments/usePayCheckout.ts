@@ -1,12 +1,11 @@
-import { useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { invalidateMoney, useBootstrap, useCheckout } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
 import { useSessionLive } from "@/auth/use-session-live";
-import { useAppStatus } from "@/lock/app-state";
 import { finalEffects, isFinalStatus, visibleRefetchDue } from "./checkout-poll";
 import { pendingFromView } from "./pay-model";
+import { usePayVisible } from "./usePayVisible";
 import { clearPendingCheckout, loadPendingCheckout, savePendingCheckout } from "./pending-checkout";
 
 /**
@@ -22,17 +21,9 @@ import { clearPendingCheckout, loadPendingCheckout, savePendingCheckout } from "
  */
 export function usePayCheckout(token: string) {
   const sessionLive = useSessionLive();
-  const appActive = useAppStatus((s) => s.appState === "active");
   const signedIn = useSession((s) => !!s.token);
   const userId = useBootstrap(signedIn).data?.userId;
-  const [focused, setFocused] = useState(false);
-  useFocusEffect(
-    useCallback(() => {
-      setFocused(true);
-      return () => setFocused(false);
-    }, []),
-  );
-  const visible = focused && appActive && sessionLive;
+  const visible = usePayVisible();
   const query = useCheckout(token, sessionLive && token !== "", { poll: visible });
   const { refetch, isFetching, dataUpdatedAt } = query;
 

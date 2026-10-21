@@ -10,6 +10,7 @@ import { payScreenFor, payTitleAmount } from "@/payments/result-model";
 import { UpiPay } from "@/payments/UpiPay";
 import { UsdtPay } from "@/payments/UsdtPay";
 import { usePayCheckout } from "@/payments/usePayCheckout";
+import { useUsdtProgress } from "@/payments/useUsdtProgress";
 import { color } from "@/theme/tokens";
 import { Button, Screen, Skeleton, Txt } from "@/theme/ui";
 import { BackHeader } from "@/ui/BackHeader";
@@ -27,6 +28,8 @@ export default function Pay() {
   const checkoutToken = typeof token === "string" ? token : "";
   const checkout = usePayCheckout(checkoutToken);
   const view = checkout.data;
+  // The one place the USDT status route is polled; a transfer that has been seen also takes the clock away, as on the web.
+  const progress = useUsdtProgress(checkoutToken, view);
   const expiresAtMs = view ? Date.parse(view.expiresAt) : Number.NaN;
   const screen = view ? payScreenFor(view.status) : null;
   // The way to pay keeps its close button and clock; the frames after it are a destination, so a back arrow to Payments.
@@ -39,7 +42,7 @@ export default function Pay() {
     body = <PayResult view={view} token={checkoutToken} />;
   } else if (view && view.method === "USDT") {
     // A USDT payment has no UTR to wait on, so even "processing" keeps its own screen (address, status, claim).
-    body = <UsdtPay view={view} token={checkoutToken} />;
+    body = <UsdtPay view={view} token={checkoutToken} progress={progress} />;
   } else if (view && screen === "pending") {
     body = <PayPending view={view} />;
   } else if (view) {
@@ -74,7 +77,7 @@ export default function Pay() {
           title={title}
           icon={paying || !view ? "close" : "arrowLeft"}
           onBack={paying || !view ? undefined : () => router.replace("/payments")}
-          aside={paying && Number.isFinite(expiresAtMs) ? <ExpiryClock expiresAtMs={expiresAtMs} /> : undefined}
+          aside={paying && !progress.detected && Number.isFinite(expiresAtMs) ? <ExpiryClock expiresAtMs={expiresAtMs} /> : undefined}
         />
         {body}
       </ScrollView>

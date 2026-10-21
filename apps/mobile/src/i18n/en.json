@@ -365,7 +365,19 @@
     "proofSent": "Proof submitted",
     "proofNote": "Our team will review it. Crediting is not instant.",
     "endedClaim": "Already sent it? Submit your transaction",
-    "endedSupport": "Already sent it? Contact support with your transaction hash"
+    "endedSupport": "Already sent it? Contact support with your transaction hash",
+    "progress": {
+      "detected": "Payment detected. Confirming on the network. This updates by itself.",
+      "final": "Confirmed on the network. Crediting your account.",
+      "review": "Payment received. It is under review by our team.",
+      "dismissed": "Our team reviewed this payment. Please contact support.",
+      "failed": "The transfer failed on the network. It will not be credited."
+    },
+    "step": {
+      "detected": "Detected",
+      "confirmed": "Confirmed",
+      "credited": "Credited"
+    }
   },
   "usdtClaim": {
     "title": "Submit your transaction",
