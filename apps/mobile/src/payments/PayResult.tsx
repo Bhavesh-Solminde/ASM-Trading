@@ -1,7 +1,6 @@
 import { router } from "expo-router";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { CheckoutView } from "@asm/contracts";
 import { money } from "@/money/format";
 import { color } from "@/theme/tokens";
@@ -16,9 +15,8 @@ import { statusTagTone } from "./status-tone";
  */
 export function PayResult({ view }: { view: CheckoutView }) {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
   return (
-    <View testID="pay-result" style={{ gap: 20, paddingBottom: 16 + insets.bottom }}>
+    <View testID="pay-result" style={{ gap: 20 }}>
       <StatusTag tone={statusTagTone(view.status)} label={t(`pay.status.${view.status}`)} />
       <View style={{ width: "100%" }}>
         <Money text={money(view.amountInr, "INR")} size={36} weight={600} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} />

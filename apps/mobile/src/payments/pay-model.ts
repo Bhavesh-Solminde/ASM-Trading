@@ -27,6 +27,15 @@ export function claimLinkVisible(input: { status: string; claimedUtr: string | n
   return input.revealed && input.status === "AWAITING_PAYMENT" && input.claimedUtr === null;
 }
 
+/**
+ * Whether the pay screen still offers ways to pay: the QR, the UPI ID and the "Open <App>" buttons. Only for an open
+ * payment with no UTR sent. Once a UTR is claimed the money has been sent and one credit matches one deposit, so a
+ * second payment could never be matched (support would have to refund it by hand): the screen stops inviting one.
+ */
+export function payInstrumentsVisible(input: { status: string; claimedUtr: string | null }): boolean {
+  return input.status === "AWAITING_PAYMENT" && input.claimedUtr === null;
+}
+
 /** The i18n key of the status card's line for an open payment; null for a final status (the result screen takes over). */
 export function statusLineKey(status: string): "pay.waiting" | "pay.gotUtr" | null {
   if (status === "AWAITING_PAYMENT") return "pay.waiting";

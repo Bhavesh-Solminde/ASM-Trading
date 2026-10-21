@@ -9,14 +9,13 @@ import { Icon } from "@/ui/Icon";
 import { IconTile } from "@/ui/IconTile";
 import { Money } from "@/ui/Money";
 import { pendingPaymentRow } from "./hub-model";
-import type { PendingCheckout } from "./pending-checkout";
 
 /**
  * "Payment in progress · ₹x · Continue": the way back to a deposit the user started and has not finished. A leaf: it
- * checks the clock every 15s so the row goes away by itself when the payment window ends. The amount is left out
- * until the pay screen has loaded the checkout once.
+ * checks the clock every 15s so the row goes away by itself when the payment window ends. The server-confirmed open
+ * checkout from `pendingRowDecision`.
  */
-export function PendingPaymentRow({ pending }: { pending: PendingCheckout }) {
+export function PendingPaymentRow({ pending }: { pending: { token: string; amountInr: number | null; expiresAt: number | null } }) {
   const { t } = useTranslation();
   const now = useNow(15_000);
   const row = pendingPaymentRow(pending, now);

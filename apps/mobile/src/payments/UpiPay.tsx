@@ -15,7 +15,7 @@ import { toast } from "@/ui/Toast";
 import { BUTTON_SKIN } from "@/theme/button-skin";
 import { ClaimLink } from "./ClaimLink";
 import { detectInstalledUpiApps, openUpiApp } from "./open-upi";
-import { statusLineKey } from "./pay-model";
+import { payInstrumentsVisible, statusLineKey } from "./pay-model";
 import { buttonPlan, orderUpiApps, upiAppName, type NamedUpiApp, type UpiApp } from "./upi-apps";
 
 /**
@@ -58,7 +58,7 @@ function AppButton({ app, big, onPress }: { app: UpiApp; big: boolean; onPress: 
       })}
     >
       <IconTile size={36} logo={logoFor(app)} />
-      <Txt size={big ? 17 : 15} weight={600} color={skin.ink} numberOfLines={2} style={{ flexShrink: 1, textAlign: "center" }}>
+      <Txt size={big ? 17 : 15} weight={600} color={skin.ink} numberOfLines={2} style={{ flex: 1, textAlign: "center" }}>
         {label}
       </Txt>
     </Pressable>
@@ -110,7 +110,9 @@ export function UpiPay({ view, token }: { view: CheckoutView; token: string }) {
   const plan = ordered ? buttonPlan(ordered) : null;
   const upiUri = view.upiUri;
   const vpa = view.vpa;
-  const line = statusLineKey(view.status);
+  // Once a UTR is sent the QR, UPI ID and app buttons go: a second payment could never be matched to this deposit.
+  const showPay = payInstrumentsVisible({ status: view.status, claimedUtr: view.claimedUtr });
+  const line = showPay ? statusLineKey(view.status) : "pay.gotUtr";
 
   const open = (app: UpiApp) => void openUpiApp(app, upiUri, { openURL: (url) => Linking.openURL(url), toast, t });
   const copy = async () => {
@@ -125,53 +127,64 @@ export function UpiPay({ view, token }: { view: CheckoutView; token: string }) {
 
   return (
     <View style={{ gap: 22 }}>
-      <View style={{ alignItems: "center", gap: 12 }}>
-        {upiUri ? <QrCard value={upiUri} /> : null}
-        <Txt size={14} color={color.ink2} style={{ textAlign: "center" }}>
-          {t("pay.scanHint")}
-        </Txt>
-        {vpa ? (
-          <Pressable
-            testID="pay-copy-vpa"
-            accessibilityRole="button"
-            accessibilityLabel={t("pay.copyId", { vpa })}
-            onPress={() => void copy()}
-            style={{ minHeight: 44, maxWidth: "100%", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: color.rule }}
-          >
-            <Txt font="fig" size={14} numberOfLines={1} style={{ flexShrink: 1 }}>
-              {vpa}
-            </Txt>
-            <Icon name="copy" size={16} color={color.accentText} />
-          </Pressable>
-        ) : null}
-        <Txt size={13} color={color.ink2} style={{ textAlign: "center" }}>
-          {t("pay.exactAmount", { amount: money(view.amountInr, "INR") })}
-        </Txt>
-      </View>
+      {showPay ? (
+        <View style={{ alignItems: "center", gap: 12 }}>
+          {upiUri ? <QrCard value={upiUri} /> : null}
+          <Txt size={14} color={color.ink2} style={{ textAlign: "center" }}>
+            {t("pay.scanHint")}
+          </Txt>
+          {vpa ? (
+            <Pressable
+              testID="pay-copy-vpa"
+              accessibilityRole="button"
+              accessibilityLabel={t("pay.copyId", { vpa })}
+              onPress={() => void copy()}
+              style={{ minHeight: 44, maxWidth: "100%", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: color.rule, backgroundColor: color.surface }}
+            >
+              <Txt font="fig" size={14} numberOfLines={1} style={{ flexShrink: 1 }}>
+                {vpa}
+              </Txt>
+              <Icon name="copy" size={16} color={color.accentText} />
+            </Pressable>
+          ) : null}
+          <Txt size={13} color={color.ink2} style={{ textAlign: "center" }}>
+            {t("pay.exactAmount", { amount: money(view.amountInr, "INR") })}
+          </Txt>
+        </View>
+      ) : null}
 
-      <View style={{ gap: 10 }}>
-        {plan ? (
-          <>
-            <AppButton app={plan.primary} big onPress={() => open(plan.primary)} />
-            {plan.rest.length > 0 ? (
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-                {plan.rest.map((app) => (
-                  <AppButton key={app} app={app} big={false} onPress={() => open(app)} />
-                ))}
-              </View>
-            ) : null}
-          </>
-        ) : (
-          <View accessibilityRole="progressbar" accessibilityLabel={t("common.loading")} style={{ minHeight: 54, borderRadius: 12, backgroundColor: color.raised }} />
-        )}
-      </View>
+      {showPay ? (
+        <View style={{ gap: 10 }}>
+          {plan ? (
+            <>
+              <AppButton app={plan.primary} big onPress={() => open(plan.primary)} />
+              {plan.rest.length > 0 ? (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                  {plan.rest.map((app) => (
+                    <AppButton key={app} app={app} big={false} onPress={() => open(app)} />
+                  ))}
+                </View>
+              ) : null}
+            </>
+          ) : (
+            <View accessibilityRole="progressbar" accessibilityLabel={t("common.loading")} style={{ minHeight: 54, borderRadius: 12, backgroundColor: color.raised }} />
+          )}
+        </View>
+      ) : null}
 
       {line ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, padding: 16, borderRadius: 14, backgroundColor: color.surface }}>
           <WaitingRing />
-          <Txt testID="pay-status" accessibilityLiveRegion="polite" size={14} color={color.ink2} style={{ flex: 1 }}>
-            {t(line)}
-          </Txt>
+          <View style={{ flex: 1, gap: 6 }}>
+            <Txt testID="pay-status" accessibilityLiveRegion="polite" size={14} color={color.ink2}>
+              {t(line)}
+            </Txt>
+            {showPay ? null : (
+              <Txt testID="pay-no-second-payment" size={14} weight={600}>
+                {t("pay.dontPayAgain")}
+              </Txt>
+            )}
+          </View>
         </View>
       ) : null}
       <ClaimLink token={token} depositId={view.id} status={view.status} claimedUtr={view.claimedUtr} delaySec={view.manualClaimDelaySec} />

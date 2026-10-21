@@ -1,3 +1,4 @@
+import { isFinalStatus } from "./checkout-poll";
 import type { PendingCheckout } from "./pending-checkout";
 
 /** How many recent payments the Payments tab previews before "See all". */
@@ -53,7 +54,45 @@ export function pendingIsStale(pending: PendingCheckout | null, nowMs: number): 
  * The "Payment in progress / Continue" row on Payments: the saved checkout while it can still be paid. The amount is
  * null until the pay screen has loaded the checkout once (the row then shows without one rather than guessing).
  */
-export function pendingPaymentRow(pending: PendingCheckout | null, nowMs: number): { token: string; amountInr: number | null } | null {
+export function pendingPaymentRow(pending: Pick<PendingCheckout, "token" | "expiresAt" | "amountInr"> | null, nowMs: number): { token: string; amountInr: number | null } | null {
   if (!pending || pendingIsStale(pending, nowMs)) return null;
   return { token: pending.token, amountInr: pending.amountInr };
+}
+
+/** The part of the checkout answer the Payments row needs. */
+interface CheckoutAnswer {
+  status: string;
+  method: string;
+  amountInr: number;
+  expiresAt: string;
+}
+
+/**
+ * Whether the "Payment in progress" row shows, and whether the saved checkout should be forgotten, from the saved
+ * entry and what the server says about it (one non-polling read per Payments focus).
+ *
+ * The row shows only for a checkout the server confirms is still open and payable in the app, so it never leads to a
+ * payment that has already ended. The server's amount and expiry win over the saved ones (an entry saved before the
+ * pay screen loaded has neither). Forget it (`clear`) on a final status, a 404, or an expiry that has passed (the
+ * saved one, or the server's for an entry saved without one). Not knowing yet (loading, offline, 5xx) hides the row
+ * and keeps the entry: that is not an ending. A USDT checkout is hidden but kept: the app cannot pay it until T4
+ * draws its screen, and a row into "can't be paid in the app yet" would be a dead end.
+ */
+export function pendingRowDecision(input: {
+  pending: PendingCheckout | null;
+  nowMs: number;
+  view: CheckoutAnswer | null;
+  errorStatus: number | null;
+}): { row: { token: string; amountInr: number | null; expiresAt: number | null } | null; clear: boolean } {
+  const { pending, nowMs, view } = input;
+  const none = { row: null, clear: false };
+  if (!pending) return none;
+  if (pendingIsStale(pending, nowMs) || input.errorStatus === 404) return { row: null, clear: true };
+  if (!view) return none;
+  if (isFinalStatus(view.status)) return { row: null, clear: true };
+  const expiresAt = Date.parse(view.expiresAt);
+  if (!Number.isFinite(expiresAt)) return none;
+  if (nowMs >= expiresAt) return { row: null, clear: true };
+  if (view.method === "USDT") return none;
+  return { row: { token: pending.token, amountInr: view.amountInr, expiresAt }, clear: false };
 }

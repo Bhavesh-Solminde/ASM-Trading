@@ -33,7 +33,7 @@ export function usePayCheckout(token: string) {
     }, []),
   );
   const visible = focused && appActive && sessionLive;
-  const query = useCheckout(token, sessionLive, { poll: visible });
+  const query = useCheckout(token, sessionLive && token !== "", { poll: visible });
   const { refetch, isFetching, dataUpdatedAt } = query;
 
   const wasVisible = useRef(false);

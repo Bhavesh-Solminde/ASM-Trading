@@ -211,6 +211,7 @@
     "noApp": "No UPI app could open this. Scan the QR code or copy the UPI ID instead.",
     "waiting": "Waiting for your payment. This updates by itself.",
     "gotUtr": "We got your UTR. We'll confirm it shortly.",
+    "dontPayAgain": "We're confirming your payment. Please don't pay again.",
     "claimLink": "I've paid, add my UTR",
     "notFound": "We couldn't find this payment.",
     "usdtSoon": "This USDT deposit can't be paid in the app yet. Pay it on the website, or start a new deposit.",

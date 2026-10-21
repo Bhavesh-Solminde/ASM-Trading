@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { claimLinkVisible, claimReveal, countdownText, createAnchorStore, pendingFromView, statusLineKey } from "./pay-model";
+import { claimLinkVisible, claimReveal, countdownText, createAnchorStore, payInstrumentsVisible, pendingFromView, statusLineKey } from "./pay-model";
 
 describe("countdownText", () => {
   const at = 1_800_000_000_000;
@@ -90,5 +90,21 @@ describe("pendingFromView", () => {
   it("saves nothing for a final payment (it is cleared instead) or an expiry it cannot read", () => {
     expect(pendingFromView({ existing: null, token: "tok", view: { ...view, status: "COMPLETED" } })).toBeNull();
     expect(pendingFromView({ existing: null, token: "tok", view: { ...view, expiresAt: "soon" } })).toBeNull();
+  });
+});
+
+describe("payInstrumentsVisible", () => {
+  it("shows the QR, UPI ID and app buttons only while the payment is open and no UTR has been sent", () => {
+    expect(payInstrumentsVisible({ status: "AWAITING_PAYMENT", claimedUtr: null })).toBe(true);
+  });
+  it("hides them once a UTR is sent, so the screen cannot invite a second payment", () => {
+    expect(payInstrumentsVisible({ status: "PENDING_CONFIRMATION", claimedUtr: "123456789012" })).toBe(false);
+    expect(payInstrumentsVisible({ status: "PENDING_CONFIRMATION", claimedUtr: null })).toBe(false);
+  });
+  it("hides them on a claimed UTR even while the status still reads AWAITING_PAYMENT (the claim just landed)", () => {
+    expect(payInstrumentsVisible({ status: "AWAITING_PAYMENT", claimedUtr: "123456789012" })).toBe(false);
+  });
+  it("hides them for any final status", () => {
+    for (const status of ["COMPLETED", "REJECTED", "EXPIRED"]) expect(payInstrumentsVisible({ status, claimedUtr: null })).toBe(false);
   });
 });

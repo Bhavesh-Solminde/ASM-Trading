@@ -1,12 +1,13 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { queryClient, usePaymentsInfinite, useBootstrap, useWallet } from "@/api/queries";
+import { ApiError } from "@/api/errors";
+import { queryClient, useBootstrap, useCheckout, usePaymentsInfinite, useWallet } from "@/api/queries";
 import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSession } from "@/auth/session-store";
 import { useSessionLive } from "@/auth/use-session-live";
-import { hubBalances, pendingIsStale, RECENT_LIMIT, showKycNextStep } from "@/payments/hub-model";
+import { hubBalances, pendingIsStale, pendingRowDecision, RECENT_LIMIT, showKycNextStep } from "@/payments/hub-model";
 import { PendingPaymentRow } from "@/payments/PendingPaymentRow";
 import { clearPendingCheckout, loadPendingCheckout, type PendingCheckout } from "@/payments/pending-checkout";
 import { BonusSheet } from "@/payments/BonusSheet";
@@ -48,11 +49,34 @@ export default function Payments() {
   // The deposit the user started and has not finished: read on every focus (the pay screen may have just ended it), and
   // forgotten once its window has passed. Per user, so a shared phone never offers one person the other's payment.
   const userId = boot?.userId;
+  const [focusTick, setFocusTick] = useState(0);
   useFocusEffect(useCallback(() => {
     const saved = userId ? loadPendingCheckout(userId) : null;
     if (userId && pendingIsStale(saved, Date.now())) clearPendingCheckout(userId);
     setPending(saved && !pendingIsStale(saved, Date.now()) ? saved : null);
+    setFocusTick(n => n + 1);
   }, [userId]));
+  // The row is only for a payment the server says is still open: one read of the saved checkout per focus (no polling,
+  // session-gated). Hooks stay unconditional: an empty token and `enabled: false` mean no request.
+  const savedCheckout = useCheckout(pending?.token ?? "", sessionLive && !!pending);
+  const { refetch: refetchSaved } = savedCheckout;
+  const savedToken = pending?.token;
+  useEffect(() => {
+    // After the render that carries the token, so the refetch is for this checkout; never cancels the mount fetch.
+    if (focusTick > 0 && sessionLive && savedToken) void refetchSaved({ cancelRefetch: false });
+  }, [focusTick, sessionLive, savedToken, refetchSaved]);
+  const decision = pendingRowDecision({
+    pending,
+    nowMs: Date.now(),
+    view: savedCheckout.data ?? null,
+    errorStatus: savedCheckout.error instanceof ApiError ? savedCheckout.error.status : null,
+  });
+  const forget = decision.clear;
+  useEffect(() => {
+    if (!forget) return;
+    if (userId) clearPendingCheckout(userId);
+    setPending(null);
+  }, [forget, userId]);
   const refresh = async () => {
     if (!sessionLive) return;
     setRefreshing(true);
@@ -73,7 +97,7 @@ export default function Payments() {
       </View> : null}
     </View>
     <View style={{ flexDirection: "row", gap: 12 }}><View style={{ flex: 1 }}><Button label={t("withdraw.title")} kind="secondary" onPress={() => router.push("/payments/withdraw")} /></View><View style={{ flex: 1 }}><Button label={t("redesign.addMoney")} kind="light" onPress={() => router.push("/payments/deposit")} /></View></View>
-    {pending ? <PendingPaymentRow pending={pending} /> : null}
+    {decision.row ? <PendingPaymentRow pending={decision.row} /> : null}
     {showKycNextStep(boot?.profile.kycStatus) ? <Card><Txt size={12} color={color.accentText}>{t("redesign.nextStep")}</Txt><Txt size={20} weight={600} style={{ marginTop: 8 }}>{t("redesign.verify")}</Txt><Txt size={14} color={color.ink2} style={{ marginVertical: 8 }}>{t("redesign.verificationHint")}</Txt><Button label={t("payments.verifyAction")} kind="text" onPress={() => router.push("/account/verify")} /></Card> : null}
     <View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>

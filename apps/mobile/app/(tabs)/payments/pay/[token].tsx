@@ -44,8 +44,9 @@ export default function Pay() {
     );
   } else if (view) {
     body = <UpiPay view={view} token={checkoutToken} />;
-  } else if (checkout.isError) {
-    const gone = checkout.error instanceof ApiError && checkout.error.status === 404;
+  } else if (checkout.isError || checkoutToken === "") {
+    // No token in the link reads as a payment that does not exist (the query stays off without one).
+    const gone = checkoutToken === "" || (checkout.error instanceof ApiError && checkout.error.status === 404);
     body = (
       <View style={{ gap: 12 }}>
         <Txt color={color.ink2}>{gone ? t("pay.notFound") : t("common.genericError")}</Txt>

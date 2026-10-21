@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hubBalances, pendingIsStale, pendingPaymentRow, RECENT_LIMIT, showKycNextStep } from "./hub-model";
+import { hubBalances, pendingIsStale, pendingPaymentRow, pendingRowDecision, RECENT_LIMIT, showKycNextStep } from "./hub-model";
 
 const live = { id: "live-1", currency: "INR", realBalance: 1_000_00, bonusBalance: 200_00 };
 
@@ -67,5 +67,52 @@ describe("pendingIsStale", () => {
     expect(pendingIsStale({ token: "t", expiresAt: now + 1, amountInr: null }, now)).toBe(false);
     expect(pendingIsStale({ token: "t", expiresAt: null, amountInr: null }, now)).toBe(false);
     expect(pendingIsStale(null, now)).toBe(false);
+  });
+});
+
+describe("pendingRowDecision", () => {
+  const now = 1_800_000_000_000;
+  const saved = { token: "tok", expiresAt: now + 600_000, amountInr: 200_037 };
+  const view = (over: Record<string, unknown> = {}) => ({ status: "AWAITING_PAYMENT", method: "PHONEPE", amountInr: 200_037, expiresAt: new Date(now + 600_000).toISOString(), ...over });
+  const decide = (over: Partial<Parameters<typeof pendingRowDecision>[0]> = {}) => pendingRowDecision({ pending: saved, nowMs: now, view: view(), errorStatus: null, ...over });
+
+  it("shows the row, with the server's amount and expiry, for an open UPI checkout", () => {
+    expect(decide()).toEqual({ row: { token: "tok", amountInr: 200_037, expiresAt: now + 600_000 }, clear: false });
+  });
+  it("shows an open payment that was saved before the pay screen loaded it (no expiry, no amount) with the server's figures", () => {
+    expect(decide({ pending: { token: "tok", expiresAt: null, amountInr: null } }).row).toEqual({ token: "tok", amountInr: 200_037, expiresAt: now + 600_000 });
+  });
+  it("is nothing, and clears nothing, when nothing is saved", () => {
+    expect(decide({ pending: null, view: null })).toEqual({ row: null, clear: false });
+  });
+  it("hides the row until the server has answered, and keeps what is saved (offline or a 5xx is not an ending)", () => {
+    expect(decide({ view: null })).toEqual({ row: null, clear: false });
+    expect(decide({ view: null, errorStatus: 0 })).toEqual({ row: null, clear: false });
+    expect(decide({ view: null, errorStatus: 503 })).toEqual({ row: null, clear: false });
+  });
+  it("clears on every final status", () => {
+    for (const status of ["COMPLETED", "REJECTED", "EXPIRED"]) expect(decide({ view: view({ status }) })).toEqual({ row: null, clear: true });
+  });
+  it("clears on a final status even for an entry whose expiry was never learned", () => {
+    expect(decide({ pending: { token: "tok", expiresAt: null, amountInr: null }, view: view({ status: "COMPLETED" }) })).toEqual({ row: null, clear: true });
+  });
+  it("clears when the checkout is gone (404), even if an older answer is still cached", () => {
+    expect(decide({ view: null, errorStatus: 404 })).toEqual({ row: null, clear: true });
+    expect(decide({ errorStatus: 404 })).toEqual({ row: null, clear: true });
+  });
+  it("clears when the saved expiry has passed, before the server is asked", () => {
+    expect(decide({ pending: { ...saved, expiresAt: now }, view: null })).toEqual({ row: null, clear: true });
+  });
+  it("clears when the server's own expiry has passed, for an entry with no saved expiry", () => {
+    expect(decide({ pending: { token: "tok", expiresAt: null, amountInr: null }, view: view({ expiresAt: new Date(now - 1).toISOString() }) })).toEqual({ row: null, clear: true });
+  });
+  it("hides a USDT checkout (the app cannot pay it until T4) without forgetting it", () => {
+    expect(decide({ view: view({ method: "USDT" }) })).toEqual({ row: null, clear: false });
+  });
+  it("hides, without clearing, when the server's expiry cannot be read (never invent an ending)", () => {
+    expect(decide({ view: view({ expiresAt: "soon" }) }).clear).toBe(false);
+  });
+  it("shows a payment awaiting confirmation (UTR sent): it is still in progress", () => {
+    expect(decide({ view: view({ status: "PENDING_CONFIRMATION" }) }).row).not.toBeNull();
   });
 });
