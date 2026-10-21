@@ -54,3 +54,48 @@ export function usdtProgressKey(kind: UsdtProgressKind): "usdt.progress.detected
 export function usdtProgressWanted(input: { method: string | undefined; checkoutStatus: string | undefined }): boolean {
   return input.method === "USDT" && input.checkoutStatus !== undefined && !isFinalStatus(input.checkoutStatus);
 }
+
+/** A transfer the deadline does not concern: seen, and not failed. A failed or reorged one is not coming (the window is open only for a resend). */
+function seenAndAlive(progress: UsdtProgress): boolean {
+  return progress.detected && progress.kind !== "failed";
+}
+
+/**
+ * Whether an open USDT payment's window is over with nothing on its way, so the screen must stop inviting a payment.
+ * The server keeps a manual or slot deposit AWAITING_PAYMENT for up to 48 h after `expiresAt` (a gateway one 2 h), and a
+ * slot address goes to another user 2 minutes after it, so a late transfer can be credited to someone else. The
+ * website walks away from the page at the deadline for the same reason. A transfer that was seen (and has not failed)
+ * is never ended by the clock; a failed one counts as nothing detected. An unreadable deadline or clock is "not lapsed".
+ */
+export function usdtLapsed(input: { expiresAt: string; nowMs: number; progress: UsdtProgress }): boolean {
+  const deadline = Date.parse(input.expiresAt);
+  if (!Number.isFinite(deadline) || !Number.isFinite(input.nowMs)) return false;
+  return input.nowMs >= deadline && !seenAndAlive(input.progress);
+}
+
+/** `setTimeout` takes a signed 32-bit delay; a larger one fires at once. */
+const MAX_TIMER_MS = 2_147_483_647;
+
+export type UsdtDeadlineStep = { kind: "none" } | { kind: "check" } | { kind: "arm"; delayMs: number };
+
+/**
+ * What the deadline watcher does now: nothing (switched off, or no readable deadline); the deadline is already past, so
+ * make the last status check at once (the app was in the background, or was just opened late); or arm a single timer
+ * for the time left. The watcher runs again when the deadline changes or it is switched on again.
+ */
+export function usdtDeadlineStep(input: { expiresAt: string; nowMs: number; enabled: boolean }): UsdtDeadlineStep {
+  const deadline = Date.parse(input.expiresAt);
+  if (!input.enabled || !Number.isFinite(deadline) || !Number.isFinite(input.nowMs)) return { kind: "none" };
+  if (input.nowMs >= deadline) return { kind: "check" };
+  return { kind: "arm", delayMs: Math.min(deadline - input.nowMs, MAX_TIMER_MS) };
+}
+
+/** The header clock stays until a transfer is seen and alive; a failed transfer keeps it, because the window is still open for a resend. */
+export function usdtClockShown(progress: UsdtProgress): boolean {
+  return !seenAndAlive(progress);
+}
+
+/** Where the status line itself points at the team ("contact support", "with our team", "will not be credited"), the screen offers the way there. */
+export function usdtShowsSupport(kind: UsdtProgressKind): boolean {
+  return kind === "dismissed" || kind === "review" || kind === "failed";
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { UsdtChainStatusSchema, usdtProgress, usdtProgressKey, usdtProgressWanted } from "./usdt-progress";
+import { UsdtChainStatusSchema, usdtClockShown, usdtDeadlineStep, usdtLapsed, usdtProgress, usdtProgressKey, usdtProgressWanted, usdtShowsSupport } from "./usdt-progress";
 
 const credit = (finalityState: string, processingStatus: string) => ({ status: "AWAITING_PAYMENT", chainCredit: { finalityState, processingStatus } });
 
@@ -68,5 +68,80 @@ describe("usdtProgressWanted", () => {
     expect(usdtProgressWanted({ method: "UPI", checkoutStatus: "AWAITING_PAYMENT" })).toBe(false);
     for (const s of ["COMPLETED", "REJECTED", "EXPIRED"]) expect(usdtProgressWanted({ method: "USDT", checkoutStatus: s })).toBe(false);
     expect(usdtProgressWanted({ method: undefined, checkoutStatus: undefined })).toBe(false);
+  });
+});
+
+const DEADLINE = "2026-10-21T10:05:00.000Z";
+const deadlineMs = Date.parse(DEADLINE);
+const waiting = usdtProgress(null);
+const seen = (finality: string, processing: string) => usdtProgress(credit(finality, processing));
+
+describe("usdtLapsed", () => {
+  it("is false before the deadline and true from the deadline on, with nothing detected", () => {
+    expect(usdtLapsed({ expiresAt: DEADLINE, nowMs: deadlineMs - 1, progress: waiting })).toBe(false);
+    expect(usdtLapsed({ expiresAt: DEADLINE, nowMs: deadlineMs, progress: waiting })).toBe(true);
+    expect(usdtLapsed({ expiresAt: DEADLINE, nowMs: deadlineMs + 3_600_000, progress: waiting })).toBe(true);
+  });
+  it("never ends a transfer that was seen: detected, final, review and dismissed stay on the pay screen", () => {
+    for (const progress of [seen("PENDING", "PENDING"), seen("FINAL", "PENDING"), seen("FINAL", "MANUAL_REVIEW"), seen("PENDING", "UNMATCHED"), seen("FINAL", "DISMISSED")]) {
+      expect(usdtLapsed({ expiresAt: DEADLINE, nowMs: deadlineMs + 1000, progress })).toBe(false);
+    }
+  });
+  it("treats a failed or reorged transfer as nothing detected: the window is over and a resend would be late", () => {
+    expect(usdtLapsed({ expiresAt: DEADLINE, nowMs: deadlineMs + 1000, progress: seen("FAILED_ON_CHAIN", "PENDING") })).toBe(true);
+    expect(usdtLapsed({ expiresAt: DEADLINE, nowMs: deadlineMs + 1000, progress: seen("REORGED", "PENDING") })).toBe(true);
+  });
+  it("is false when the deadline cannot be read, so a bad answer never hides the way to pay", () => {
+    for (const expiresAt of ["", "soon", "NaN"]) {
+      expect(usdtLapsed({ expiresAt, nowMs: deadlineMs + 1000, progress: waiting })).toBe(false);
+    }
+    expect(usdtLapsed({ expiresAt: DEADLINE, nowMs: Number.NaN, progress: waiting })).toBe(false);
+  });
+});
+
+describe("usdtDeadlineStep", () => {
+  const base = { expiresAt: DEADLINE, enabled: true };
+  it("arms one timer for the time left while the deadline is ahead", () => {
+    expect(usdtDeadlineStep({ ...base, nowMs: deadlineMs - 90_000 })).toEqual({ kind: "arm", delayMs: 90_000 });
+  });
+  it("checks at once when the deadline has already passed (a resume after the app was in the background)", () => {
+    expect(usdtDeadlineStep({ ...base, nowMs: deadlineMs })).toEqual({ kind: "check" });
+    expect(usdtDeadlineStep({ ...base, nowMs: deadlineMs + 7_200_000 })).toEqual({ kind: "check" });
+  });
+  it("does nothing when it is switched off (hidden, backgrounded, not a USDT open checkout) or the deadline is unreadable", () => {
+    expect(usdtDeadlineStep({ ...base, enabled: false, nowMs: deadlineMs - 1000 })).toEqual({ kind: "none" });
+    expect(usdtDeadlineStep({ ...base, enabled: false, nowMs: deadlineMs + 1000 })).toEqual({ kind: "none" });
+    expect(usdtDeadlineStep({ expiresAt: "soon", enabled: true, nowMs: deadlineMs })).toEqual({ kind: "none" });
+  });
+  it("caps the delay below the timer limit, so a far deadline never fires at once", () => {
+    const step = usdtDeadlineStep({ ...base, nowMs: deadlineMs - 40 * 86_400_000 });
+    expect(step.kind).toBe("arm");
+    if (step.kind === "arm") expect(step.delayMs).toBeLessThanOrEqual(2_147_483_647);
+  });
+});
+
+describe("usdtClockShown", () => {
+  it("shows the header clock while waiting and for a failed transfer (the window is still open for a resend)", () => {
+    expect(usdtClockShown(waiting)).toBe(true);
+    expect(usdtClockShown(seen("FAILED_ON_CHAIN", "PENDING"))).toBe(true);
+    expect(usdtClockShown(seen("REORGED", "PENDING"))).toBe(true);
+  });
+  it("hides it once a transfer is seen and not failed, as the website does", () => {
+    for (const progress of [seen("PENDING", "PENDING"), seen("FINAL", "PENDING"), seen("FINAL", "MANUAL_REVIEW"), seen("FINAL", "DISMISSED")]) {
+      expect(usdtClockShown(progress)).toBe(false);
+    }
+  });
+});
+
+describe("usdtShowsSupport", () => {
+  it("offers support where the status line itself sends the user to the team", () => {
+    expect(usdtShowsSupport("dismissed")).toBe(true);
+    expect(usdtShowsSupport("review")).toBe(true);
+    expect(usdtShowsSupport("failed")).toBe(true);
+  });
+  it("does not clutter the ordinary states", () => {
+    expect(usdtShowsSupport("waiting")).toBe(false);
+    expect(usdtShowsSupport("detected")).toBe(false);
+    expect(usdtShowsSupport("final")).toBe(false);
   });
 });

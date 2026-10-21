@@ -11,6 +11,7 @@ import { UpiPay } from "@/payments/UpiPay";
 import { UsdtPay } from "@/payments/UsdtPay";
 import { usePayCheckout } from "@/payments/usePayCheckout";
 import { useUsdtProgress } from "@/payments/useUsdtProgress";
+import { usdtClockShown } from "@/payments/usdt-progress";
 import { color } from "@/theme/tokens";
 import { Button, Screen, Skeleton, Txt } from "@/theme/ui";
 import { BackHeader } from "@/ui/BackHeader";
@@ -27,9 +28,11 @@ export default function Pay() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const checkoutToken = typeof token === "string" ? token : "";
   const checkout = usePayCheckout(checkoutToken);
-  const view = checkout.data;
   // The one place the USDT status route is polled; a transfer that has been seen also takes the clock away, as on the web.
-  const progress = useUsdtProgress(checkoutToken, view);
+  const { progress, lapsed } = useUsdtProgress(checkoutToken, checkout.data);
+  // A USDT window that is over with nothing on its way is drawn as the ended frame while the server still says open (it
+  // holds an unpaid manual or slot deposit for up to 48 h), so the address is never offered after the deadline.
+  const view = checkout.data && lapsed ? { ...checkout.data, status: "EXPIRED" as const } : checkout.data;
   const expiresAtMs = view ? Date.parse(view.expiresAt) : Number.NaN;
   const screen = view ? payScreenFor(view.status) : null;
   // The way to pay keeps its close button and clock; the frames after it are a destination, so a back arrow to Payments.
@@ -77,7 +80,7 @@ export default function Pay() {
           title={title}
           icon={paying || !view ? "close" : "arrowLeft"}
           onBack={paying || !view ? undefined : () => router.replace("/payments")}
-          aside={paying && !progress.detected && Number.isFinite(expiresAtMs) ? <ExpiryClock expiresAtMs={expiresAtMs} /> : undefined}
+          aside={paying && usdtClockShown(progress) && Number.isFinite(expiresAtMs) ? <ExpiryClock expiresAtMs={expiresAtMs} /> : undefined}
         />
         {body}
       </ScrollView>

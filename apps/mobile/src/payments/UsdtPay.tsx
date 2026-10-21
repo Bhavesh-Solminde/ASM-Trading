@@ -5,7 +5,7 @@ import { Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { CheckoutView } from "@asm/contracts";
 import { color } from "@/theme/tokens";
-import { Txt } from "@/theme/ui";
+import { Button, Txt } from "@/theme/ui";
 import { Icon } from "@/ui/Icon";
 import { Money } from "@/ui/Money";
 import { toast } from "@/ui/Toast";
@@ -14,7 +14,7 @@ import { UsdtProgressCard } from "./UsdtProgressCard";
 import { amountText, requestedAmount } from "./result-model";
 import { networkLabel, networkNote, usdtAddressNoteKey, usdtAmountText, usdtHintKey, usdtSendExactlyAmount, usdtStatusLineKey } from "./usdt-display";
 import { shownTxHash, usdtClaimEntry } from "./usdt-claim";
-import type { UsdtProgress } from "./usdt-progress";
+import { usdtShowsSupport, type UsdtProgress } from "./usdt-progress";
 
 /** Copy `text`, say so in a toast; a clipboard that refuses says the generic error instead of failing silently. */
 async function copyText(text: string, doneMessage: string, failedMessage: string) {
@@ -119,6 +119,7 @@ export function UsdtPay({ view, token, progress }: { view: CheckoutView; token: 
       </View>
 
       {progress.detected ? <UsdtProgressCard progress={progress} /> : null}
+      {usdtShowsSupport(progress.kind) ? <Button testID="usdt-contact-support" kind="text" label={t("pay.ended.contactSupport")} onPress={() => router.push("/account/support")} /> : null}
       {statusKey && !progress.detected ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, padding: 16, borderRadius: 14, backgroundColor: color.surface }}>
           <WaitingRing />
