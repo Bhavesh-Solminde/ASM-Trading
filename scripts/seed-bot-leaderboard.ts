@@ -107,8 +107,8 @@ interface DailyPlan {
  */
 function planFor(botIndex: number, dayKey: number): DailyPlan {
   const base = botIndex * 1_000_003 + dayKey;
-  // Stake: ₹100 — ₹1,000 (10_000 — 100_000 paise), rounded to ₹10.
-  const stake = 10_000 + Math.floor(seededUnit(base) * 90) * 1_000;
+  // Stake: ₹1,000 — ₹15,000 (100_000 — 1_500_000 paise), rounded to ₹100.
+  const stake = 100_000 + Math.floor(seededUnit(base) * 141) * 10_000;
   // Payout: 70% — 93% (matches the catalogue's payoutMin/payoutMax).
   const payoutPct = 70 + Math.floor(seededUnit(base ^ 0xabc) * 24);
   const won = seededUnit(base ^ 0xdef) < 0.55;
