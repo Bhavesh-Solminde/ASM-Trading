@@ -216,13 +216,43 @@
     "notFound": "We couldn't find this payment.",
     "usdtSoon": "This USDT deposit can't be paid in the app yet. Pay it on the website, or start a new deposit.",
     "backToPayments": "Back to Payments",
-    "resultNote": {
-      "COMPLETED": "Your deposit has been credited to your live account.",
-      "REJECTED": "This deposit was not approved.",
-      "EXPIRED": "This payment window has ended. If you already paid, it will still be credited. Don't pay again."
-    },
     "heading": "Payment",
-    "timeLeft": "Time left to pay"
+    "timeLeft": "Time left to pay",
+    "statusTitle": "Payment status",
+    "confirmedTitle": "Payment confirmed",
+    "receipt": {
+      "moneyAdded": "Money added",
+      "balanceUpdated": "Your live balance has been updated.",
+      "method": "Method",
+      "status": "Status",
+      "reference": "Reference",
+      "bonus": "Bonus",
+      "utr": "UTR",
+      "date": "Date",
+      "newBalance": "New balance",
+      "startTrading": "Start trading",
+      "share": "Share receipt",
+      "shareTitle": "IndianxTrade deposit receipt",
+      "amount": "Amount",
+      "paidWith": "Paid with",
+      "shareFailed": "Couldn't open sharing. Try again."
+    },
+    "pending": {
+      "title": "Checking your payment",
+      "body": "We're waiting for confirmation. You can leave this screen and check History.",
+      "amount": "Amount",
+      "goPayments": "Go to payments",
+      "viewDetails": "View payment details"
+    },
+    "ended": {
+      "expiredTitle": "Payment window ended",
+      "rejectedTitle": "Deposit not approved",
+      "expired": "Your payment window ended. If you already sent your payment before the timer ran out, it will still be credited. Don't send it again. Otherwise, start a new deposit.",
+      "expiredGateway": "Your payment window ended. If you already sent your payment before the timer ran out, it will still be credited automatically. Don't send it again. Otherwise, start a new deposit.",
+      "rejected": "This deposit was not approved.",
+      "newDeposit": "New deposit",
+      "contactSupport": "Contact support"
+    }
   },
   "history": {
     "title": {

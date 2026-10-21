@@ -10,8 +10,7 @@ export function countdownText(expiresAtMs: number, nowMs: number): string {
 
 /**
  * Whether the "I've paid, add my UTR" link is out yet. The server asks the app to wait `delaySec` seconds so the
- * automatic match gets its chance first. The clock starts when the screen was first opened for this payment
- * (`anchorMs`): the checkout view carries no `createdAt`, unlike the web page which counts from the deposit's own.
+ * automatic match gets its chance first. The clock starts at `anchorMs` (see `claimAnchorMs`: the deposit's creation).
  * A delay that is not a usable number reveals the link at once: the way out must never be hidden by bad config.
  */
 export function claimReveal(input: { anchorMs: number; nowMs: number; delaySec: number }): { revealed: boolean; remainingSec: number } {
@@ -20,6 +19,17 @@ export function claimReveal(input: { anchorMs: number; nowMs: number; delaySec: 
   const elapsedSec = Math.max(0, Math.floor((input.nowMs - input.anchorMs) / 1000));
   const remainingSec = Math.max(0, delaySec - elapsedSec);
   return { revealed: remainingSec === 0, remainingSec };
+}
+
+/**
+ * Where the claim delay counts from: the deposit's own creation time, as the website does, so reopening the screen or
+ * a late cold start never restarts it. With no usable `createdAt` (an older server) it is the first time this screen
+ * opened for the payment. Never later than that first open, so a phone clock that runs behind the server's cannot
+ * hold the link back for longer than the first-open rule would.
+ */
+export function claimAnchorMs(input: { createdAt: string | null; firstOpenMs: number }): number {
+  const created = input.createdAt ? Date.parse(input.createdAt) : Number.NaN;
+  return Number.isFinite(created) ? Math.min(created, input.firstOpenMs) : input.firstOpenMs;
 }
 
 /** The claim route takes a UTR only for a payment still `AWAITING_PAYMENT` with none yet; the link is shown only then. */

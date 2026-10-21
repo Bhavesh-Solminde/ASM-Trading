@@ -187,7 +187,7 @@ export function UpiPay({ view, token }: { view: CheckoutView; token: string }) {
           </View>
         </View>
       ) : null}
-      <ClaimLink token={token} depositId={view.id} status={view.status} claimedUtr={view.claimedUtr} delaySec={view.manualClaimDelaySec} />
+      <ClaimLink token={token} depositId={view.id} status={view.status} claimedUtr={view.claimedUtr} delaySec={view.manualClaimDelaySec} createdAt={view.createdAt} />
     </View>
   );
 }

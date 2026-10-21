@@ -5,8 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError } from "@/api/errors";
 import { money } from "@/money/format";
 import { ExpiryClock } from "@/payments/ExpiryClock";
+import { PayPending } from "@/payments/PayPending";
 import { PayResult } from "@/payments/PayResult";
-import { isFinalStatus } from "@/payments/checkout-poll";
+import { payScreenFor } from "@/payments/result-model";
 import { UpiPay } from "@/payments/UpiPay";
 import { usePayCheckout } from "@/payments/usePayCheckout";
 import { color } from "@/theme/tokens";
@@ -15,7 +16,8 @@ import { BackHeader } from "@/ui/BackHeader";
 
 /**
  * `/payments/pay/<checkout token>`: pay a deposit. The checkout is polled every 4s while this screen is in front
- * (`usePayCheckout`), and when it ends (credited, rejected, expired) the result takes the place of the payment.
+ * (`usePayCheckout`), and what it draws follows the status (`payScreenFor`): the way to pay, "checking your payment"
+ * once the UTR is in, then the receipt (credited) or the ended frame (rejected, expired).
  * UPI payments are drawn here (T3a); a USDT payment's screen is T4's, so it shows a plain notice until then.
  */
 export default function Pay() {
@@ -26,11 +28,14 @@ export default function Pay() {
   const checkout = usePayCheckout(checkoutToken);
   const view = checkout.data;
   const expiresAtMs = view ? Date.parse(view.expiresAt) : Number.NaN;
-  const open = !!view && !isFinalStatus(view.status);
-  const title = view ? t("pay.title", { amount: money(view.amountInr, "INR", { trim: true }) }) : t("pay.heading");
+  const screen = view ? payScreenFor(view.status) : null;
+  // The way to pay keeps its close button and clock; the frames after it are a destination, so a back arrow to Payments.
+  const paying = screen === "pay";
+  let title = t("pay.heading");
+  if (view) title = paying ? t("pay.title", { amount: money(view.amountInr, "INR", { trim: true }) }) : t(screen === "receipt" ? "pay.confirmedTitle" : "pay.statusTitle");
 
   let body;
-  if (view && !open) {
+  if (view && (screen === "receipt" || screen === "ended")) {
     body = <PayResult view={view} />;
   } else if (view && view.method === "USDT") {
     // T4 draws the address, QR and tx-hash claim. Until then say so rather than show a blank screen.
@@ -42,6 +47,8 @@ export default function Pay() {
         <Button kind="light" label={t("pay.backToPayments")} onPress={() => router.replace("/payments")} />
       </View>
     );
+  } else if (view && screen === "pending") {
+    body = <PayPending view={view} />;
   } else if (view) {
     body = <UpiPay view={view} token={checkoutToken} />;
   } else if (checkout.isError || checkoutToken === "") {
@@ -69,8 +76,13 @@ export default function Pay() {
 
   return (
     <Screen>
-      <ScrollView testID="pay-screen" contentContainerStyle={{ padding: 20, paddingBottom: 20 + insets.bottom, gap: 20 }} keyboardShouldPersistTaps="handled">
-        <BackHeader title={title} icon="close" aside={open && Number.isFinite(expiresAtMs) ? <ExpiryClock expiresAtMs={expiresAtMs} /> : undefined} />
+      <ScrollView testID="pay-screen" contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: 20 + insets.bottom, gap: 20 }} keyboardShouldPersistTaps="handled">
+        <BackHeader
+          title={title}
+          icon={paying || !view ? "close" : "arrowLeft"}
+          onBack={paying || !view ? undefined : () => router.replace("/payments")}
+          aside={paying && Number.isFinite(expiresAtMs) ? <ExpiryClock expiresAtMs={expiresAtMs} /> : undefined}
+        />
         {body}
       </ScrollView>
     </Screen>

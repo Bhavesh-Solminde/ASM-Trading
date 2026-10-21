@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { claimLinkVisible, claimReveal, countdownText, createAnchorStore, payInstrumentsVisible, pendingFromView, statusLineKey } from "./pay-model";
+import { claimAnchorMs, claimLinkVisible, claimReveal, countdownText, createAnchorStore, payInstrumentsVisible, pendingFromView, statusLineKey } from "./pay-model";
 
 describe("countdownText", () => {
   const at = 1_800_000_000_000;
@@ -106,5 +106,30 @@ describe("payInstrumentsVisible", () => {
   });
   it("hides them for any final status", () => {
     for (const status of ["COMPLETED", "REJECTED", "EXPIRED"]) expect(payInstrumentsVisible({ status, claimedUtr: null })).toBe(false);
+  });
+});
+
+describe("claimAnchorMs", () => {
+  const opened = 1_800_000_000_000;
+  const iso = (ms: number) => new Date(ms).toISOString();
+  it("counts the claim delay from when the deposit was created, as the web does", () => {
+    expect(claimAnchorMs({ createdAt: iso(opened - 80_000), firstOpenMs: opened })).toBe(opened - 80_000);
+  });
+  it("makes a late cold start reveal the link at once instead of restarting the whole delay", () => {
+    const anchor = claimAnchorMs({ createdAt: iso(opened - 10 * 60_000), firstOpenMs: opened });
+    expect(claimReveal({ anchorMs: anchor, nowMs: opened, delaySec: 90 }).revealed).toBe(true);
+  });
+  it("falls back to the first open when the server sent no creation time (an older server)", () => {
+    expect(claimAnchorMs({ createdAt: null, firstOpenMs: opened })).toBe(opened);
+  });
+  it("falls back to the first open for a time it cannot read", () => {
+    expect(claimAnchorMs({ createdAt: "not a date", firstOpenMs: opened })).toBe(opened);
+    expect(claimAnchorMs({ createdAt: "", firstOpenMs: opened })).toBe(opened);
+  });
+  it("never hides the link longer than the first-open rule would, even if the phone's clock is behind the server's", () => {
+    // Created "in the future" by this phone's clock: a plain anchor would hold the link back for hours.
+    const anchor = claimAnchorMs({ createdAt: iso(opened + 3 * 3600_000), firstOpenMs: opened });
+    expect(anchor).toBe(opened);
+    expect(claimReveal({ anchorMs: anchor, nowMs: opened + 90_000, delaySec: 90 }).revealed).toBe(true);
   });
 });
