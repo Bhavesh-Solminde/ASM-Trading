@@ -112,6 +112,21 @@ export const CheckoutViewSchema = z.object({
   claimedUtr: z.string().nullable(),
   claimedTxHash: z.string().nullable(),
   manualClaimDelaySec: z.number().int(),
+  // Added for the app's receipt (P3 T3b). Every one is null until the server fills it, and defaults to null when an
+  // older server leaves it out, so a newer app talks to an older server and an older app ignores them.
+  /** When the deposit was created: the clock the "I've paid, add my UTR" delay counts from. */
+  createdAt: z.string().nullable().default(null),
+  /** COMPLETED only: when the credit landed. */
+  creditedAt: z.string().nullable().default(null),
+  /** COMPLETED only: what was credited to the account, in the account's own currency (`creditedCurrency`), bonus excluded. */
+  creditedMinor: minor.nullable().default(null),
+  creditedCurrency: z.string().nullable().default(null),
+  /** COMPLETED only: the bonus granted with it; null when none. */
+  bonusMinor: minor.nullable().default(null),
+  /** COMPLETED only: the account's balance (real plus bonus) right after the credit, in `creditedCurrency`. */
+  balanceAfterMinor: minor.nullable().default(null),
+  /** The UTR the user sent, else the matched bank credit's; null for USDT and while none is known. */
+  utr: z.string().nullable().default(null),
 });
 export type CheckoutView = z.infer<typeof CheckoutViewSchema>;
 

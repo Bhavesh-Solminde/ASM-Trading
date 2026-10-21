@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { CheckoutViewSchema } from "@asm/contracts";
-import { getDepositByToken } from "@asm/db";
+import { getDepositByToken, getDepositReceipt } from "@asm/db";
 import { checkoutViewFor } from "@/lib/checkout-view";
 import { getSession, noStoreJson, unauthenticated } from "@/lib/request-session";
 
@@ -14,5 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
   if (!deposit || deposit.userId !== session.userId) {
     return NextResponse.json({ error: "Deposit not found.", code: "not_found" }, { status: 404 });
   }
-  return noStoreJson(CheckoutViewSchema.parse(checkoutViewFor(deposit)));
+  // Only the owner's deposit gets here, so the receipt query below is always for their own rows.
+  const receipt = await getDepositReceipt(deposit);
+  return noStoreJson(CheckoutViewSchema.parse(checkoutViewFor(deposit, receipt)));
 }
