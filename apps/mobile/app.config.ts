@@ -51,6 +51,8 @@ const config: ExpoConfig = {
     "expo-localization",
     "expo-web-browser",
     "@react-native-google-signin/google-signin",
+    // Android 11+ package visibility: lets the pay screen ask which UPI apps can open (see the plugin).
+    "./plugins/with-upi-queries",
     // SDK 57 dropped the top-level `splash` key; the splash is configured via this plugin.
     ["expo-splash-screen", { image: "./assets/splash.png", imageWidth: 200, resizeMode: "contain", backgroundColor: "#06080b" }],
     [

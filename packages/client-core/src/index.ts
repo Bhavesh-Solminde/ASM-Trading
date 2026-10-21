@@ -16,3 +16,4 @@ export * from "./history/timeline-model";
 export * from "./payments/deposit-limits";
 // groupAmount also exists in trade/stake (different decimals behaviour), so this one is exported as groupAmountInput.
 export { applyKey, sanitizeAmount, groupAmount as groupAmountInput, type AmountOpts } from "./payments/amount-input";
+export * from "./history/history-model";

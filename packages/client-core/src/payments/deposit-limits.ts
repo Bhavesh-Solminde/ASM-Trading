@@ -69,3 +69,6 @@ export function overallLimits(methods: readonly Method[]): Limits {
   const all = methods.map(methodLimits);
   return { min: Math.min(...all.map((l) => l.min)), max: Math.max(...all.map((l) => l.max)) };
 }
+
+/** The quick-pick deposit amounts (whole rupees) on the amount screen, web and app alike. */
+export const DEPOSIT_QUICK_INR = [500, 1000, 2000, 5000] as const;

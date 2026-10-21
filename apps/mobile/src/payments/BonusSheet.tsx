@@ -7,7 +7,7 @@ import { Button, Txt } from "@/theme/ui";
 import { LedgerHeader, LedgerRow, type LedgerColumn } from "@/ui/Ledger";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
 import { Stamp } from "@/ui/Stamp";
-import { nextBonus } from "./markets";
+import { nextBonus } from "@/trade/markets";
 
 const COLS: LedgerColumn[] = [{ flex: 1 }, { width: 80, align: "right" }, { width: 96, align: "right" }];
 
@@ -69,7 +69,7 @@ export const BonusSheet = forwardRef<SheetRef, { completedDeposits: number }>(fu
           label={t("trade.deposit")}
           onPress={() => {
             inner.current?.dismiss();
-            router.navigate("/payments");
+            router.navigate("/payments/deposit");
           }}
         />
       ) : (

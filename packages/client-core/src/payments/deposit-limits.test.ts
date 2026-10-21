@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { methodAmountProblem, methodLimits, overallLimits } from "./deposit-limits";
+import { DEPOSIT_QUICK_INR, INR_MAX, INR_MIN, methodAmountProblem, methodLimits, overallLimits } from "./deposit-limits";
 
 describe("per-method limits", () => {
   it("converts the USDT bounds to rupees at ₹100 = $1", () => {
@@ -15,5 +15,15 @@ describe("per-method limits", () => {
     expect(overallLimits(["UPI", "USDT"]).min).toBe(500);
     expect(overallLimits(["USDT"]).min).toBe(1_000);
     expect(overallLimits([])).toEqual({ min: 500, max: 1_000_000 });
+  });
+});
+
+describe("DEPOSIT_QUICK_INR", () => {
+  it("is the four quick amounts, all within the rupee limits", () => {
+    expect([...DEPOSIT_QUICK_INR]).toEqual([500, 1000, 2000, 5000]);
+    for (const v of DEPOSIT_QUICK_INR) {
+      expect(v).toBeGreaterThanOrEqual(INR_MIN);
+      expect(v).toBeLessThanOrEqual(INR_MAX);
+    }
   });
 });

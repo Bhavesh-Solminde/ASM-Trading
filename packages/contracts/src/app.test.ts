@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiErrorSchema, AppConfigSchema, PreferencesUpdateSchema, WalletSchema } from "./app";
+import { ApiErrorSchema, AppConfigSchema, CheckoutViewSchema, PreferencesUpdateSchema, WalletSchema } from "./app";
 
 describe("app contracts", () => {
   it("accepts a wallet with live and demo accounts", () => {
@@ -37,5 +37,53 @@ describe("app contracts", () => {
 
   it("describes errors with a stable code", () => {
     expect(ApiErrorSchema.parse({ error: "Not signed in.", code: "unauthenticated" }).code).toBe("unauthenticated");
+  });
+
+  describe("CheckoutViewSchema receipt fields", () => {
+    const base = {
+      id: "dep-1",
+      method: "PhonePe",
+      status: "COMPLETED",
+      amountInr: 200000,
+      amountUsdtMinor: null,
+      network: null,
+      expiresAt: "2026-10-21T10:05:00.000Z",
+      upiUri: null,
+      vpa: null,
+      receivingAddress: null,
+      isGateway: false,
+      isSlot: false,
+      claimedUtr: null,
+      claimedTxHash: null,
+      manualClaimDelaySec: 90,
+    };
+
+    it("still parses a response from an older server that has none of the new fields (they default to null)", () => {
+      const view = CheckoutViewSchema.parse(base);
+      expect(view.createdAt).toBeNull();
+      expect(view.creditedAt).toBeNull();
+      expect(view.creditedMinor).toBeNull();
+      expect(view.creditedCurrency).toBeNull();
+      expect(view.bonusMinor).toBeNull();
+      expect(view.balanceAfterMinor).toBeNull();
+      expect(view.utr).toBeNull();
+    });
+
+    it("carries the receipt when the server sends it", () => {
+      const receipt = {
+        createdAt: "2026-10-21T10:00:00.000Z",
+        creditedAt: "2026-10-21T10:01:00.000Z",
+        creditedMinor: 200000,
+        creditedCurrency: "INR",
+        bonusMinor: 200000,
+        balanceAfterMinor: 1645000,
+        utr: "428713905561",
+      };
+      expect(CheckoutViewSchema.parse({ ...base, ...receipt })).toMatchObject(receipt);
+    });
+
+    it("rejects a fractional money field", () => {
+      expect(CheckoutViewSchema.safeParse({ ...base, creditedMinor: 1.5 }).success).toBe(false);
+    });
   });
 });

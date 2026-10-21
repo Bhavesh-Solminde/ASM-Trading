@@ -110,6 +110,7 @@ export {
   claimUtr,
   claimUsdtPayment,
 } from "./repositories/deposit";
+export { buildDepositReceipt, getDepositReceipt, type DepositReceipt, type ReceiptTx } from "./repositories/deposit-receipt";
 export {
   matchCreditToDeposit,
   type MatchOutcome,

@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { Sheet, type SheetRef } from "@/ui/Sheet";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Pressable, useWindowDimensions, View } from "react-native";
@@ -7,15 +9,12 @@ import { color, radius } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 import { AppHeader } from "@/ui/AppHeader";
 import { BrandMark } from "@/ui/Brand";
-import { headerMetrics, PILL_FONT, PILL_MIN_WIDTH } from "@/ui/header-metrics";
+import { headerMetrics, PILL_FONT } from "@/ui/header-metrics";
 import { Icon } from "@/ui/Icon";
 import { Money } from "@/ui/Money";
-import { PillFill } from "@/ui/PillFill";
 import { toast } from "@/ui/Toast";
 import type { AppAccount } from "./accounts";
-import { dayNetForAccount } from "./day-total";
 import { FIGURE, FILL_RIGHT, TODAY, fitHeader, isCompactWidth } from "./header-fit";
-import { useNow } from "./useNow";
 
 const TYPES = ["DEMO", "LIVE"] as const;
 
@@ -31,21 +30,6 @@ const switchBox = {
 interface TodayLine {
   line: string;
   ink: string;
-}
-
-/**
- * "+₹186.00 today": net of today's settled trades on this account. Null (nothing shown) unless this device
- * provably holds the whole IST day for the account (see `dayNetMinor`); hidden while a non-default account's list
- * is still loading. Ticks once a minute for the day boundary.
- */
-function useTodayLine(account: AppAccount, listLoaded: boolean): TodayLine | null {
-  const { t } = useTranslation();
-  const tradesByAccount = useSocket((s) => s.trades.tradesByAccount);
-  const now = useNow(60_000);
-  const net = dayNetForAccount(tradesByAccount, account.id, listLoaded, now);
-  if (net === null) return null;
-  const amount = `${net > 0 ? "+" : ""}${money(net, account.currency)}`;
-  return { line: t("trade.today", { amount }), ink: net > 0 ? color.up : net < 0 ? color.downText : color.switchInk };
 }
 
 /**
@@ -96,97 +80,44 @@ const columnStyle = { flex: 1, alignItems: "flex-end", minWidth: 0 } as const;
 /**
  * Mark, Demo/Live switch, the active account's balance (with today's result above it) and a square Deposit
  * button. Live is greyed (and says why when tapped) unless the user has live access and a live account.
- * `listLoaded` says the active account's trade list is complete (see `useAccountTradesLoaded`, owned by the
- * screen); the "today" line is hidden until it is.
  */
 export function TopBar({
   account,
   liveEnabled,
   onSelectType,
-  listLoaded,
 }: {
   account: AppAccount;
   liveEnabled: boolean;
   onSelectType: (type: AppAccount["type"]) => void;
-  listLoaded: boolean;
 }) {
   const { t } = useTranslation();
   const bal = useSocket((s) => s.trades.balances[account.id]) ?? account;
   const text = money(Math.round(bal.realBalance + bal.bonusBalance), account.currency);
-  const today = useTodayLine(account, listLoaded);
-  // 320dp and 360dp phones: a smaller mark, tighter gutters and pills leave the balance room for every digit. The
-  // fit is computed from the window, so it follows a font-scale change and is right on the first frame.
-  const { width, fontScale } = useWindowDimensions();
-  const compact = isCompactWidth(width);
-  const metrics = headerMetrics(compact);
-  const fit = fitHeader({
-    windowWidth: width,
-    fontScale,
-    pillLabels: [t("trade.demo"), t("trade.live")],
-    hasDeposit: true,
-    figure: text,
-    today: today?.line ?? null,
-  });
-  const balance = (
-    <BalanceBlock text={text} size={fit.figureSize} label={`${t("trade.balance")}: ${text}`} today={today} todaySize={fit.todaySize} />
-  );
-  return (
-    <AppHeader compact={compact} below={fit.stacked ? balance : undefined}>
-      <BrandMark width={metrics.mark} />
-      <View accessibilityRole="radiogroup" style={switchBox}>
-        {TYPES.map((type) => {
-          const selected = account.type === type;
-          const blocked = type === "LIVE" && !liveEnabled;
-          return (
-            <Pressable
-              key={type}
-              testID={`account-${type.toLowerCase()}`}
-              accessibilityRole="radio"
-              accessibilityState={{ selected, disabled: blocked }}
-              onPress={() => (blocked ? toast(t("trade.liveLocked")) : onSelectType(type))}
-              // 30pt pill + 7pt above and below = the 44pt target.
-              hitSlop={{ top: 7, bottom: 7 }}
-              style={{
-                height: 30,
-                minWidth: PILL_MIN_WIDTH,
-                paddingHorizontal: metrics.pillPad,
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: blocked ? 0.45 : 1,
-              }}
-            >
-              {/* Drawn by SVG: a view whose backgroundColor toggles loses its rounded corners on Android. */}
-              <PillFill fill={selected ? color.ink : null} height={30} />
-              <Txt weight={600} size={PILL_FONT} lineHeight={16} color={selected ? color.ground : color.switchInk}>
-                {type === "DEMO" ? t("trade.demo") : t("trade.live")}
-              </Txt>
-            </Pressable>
-          );
-        })}
-      </View>
-      {/* When the figure cannot fit here at a legible size it sits in a second header row instead. */}
-      {fit.stacked ? <View style={{ flex: 1 }} /> : <View style={columnStyle}>{balance}</View>}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("trade.deposit")}
-        // The real deposit flow arrives with the payments work; until then this opens the Payments tab.
-        onPress={() => router.navigate("/payments")}
-        // 40pt square + 2pt around = the 44pt target.
-        hitSlop={2}
-        style={({ pressed }) => ({
-          width: 40,
-          height: 40,
-          borderRadius: radius.md,
-          backgroundColor: color.accent,
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: pressed ? 0.85 : 1,
-        })}
-      >
-        <Icon name="plus" size={20} strokeWidth={2.25} color={color.onAccent} />
+  const selector = useRef<SheetRef>(null);
+  return <>
+    <AppHeader>
+      <BrandMark width={32} />
+      <Pressable testID="account-selector" accessibilityRole="button" accessibilityLabel={t("trade.balance") + ": " + text} onPress={() => selector.current?.present()} style={{ flex: 1, minHeight: 52, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Txt size={12} color={account.type === "LIVE" ? color.up : color.accentText}>{account.type === "LIVE" ? t("trade.live") : t("trade.demo")}</Txt>
+          <Icon name="chevronDown" size={12} color={color.ink2} />
+        </View>
+        <Money text={text} size={22} weight={600} numberOfLines={1} adjustsFontSizeToFit />
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("tabs.payments")} onPress={() => router.navigate("/payments")} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: color.raised, alignItems: "center", justifyContent: "center" }}>
+        <Icon name="wallet" size={22} color={color.accentText} />
       </Pressable>
     </AppHeader>
-  );
+    <Sheet ref={selector} title={t("trade.balance")}>
+      {TYPES.map((type) => <Pressable key={type} testID={`account-${type.toLowerCase()}`} accessibilityRole="radio" accessibilityState={{ selected: account.type === type, disabled: type === "LIVE" && !liveEnabled }} onPress={() => {
+        if (type === "LIVE" && !liveEnabled) { toast(t("trade.liveLocked")); return; }
+        onSelectType(type); selector.current?.dismiss();
+      }} style={{ minHeight: 60, padding: 16, borderRadius: 12, backgroundColor: account.type === type ? color.raised : color.surface, flexDirection: "row", justifyContent: "space-between" }}>
+        <Txt weight={600}>{type === "LIVE" ? t("trade.live") : t("trade.demo")}</Txt>
+        {account.type === type ? <Money text={text} size={16} /> : null}
+      </Pressable>)}
+    </Sheet>
+  </>;
 }
 
 /**

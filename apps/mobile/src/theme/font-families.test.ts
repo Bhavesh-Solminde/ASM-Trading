@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { FONT_FAMILIES, figFamily, nearestWeight, scriptFor, uiFamily } from "./font-families";
+import { FONT_FAMILIES, figFamily, inputFamily, inputWeight, nearestWeight, scriptFor, uiFamily } from "./font-families";
 
 describe("font families", () => {
   it("picks Devanagari for Hindi and Latin otherwise", () => {
@@ -23,6 +23,13 @@ describe("font families", () => {
     expect(nearestWeight(500)).toBe(500);
     expect(nearestWeight(620)).toBe(600);
     expect(nearestWeight(650)).toBe(600);
+  });
+  it("inputs use the system sans for Latin (family undefined, weight set) and Anek for Devanagari", () => {
+    expect(inputFamily(400, "latin")).toBeUndefined();
+    expect(inputWeight(inputFamily(400, "latin"), 400)).toBe("400");
+    expect(inputWeight(inputFamily(600, "latin"), 600)).toBe("600");
+    expect(inputFamily(400, "devanagari")).toBe("AnekDevanagari_400Regular");
+    expect(inputWeight(inputFamily(400, "devanagari"), 400)).toBeUndefined();
   });
   it("loads every family it hands out", () => {
     const src = readFileSync(fileURLToPath(new URL("./font-assets.ts", import.meta.url)), "utf8");

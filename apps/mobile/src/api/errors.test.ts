@@ -61,6 +61,21 @@ describe("classifyResponse", () => {
       message: "KYC is locked.",
     });
   });
+  it("carries the server's `resolved: true` (the claim route's 'the matcher already credited it') and nothing else extra", () => {
+    expect(classifyResponse(409, { error: "This deposit has already been resolved.", resolved: true })).toEqual({
+      kind: "error",
+      status: 409,
+      code: null,
+      message: "This deposit has already been resolved.",
+      resolved: true,
+    });
+    expect(classifyResponse(409, { error: "x", resolved: "yes" })).not.toHaveProperty("resolved");
+    expect(classifyResponse(409, { error: "x", resolved: false })).not.toHaveProperty("resolved");
+  });
+  it("ApiError reads as not resolved unless told so", () => {
+    expect(new ApiError("x", 409, null).resolved).toBe(false);
+    expect(new ApiError("x", 409, null, true).resolved).toBe(true);
+  });
   it("survives a non-JSON error body", () => {
     expect(classifyResponse(500, null)).toMatchObject({ kind: "error", status: 500, message: "Something went wrong." });
   });
