@@ -382,6 +382,8 @@ export function CfdTradeTicket({
         <StakeSheet
           currency={currency}
           initial={stakeInput}
+          initialPercent=""
+          unit="amount"
           balanceMinor={balanceMinor}
           minStakeMinor={minStake}
           payoutPct={null}
