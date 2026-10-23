@@ -28,6 +28,7 @@ import {
 import type { CandleDto, TradeView } from "@asm/contracts";
 import type { MarketStore } from "@/components/shell/market-store";
 import { formatMinor } from "@/lib/format-money";
+import { ChartBrackets } from "./ChartBrackets";
 import { countdown } from "@/lib/format-time";
 import { TIMEFRAME_SEC, type ChartState } from "./engine-state";
 import type { ChartType } from "./chart-types";
@@ -445,6 +446,7 @@ export function PriceChart({
   currency,
   chartType = "candles",
   cfdPositions,
+  enableBrackets = false,
 }: {
   market: MarketStore;
   precision: number;
@@ -453,6 +455,7 @@ export function PriceChart({
   currency: string;
   chartType?: ChartType;
   cfdPositions?: CfdChartPosition[];
+  enableBrackets?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const countdownRef = useRef<HTMLDivElement | null>(null);
@@ -464,6 +467,7 @@ export function PriceChart({
   const watermarkRef = useRef<ITextWatermarkPluginApi<Time> | null>(null);
   const tradeLinesRef = useRef<IPriceLine[]>([]);
   const [chartVersion, setChartVersion] = useState(0);
+  const [editingBracketId, setEditingBracketId] = useState<string | null>(null);
 
   // Seamless in-engine wave transformation state (from latest point to the end)
   const prevChartTypeRef = useRef<ChartType>(chartType);
@@ -1004,9 +1008,7 @@ export function PriceChart({
           }),
         );
         if (p.stopLoss !== null) {
-          const slPrice = p.direction === "UP"
-            ? p.entryPrice * (1 - p.stopLoss / 100)
-            : p.entryPrice * (1 + p.stopLoss / 100);
+          const slPrice = p.stopLoss;
           lines.push(
             series.createPriceLine({
               price: slPrice,
@@ -1020,9 +1022,7 @@ export function PriceChart({
           );
         }
         if (p.takeProfit !== null) {
-          const tpPrice = p.direction === "UP"
-            ? p.entryPrice * (1 + p.takeProfit / 100)
-            : p.entryPrice * (1 - p.takeProfit / 100);
+          const tpPrice = p.takeProfit;
           lines.push(
             series.createPriceLine({
               price: tpPrice,
@@ -1050,7 +1050,17 @@ export function PriceChart({
         }),
       );
     }
-  }, [openTrades, cfdPositions, currency, chartVersion]);
+    if (!cfdPositions?.length) {
+      for (const t of openTrades.filter(t => t.durationSec != null && t.id !== editingBracketId)) {
+        for (const [title, price, color] of [["SL", t.stopLoss, DOWN], ["TP", t.takeProfit, UP]] as const) {
+          if (price != null) tradeLinesRef.current.push(series.createPriceLine({
+            price, color, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true,
+            title, axisLabelTextColor: BRAND_INK,
+          }));
+        }
+      }
+    }
+  }, [openTrades, cfdPositions, currency, chartVersion, editingBracketId]);
 
   return (
     <>
@@ -1058,6 +1068,8 @@ export function PriceChart({
           internal z-index:50 canvases stay trapped below the overlay controls
           (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
+      {enableBrackets && <ChartBrackets trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
+        precision={precision} currency={currency} chartVersion={chartVersion} onEditingId={setEditingBracketId} />}
 
 
 

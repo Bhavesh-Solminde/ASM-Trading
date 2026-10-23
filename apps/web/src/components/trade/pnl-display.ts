@@ -29,6 +29,11 @@ export function closedRowDisplay(trade: Pick<TradeView, "status" | "stake" | "pn
   if (trade.status === "REFUNDED") {
     return { sign: "", amountMinor: 0, className: "text-ink-2" };
   }
+  if (trade.status === "CLOSED") {
+    return { sign: trade.pnl > 0 ? "+" : trade.pnl < 0 ? "−" : "",
+      amountMinor: Math.abs(trade.pnl),
+      className: trade.pnl > 0 ? "text-up" : trade.pnl < 0 ? "text-down" : "text-ink-2" };
+  }
   if (trade.status === "WON") {
     return { sign: "+", amountMinor: grossReturnMinor(trade.stake, trade.pnl), className: "text-up" };
   }
@@ -51,4 +56,11 @@ export function openSide(
   if (price === entryPrice) return "flat";
   const above = price > entryPrice;
   return (direction === "UP") === above ? "winning" : "losing";
+}
+
+/** Unleveraged CFD estimate at the displayed price, capped at the investment. */
+export function cfdOpenPnl(trade: Pick<TradeView, "direction" | "stake" | "entryPrice" | "spreadFee">, price: number | null): number | null {
+  if (price === null || trade.entryPrice <= 0) return null;
+  const move = trade.direction === "UP" ? price - trade.entryPrice : trade.entryPrice - price;
+  return Math.max(-trade.stake, Math.round(move / trade.entryPrice * trade.stake)) - (trade.spreadFee ?? 0);
 }

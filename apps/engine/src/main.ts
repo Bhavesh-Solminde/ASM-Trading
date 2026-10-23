@@ -1,3 +1,4 @@
+import { tradeViewFrom } from "@asm/contracts";
 import Redis from "ioredis";
 import { config } from "@asm/config";
 import { logger } from "@asm/logger";
@@ -29,8 +30,6 @@ async function main(): Promise<void> {
   // voids trades or the tick loop starts settling them.
   let desk: TradeDesk | null = null;
   let _cfdDesk: CfdDesk | null = null;
-  let _gapTracker: GapTracker | null = null;
-  let _quoteBuffer: QuoteBuffer | null = null;
   let _registry: AssetRegistry | null = null;
 
   const internal = createInternalApi({
@@ -49,14 +48,7 @@ async function main(): Promise<void> {
           return (_cfdDesk as unknown as Record<string, unknown>)[prop as string];
         },
       }),
-      shownMidPrice: (symbol: string) => {
-        if (!_registry) return 0;
-        const asset = _registry.get(symbol);
-        if (!asset) return 0;
-        const quote = _quoteBuffer?.latest(symbol);
-        const realPrice = quote?.price ?? asset.state.price;
-        return _gapTracker?.shownPrice(symbol, realPrice) ?? realPrice;
-      },
+      shownMidPrice: (symbol: string) => _registry?.publishedPrice(symbol) ?? 0,
     }),
   });
 
@@ -77,16 +69,28 @@ async function main(): Promise<void> {
   const controller = new ControllerBridge(Date.now() & 0x7fffffff);
 
   desk = new TradeDesk(registry, server, controller);
-  await desk.hydrate(Math.floor(Date.now() / 1000));
-
   const IS_CFD = process.env.TRADING_MODEL === "CFD";
+  if (!IS_CFD) await desk.hydrate(Math.floor(Date.now() / 1000));
   let cfdDeps: CfdDeps | undefined;
   let feed: Awaited<ReturnType<typeof createPriceFeed>> | null = null;
 
   if (IS_CFD) {
     const quoteBuffer = new QuoteBuffer();
     const gapTracker = new GapTracker();
-    const cfdDesk = new CfdDesk();
+    const cfdDesk = new CfdDesk(async (tradeId) => {
+      const trade = await prisma.trade.findUniqueOrThrow({
+        where: { id: tradeId }, include: { asset: true, account: true },
+      });
+      server.sendToUser(trade.account.userId, {
+        type: "trade:settled", trade: tradeViewFrom(trade, trade.asset.symbol),
+      });
+      server.sendToUser(trade.account.userId, {
+        type: "balance:update", accountId: trade.accountId,
+        realBalance: trade.account.realBalance, bonusBalance: trade.account.bonusBalance,
+      });
+    }, (result, actorId) => {
+      server.sendToUser(actorId, { type: "balance:update", accountId: result.trade.accountId, ...result.balances });
+    });
 
     for (const asset of registry.all()) {
       const sigma1h = registry.sigmaNow(asset.symbol) * Math.sqrt(3600);
@@ -94,8 +98,6 @@ async function main(): Promise<void> {
     }
 
     _cfdDesk = cfdDesk;
-    _gapTracker = gapTracker;
-    _quoteBuffer = quoteBuffer;
     cfdDeps = { quoteBuffer, gapTracker, cfdDesk };
 
     feed = createPriceFeed(registry.symbols());
@@ -130,7 +132,7 @@ async function main(): Promise<void> {
   const reconciliationRunner = startReconciliationRunner();
 
   const crowd = new BotCrowd(registry, desk, (Date.now() >>> 1) & 0x7fffffff);
-  if (process.env.BOTS_ENABLED !== "false") {
+  if (process.env.TRADING_MODEL !== "CFD" && process.env.BOTS_ENABLED !== "false") {
     await crowd.provision();
     crowd.start();
   }

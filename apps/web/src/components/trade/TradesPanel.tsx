@@ -7,7 +7,7 @@ import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor } from "@/lib/format-money";
 import { clockTime, countdown } from "@/lib/format-time";
 import { useNowSec } from "@/lib/use-now";
-import { closedRowDisplay, grossReturnMinor, openSide } from "./pnl-display";
+import { cfdOpenPnl, closedRowDisplay, grossReturnMinor, openSide } from "./pnl-display";
 import { AssetIcon } from "./AssetIcon";
 
 type Tab = "open" | "closed";
@@ -66,6 +66,7 @@ function RowShell({
       >
         {chip.label}
       </span>
+      {trade.durationSec != null && <span className="col-span-3 text-[11px] text-ink-3">Spread fee: {formatMinor(trade.spreadFee ?? 0, currency)}</span>}
       {children}
     </li>
   );
@@ -83,6 +84,8 @@ const OpenTradeRow = memo(function OpenTradeRow({
 }) {
   const now = useNowSec();
   const price = useQuote(trade.symbol)?.price ?? null;
+  const cfdPnl = trade.durationSec != null ? cfdOpenPnl(trade, price) : null;
+  const cfdText = cfdPnl === null ? "—" : `${cfdPnl > 0 ? "+" : cfdPnl < 0 ? "−" : ""}${formatMinor(Math.abs(cfdPnl), currency)}`;
   const side = openSide(trade.direction, trade.entryPrice, price);
   const winning = side === "winning";
   const losing = side === "losing";
@@ -91,29 +94,13 @@ const OpenTradeRow = memo(function OpenTradeRow({
     now === null ? 0 : Math.min(1, Math.max(0, (now - trade.entryTs) / (trade.expiryTs - trade.entryTs)));
   const expired = now !== null && now >= trade.expiryTs;
 
-  // Freeze the outcome at the moment the countdown hits zero so a late tick
-  // the engine broadcasts after expiry can't flip the chip from WON to LOST
-  // (or vice versa) in the sub-second gap before the WS "trade:settled"
-  // event swaps this row for ClosedTradeRow.
-  const [frozen, setFrozen] = useState<{ winning: boolean; price: number | null } | null>(null);
-  if (expired && frozen === null) {
-    setFrozen({ winning, price });
-  }
-
-  // Instant settle: the second `expired` flips true, show the user WON or
-  // LOST (and the real PnL amount) based on the chart price they're looking
-  // at. No "Settling…" placeholder — the DB catches up asynchronously, and
-  // the engine fix guarantees it'll land on the same side we show here.
-  const displayWinning = expired ? (frozen?.winning ?? winning) : winning;
-  const pnlDisplay = displayWinning
+  // Only the engine can confirm a settlement and its actual outcome.
+  const pnlDisplay = expired ? "—" : trade.durationSec != null ? cfdText : winning
     ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
     : `−${formatMinor(trade.stake, currency)}`;
-  const pnlClass = displayWinning ? "text-up" : losing || expired ? "text-down" : "text-ink-2";
-
+  const pnlClass = expired ? "text-ink-2" : trade.durationSec != null ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
   const chipOverride = expired
-    ? displayWinning
-      ? { label: "Won", className: "bg-up text-up-ink" }
-      : { label: "Lost", className: "text-down shadow-[inset_0_0_0_1px_var(--color-down)]" }
+    ? { label: "Settling", className: "bg-tile text-ink-2" }
     : undefined;
 
   return (

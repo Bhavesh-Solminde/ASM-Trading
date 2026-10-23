@@ -10,11 +10,12 @@ import { EngineRejected, EngineUnavailable, engineCfdOpen } from "@/lib/engine-c
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 const REJECTION_MESSAGE: Record<string, string> = {
+  invalid_stops: "Check stop loss and take profit. Each level must be on the correct side of the entry price.",
   unknown_asset: "That asset is not available right now.",
   market_unavailable: "Market is temporarily unavailable.",
   trading_paused: "This account is paused. Contact support.",
   stake_exceeds_limit: "Stake exceeds the current limit.",
-  insufficient_balance: "Not enough balance for that stake.",
+  insufficient_balance: "Not enough balance for the investment and spread fee.",
 };
 
 const BROWSER_STATUS: Record<string, number> = {

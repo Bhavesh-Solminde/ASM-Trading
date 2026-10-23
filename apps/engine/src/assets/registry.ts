@@ -1,3 +1,4 @@
+import { PublishedPrices } from "../trading/published-prices";
 import {
   CandleAggregator,
   INTRADAY_PROFILES,
@@ -102,6 +103,12 @@ const DT_SEC = TICK_DT_SEC;
  * request model.
  */
 export class AssetRegistry {
+  private readonly publishedPrices = new PublishedPrices();
+
+  publishedPrice(symbol: string): number {
+    return this.publishedPrices.latest(symbol);
+  }
+
   private assets = new Map<string, LiveAsset>();
   private rng: Rng;
 
@@ -330,6 +337,7 @@ export class AssetRegistry {
       throw new Error(`record called for unknown symbol "${symbol}"`);
     }
     const rounded = Number(price.toFixed(asset.precision));
+    this.publishedPrices.record(symbol, rounded, nowSec);
     const closed: ClosedCandle[] = [];
     for (const [timeframe, aggregator] of asset.aggregators) {
       const candle = aggregator.addTick(nowSec, rounded);

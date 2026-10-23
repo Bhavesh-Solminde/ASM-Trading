@@ -477,6 +477,23 @@ export class TradeDesk {
     );
   }
 
+  /** Binary orders accepted by the old mixed-mode UI have no valid CFD expiry
+   * price. Use the existing outage refund policy, retrying failed refunds. */
+  async recoverExpiredLegacy(nowSec: number): Promise<void> {
+    for (const position of await loadOpenPositions()) {
+      if (position.expirySec > nowSec) continue;
+      try {
+        const settled = await voidTrade(position.tradeId);
+        this.controller.invalidate(position.accountId);
+        this.announce(settled, this.symbolByAssetId.get(position.assetId) ?? "UNKNOWN");
+      } catch (error) {
+        if (error instanceof AlreadySettled) continue;
+        logger.error({ evt: "trade.legacy_refund_failed", tradeId: position.tradeId },
+          "expired legacy binary refund failed; will retry");
+      }
+    }
+  }
+
   /**
    * Pre-settle pass (2026-10-05). Runs at the start of every tick with
    * `nowSec = tickNowSec`. For buckets expiring at `nowSec + TICK_DT_SEC`

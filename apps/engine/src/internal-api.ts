@@ -22,7 +22,6 @@ import { DeskRejection, type DeskRejectionReason } from "./trading/errors";
 import type { CfdDesk, AssetConfig, RiskLimits, ClosedPosition } from "./trading/cfd-desk";
 
 const MAX_BODY_BYTES = 4_096;
-const IS_CFD = process.env.TRADING_MODEL === "CFD";
 
 export interface TradeOpener {
   open(input: EngineOpenTradeInput): Promise<OpenTradeResult>;
@@ -86,10 +85,12 @@ export function createInternalApi(deps: {
   port: number;
   /** Provide to share a single port with the WebSocket server. */
   sharedServer?: Server;
+  tradingModel?: "BINARY" | "CFD";
   cfdDesk?: CfdDesk;
   /** Returns the current shown mid-price for a symbol, for CFD opens. */
   shownMidPrice?: (symbol: string) => number;
 }): { listen(): Promise<number>; close(): Promise<void> } {
+  const isCfd = (deps.tradingModel ?? process.env.TRADING_MODEL) === "CFD";
   if (!deps.secret) {
     throw new Error(
       "ENGINE_INTERNAL_SECRET is not set. The engine refuses to expose an unauthenticated control surface.",
@@ -115,8 +116,12 @@ export function createInternalApi(deps: {
     const url = req.url ?? "";
     const method = req.method ?? "";
 
+    if (method === "POST" && url === "/trades" && isCfd) {
+      return reply(res, 409, { error: "trading_model_mismatch" });
+    }
+
     // ── CFD routes ────────────────────────────────────────────────
-    if (IS_CFD && deps.cfdDesk && deps.shownMidPrice) {
+    if (isCfd && deps.cfdDesk && deps.shownMidPrice) {
       if (method === "POST" && url === "/cfd/trades") {
         return handleCfdOpen(json, deps.cfdDesk, deps.shownMidPrice, res);
       }
@@ -126,7 +131,7 @@ export function createInternalApi(deps: {
       }
       const modifyMatch = url.match(/^\/cfd\/trades\/([^/]+)$/);
       if (method === "PATCH" && modifyMatch) {
-        return handleCfdModify(modifyMatch[1]!, json, deps.cfdDesk, res);
+        return handleCfdModify(modifyMatch[1]!, json, deps.cfdDesk, deps.shownMidPrice, res);
       }
     }
 
@@ -285,16 +290,16 @@ async function handleCfdOpen(
   });
   if (!asset) return reply(res, 404, { error: "unknown_asset" });
 
-  const midPrice = shownMidPrice(asset.symbol);
-  if (midPrice <= 0) return reply(res, 503, { error: "market_unavailable" });
-
   try {
     const risk = await buildRiskLimits(input.accountId);
+    const midPrice = shownMidPrice(asset.symbol);
+    if (!Number.isFinite(midPrice) || midPrice <= 0) return reply(res, 503, { error: "market_unavailable" });
     const result = await cfdDesk.open(input, midPrice, asset as AssetConfig, risk);
     return reply(res, 201, result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "internal";
     const errorMap: Record<string, number> = {
+      INVALID_STOPS: 400,
       MARKET_UNAVAILABLE: 503,
       TRADING_PAUSED: 403,
       STAKE_EXCEEDS_LIMIT: 400,
@@ -319,10 +324,9 @@ async function handleCfdClose(
   if (!trade || !trade.asset) return reply(res, 404, { error: "not_found" });
   if (trade.status !== "OPEN") return reply(res, 409, { error: "trade_not_open" });
 
-  const midPrice = shownMidPrice(trade.asset.symbol);
-  if (midPrice <= 0) return reply(res, 503, { error: "market_unavailable" });
-
   const risk = await buildRiskLimits(trade.accountId);
+  const midPrice = shownMidPrice(trade.asset.symbol);
+  if (!Number.isFinite(midPrice) || midPrice <= 0) return reply(res, 503, { error: "market_unavailable" });
 
   try {
     const result = await cfdDesk.manualClose(
@@ -346,18 +350,26 @@ async function handleCfdModify(
   tradeId: string,
   json: unknown,
   cfdDesk: CfdDesk,
+  shownMidPrice: (symbol: string) => number,
   res: ServerResponse,
 ): Promise<void> {
-  const parsed = CfdModifyTradeSchema.safeParse({ tradeId, ...(json as object) });
+  const parsed = CfdModifyTradeSchema.safeParse({ ...(json as object), tradeId });
   if (!parsed.success) return reply(res, 400, { error: "invalid" });
 
   try {
     const changes: { stopLoss?: number | null; takeProfit?: number | null } = {};
     if (parsed.data.stopLoss !== undefined) changes.stopLoss = parsed.data.stopLoss;
     if (parsed.data.takeProfit !== undefined) changes.takeProfit = parsed.data.takeProfit;
-    await cfdDesk.modify(tradeId, changes);
+    const trade = await prisma.trade.findUnique({ where: { id: tradeId }, include: { asset: true } });
+    if (!trade) return reply(res, 404, { error: "trade_not_found" });
+    const price = shownMidPrice(trade.asset.symbol);
+    if (!Number.isFinite(price) || price <= 0) return reply(res, 503, { error: "market_unavailable" });
+    await cfdDesk.modify(tradeId, changes, price);
     return reply(res, 200, { ok: true });
   } catch (err) {
+    const message = err instanceof Error ? err.message : "internal";
+    if (message === "INVALID_STOPS") return reply(res, 400, { error: "invalid_stops" });
+    if (message === "TRADE_NOT_OPEN") return reply(res, 409, { error: "trade_not_open" });
     logger.error(
       { evt: "cfd.modify_failed", tradeId, reason: err instanceof Error ? err.message : "unknown" },
       "CFD modify failed",

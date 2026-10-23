@@ -162,6 +162,7 @@ enum TxKind {
   DEPOSIT
   WITHDRAWAL
   TRADE_STAKE
+  TRADE_FEE
   TRADE_PAYOUT
   TRADE_REFUND
   BONUS_GRANT
@@ -366,6 +367,8 @@ model Trade {
   stake          BigInt
   /// The part of `stake` drawn from bonusBalance. Settlement credits return in this proportion.
   stakeFromBonus BigInt      @default(0)
+  /// Full spread charged separately at opening, in minor currency units.
+  spreadFee      Int         @default(0)
   payoutPct      Int
   entryPrice     Float
   entryTs        DateTime
