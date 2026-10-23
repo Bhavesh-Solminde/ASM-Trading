@@ -24,7 +24,7 @@ import type { EngineServer } from "./server";
 import type { TradeDesk } from "./trading/trade-desk";
 import { computeSentiment } from "./sentiment";
 import type { QuoteBuffer } from "./feeds/quote-buffer";
-import { GapTracker, cryptoMaintenancePhase } from "./trading/gap";
+import { GapTracker, cryptoMaintenancePhase, isMarketClosed, assetCategory } from "./trading/gap";
 import type { CfdDesk } from "./trading/cfd-desk";
 
 // Emit one tick per simulated-time step, derived from the shared cadence
@@ -107,13 +107,17 @@ export function startTickLoop(
 
           // Crypto maintenance window: 4-5 AM IST frozen, 5-6 converging.
           const phase = cryptoMaintenancePhase(new Date(startedAt));
-          const isCrypto = asset.symbol.includes("USD") && !asset.symbol.startsWith("EUR") && !asset.symbol.startsWith("GBP") && !asset.symbol.startsWith("AUD") && !asset.symbol.startsWith("XAU");
+          const category = assetCategory(asset.symbol);
+          const isCrypto = category === "CRYPTO";
 
-          if (phase === "FROZEN" && isCrypto) {
+          const marketClosed = isMarketClosed(category, new Date(startedAt));
+
+          if ((phase === "FROZEN" && isCrypto) || marketClosed) {
+            if (marketClosed) gapTracker.converge(asset.symbol, TICK_DT_SEC);
             broadcastPrice = gapTracker.shownPrice(asset.symbol, realPrice);
           } else {
             if (phase === "CONVERGING" && isCrypto) {
-              gapTracker.reset(asset.symbol);
+              gapTracker.converge(asset.symbol, TICK_DT_SEC);
             }
 
             // Gather open CFD positions for magnet + scan.
