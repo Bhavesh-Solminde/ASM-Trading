@@ -23,6 +23,7 @@ export interface PlatformAsset {
   displayName: string;
   payoutPct: number;
   precision: number;
+  spreadBps?: number;
   assetClass: AssetClass;
 }
 

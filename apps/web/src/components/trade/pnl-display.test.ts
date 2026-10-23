@@ -46,3 +46,7 @@ it("estimates CFD net movement rather than losing the whole investment", () => {
   expect(cfdOpenPnl({ ...trade, direction: "DOWN" }, 400)).toBe(-10000);
   expect(cfdOpenPnl(trade, null)).toBeNull();
 });
+
+it("includes the already-paid fee in the live CFD estimate", () => {
+  expect(cfdOpenPnl({ direction: "UP", stake: 100000, entryPrice: 100, spreadFee: 50 }, 100)).toBe(-50);
+});

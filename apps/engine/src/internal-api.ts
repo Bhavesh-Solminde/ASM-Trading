@@ -299,6 +299,7 @@ async function handleCfdOpen(
   } catch (err) {
     const msg = err instanceof Error ? err.message : "internal";
     const errorMap: Record<string, number> = {
+      INVALID_STOPS: 400,
       MARKET_UNAVAILABLE: 503,
       TRADING_PAUSED: 403,
       STAKE_EXCEEDS_LIMIT: 400,

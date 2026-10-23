@@ -27,7 +27,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
     prisma.asset.findMany({
       where: { isOpen: true },
       orderBy: { symbol: "asc" },
-      select: { id: true, symbol: true, displayName: true, precision: true, payoutPct: true, assetClass: true },
+      select: { id: true, symbol: true, displayName: true, precision: true, spreadBps: true, payoutPct: true, assetClass: true },
     }),
     prisma.user.findUnique({ where: { id: session.userId }, select: { liveAccess: true } }),
     countCompletedDeposits(session.userId),
@@ -49,6 +49,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
         displayName: a.displayName,
         payoutPct: a.payoutPct,
         precision: a.precision,
+        spreadBps: a.spreadBps,
         assetClass: a.assetClass,
       }))}
       accounts={accounts.map((a) => ({ id: a.id, type: a.type, currency: a.currency }))}

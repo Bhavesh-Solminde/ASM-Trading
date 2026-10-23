@@ -51,7 +51,7 @@ export function CfdTradeTicket({
   const [tpPct, setTpPct] = useState("10");
   const [stakeOpen, setStakeOpen] = useState(false);
   const tileRef = useRef<HTMLButtonElement | null>(null);
-  const { balances, accounts } = usePlatform();
+  const { balances, accounts, assets } = usePlatform();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fired, setFired] = useState<CfdDirection | null>(null);
@@ -64,6 +64,8 @@ export function CfdTradeTicket({
     Number.isFinite(stakeMajor) && stakeMajor > 0
       ? Math.round(stakeMajor * 100)
       : 0;
+  const spreadBps = assets.find((a) => a.symbol === symbol)?.spreadBps ?? 0;
+  const spreadFee = Math.round(stakeMinor * spreadBps / 10000);
   const accountBalance = balances[accountId];
   const balanceMinor = accountBalance
     ? accountBalance.realBalance + accountBalance.bonusBalance
@@ -107,8 +109,8 @@ export function CfdTradeTicket({
         durationSec,
         accountId,
       };
-      if (slEnabled && slPct) body.stopLoss = Number(slPct);
-      if (tpEnabled && tpPct) body.takeProfit = Number(tpPct);
+      if (slEnabled && slPct) body.stopLossPct = Number(slPct);
+      if (tpEnabled && tpPct) body.takeProfitPct = Number(tpPct);
 
       const res = await fetch("/api/cfd/trades", {
         method: "POST",
@@ -283,7 +285,7 @@ export function CfdTradeTicket({
                 />
                 {slPrice !== null && (
                   <span className="text-[10px] tabular-nums text-ink-3">
-                    ~{slPrice.toFixed(2)}
+                    Buy ~{slPrice.toFixed(2)} · Sell ~{(currentPrice * (1 + Number(slPct) / 100)).toFixed(2)}
                   </span>
                 )}
               </div>
@@ -301,7 +303,7 @@ export function CfdTradeTicket({
                 />
                 {tpPrice !== null && (
                   <span className="text-[10px] tabular-nums text-ink-3">
-                    ~{tpPrice.toFixed(2)}
+                    Buy ~{tpPrice.toFixed(2)} · Sell ~{(currentPrice * (1 - Number(tpPct) / 100)).toFixed(2)}
                   </span>
                 )}
               </div>
@@ -328,6 +330,10 @@ export function CfdTradeTicket({
         </div>
       ) : null}
 
+      <div className="text-xs text-ink-2 tabular-nums">
+        Spread fee ({spreadBps / 100}%): {formatMinor(spreadFee, currency)}
+        <span className="block">Total deducted: {formatMinor(stakeMinor + spreadFee, currency)}</span>
+      </div>
       {/* ── BUY / SELL buttons ─────────────────────── */}
       <div className="grid gap-2 phone:grid-cols-2 phone:gap-2.5 land:grid-cols-1 land:gap-1.5">
         <button

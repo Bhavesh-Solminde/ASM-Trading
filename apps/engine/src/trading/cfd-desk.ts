@@ -8,7 +8,7 @@ import {
   type CfdOpenTradeResult,
   type CfdCloseReasonDto,
 } from "@asm/contracts";
-import { computeSpread, fillPrice, userSpreadMultiplier, userFillSkew, isHardBlocked, earlyCloseMultiplier } from "./spread";
+import { isHardBlocked, earlyCloseMultiplier } from "./spread";
 
 export interface AssetConfig {
   id: string;
@@ -40,6 +40,7 @@ function toView(
     accountId: string;
     direction: string;
     stake: number;
+    spreadFee?: number;
     entryPrice: number;
     entryTs: Date;
     expiryTs: Date;
@@ -60,6 +61,7 @@ function toView(
     symbol,
     direction: directionFromDb(trade.direction as "UP" | "DOWN"),
     stake: trade.stake,
+    spreadFee: trade.spreadFee ?? 0,
     entryPrice: trade.entryPrice,
     entryTs: Math.floor(trade.entryTs.getTime() / 1000),
     expiryTs: Math.floor(trade.expiryTs.getTime() / 1000),
@@ -107,6 +109,18 @@ export class CfdDesk {
     // The ticket and chart expose one execution price. Opening at an unseen
     // bid/ask or user-specific skew creates a displaced entry line immediately.
     const entry = shownMidPrice;
+    const spreadFee = Math.round(input.stake * asset.spreadBps / 10000);
+    const totalDebit = input.stake + spreadFee;
+    // Percent controls are resolved against the actual execution price and side.
+    const side = dbDir === "UP" ? 1 : -1;
+    const stopLoss = input.stopLossPct == null ? input.stopLoss ?? null
+      : entry * (1 - side * input.stopLossPct / 100);
+    const takeProfit = input.takeProfitPct == null ? input.takeProfit ?? null
+      : entry * (1 + side * input.takeProfitPct / 100);
+    if ((stopLoss != null && (stopLoss <= 0 || (dbDir === "UP" ? stopLoss >= entry : stopLoss <= entry))) ||
+        (takeProfit != null && (takeProfit <= 0 || (dbDir === "UP" ? takeProfit <= entry : takeProfit >= entry)))) {
+      throw new Error("INVALID_STOPS");
+    }
 
     // Unleveraged CFD: LONG liq at 0, SHORT liq at 2× entry
     const liqPrice = dbDir === "UP" ? 0 : entry * 2;
@@ -120,12 +134,13 @@ export class CfdDesk {
       });
 
       const totalBalance = account.realBalance + account.bonusBalance;
-      if (totalBalance < input.stake) {
+      if (totalBalance < totalDebit) {
         throw new Error("INSUFFICIENT_BALANCE");
       }
 
       const fromBonus = Math.min(account.bonusBalance, input.stake);
-      const fromReal = input.stake - fromBonus;
+      const feeFromBonus = Math.min(account.bonusBalance - fromBonus, spreadFee);
+      const fromReal = input.stake - fromBonus + spreadFee - feeFromBonus;
 
       const trade = await tx.trade.create({
         data: {
@@ -133,6 +148,7 @@ export class CfdDesk {
           assetId: asset.id,
           direction: dbDir,
           stake: input.stake,
+          spreadFee,
           stakeFromBonus: fromBonus,
           payoutPct: 0,
           entryPrice: entry,
@@ -140,22 +156,34 @@ export class CfdDesk {
           expiryTs,
           status: "OPEN",
           durationSec: input.durationSec,
-          stopLoss: input.stopLoss ?? null,
-          takeProfit: input.takeProfit ?? null,
+          stopLoss,
+          takeProfit,
           trailingPct: input.trailingPct ?? null,
           liqPrice,
           peakPnl: 0,
         },
       });
 
-      await tx.account.update({
-        where: { id: input.accountId },
+      const debit = await tx.account.updateMany({
+        where: { id: input.accountId, realBalance: account.realBalance, bonusBalance: account.bonusBalance },
         data: {
           realBalance: { decrement: fromReal },
-          bonusBalance: { decrement: fromBonus },
+          bonusBalance: { decrement: fromBonus + feeFromBonus },
         },
       });
 
+      if (debit.count !== 1) throw new Error("INSUFFICIENT_BALANCE");
+      await tx.transaction.createMany({ data: [
+        { accountId: input.accountId, kind: "TRADE_STAKE", amount: -input.stake,
+          balanceAfter: totalBalance - input.stake, refType: "Trade", refId: trade.id },
+        { accountId: input.accountId, kind: "TRADE_FEE", amount: -spreadFee,
+          balanceAfter: totalBalance - totalDebit, refType: "Trade", refId: trade.id },
+      ] });
+      if (account.type === "LIVE" && spreadFee > 0) {
+        await tx.houseTreasury.upsert({ where: { id: 1 },
+          update: { treasuryMinor: { increment: spreadFee } },
+          create: { id: 1, treasuryMinor: spreadFee, treasuryTargetMinor: 30000000 } });
+      }
       const updated = await tx.account.findUniqueOrThrow({
         where: { id: input.accountId },
         select: { realBalance: true, bonusBalance: true },
@@ -228,6 +256,7 @@ export class CfdDesk {
       direction: string;
       entryPrice: number;
       stake: number;
+    spreadFee?: number;
       expiryTs: Date;
       stopLoss: number | null;
       takeProfit: number | null;
@@ -302,6 +331,7 @@ export class CfdDesk {
       direction: string;
       entryPrice: number;
       stake: number;
+    spreadFee?: number;
       stakeFromBonus: number;
     },
     reason: CfdCloseReasonDto,
@@ -313,7 +343,8 @@ export class CfdDesk {
       ? (exitPrice - trade.entryPrice) / trade.entryPrice
       : (trade.entryPrice - exitPrice) / trade.entryPrice;
     const rawPnl = Math.round(pnlFrac * trade.stake);
-    const pnl = Math.max(rawPnl, -trade.stake);
+    const grossPnl = Math.max(rawPnl, -trade.stake);
+    const pnl = grossPnl - (trade.spreadFee ?? 0);
 
     await prisma.$transaction(async (tx) => {
       await tx.trade.update({
@@ -327,7 +358,7 @@ export class CfdDesk {
         },
       });
 
-      const netReturn = trade.stake + pnl;
+      const netReturn = trade.stake + grossPnl;
       if (netReturn > 0) {
         const bonusRatio = trade.stake > 0 ? trade.stakeFromBonus / trade.stake : 0;
         const bonusReturn = Math.round(netReturn * bonusRatio);
@@ -349,7 +380,7 @@ export class CfdDesk {
       });
 
       if (account?.type === "LIVE") {
-        const housePnl = -pnl;
+        const housePnl = -grossPnl;
         await tx.houseTreasury.upsert({
           where: { id: 1 },
           update: { treasuryMinor: { increment: housePnl } },
@@ -391,13 +422,8 @@ export class CfdDesk {
       throw new Error("LOCKOUT_ACTIVE");
     }
 
-    const spreadMult = userSpreadMultiplier(userDailyPnl, dailyWinCap) * closeMultiplier;
-    const skew = userFillSkew(userDailyPnl, dailyWinCap);
-    const { bid, ask } = computeSpread(shownPrice, asset.spreadBps, spreadMult);
-
-    // Exit at the opposite side: LONG exits at bid, SHORT exits at ask
-    const exitDir = trade.direction === "UP" ? "DOWN" : "UP";
-    const exitPrice = fillPrice(exitDir, bid, ask, skew);
+    // The full spread was paid at opening; do not charge it again in the exit price.
+    const exitPrice = shownPrice;
 
     return this.closePosition(
       {
@@ -406,6 +432,7 @@ export class CfdDesk {
         direction: trade.direction,
         entryPrice: trade.entryPrice,
         stake: trade.stake,
+        spreadFee: trade.spreadFee ?? 0,
         stakeFromBonus: trade.stakeFromBonus,
       },
       "MANUAL",

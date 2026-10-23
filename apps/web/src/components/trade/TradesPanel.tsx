@@ -66,6 +66,7 @@ function RowShell({
       >
         {chip.label}
       </span>
+      {trade.durationSec != null && <span className="col-span-3 text-[11px] text-ink-3">Spread fee: {formatMinor(trade.spreadFee ?? 0, currency)}</span>}
       {children}
     </li>
   );
@@ -97,7 +98,7 @@ const OpenTradeRow = memo(function OpenTradeRow({
   const pnlDisplay = expired ? "—" : trade.durationSec != null ? cfdText : winning
     ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
     : `−${formatMinor(trade.stake, currency)}`;
-  const pnlClass = expired ? "text-ink-2" : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
+  const pnlClass = expired ? "text-ink-2" : trade.durationSec != null ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
   const chipOverride = expired
     ? { label: "Settling", className: "bg-tile text-ink-2" }
     : undefined;

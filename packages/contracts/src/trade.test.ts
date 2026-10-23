@@ -103,6 +103,7 @@ describe("tradeViewFrom", () => {
         "payoutPct",
         "pnl",
         "stake",
+        "spreadFee",
         "status",
         "symbol",
       ].sort(),

@@ -47,7 +47,7 @@ const StripBody = memo(function StripBody({
     : winning
       ? `+${formatMinor(grossReturnMinor(trade.stake, profit), currency)}`
       : `−${formatMinor(trade.stake, currency)}`;
-  const plClass = undecided ? "text-ink-2" : winning ? "text-up" : "text-down";
+  const plClass = expired ? "text-ink-2" : trade.durationSec != null ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : undecided ? "text-ink-2" : winning ? "text-up" : "text-down";
 
   const total = trade.expiryTs - trade.entryTs;
   const remaining = now === null ? total : trade.expiryTs - now;

@@ -59,8 +59,8 @@ export function openSide(
 }
 
 /** Unleveraged CFD estimate at the displayed price, capped at the investment. */
-export function cfdOpenPnl(trade: Pick<TradeView, "direction" | "stake" | "entryPrice">, price: number | null): number | null {
+export function cfdOpenPnl(trade: Pick<TradeView, "direction" | "stake" | "entryPrice" | "spreadFee">, price: number | null): number | null {
   if (price === null || trade.entryPrice <= 0) return null;
   const move = trade.direction === "UP" ? price - trade.entryPrice : trade.entryPrice - price;
-  return Math.max(-trade.stake, Math.round(move / trade.entryPrice * trade.stake));
+  return Math.max(-trade.stake, Math.round(move / trade.entryPrice * trade.stake)) - (trade.spreadFee ?? 0);
 }

@@ -20,6 +20,8 @@ export const CfdOpenTradeSchema = z.strictObject({
   stopLoss: z.number().positive().optional(),
   takeProfit: z.number().positive().optional(),
   trailingPct: z.number().positive().max(50).optional(),
+  stopLossPct: z.number().positive().max(99.99).optional(),
+  takeProfitPct: z.number().positive().max(1000).optional(),
   accountId: z.string().uuid(),
 });
 export type CfdOpenTradeInput = z.infer<typeof CfdOpenTradeSchema>;
@@ -57,6 +59,8 @@ export interface CfdTradeView {
   symbol: string;
   direction: CfdDirectionDto;
   stake: number;
+  /** Opening fee in minor units, already deducted from balance. */
+  spreadFee?: number;
   entryPrice: number;
   entryTs: number;
   expiryTs: number;
