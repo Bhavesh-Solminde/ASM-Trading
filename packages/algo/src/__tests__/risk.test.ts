@@ -10,9 +10,9 @@ import {
 } from "../risk";
 
 describe("dynamicMaxStake", () => {
-  it("returns 0.5% of treasury", () => {
-    // ₹5L = 500_000_00 paisa → 0.5% = 250_000
-    expect(dynamicMaxStake(500_000_00)).toBe(250_000);
+  it("returns 1% of treasury", () => {
+    // ₹5L = 500_000_00 paisa → 1% = 500_000
+    expect(dynamicMaxStake(500_000_00)).toBe(500_000);
   });
 
   it("caps at ₹1,00,000 (100_000_00 paisa)", () => {
@@ -20,8 +20,8 @@ describe("dynamicMaxStake", () => {
   });
 
   it("returns small value for small treasury", () => {
-    // ₹1L = 100_000_00 paisa → 0.5% = 50_000 paisa = ₹500
-    expect(dynamicMaxStake(100_000_00)).toBe(50_000);
+    // ₹1L = 100_000_00 paisa → 1% = 100_000 paisa = ₹1,000
+    expect(dynamicMaxStake(100_000_00)).toBe(100_000);
   });
 });
 
