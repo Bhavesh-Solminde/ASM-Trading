@@ -450,17 +450,25 @@ export class CfdDesk {
   async modify(
     tradeId: string,
     changes: { stopLoss?: number | null; takeProfit?: number | null },
+    shownPrice: number,
   ): Promise<void> {
+    const trade = await prisma.trade.findUniqueOrThrow({ where: { id: tradeId } });
+    if (trade.status !== "OPEN" || trade.durationSec == null) throw new Error("TRADE_NOT_OPEN");
+    const isBuy = trade.direction === "UP";
+    if ((changes.stopLoss != null && (isBuy ? changes.stopLoss >= shownPrice : changes.stopLoss <= shownPrice)) ||
+        (changes.takeProfit != null && (isBuy ? changes.takeProfit <= shownPrice : changes.takeProfit >= shownPrice))) {
+      throw new Error("INVALID_STOPS");
+    }
     const data: Record<string, unknown> = {};
     if (changes.stopLoss !== undefined) data.stopLoss = changes.stopLoss;
     if (changes.takeProfit !== undefined) data.takeProfit = changes.takeProfit;
 
     if (Object.keys(data).length === 0) return;
 
-    await prisma.trade.update({
-      where: { id: tradeId, status: "OPEN" },
-      data,
+    const updated = await prisma.trade.updateMany({
+      where: { id: tradeId, status: "OPEN" }, data,
     });
+    if (updated.count !== 1) throw new Error("TRADE_NOT_OPEN");
 
     logger.info({ evt: "cfd.modify", tradeId, ...changes }, "CFD position modified");
   }

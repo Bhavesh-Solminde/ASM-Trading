@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ findMany: vi.fn(), transaction: vi.fn() }));
-vi.mock("@asm/db", () => ({ prisma: { trade: { findMany: mocks.findMany }, $transaction: mocks.transaction } }));
+const mocks = vi.hoisted(() => ({ findMany: vi.fn(), transaction: vi.fn(), findUniqueOrThrow: vi.fn(), updateMany: vi.fn() }));
+vi.mock("@asm/db", () => ({ prisma: { trade: { findMany: mocks.findMany, findUniqueOrThrow: mocks.findUniqueOrThrow, updateMany: mocks.updateMany }, $transaction: mocks.transaction } }));
 vi.mock("@asm/logger", () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 import { CfdDesk } from "./cfd-desk";
 it("settles expired positions, credits balances and notifies; a failed row does not block later trades", async () => {
@@ -125,4 +125,37 @@ it.each(["LONG", "SHORT"] as const)("converts percentage stops at execution for 
       userDailyPnl: 0, dailyWinCap: 60000, dynamicMaxStake: 150000, isCircuitBroken: false });
   expect(result.trade.stopLoss).toBeCloseTo(direction === "LONG" ? 72000 : 88000);
   expect(result.trade.takeProfit).toBeCloseTo(direction === "LONG" ? 88000 : 72000);
+});
+
+it("allows moving a Buy stop into profit, but below the current price", async () => {
+  mocks.findUniqueOrThrow.mockResolvedValue({ status: "OPEN", durationSec: 300, direction: "UP", entryPrice: 100 });
+  mocks.updateMany.mockResolvedValue({ count: 1 });
+  await new CfdDesk().modify("t", { stopLoss: 105, takeProfit: 120 }, 110);
+  expect(mocks.updateMany).toHaveBeenCalledWith({ where: { id: "t", status: "OPEN" }, data: { stopLoss: 105, takeProfit: 120 } });
+});
+it("rejects protection on the wrong side of the current market", async () => {
+  mocks.findUniqueOrThrow.mockResolvedValue({ status: "OPEN", durationSec: 300, direction: "DOWN", entryPrice: 100 });
+  await expect(new CfdDesk().modify("t", { stopLoss: 90 }, 100)).rejects.toThrow("INVALID_STOPS");
+  await expect(new CfdDesk().modify("t", { takeProfit: 110 }, 100)).rejects.toThrow("INVALID_STOPS");
+});
+it("allows removing protection but refuses a trade that settled during the edit", async () => {
+  mocks.findUniqueOrThrow.mockResolvedValue({ status: "OPEN", durationSec: 300, direction: "UP" });
+  mocks.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+  await new CfdDesk().modify("t", { stopLoss: null, takeProfit: null }, 100);
+  await expect(new CfdDesk().modify("t", { stopLoss: 90 }, 100)).rejects.toThrow("TRADE_NOT_OPEN");
+});
+
+it.each([
+  ["UP", 95, 110, 94, "STOP_LOSS"],
+  ["UP", 95, 110, 111, "TAKE_PROFIT"],
+  ["DOWN", 105, 90, 106, "STOP_LOSS"],
+  ["DOWN", 105, 90, 89, "TAKE_PROFIT"],
+] as const)("honors saved %s protection at a crossed level", async (direction, stopLoss, takeProfit, price, reason) => {
+  mocks.findMany.mockResolvedValue([{ id: "protected", accountId: "a", direction, stake: 10000,
+    spreadFee: 5, stakeFromBonus: 0, entryPrice: 100, expiryTs: new Date(Date.now() + 60000),
+    stopLoss, takeProfit, trailingPct: null, liqPrice: null, peakPnl: 0 }]);
+  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { update: async () => {} },
+    account: { update: async () => {}, findUnique: async () => ({ type: "DEMO" }) } }));
+  const result = await new CfdDesk().scanPositions("asset", "BTCUSDT", price, new Date());
+  expect(result[0]?.reason).toBe(reason);
 });

@@ -51,6 +51,9 @@ export interface TradeView {
   stake: number;
   /** Opening fee in minor units, already deducted from balance. */
   spreadFee?: number;
+  /** Absolute prices for CFD protection orders. */
+  stopLoss?: number | null;
+  takeProfit?: number | null;
   payoutPct: number;
   /** Present for CFD positions; null or absent for binary trades. */
   durationSec?: number | null;
@@ -82,6 +85,9 @@ export interface TradeRowLike {
   stake: number;
   /** Opening fee in minor units, already deducted from balance. */
   spreadFee?: number;
+  /** Absolute prices for CFD protection orders. */
+  stopLoss?: number | null;
+  takeProfit?: number | null;
   payoutPct: number;
   /** Present for CFD positions; null or absent for binary trades. */
   durationSec?: number | null;
@@ -106,6 +112,8 @@ export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
     direction: row.direction,
     stake: row.stake,
     spreadFee: row.spreadFee ?? 0,
+    stopLoss: row.stopLoss ?? null,
+    takeProfit: row.takeProfit ?? null,
     payoutPct: row.payoutPct,
     durationSec: row.durationSec ?? null,
     entryPrice: row.entryPrice,

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CfdModifyTradeSchema } from "@asm/contracts";
+import { CfdModifyTradeSchema, tradeViewFrom } from "@asm/contracts";
 import { prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const body = await req.json().catch(() => null);
-  const parsed = CfdModifyTradeSchema.safeParse({ tradeId, ...(body as object) });
+  const parsed = CfdModifyTradeSchema.safeParse({ ...(body as object), tradeId });
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid modification." }, { status: 400 });
   }
@@ -35,7 +35,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (parsed.data.stopLoss !== undefined) changes.stopLoss = parsed.data.stopLoss;
     if (parsed.data.takeProfit !== undefined) changes.takeProfit = parsed.data.takeProfit;
     await engineCfdModify(tradeId, changes);
-    return NextResponse.json({ ok: true });
+    const updated = await prisma.trade.findUniqueOrThrow({ where: { id: tradeId }, include: { asset: true } });
+    return NextResponse.json({ trade: tradeViewFrom(updated, updated.asset.symbol) });
   } catch (err) {
     if (err instanceof EngineRejected) {
       return NextResponse.json({ error: err.reason }, { status: err.status });

@@ -93,6 +93,7 @@ interface PlatformContextValue {
   selectChartSymbol: (symbol: string) => void;
   timeframe: Timeframe;
   selectTimeframe: (timeframe: Timeframe) => void;
+  recordTradeUpdate: (trade: TradeView) => void;
   recordOpened: (result: OpenTradeResult) => void;
   /**
    * Non-WebSocket balance push, used by routes the engine isn't involved
@@ -291,6 +292,8 @@ export function PlatformProvider({
     return () => clearInterval(timer);
   }, [activeAccountId, refetchTrades]);
 
+  const recordTradeUpdate = useCallback((trade: TradeView) => dispatch({ kind: "message", message: { type: "trade:opened", trade } }), []);
+
   const recordOpened = useCallback(
     (result: OpenTradeResult) => dispatch({ kind: "opened", result, socketLive: status === "open" }),
     [status],
@@ -322,6 +325,7 @@ export function PlatformProvider({
       timeframe,
       selectTimeframe,
       recordOpened,
+      recordTradeUpdate,
       applyBalanceUpdate,
       focusMode,
       setFocusMode,
@@ -342,6 +346,7 @@ export function PlatformProvider({
       timeframe,
       selectTimeframe,
       recordOpened,
+      recordTradeUpdate,
       applyBalanceUpdate,
       focusMode,
       settlement,

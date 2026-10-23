@@ -131,7 +131,7 @@ export function createInternalApi(deps: {
       }
       const modifyMatch = url.match(/^\/cfd\/trades\/([^/]+)$/);
       if (method === "PATCH" && modifyMatch) {
-        return handleCfdModify(modifyMatch[1]!, json, deps.cfdDesk, res);
+        return handleCfdModify(modifyMatch[1]!, json, deps.cfdDesk, deps.shownMidPrice, res);
       }
     }
 
@@ -350,18 +350,26 @@ async function handleCfdModify(
   tradeId: string,
   json: unknown,
   cfdDesk: CfdDesk,
+  shownMidPrice: (symbol: string) => number,
   res: ServerResponse,
 ): Promise<void> {
-  const parsed = CfdModifyTradeSchema.safeParse({ tradeId, ...(json as object) });
+  const parsed = CfdModifyTradeSchema.safeParse({ ...(json as object), tradeId });
   if (!parsed.success) return reply(res, 400, { error: "invalid" });
 
   try {
     const changes: { stopLoss?: number | null; takeProfit?: number | null } = {};
     if (parsed.data.stopLoss !== undefined) changes.stopLoss = parsed.data.stopLoss;
     if (parsed.data.takeProfit !== undefined) changes.takeProfit = parsed.data.takeProfit;
-    await cfdDesk.modify(tradeId, changes);
+    const trade = await prisma.trade.findUnique({ where: { id: tradeId }, include: { asset: true } });
+    if (!trade) return reply(res, 404, { error: "trade_not_found" });
+    const price = shownMidPrice(trade.asset.symbol);
+    if (!Number.isFinite(price) || price <= 0) return reply(res, 503, { error: "market_unavailable" });
+    await cfdDesk.modify(tradeId, changes, price);
     return reply(res, 200, { ok: true });
   } catch (err) {
+    const message = err instanceof Error ? err.message : "internal";
+    if (message === "INVALID_STOPS") return reply(res, 400, { error: "invalid_stops" });
+    if (message === "TRADE_NOT_OPEN") return reply(res, 409, { error: "trade_not_open" });
     logger.error(
       { evt: "cfd.modify_failed", tradeId, reason: err instanceof Error ? err.message : "unknown" },
       "CFD modify failed",

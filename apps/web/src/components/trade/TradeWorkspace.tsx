@@ -527,6 +527,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
               openTrades={openOnChart}
               currency={activeAccount.currency}
               chartType={chartType}
+              enableBrackets={tradingModel === "CFD"}
             />
 
             {/* Desktop top-left overlay (clock, focus-mode switcher + market/history
