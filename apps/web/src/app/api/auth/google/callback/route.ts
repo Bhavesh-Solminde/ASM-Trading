@@ -101,7 +101,11 @@ export async function GET(req: NextRequest) {
   }
 
   const token = await createSession(result.userId, { ip: ctx.ip, userAgent: ctx.userAgent });
-  const response = NextResponse.redirect(new URL("/trade", origin));
+  // New accounts hop through /register/welcome so the Meta Pixel can record
+  // the signup; /trade itself never loads the pixel.
+  const response = NextResponse.redirect(
+    new URL(result.created ? "/register/welcome" : "/trade", origin),
+  );
   response.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);
   response.cookies.set(GOOGLE_OAUTH_COOKIE, "", { path: "/api/auth/google", maxAge: 0 });
   return response;

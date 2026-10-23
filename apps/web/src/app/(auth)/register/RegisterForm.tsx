@@ -7,6 +7,7 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { EmailInput } from "@/components/auth/EmailInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
+import { trackPixelEvent } from "@/components/seo/MetaPixel";
 
 const MIN_PASSWORD_LEN = 12;
 
@@ -46,6 +47,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
     });
 
     if (res.ok) {
+      trackPixelEvent("CompleteRegistration");
       router.push("/trade");
       return;
     }
