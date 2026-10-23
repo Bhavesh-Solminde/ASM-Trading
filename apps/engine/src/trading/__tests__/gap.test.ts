@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GapTracker, cryptoMaintenancePhase } from "../gap";
+import { GapTracker, cryptoMaintenancePhase, assetCategory, isMarketClosed } from "../gap";
 
 describe("GapTracker", () => {
   it("accumulates magnet pull into gap", () => {
@@ -63,6 +63,86 @@ describe("GapTracker", () => {
     const tracker = new GapTracker();
     tracker.registerAsset("BTCUSD", { sigma1h: 0.005, maxGapMultiple: 3 });
     expect(tracker.shownPrice("BTCUSD", 95000)).toBe(95000);
+  });
+});
+
+describe("GapTracker.converge", () => {
+  it("decays gap 10× faster than normal push", () => {
+    const tracker = new GapTracker();
+    tracker.registerAsset("BTCUSD", { sigma1h: 0.005, maxGapMultiple: 3 });
+    tracker.push("BTCUSD", 0.01, 3);
+    const before = tracker.gap("BTCUSD");
+
+    tracker.converge("BTCUSD", 3);
+    const after = tracker.gap("BTCUSD");
+
+    expect(after).toBeLessThan(before);
+    expect(after).toBeGreaterThan(0);
+  });
+
+  it("converges to zero over many ticks", () => {
+    const tracker = new GapTracker();
+    tracker.registerAsset("BTCUSD", { sigma1h: 0.005, maxGapMultiple: 3 });
+    tracker.push("BTCUSD", 0.01, 3);
+
+    for (let i = 0; i < 5000; i++) tracker.converge("BTCUSD", 3);
+    expect(tracker.gap("BTCUSD")).toBeCloseTo(0, 6);
+  });
+
+  it("no-ops for unknown symbol", () => {
+    const tracker = new GapTracker();
+    tracker.converge("UNKNOWN", 3);
+    expect(tracker.gap("UNKNOWN")).toBe(0);
+  });
+});
+
+describe("assetCategory", () => {
+  it("classifies crypto pairs", () => {
+    expect(assetCategory("BTCUSD")).toBe("CRYPTO");
+    expect(assetCategory("ETHUSD")).toBe("CRYPTO");
+    expect(assetCategory("SOLUSD")).toBe("CRYPTO");
+  });
+
+  it("classifies forex pairs", () => {
+    expect(assetCategory("EURUSD")).toBe("FOREX");
+    expect(assetCategory("GBPUSD")).toBe("FOREX");
+    expect(assetCategory("AUDUSD")).toBe("FOREX");
+  });
+
+  it("classifies commodities/stocks", () => {
+    expect(assetCategory("XAUUSD")).toBe("STOCK");
+    expect(assetCategory("XAGUSD")).toBe("STOCK");
+  });
+
+  it("defaults unknown symbols to STOCK", () => {
+    expect(assetCategory("AAPL")).toBe("STOCK");
+    expect(assetCategory("TSLA")).toBe("STOCK");
+  });
+});
+
+describe("isMarketClosed", () => {
+  it("returns false for CRYPTO always", () => {
+    const weekend = new Date("2026-10-25T12:00:00Z"); // Sunday
+    expect(isMarketClosed("CRYPTO", weekend)).toBe(false);
+  });
+
+  it("returns true for FOREX on weekends", () => {
+    const sunday = new Date("2026-10-25T12:00:00Z");
+    expect(isMarketClosed("FOREX", sunday)).toBe(true);
+    const saturday = new Date("2026-10-24T12:00:00Z");
+    expect(isMarketClosed("FOREX", saturday)).toBe(true);
+  });
+
+  it("returns true for STOCK during IST night (23:30-05:00)", () => {
+    // IST 00:30 = UTC 19:00 previous day
+    const nightIst = new Date("2026-10-22T19:00:00Z"); // Wed UTC, Wed IST 00:30
+    expect(isMarketClosed("STOCK", nightIst)).toBe(true);
+  });
+
+  it("returns false during IST trading hours on weekday", () => {
+    // IST 10:00 = UTC 04:30
+    const tradingHours = new Date("2026-10-21T04:30:00Z"); // Wednesday
+    expect(isMarketClosed("FOREX", tradingHours)).toBe(false);
   });
 });
 
