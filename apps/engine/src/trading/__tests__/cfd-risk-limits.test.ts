@@ -92,10 +92,10 @@ async function tryOpen(overrides: Partial<RiskLimits>, stake = 100_000, directio
 }
 
 describe("Risk primitives — @asm/algo/risk", () => {
-  it("dynamicMaxStake = min(cap, 1% of treasury)", () => {
+  it("dynamicMaxStake = min(cap, 10% of treasury)", () => {
     expect(dynamicMaxStake(0)).toBe(0);
-    expect(dynamicMaxStake(10_000_000_000)).toBe(100_000_00); // 1% = 1e8 > cap 1e7 → cap
-    expect(dynamicMaxStake(30_000_000)).toBe(300_000); // 1% of ₹3 lakh target = ₹3,000
+    expect(dynamicMaxStake(10_000_000_000)).toBe(100_000_00); // 10% = 1e9 > cap 1e7 → cap
+    expect(dynamicMaxStake(30_000_000)).toBe(3_000_000); // 10% of ₹3 lakh target = ₹30,000
   });
 
   it("exposureCap tiers up as the crowd grows", () => {
