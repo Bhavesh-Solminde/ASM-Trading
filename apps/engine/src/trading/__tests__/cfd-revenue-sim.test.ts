@@ -255,11 +255,11 @@ describe("CFD revenue simulation — Step 1", () => {
     const reasonsSeen = new Set<CloseReason>();
 
     for (let i = 0; i < 100; i++) {
-      const spec = ASSET_SPECS[i % symbols.length];
+      const spec = ASSET_SPECS[i % symbols.length]!;
       const asset = assetConfig(spec.symbol);
       const stake = 50_000 + (i % 5) * 10_000; // ₹500 → ₹900
-      const scenario = scenarios[i % scenarios.length];
-      const durationSec = durations[i % durations.length];
+      const scenario = scenarios[i % scenarios.length]!;
+      const durationSec = durations[i % durations.length]!;
       const entry = spec.basePrice;
       const isDemo = scenario === "DEMO";
       const accountId = isDemo ? DEMO_ACCOUNT_ID : LIVE_ACCOUNT_ID;
@@ -291,39 +291,22 @@ describe("CFD revenue simulation — Step 1", () => {
 
       // Choose exit price + close path to force a specific CloseReason.
       const row = await prisma.trade.findUniqueOrThrow({ where: { id: opened.trade.id } });
-      let reason: CloseReason;
-      let exitPrice: number;
-      switch (scenario) {
-        case "TP":
-          reason = "TAKE_PROFIT";
-          exitPrice = row.takeProfit ?? entry;
-          break;
-        case "SL":
-          reason = "STOP_LOSS";
-          exitPrice = row.stopLoss ?? entry;
-          break;
-        case "TRAIL":
-          reason = "TRAILING_STOP";
-          exitPrice = row.stopLoss ?? entry;
-          break;
-        case "DURATION_WIN":
-          reason = "DURATION";
-          exitPrice = direction === "LONG" ? entry * 1.005 : entry * 0.995;
-          break;
-        case "DURATION_LOSS":
-        case "DEMO":
-          reason = "DURATION";
-          exitPrice = direction === "LONG" ? entry * 0.993 : entry * 1.007;
-          break;
-        case "LIQ_SHORT":
-          reason = "LIQUIDATION";
-          exitPrice = row.liqPrice ?? entry * 2; // SHORT liq at 2× entry
-          break;
-        case "MANUAL":
-          reason = "MANUAL";
-          exitPrice = direction === "LONG" ? entry * 1.002 : entry * 0.998;
-          break;
-      }
+      const { reason, exitPrice } = ((): { reason: CloseReason; exitPrice: number } => {
+        switch (scenario) {
+          case "TP": return { reason: "TAKE_PROFIT", exitPrice: row.takeProfit ?? entry };
+          case "SL": return { reason: "STOP_LOSS", exitPrice: row.stopLoss ?? entry };
+          case "TRAIL": return { reason: "TRAILING_STOP", exitPrice: row.stopLoss ?? entry };
+          case "DURATION_WIN":
+            return { reason: "DURATION", exitPrice: direction === "LONG" ? entry * 1.005 : entry * 0.995 };
+          case "DURATION_LOSS":
+          case "DEMO":
+            return { reason: "DURATION", exitPrice: direction === "LONG" ? entry * 0.993 : entry * 1.007 };
+          case "LIQ_SHORT":
+            return { reason: "LIQUIDATION", exitPrice: row.liqPrice ?? entry * 2 };
+          case "MANUAL":
+            return { reason: "MANUAL", exitPrice: direction === "LONG" ? entry * 1.002 : entry * 0.998 };
+        }
+      })();
 
       const closed = await desk.closePosition(
         {
