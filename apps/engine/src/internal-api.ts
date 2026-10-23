@@ -7,13 +7,22 @@ import {
 import { timingSafeEqual } from "node:crypto";
 import {
   EngineOpenTradeSchema,
+  EngineCfdOpenTradeSchema,
+  CfdCloseTradeSchema,
+  CfdModifyTradeSchema,
   type EngineOpenTradeInput,
   type OpenTradeResult,
+  type EngineCfdOpenTradeInput,
+  type CfdOpenTradeResult,
 } from "@asm/contracts";
+import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
+import { dynamicMaxStake, exposureCap, dailyWinCap, isDailyCircuitBroken } from "@asm/algo";
 import { DeskRejection, type DeskRejectionReason } from "./trading/errors";
+import type { CfdDesk, AssetConfig, RiskLimits, ClosedPosition } from "./trading/cfd-desk";
 
 const MAX_BODY_BYTES = 4_096;
+const IS_CFD = process.env.TRADING_MODEL === "CFD";
 
 export interface TradeOpener {
   open(input: EngineOpenTradeInput): Promise<OpenTradeResult>;
@@ -77,6 +86,9 @@ export function createInternalApi(deps: {
   port: number;
   /** Provide to share a single port with the WebSocket server. */
   sharedServer?: Server;
+  cfdDesk?: CfdDesk;
+  /** Returns the current shown mid-price for a symbol, for CFD opens. */
+  shownMidPrice?: (symbol: string) => number;
 }): { listen(): Promise<number>; close(): Promise<void> } {
   if (!deps.secret) {
     throw new Error(
@@ -90,18 +102,37 @@ export function createInternalApi(deps: {
       return reply(res, 401, { error: "unauthorised" });
     }
 
-    if (req.method !== "POST" || req.url !== "/trades") {
-      return reply(res, 404, { error: "not found" });
-    }
-
     const raw = await readBody(req);
     if (raw === null) return reply(res, 413, { error: "payload too large" });
 
     let json: unknown;
     try {
-      json = JSON.parse(raw);
+      json = raw ? JSON.parse(raw) : {};
     } catch {
       return reply(res, 400, { error: "invalid" });
+    }
+
+    const url = req.url ?? "";
+    const method = req.method ?? "";
+
+    // ── CFD routes ────────────────────────────────────────────────
+    if (IS_CFD && deps.cfdDesk && deps.shownMidPrice) {
+      if (method === "POST" && url === "/cfd/trades") {
+        return handleCfdOpen(json, deps.cfdDesk, deps.shownMidPrice, res);
+      }
+      const closeMatch = url.match(/^\/cfd\/trades\/([^/]+)\/close$/);
+      if (method === "POST" && closeMatch) {
+        return handleCfdClose(closeMatch[1]!, deps.cfdDesk, deps.shownMidPrice, res);
+      }
+      const modifyMatch = url.match(/^\/cfd\/trades\/([^/]+)$/);
+      if (method === "PATCH" && modifyMatch) {
+        return handleCfdModify(modifyMatch[1]!, json, deps.cfdDesk, res);
+      }
+    }
+
+    // ── Binary route ──────────────────────────────────────────────
+    if (method !== "POST" || url !== "/trades") {
+      return reply(res, 404, { error: "not found" });
     }
 
     const parsed = EngineOpenTradeSchema.safeParse(json);
@@ -185,4 +216,152 @@ export function createInternalApi(deps: {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
+}
+
+// ── CFD handler helpers ─────────────────────────────────────────────
+
+async function buildRiskLimits(accountId: string): Promise<RiskLimits> {
+  const treasury = await prisma.houseTreasury.findUnique({ where: { id: 1 } });
+  const treasuryMinor = treasury?.treasuryMinor ?? 30_000_000;
+
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayTrades = await prisma.trade.findMany({
+    where: { accountId, closedAt: { gte: todayStart }, durationSec: { not: null } },
+    select: { pnl: true },
+  });
+  const userDailyPnl = todayTrades.reduce((s, t) => s + t.pnl, 0);
+
+  const openLongs = await prisma.trade.aggregate({
+    where: { status: "OPEN", direction: "UP", durationSec: { not: null } },
+    _sum: { stake: true },
+  });
+  const openShorts = await prisma.trade.aggregate({
+    where: { status: "OPEN", direction: "DOWN", durationSec: { not: null } },
+    _sum: { stake: true },
+  });
+  const netExposure = (openLongs._sum.stake ?? 0) - (openShorts._sum.stake ?? 0);
+
+  const activeAccounts = await prisma.trade.findMany({
+    where: { status: "OPEN", durationSec: { not: null } },
+    select: { accountId: true },
+    distinct: ["accountId"],
+  });
+  const activeUsers = activeAccounts.length;
+
+  const houseDay = await prisma.houseDay.findFirst({
+    where: { date: { gte: todayStart } },
+    select: { realizedProfitMinor: true },
+  });
+
+  return {
+    treasuryMinor,
+    netExposure,
+    exposureCap: exposureCap(activeUsers),
+    userDailyPnl,
+    dailyWinCap: dailyWinCap(treasuryMinor),
+    dynamicMaxStake: dynamicMaxStake(treasuryMinor),
+    isCircuitBroken: isDailyCircuitBroken(houseDay?.realizedProfitMinor ?? 0, treasuryMinor),
+  };
+}
+
+async function handleCfdOpen(
+  json: unknown,
+  cfdDesk: CfdDesk,
+  shownMidPrice: (symbol: string) => number,
+  res: ServerResponse,
+): Promise<void> {
+  const parsed = EngineCfdOpenTradeSchema.safeParse(json);
+  if (!parsed.success) {
+    logger.warn({ evt: "security.validation_rejected", route: "cfd_open" }, "rejected CFD trade payload");
+    return reply(res, 400, { error: "invalid" });
+  }
+
+  const input = parsed.data;
+
+  const asset = await prisma.asset.findFirst({
+    where: { symbol: input.symbol, isOpen: true },
+    select: { id: true, symbol: true, spreadBps: true },
+  });
+  if (!asset) return reply(res, 404, { error: "unknown_asset" });
+
+  const midPrice = shownMidPrice(asset.symbol);
+  if (midPrice <= 0) return reply(res, 503, { error: "market_unavailable" });
+
+  try {
+    const risk = await buildRiskLimits(input.accountId);
+    const result = await cfdDesk.open(input, midPrice, asset as AssetConfig, risk);
+    return reply(res, 201, result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "internal";
+    const errorMap: Record<string, number> = {
+      MARKET_UNAVAILABLE: 503,
+      TRADING_PAUSED: 403,
+      STAKE_EXCEEDS_LIMIT: 400,
+      INSUFFICIENT_BALANCE: 409,
+    };
+    if (msg in errorMap) return reply(res, errorMap[msg]!, { error: msg.toLowerCase() });
+    logger.error({ evt: "cfd.open_failed", reason: msg }, "CFD open failed");
+    return reply(res, 500, { error: "internal" });
+  }
+}
+
+async function handleCfdClose(
+  tradeId: string,
+  cfdDesk: CfdDesk,
+  shownMidPrice: (symbol: string) => number,
+  res: ServerResponse,
+): Promise<void> {
+  const trade = await prisma.trade.findUnique({
+    where: { id: tradeId },
+    include: { asset: { select: { id: true, symbol: true, spreadBps: true } } },
+  });
+  if (!trade || !trade.asset) return reply(res, 404, { error: "not_found" });
+  if (trade.status !== "OPEN") return reply(res, 409, { error: "trade_not_open" });
+
+  const midPrice = shownMidPrice(trade.asset.symbol);
+  if (midPrice <= 0) return reply(res, 503, { error: "market_unavailable" });
+
+  const risk = await buildRiskLimits(trade.accountId);
+
+  try {
+    const result = await cfdDesk.manualClose(
+      tradeId,
+      midPrice,
+      trade.asset as AssetConfig,
+      risk.userDailyPnl,
+      risk.dailyWinCap,
+    );
+    return reply(res, 200, result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "internal";
+    if (msg === "LOCKOUT_ACTIVE") return reply(res, 409, { error: "lockout_active" });
+    if (msg === "TRADE_NOT_OPEN") return reply(res, 409, { error: "trade_not_open" });
+    logger.error({ evt: "cfd.close_failed", tradeId, reason: msg }, "CFD manual close failed");
+    return reply(res, 500, { error: "internal" });
+  }
+}
+
+async function handleCfdModify(
+  tradeId: string,
+  json: unknown,
+  cfdDesk: CfdDesk,
+  res: ServerResponse,
+): Promise<void> {
+  const parsed = CfdModifyTradeSchema.safeParse({ tradeId, ...(json as object) });
+  if (!parsed.success) return reply(res, 400, { error: "invalid" });
+
+  try {
+    const changes: { stopLoss?: number | null; takeProfit?: number | null } = {};
+    if (parsed.data.stopLoss !== undefined) changes.stopLoss = parsed.data.stopLoss;
+    if (parsed.data.takeProfit !== undefined) changes.takeProfit = parsed.data.takeProfit;
+    await cfdDesk.modify(tradeId, changes);
+    return reply(res, 200, { ok: true });
+  } catch (err) {
+    logger.error(
+      { evt: "cfd.modify_failed", tradeId, reason: err instanceof Error ? err.message : "unknown" },
+      "CFD modify failed",
+    );
+    return reply(res, 500, { error: "internal" });
+  }
 }
