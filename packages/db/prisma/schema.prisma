@@ -425,7 +425,7 @@ model HouseDay {
 model HouseTreasury {
   id                  Int      @id @default(1)
   treasuryMinor       BigInt   @default(0)
-  treasuryTargetMinor BigInt   @default(1000000)
+  treasuryTargetMinor BigInt   @default(30000000)
   updatedAt           DateTime @updatedAt
 }
 

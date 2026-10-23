@@ -429,15 +429,6 @@ function applySeriesAlpha(series: ISeriesApi<any>, type: ChartType, alpha: numbe
  * lightweight-charts directly (`series.update` per tick, `setData` only when
  * history is replaced), so a tick costs a canvas draw and no render.
  */
-export interface CfdChartPosition {
-  id: string;
-  direction: "UP" | "DOWN";
-  entryPrice: number;
-  stake: number;
-  stopLoss: number | null;
-  takeProfit: number | null;
-}
-
 export function PriceChart({
   market,
   precision,
@@ -445,8 +436,10 @@ export function PriceChart({
   openTrades,
   currency,
   chartType = "candles",
-  cfdPositions,
   enableBrackets = false,
+  bracketScope,
+  bracketControls = true,
+  tickSize,
 }: {
   market: MarketStore;
   precision: number;
@@ -454,8 +447,10 @@ export function PriceChart({
   openTrades: TradeView[];
   currency: string;
   chartType?: ChartType;
-  cfdPositions?: CfdChartPosition[];
   enableBrackets?: boolean;
+  bracketScope?: string;
+  bracketControls?: boolean;
+  tickSize?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const countdownRef = useRef<HTMLDivElement | null>(null);
@@ -467,7 +462,6 @@ export function PriceChart({
   const watermarkRef = useRef<ITextWatermarkPluginApi<Time> | null>(null);
   const tradeLinesRef = useRef<IPriceLine[]>([]);
   const [chartVersion, setChartVersion] = useState(0);
-  const [editingBracketId, setEditingBracketId] = useState<string | null>(null);
 
   // Seamless in-engine wave transformation state (from latest point to the end)
   const prevChartTypeRef = useRef<ChartType>(chartType);
@@ -498,7 +492,7 @@ export function PriceChart({
         vertLines: { color: "rgba(47, 129, 247, 0.07)" },
         horzLines: { color: "rgba(47, 129, 247, 0.07)" },
       },
-      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.18, bottom: 0.1 } },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: enableBrackets ? 0.24 : 0.18, bottom: 0.1 } },
       timeScale: {
         borderVisible: false,
         timeVisible: true,
@@ -991,76 +985,16 @@ export function PriceChart({
     if (!series) return;
     for (const line of tradeLinesRef.current) series.removePriceLine(line);
 
-    if (cfdPositions && cfdPositions.length > 0) {
-      const lines: IPriceLine[] = [];
-      for (const p of cfdPositions) {
-        const dirColor = p.direction === "UP" ? UP : DOWN;
-        const arrow = p.direction === "UP" ? "▲" : "▼";
-        lines.push(
-          series.createPriceLine({
-            price: p.entryPrice,
-            color: dirColor,
-            lineWidth: 2,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            axisLabelTextColor: BRAND_INK,
-            title: `${arrow} ${formatMinor(p.stake, currency)}`,
-          }),
-        );
-        if (p.stopLoss !== null) {
-          const slPrice = p.stopLoss;
-          lines.push(
-            series.createPriceLine({
-              price: slPrice,
-              color: DOWN,
-              lineWidth: 1,
-              lineStyle: LineStyle.Dotted,
-              axisLabelVisible: true,
-              axisLabelTextColor: BRAND_INK,
-              title: "SL",
-            }),
-          );
-        }
-        if (p.takeProfit !== null) {
-          const tpPrice = p.takeProfit;
-          lines.push(
-            series.createPriceLine({
-              price: tpPrice,
-              color: UP,
-              lineWidth: 1,
-              lineStyle: LineStyle.Dotted,
-              axisLabelVisible: true,
-              axisLabelTextColor: BRAND_INK,
-              title: "TP",
-            }),
-          );
-        }
-      }
-      tradeLinesRef.current = lines;
-    } else {
-      tradeLinesRef.current = openTrades.map((t) =>
-        series.createPriceLine({
-          price: t.entryPrice,
-          color: t.direction === "UP" ? UP : DOWN,
-          lineWidth: 2,
-          lineStyle: LineStyle.Solid,
-          axisLabelVisible: true,
-          axisLabelTextColor: BRAND_INK,
-          title: `${t.direction === "UP" ? "▲" : "▼"} ${formatMinor(t.stake, currency)}`,
-        }),
-      );
-    }
-    if (!cfdPositions?.length) {
-      for (const t of openTrades.filter(t => t.durationSec != null && t.id !== editingBracketId)) {
-        for (const [title, price, color] of [["SL", t.stopLoss, DOWN], ["TP", t.takeProfit, UP]] as const) {
-          if (price != null) tradeLinesRef.current.push(series.createPriceLine({
-            price, color, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true,
-            title, axisLabelTextColor: BRAND_INK,
-          }));
-        }
-      }
-    }
-  }, [openTrades, cfdPositions, currency, chartVersion, editingBracketId]);
+    tradeLinesRef.current = openTrades
+      .filter(t => !enableBrackets || t.durationSec == null)
+      .map(t => series.createPriceLine({
+        price: t.entryPrice,
+        color: t.direction === "UP" ? UP : DOWN,
+        lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true,
+        axisLabelTextColor: BRAND_INK,
+        title: `${t.direction === "UP" ? "▲" : "▼"} ${formatMinor(t.stake, currency)}`,
+      }));
+  }, [openTrades, currency, chartVersion, enableBrackets]);
 
   return (
     <>
@@ -1068,8 +1002,8 @@ export function PriceChart({
           internal z-index:50 canvases stay trapped below the overlay controls
           (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
-      {enableBrackets && <ChartBrackets trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
-        precision={precision} currency={currency} chartVersion={chartVersion} onEditingId={setEditingBracketId} />}
+      {enableBrackets && <ChartBrackets key={bracketScope} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
+        precision={precision} tickSize={tickSize ?? 10 ** -precision} currency={currency} chartVersion={chartVersion} market={market} />}
 
 
 

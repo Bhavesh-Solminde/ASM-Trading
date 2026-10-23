@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { TIMEFRAMES, type TradeView } from "@asm/contracts";
+import { useChartProtection } from "@/lib/chart-protection-preference";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { SentimentBar } from "@/components/chart/SentimentBar";
 import { TimeframeTabs } from "@/components/chart/TimeframeTabs";
@@ -425,6 +426,8 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     [recordOpened],
   );
 
+  const chartProtection = useChartProtection();
+  const chartTimeframe = useMarket(market, s => s.chart.timeframe);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candles");
   const [marketPickerOpen, setMarketPickerOpen] = useState(false);
@@ -528,6 +531,9 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
               currency={activeAccount.currency}
               chartType={chartType}
               enableBrackets={tradingModel === "CFD"}
+              bracketScope={`${activeAccount.id}:${asset.symbol}:${chartTimeframe}:${chartType}:${chartProtection}`}
+              bracketControls={chartProtection}
+              tickSize={asset.tickSize ?? 10 ** -asset.precision}
             />
 
             {/* Desktop top-left overlay (clock, focus-mode switcher + market/history
@@ -607,13 +613,13 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
                 openCount={openCount}
                 onOpenHistory={() => setHistoryOpen(true)}
               />
-              <PositionStrip
+              {tradingModel !== "CFD" && <PositionStrip
                 className="pointer-events-none min-w-0 max-w-[420px] flex-1 land:hidden"
                 trades={trades}
                 assets={assets}
                 currency={activeAccount.currency}
                 onOpen={() => setHistoryOpen(true)}
-              />
+              />}
             </div>
 
             {status === "unauthorised" ? (

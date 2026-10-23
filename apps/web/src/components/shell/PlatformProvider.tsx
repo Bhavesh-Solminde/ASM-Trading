@@ -24,6 +24,7 @@ export interface PlatformAsset {
   payoutPct: number;
   precision: number;
   spreadBps?: number;
+  tickSize?: number;
   assetClass: AssetClass;
 }
 

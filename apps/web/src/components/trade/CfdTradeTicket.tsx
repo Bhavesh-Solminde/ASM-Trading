@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { CfdOpenTradeResult } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
-import { usePlatform, useQuote } from "@/components/shell/PlatformProvider";
+import { usePlatform } from "@/components/shell/PlatformProvider";
 import { minStakeMinor } from "@/lib/currency";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
 import { StakeSheet } from "./StakeSheet";
@@ -45,18 +45,12 @@ export function CfdTradeTicket({
 }) {
   const [durationSec, setDurationSec] = useState(300);
   const [stakeInput, setStakeInput] = useState(() => defaultStake(currency));
-  const [slEnabled, setSlEnabled] = useState(false);
-  const [tpEnabled, setTpEnabled] = useState(false);
-  const [slPct, setSlPct] = useState("10");
-  const [tpPct, setTpPct] = useState("10");
   const [stakeOpen, setStakeOpen] = useState(false);
   const tileRef = useRef<HTMLButtonElement | null>(null);
   const { balances, accounts, assets } = usePlatform();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fired, setFired] = useState<CfdDirection | null>(null);
-  const quote = useQuote(symbol);
-  const currentPrice = quote?.price ?? 0;
   const minStake = minStakeMinor(currency);
 
   const stakeMajor = Number(stakeInput);
@@ -80,15 +74,6 @@ export function CfdTradeTicket({
     tileRef.current?.focus();
   }, []);
 
-  const slPrice =
-    slEnabled && currentPrice > 0
-      ? currentPrice * (1 - Number(slPct) / 100)
-      : null;
-  const tpPrice =
-    tpEnabled && currentPrice > 0
-      ? currentPrice * (1 + Number(tpPct) / 100)
-      : null;
-
   async function place(direction: CfdDirection): Promise<void> {
     if (stakeMinor === 0) {
       setError("Enter an investment amount.");
@@ -109,8 +94,6 @@ export function CfdTradeTicket({
         durationSec,
         accountId,
       };
-      if (slEnabled && slPct) body.stopLossPct = Number(slPct);
-      if (tpEnabled && tpPct) body.takeProfitPct = Number(tpPct);
 
       const res = await fetch("/api/cfd/trades", {
         method: "POST",
@@ -244,72 +227,7 @@ export function CfdTradeTicket({
           </div>
         </div>
 
-        {/* ── SL / TP toggle ─────────────────────────── */}
-        <div className="grid gap-2 rounded border border-rule p-2.5 phone:gap-2 phone:p-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-ink-2">
-              Stop Loss / Take Profit
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const next = !(slEnabled || tpEnabled);
-                setSlEnabled(next);
-                setTpEnabled(next);
-              }}
-              className={`h-6 w-10 rounded-full transition-colors ${
-                slEnabled || tpEnabled ? "bg-brand-fill" : "bg-white/20"
-              }`}
-              aria-pressed={slEnabled || tpEnabled}
-            >
-              <span
-                className={`block h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                  slEnabled || tpEnabled ? "translate-x-5" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
-          {(slEnabled || tpEnabled) && (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="grid gap-1">
-                <label className="text-[11px] font-semibold text-down">
-                  Stop Loss %
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={slPct}
-                  onChange={(e) => setSlPct(e.target.value)}
-                  className="h-9 rounded border border-rule bg-panel px-2 text-sm font-semibold tabular-nums text-ink outline-none focus:border-down"
-                />
-                {slPrice !== null && (
-                  <span className="text-[10px] tabular-nums text-ink-3">
-                    Buy ~{slPrice.toFixed(2)} · Sell ~{(currentPrice * (1 + Number(slPct) / 100)).toFixed(2)}
-                  </span>
-                )}
-              </div>
-              <div className="grid gap-1">
-                <label className="text-[11px] font-semibold text-up">
-                  Take Profit %
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={1000}
-                  value={tpPct}
-                  onChange={(e) => setTpPct(e.target.value)}
-                  className="h-9 rounded border border-rule bg-panel px-2 text-sm font-semibold tabular-nums text-ink outline-none focus:border-up"
-                />
-                {tpPrice !== null && (
-                  <span className="text-[10px] tabular-nums text-ink-3">
-                    Buy ~{tpPrice.toFixed(2)} · Sell ~{(currentPrice * (1 - Number(tpPct) / 100)).toFixed(2)}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+
       </div>
 
       {/* ── Preview ───────────────────────────────────── */}
