@@ -70,6 +70,16 @@ function loadPixels(pixelIds: string[]): Fbq {
   return fbq;
 }
 
+/**
+ * Fire a standard event (e.g. CompleteRegistration) to every initialised
+ * pixel. No-op when no pixel was mounted on this page load. If fbevents.js is
+ * still loading the call is queued, and a client-side route change keeps the
+ * queue alive until it flushes.
+ */
+export function trackPixelEvent(event: string) {
+  window.fbq?.("track", event);
+}
+
 export function MetaPixel({ pixelIds }: { pixelIds: string[] }) {
   // Stable dep: a fresh array from the server each render must not re-fire.
   const key = pixelIds.join(",");
