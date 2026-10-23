@@ -429,6 +429,18 @@ model HouseTreasury {
   updatedAt           DateTime @updatedAt
 }
 
+/// Per-asset engine state that must survive a container restart to keep the
+/// shown price continuous across deploys. Right now this is just the
+/// GapTracker's accumulated magnet gap (shownPrice = realPrice × (1 + gap)):
+/// if we lose it, the first post-restart tick snaps shown back to real by the
+/// full gap value and the chart shows a visible step. Written every ~30s by
+/// the tick loop and once more on SIGTERM; read on engine boot.
+model EngineAssetState {
+  symbol    String   @id
+  gap       Float    @default(0)
+  updatedAt DateTime @updatedAt
+}
+
 /// Recorded for every settled trade, never exposed to a trading client.
 model TradeShadow {
   tradeId          String   @id

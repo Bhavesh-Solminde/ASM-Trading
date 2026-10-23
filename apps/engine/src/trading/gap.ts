@@ -57,6 +57,38 @@ export class GapTracker {
   resetAll(): void {
     for (const s of this.state.values()) s.gap = 0;
   }
+
+  /**
+   * Export every REGISTERED symbol's current gap, so the engine can persist it
+   * across restarts. Shown price = real × (1 + gap); if we drop this on reboot
+   * the chart snaps by the full gap value on the first post-restart tick.
+   */
+  snapshot(): Array<{ symbol: string; gap: number }> {
+    const out: Array<{ symbol: string; gap: number }> = [];
+    for (const [symbol, s] of this.state) out.push({ symbol, gap: s.gap });
+    return out;
+  }
+
+  /**
+   * Seed persisted gaps on startup. Called AFTER `registerAsset`, so an entry
+   * whose symbol is no longer registered (asset removed, symbol renamed) is
+   * silently skipped — it has no live asset to attach to. A NaN or non-finite
+   * stored value is also skipped, so a corrupt row can't poison the tracker.
+   */
+  restore(entries: Iterable<{ symbol: string; gap: number }>): number {
+    let restored = 0;
+    for (const { symbol, gap } of entries) {
+      if (!Number.isFinite(gap)) continue;
+      const s = this.state.get(symbol);
+      if (!s) continue;
+      // Still clamp to the asset's own [-maxGap, +maxGap] band, in case the
+      // asset's sigma1h shrank since the snapshot was written.
+      const maxGap = s.config.sigma1h * s.config.maxGapMultiple;
+      s.gap = Math.max(-maxGap, Math.min(maxGap, gap));
+      restored += 1;
+    }
+    return restored;
+  }
 }
 
 export type AssetCategory = "CRYPTO" | "FOREX" | "STOCK";

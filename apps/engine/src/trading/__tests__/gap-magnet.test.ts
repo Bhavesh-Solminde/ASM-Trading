@@ -66,6 +66,84 @@ describe("GapTracker — accumulation + decay", () => {
     g.resetAll();
     expect(g.gap("ETHUSDT")).toBe(0);
   });
+
+  describe("snapshot/restore — survives engine restart", () => {
+    it("round-trips every registered symbol's gap exactly", () => {
+      const g = new GapTracker();
+      g.registerAsset("BTCUSD", { sigma1h: 0.01, maxGapMultiple: 5 });
+      g.registerAsset("ETHUSDT", { sigma1h: 0.02, maxGapMultiple: 5 });
+      g.push("BTCUSD", 0.003, 0);
+      g.push("ETHUSDT", -0.004, 0);
+
+      const snap = g.snapshot();
+      expect(snap).toEqual(expect.arrayContaining([
+        { symbol: "BTCUSD", gap: expect.closeTo(0.003, 10) as number },
+        { symbol: "ETHUSDT", gap: expect.closeTo(-0.004, 10) as number },
+      ]));
+
+      // Simulate a fresh engine process: new tracker, same assets registered.
+      const g2 = new GapTracker();
+      g2.registerAsset("BTCUSD", { sigma1h: 0.01, maxGapMultiple: 5 });
+      g2.registerAsset("ETHUSDT", { sigma1h: 0.02, maxGapMultiple: 5 });
+      const restored = g2.restore(snap);
+      expect(restored).toBe(2);
+      expect(g2.gap("BTCUSD")).toBeCloseTo(0.003, 10);
+      expect(g2.gap("ETHUSDT")).toBeCloseTo(-0.004, 10);
+    });
+
+    it("silently skips an unregistered symbol so a removed asset can't crash boot", () => {
+      const g = new GapTracker();
+      g.registerAsset("BTCUSD", { sigma1h: 0.01, maxGapMultiple: 5 });
+      const restored = g.restore([
+        { symbol: "BTCUSD", gap: 0.002 },
+        { symbol: "DELISTED_COIN", gap: 0.015 },
+      ]);
+      expect(restored).toBe(1);
+      expect(g.gap("BTCUSD")).toBeCloseTo(0.002, 10);
+      expect(g.gap("DELISTED_COIN")).toBe(0);
+    });
+
+    it("clamps a restored gap to the asset's current [-maxGap, +maxGap] band", () => {
+      const g = new GapTracker();
+      g.registerAsset("BTCUSD", { sigma1h: 0.01, maxGapMultiple: 3 }); // max 0.03
+      g.restore([{ symbol: "BTCUSD", gap: 0.10 }]); // way over clamp
+      expect(g.gap("BTCUSD")).toBeCloseTo(0.03, 10);
+    });
+
+    it("drops a NaN or Infinity so a corrupt row can't poison the tracker", () => {
+      const g = new GapTracker();
+      g.registerAsset("BTCUSD", { sigma1h: 0.01, maxGapMultiple: 5 });
+      g.push("BTCUSD", 0.002, 0);
+      const restored = g.restore([
+        { symbol: "BTCUSD", gap: Number.NaN },
+        { symbol: "BTCUSD", gap: Number.POSITIVE_INFINITY },
+      ]);
+      expect(restored).toBe(0);
+      // Existing in-memory gap left alone.
+      expect(g.gap("BTCUSD")).toBeCloseTo(0.002, 10);
+    });
+
+    it("the restore-then-tick path produces no shown-price snap across a restart", () => {
+      // Pre-restart: real = 100000, gap built up to 0.004 → shown = 100400.
+      const pre = new GapTracker();
+      pre.registerAsset("BTCUSD", { sigma1h: 0.01, maxGapMultiple: 5 });
+      pre.push("BTCUSD", 0.004, 0);
+      const preShown = pre.shownPrice("BTCUSD", 100000);
+      expect(preShown).toBeCloseTo(100400, 2);
+
+      // Post-restart: fresh tracker, same asset, no restore → snap to 100000.
+      const noRestore = new GapTracker();
+      noRestore.registerAsset("BTCUSD", { sigma1h: 0.01, maxGapMultiple: 5 });
+      expect(noRestore.shownPrice("BTCUSD", 100000)).toBe(100000); // the bug
+      expect(Math.abs(preShown - noRestore.shownPrice("BTCUSD", 100000))).toBeCloseTo(400, 2);
+
+      // Post-restart WITH restore from pre's snapshot → continuous.
+      const withRestore = new GapTracker();
+      withRestore.registerAsset("BTCUSD", { sigma1h: 0.01, maxGapMultiple: 5 });
+      withRestore.restore(pre.snapshot());
+      expect(withRestore.shownPrice("BTCUSD", 100000)).toBeCloseTo(preShown, 6);
+    });
+  });
 });
 
 describe("assetCategory", () => {

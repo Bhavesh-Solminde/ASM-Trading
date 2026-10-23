@@ -9,6 +9,7 @@ import { startTickLoop, type CfdDeps } from "./loop";
 import { createPriceFeed } from "./feeds";
 import { QuoteBuffer } from "./feeds/quote-buffer";
 import { GapTracker } from "./trading/gap";
+import { loadGapSnapshot, startGapSnapshotLoop } from "./trading/gap-persistence";
 import { CfdDesk } from "./trading/cfd-desk";
 import { createTicketAuthenticator } from "./auth/ws-ticket";
 import { createInternalApi } from "./internal-api";
@@ -73,6 +74,7 @@ async function main(): Promise<void> {
   if (!IS_CFD) await desk.hydrate(Math.floor(Date.now() / 1000));
   let cfdDeps: CfdDeps | undefined;
   let feed: Awaited<ReturnType<typeof createPriceFeed>> | null = null;
+  let gapSnapshotLoop: { stop: () => Promise<void> } | null = null;
 
   if (IS_CFD) {
     const quoteBuffer = new QuoteBuffer();
@@ -96,6 +98,13 @@ async function main(): Promise<void> {
       const sigma1h = registry.sigmaNow(asset.symbol) * Math.sqrt(3600);
       gapTracker.registerAsset(asset.symbol, { sigma1h, maxGapMultiple: 3 });
     }
+
+    // Resume the magnet gap from before the last restart so the first
+    // post-restart tick doesn't snap shown price by the full pre-restart gap.
+    // Must run AFTER registerAsset for every asset — restore() skips unknown
+    // symbols. See apps/engine/src/trading/gap-persistence.ts for the why.
+    await loadGapSnapshot(gapTracker);
+    gapSnapshotLoop = startGapSnapshotLoop(gapTracker);
 
     _cfdDesk = cfdDesk;
     cfdDeps = { quoteBuffer, gapTracker, cfdDesk };
@@ -151,6 +160,7 @@ async function main(): Promise<void> {
     loop.stop(); // collect no new settlements
     await desk?.stop(); // let captured settlements persist (bounded)
     if (feed) await feed.stop();
+    if (gapSnapshotLoop) await gapSnapshotLoop.stop(); // one last gap persist before exit
     await server.stop();
     await redis.quit();
     await prisma.$disconnect();
