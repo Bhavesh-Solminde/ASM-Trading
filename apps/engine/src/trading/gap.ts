@@ -1,0 +1,62 @@
+const HALF_LIFE_SEC = 2.4 * 3600;
+const DECAY_LAMBDA = Math.LN2 / HALF_LIFE_SEC;
+
+interface AssetGapConfig {
+  sigma1h: number;
+  maxGapMultiple: number;
+}
+
+interface GapState {
+  gap: number;
+  config: AssetGapConfig;
+}
+
+export class GapTracker {
+  private readonly state = new Map<string, GapState>();
+
+  registerAsset(symbol: string, config: AssetGapConfig): void {
+    this.state.set(symbol, { gap: 0, config });
+  }
+
+  push(symbol: string, magnetPull: number, dtSec: number): void {
+    const s = this.state.get(symbol);
+    if (!s) return;
+
+    const decayFactor = Math.exp(-DECAY_LAMBDA * dtSec);
+    s.gap = s.gap * decayFactor + magnetPull;
+
+    const maxGap = s.config.sigma1h * s.config.maxGapMultiple;
+    s.gap = Math.max(-maxGap, Math.min(maxGap, s.gap));
+  }
+
+  gap(symbol: string): number {
+    return this.state.get(symbol)?.gap ?? 0;
+  }
+
+  shownPrice(symbol: string, realPrice: number): number {
+    return realPrice * (1 + this.gap(symbol));
+  }
+
+  honestPrice(_symbol: string, realPrice: number): number {
+    return realPrice;
+  }
+
+  reset(symbol: string): void {
+    const s = this.state.get(symbol);
+    if (s) s.gap = 0;
+  }
+
+  resetAll(): void {
+    for (const s of this.state.values()) s.gap = 0;
+  }
+}
+
+export function cryptoMaintenancePhase(now: Date): "FROZEN" | "CONVERGING" | "OPEN" {
+  const utcH = now.getUTCHours();
+  const utcM = now.getUTCMinutes();
+  const istMinutes = (utcH * 60 + utcM + 330) % 1440;
+  const istHour = istMinutes / 60;
+  if (istHour >= 4 && istHour < 5) return "FROZEN";
+  if (istHour >= 5 && istHour < 6) return "CONVERGING";
+  return "OPEN";
+}
