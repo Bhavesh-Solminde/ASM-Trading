@@ -17,6 +17,7 @@ const STATUS_CHIP: Record<TradeView["status"], { label: string; className: strin
   WON: { label: "Won", className: "bg-up text-up-ink" },
   LOST: { label: "Lost", className: "text-down shadow-[inset_0_0_0_1px_var(--color-down)]" },
   REFUNDED: { label: "Refund", className: "bg-tile text-ink-2" },
+  CLOSED: { label: "Closed", className: "bg-tile text-ink" },
 };
 
 function RowShell({
