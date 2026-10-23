@@ -10,6 +10,7 @@ import { EngineRejected, EngineUnavailable, engineOpenTrade } from "@/lib/engine
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 const REJECTION_MESSAGE: Record<string, string> = {
+  trading_model_mismatch: "Trading mode changed. Refresh the page before placing another trade.",
   insufficient_funds: "Not enough balance for that stake.",
   unknown_asset: "That asset is not available right now.",
   account_not_found: "Account not found.",

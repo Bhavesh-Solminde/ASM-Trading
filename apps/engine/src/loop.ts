@@ -230,6 +230,7 @@ export function startTickLoop(
         continue;
       }
 
+      broadcastPrice = Number(broadcastPrice.toFixed(asset.precision));
       const closed = registry.record(asset.symbol, nowSec, broadcastPrice);
 
       server.broadcast(asset.symbol, {

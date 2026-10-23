@@ -29,8 +29,6 @@ async function main(): Promise<void> {
   // voids trades or the tick loop starts settling them.
   let desk: TradeDesk | null = null;
   let _cfdDesk: CfdDesk | null = null;
-  let _gapTracker: GapTracker | null = null;
-  let _quoteBuffer: QuoteBuffer | null = null;
   let _registry: AssetRegistry | null = null;
 
   const internal = createInternalApi({
@@ -49,14 +47,7 @@ async function main(): Promise<void> {
           return (_cfdDesk as unknown as Record<string, unknown>)[prop as string];
         },
       }),
-      shownMidPrice: (symbol: string) => {
-        if (!_registry) return 0;
-        const asset = _registry.get(symbol);
-        if (!asset) return 0;
-        const quote = _quoteBuffer?.latest(symbol);
-        const realPrice = quote?.price ?? asset.state.price;
-        return _gapTracker?.shownPrice(symbol, realPrice) ?? realPrice;
-      },
+      shownMidPrice: (symbol: string) => _registry?.publishedPrice(symbol) ?? 0,
     }),
   });
 
@@ -94,8 +85,6 @@ async function main(): Promise<void> {
     }
 
     _cfdDesk = cfdDesk;
-    _gapTracker = gapTracker;
-    _quoteBuffer = quoteBuffer;
     cfdDeps = { quoteBuffer, gapTracker, cfdDesk };
 
     feed = createPriceFeed(registry.symbols());
@@ -130,7 +119,7 @@ async function main(): Promise<void> {
   const reconciliationRunner = startReconciliationRunner();
 
   const crowd = new BotCrowd(registry, desk, (Date.now() >>> 1) & 0x7fffffff);
-  if (process.env.BOTS_ENABLED !== "false") {
+  if (process.env.TRADING_MODEL !== "CFD" && process.env.BOTS_ENABLED !== "false") {
     await crowd.provision();
     crowd.start();
   }

@@ -27,7 +27,6 @@ import { CfdTradeTicket } from "./CfdTradeTicket";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
 
-const IS_CFD = process.env.NEXT_PUBLIC_TRADING_MODEL === "CFD";
 import { AssetIcon } from "./AssetIcon";
 import { grossReturnMinor } from "./pnl-display";
 import { PositionStrip } from "./PositionStrip";
@@ -402,7 +401,7 @@ function TradesSheet({ onClose, ...panel }: ComponentProps<typeof TradesPanel> &
   );
 }
 
-export function TradeWorkspace() {
+export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD" }) {
   const {
     assets,
     market,
@@ -639,7 +638,7 @@ export function TradeWorkspace() {
         aria-label="Trade ticket and trades"
         className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:rounded-t-[20px] phone:border-l-0 phone:bg-panel land:grid-rows-[auto_minmax(0,1fr)] land:rounded-none land:border-l land:bg-transparent"
       >
-        {IS_CFD ? (
+        {tradingModel === "CFD" ? (
           <CfdTradeTicket
             symbol={asset.symbol}
             pair={splitAssetName(asset.displayName).pair}
