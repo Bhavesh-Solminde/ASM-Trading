@@ -328,7 +328,7 @@ export function CfdTradeTicket({
         </div>
       ) : null}
 
-      {/* ── LONG / SHORT buttons ─────────────────────── */}
+      {/* ── BUY / SELL buttons ─────────────────────── */}
       <div className="grid gap-2 phone:grid-cols-2 phone:gap-2.5 land:grid-cols-1 land:gap-1.5">
         <button
           type="button"
@@ -338,11 +338,11 @@ export function CfdTradeTicket({
           className={`${slab} ${slabLive} bg-up text-up-ink ${fired === "LONG" ? "slab-fired" : ""}`}
         >
           <span className="phone:hidden">
-            Long
+            Buy
             <small className={slabNote}>Price goes up, you profit</small>
           </span>
           <span className="hidden min-w-0 gap-1 text-left phone:grid">
-            <span className="tracking-[0.04em]">Long</span>
+            <span className="tracking-[0.04em]">Buy</span>
             <span className="truncate text-[11px] font-semibold normal-case tracking-normal">
               Buy at market
             </span>
@@ -361,11 +361,11 @@ export function CfdTradeTicket({
           className={`${slab} ${slabLive} bg-down text-down-ink ${fired === "SHORT" ? "slab-fired" : ""}`}
         >
           <span className="phone:hidden">
-            Short
+            Sell
             <small className={slabNote}>Price goes down, you profit</small>
           </span>
           <span className="hidden min-w-0 gap-1 text-left phone:grid">
-            <span className="tracking-[0.04em]">Short</span>
+            <span className="tracking-[0.04em]">Sell</span>
             <span className="truncate text-[11px] font-semibold normal-case tracking-normal">
               Sell at market
             </span>

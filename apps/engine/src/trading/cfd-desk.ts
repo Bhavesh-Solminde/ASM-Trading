@@ -104,10 +104,9 @@ export class CfdDesk {
       throw new Error("MARKET_UNAVAILABLE");
     }
 
-    const spreadMult = userSpreadMultiplier(risk.userDailyPnl, risk.dailyWinCap);
-    const skew = userFillSkew(risk.userDailyPnl, risk.dailyWinCap);
-    const { bid, ask } = computeSpread(shownMidPrice, asset.spreadBps, spreadMult);
-    const entry = fillPrice(dbDir, bid, ask, skew);
+    // The ticket and chart expose one execution price. Opening at an unseen
+    // bid/ask or user-specific skew creates a displaced entry line immediately.
+    const entry = shownMidPrice;
 
     // Unleveraged CFD: LONG liq at 0, SHORT liq at 2× entry
     const liqPrice = dbDir === "UP" ? 0 : entry * 2;

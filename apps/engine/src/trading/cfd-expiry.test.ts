@@ -43,3 +43,17 @@ it("notifies the opening balance after the CFD debit commits", async () => {
     balances: { realBalance: 90000, bonusBalance: 0 },
   }), "user");
 });
+
+it.each(["LONG", "SHORT"] as const)("opens %s at the published chart price even with configured spread", async (direction) => {
+  const create = vi.fn(async ({ data }) => ({ ...data, id: "trade", exitPrice: null, closeReason: null, pnl: 0 }));
+  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { create }, account: {
+    update: async () => {}, findUniqueOrThrow: async () => ({ realBalance: 100000, bonusBalance: 0 }),
+  } }));
+  const result = await new CfdDesk().open({ actorId: "u", accountId: "a", symbol: "BTCUSDT",
+    direction, stake: 10000, durationSec: 30 }, 81646.98,
+    { id: "asset", symbol: "BTCUSDT", spreadBps: 5 },
+    { treasuryMinor: 30000000, netExposure: 0, exposureCap: 50000000,
+      userDailyPnl: 60000, dailyWinCap: 60000, dynamicMaxStake: 150000, isCircuitBroken: false });
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ entryPrice: 81646.98 }) }));
+  expect(result.trade.entryPrice).toBe(81646.98);
+});
