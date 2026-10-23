@@ -528,6 +528,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
               currency={activeAccount.currency}
               chartType={chartType}
               enableBrackets={tradingModel === "CFD"}
+              tickSize={asset.tickSize ?? 10 ** -asset.precision}
             />
 
             {/* Desktop top-left overlay (clock, focus-mode switcher + market/history
@@ -607,13 +608,13 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
                 openCount={openCount}
                 onOpenHistory={() => setHistoryOpen(true)}
               />
-              <PositionStrip
+              {tradingModel !== "CFD" && <PositionStrip
                 className="pointer-events-none min-w-0 max-w-[420px] flex-1 land:hidden"
                 trades={trades}
                 assets={assets}
                 currency={activeAccount.currency}
                 onOpen={() => setHistoryOpen(true)}
-              />
+              />}
             </div>
 
             {status === "unauthorised" ? (
