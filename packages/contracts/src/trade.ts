@@ -106,3 +106,5 @@ export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
     pnl: row.pnl,
   };
 }
+
+export * from "./cfd-trade";
