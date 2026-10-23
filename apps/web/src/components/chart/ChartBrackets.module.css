@@ -77,3 +77,7 @@
 .positionPicker small { font-size:10px; line-height:1.5; }
 
 @container (min-width:760px) { .chartCanvas[data-protection-editor="open"] { right:318px; } }
+
+.edgeBracket { border-style:dashed; box-shadow:0 2px 10px #0008; }
+.bracket .edgeEdit { display:grid; place-items:center; cursor:pointer; border-left:1px solid var(--bracket-color); }
+.offscreen button { background:none; border:0; padding:2px 4px; color:inherit; cursor:pointer; }

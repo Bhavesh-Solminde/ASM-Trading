@@ -79,9 +79,9 @@ describe("position protection interaction edge cases", () => {
     const ui = render(h(Fixture, { trades: [trade, second] })); flush();
     const handle = screen.getByRole("button", { name: "Add TP to Buy position" });
     fireEvent.pointerDown(handle, { clientY: 300, pointerId: 1 }); fireEvent.pointerMove(handle, { clientY: 280, pointerId: 1 });
-    expect(chart.applyOptions).toHaveBeenCalledWith({ handleScroll: false, handleScale: false });
+    expect(chart.applyOptions).not.toHaveBeenCalled(); expect(scale.applyOptions).toHaveBeenCalledWith({ autoScale: false });
     state.now = 200; ui.rerender(h(Fixture, { trades: [trade, second] })); flush();
-    expect(chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: true, handleScale: true });
+    expect(chart.applyOptions).not.toHaveBeenCalled(); expect(scale.applyOptions).toHaveBeenLastCalledWith({ autoScale: true });
     open(); expect((screen.getByRole("checkbox", { name: "Enable TP" }) as HTMLInputElement).checked).toBe(false);
     expect(screen.getByText(/Sell ₹100.00 @ 110.00/)).toBeTruthy(); expect(fetch).not.toHaveBeenCalled();
   });
@@ -140,7 +140,7 @@ describe("position protection interaction edge cases", () => {
   it("10. cancelled pointer gestures and invalid/cleared fields cannot accidentally save a default", () => {
     render(h(Fixture)); flush(); const handle = screen.getByRole("button", { name: "Add TP to Buy position" });
     fireEvent.pointerDown(handle, { clientY: 300, pointerId: 1 }); fireEvent.pointerMove(handle, { clientY: 280, pointerId: 1 }); fireEvent.pointerCancel(handle, { pointerId: 1 }); flush();
-    expect(chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: true, handleScale: true }); expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull();
+    expect(chart.applyOptions).not.toHaveBeenCalled(); expect(scale.applyOptions).toHaveBeenLastCalledWith({ autoScale: true }); expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull();
     open(); enableTP(); fireEvent.change(screen.getByRole("spinbutton", { name: "TP price" }), { target: { value: "" } });
     expect((screen.getByRole("button", { name: "Confirm" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Edit position protection" }));
@@ -154,5 +154,64 @@ describe("position protection interaction edge cases", () => {
     expect((screen.getByRole("button", { name: "Confirm" }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Close protection editor" })); open();
     expect((screen.getByRole("checkbox", { name: "Enable TP" }) as HTMLInputElement).checked).toBe(false); expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+// Real chart options are mutable, and coordinate conversion can leave the plot.
+// These cases exercise those boundaries rather than assuming every label stays visible.
+describe("offscreen exits and interrupted drags", () => {
+  afterEach(() => vi.restoreAllMocks());
+  it.each([
+    ["takeProfit", "TP", "UP", 900, -500],
+    ["takeProfit", "TP", "DOWN", 10, 1000],
+    ["stopLoss", "SL", "DOWN", 900, -500],
+    ["stopLoss", "SL", "UP", 10, 1000],
+  ] as const)("keeps offscreen %s for %s / %s editable at its exact price", (kind, label, direction, level, y) => {
+    vi.spyOn(series, "priceToCoordinate").mockImplementation(p => p === level ? y : 300);
+    render(h(Fixture, { trades: [{ ...trade, direction, [kind]: level }] })); flush();
+    expect(screen.getByRole("button", { name: `${label} at ${level.toFixed(2)} outside chart` })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: `Edit offscreen ${label}` }));
+    expect((screen.getByRole("spinbutton", { name: `${label} price` }) as HTMLInputElement).value).toBe(level.toString());
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" })); expect(fetch).not.toHaveBeenCalled();
+  });
+  it("keeps the captured label mounted when dragging TP beyond the top and never disables chart navigation", () => {
+    render(h(Fixture, { trades: [{ ...trade, takeProfit: 110 }] })); flush();
+    const handle = screen.getByRole("button", { name: "Drag TP level" });
+    fireEvent.pointerDown(handle, { clientY: 280, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientY: -300, pointerId: 1 }); flush();
+    expect(screen.getByRole("button", { name: "Drag TP level" })).toBe(handle);
+    expect(screen.getByRole("button", { name: "TP at 250.00 outside chart" })).toBeTruthy();
+    fireEvent.pointerUp(handle, { clientY: -300, pointerId: 1 }); flush();
+    expect(chart.applyOptions).not.toHaveBeenCalled();
+    expect(scale.applyOptions).toHaveBeenLastCalledWith({ autoScale: true });
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" })); flush();
+    expect(screen.queryByRole("button", { name: "Edit offscreen TP" })).toBeNull(); expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each(["blur", "pointerup", "pointercancel"] as const)("restores scale and saved protection after window %s interrupts a drag", event => {
+    render(h(Fixture, { trades: [{ ...trade, takeProfit: 110 }] })); flush();
+    const handle = screen.getByRole("button", { name: "Drag TP level" });
+    fireEvent.pointerDown(handle, { clientY: 280, pointerId: 1 }); fireEvent.pointerMove(handle, { clientY: 270, pointerId: 1 });
+    fireEvent(window, new Event(event)); flush();
+    expect(scale.applyOptions).toHaveBeenLastCalledWith({ autoScale: true }); expect(chart.applyOptions).not.toHaveBeenCalled();
+    open(); expect((screen.getByRole("spinbutton", { name: "TP price" }) as HTMLInputElement).value).toBe("110"); expect(fetch).not.toHaveBeenCalled();
+  });
+  it("recovers cleanly when the browser rejects pointer capture", () => {
+    vi.spyOn(HTMLElement.prototype, "setPointerCapture").mockImplementation(() => { throw new Error("pointer ended"); });
+    render(h(Fixture)); flush(); fireEvent.pointerDown(screen.getByRole("button", { name: "Add TP to Buy position" }), { clientY: 300, pointerId: 1 }); flush();
+    expect(scale.applyOptions).toHaveBeenLastCalledWith({ autoScale: true }); expect(chart.applyOptions).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull(); expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each(["pointerdown", "wheel"])("releases a temporary fit before a canvas %s gesture", event => {
+    render(h(Fixture, { trades: [{ ...trade, takeProfit: 900 }] })); flush();
+    fireEvent.click(screen.getByRole("button", { name: "Fit position exits" }));
+    expect(series.applyOptions).toHaveBeenLastCalledWith({ autoscaleInfoProvider: expect.any(Function) });
+    fireEvent(screen.getByTestId("canvas"), new Event(event));
+    expect(series.applyOptions).toHaveBeenLastCalledWith({ autoscaleInfoProvider: undefined });
+  });
+  it("still opens the exact-price editor when the entry itself is outside the chart", () => {
+    vi.spyOn(series, "priceToCoordinate").mockReturnValue(null as any);
+    render(h(Fixture)); flush(); fireEvent.click(screen.getByRole("button", { name: "Manage Buy position" }));
+    expect(screen.getByRole("dialog", { name: "Edit position protection" })).toBeTruthy(); expect(fetch).not.toHaveBeenCalled();
   });
 });

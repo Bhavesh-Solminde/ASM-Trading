@@ -66,7 +66,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
   }
   function cancel() {
     if (requestRef.current) return;
-    dragRef.current?.release(); dragRef.current = null; setDraggingKind(null);
+    const gesture = dragRef.current; dragRef.current = null; gesture?.release(); setDraggingKind(null);
     updateDraft(null); setEditorId(null); setPriceInputs({}); setMoneyInputs({}); setNotice(null);
   }
   actionsRef.current.cancel = cancel;
@@ -75,14 +75,14 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     mounted.current = true;
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") actionsRef.current.cancel(); };
     window.addEventListener("keydown", key);
-    return () => { mounted.current = false; window.removeEventListener("keydown", key); dragRef.current?.release(); requestRef.current?.controller.abort(); clearTimeout(requestRef.current?.timer); requestRef.current = null; };
+    return () => { mounted.current = false; window.removeEventListener("keydown", key); const drag = dragRef.current; dragRef.current = null; drag?.release(); requestRef.current?.controller.abort(); clearTimeout(requestRef.current?.timer); requestRef.current = null; };
   }, []);
   // A ticket can be open without a draft. Its owner, not draft existence,
   // determines whether the editor and reserved chart width are still valid.
   useLayoutEffect(() => {
     const owner = draft?.tradeId ?? editorId;
     if (owner && (!controlsEnabled || !positions.some(t => t.id === owner))) {
-      dragRef.current?.release(); dragRef.current = null; setDraggingKind(null);
+      const gesture = dragRef.current; dragRef.current = null; gesture?.release(); setDraggingKind(null);
       requestRef.current?.controller.abort(); clearTimeout(requestRef.current?.timer); requestRef.current = null; setBusy(false);
       updateDraft(null); setEditorId(null); setPriceInputs({}); setMoneyInputs({});
       setNotice({ text: "Position closed. Its protection is no longer active." });
@@ -114,7 +114,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
 
   function selectPosition(id: string) {
     if (requestRef.current || id === selected?.id) return;
-    dragRef.current?.release(); dragRef.current = null; setDraggingKind(null);
+    const gesture = dragRef.current; dragRef.current = null; gesture?.release(); setDraggingKind(null);
     const discarded = draftRef.current && Object.keys(bracketChanges(draftRef.current.base, draftRef.current.levels)).length > 0;
     updateDraft(null); setSelectedId(id); setEditorId(editor ? id : null);
     setPriceInputs({}); setMoneyInputs({});
@@ -210,6 +210,18 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     updateDraft({ ...next, levels: { ...next.levels, [kind]: value } });
     setSelectedId(trade.id); setNotice(null);
   }
+  function abortDrag() {
+    const drag = dragRef.current; if (!drag) return;
+    dragRef.current = null; drag.release(); setDraggingKind(null);
+    updateDraft(drag.before); scheduleRef.current();
+  }
+  useEffect(() => {
+    const abort = () => abortDrag();
+    window.addEventListener("blur", abort);
+    window.addEventListener("pointerup", abort);
+    window.addEventListener("pointercancel", abort);
+    return () => { window.removeEventListener("blur", abort); window.removeEventListener("pointerup", abort); window.removeEventListener("pointercancel", abort); };
+  }, []);
   function beginDrag(e: ReactPointerEvent<HTMLButtonElement>, trade: TradeView, kind: BracketKind) {
     if (requestRef.current || (draft && draft.tradeId !== trade.id)) return;
     e.preventDefault(); e.stopPropagation(); setDraggingKind(trade.id + kind); setEditorId(null); setNotice(null); setSelectedId(trade.id);
@@ -217,11 +229,22 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     const next = getDraft(trade);
     updateDraft({ ...next, levels: { ...next.levels, [kind]: next.levels[kind] ?? trade.entryPrice } });
     const chart = chartRef.current; const scale = chart?.priceScale("right");
-    const options = chart?.options(); const auto = scale?.options().autoScale;
-    chart?.applyOptions({ handleScroll: false, handleScale: false }); scale?.applyOptions({ autoScale: false });
-    e.currentTarget.setPointerCapture(e.pointerId);
+    const auto = scale?.options().autoScale;
+    // Overlay pointer capture already isolates this gesture from the canvas.
+    // Never mutate chart navigation: chart.options() returns live objects, so
+    // retaining that object and restoring it after applyOptions(false) restores
+    // the disabled values rather than the original navigation settings.
+    const target = e.currentTarget; const pointerId = e.pointerId;
+    let released = false;
     dragRef.current = { tradeId: trade.id, kind, startY: e.clientY, moved: false, before,
-      release: () => { chart?.applyOptions({ handleScroll: options?.handleScroll ?? true, handleScale: options?.handleScale ?? true }); scale?.applyOptions({ autoScale: auto ?? true }); } };
+      release: () => {
+        if (released) return; released = true;
+        try { scale?.applyOptions({ autoScale: auto ?? true }); } catch {}
+        try { if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId); } catch {}
+      } };
+    scale?.applyOptions({ autoScale: false });
+    try { target.setPointerCapture(pointerId); }
+    catch { abortDrag(); }
   }
   function moveDrag(e: ReactPointerEvent<HTMLButtonElement>) {
     const drag = dragRef.current; const d = draftRef.current;
@@ -235,7 +258,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
   }
   function endDrag(e: ReactPointerEvent<HTMLButtonElement>, aborted = false) {
     const drag = dragRef.current; if (!drag) return;
-    drag.release(); dragRef.current = null; setDraggingKind(null);
+    dragRef.current = null; drag.release(); setDraggingKind(null);
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     if (aborted) updateDraft(drag.before);
     else if (!drag.moved) {
@@ -263,6 +286,12 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
   }
   const fitCleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => { fitCleanup.current?.(); fitCleanup.current = null; }, [selected?.id, chartVersion]);
+  useEffect(() => {
+    const el = containerRef.current; if (!el) return;
+    const releaseFit = () => { fitCleanup.current?.(); fitCleanup.current = null; scheduleRef.current(); };
+    el.addEventListener("pointerdown", releaseFit); el.addEventListener("wheel", releaseFit, { passive: true });
+    return () => { el.removeEventListener("pointerdown", releaseFit); el.removeEventListener("wheel", releaseFit); };
+  }, [containerRef, chartVersion]);
 
   async function confirm() {
     const d = draftRef.current; const t = positions.find(t => t.id === d?.tradeId);
@@ -355,14 +384,23 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
           </div>
         </div>}
         {BRACKET_KINDS.map(kind => {
-          const level = levels[kind], y = g[kind]; if (level == null || !isInChart(y)) return null;
+          const level = levels[kind], y = g[kind]; if (level == null) return null;
+          const offscreen = !isInChart(y);
+          if (offscreen && !active) return null;
+          // Keep a selected exit reachable without pretending its true price
+          // is at the edge. The badge shows direction + exact offscreen price;
+          // its native line remains at the actual price on the price scale.
+          const above = y == null ? level > t.entryPrice : y < geometry.height / 2;
+          const edgeSlot = kind === "stopLoss" ? 32 : 0;
+          const rowY = offscreen ? (above ? 110 + edgeSlot : Math.max(110, geometry.height - 52 - edgeSlot)) : y;
           const pending = draft?.tradeId === t.id && draft.base[kind] !== level;
           const invalid = pending && bracketError(kind, level, t.direction, livePrice);
-          return <div key={kind} className={styles.row} style={{ top: y, "--bracket-color": COLORS[kind] } as CSSProperties}>
+          return <div key={kind} className={styles.row} style={{ top: rowY, "--bracket-color": COLORS[kind] } as CSSProperties}>
             <div className={styles.group} style={{ right: axisRight, opacity: active ? 1 : .6 }}>
-              <div className={`${styles.bracket} ${pending ? styles.pending : ""} ${invalid ? styles.invalid : ""} ${busy ? styles.saving : ""}`}>
-                <button type="button" className={styles.label} aria-label={`Drag ${BRACKET_LABEL[kind]} level`} title={`${pending ? "Unconfirmed " : ""}${BRACKET_LABEL[kind]} ${level.toFixed(precision)} · drag to modify, double-click to edit`} disabled={busy || !!draft && draft.tradeId !== t.id} {...dragEvents(t, kind)} onDoubleClick={() => editPosition(t)}>{BRACKET_LABEL[kind]}</button>
-                <button type="button" className={styles.outcome} aria-label={`${BRACKET_LABEL[kind]} at ${level.toFixed(precision)}`} title={`Price ${level.toFixed(precision)} · ${pending ? "not confirmed" : "active"}`} disabled={busy || !!draft && draft.tradeId !== t.id} {...dragEvents(t, kind)} onDoubleClick={() => editPosition(t)}>{money(bracketPnl(t, level), currency)}</button>
+              <div className={`${styles.bracket} ${pending ? styles.pending : ""} ${invalid ? styles.invalid : ""} ${busy ? styles.saving : ""} ${offscreen ? styles.edgeBracket : ""}`}>
+                <button type="button" className={styles.label} aria-label={`Drag ${BRACKET_LABEL[kind]} level`} title={`${pending ? "Unconfirmed " : ""}${BRACKET_LABEL[kind]} ${level.toFixed(precision)} · drag to modify, double-click to edit`} disabled={busy || !!draft && draft.tradeId !== t.id} {...dragEvents(t, kind)} onDoubleClick={() => editPosition(t)}>{BRACKET_LABEL[kind]}{offscreen ? above ? " ↑" : " ↓" : ""}</button>
+                <button type="button" className={styles.outcome} aria-label={`${BRACKET_LABEL[kind]} at ${level.toFixed(precision)}${offscreen ? " outside chart" : ""}`} title={`Price ${level.toFixed(precision)} · ${pending ? "not confirmed" : "active"}`} disabled={busy || !!draft && draft.tradeId !== t.id} {...dragEvents(t, kind)} onDoubleClick={() => editPosition(t)}>{offscreen ? level.toFixed(precision) : money(bracketPnl(t, level), currency)}</button>
+                {offscreen && <button type="button" className={styles.edgeEdit} aria-label={`Edit offscreen ${BRACKET_LABEL[kind]}`} title="Outside visible range · edit exact price" disabled={busy} onClick={() => editPosition(t)}><Edit /></button>}
                 <button type="button" className={styles.remove} aria-label={`Remove ${BRACKET_LABEL[kind]}`} title={`Remove ${BRACKET_LABEL[kind]}`} disabled={busy || !!draft && draft.tradeId !== t.id} onClick={() => changeLevel(t, kind, null)}><Cross /></button>
               </div>
             </div>
@@ -370,7 +408,10 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
         })}
       </div>;
     })}
-    {activeGeometry && !isInChart(activeGeometry.entry) && <button type="button" className={styles.offscreen} style={{ top: 70 }} onClick={fitLevels}>↕ Show position and exits</button>}
+    {activeGeometry && !isInChart(activeGeometry.entry) && <div className={styles.offscreen} style={{ bottom: 32 }}>
+      <button type="button" disabled={busy} onClick={() => editPosition(selected)}>Manage {selected.direction === "UP" ? "Buy" : "Sell"} position</button>
+      <button type="button" onClick={fitLevels}>↕ Fit position and exits</button>
+    </div>}
 
     {!editor && draft && dirty && !notice && !validation && <span className="sr-only" role="status">Preview only. Current protection stays active until you confirm.</span>}
     {!editor && (notice || validation) && <div className={styles.notice} role={infoError ? "alert" : "status"} data-error={!!infoError}>

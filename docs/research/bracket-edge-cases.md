@@ -21,9 +21,19 @@ These are mounted React interaction tests in `apps/web/src/components/chart/Char
 
 ## Validation
 
-- 43 focused tests across seven files, including the ten mounted editor cases, both Buy/Sell request payloads, preference persistence/cross-tab updates, bracket calculations, trade state, trade-panel behavior and P&L.
+- 55 focused tests across seven files, including the ten mounted editor cases, both Buy/Sell request payloads, preference persistence/cross-tab updates, bracket calculations, trade state, trade-panel behavior and P&L.
 - Web TypeScript check and whitespace check.
 - Local dev mode against a dedicated Supabase demo schema, with real market feed. No production trades used.
 - Visually verified the untouched-editor expiry and full-width recovery; two simultaneous Buy/Sell trades and draft switching; Settings off/on without creating exits; phone draft cancellation; explicitly saving TP at 90000, reopening the saved value, and explicitly removing it.
 - Visual resizing initially exposed Lightweight Charts' `right should be >= left` assertion. Replaced JavaScript resize-based spacing with a container query and repeated phone/desktop resizing without new chart errors. Measured desktop parent/canvas widths of 988/670 px (318 px reservation) and phone widths of 390/390 px (zero reservation). Finally let the last remaining trade expire with an untouched editor open: OPEN became zero, the editor disappeared and the chart recovered its full width.
 - An existing dev-only CSP/eval warning remains; production security headers were not weakened.
+
+## Offscreen protection and chart navigation follow-up
+
+The user reported that a high TP disappeared and the chart stopped moving. There were two causes: exits outside the visible coordinate range were unmounted, and bracket dragging restored navigation from the chart's mutable options object after it had already been disabled. An offscreen captured label could also disappear before releasing its drag.
+
+- The selected position's offscreen TP/SL now stays available as an edge badge with an up/down arrow, exact price, pencil and removal control. The native price line keeps its actual price; the edge badge does not represent a fake price level. The captured label stays mounted as it moves outside the plot.
+- Pointer capture isolates bracket gestures without changing chart scroll/zoom options. Autoscale is frozen only for the gesture, then restored. Blur, cancelled gestures, window release, lost capture, capture failure, expiry and unmount release the gesture safely.
+- When the position entry is outside the plot, Manage position still opens the price editor. Temporary Fit exits scaling is released by the next canvas pan or wheel gesture.
+- Added 12 mounted regressions: offscreen TP and SL above/below the view for Buy/Sell, dragging a captured label beyond the top, three window interruptions, rejected pointer capture, pan/wheel after fitting and an offscreen entry.
+- Visually tested using the isolated local Supabase demo: saved TP 90000, edited it from its edge badge to 88000, dragged it back to an unconfirmed 81736, panned the chart while the preview remained open, cancelled back to the saved TP and added SL 50000. Both edge badges remained accessible on desktop and a 390px phone. On phone, dragged TP above the chart and released over the header, cancelled, then panned the chart successfully. Price-axis scaling worked on desktop as well.
