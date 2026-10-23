@@ -4,8 +4,11 @@ import { logger } from "@asm/logger";
 import { prisma } from "@asm/db";
 import { AssetRegistry } from "./assets/registry";
 import { EngineServer } from "./server";
-import { startTickLoop } from "./loop";
+import { startTickLoop, type CfdDeps } from "./loop";
 import { createPriceFeed } from "./feeds";
+import { QuoteBuffer } from "./feeds/quote-buffer";
+import { GapTracker } from "./trading/gap";
+import { CfdDesk } from "./trading/cfd-desk";
 import { createTicketAuthenticator } from "./auth/ws-ticket";
 import { createInternalApi } from "./internal-api";
 import { TradeDesk } from "./trading/trade-desk";
@@ -54,20 +57,39 @@ async function main(): Promise<void> {
   desk = new TradeDesk(registry, server, controller);
   await desk.hydrate(Math.floor(Date.now() / 1000));
 
-  const loop = startTickLoop(registry, server, desk);
+  const IS_CFD = process.env.TRADING_MODEL === "CFD";
+  let cfdDeps: CfdDeps | undefined;
+  let feed: Awaited<ReturnType<typeof createPriceFeed>> | null = null;
 
-  // Every market is house-first with the algo owning both the shown and the
-  // honest path. External price feeds would tug on both via the L4 anchor,
-  // undermining that authority — so unless EXTERNAL_ANCHORS=on is set for a
-  // debugging session, we skip feed startup entirely and no `setAnchor` call
-  // is ever made. Preserves the code path for future re-enablement.
-  const externalAnchors = process.env["EXTERNAL_ANCHORS"] === "on";
-  const feed = externalAnchors ? createPriceFeed(registry.symbols()) : null;
-  if (feed) {
+  if (IS_CFD) {
+    const quoteBuffer = new QuoteBuffer();
+    const gapTracker = new GapTracker();
+    const cfdDesk = new CfdDesk();
+
+    for (const asset of registry.all()) {
+      const sigma1h = registry.sigmaNow(asset.symbol) * Math.sqrt(3600);
+      gapTracker.registerAsset(asset.symbol, { sigma1h, maxGapMultiple: 3 });
+    }
+
+    cfdDeps = { quoteBuffer, gapTracker, cfdDesk };
+
+    feed = createPriceFeed(registry.symbols());
     await feed.start((quote) => {
+      quoteBuffer.update(quote);
       registry.setAnchor(quote.symbol, quote.price);
     });
+  } else {
+    // Binary mode: external anchors only if explicitly enabled.
+    const externalAnchors = process.env["EXTERNAL_ANCHORS"] === "on";
+    feed = externalAnchors ? createPriceFeed(registry.symbols()) : null;
+    if (feed) {
+      await feed.start((quote) => {
+        registry.setAnchor(quote.symbol, quote.price);
+      });
+    }
   }
+
+  const loop = startTickLoop(registry, server, desk, cfdDeps);
 
   await internal.listen();
 

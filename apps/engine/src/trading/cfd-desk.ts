@@ -399,6 +399,12 @@ export class CfdDesk {
     );
   }
 
+  async openPositionsForAsset(assetId: string) {
+    return prisma.trade.findMany({
+      where: { assetId, status: "OPEN", durationSec: { not: null } },
+    });
+  }
+
   async modify(
     tradeId: string,
     changes: { stopLoss?: number | null; takeProfit?: number | null },

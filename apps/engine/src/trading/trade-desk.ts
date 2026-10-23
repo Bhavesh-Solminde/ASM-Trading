@@ -724,11 +724,11 @@ export class TradeDesk {
 
       // Best-effort: the money has already moved, so a stats-update failure
       // must never roll the settlement back or retry it.
-      if (settled.trade.status !== "OPEN") {
+      if (settled.trade.status !== "OPEN" && settled.trade.status !== "CLOSED") {
         await recordSettledTrade({
           accountId: item.position.accountId,
           stake: item.position.stake,
-          outcome: settled.trade.status,
+          outcome: settled.trade.status as "WON" | "LOST" | "REFUNDED",
         }).catch((err: unknown) => {
           logger.error(
             {
