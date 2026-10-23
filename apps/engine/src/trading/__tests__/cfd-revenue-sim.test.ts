@@ -14,8 +14,9 @@
 //   - Spread fee always moves LIVE paisa to the house (`stake * spreadBps / 10000`).
 //   - DEMO trades never touch the house treasury.
 //   - LIVE closed trades contribute `spreadFee + (-grossPnl)` to the house.
-//   - Payout formula: `pnl = dir × (exit − entry) / entry × stake − spreadFee`
-//     with the gross component clamped at −stake (full-stake-at-risk unleveraged CFD).
+//   - Displayed/stored payout formula: `pnl = dir × (exit − entry) / entry × stake`
+//     clamped at −stake (unleveraged, full-stake-at-risk). The opening spread
+//     fee is debited at open and NOT re-subtracted at close (cfd-desk.ts).
 //   - Each of the six CloseReason enum values fires at least once in the sim.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
@@ -200,7 +201,7 @@ describe("CFD revenue simulation — Step 1", () => {
     expect(await readTreasury()).toBe(before);
   });
 
-  it("close PnL formula: pnl = dir × (exit − entry) / entry × stake − spreadFee", async () => {
+  it("close PnL formula: pnl = dir × (exit − entry) / entry × stake (gross, fee not re-subtracted)", async () => {
     const asset = assetConfig(`${TAG}_XAUUSD`); // 10 bps
     const stake = 1_000_000; // ₹10,000
     const entry = 2650;
@@ -217,7 +218,7 @@ describe("CFD revenue simulation — Step 1", () => {
       asset,
       RISK,
     );
-    const spreadFee = trade.spreadFee ?? 0;
+    void trade;
 
     const exit = entry * 1.02; // +2% move
     const row = await prisma.trade.findUniqueOrThrow({ where: { id: trade.id } });
@@ -237,8 +238,7 @@ describe("CFD revenue simulation — Step 1", () => {
     );
 
     const expectedGross = Math.round(((exit - entry) / entry) * stake);
-    const expectedPnl = expectedGross - spreadFee;
-    expect(closed.pnl).toBe(expectedPnl);
+    expect(closed.pnl).toBe(expectedGross);
   });
 
   it("simulates 100 trades across all 5 assets and matches house math exactly", async () => {
@@ -331,8 +331,9 @@ describe("CFD revenue simulation — Step 1", () => {
         const rawPnl = Math.round(pnlFrac * stake);
         const grossPnl = Math.max(rawPnl, -stake);
         expectedHouseGross += -grossPnl;
-        // Each trade's recorded pnl must equal gross − spreadFee.
-        expect(closed.pnl).toBe(grossPnl - spreadFee);
+        // Stored pnl is pure gross (fee was taken at open; see cfd-desk.ts).
+        void spreadFee;
+        expect(closed.pnl).toBe(grossPnl);
       }
     }
 

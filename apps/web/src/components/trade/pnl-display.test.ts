@@ -47,6 +47,8 @@ it("estimates CFD net movement rather than losing the whole investment", () => {
   expect(cfdOpenPnl(trade, null)).toBeNull();
 });
 
-it("includes the already-paid fee in the live CFD estimate", () => {
-  expect(cfdOpenPnl({ direction: "UP", stake: 100000, entryPrice: 100, spreadFee: 50 }, 100)).toBe(-50);
+it("shows gross market PnL only — the opening fee is a sunk cost, not re-subtracted every tick", () => {
+  // A flat move must read 0, not −fee. Previously this returned −50 and made
+  // every low-move trade look red even while the chart was on the user's side.
+  expect(cfdOpenPnl({ direction: "UP", stake: 100000, entryPrice: 100 }, 100)).toBe(0);
 });

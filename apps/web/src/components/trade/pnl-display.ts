@@ -58,9 +58,18 @@ export function openSide(
   return (direction === "UP") === above ? "winning" : "losing";
 }
 
-/** Unleveraged CFD estimate at the displayed price, capped at the investment. */
-export function cfdOpenPnl(trade: Pick<TradeView, "direction" | "stake" | "entryPrice" | "spreadFee">, price: number | null): number | null {
+/**
+ * Unleveraged CFD gross PnL at the displayed price, capped at the stake.
+ *
+ * This is PURE market move only — the opening spread fee is NOT subtracted
+ * here. The fee was debited from the user's wallet when the trade opened
+ * (cfd-desk.ts:182), so subtracting it again on every tick would make a trade
+ * that is up by less than the fee read red even while the chart is clearly
+ * on the user's side. Credited balance on close is `stake + grossPnl`, which
+ * matches this number exactly.
+ */
+export function cfdOpenPnl(trade: Pick<TradeView, "direction" | "stake" | "entryPrice">, price: number | null): number | null {
   if (price === null || trade.entryPrice <= 0) return null;
   const move = trade.direction === "UP" ? price - trade.entryPrice : trade.entryPrice - price;
-  return Math.max(-trade.stake, Math.round(move / trade.entryPrice * trade.stake)) - (trade.spreadFee ?? 0);
+  return Math.max(-trade.stake, Math.round(move / trade.entryPrice * trade.stake));
 }

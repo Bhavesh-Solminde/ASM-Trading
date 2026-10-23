@@ -28,7 +28,7 @@ describe("chart bracket drafts", () => {
     expect(bracketError("stopLoss", NaN, "UP", 80000)).toContain("greater than zero");
     expect(bracketError("stopLoss", null, "UP", null)).toBeNull();
   });
-  it.each(["UP", "DOWN"] as const)("synchronizes money and price with the opening fee for %s", direction => {
+  it.each(["UP", "DOWN"] as const)("round-trips money ↔ price through the displayed-PnL formula for %s", direction => {
     const t = { ...trade, direction };
     const target = bracketFromPnl(t, 1200, .01, 2);
     const stop = bracketFromPnl(t, -500, .01, 2);

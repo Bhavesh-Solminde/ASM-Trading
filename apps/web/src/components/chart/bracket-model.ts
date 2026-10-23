@@ -30,14 +30,19 @@ export function defaultBracketPrice(kind: BracketKind, trade: TradeView, current
   const below = (kind === "stopLoss") === (trade.direction === "UP");
   const distance = Math.max(priceSpan * .18, current * .00025, tick * 5);
   let price = current + (below ? -distance : distance);
+  // Displayed PnL is pure market move (see cfdOpenPnl), so breakeven is just
+  // the entry price. Keep the default TP at least `distance` beyond entry so
+  // the suggested TP is always a visibly profitable price, not merely at entry.
   if (kind === "takeProfit") {
-    const breakeven = trade.entryPrice * (1 + (trade.direction === "UP" ? 1 : -1) * (trade.spreadFee ?? 0) / trade.stake);
-    price = trade.direction === "UP" ? Math.max(price, breakeven + distance) : Math.min(price, breakeven - distance);
+    price = trade.direction === "UP"
+      ? Math.max(price, trade.entryPrice + distance)
+      : Math.min(price, trade.entryPrice - distance);
   }
   return snapBracketPrice(Math.max(tick, price), tick, precision);
 }
 export function bracketFromPnl(trade: TradeView, netMinor: number, tick: number, precision: number): number {
-  const move = (netMinor + (trade.spreadFee ?? 0)) / trade.stake;
+  // Inverse of cfdOpenPnl: PnL / stake = fractional move from entry.
+  const move = netMinor / trade.stake;
   return snapBracketPrice(trade.entryPrice * (1 + (trade.direction === "UP" ? move : -move)), tick, precision);
 }
 export function bracketPnl(trade: TradeView, price: number): number { return cfdOpenPnl(trade, price) ?? 0; }

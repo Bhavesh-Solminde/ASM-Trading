@@ -87,14 +87,16 @@ it("charges the full spread separately, logs it and credits LIVE treasury", asyn
   expect(treasury).toHaveBeenCalledWith(expect.objectContaining({ update: { treasuryMinor: { increment: 50 } } }));
 });
 
-it("does not charge the fee twice when a flat trade closes", async () => {
+it("returns pure gross PnL on a flat close — the opening fee is not re-subtracted at close", async () => {
   const credit = vi.fn(async () => {});
   const update = vi.fn(async () => {});
   mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { update },
     account: { update: credit, findUnique: async () => ({ type: "DEMO" }) } }));
   const result = await new CfdDesk().closePosition({ id: "t", accountId: "a", direction: "UP",
     entryPrice: 100, stake: 100000, stakeFromBonus: 0, spreadFee: 50 }, "DURATION", 100, new Date());
-  expect(result.pnl).toBe(-50);
+  // Flat market close: grossPnl = 0 → displayed pnl = 0. Credited balance is
+  // still just the stake back (netReturn = stake + grossPnl = stake).
+  expect(result.pnl).toBe(0);
   expect(credit).toHaveBeenCalledWith(expect.objectContaining({ data: {
     realBalance: { increment: 100000 }, bonusBalance: { increment: 0 },
   } }));

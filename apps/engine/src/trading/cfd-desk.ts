@@ -344,7 +344,14 @@ export class CfdDesk {
       : (trade.entryPrice - exitPrice) / trade.entryPrice;
     const rawPnl = Math.round(pnlFrac * trade.stake);
     const grossPnl = Math.max(rawPnl, -trade.stake);
-    const pnl = grossPnl - (trade.spreadFee ?? 0);
+    // Displayed / stored PnL is the pure market move. The spread fee was
+    // debited and credited to the house at open (cfd-desk.ts:182), so showing
+    // it again here punishes the user visually for a cost already paid — a
+    // trade in gross profit should read green even if the gross profit is
+    // smaller than the already-paid spread. Economics are unchanged because
+    // the user's balance credit is `stake + grossPnl`, which never included
+    // the fee anyway.
+    const pnl = grossPnl;
 
     await prisma.$transaction(async (tx) => {
       await tx.trade.update({
