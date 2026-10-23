@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { TIMEFRAMES, type TradeView } from "@asm/contracts";
+import { useChartProtection } from "@/lib/chart-protection-preference";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { SentimentBar } from "@/components/chart/SentimentBar";
 import { TimeframeTabs } from "@/components/chart/TimeframeTabs";
@@ -425,6 +426,8 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     [recordOpened],
   );
 
+  const chartProtection = useChartProtection();
+  const chartTimeframe = useMarket(market, s => s.chart.timeframe);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candles");
   const [marketPickerOpen, setMarketPickerOpen] = useState(false);
@@ -528,6 +531,8 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
               currency={activeAccount.currency}
               chartType={chartType}
               enableBrackets={tradingModel === "CFD"}
+              bracketScope={`${activeAccount.id}:${asset.symbol}:${chartTimeframe}:${chartType}:${chartProtection}`}
+              bracketControls={chartProtection}
               tickSize={asset.tickSize ?? 10 ** -asset.precision}
             />
 

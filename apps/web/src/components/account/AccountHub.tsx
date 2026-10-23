@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useChartProtection, setChartProtection } from "@/lib/chart-protection-preference";
 import { USD_INR_RATE } from "@/lib/currency";
 import { formatMinor } from "@/lib/format-money";
 import { isMuted, setMuted } from "@/lib/sound";
@@ -64,6 +65,7 @@ export function AccountHub({
   /** The sign-out rows (client component supplied by the page). */
   signOut: React.ReactNode;
 }) {
+  const chartProtection = useChartProtection();
   const live = accounts.find((a) => a.type === "LIVE");
   const demo = accounts.find((a) => a.type === "DEMO");
   const [pick, setPick] = useState<"LIVE" | "DEMO">(live ? "LIVE" : "DEMO");
@@ -177,6 +179,8 @@ export function AccountHub({
       </ListGroup>
 
       <ListGroup title="Preferences">
+        <ToggleRow icon="trade" label="Chart SL/TP controls" checked={chartProtection} onChange={setChartProtection} />
+        <li className="px-4 pb-3 text-xs text-ink-2">Show optional chart controls. Hiding them keeps saved SL/TP active. Saved on this browser.</li>
         <LinkRow
           href="/account/currency"
           icon="currency"

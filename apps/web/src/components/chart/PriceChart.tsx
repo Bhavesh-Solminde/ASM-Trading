@@ -437,6 +437,8 @@ export function PriceChart({
   currency,
   chartType = "candles",
   enableBrackets = false,
+  bracketScope,
+  bracketControls = true,
   tickSize,
 }: {
   market: MarketStore;
@@ -446,6 +448,8 @@ export function PriceChart({
   currency: string;
   chartType?: ChartType;
   enableBrackets?: boolean;
+  bracketScope?: string;
+  bracketControls?: boolean;
   tickSize?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -998,7 +1002,7 @@ export function PriceChart({
           internal z-index:50 canvases stay trapped below the overlay controls
           (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
-      {enableBrackets && <ChartBrackets trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
+      {enableBrackets && <ChartBrackets key={bracketScope} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
         precision={precision} tickSize={tickSize ?? 10 ** -precision} currency={currency} chartVersion={chartVersion} market={market} />}
 
 

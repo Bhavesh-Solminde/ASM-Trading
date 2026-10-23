@@ -14,6 +14,7 @@ import styles from "./ChartBrackets.module.css";
 
 const COLORS = { buy: "#2962ff", sell: "#f23645", stopLoss: "#f23645", takeProfit: "#089981" };
 type Draft = { tradeId: string; base: BracketLevels; levels: BracketLevels };
+type ProtectionRequest = { controller: AbortController; tradeId: string; timer?: ReturnType<typeof setTimeout> };
 type RowGeometry = { entry: number | null; stopLoss: number | null; takeProfit: number | null };
 type Geometry = { width: number; height: number; axis: number; rows: Record<string, RowGeometry> };
 type Drag = { tradeId: string; kind: BracketKind; startY: number; moved: boolean; before: Draft | null; release: () => void };
@@ -23,22 +24,23 @@ function Cross({ size = 12 }: { size?: number }) { return <svg width={size} heig
 function Edit() { return <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden><path d="m10.5 2.5 3 3-7.5 7.5-3.5.5.5-3.5 7.5-7.5Z" stroke="currentColor" strokeWidth="1.2"/><path d="m9 4 3 3" stroke="currentColor"/></svg>; }
 function money(value: number | null, currency: string): string { return value == null ? "—" : `${value > 0 ? "+" : value < 0 ? "−" : ""}${formatMinor(Math.abs(value), currency)}`; }
 
-export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, precision, tickSize, currency, chartVersion, market }: {
+export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, precision, tickSize, currency, chartVersion, market, controlsEnabled = true }: {
   trades: TradeView[]; seriesRef: RefObject<ISeriesApi<any> | null>; chartRef: RefObject<IChartApi | null>;
-  containerRef: RefObject<HTMLDivElement | null>; precision: number; tickSize: number; currency: string; chartVersion: number; market: MarketStore;
+  containerRef: RefObject<HTMLDivElement | null>; precision: number; tickSize: number; currency: string; chartVersion: number; market: MarketStore; controlsEnabled?: boolean;
 }) {
   const now = useNowSec();
   const positions = useMemo(() => trades.filter(t => t.durationSec != null && t.status === "OPEN" && (now == null || t.expiryTs > now)), [trades, now]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [editor, setEditor] = useState(false);
+  const [editorId, setEditorId] = useState<string | null>(null);
+  const editor = controlsEnabled && positions.some(t => t.id === editorId);
   const [draggingKind, setDraggingKind] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [priceInputs, setPriceInputs] = useState<Partial<Record<BracketKind, string>>>({});
   const [moneyInputs, setMoneyInputs] = useState<Partial<Record<BracketKind, string>>>({});
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [geometry, setGeometry] = useState<Geometry>(emptyGeometry);
-  const selected = positions.find(t => t.id === (draft?.tradeId ?? selectedId)) ?? positions[0];
+  const selected = positions.find(t => t.id === (draft?.tradeId ?? editorId ?? selectedId)) ?? positions[0];
   const livePrice = useQuote(selected?.symbol ?? "")?.price ?? null;
   const { recordTradeUpdate } = usePlatform();
   const draftRef = useRef(draft); draftRef.current = draft;
@@ -48,6 +50,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
   const linesRef = useRef<{ series: ISeriesApi<any> | null; lines: Map<string, IPriceLine> }>({ series: null, lines: new Map() });
   const scheduleRef = useRef<() => void>(() => {});
   const mounted = useRef(true);
+  const requestRef = useRef<ProtectionRequest | null>(null);
   const actionsRef = useRef({ cancel: () => {} });
   const currentLevels = selected && draft?.tradeId === selected.id ? draft.levels : selected ? savedBrackets(selected) : null;
   const changes = draft ? bracketChanges(draft.base, draft.levels) : {};
@@ -62,9 +65,9 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     return { tradeId: trade.id, base, levels: { ...base } };
   }
   function cancel() {
-    if (busy) return;
+    if (requestRef.current) return;
     dragRef.current?.release(); dragRef.current = null; setDraggingKind(null);
-    updateDraft(null); setEditor(false); setPriceInputs({}); setMoneyInputs({}); setNotice(null);
+    updateDraft(null); setEditorId(null); setPriceInputs({}); setMoneyInputs({}); setNotice(null);
   }
   actionsRef.current.cancel = cancel;
 
@@ -72,34 +75,55 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     mounted.current = true;
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") actionsRef.current.cancel(); };
     window.addEventListener("keydown", key);
-    return () => { mounted.current = false; window.removeEventListener("keydown", key); dragRef.current?.release(); };
+    return () => { mounted.current = false; window.removeEventListener("keydown", key); dragRef.current?.release(); requestRef.current?.controller.abort(); clearTimeout(requestRef.current?.timer); requestRef.current = null; };
   }, []);
-  useEffect(() => {
-    if (draft && !positions.some(t => t.id === draft.tradeId)) {
+  // A ticket can be open without a draft. Its owner, not draft existence,
+  // determines whether the editor and reserved chart width are still valid.
+  useLayoutEffect(() => {
+    const owner = draft?.tradeId ?? editorId;
+    if (owner && (!controlsEnabled || !positions.some(t => t.id === owner))) {
       dragRef.current?.release(); dragRef.current = null; setDraggingKind(null);
-      updateDraft(null); setEditor(false); setNotice({ text: "Position closed. Its protection is no longer active." });
+      requestRef.current?.controller.abort(); clearTimeout(requestRef.current?.timer); requestRef.current = null; setBusy(false);
+      updateDraft(null); setEditorId(null); setPriceInputs({}); setMoneyInputs({});
+      setNotice({ text: "Position closed. Its protection is no longer active." });
     }
-  }, [positions, draft?.tradeId]);
+  }, [positions, draft?.tradeId, editorId, controlsEnabled]);
   useEffect(() => {
     if (!notice || notice.error) return;
     const timer = setTimeout(() => setNotice(null), 3500);
     return () => clearTimeout(timer);
   }, [notice]);
 
-  // The optional precision ticket reserves chart space on desktop, like the
-  // reference trading ticket, instead of covering the position being edited.
+  // Container queries resolve before the native chart's ResizeObserver runs.
+  // JS resize callbacks can briefly leave a 318px gutter on a phone, producing
+  // a negative plot width inside Lightweight Charts during the transition.
   useLayoutEffect(() => {
     const el = containerRef.current; const parent = el?.parentElement;
     if (!el || !parent) return;
-    const previous = el.style.right;
-    const resize = () => { el.style.right = editor && parent.clientWidth >= 760 ? "318px" : previous; };
-    resize(); const observer = new ResizeObserver(resize); observer.observe(parent);
-    return () => { observer.disconnect(); el.style.right = previous; };
+    const previousContainerType = parent.style.containerType;
+    parent.style.containerType = "inline-size";
+    el.classList.add(styles.chartCanvas!);
+    if (editor) el.dataset.protectionEditor = "open";
+    else delete el.dataset.protectionEditor;
+    return () => {
+      delete el.dataset.protectionEditor;
+      el.classList.remove(styles.chartCanvas!);
+      parent.style.containerType = previousContainerType;
+    };
   }, [editor, chartVersion, containerRef]);
 
+  function selectPosition(id: string) {
+    if (requestRef.current || id === selected?.id) return;
+    dragRef.current?.release(); dragRef.current = null; setDraggingKind(null);
+    const discarded = draftRef.current && Object.keys(bracketChanges(draftRef.current.base, draftRef.current.levels)).length > 0;
+    updateDraft(null); setSelectedId(id); setEditorId(editor ? id : null);
+    setPriceInputs({}); setMoneyInputs({});
+    setNotice(discarded ? { text: "Unconfirmed edits discarded. Saved protection was not changed." } : null);
+  }
   function editPosition(trade: TradeView) {
-    if (draftRef.current && draftRef.current.tradeId !== trade.id) return;
-    setSelectedId(trade.id); setPriceInputs({}); setMoneyInputs({}); setEditor(true); setNotice(null);
+    if (requestRef.current || editorId === trade.id) return;
+    if (draftRef.current && draftRef.current.tradeId !== trade.id) selectPosition(trade.id);
+    setSelectedId(trade.id); setPriceInputs({}); setMoneyInputs({}); setEditorId(trade.id); setNotice(null);
   }
   // Keep one set of native price lines. Draft movement updates prices rather than
   // recreating chart objects, and active protection remains visible until ack.
@@ -181,13 +205,14 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     return defaultBracketPrice(kind, trade, current, a != null && b != null ? Math.abs(a - b) * 2 : current * .002, tickSize, precision);
   }
   function changeLevel(trade: TradeView, kind: BracketKind, value: number | null) {
+    if (requestRef.current) return;
     const next = getDraft(trade);
     updateDraft({ ...next, levels: { ...next.levels, [kind]: value } });
     setSelectedId(trade.id); setNotice(null);
   }
   function beginDrag(e: ReactPointerEvent<HTMLButtonElement>, trade: TradeView, kind: BracketKind) {
-    if (busy || (draft && draft.tradeId !== trade.id)) return;
-    e.preventDefault(); e.stopPropagation(); setDraggingKind(trade.id + kind); setEditor(false); setNotice(null); setSelectedId(trade.id);
+    if (requestRef.current || (draft && draft.tradeId !== trade.id)) return;
+    e.preventDefault(); e.stopPropagation(); setDraggingKind(trade.id + kind); setEditorId(null); setNotice(null); setSelectedId(trade.id);
     const before = draftRef.current;
     const next = getDraft(trade);
     updateDraft({ ...next, levels: { ...next.levels, [kind]: next.levels[kind] ?? trade.entryPrice } });
@@ -216,7 +241,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     else if (!drag.moved) {
       const t = positions.find(t => t.id === drag.tradeId);
       if (t && savedBrackets(t)[drag.kind] == null) changeLevel(t, drag.kind, getDefault(t, drag.kind));
-      else { setPriceInputs({}); setMoneyInputs({}); setEditor(true); }
+      else if (t) { setPriceInputs({}); setMoneyInputs({}); setEditorId(t.id); }
     }
     scheduleRef.current();
   }
@@ -241,32 +266,39 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
 
   async function confirm() {
     const d = draftRef.current; const t = positions.find(t => t.id === d?.tradeId);
-    if (!d || !t || busy) return;
+    if (!d || !t || requestRef.current || !mounted.current) return;
     if (inputError) { setNotice({ text: inputError, error: true }); return; }
     const patch = bracketChanges(d.base, d.levels); if (!Object.keys(patch).length) { cancel(); return; }
     const current = market.getSnapshot().quotes[t.symbol]?.price ?? null;
     const error = BRACKET_KINDS.filter(k => patch[k] !== undefined).map(k => bracketError(k, patch[k]!, t.direction, current)).find(Boolean);
     if (error) { setNotice({ text: error, error: true }); return; }
-    setBusy(true); setNotice(null);
+    const request: ProtectionRequest = { controller: new AbortController(), tradeId: t.id };
+    requestRef.current = request; setBusy(true); setNotice(null);
+    request.timer = setTimeout(() => {
+      if (requestRef.current !== request || !mounted.current) return;
+      request.controller.abort(); requestRef.current = null; setBusy(false);
+      setNotice({ text: "The update timed out. Check the position’s saved levels before retrying.", error: true });
+    }, 15000);
     try {
-      const res = await fetch(`/api/cfd/trades/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+      const res = await fetch(`/api/cfd/trades/${t.id}`, { method: "PATCH", signal: request.controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
       const data = await res.json();
+      if (!mounted.current || requestRef.current !== request || request.controller.signal.aborted) return;
       if (!res.ok || !data.trade) throw new Error(data.error === "invalid_stops" ? "The market moved past this level. Adjust the bracket and confirm again." : data.error === "trade_not_open" ? "This position has already closed." : "Protection was not changed. Check the connection and try again.");
       recordTradeUpdate(data.trade);
       if (mounted.current && draftRef.current?.tradeId === t.id) {
-        updateDraft(null); setEditor(false); setNotice({ text: "Position protection updated" });
+        updateDraft(null); setEditorId(null); setNotice({ text: "Position protection updated" });
       }
-    } catch (e) { if (mounted.current) setNotice({ text: e instanceof Error ? e.message : "Protection was not changed.", error: true }); }
-    finally { if (mounted.current) setBusy(false); }
+    } catch (e) { if (mounted.current && requestRef.current === request && !request.controller.signal.aborted) setNotice({ text: e instanceof Error ? e.message : "Protection was not changed.", error: true }); }
+    finally { clearTimeout(request.timer); if (requestRef.current === request) { requestRef.current = null; if (mounted.current) setBusy(false); } }
   }
 
-  if (!positions.length || !selected) return null;
+  if (!controlsEnabled || !positions.length || !selected) return null;
   const axisRight = geometry.axis + 16;
   const activeGeometry = geometry.rows[selected.id];
   const isInChart = (y: number | null | undefined): y is number => y != null && y >= (geometry.width < 600 ? 90 : 65) && y <= geometry.height - 36;
   const orderColor = selected.direction === "UP" ? COLORS.buy : COLORS.sell;
   const pnl = cfdOpenPnl(selected, livePrice);
-  const dragEvents = (t: TradeView, kind: BracketKind) => ({ onPointerDown: (e: ReactPointerEvent<HTMLButtonElement>) => beginDrag(e, t, kind), onPointerMove: moveDrag, onPointerUp: (e: ReactPointerEvent<HTMLButtonElement>) => endDrag(e), onPointerCancel: (e: ReactPointerEvent<HTMLButtonElement>) => endDrag(e, true), onKeyDown: (e: ReactKeyboardEvent<HTMLButtonElement>) => {
+  const dragEvents = (t: TradeView, kind: BracketKind) => ({ onPointerDown: (e: ReactPointerEvent<HTMLButtonElement>) => beginDrag(e, t, kind), onPointerMove: moveDrag, onPointerUp: (e: ReactPointerEvent<HTMLButtonElement>) => endDrag(e), onPointerCancel: (e: ReactPointerEvent<HTMLButtonElement>) => endDrag(e, true), onLostPointerCapture: (e: ReactPointerEvent<HTMLButtonElement>) => endDrag(e, true), onKeyDown: (e: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       e.preventDefault(); const value = (draftRef.current?.tradeId === t.id ? draftRef.current.levels[kind] : savedBrackets(t)[kind]) ?? getDefault(t,kind);
       changeLevel(t, kind, snapBracketPrice(value + (e.key === "ArrowUp" ? tickSize : -tickSize),tickSize,precision));
@@ -309,9 +341,9 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
               {BRACKET_KINDS.filter(k => levels[k] == null || draggingKind === t.id + k && savedBrackets(t)[k] == null).map(kind => <button key={kind} type="button" title={`Drag to add ${kind === "takeProfit" ? "Take Profit" : "Stop Loss"}`} aria-label={`Add ${BRACKET_LABEL[kind]} to ${t.direction === "UP" ? "Buy" : "Sell"} position`} disabled={busy} className={`${styles.handle} ${kind === "takeProfit" ? styles.tp : styles.sl}`} {...dragEvents(t, kind)}>{BRACKET_LABEL[kind]}</button>)}
             </div>}
             <div className={styles.position}>
-              <button type="button" className={styles.side} aria-label={`Select ${t.direction === "UP" ? "Buy" : "Sell"} ${formatMinor(t.stake, currency)} position`} onClick={() => { if (draft && draft.tradeId !== t.id) return; setSelectedId(t.id); }}>{t.direction === "UP" ? "Buy" : "Sell"} {formatMinor(t.stake, currency)}</button>
+              <button type="button" className={styles.side} aria-label={`Select ${t.direction === "UP" ? "Buy" : "Sell"} ${formatMinor(t.stake, currency)} position`} disabled={busy} onClick={() => selectPosition(t.id)}>{t.direction === "UP" ? "Buy" : "Sell"} {formatMinor(t.stake, currency)}</button>
               {active && positions.length > 1 && <span className={styles.positionSelect}>
-                <select aria-label="Selected chart position" value={selected.id} disabled={!!draft || busy} onChange={e => { setSelectedId(e.target.value); setEditor(false); }}>
+                <select aria-label="Selected chart position" value={selected.id} disabled={busy} onChange={e => selectPosition(e.target.value)}>
                   {positions.map((p,i) => <option key={p.id} value={p.id}>{i + 1}. {p.direction === "UP" ? "Buy" : "Sell"} {formatMinor(p.stake,currency)} @ {p.entryPrice.toFixed(precision)}</option>)}
                 </select><span aria-hidden>▾</span>
               </span>}
@@ -347,8 +379,13 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     </div>}
     </div>
     {editor && currentLevels && <section role="dialog" aria-label="Edit position protection" className={styles.editor}>
-      <header><strong>{selected.symbol.replace("USDT", "/USDT")}</strong><button type="button" aria-label="Close protection editor" disabled={busy} onClick={() => setEditor(false)}><Cross size={16}/></button></header>
+      <header><strong>{selected.symbol.replace("USDT", "/USDT")}</strong><button type="button" aria-label="Close protection editor" disabled={busy} onClick={cancel}><Cross size={16}/></button></header>
       <div className={styles.editorBody}>
+        {positions.length > 1 && <label className={styles.positionPicker}>Position
+          <select aria-label="Protection editor position" value={selected.id} disabled={busy} onChange={e => selectPosition(e.target.value)}>
+            {positions.map((p,i) => <option key={p.id} value={p.id}>{i+1}. {p.direction === "UP" ? "Buy" : "Sell"} {formatMinor(p.stake,currency)} @ {p.entryPrice.toFixed(precision)}</option>)}
+          </select><small>Switching position discards unconfirmed edits.</small>
+        </label>}
         <p className={styles.summary}>{selected.direction === "UP" ? "Buy" : "Sell"} {formatMinor(selected.stake,currency)} @ {selected.entryPrice.toFixed(precision)}</p>
         <div className={styles.exits}><strong>Exits</strong><span>Risk/reward · {ratio}</span></div>
         {BRACKET_KINDS.map(kind => {
@@ -358,6 +395,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
             <div className={styles.fieldGrid}>
               <label>Price<input aria-label={`${BRACKET_LABEL[kind]} price`} type="number" min={tickSize} step={tickSize} value={priceInputs[kind] ?? value ?? ""} disabled={busy || value == null} onChange={e => {
                 const text = e.target.value; setPriceInputs(old => ({ ...old, [kind]: text }));
+                setMoneyInputs(old => { const next = {...old}; delete next[kind]; return next; });
                 if (text !== "" && Number.isFinite(Number(text)) && Number(text) > 0) changeLevel(selected,kind,snapBracketPrice(Number(text),tickSize,precision));
               }} onBlur={() => { if (priceInputs[kind] && Number(priceInputs[kind]) > 0) setPriceInputs(old => { const next = {...old}; delete next[kind]; return next; }); }}/></label>
               <label>{kind === "takeProfit" ? "Reward" : "Risk"}, {currency}<input aria-label={`${BRACKET_LABEL[kind]} ${kind === "takeProfit" ? "reward" : "risk"}`} type="number" step="0.01" value={moneyInputs[kind] ?? (net == null ? "" : Number(((kind === "takeProfit" ? net : -net)/100).toFixed(2)))} disabled={busy || value == null} onChange={e => { const text = e.target.value; setMoneyInputs(old => ({ ...old, [kind]: text })); if (text !== "" && Number.isFinite(Number(text))) {

@@ -71,3 +71,9 @@
 @media (hover:none), (pointer:coarse) { .handles { opacity:1; pointer-events:auto; } .handle { height:32px; min-width:34px; } .position,.bracket { min-height:30px; } .group { height:30px; } .position button,.bracket button { padding-left:8px; padding-right:8px; } }
 @media (max-width:600px) { .position,.bracket { height:30px; } .group { height:30px; } .handle { height:30px; } .position .side { padding:0 5px; } .position .money,.bracket .outcome { min-width:62px; } .handles { gap:3px; margin-right:4px; opacity:1; pointer-events:auto; } .handle { min-width:28px; padding:0 3px; } .confirm { position:absolute; top:30px; right:0; margin:0; } .confirm button { height:30px; } .editor { top:auto; bottom:24px; max-height:calc(100% - 32px); } .notice { bottom:66px; font-size:11px; } .zone span { display:none; } }
 @media (prefers-reduced-motion:no-preference) { .handles { transition:opacity .1s; } }
+
+.positionPicker { display:grid; gap:7px; margin-bottom:14px; color:var(--ct-muted); }
+.positionPicker select { width:100%; min-width:0; background:var(--ct-bg); color:var(--ct-text); border:1px solid #434651; border-radius:3px; padding:8px; }
+.positionPicker small { font-size:10px; line-height:1.5; }
+
+@container (min-width:760px) { .chartCanvas[data-protection-editor="open"] { right:318px; } }
