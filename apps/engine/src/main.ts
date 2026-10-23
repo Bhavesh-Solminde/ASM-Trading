@@ -1,3 +1,4 @@
+import { tradeViewFrom } from "@asm/contracts";
 import Redis from "ioredis";
 import { config } from "@asm/config";
 import { logger } from "@asm/logger";
@@ -68,16 +69,26 @@ async function main(): Promise<void> {
   const controller = new ControllerBridge(Date.now() & 0x7fffffff);
 
   desk = new TradeDesk(registry, server, controller);
-  await desk.hydrate(Math.floor(Date.now() / 1000));
-
   const IS_CFD = process.env.TRADING_MODEL === "CFD";
+  if (!IS_CFD) await desk.hydrate(Math.floor(Date.now() / 1000));
   let cfdDeps: CfdDeps | undefined;
   let feed: Awaited<ReturnType<typeof createPriceFeed>> | null = null;
 
   if (IS_CFD) {
     const quoteBuffer = new QuoteBuffer();
     const gapTracker = new GapTracker();
-    const cfdDesk = new CfdDesk();
+    const cfdDesk = new CfdDesk(async (tradeId) => {
+      const trade = await prisma.trade.findUniqueOrThrow({
+        where: { id: tradeId }, include: { asset: true, account: true },
+      });
+      server.sendToUser(trade.account.userId, {
+        type: "trade:settled", trade: tradeViewFrom(trade, trade.asset.symbol),
+      });
+      server.sendToUser(trade.account.userId, {
+        type: "balance:update", accountId: trade.accountId,
+        realBalance: trade.account.realBalance, bonusBalance: trade.account.bonusBalance,
+      });
+    });
 
     for (const asset of registry.all()) {
       const sigma1h = registry.sigmaNow(asset.symbol) * Math.sqrt(3600);

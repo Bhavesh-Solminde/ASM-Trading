@@ -29,6 +29,11 @@ export function closedRowDisplay(trade: Pick<TradeView, "status" | "stake" | "pn
   if (trade.status === "REFUNDED") {
     return { sign: "", amountMinor: 0, className: "text-ink-2" };
   }
+  if (trade.status === "CLOSED") {
+    return { sign: trade.pnl > 0 ? "+" : trade.pnl < 0 ? "−" : "",
+      amountMinor: Math.abs(trade.pnl),
+      className: trade.pnl > 0 ? "text-up" : trade.pnl < 0 ? "text-down" : "text-ink-2" };
+  }
   if (trade.status === "WON") {
     return { sign: "+", amountMinor: grossReturnMinor(trade.stake, trade.pnl), className: "text-up" };
   }

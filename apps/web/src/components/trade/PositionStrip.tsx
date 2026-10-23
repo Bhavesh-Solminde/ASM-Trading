@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import type { TradeView } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
@@ -34,18 +34,13 @@ const StripBody = memo(function StripBody({
   const side = openSide(trade.direction, trade.entryPrice, price);
   const expired = now !== null && now >= trade.expiryTs;
 
-  // Same freeze as the trades list: at 0:00 hold the side we were showing so a
-  // late tick can't flip the figure before the settlement event replaces the strip.
-  const [frozen, setFrozen] = useState<typeof side | undefined>(undefined);
-  if (expired && frozen === undefined) setFrozen(side);
-  const shownSide = expired ? (frozen === undefined ? side : frozen) : side;
-
+  const shownSide = side;
   const winning = shownSide === "winning";
   const profit = Math.floor((trade.stake * trade.payoutPct) / 100);
   // No quote yet, or price exactly at the entry: there is no result to show, so
   // a dash in neutral ink instead of a red loss.
-  const undecided = shownSide === null || shownSide === "flat";
-  const plText = undecided
+  const undecided = expired || shownSide === null || shownSide === "flat";
+  const plText = expired ? "Settling…" : undecided
     ? "—"
     : winning
       ? `+${formatMinor(grossReturnMinor(trade.stake, profit), currency)}`

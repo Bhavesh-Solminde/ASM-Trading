@@ -34,3 +34,6 @@ describe("closedRowDisplay", () => {
     });
   });
 });
+it("shows actual signed CFD profit after confirmed closure", () => {
+  expect(closedRowDisplay({ status: "CLOSED", stake: 10000, pnl: 100 })).toEqual({ sign: "+", amountMinor: 100, className: "text-up" });
+});

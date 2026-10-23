@@ -91,29 +91,13 @@ const OpenTradeRow = memo(function OpenTradeRow({
     now === null ? 0 : Math.min(1, Math.max(0, (now - trade.entryTs) / (trade.expiryTs - trade.entryTs)));
   const expired = now !== null && now >= trade.expiryTs;
 
-  // Freeze the outcome at the moment the countdown hits zero so a late tick
-  // the engine broadcasts after expiry can't flip the chip from WON to LOST
-  // (or vice versa) in the sub-second gap before the WS "trade:settled"
-  // event swaps this row for ClosedTradeRow.
-  const [frozen, setFrozen] = useState<{ winning: boolean; price: number | null } | null>(null);
-  if (expired && frozen === null) {
-    setFrozen({ winning, price });
-  }
-
-  // Instant settle: the second `expired` flips true, show the user WON or
-  // LOST (and the real PnL amount) based on the chart price they're looking
-  // at. No "Settling…" placeholder — the DB catches up asynchronously, and
-  // the engine fix guarantees it'll land on the same side we show here.
-  const displayWinning = expired ? (frozen?.winning ?? winning) : winning;
-  const pnlDisplay = displayWinning
+  // Only the engine can confirm a settlement and its actual outcome.
+  const pnlDisplay = expired ? "—" : winning
     ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
     : `−${formatMinor(trade.stake, currency)}`;
-  const pnlClass = displayWinning ? "text-up" : losing || expired ? "text-down" : "text-ink-2";
-
+  const pnlClass = expired ? "text-ink-2" : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
   const chipOverride = expired
-    ? displayWinning
-      ? { label: "Won", className: "bg-up text-up-ink" }
-      : { label: "Lost", className: "text-down shadow-[inset_0_0_0_1px_var(--color-down)]" }
+    ? { label: "Settling", className: "bg-tile text-ink-2" }
     : undefined;
 
   return (

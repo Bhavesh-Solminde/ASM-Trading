@@ -75,6 +75,8 @@ function toView(
 }
 
 export class CfdDesk {
+  constructor(private readonly onClosed?: (tradeId: string) => Promise<void>) {}
+
   async open(
     input: EngineCfdOpenTradeInput,
     shownMidPrice: number,
@@ -183,29 +185,34 @@ export class CfdDesk {
     const closed: ClosedPosition[] = [];
 
     for (const trade of openTrades) {
-      const trigger = this.checkTriggers(trade, shownPrice, now);
-      if (trigger) {
-        const result = await this.closePosition(
-          trade,
-          trigger.reason,
-          trigger.exitPrice,
-          now,
-        );
-        closed.push(result);
-      } else {
-        // Update peak PnL for trailing stop tracking
-        const isLong = trade.direction === "UP";
-        const pnl = Math.round(
-          (isLong
-            ? (shownPrice - trade.entryPrice) / trade.entryPrice
-            : (trade.entryPrice - shownPrice) / trade.entryPrice) * trade.stake,
-        );
-        if (pnl > (trade.peakPnl ?? 0)) {
-          await prisma.trade.update({
-            where: { id: trade.id },
-            data: { peakPnl: pnl },
-          });
+      try {
+        const trigger = this.checkTriggers(trade, shownPrice, now);
+        if (trigger) {
+          const result = await this.closePosition(
+            trade,
+            trigger.reason,
+            trigger.exitPrice,
+            now,
+          );
+          closed.push(result);
+        } else {
+          // Update peak PnL for trailing stop tracking
+          const isLong = trade.direction === "UP";
+          const pnl = Math.round(
+            (isLong
+              ? (shownPrice - trade.entryPrice) / trade.entryPrice
+              : (trade.entryPrice - shownPrice) / trade.entryPrice) * trade.stake,
+          );
+          if (pnl > (trade.peakPnl ?? 0)) {
+            await prisma.trade.update({
+              where: { id: trade.id },
+              data: { peakPnl: pnl },
+            });
+          }
         }
+      } catch {
+        logger.error({ evt: "cfd.settlement_failed", tradeId: trade.id },
+          "position processing failed; retrying next tick");
       }
     }
 
@@ -352,6 +359,10 @@ export class CfdDesk {
       "CFD position closed",
     );
 
+    // Persistence succeeded: notification failure must not undo or repeat payment.
+    try { await this.onClosed?.(trade.id); } catch {
+      logger.warn({ evt: "cfd.notify_failed", tradeId: trade.id }, "settlement notification failed");
+    }
     return { tradeId: trade.id, accountId: trade.accountId, reason, exitPrice, pnl };
   }
 

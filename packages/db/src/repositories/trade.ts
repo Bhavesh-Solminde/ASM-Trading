@@ -374,7 +374,7 @@ export async function listTradesForActor(
 /** Rehydrates the engine's book after a restart. */
 export async function loadOpenPositions(): Promise<Position[]> {
   const rows = await prisma.trade.findMany({
-    where: { status: "OPEN" },
+    where: { status: "OPEN", durationSec: null },
     include: {
       account: {
         select: { type: true, user: { select: { role: true } } },

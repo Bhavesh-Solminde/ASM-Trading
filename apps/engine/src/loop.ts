@@ -48,7 +48,7 @@ export interface CfdDeps {
 export function startTickLoop(
   registry: AssetRegistry,
   server: EngineServer,
-  desk: Pick<TradeDesk, "collectDue" | "openFor" | "preSettle">,
+  desk: Pick<TradeDesk, "collectDue" | "openFor" | "preSettle" | "recoverExpiredLegacy">,
   cfdDeps?: CfdDeps,
 ): { stop(): void } {
   let running = true;
@@ -69,6 +69,12 @@ export function startTickLoop(
   const run = async (): Promise<void> => {
     const startedAt = Date.now();
     const nowSec = Math.floor(startedAt / 1000);
+
+    if (IS_CFD) {
+      await desk.recoverExpiredLegacy(nowSec).catch(() => {
+        logger.error({ evt: "trade.legacy_recovery_failed" }, "legacy recovery will retry next tick");
+      });
+    }
 
     if (!IS_CFD) {
       // Pre-settle pass. For buckets expiring NEXT tick, pick the resolved exit
@@ -150,16 +156,11 @@ export function startTickLoop(
             gapTracker.push(asset.symbol, pull, TICK_DT_SEC);
             const shownPrice = gapTracker.shownPrice(asset.symbol, realPrice);
 
-            // Scan all open positions for SL/TP/liquidation/expiry triggers.
-            await cfdDesk.scanPositions(
-              asset.id,
-              asset.symbol,
-              shownPrice,
-              new Date(startedAt),
-            );
-
             broadcastPrice = shownPrice;
           }
+          // Expiry must run even while quotes are frozen or the market is closed.
+          await cfdDesk.scanPositions(asset.id, asset.symbol,
+            Number(broadcastPrice.toFixed(asset.precision)), new Date(startedAt));
         } else {
           // ── Binary path (unchanged) ───────────────────────────────
           const sigma = registry.sigmaNow(asset.symbol, nowSec);

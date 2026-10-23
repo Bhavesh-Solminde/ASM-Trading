@@ -415,12 +415,14 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     setFocusMode,
   } = usePlatform();
 
-  const { applyBalanceUpdate } = usePlatform();
   const recordCfdOpened = useCallback(
     (result: CfdOpenTradeResult) => {
-      applyBalanceUpdate(result.trade.accountId, result.balances);
+      recordOpened({
+        balances: result.balances,
+        trade: { ...result.trade, direction: result.trade.direction === "LONG" ? "UP" : "DOWN", payoutPct: 0 },
+      });
     },
-    [applyBalanceUpdate],
+    [recordOpened],
   );
 
   const [historyOpen, setHistoryOpen] = useState(false);
