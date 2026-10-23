@@ -33,6 +33,9 @@ export {
   type TradeSettledMessage,
   type BalanceUpdateMessage,
   type SentimentMessage,
+  type CfdTradeOpenedMessage,
+  type CfdTradeSettledMessage,
+  type CfdTradeModifiedMessage,
 } from "./ws";
 export {
   TRADE_DURATIONS_SEC,
