@@ -428,6 +428,15 @@ function applySeriesAlpha(series: ISeriesApi<any>, type: ChartType, alpha: numbe
  * lightweight-charts directly (`series.update` per tick, `setData` only when
  * history is replaced), so a tick costs a canvas draw and no render.
  */
+export interface CfdChartPosition {
+  id: string;
+  direction: "UP" | "DOWN";
+  entryPrice: number;
+  stake: number;
+  stopLoss: number | null;
+  takeProfit: number | null;
+}
+
 export function PriceChart({
   market,
   precision,
@@ -435,6 +444,7 @@ export function PriceChart({
   openTrades,
   currency,
   chartType = "candles",
+  cfdPositions,
 }: {
   market: MarketStore;
   precision: number;
@@ -442,6 +452,7 @@ export function PriceChart({
   openTrades: TradeView[];
   currency: string;
   chartType?: ChartType;
+  cfdPositions?: CfdChartPosition[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const countdownRef = useRef<HTMLDivElement | null>(null);
@@ -975,18 +986,71 @@ export function PriceChart({
     const series = seriesRef.current;
     if (!series) return;
     for (const line of tradeLinesRef.current) series.removePriceLine(line);
-    tradeLinesRef.current = openTrades.map((t) =>
-      series.createPriceLine({
-        price: t.entryPrice,
-        color: t.direction === "UP" ? UP : DOWN,
-        lineWidth: 2,
-        lineStyle: LineStyle.Solid,
-        axisLabelVisible: true,
-        axisLabelTextColor: BRAND_INK,
-        title: `${t.direction === "UP" ? "▲" : "▼"} ${formatMinor(t.stake, currency)}`,
-      }),
-    );
-  }, [openTrades, currency, chartVersion]);
+
+    if (cfdPositions && cfdPositions.length > 0) {
+      const lines: IPriceLine[] = [];
+      for (const p of cfdPositions) {
+        const dirColor = p.direction === "UP" ? UP : DOWN;
+        const arrow = p.direction === "UP" ? "▲" : "▼";
+        lines.push(
+          series.createPriceLine({
+            price: p.entryPrice,
+            color: dirColor,
+            lineWidth: 2,
+            lineStyle: LineStyle.Dashed,
+            axisLabelVisible: true,
+            axisLabelTextColor: BRAND_INK,
+            title: `${arrow} ${formatMinor(p.stake, currency)}`,
+          }),
+        );
+        if (p.stopLoss !== null) {
+          const slPrice = p.direction === "UP"
+            ? p.entryPrice * (1 - p.stopLoss / 100)
+            : p.entryPrice * (1 + p.stopLoss / 100);
+          lines.push(
+            series.createPriceLine({
+              price: slPrice,
+              color: DOWN,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dotted,
+              axisLabelVisible: true,
+              axisLabelTextColor: BRAND_INK,
+              title: "SL",
+            }),
+          );
+        }
+        if (p.takeProfit !== null) {
+          const tpPrice = p.direction === "UP"
+            ? p.entryPrice * (1 + p.takeProfit / 100)
+            : p.entryPrice * (1 - p.takeProfit / 100);
+          lines.push(
+            series.createPriceLine({
+              price: tpPrice,
+              color: UP,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dotted,
+              axisLabelVisible: true,
+              axisLabelTextColor: BRAND_INK,
+              title: "TP",
+            }),
+          );
+        }
+      }
+      tradeLinesRef.current = lines;
+    } else {
+      tradeLinesRef.current = openTrades.map((t) =>
+        series.createPriceLine({
+          price: t.entryPrice,
+          color: t.direction === "UP" ? UP : DOWN,
+          lineWidth: 2,
+          lineStyle: LineStyle.Solid,
+          axisLabelVisible: true,
+          axisLabelTextColor: BRAND_INK,
+          title: `${t.direction === "UP" ? "▲" : "▼"} ${formatMinor(t.stake, currency)}`,
+        }),
+      );
+    }
+  }, [openTrades, cfdPositions, currency, chartVersion]);
 
   return (
     <>
