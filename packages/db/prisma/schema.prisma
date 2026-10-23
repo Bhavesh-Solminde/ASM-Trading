@@ -91,6 +91,22 @@ enum TradeStatus {
   WON
   LOST
   REFUNDED
+  CLOSED
+}
+
+enum CloseReason {
+  DURATION
+  STOP_LOSS
+  TAKE_PROFIT
+  MANUAL
+  LIQUIDATION
+  TRAILING_STOP
+}
+
+enum FeedSource {
+  BINANCE
+  TWELVE_DATA
+  SYNTHETIC
 }
 
 enum DepositStatus {
@@ -314,6 +330,9 @@ model Asset {
   msmM0           Float           @default(1.5)
   intradayProfile IntradayProfile @default(FX_MAJOR)
   anchorAlpha     Float           @default(0.08)
+  spreadBps       Int             @default(5)
+  feedSource      FeedSource      @default(SYNTHETIC)
+  marketHours     String?
   createdAt       DateTime        @default(now())
 
   candles Candle[]
@@ -363,12 +382,23 @@ model Trade {
   pathStyle   PathStyle?
   targetPrice Float?
 
+  /// CFD fields — nullable so binary trades keep working during transition.
+  durationSec  Int?
+  stopLoss     Float?
+  takeProfit   Float?
+  trailingPct  Float?
+  liqPrice     Float?
+  closeReason  CloseReason?
+  closedAt     DateTime?
+  peakPnl      Int?
+
   account Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   asset   Asset        @relation(fields: [assetId], references: [id])
   shadow  TradeShadow?
 
   @@index([accountId, createdAt])
   @@index([expiryTs, status])
+  @@index([assetId, status])
 }
 
 /// Per-IST-day house ledger. Written by the settlement path on every non-DEMO
