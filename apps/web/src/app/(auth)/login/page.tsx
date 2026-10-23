@@ -1,6 +1,6 @@
 import { MetaPixel } from "@/components/seo/MetaPixel";
 import { googleSignInEnabled } from "@/lib/google-oauth";
-import { metaPixelId } from "@/lib/meta-pixel";
+import { metaPixelIds } from "@/lib/meta-pixel";
 import { LoginForm } from "./LoginForm";
 
 // Read GOOGLE_CLIENT_ID/SECRET and META_PIXEL_ID at request time, not at build time.
@@ -19,7 +19,7 @@ export default async function LoginPage({
         googleError={error === "google"}
         notice={reset === "1" ? "Password updated. Log in with your new password." : null}
       />
-      <MetaPixel pixelId={metaPixelId()} />
+      <MetaPixel pixelIds={metaPixelIds()} />
     </>
   );
 }
