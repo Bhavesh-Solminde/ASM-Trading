@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closedRowDisplay, grossReturnMinor } from "./pnl-display";
+import { cfdOpenPnl, closedRowDisplay, grossReturnMinor } from "./pnl-display";
 
 describe("grossReturnMinor", () => {
   it("adds profit to the stake", () => {
@@ -36,4 +36,13 @@ describe("closedRowDisplay", () => {
 });
 it("shows actual signed CFD profit after confirmed closure", () => {
   expect(closedRowDisplay({ status: "CLOSED", stake: 10000, pnl: 100 })).toEqual({ sign: "+", amountMinor: 100, className: "text-up" });
+});
+
+it("estimates CFD net movement rather than losing the whole investment", () => {
+  const trade = { direction: "UP" as const, stake: 10000, entryPrice: 100 };
+  expect(cfdOpenPnl(trade, 99)).toBe(-100);
+  expect(cfdOpenPnl(trade, 101)).toBe(100);
+  expect(cfdOpenPnl({ ...trade, direction: "DOWN" }, 101)).toBe(-100);
+  expect(cfdOpenPnl({ ...trade, direction: "DOWN" }, 400)).toBe(-10000);
+  expect(cfdOpenPnl(trade, null)).toBeNull();
 });

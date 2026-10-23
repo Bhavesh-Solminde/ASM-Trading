@@ -15,3 +15,13 @@ it("does not claim an outcome while an expired trade is still OPEN", () => {
   expect(html).not.toContain(">Won<");
   expect(html).not.toContain(">Lost<");
 });
+
+it("shows proportional net PnL for an open CFD", () => {
+  const html = renderToStaticMarkup(createElement(TradesPanel, { currency: "INR", assets: [], trades: [{
+    id: "cfd", accountId: "a", symbol: "BTCUSDT", direction: "UP", stake: 10000,
+    payoutPct: 0, durationSec: 30, entryPrice: 100, entryTs: 90, expiryTs: 120,
+    exitPrice: null, status: "OPEN", pnl: 0,
+  }] }));
+  expect(html).toContain("+₹10.00");
+  expect(html).not.toContain("+₹100.00");
+});

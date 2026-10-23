@@ -88,6 +88,8 @@ async function main(): Promise<void> {
         type: "balance:update", accountId: trade.accountId,
         realBalance: trade.account.realBalance, bonusBalance: trade.account.bonusBalance,
       });
+    }, (result, actorId) => {
+      server.sendToUser(actorId, { type: "balance:update", accountId: result.trade.accountId, ...result.balances });
     });
 
     for (const asset of registry.all()) {

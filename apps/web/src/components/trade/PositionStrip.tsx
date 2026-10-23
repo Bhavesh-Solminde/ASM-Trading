@@ -7,7 +7,7 @@ import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvide
 import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor } from "@/lib/format-money";
 import { useNowSec } from "@/lib/use-now";
-import { grossReturnMinor, openSide } from "./pnl-display";
+import { cfdOpenPnl, grossReturnMinor, openSide } from "./pnl-display";
 import { RING_LENGTH, ringOffset, shortCountdown, soonestOpen } from "./position";
 
 /**
@@ -31,6 +31,8 @@ const StripBody = memo(function StripBody({
   const now = useNowSec();
   const price = useQuote(trade.symbol)?.price ?? null;
   const up = trade.direction === "UP";
+  const cfdPnl = trade.durationSec != null ? cfdOpenPnl(trade, price) : null;
+  const cfdText = cfdPnl === null ? "—" : `${cfdPnl > 0 ? "+" : cfdPnl < 0 ? "−" : ""}${formatMinor(Math.abs(cfdPnl), currency)}`;
   const side = openSide(trade.direction, trade.entryPrice, price);
   const expired = now !== null && now >= trade.expiryTs;
 
@@ -40,7 +42,7 @@ const StripBody = memo(function StripBody({
   // No quote yet, or price exactly at the entry: there is no result to show, so
   // a dash in neutral ink instead of a red loss.
   const undecided = expired || shownSide === null || shownSide === "flat";
-  const plText = expired ? "Settling…" : undecided
+  const plText = expired ? "Settling…" : trade.durationSec != null ? cfdText : undecided
     ? "—"
     : winning
       ? `+${formatMinor(grossReturnMinor(trade.stake, profit), currency)}`

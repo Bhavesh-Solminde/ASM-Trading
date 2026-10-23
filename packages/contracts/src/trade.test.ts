@@ -94,6 +94,7 @@ describe("tradeViewFrom", () => {
       [
         "accountId",
         "direction",
+        "durationSec",
         "entryPrice",
         "entryTs",
         "exitPrice",
@@ -113,4 +114,11 @@ describe("tradeViewFrom", () => {
     expect(view.entryTs).toBe(Math.floor(Date.parse("2026-09-14T10:00:00Z") / 1000));
     expect(view.expiryTs - view.entryTs).toBe(60);
   });
+});
+
+it("retains the CFD duration when serializing a persisted trade", () => {
+  const row = { id: "t", accountId: "a", direction: "UP" as const, stake: 10000,
+    payoutPct: 0, durationSec: 30, entryPrice: 100, entryTs: new Date(),
+    expiryTs: new Date(), exitPrice: null, status: "OPEN" as const, pnl: 0 };
+  expect(tradeViewFrom(row, "BTCUSDT").durationSec).toBe(30);
 });

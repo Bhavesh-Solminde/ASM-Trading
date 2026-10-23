@@ -419,7 +419,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     (result: CfdOpenTradeResult) => {
       recordOpened({
         balances: result.balances,
-        trade: { ...result.trade, direction: result.trade.direction === "LONG" ? "UP" : "DOWN", payoutPct: 0 },
+        trade: { ...result.trade, direction: result.trade.direction === "LONG" ? "UP" : "DOWN", payoutPct: 0, durationSec: result.trade.expiryTs - result.trade.entryTs },
       });
     },
     [recordOpened],

@@ -75,7 +75,10 @@ function toView(
 }
 
 export class CfdDesk {
-  constructor(private readonly onClosed?: (tradeId: string) => Promise<void>) {}
+  constructor(
+    private readonly onClosed?: (tradeId: string) => Promise<void>,
+    private readonly onOpened?: (result: CfdOpenTradeResult, actorId: string) => void,
+  ) {}
 
   async open(
     input: EngineCfdOpenTradeInput,
@@ -169,7 +172,9 @@ export class CfdDesk {
       "CFD position opened",
     );
 
-    return { trade: view, balances: result.balances };
+    const opened = { trade: view, balances: result.balances };
+    this.onOpened?.(opened, input.actorId);
+    return opened;
   }
 
   async scanPositions(

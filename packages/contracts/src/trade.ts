@@ -50,6 +50,8 @@ export interface TradeView {
   direction: DirectionDto;
   stake: number;
   payoutPct: number;
+  /** Present for CFD positions; null or absent for binary trades. */
+  durationSec?: number | null;
   entryPrice: number;
   /** Epoch seconds. */
   entryTs: number;
@@ -77,6 +79,8 @@ export interface TradeRowLike {
   direction: DirectionDto;
   stake: number;
   payoutPct: number;
+  /** Present for CFD positions; null or absent for binary trades. */
+  durationSec?: number | null;
   entryPrice: number;
   entryTs: Date;
   expiryTs: Date;
@@ -98,6 +102,7 @@ export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
     direction: row.direction,
     stake: row.stake,
     payoutPct: row.payoutPct,
+    durationSec: row.durationSec ?? null,
     entryPrice: row.entryPrice,
     entryTs: Math.floor(row.entryTs.getTime() / 1000),
     expiryTs: Math.floor(row.expiryTs.getTime() / 1000),

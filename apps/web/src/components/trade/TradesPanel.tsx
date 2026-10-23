@@ -7,7 +7,7 @@ import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor } from "@/lib/format-money";
 import { clockTime, countdown } from "@/lib/format-time";
 import { useNowSec } from "@/lib/use-now";
-import { closedRowDisplay, grossReturnMinor, openSide } from "./pnl-display";
+import { cfdOpenPnl, closedRowDisplay, grossReturnMinor, openSide } from "./pnl-display";
 import { AssetIcon } from "./AssetIcon";
 
 type Tab = "open" | "closed";
@@ -83,6 +83,8 @@ const OpenTradeRow = memo(function OpenTradeRow({
 }) {
   const now = useNowSec();
   const price = useQuote(trade.symbol)?.price ?? null;
+  const cfdPnl = trade.durationSec != null ? cfdOpenPnl(trade, price) : null;
+  const cfdText = cfdPnl === null ? "—" : `${cfdPnl > 0 ? "+" : cfdPnl < 0 ? "−" : ""}${formatMinor(Math.abs(cfdPnl), currency)}`;
   const side = openSide(trade.direction, trade.entryPrice, price);
   const winning = side === "winning";
   const losing = side === "losing";
@@ -92,7 +94,7 @@ const OpenTradeRow = memo(function OpenTradeRow({
   const expired = now !== null && now >= trade.expiryTs;
 
   // Only the engine can confirm a settlement and its actual outcome.
-  const pnlDisplay = expired ? "—" : winning
+  const pnlDisplay = expired ? "—" : trade.durationSec != null ? cfdText : winning
     ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
     : `−${formatMinor(trade.stake, currency)}`;
   const pnlClass = expired ? "text-ink-2" : winning ? "text-up" : losing ? "text-down" : "text-ink-2";

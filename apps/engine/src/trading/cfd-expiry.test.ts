@@ -20,3 +20,26 @@ it("settles expired positions, credits balances and notifies; a failed row does 
   expect(credit).toHaveBeenCalledWith(expect.objectContaining({ data: { realBalance: { increment: 10100 }, bonusBalance: { increment: 0 } } }));
   expect(notify).toHaveBeenCalledExactlyOnceWith("ok");
 });
+
+it("notifies the opening balance after the CFD debit commits", async () => {
+  const now = new Date();
+  const trade = { id: "new", accountId: "account", direction: "UP", stake: 10000,
+    entryPrice: 100, entryTs: now, expiryTs: new Date(now.getTime() + 30000),
+    exitPrice: null, stopLoss: null, takeProfit: null, trailingPct: null,
+    liqPrice: 0, closeReason: null, status: "OPEN", pnl: 0 };
+  mocks.transaction.mockImplementationOnce(async fn => fn({
+    trade: { create: async () => trade },
+    account: { update: async () => {}, findUniqueOrThrow: vi.fn()
+      .mockResolvedValueOnce({ realBalance: 100000, bonusBalance: 0 })
+      .mockResolvedValueOnce({ realBalance: 90000, bonusBalance: 0 }) },
+  }));
+  const opened = vi.fn();
+  await new CfdDesk(undefined, opened).open({ actorId: "user", accountId: "account",
+    symbol: "BTCUSDT", direction: "LONG", stake: 10000, durationSec: 30 }, 100,
+    { id: "asset", symbol: "BTCUSDT", spreadBps: 0 },
+    { treasuryMinor: 30000000, netExposure: 0, exposureCap: 50000000,
+      userDailyPnl: 0, dailyWinCap: 60000, dynamicMaxStake: 150000, isCircuitBroken: false });
+  expect(opened).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    balances: { realBalance: 90000, bonusBalance: 0 },
+  }), "user");
+});
