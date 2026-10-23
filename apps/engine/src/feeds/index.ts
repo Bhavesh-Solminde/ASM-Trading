@@ -4,6 +4,7 @@ import { createBinanceFeed } from "./binance";
 import { createTwelveDataFeed } from "./twelve-data";
 
 export type { PriceFeed, Quote } from "./types";
+export { QuoteBuffer } from "./quote-buffer";
 
 // Internal symbol -> provider symbol. Crypto is free and real-time over
 // Binance's WebSocket; forex + gold have no free exchange feed, so they share

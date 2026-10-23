@@ -41,7 +41,7 @@ export const EngineOpenTradeSchema = z.strictObject({
 });
 export type EngineOpenTradeInput = z.infer<typeof EngineOpenTradeSchema>;
 
-export type TradeStatusDto = "OPEN" | "WON" | "LOST" | "REFUNDED";
+export type TradeStatusDto = "OPEN" | "WON" | "LOST" | "REFUNDED" | "CLOSED";
 
 export interface TradeView {
   id: string;
@@ -106,3 +106,5 @@ export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
     pnl: row.pnl,
   };
 }
+
+export * from "./cfd-trade";

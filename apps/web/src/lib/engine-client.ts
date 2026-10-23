@@ -1,4 +1,9 @@
-import type { EngineOpenTradeInput, OpenTradeResult } from "@asm/contracts";
+import type {
+  EngineOpenTradeInput,
+  OpenTradeResult,
+  EngineCfdOpenTradeInput,
+  CfdOpenTradeResult,
+} from "@asm/contracts";
 
 /** The engine refused the trade for a reason the trader can act on. */
 export class EngineRejected extends Error {
@@ -60,4 +65,61 @@ export async function engineOpenTrade(input: EngineOpenTradeInput): Promise<Open
     throw new EngineRejected(res.status, body.error);
   }
   throw new EngineUnavailable(`engine responded ${res.status}`);
+}
+
+// ── CFD engine calls ────────────────────────────────────────────────
+
+const CFD_REFUSALS = new Set([
+  "unknown_asset",
+  "market_unavailable",
+  "trading_paused",
+  "stake_exceeds_limit",
+  "insufficient_balance",
+  "lockout_active",
+  "trade_not_open",
+  "not_found",
+]);
+
+function engineBase(): { base: string; secret: string } {
+  const base = process.env["ENGINE_HTTP_URL"] ?? "http://127.0.0.1:4002";
+  const secret = process.env["ENGINE_INTERNAL_SECRET"] ?? "";
+  if (!secret) throw new EngineUnavailable("ENGINE_INTERNAL_SECRET is not set");
+  return { base, secret };
+}
+
+async function cfdCall(url: string, method: string, body?: unknown): Promise<{ status: number; data: unknown }> {
+  const { base, secret } = engineBase();
+  const res = await fetch(`${base}${url}`, {
+    method,
+    headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+    ...(body !== undefined && { body: JSON.stringify(body) }),
+    signal: AbortSignal.timeout(3_000),
+    cache: "no-store",
+  }).catch(() => null);
+
+  if (!res) throw new EngineUnavailable("engine unreachable");
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+  if (res.status >= 200 && res.status < 300) return { status: res.status, data };
+
+  const error = typeof data.error === "string" ? data.error : "";
+  if (CFD_REFUSALS.has(error)) throw new EngineRejected(res.status, error);
+  throw new EngineUnavailable(`engine responded ${res.status}`);
+}
+
+export async function engineCfdOpen(input: EngineCfdOpenTradeInput): Promise<CfdOpenTradeResult> {
+  const { data } = await cfdCall("/cfd/trades", "POST", input);
+  return data as CfdOpenTradeResult;
+}
+
+export async function engineCfdClose(tradeId: string): Promise<unknown> {
+  const { data } = await cfdCall(`/cfd/trades/${tradeId}/close`, "POST");
+  return data;
+}
+
+export async function engineCfdModify(
+  tradeId: string,
+  changes: { stopLoss?: number | null; takeProfit?: number | null },
+): Promise<void> {
+  await cfdCall(`/cfd/trades/${tradeId}`, "PATCH", changes);
 }

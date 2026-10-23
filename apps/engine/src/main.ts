@@ -4,8 +4,11 @@ import { logger } from "@asm/logger";
 import { prisma } from "@asm/db";
 import { AssetRegistry } from "./assets/registry";
 import { EngineServer } from "./server";
-import { startTickLoop } from "./loop";
+import { startTickLoop, type CfdDeps } from "./loop";
 import { createPriceFeed } from "./feeds";
+import { QuoteBuffer } from "./feeds/quote-buffer";
+import { GapTracker } from "./trading/gap";
+import { CfdDesk } from "./trading/cfd-desk";
 import { createTicketAuthenticator } from "./auth/ws-ticket";
 import { createInternalApi } from "./internal-api";
 import { TradeDesk } from "./trading/trade-desk";
@@ -25,6 +28,11 @@ async function main(): Promise<void> {
   // Built first: a missing ENGINE_INTERNAL_SECRET must fail before hydrate
   // voids trades or the tick loop starts settling them.
   let desk: TradeDesk | null = null;
+  let _cfdDesk: CfdDesk | null = null;
+  let _gapTracker: GapTracker | null = null;
+  let _quoteBuffer: QuoteBuffer | null = null;
+  let _registry: AssetRegistry | null = null;
+
   const internal = createInternalApi({
     desk: {
       open: (input) => {
@@ -34,10 +42,27 @@ async function main(): Promise<void> {
     },
     secret: process.env.ENGINE_INTERNAL_SECRET ?? "",
     port: HTTP_PORT,
+    ...(process.env.TRADING_MODEL === "CFD" && {
+      cfdDesk: new Proxy({} as CfdDesk, {
+        get(_target, prop) {
+          if (!_cfdDesk) throw new Error("cfd desk not ready");
+          return (_cfdDesk as unknown as Record<string, unknown>)[prop as string];
+        },
+      }),
+      shownMidPrice: (symbol: string) => {
+        if (!_registry) return 0;
+        const asset = _registry.get(symbol);
+        if (!asset) return 0;
+        const quote = _quoteBuffer?.latest(symbol);
+        const realPrice = quote?.price ?? asset.state.price;
+        return _gapTracker?.shownPrice(symbol, realPrice) ?? realPrice;
+      },
+    }),
   });
 
   const registry = new AssetRegistry(Date.now() & 0x7fffffff);
   await registry.load();
+  _registry = registry;
 
   if (registry.symbols().length === 0) {
     throw new Error(
@@ -54,20 +79,42 @@ async function main(): Promise<void> {
   desk = new TradeDesk(registry, server, controller);
   await desk.hydrate(Math.floor(Date.now() / 1000));
 
-  const loop = startTickLoop(registry, server, desk);
+  const IS_CFD = process.env.TRADING_MODEL === "CFD";
+  let cfdDeps: CfdDeps | undefined;
+  let feed: Awaited<ReturnType<typeof createPriceFeed>> | null = null;
 
-  // Every market is house-first with the algo owning both the shown and the
-  // honest path. External price feeds would tug on both via the L4 anchor,
-  // undermining that authority — so unless EXTERNAL_ANCHORS=on is set for a
-  // debugging session, we skip feed startup entirely and no `setAnchor` call
-  // is ever made. Preserves the code path for future re-enablement.
-  const externalAnchors = process.env["EXTERNAL_ANCHORS"] === "on";
-  const feed = externalAnchors ? createPriceFeed(registry.symbols()) : null;
-  if (feed) {
+  if (IS_CFD) {
+    const quoteBuffer = new QuoteBuffer();
+    const gapTracker = new GapTracker();
+    const cfdDesk = new CfdDesk();
+
+    for (const asset of registry.all()) {
+      const sigma1h = registry.sigmaNow(asset.symbol) * Math.sqrt(3600);
+      gapTracker.registerAsset(asset.symbol, { sigma1h, maxGapMultiple: 3 });
+    }
+
+    _cfdDesk = cfdDesk;
+    _gapTracker = gapTracker;
+    _quoteBuffer = quoteBuffer;
+    cfdDeps = { quoteBuffer, gapTracker, cfdDesk };
+
+    feed = createPriceFeed(registry.symbols());
     await feed.start((quote) => {
+      quoteBuffer.update(quote);
       registry.setAnchor(quote.symbol, quote.price);
     });
+  } else {
+    // Binary mode: external anchors only if explicitly enabled.
+    const externalAnchors = process.env["EXTERNAL_ANCHORS"] === "on";
+    feed = externalAnchors ? createPriceFeed(registry.symbols()) : null;
+    if (feed) {
+      await feed.start((quote) => {
+        registry.setAnchor(quote.symbol, quote.price);
+      });
+    }
   }
+
+  const loop = startTickLoop(registry, server, desk, cfdDeps);
 
   await internal.listen();
 

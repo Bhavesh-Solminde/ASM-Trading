@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { TIMEFRAMES, type TradeView } from "@asm/contracts";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { SentimentBar } from "@/components/chart/SentimentBar";
@@ -22,8 +22,12 @@ import { useDismiss } from "@/lib/use-dismiss";
 import { useNowSec } from "@/lib/use-now";
 import { useScrollLock } from "@/lib/use-scroll-lock";
 import { MarketSelector } from "./MarketSelector";
+import type { CfdOpenTradeResult } from "@asm/contracts";
+import { CfdTradeTicket } from "./CfdTradeTicket";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
+
+const IS_CFD = process.env.NEXT_PUBLIC_TRADING_MODEL === "CFD";
 import { AssetIcon } from "./AssetIcon";
 import { grossReturnMinor } from "./pnl-display";
 import { PositionStrip } from "./PositionStrip";
@@ -412,6 +416,14 @@ export function TradeWorkspace() {
     setFocusMode,
   } = usePlatform();
 
+  const { applyBalanceUpdate } = usePlatform();
+  const recordCfdOpened = useCallback(
+    (result: CfdOpenTradeResult) => {
+      applyBalanceUpdate(result.trade.accountId, result.balances);
+    },
+    [applyBalanceUpdate],
+  );
+
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candles");
   const [marketPickerOpen, setMarketPickerOpen] = useState(false);
@@ -627,14 +639,24 @@ export function TradeWorkspace() {
         aria-label="Trade ticket and trades"
         className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:rounded-t-[20px] phone:border-l-0 phone:bg-panel land:grid-rows-[auto_minmax(0,1fr)] land:rounded-none land:border-l land:bg-transparent"
       >
-        <TradeTicket
-          symbol={asset.symbol}
-          pair={splitAssetName(asset.displayName).pair}
-          payoutPct={payoutPct}
-          accountId={activeAccount.id}
-          currency={activeAccount.currency}
-          onOpened={recordOpened}
-        />
+        {IS_CFD ? (
+          <CfdTradeTicket
+            symbol={asset.symbol}
+            pair={splitAssetName(asset.displayName).pair}
+            accountId={activeAccount.id}
+            currency={activeAccount.currency}
+            onOpened={recordCfdOpened}
+          />
+        ) : (
+          <TradeTicket
+            symbol={asset.symbol}
+            pair={splitAssetName(asset.displayName).pair}
+            payoutPct={payoutPct}
+            accountId={activeAccount.id}
+            currency={activeAccount.currency}
+            onOpened={recordOpened}
+          />
+        )}
         {focusMode ? null : (
           <div className="min-h-0 phone:hidden land:block">
             <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} />
