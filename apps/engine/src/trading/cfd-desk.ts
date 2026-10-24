@@ -3,6 +3,7 @@ import { logger } from "@asm/logger";
 import {
   CFD_LEVERAGE,
   cfdProfitMinor,
+  cfdMaxProfitPrice,
   cfdLiquidationPrice,
   directionToDb,
   directionFromDb,
@@ -308,14 +309,13 @@ export class CfdDesk {
       }
     }
 
-    // 3. Take profit
-    if (trade.takeProfit != null) {
-      if (isLong && shownPrice >= trade.takeProfit) {
-        return { reason: "TAKE_PROFIT", exitPrice: trade.takeProfit };
-      }
-      if (!isLong && shownPrice <= trade.takeProfit) {
-        return { reason: "TAKE_PROFIT", exitPrice: trade.takeProfit };
-      }
+    // 3. Take profit: the mandatory cap also covers existing positions and
+    // cannot be removed by editing the optional user protection.
+    const maxProfitPrice = cfdMaxProfitPrice(trade.direction, trade.entryPrice, trade.leverage ?? 1);
+    const takeProfit = trade.takeProfit == null ? maxProfitPrice
+      : isLong ? Math.min(trade.takeProfit, maxProfitPrice) : Math.max(trade.takeProfit, maxProfitPrice);
+    if ((isLong && shownPrice >= takeProfit) || (!isLong && shownPrice <= takeProfit)) {
+      return { reason: "TAKE_PROFIT", exitPrice: takeProfit };
     }
 
     // 4. Duration expiry
@@ -341,6 +341,9 @@ export class CfdDesk {
     exitPrice: number,
     now: Date,
   ): Promise<ClosedPosition> {
+    // Manual closes and price gaps obey the same ceiling as automatic exits.
+    const maxProfitPrice = cfdMaxProfitPrice(trade.direction, trade.entryPrice, trade.leverage ?? 1);
+    exitPrice = trade.direction === "UP" ? Math.min(exitPrice, maxProfitPrice) : Math.max(exitPrice, maxProfitPrice);
     // Opening fee is charged separately; settlement credits stake plus gross PnL.
     const pnl = cfdProfitMinor(trade.direction, trade.entryPrice, exitPrice, trade.stake, trade.leverage ?? 1);
 
