@@ -150,7 +150,7 @@ describe("position protection interaction edge cases", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: "TP reward" }), { target: { value: "" } });
     expect((screen.getByRole("button", { name: "Confirm" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(screen.getByRole("spinbutton", { name: "TP price" }), { target: { value: "112" } });
-    expect((screen.getByRole("spinbutton", { name: "TP reward" }) as HTMLInputElement).value).toBe("11.95");
+    expect((screen.getByRole("spinbutton", { name: "TP reward" }) as HTMLInputElement).value).toBe("12");
     expect((screen.getByRole("button", { name: "Confirm" }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Close protection editor" })); open();
     expect((screen.getByRole("checkbox", { name: "Enable TP" }) as HTMLInputElement).checked).toBe(false); expect(fetch).not.toHaveBeenCalled();

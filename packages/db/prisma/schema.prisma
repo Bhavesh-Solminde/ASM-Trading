@@ -360,6 +360,7 @@ model Candle {
 }
 
 model Trade {
+  leverage Int @default(1)
   id             String      @id @default(uuid())
   accountId      String
   assetId        String

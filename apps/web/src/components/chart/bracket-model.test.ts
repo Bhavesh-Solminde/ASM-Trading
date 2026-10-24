@@ -54,3 +54,9 @@ it("keeps a default TP beyond net breakeven after a losing market move", () => {
     expect(bracketError("takeProfit", target, direction, current)).toBeNull();
   }
 });
+
+it("inverts leveraged chart PnL without moving targets 100 times too far", () => {
+  const leveraged = {...trade, leverage:100};
+  expect(bracketFromPnl(leveraged, 10000, 1, 0)).toBe(80080);
+  expect(bracketPnl(leveraged, 80080)).toBe(10000);
+});

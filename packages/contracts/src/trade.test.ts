@@ -104,6 +104,7 @@ describe("tradeViewFrom", () => {
         "pnl",
         "stake",
         "spreadFee",
+        "leverage",
         "stopLoss",
         "takeProfit",
         "status",
