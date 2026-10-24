@@ -57,6 +57,8 @@ it.each(["LONG", "SHORT"] as const)("opens %s at the published chart price even 
       userDailyPnl: 60000, dailyWinCap: 60000, dynamicMaxStake: 150000, isCircuitBroken: false });
   expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ entryPrice: 81646.98 }) }));
   expect(result.trade.entryPrice).toBe(81646.98);
+  expect(result.trade.leverage).toBe(100);
+  expect(result.trade.liqPrice).toBeCloseTo(81646.98 * (direction === "LONG" ? .99 : 1.01));
 });
 
 it("charges the full spread separately, logs it and credits LIVE treasury", async () => {
@@ -77,6 +79,8 @@ it("charges the full spread separately, logs it and credits LIVE treasury", asyn
       userDailyPnl: 0, dailyWinCap: 60000, dynamicMaxStake: 150000, isCircuitBroken: false });
   expect(result.trade.spreadFee).toBe(50);
   expect(result.trade.entryPrice).toBe(81646.98);
+  expect(result.trade.leverage).toBe(100);
+  expect(result.trade.liqPrice).toBeCloseTo(81646.98 * .99);
   expect(debit).toHaveBeenCalledWith(expect.objectContaining({ data: {
     realBalance: { decrement: 100050 }, bonusBalance: { decrement: 0 },
   } }));
@@ -160,4 +164,12 @@ it.each([
     account: { update: async () => {}, findUnique: async () => ({ type: "DEMO" }) } }));
   const result = await new CfdDesk().scanPositions("asset", "BTCUSDT", price, new Date());
   expect(result[0]?.reason).toBe(reason);
+});
+
+it.each([["STOP_LOSS", 80623, -21], ["TAKE_PROFIT", 80629, 53]] as const)("settles 100x %s using rounded paisa and credits the wallet", async (reason, exit, expected) => {
+  const credit = vi.fn();
+  mocks.transaction.mockImplementationOnce(async fn => fn({trade:{update:vi.fn()},account:{update:credit,findUnique:async()=>({type:"DEMO"})}}));
+  const result = await new CfdDesk().closePosition({id:"leveraged",accountId:"demo",direction:"UP",entryPrice:80624.69,stake:10000,stakeFromBonus:0,leverage:100},reason,exit,new Date());
+  expect(result.pnl).toBe(expected);
+  expect(credit).toHaveBeenCalledWith(expect.objectContaining({data:{realBalance:{increment:10000+expected},bonusBalance:{increment:0}}}));
 });

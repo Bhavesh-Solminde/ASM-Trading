@@ -1,6 +1,9 @@
 import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
 import {
+  CFD_LEVERAGE,
+  cfdProfitMinor,
+  cfdLiquidationPrice,
   directionToDb,
   directionFromDb,
   type EngineCfdOpenTradeInput,
@@ -41,6 +44,7 @@ function toView(
     direction: string;
     stake: number;
     spreadFee?: number;
+    leverage?: number;
     entryPrice: number;
     entryTs: Date;
     expiryTs: Date;
@@ -62,6 +66,7 @@ function toView(
     direction: directionFromDb(trade.direction as "UP" | "DOWN"),
     stake: trade.stake,
     spreadFee: trade.spreadFee ?? 0,
+    leverage: trade.leverage ?? 1,
     entryPrice: trade.entryPrice,
     entryTs: Math.floor(trade.entryTs.getTime() / 1000),
     expiryTs: Math.floor(trade.expiryTs.getTime() / 1000),
@@ -122,8 +127,8 @@ export class CfdDesk {
       throw new Error("INVALID_STOPS");
     }
 
-    // Unleveraged CFD: LONG liq at 0, SHORT liq at 2× entry
-    const liqPrice = dbDir === "UP" ? 0 : entry * 2;
+    // Margin is exhausted by a 1 / leverage adverse move.
+    const liqPrice = cfdLiquidationPrice(dbDir, entry, CFD_LEVERAGE);
 
     const now = new Date();
     const expiryTs = new Date(now.getTime() + input.durationSec * 1000);
@@ -149,6 +154,7 @@ export class CfdDesk {
           direction: dbDir,
           stake: input.stake,
           spreadFee,
+          leverage: CFD_LEVERAGE,
           stakeFromBonus: fromBonus,
           payoutPct: 0,
           entryPrice: entry,
@@ -229,12 +235,7 @@ export class CfdDesk {
           closed.push(result);
         } else {
           // Update peak PnL for trailing stop tracking
-          const isLong = trade.direction === "UP";
-          const pnl = Math.round(
-            (isLong
-              ? (shownPrice - trade.entryPrice) / trade.entryPrice
-              : (trade.entryPrice - shownPrice) / trade.entryPrice) * trade.stake,
-          );
+          const pnl = cfdProfitMinor(trade.direction, trade.entryPrice, shownPrice, trade.stake, trade.leverage ?? 1);
           if (pnl > (trade.peakPnl ?? 0)) {
             await prisma.trade.update({
               where: { id: trade.id },
@@ -256,7 +257,8 @@ export class CfdDesk {
       direction: string;
       entryPrice: number;
       stake: number;
-    spreadFee?: number;
+      spreadFee?: number;
+      leverage?: number;
       expiryTs: Date;
       stopLoss: number | null;
       takeProfit: number | null;
@@ -331,27 +333,16 @@ export class CfdDesk {
       direction: string;
       entryPrice: number;
       stake: number;
-    spreadFee?: number;
+      spreadFee?: number;
+      leverage?: number;
       stakeFromBonus: number;
     },
     reason: CfdCloseReasonDto,
     exitPrice: number,
     now: Date,
   ): Promise<ClosedPosition> {
-    const isLong = trade.direction === "UP";
-    const pnlFrac = isLong
-      ? (exitPrice - trade.entryPrice) / trade.entryPrice
-      : (trade.entryPrice - exitPrice) / trade.entryPrice;
-    const rawPnl = Math.round(pnlFrac * trade.stake);
-    const grossPnl = Math.max(rawPnl, -trade.stake);
-    // Displayed / stored PnL is the pure market move. The spread fee was
-    // debited and credited to the house at open (cfd-desk.ts:182), so showing
-    // it again here punishes the user visually for a cost already paid — a
-    // trade in gross profit should read green even if the gross profit is
-    // smaller than the already-paid spread. Economics are unchanged because
-    // the user's balance credit is `stake + grossPnl`, which never included
-    // the fee anyway.
-    const pnl = grossPnl;
+    // Opening fee is charged separately; settlement credits stake plus gross PnL.
+    const pnl = cfdProfitMinor(trade.direction, trade.entryPrice, exitPrice, trade.stake, trade.leverage ?? 1);
 
     await prisma.$transaction(async (tx) => {
       await tx.trade.update({
@@ -365,7 +356,7 @@ export class CfdDesk {
         },
       });
 
-      const netReturn = trade.stake + grossPnl;
+      const netReturn = trade.stake + pnl;
       if (netReturn > 0) {
         const bonusRatio = trade.stake > 0 ? trade.stakeFromBonus / trade.stake : 0;
         const bonusReturn = Math.round(netReturn * bonusRatio);
@@ -387,7 +378,7 @@ export class CfdDesk {
       });
 
       if (account?.type === "LIVE") {
-        const housePnl = -grossPnl;
+        const housePnl = -pnl;
         await tx.houseTreasury.upsert({
           where: { id: 1 },
           update: { treasuryMinor: { increment: housePnl } },
@@ -440,6 +431,7 @@ export class CfdDesk {
         entryPrice: trade.entryPrice,
         stake: trade.stake,
         spreadFee: trade.spreadFee ?? 0,
+        leverage: trade.leverage ?? 1,
         stakeFromBonus: trade.stakeFromBonus,
       },
       "MANUAL",

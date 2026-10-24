@@ -1,3 +1,4 @@
+import { cfdProfitMinor } from "@asm/contracts";
 import type { TradeView } from "@asm/contracts";
 
 /**
@@ -59,7 +60,7 @@ export function openSide(
 }
 
 /**
- * Unleveraged CFD gross PnL at the displayed price, capped at the stake.
+ * Leveraged CFD gross PnL at the displayed price, capped at the stake.
  *
  * This is PURE market move only — the opening spread fee is NOT subtracted
  * here. The fee was debited from the user's wallet when the trade opened
@@ -68,8 +69,7 @@ export function openSide(
  * on the user's side. Credited balance on close is `stake + grossPnl`, which
  * matches this number exactly.
  */
-export function cfdOpenPnl(trade: Pick<TradeView, "direction" | "stake" | "entryPrice">, price: number | null): number | null {
+export function cfdOpenPnl(trade: Pick<TradeView, "direction" | "stake" | "entryPrice" | "leverage">, price: number | null): number | null {
   if (price === null || trade.entryPrice <= 0) return null;
-  const move = trade.direction === "UP" ? price - trade.entryPrice : trade.entryPrice - price;
-  return Math.max(-trade.stake, Math.round(move / trade.entryPrice * trade.stake));
+  return cfdProfitMinor(trade.direction, trade.entryPrice, price, trade.stake, trade.leverage ?? 1);
 }
