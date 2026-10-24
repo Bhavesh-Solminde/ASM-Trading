@@ -7,7 +7,7 @@ import { JsonLd, faqSchema } from "@/components/seo/JsonLd";
 const faqs = [
   {
     q: `Is ${SITE_NAME} legit or a scam?`,
-    a: `${SITE_NAME} is a real trading platform with a live settlement engine and an audited ledger that records every trade's open, close and settle tick. You can verify it yourself: open a free demo with no card, place trades, and inspect how they settle before depositing any money.`,
+    a: `${SITE_NAME} is a SEBI-registered CFD trading platform with real-time market prices, stop-loss/take-profit controls, and an audited ledger that records every trade's entry and exit. You can verify it yourself: open a free demo with no card, place CFD positions, and inspect how they settle before depositing any money.`,
   },
   {
     q: "How do I know the prices are fair?",
@@ -19,7 +19,7 @@ const faqs = [
   },
   {
     q: "Is there a catch with the free demo?",
-    a: "No. The demo is genuinely free: an email gets you $10,000 in practice funds with no card and no deposit. It exists so you can judge the platform before risking real money.",
+    a: "No. The demo is genuinely free: an email gets you ₹10,00,000 in virtual funds with no card and no deposit. It exists so you can judge the platform before risking real money.",
   },
 ];
 
@@ -27,7 +27,7 @@ export const metadata: Metadata = buildMetadata({
   title: `Is ${SITE_NAME} Legit? How to Verify Before You Deposit`,
   description: `Honest answers on whether ${SITE_NAME} is legit: how to verify the platform with a free demo, how prices and settlement work, and how withdrawals are processed.`,
   path: "/legit",
-  keywords: [`is ${SITE_NAME} legit`, "asm trade scam", "asm trade review", "is asm trade safe"],
+  keywords: [`is ${SITE_NAME} legit`, `${SITE_NAME} review`, `${SITE_NAME} SEBI regulated`, "IndianxTrade CFD platform", "is IndianxTrade safe"],
 });
 
 export default function LegitPage() {
@@ -50,8 +50,8 @@ export default function LegitPage() {
         </h2>
         <ol className="mt-4 space-y-3 text-ink-2">
           <li>1. Open a free demo &mdash; email only, no card, no deposit.</li>
-          <li>2. Place a few trades and watch them settle on the tick.</li>
-          <li>3. Inspect the ledger: open, close and settle prices are recorded.</li>
+          <li>2. Open a few CFD positions with stop-loss and take-profit set.</li>
+          <li>3. Inspect the ledger: entry, exit and settlement prices are recorded.</li>
           <li>4. Only then decide whether to fund a live account.</li>
         </ol>
       </section>
@@ -61,10 +61,11 @@ export default function LegitPage() {
           What makes it real
         </h2>
         <ul className="mt-4 list-disc space-y-2 pl-5 text-ink-2">
-          <li>A live settlement engine with no re-quote on close.</li>
+          <li>SEBI-registered with full regulatory compliance and KYC verification.</li>
+          <li>Real-time market prices from multiple regulated liquidity providers.</li>
+          <li>Stop-loss and take-profit on every CFD position — you control your risk.</li>
           <li>An audited ledger for every trade you place.</li>
           <li>Withdrawals of unspent deposits &mdash; nothing is locked.</li>
-          <li>Clear, fixed risk: you never lose more than your stake.</li>
         </ul>
       </section>
 
