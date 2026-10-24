@@ -29,9 +29,17 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       orderBy: { symbol: "asc" },
       select: { id: true, symbol: true, displayName: true, precision: true, spreadBps: true, tickSize: true, payoutPct: true, assetClass: true },
     }),
-    prisma.user.findUnique({ where: { id: session.userId }, select: { liveAccess: true } }),
+    prisma.user.findUnique({ where: { id: session.userId }, select: { liveAccess: true, status: true } }),
     countCompletedDeposits(session.userId),
   ]);
+
+  // Kick a frozen or banned user out of the trading surface entirely, even
+  // if their cookie slipped past the session delete. Mirrors the trade and
+  // withdrawal gates in packages/db. FLAGGED is a watchlist marker and stays
+  // in. A missing user row (deleted account) also fails closed.
+  if (!user || user.status === "FROZEN" || user.status === "BANNED") {
+    redirect("/login?suspended=1");
+  }
 
   // History is server-rendered for the default (demo) account; the provider
   // fetches it for any other account on switch.
