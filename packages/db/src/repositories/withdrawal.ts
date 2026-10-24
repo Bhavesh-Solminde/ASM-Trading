@@ -149,7 +149,9 @@ export async function requestWithdrawal(input: {
     where: { id: input.actorId },
     select: { status: true, kycStatus: true, role: true },
   });
-  if (actor.status !== "ACTIVE") {
+  // FLAGGED is a watchlist marker and does not block withdrawals; only FROZEN
+  // and BANNED do.
+  if (actor.status === "FROZEN" || actor.status === "BANNED") {
     throw new WithdrawalRefused(
       "Withdrawals are paused on this account. Contact support.",
     );
