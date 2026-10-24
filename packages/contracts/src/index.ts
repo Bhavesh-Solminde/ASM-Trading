@@ -119,3 +119,5 @@ export {
 } from "./leaderboard";
 
 export { CFD_LEVERAGE, cfdProfitMinor, cfdLiquidationPrice } from "./cfd-math";
+
+export { marketSessionOpen, marketStatus, type MarketStatus } from "./market-session";

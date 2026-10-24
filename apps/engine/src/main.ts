@@ -1,3 +1,4 @@
+import { marketStatus } from "@asm/contracts";
 import { tradeViewFrom } from "@asm/contracts";
 import Redis from "ioredis";
 import { config } from "@asm/config";
@@ -33,6 +34,7 @@ async function main(): Promise<void> {
   let _cfdDesk: CfdDesk | null = null;
   let _registry: AssetRegistry | null = null;
 
+  let liveQuoteBuffer: QuoteBuffer | undefined;
   const internal = createInternalApi({
     desk: {
       open: (input) => {
@@ -49,6 +51,7 @@ async function main(): Promise<void> {
           return (_cfdDesk as unknown as Record<string, unknown>)[prop as string];
         },
       }),
+      marketStatus: (symbol: string) => marketStatus(symbol, liveQuoteBuffer?.latest(symbol)?.ts),
       shownMidPrice: (symbol: string) => _registry?.publishedPrice(symbol) ?? 0,
     }),
   });
@@ -78,6 +81,7 @@ async function main(): Promise<void> {
 
   if (IS_CFD) {
     const quoteBuffer = new QuoteBuffer();
+    liveQuoteBuffer = quoteBuffer;
     const gapTracker = new GapTracker();
     const cfdDesk = new CfdDesk(async (tradeId) => {
       const trade = await prisma.trade.findUniqueOrThrow({

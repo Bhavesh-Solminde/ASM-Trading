@@ -6,6 +6,8 @@ import {
 } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import {
+  marketStatus,
+  type MarketStatus,
   EngineOpenTradeSchema,
   EngineCfdOpenTradeSchema,
   CfdCloseTradeSchema,
@@ -89,6 +91,7 @@ export function createInternalApi(deps: {
   cfdDesk?: CfdDesk;
   /** Returns the current shown mid-price for a symbol, for CFD opens. */
   shownMidPrice?: (symbol: string) => number;
+  marketStatus?: (symbol: string) => MarketStatus;
 }): { listen(): Promise<number>; close(): Promise<void> } {
   const isCfd = (deps.tradingModel ?? process.env.TRADING_MODEL) === "CFD";
   if (!deps.secret) {
@@ -120,10 +123,15 @@ export function createInternalApi(deps: {
       return reply(res, 409, { error: "trading_model_mismatch" });
     }
 
+    if (method === "GET" && url.startsWith("/cfd/market-status?")) {
+      const symbol = new URL(url, "http://internal").searchParams.get("symbol") ?? "";
+      return reply(res, 200, { symbol, status: deps.marketStatus?.(symbol) ?? marketStatus(symbol) });
+    }
+
     // ── CFD routes ────────────────────────────────────────────────
     if (isCfd && deps.cfdDesk && deps.shownMidPrice) {
       if (method === "POST" && url === "/cfd/trades") {
-        return handleCfdOpen(json, deps.cfdDesk, deps.shownMidPrice, res);
+        return handleCfdOpen(json, deps.cfdDesk, deps.shownMidPrice, res, deps.marketStatus);
       }
       const closeMatch = url.match(/^\/cfd\/trades\/([^/]+)\/close$/);
       if (method === "POST" && closeMatch) {
@@ -275,6 +283,7 @@ async function handleCfdOpen(
   cfdDesk: CfdDesk,
   shownMidPrice: (symbol: string) => number,
   res: ServerResponse,
+  statusFor?: (symbol: string) => MarketStatus,
 ): Promise<void> {
   const parsed = EngineCfdOpenTradeSchema.safeParse(json);
   if (!parsed.success) {
@@ -283,6 +292,8 @@ async function handleCfdOpen(
   }
 
   const input = parsed.data;
+  const status = statusFor?.(input.symbol) ?? marketStatus(input.symbol);
+  if (status !== "open") return reply(res, 409, {error: status === "closed" ? "market_closed" : "market_unavailable"});
 
   const asset = await prisma.asset.findFirst({
     where: { symbol: input.symbol, isOpen: true },

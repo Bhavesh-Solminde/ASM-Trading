@@ -10,6 +10,7 @@ import { EngineRejected, EngineUnavailable, engineCfdOpen } from "@/lib/engine-c
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 const REJECTION_MESSAGE: Record<string, string> = {
+  market_closed: "This market is closed. Trading resumes when the market opens and live prices return.",
   invalid_stops: "Check stop loss and take profit. Each level must be on the correct side of the entry price.",
   unknown_asset: "That asset is not available right now.",
   market_unavailable: "Market is temporarily unavailable.",
@@ -19,6 +20,7 @@ const REJECTION_MESSAGE: Record<string, string> = {
 };
 
 const BROWSER_STATUS: Record<string, number> = {
+  market_closed: 409,
   market_unavailable: 409,
   stake_exceeds_limit: 400,
 };
