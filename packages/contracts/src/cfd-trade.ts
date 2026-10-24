@@ -61,6 +61,7 @@ export interface CfdTradeView {
   stake: number;
   /** Opening fee in minor units, already deducted from balance. */
   spreadFee?: number;
+  leverage?: number;
   entryPrice: number;
   entryTs: number;
   expiryTs: number;

@@ -1,5 +1,6 @@
 "use client";
 
+import { cfdProfitMinor } from "@asm/contracts";
 import { memo, useMemo, useState } from "react";
 import { Icon } from "@/components/shell/Icon";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
@@ -12,6 +13,7 @@ export interface CfdOpenPosition {
   symbol: string;
   direction: "UP" | "DOWN";
   stake: number;
+  leverage?: number;
   entryPrice: number;
   stopLoss: number | null;
   takeProfit: number | null;
@@ -19,19 +21,6 @@ export interface CfdOpenPosition {
   durationSec: number | null;
 }
 
-function cfdPnlMinor(
-  direction: "UP" | "DOWN",
-  entryPrice: number,
-  currentPrice: number,
-  stakeMinor: number,
-): number {
-  if (entryPrice <= 0) return 0;
-  const frac =
-    direction === "UP"
-      ? (currentPrice - entryPrice) / entryPrice
-      : (entryPrice - currentPrice) / entryPrice;
-  return Math.round(frac * stakeMinor);
-}
 
 const CfdStripBody = memo(function CfdStripBody({
   position,
@@ -50,7 +39,7 @@ const CfdStripBody = memo(function CfdStripBody({
 }) {
   const price = useQuote(position.symbol)?.price ?? null;
   const isLong = position.direction === "UP";
-  const pnl = price !== null ? cfdPnlMinor(position.direction, position.entryPrice, price, position.stake) : null;
+  const pnl = price !== null ? cfdProfitMinor(position.direction, position.entryPrice, price, position.stake, position.leverage ?? 1) : null;
   const pnlPct = price !== null && position.entryPrice > 0
     ? ((isLong ? price - position.entryPrice : position.entryPrice - price) / position.entryPrice) * 100
     : null;

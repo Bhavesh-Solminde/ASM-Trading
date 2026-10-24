@@ -112,6 +112,7 @@ export async function GET(req: NextRequest) {
         symbol: t.asset.symbol,
         direction: t.direction,
         stake: t.stake,
+        leverage: t.leverage,
         entryPrice: t.entryPrice,
         exitPrice: t.exitPrice,
         stopLoss: t.stopLoss,

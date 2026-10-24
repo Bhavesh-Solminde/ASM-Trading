@@ -117,3 +117,5 @@ export {
   type LeaderboardEntryDto,
   type LeaderboardResultDto,
 } from "./leaderboard";
+
+export { CFD_LEVERAGE, cfdProfitMinor, cfdLiquidationPrice } from "./cfd-math";
