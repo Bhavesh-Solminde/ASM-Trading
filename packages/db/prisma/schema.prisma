@@ -441,6 +441,19 @@ model EngineAssetState {
   updatedAt DateTime @updatedAt
 }
 
+/// Access tokens for third-party integrations (currently just FYERS for NSE/BSE
+/// market data). Daily-expiring tokens that the admin re-authorizes via a
+/// browser OAuth round-trip; keyed by `provider` so one row per integration.
+/// Access-token values stay out of the repo and are only ever present in the
+/// prod database — never logged, never surfaced to the browser.
+model IntegrationToken {
+  provider     String   @id
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime
+  updatedAt    DateTime @updatedAt
+}
+
 /// Recorded for every settled trade, never exposed to a trading client.
 model TradeShadow {
   tradeId          String   @id
