@@ -42,7 +42,7 @@ export function defaultBracketPrice(kind: BracketKind, trade: TradeView, current
 }
 export function bracketFromPnl(trade: TradeView, netMinor: number, tick: number, precision: number): number {
   // Inverse of cfdOpenPnl: PnL / stake = fractional move from entry.
-  const move = netMinor / trade.stake;
+  const move = netMinor / (trade.stake * (trade.leverage ?? 1));
   return snapBracketPrice(trade.entryPrice * (1 + (trade.direction === "UP" ? move : -move)), tick, precision);
 }
 export function bracketPnl(trade: TradeView, price: number): number { return cfdOpenPnl(trade, price) ?? 0; }

@@ -1,5 +1,6 @@
 "use client";
 
+import { cfdProfitMinor } from "@asm/contracts";
 import { memo, useState } from "react";
 import { Icon } from "@/components/shell/Icon";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
@@ -15,6 +16,7 @@ interface CfdClosedTrade {
   symbol: string;
   direction: "UP" | "DOWN";
   stake: number;
+  leverage?: number;
   entryPrice: number;
   exitPrice: number | null;
   pnl: number;
@@ -22,19 +24,6 @@ interface CfdClosedTrade {
   closedAt: string | null;
 }
 
-function cfdPnlMinor(
-  direction: "UP" | "DOWN",
-  entryPrice: number,
-  currentPrice: number,
-  stakeMinor: number,
-): number {
-  if (entryPrice <= 0) return 0;
-  const frac =
-    direction === "UP"
-      ? (currentPrice - entryPrice) / entryPrice
-      : (entryPrice - currentPrice) / entryPrice;
-  return Math.round(frac * stakeMinor);
-}
 
 const OpenRow = memo(function OpenRow({
   trade,
@@ -49,7 +38,7 @@ const OpenRow = memo(function OpenRow({
 }) {
   const price = useQuote(trade.symbol)?.price ?? null;
   const isLong = trade.direction === "UP";
-  const pnl = price !== null ? cfdPnlMinor(trade.direction, trade.entryPrice, price, trade.stake) : null;
+  const pnl = price !== null ? cfdProfitMinor(trade.direction, trade.entryPrice, price, trade.stake, trade.leverage ?? 1) : null;
   const pnlPct = price !== null && trade.entryPrice > 0
     ? ((isLong ? price - trade.entryPrice : trade.entryPrice - price) / trade.entryPrice) * 100
     : null;

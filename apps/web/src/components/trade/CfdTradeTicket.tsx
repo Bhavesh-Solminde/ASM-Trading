@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { CfdOpenTradeResult } from "@asm/contracts";
+import { CFD_LEVERAGE, type CfdOpenTradeResult } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { minStakeMinor } from "@/lib/currency";
@@ -122,7 +122,7 @@ export function CfdTradeTicket({
   const slabNote =
     "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 max-[359px]:hidden";
   const pnlIfUp =
-    stakeMinor > 0 ? formatMinor(Math.floor(stakeMinor * 0.01), currency) : "—";
+    stakeMinor > 0 ? formatMinor(Math.floor(stakeMinor * 0.01 * CFD_LEVERAGE), currency) : "—";
 
   return (
     <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:mx-auto phone:w-full phone:max-w-[560px] phone:gap-2.5 phone:border-b-0 phone:pb-3 phone:pt-3 land:max-w-none land:gap-1.5 land:px-2 land:pb-[max(4px,env(safe-area-inset-bottom))] land:pt-2">
@@ -232,7 +232,7 @@ export function CfdTradeTicket({
 
       {/* ── Preview ───────────────────────────────────── */}
       <div className="flex items-center justify-between border-t border-dashed border-rule pb-0.5 pt-2.5 text-xs text-ink-3 phone:hidden">
-        <span>If +1% move</span>
+        <span>100× · If +1% move</span>
         <span className="font-semibold text-up">+{pnlIfUp}</span>
         <span>If -1% move</span>
         <span className="font-semibold text-down">-{pnlIfUp}</span>
