@@ -10,7 +10,7 @@ export { QuoteBuffer } from "./quote-buffer";
 // Internal symbol -> provider symbol. Crypto is free and real-time over
 // Binance's WebSocket; forex + gold ride Live-Rates.com's socket.io feed
 // (sub-second updates on trial and paid plans); Indian indices come from
-// FYERS over REST polling (binary WS is a follow-up PR, see fyers.ts).
+// FYERS over the official v3 data WebSocket (see fyers.ts).
 // Any symbol absent from all three tables runs fully synthetic.
 const BINANCE: Record<string, string> = {
   BTCUSD: "btcusdt",
@@ -97,8 +97,8 @@ export function createPriceFeed(symbols: string[]): PriceFeed {
     const appId = process.env.FYERS_APP_ID ?? "";
     if (appId) {
       // The access token is read lazily from the IntegrationToken DB row
-      // every tick — we never pass it through env, so a rotated or newly-
-      // authorized token takes effect at the next poll without a redeploy.
+      // every token check — we never pass it through env, so a rotated or newly-
+      // authorized token reconnects the stream without a redeploy.
       feeds.push(createFyersFeed({ appId, mapping: fyers }));
     } else {
       logger.info(
