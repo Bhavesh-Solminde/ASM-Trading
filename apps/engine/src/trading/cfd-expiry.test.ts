@@ -3,6 +3,57 @@ const mocks = vi.hoisted(() => ({ findMany: vi.fn(), transaction: vi.fn(), findU
 vi.mock("@asm/db", () => ({ prisma: { trade: { findMany: mocks.findMany, findUniqueOrThrow: mocks.findUniqueOrThrow, updateMany: mocks.updateMany }, $transaction: mocks.transaction } }));
 vi.mock("@asm/logger", () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 import { CfdDesk } from "./cfd-desk";
+
+it.each([
+  ["UP", 102, null, 102, 20000],
+  ["UP", 110, null, 102, 20000],
+  ["DOWN", 98, null, 98, 20000],
+  ["DOWN", 90, null, 98, 20000],
+  ["UP", 110, 105, 102, 20000],
+  ["DOWN", 90, 95, 98, 20000],
+  ["UP", 110, 101, 101, 10000],
+  ["DOWN", 90, 99, 99, 10000],
+] as const)("automatically caps %s profit at the earlier profit target (%s, %s)", async (direction, price, takeProfit, exitPrice, pnl) => {
+  const now = new Date();
+  mocks.findMany.mockResolvedValue([{ id: "capped", accountId: "a", direction,
+    entryPrice: 100, stake: 10000, stakeFromBonus: 2500, leverage: 100,
+    expiryTs: new Date(now.getTime() + 60000), stopLoss: null, takeProfit,
+    trailingPct: null, liqPrice: null, peakPnl: 0 }]);
+  const update = vi.fn();
+  const credit = vi.fn();
+  const treasury = vi.fn();
+  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { update },
+    account: { update: credit, findUnique: async () => ({ type: "LIVE" }) },
+    houseTreasury: { upsert: treasury } }));
+  const notify = vi.fn();
+  expect(await new CfdDesk(notify).scanPositions("asset", "BTCUSDT", price, now)).toEqual([
+    { tradeId: "capped", accountId: "a", reason: "TAKE_PROFIT", exitPrice, pnl },
+  ]);
+  expect(update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ exitPrice, pnl, status: "CLOSED" }) }));
+  expect(credit).toHaveBeenCalledWith(expect.objectContaining({ data: {
+    realBalance: { increment: (10000 + pnl) * .75 },
+    bonusBalance: { increment: (10000 + pnl) * .25 },
+  } }));
+  expect(treasury).toHaveBeenCalledWith(expect.objectContaining({ update: { treasuryMinor: { increment: -pnl } } }));
+  expect(notify).toHaveBeenCalledExactlyOnceWith("capped");
+});
+
+it.each(["UP", "DOWN"] as const)("caps a manual %s close that beats the automatic scan", async direction => {
+  const credit = vi.fn();
+  mocks.findUniqueOrThrow.mockResolvedValue({ id: "manual", accountId: "a", direction,
+    status: "OPEN", entryPrice: 100, stake: 10000, stakeFromBonus: 0, leverage: 100,
+    entryTs: new Date(Date.now() - 60000) });
+  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { update: vi.fn() },
+    account: { update: credit, findUnique: async () => ({ type: "DEMO" }) } }));
+  const result = await new CfdDesk().manualClose("manual", direction === "UP" ? 110 : 90,
+    { id: "asset", symbol: "BTCUSDT", spreadBps: 0 }, 0, 60000);
+  expect(result.pnl).toBe(20000);
+  expect(result.exitPrice).toBe(direction === "UP" ? 102 : 98);
+  expect(credit).toHaveBeenCalledWith(expect.objectContaining({ data: {
+    realBalance: { increment: 30000 }, bonusBalance: { increment: 0 },
+  } }));
+});
+
 it("settles expired positions, credits balances and notifies; a failed row does not block later trades", async () => {
   const now = new Date("2026-10-23T12:00:00Z");
   const base = { accountId: "account", direction: "UP", stake: 10000, stakeFromBonus: 0,

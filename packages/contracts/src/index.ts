@@ -118,6 +118,6 @@ export {
   type LeaderboardResultDto,
 } from "./leaderboard";
 
-export { CFD_LEVERAGE, cfdProfitMinor, cfdLiquidationPrice } from "./cfd-math";
+export { CFD_LEVERAGE, CFD_MAX_PROFIT_MULTIPLIER, cfdProfitMinor, cfdMaxProfitPrice, cfdLiquidationPrice } from "./cfd-math";
 
 export { marketSessionOpen, marketStatus, type MarketStatus } from "./market-session";
