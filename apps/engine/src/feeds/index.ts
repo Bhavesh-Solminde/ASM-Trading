@@ -36,6 +36,7 @@ const LIVE_RATES: Record<string, string> = {
 // FYERS Indian-indices mapping. FYERS v3 keys indices as `<EXCH>:<NAME>-INDEX`.
 const FYERS: Record<string, string> = {
   NIFTY50: "NSE:NIFTY50-INDEX",
+  NIFTYMIDCAP100: "NSE:NIFTYMIDCAP100-INDEX",
   BANKNIFTY: "NSE:NIFTYBANK-INDEX",
   FINNIFTY: "NSE:FINNIFTY-INDEX",
   NIFTYIT: "NSE:NIFTYIT-INDEX",
