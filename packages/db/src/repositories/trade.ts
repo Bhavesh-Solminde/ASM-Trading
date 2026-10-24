@@ -143,8 +143,9 @@ export async function openTrade(input: OpenTradeInput): Promise<OpenedTrade> {
         // that lands mid-request wins the race: a user frozen a millisecond
         // before the trade opens is refused. Already-open trades are read
         // through settleTrade, which never re-checks status — a frozen user's
-        // in-flight positions still settle honestly.
-        if (account.user.status !== "ACTIVE") {
+        // in-flight positions still settle honestly. FLAGGED is a watchlist
+        // marker only and does not block.
+        if (account.user.status === "FROZEN" || account.user.status === "BANNED") {
           throw new AccountNotActive();
         }
         if (account.realBalance + account.bonusBalance < input.stake) {
