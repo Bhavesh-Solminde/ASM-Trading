@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { AD_ENTRY_KEY } from "@/lib/ad-landing";
 
 /* ---------------------------------------------------------------------------
  * Meta (Facebook) Pixel — mounted only on the landing, login and register
@@ -78,6 +79,19 @@ function loadPixels(pixelIds: string[]): Fbq {
  */
 export function trackPixelEvent(event: string) {
   window.fbq?.("track", event);
+}
+
+/** Custom funnel events contain only action context, never account details. */
+export function trackPixelCustomEvent(event: string, parameters: Record<string, string> = {}) {
+  window.fbq?.("trackCustom", event, parameters);
+}
+
+export function trackLogin(method: "email" | "google") {
+  let source = "website";
+  try {
+    if (sessionStorage.getItem(AD_ENTRY_KEY) === "/start") source = "ad_landing";
+  } catch { /* Tracking must never block authentication. */ }
+  trackPixelCustomEvent("Login", { method, source });
 }
 
 export function MetaPixel({ pixelIds }: { pixelIds: string[] }) {

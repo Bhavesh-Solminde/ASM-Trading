@@ -7,6 +7,7 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { EmailInput } from "@/components/auth/EmailInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
+import { trackLogin } from "@/components/seo/MetaPixel";
 import { Spinner } from "@/components/auth/Spinner";
 
 const GOOGLE_ERROR = "Google sign-in didn't go through. Try again, or log in with your email.";
@@ -39,6 +40,7 @@ export function LoginForm({
     });
 
     if (res.ok) {
+      trackLogin("email");
       router.push("/trade");
       return;
     }
