@@ -70,6 +70,7 @@ export async function engineOpenTrade(input: EngineOpenTradeInput): Promise<Open
 // ── CFD engine calls ────────────────────────────────────────────────
 
 const CFD_REFUSALS = new Set([
+  "market_closed",
   "unknown_asset",
   "market_unavailable",
   "trading_paused",
@@ -122,4 +123,9 @@ export async function engineCfdModify(
   changes: { stopLoss?: number | null; takeProfit?: number | null },
 ): Promise<void> {
   await cfdCall(`/cfd/trades/${tradeId}`, "PATCH", changes);
+}
+
+export async function engineMarketStatus(symbol: string): Promise<{symbol:string;status:"open"|"closed"|"unavailable"}> {
+  const {data} = await cfdCall(`/cfd/market-status?symbol=${encodeURIComponent(symbol)}`, "GET");
+  return data as {symbol:string;status:"open"|"closed"|"unavailable"};
 }

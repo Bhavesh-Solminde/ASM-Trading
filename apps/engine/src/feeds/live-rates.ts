@@ -70,9 +70,8 @@ export function parseLiveRatesQuote(
 
   const rawTs = Number(obj.timestamp);
   // Live-Rates sends epoch seconds; be defensive about ms (× 1000) too.
-  const ts = Number.isFinite(rawTs)
-    ? (rawTs > 1e12 ? Math.floor(rawTs / 1000) : Math.floor(rawTs))
-    : Math.floor(Date.now() / 1000);
+  if (!Number.isFinite(rawTs) || rawTs <= 0) return null;
+  const ts = rawTs > 1e12 ? Math.floor(rawTs / 1000) : Math.floor(rawTs);
 
   return { symbol: internal, price, ts };
 }

@@ -9,6 +9,8 @@ export class PublishedPrices {
     this.prices.set(symbol, { price, ts });
   }
 
+  lastKnown(symbol: string): number { return this.prices.get(symbol)?.price ?? 0; }
+
   latest(symbol: string, nowSec = Date.now() / 1000): number {
     const quote = this.prices.get(symbol);
     // Fail closed before the first tick or when the engine stops publishing.

@@ -109,6 +109,8 @@ export class AssetRegistry {
     return this.publishedPrices.latest(symbol);
   }
 
+  lastPublishedPrice(symbol: string): number { return this.publishedPrices.lastKnown(symbol); }
+
   private assets = new Map<string, LiveAsset>();
   private rng: Rng;
 
@@ -175,7 +177,7 @@ export class AssetRegistry {
       // stepPrice algorithm the live loop uses, upsert them into the
       // Candle table, and resume from the catchup END price so the live
       // chart carries on seamlessly.
-      const startPrice = await catchupMissingCandles({
+      const startPrice = process.env.TRADING_MODEL === "CFD" ? openedPrice : await catchupMissingCandles({
         assetId: row.id,
         symbol: row.symbol,
         precision: row.precision,

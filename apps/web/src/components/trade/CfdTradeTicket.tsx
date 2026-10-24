@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CFD_LEVERAGE, type CfdOpenTradeResult } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
@@ -48,6 +48,22 @@ export function CfdTradeTicket({
   const [stakeOpen, setStakeOpen] = useState(false);
   const tileRef = useRef<HTMLButtonElement | null>(null);
   const { balances, accounts, assets } = usePlatform();
+  const [market, setMarket] = useState<{symbol:string;status:string} | null>(null);
+  const canTrade = market?.symbol === symbol && market.status === "open";
+  useEffect(() => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      try {
+        const res = await fetch(`/api/cfd/market-status?symbol=${encodeURIComponent(symbol)}`, {cache:"no-store",signal:controller.signal});
+        const data = await res.json();
+        if (!controller.signal.aborted) setMarket({symbol,status:res.ok?data.status:"unavailable"});
+      } catch {if (!controller.signal.aborted) setMarket({symbol,status:"unavailable"});}
+      if (!controller.signal.aborted) timer = setTimeout(poll, 3000);
+    }
+    void poll();
+    return () => {controller.abort();clearTimeout(timer);};
+  }, [symbol]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fired, setFired] = useState<CfdDirection | null>(null);
@@ -75,6 +91,7 @@ export function CfdTradeTicket({
   }, []);
 
   async function place(direction: CfdDirection): Promise<void> {
+    if (!canTrade) return;
     if (stakeMinor === 0) {
       setError("Enter an investment amount.");
       return;
@@ -118,7 +135,7 @@ export function CfdTradeTicket({
   const slab =
     "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-16 phone:rounded-2xl phone:pl-3.5 phone:pr-3.5 phone:text-lg phone:font-extrabold phone:leading-none land:h-12";
   const slabLive =
-    "hover:brightness-110 active:translate-y-px disabled:cursor-wait";
+    "hover:brightness-110 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40";
   const slabNote =
     "mt-0.5 block text-[10px] font-bold normal-case tracking-[0.1em] opacity-75 max-[359px]:hidden";
   const pnlIfUp =
@@ -252,11 +269,12 @@ export function CfdTradeTicket({
         Spread fee ({spreadBps / 100}%): {formatMinor(spreadFee, currency)}
         <span className="block">Total deducted: {formatMinor(stakeMinor + spreadFee, currency)}</span>
       </div>
+      {!canTrade && <p role="status" className="text-sm text-ink-2">{market?.symbol === symbol && market.status === "closed" ? "Market closed — trading resumes when the market opens and live prices return." : "Waiting for fresh market prices. Trading is temporarily unavailable."}</p>}
       {/* ── BUY / SELL buttons ─────────────────────── */}
       <div className="grid gap-2 phone:grid-cols-2 phone:gap-2.5 land:grid-cols-1 land:gap-1.5">
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || !canTrade}
           onClick={() => void place("LONG")}
           onAnimationEnd={() => setFired(null)}
           className={`${slab} ${slabLive} bg-up text-up-ink ${fired === "LONG" ? "slab-fired" : ""}`}
@@ -279,7 +297,7 @@ export function CfdTradeTicket({
         </button>
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || !canTrade}
           onClick={() => void place("SHORT")}
           onAnimationEnd={() => setFired(null)}
           className={`${slab} ${slabLive} bg-down text-down-ink ${fired === "SHORT" ? "slab-fired" : ""}`}

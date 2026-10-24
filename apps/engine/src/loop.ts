@@ -1,3 +1,4 @@
+import { marketStatus } from "@asm/contracts";
 import {
   autoPromoteHeldWithdrawals,
   istDateOf,
@@ -93,6 +94,14 @@ export function startTickLoop(
         if (IS_CFD && cfdDeps) {
           // ── CFD path ──────────────────────────────────────────────
           const { quoteBuffer, gapTracker, cfdDesk } = cfdDeps;
+          const status = marketStatus(asset.symbol, quoteBuffer.latest(asset.symbol)?.ts, startedAt);
+          if (status !== "open") {
+            // Retain the last published value for existing expiries, but never
+            // manufacture ticks/candles while the exchange is closed or stale.
+            const lastPrice = registry.lastPublishedPrice(asset.symbol) || asset.state.price;
+            if (lastPrice > 0) await cfdDesk.scanPositions(asset.id, asset.symbol, lastPrice, new Date(startedAt));
+            continue;
+          }
           const sigma = registry.sigmaNow(asset.symbol, nowSec);
 
           // Advance the synthetic model honestly (zero steering) so MSM
