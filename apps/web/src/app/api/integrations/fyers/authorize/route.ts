@@ -14,7 +14,8 @@ import { buildAuthorizeUrl } from "@/lib/fyers-oauth";
  * Admin-only. Non-admins get a 404 so the route doesn't advertise itself.
  */
 export async function GET(req: NextRequest) {
-  const admin = await readAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+  const adminToken = req.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+  const admin = await readAdminSession(adminToken);
   if (!admin) return new NextResponse("Not found", { status: 404 });
 
   const appId = process.env.FYERS_APP_ID;
@@ -38,6 +39,15 @@ export async function GET(req: NextRequest) {
     sameSite: "lax",
     maxAge: 10 * 60,
     path: "/api/integrations/fyers",
+  });
+  // The strict admin cookie is deliberately withheld on FYERS' cross-site
+  // redirect. This short-lived copy is sent only to the OAuth callback.
+  res.cookies.set("fyers_oauth_admin", adminToken!, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 10 * 60,
+    path: "/api/integrations/fyers/callback",
   });
   return res;
 }

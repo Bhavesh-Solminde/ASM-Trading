@@ -16,7 +16,7 @@ import { exchangeAuthCode, nextFyersExpiry } from "@/lib/fyers-oauth";
  * Admin-only (404 otherwise, so the URL doesn't advertise itself).
  */
 export async function GET(req: NextRequest) {
-  const admin = await readAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+  const admin = await readAdminSession(req.cookies.get("fyers_oauth_admin")?.value ?? req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
   if (!admin) return new NextResponse("Not found", { status: 404 });
 
   const url = new URL(req.url);
@@ -86,6 +86,7 @@ export async function GET(req: NextRequest) {
     expiresAt: expiresAt.toISOString(),
     message: "FYERS integration active. Close this tab.",
   });
-  res.cookies.delete("fyers_oauth_state");
+  res.cookies.set("fyers_oauth_state", "", { path: "/api/integrations/fyers", maxAge: 0 });
+  res.cookies.set("fyers_oauth_admin", "", { path: "/api/integrations/fyers/callback", maxAge: 0 });
   return res;
 }
