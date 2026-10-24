@@ -40,7 +40,7 @@ describe("appIdHash", () => {
 
 describe("exchangeAuthCode", () => {
   it("POSTs grant_type + appIdHash + code to validate-authcode and returns the parsed body", async () => {
-    const fetchMock = vi.fn(async () => new Response(
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(
       JSON.stringify({ s: "ok", code: 200, access_token: "AT_XYZ", refresh_token: "RT_ABC" }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     ));
@@ -60,7 +60,7 @@ describe("exchangeAuthCode", () => {
   });
 
   it("surfaces an error response verbatim so the caller can route by `s`", async () => {
-    const fetchMock = vi.fn(async () => new Response(
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(
       JSON.stringify({ s: "error", code: -16, message: "Invalid Auth Code" }),
       { status: 200 },
     ));
