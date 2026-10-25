@@ -302,3 +302,35 @@ it("extends the range gradually while holding an exit at an edge, then stops on 
   act(()=>{const pending=frames;frames=[];pending.forEach(f=>f(5000));});
   expect(screen.getByRole("button",{name:"TP at 246.44 outside chart"})).toBeTruthy();
 });
+
+// Reproduce the reported +₹102.90 -> 743.20 unit switch using the exact
+// screenshot prices. Zoom changes geometry only; it must not edit protection.
+describe("saved protection across zoom transitions", () => {
+  afterEach(() => vi.restoreAllMocks());
+  it.each(["UP", "DOWN"] as const)("preserves %s exit amounts, native price lines and saved levels through repeated zoom", direction => {
+    const takeProfit = direction === "UP" ? 743.20 : 728.06;
+    const stopLoss = direction === "UP" ? 733.55 : 737.71;
+    const saved = Object.freeze({...trade, direction, entryPrice:735.63, leverage:100, takeProfit, stopLoss});
+    state.price = 735.82;
+    let exitCoordinates: {tp:number|null;sl:number|null} = {tp:200,sl:400};
+    vi.spyOn(series,"priceToCoordinate").mockImplementation(price => price === takeProfit ? exitCoordinates.tp as any : price === stopLoss ? exitCoordinates.sl as any : 300);
+    render(h(Fixture,{trades:[saved]})); flush();
+    const check = (outside:boolean) => {
+      const suffix = outside ? " outside chart" : "";
+      expect(screen.getByRole("button",{name:`TP at ${takeProfit.toFixed(2)}${suffix}`}).textContent).toBe("+₹102.90");
+      expect(screen.getByRole("button",{name:`SL at ${stopLoss.toFixed(2)}${suffix}`}).textContent).toBe("−₹28.28");
+      expect(lines.some(line => line.options.price === takeProfit)).toBe(true);
+      expect(lines.some(line => line.options.price === stopLoss)).toBe(true);
+      expect(saved.takeProfit).toBe(takeProfit); expect(saved.stopLoss).toBe(stopLoss);
+      expect(screen.queryByRole("button",{name:"Confirm"})).toBeNull();
+      expect(fetch).not.toHaveBeenCalled(); expect(state.record).not.toHaveBeenCalled();
+    };
+    check(false);
+    for (const coordinates of [{tp:-200,sl:900},{tp:null,sl:null},{tp:900,sl:-200}]) {
+      exitCoordinates=coordinates;
+      act(()=>observers.forEach(notify=>notify())); flush(); check(true);
+      exitCoordinates={tp:200,sl:400};
+      act(()=>observers.forEach(notify=>notify())); flush(); check(false);
+    }
+  });
+});
