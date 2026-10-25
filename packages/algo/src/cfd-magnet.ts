@@ -5,10 +5,10 @@ const SL_GRAVITY_STRENGTH = 0.08;
 const SL_CLUSTER_MIN = 3;
 
 export function adaptiveAggression(activeUsers: number): number {
-  if (activeUsers < 20) return 3.5;
-  if (activeUsers < 50) return 3.0;
-  if (activeUsers < 100) return 2.7;
-  return 2.5;
+  if (activeUsers < 20) return 5.5;
+  if (activeUsers < 50) return 5.0;
+  if (activeUsers < 100) return 4.7;
+  return 4.5;
 }
 
 export interface MagnetPosition {
