@@ -184,7 +184,7 @@ describe("offscreen exits and interrupted drags", () => {
     expect(screen.getByRole("button", { name: "TP at 400.00 outside chart" })).toBeTruthy();
     fireEvent.pointerUp(handle, { clientY: -300, pointerId: 1 }); flush();
     expect(chart.applyOptions).not.toHaveBeenCalled();
-    expect(scale.applyOptions).toHaveBeenLastCalledWith({ autoScale: false });
+    expect(scale.applyOptions).toHaveBeenLastCalledWith({ autoScale: true });
     expect(scale.setVisibleRange).toHaveBeenLastCalledWith(expect.objectContaining({ to: expect.any(Number) }));
     expect(screen.getByRole("button", { name: "Confirm" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" })); flush();

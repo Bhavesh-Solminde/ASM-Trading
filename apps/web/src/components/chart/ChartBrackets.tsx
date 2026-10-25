@@ -316,6 +316,11 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
         if (released) return; released = true;
         cancelAnimationFrame(drag.frame);
         if (restoreRange) restore();
+        else if (auto) {
+          // Edge expansion uses a fixed range only while dragging. Restore
+          // automatic scaling, with exits included until the next chart gesture.
+          fitTradeLevels(trade.id);
+        }
         try { if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId); } catch {}
       } };
     dragRef.current = drag;
@@ -333,7 +338,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
   }
   function endDrag(e: ReactPointerEvent<HTMLButtonElement>, aborted = false) {
     const drag = dragRef.current; if (!drag) return;
-    dragRef.current = null; drag.release(aborted); setDraggingKind(null);
+    dragRef.current = null; drag.release(aborted || !drag.moved); setDraggingKind(null);
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     if (aborted) updateDraft(drag.before);
     else setDockVisible(true);
@@ -345,9 +350,10 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     scheduleRef.current();
   }
   function fitLevels() {
-    if (!selected) return;
+    if (selected) fitTradeLevels(selected.id);
+  }
+  function fitTradeLevels(ownerId: string) {
     const series = seriesRef.current; if (!series) return;
-    const ownerId = selected.id;
     fitCleanup.current?.(); fitCleanup.current = null;
     const original = series.options().autoscaleInfoProvider;
     series.applyOptions({ autoscaleInfoProvider: (base: () => AutoscaleInfo | null) => {
