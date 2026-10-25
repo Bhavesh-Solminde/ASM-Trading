@@ -439,6 +439,8 @@ export function PriceChart({
   enableBrackets = false,
   bracketScope,
   bracketControls = true,
+  bracketActionsContainer,
+  focusedTradeId, onSelectTrade, onShowAllTrades,
   tickSize,
 }: {
   market: MarketStore;
@@ -450,6 +452,10 @@ export function PriceChart({
   enableBrackets?: boolean;
   bracketScope?: string;
   bracketControls?: boolean;
+  bracketActionsContainer?: HTMLElement | null | undefined;
+  focusedTradeId?: string | undefined;
+  onSelectTrade?: ((id: string) => void) | undefined;
+  onShowAllTrades?: (() => void) | undefined;
   tickSize?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -492,7 +498,7 @@ export function PriceChart({
         vertLines: { color: "rgba(47, 129, 247, 0.07)" },
         horzLines: { color: "rgba(47, 129, 247, 0.07)" },
       },
-      rightPriceScale: { borderVisible: false, scaleMargins: { top: enableBrackets ? 0.24 : 0.18, bottom: 0.1 } },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.18, bottom: 0.1 } },
       timeScale: {
         borderVisible: false,
         timeVisible: true,
@@ -1002,7 +1008,7 @@ export function PriceChart({
           internal z-index:50 canvases stay trapped below the overlay controls
           (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
-      {enableBrackets && <ChartBrackets key={bracketScope} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
+      {enableBrackets && <ChartBrackets key={`${bracketScope}:${focusedTradeId ?? "all"}`} focusedTradeId={focusedTradeId} onSelectTrade={onSelectTrade} onShowAllTrades={onShowAllTrades} actionsContainer={bracketActionsContainer} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
         precision={precision} tickSize={tickSize ?? 10 ** -precision} currency={currency} chartVersion={chartVersion} market={market} />}
 
 

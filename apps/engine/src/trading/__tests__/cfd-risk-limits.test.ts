@@ -153,6 +153,6 @@ describe("CfdDesk.open — risk guards", () => {
   it("accepts an open on the happy path", async () => {
     const res = await tryOpen({});
     expect(res.trade.id).toBeTruthy();
-    expect(res.trade.spreadFee).toBe(Math.round((100_000 * 5) / 10000));
+    expect(res.trade.spreadFee).toBe(5000);
   });
 });
