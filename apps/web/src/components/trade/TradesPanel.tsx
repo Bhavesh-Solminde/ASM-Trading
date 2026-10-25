@@ -29,6 +29,7 @@ function RowShell({
   pnlClass,
   chipOverride,
   children,
+  onSelectTrade, selectedTradeId,
 }: {
   trade: TradeView;
   asset: PlatformAsset | undefined;
@@ -38,6 +39,7 @@ function RowShell({
   pnlClass: string;
   chipOverride?: { label: string; className: string };
   children?: ReactNode;
+  onSelectTrade?: ((trade: TradeView) => void) | undefined; selectedTradeId?: string | undefined;
 }) {
   const precision = asset?.precision ?? 5;
   const chip = chipOverride ?? STATUS_CHIP[trade.status];
@@ -68,6 +70,7 @@ function RowShell({
       </span>
       {trade.durationSec != null && <span className="col-span-3 text-[11px] text-ink-3">Spread fee: {formatMinor(trade.spreadFee ?? 0, currency)}</span>}
       {children}
+      {onSelectTrade && trade.durationSec != null && <button type="button" aria-label={`Show ${trade.direction === "UP" ? "Buy" : "Sell"} trade ${trade.id} SL/TP`} aria-pressed={selectedTradeId === trade.id} onClick={() => onSelectTrade(trade)} className="absolute inset-0 rounded focus-visible:outline-2 focus-visible:outline-brand hover:bg-brand/5" />}
     </li>
   );
 }
@@ -77,10 +80,12 @@ const OpenTradeRow = memo(function OpenTradeRow({
   trade,
   asset,
   currency,
+  onSelectTrade, selectedTradeId,
 }: {
   trade: TradeView;
   asset: PlatformAsset | undefined;
   currency: string;
+  onSelectTrade?: ((trade: TradeView) => void) | undefined; selectedTradeId?: string | undefined;
 }) {
   const now = useNowSec();
   const price = useQuote(trade.symbol)?.price ?? null;
@@ -105,6 +110,7 @@ const OpenTradeRow = memo(function OpenTradeRow({
 
   return (
     <RowShell
+      onSelectTrade={onSelectTrade} selectedTradeId={selectedTradeId}
       trade={trade}
       asset={asset}
       currency={currency}
@@ -126,14 +132,17 @@ const ClosedTradeRow = memo(function ClosedTradeRow({
   trade,
   asset,
   currency,
+  onSelectTrade, selectedTradeId,
 }: {
   trade: TradeView;
   asset: PlatformAsset | undefined;
   currency: string;
+  onSelectTrade?: ((trade: TradeView) => void) | undefined; selectedTradeId?: string | undefined;
 }) {
   const display = closedRowDisplay(trade);
   return (
     <RowShell
+      onSelectTrade={onSelectTrade} selectedTradeId={selectedTradeId}
       trade={trade}
       asset={asset}
       currency={currency}
@@ -148,10 +157,12 @@ export function TradesPanel({
   trades,
   currency,
   assets,
+  onSelectTrade, selectedTradeId,
 }: {
   trades: TradeView[];
   currency: string;
   assets: PlatformAsset[];
+  onSelectTrade?: ((trade: TradeView) => void) | undefined; selectedTradeId?: string | undefined;
 }) {
   const [tab, setTab] = useState<Tab>("open");
   const open = trades.filter((t) => t.status === "OPEN");
@@ -191,7 +202,8 @@ export function TradesPanel({
           shown.map((trade) => (
             <Row
               key={trade.id}
-              trade={trade}
+              onSelectTrade={onSelectTrade} selectedTradeId={selectedTradeId}
+      trade={trade}
               currency={currency}
               asset={assets.find((a) => a.symbol === trade.symbol)}
             />

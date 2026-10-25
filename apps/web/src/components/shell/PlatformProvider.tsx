@@ -90,6 +90,8 @@ interface PlatformContextValue {
   liveAccess: boolean;
   /** Deposits credited so far — drives which bonus tier the next one gets. */
   completedDeposits: number;
+  selectedTradeId: string | null;
+  setSelectedTradeId: (id: string | null) => void;
   chartSymbol: string;
   selectChartSymbol: (symbol: string) => void;
   timeframe: Timeframe;
@@ -113,7 +115,7 @@ interface PlatformContextValue {
   clearSettlement: () => void;
 }
 
-const PlatformContext = createContext<PlatformContextValue | null>(null);
+export const PlatformContext = createContext<PlatformContextValue | null>(null);
 
 /**
  * Owns everything the shell and the trade screen share: the one engine
@@ -147,6 +149,7 @@ export function PlatformProvider({
   const [activeAccountId, setActiveAccountId] = useState(
     accounts.find((a) => a.type === "DEMO")?.id ?? accounts[0]?.id ?? "",
   );
+  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [chartSymbol, setChartSymbol] = useState(defaultSymbol);
   const [timeframe, setTimeframe] = useState<Timeframe>("1m");
   const [focusMode, setFocusMode] = useState(false);
@@ -321,6 +324,8 @@ export function PlatformProvider({
       status,
       liveAccess,
       completedDeposits,
+      selectedTradeId,
+      setSelectedTradeId,
       chartSymbol,
       selectChartSymbol,
       timeframe,
@@ -337,6 +342,7 @@ export function PlatformProvider({
       assets,
       accounts,
       activeAccountId,
+      selectedTradeId,
       trades,
       market,
       status,

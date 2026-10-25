@@ -158,7 +158,7 @@ describe("CFD revenue simulation — Step 1", () => {
   it("opens charge the full spread fee to the house, immediately", async () => {
     const asset = assetConfig(`${TAG}_BTCUSD`); // 5 bps
     const stake = 100_000; // ₹1,000
-    const expectedFee = Math.round((stake * asset.spreadBps) / 10000); // 50 paisa
+    const expectedFee = Math.round((stake * asset.spreadBps * 100) / 10000); // ₹50 at the 100x fee
     const before = await readTreasury();
 
     const { trade } = await desk.open(

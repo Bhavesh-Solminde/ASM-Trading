@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CFD_LEVERAGE, type CfdOpenTradeResult } from "@asm/contracts";
+import { cfdSpreadFeeMinor, cfdSpreadFeePct, CFD_LEVERAGE, type CfdOpenTradeResult } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { minStakeMinor } from "@/lib/currency";
@@ -75,7 +75,7 @@ export function CfdTradeTicket({
       ? Math.round(stakeMajor * 100)
       : 0;
   const spreadBps = assets.find((a) => a.symbol === symbol)?.spreadBps ?? 0;
-  const spreadFee = Math.round(stakeMinor * spreadBps / 10000);
+  const spreadFee = cfdSpreadFeeMinor(stakeMinor, spreadBps);
   const accountBalance = balances[accountId];
   const balanceMinor = accountBalance
     ? accountBalance.realBalance + accountBalance.bonusBalance
@@ -266,7 +266,7 @@ export function CfdTradeTicket({
       ) : null}
 
       <div className="text-xs text-ink-2 tabular-nums">
-        Spread fee ({spreadBps / 100}%): {formatMinor(spreadFee, currency)}
+        Spread fee ({cfdSpreadFeePct(spreadBps)}%): {formatMinor(spreadFee, currency)}
         <span className="block">Total deducted: {formatMinor(stakeMinor + spreadFee, currency)}</span>
       </div>
       {!canTrade && <p role="status" className="text-sm text-ink-2">{market?.symbol === symbol && market.status === "closed" ? "Market closed — trading resumes when the market opens and live prices return." : "Waiting for fresh market prices. Trading is temporarily unavailable."}</p>}

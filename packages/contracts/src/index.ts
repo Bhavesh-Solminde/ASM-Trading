@@ -121,3 +121,5 @@ export {
 export { CFD_LEVERAGE, CFD_MAX_PROFIT_MULTIPLIER, cfdProfitMinor, cfdMaxProfitPrice, cfdLiquidationPrice } from "./cfd-math";
 
 export { marketSessionOpen, marketStatus, type MarketStatus } from "./market-session";
+
+export { CFD_SPREAD_FEE_MULTIPLIER, cfdSpreadFeeMinor, cfdSpreadFeePct } from "./cfd-fees";

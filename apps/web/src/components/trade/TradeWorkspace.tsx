@@ -386,6 +386,8 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     market,
     chartSymbol,
     selectChartSymbol,
+    selectedTradeId,
+    setSelectedTradeId,
     status,
     activeAccount,
     tradesByAccount,
@@ -406,6 +408,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
 
   const chartProtection = useChartProtection();
   const chartTimeframe = useMarket(market, s => s.chart.timeframe);
+  const [chartActionsContainer, setChartActionsContainer] = useState<HTMLDivElement | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candles");
   const [marketPickerOpen, setMarketPickerOpen] = useState(false);
@@ -459,6 +462,13 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     () => trades.filter((t) => t.status === "OPEN" && t.symbol === chartSymbol),
     [trades, chartSymbol],
   );
+  const focusedTrade = trades.find(t => t.id === selectedTradeId && t.symbol === chartSymbol);
+  const focusTrade = (trade: TradeView) => {
+    setSelectedTradeId(trade.id);
+    selectChartSymbol(trade.symbol);
+    setHistoryOpen(false);
+  };
+  const chartTrades = focusedTrade ? [focusedTrade] : openOnChart;
   const openCount = useMemo(() => trades.filter((t) => t.status === "OPEN").length, [trades]);
 
   const asset = assets.find((a) => a.symbol === chartSymbol);
@@ -482,8 +492,8 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
       <div
         className={
           focusMode
-            ? "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] gap-1 p-1.5 phone:p-0"
-            : "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[minmax(0,1fr)] phone:gap-0 phone:p-0"
+            ? "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-1 p-1.5 phone:p-0"
+            : "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[minmax(0,1fr)_auto] phone:gap-0 phone:p-0"
         }
       >
         {/* Desktop keeps the roomy market selector above the chart; on compact
@@ -505,12 +515,16 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
               market={market}
               precision={asset.precision}
               watermark={activeAccount.type === "DEMO" ? "DEMO" : ""}
-              openTrades={openOnChart}
+              openTrades={chartTrades}
               currency={activeAccount.currency}
               chartType={chartType}
               enableBrackets={tradingModel === "CFD"}
               bracketScope={`${activeAccount.id}:${asset.symbol}:${chartTimeframe}:${chartType}:${chartProtection}`}
-              bracketControls={chartProtection}
+              bracketActionsContainer={chartActionsContainer}
+              bracketControls={chartProtection || !!focusedTrade}
+              focusedTradeId={focusedTrade?.id}
+              onSelectTrade={id => { const trade = trades.find(t => t.id === id); if (trade) focusTrade(trade); }}
+              onShowAllTrades={() => setSelectedTradeId(null)}
               tickSize={asset.tickSize ?? 10 ** -asset.precision}
             />
 
@@ -619,6 +633,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
             <ResultPopup />
           </div>
         </div>
+        <div ref={setChartActionsContainer} data-testid="chart-protection-actions" className="flex flex-wrap items-center gap-1 empty:hidden" />
       </div>
 
       <aside
@@ -645,7 +660,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
         )}
         {focusMode ? null : (
           <div className="min-h-0 phone:hidden land:block">
-            <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} />
+            <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} onSelectTrade={focusTrade} selectedTradeId={focusedTrade?.id} />
           </div>
         )}
       </aside>
@@ -655,6 +670,8 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
           trades={trades}
           currency={activeAccount.currency}
           assets={assets}
+          onSelectTrade={focusTrade}
+          selectedTradeId={focusedTrade?.id}
           onClose={() => setHistoryOpen(false)}
         />
       ) : null}
