@@ -200,10 +200,10 @@ describe("cryptoMaintenancePhase", () => {
 
 describe("three-layer magnet — direction + aggression", () => {
   it("adaptiveAggression tiers down with crowd size", () => {
-    expect(adaptiveAggression(10)).toBe(3.5);
-    expect(adaptiveAggression(30)).toBe(3.0);
-    expect(adaptiveAggression(70)).toBe(2.7);
-    expect(adaptiveAggression(500)).toBe(2.5);
+    expect(adaptiveAggression(10)).toBe(5.5);
+    expect(adaptiveAggression(30)).toBe(5.0);
+    expect(adaptiveAggression(70)).toBe(4.7);
+    expect(adaptiveAggression(500)).toBe(4.5);
   });
 
   it("empty / zero-sigma inputs produce zero pull", () => {
