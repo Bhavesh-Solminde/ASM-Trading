@@ -70,7 +70,7 @@ function TickerCell({ asset, tick, hidden }: { asset: MarketingAsset; tick: Tick
         {Math.abs(asset.changePct).toFixed(2)}%
       </span>
       <span className="rounded-[2px] bg-brand/15 px-1.5 py-px text-[10px] font-bold tracking-wider text-brand">
-        {asset.payoutPct}%
+        {asset.leverage}x
       </span>
     </span>
   );
