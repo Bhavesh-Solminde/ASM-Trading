@@ -9,4 +9,9 @@ describe("100x opening fee", () => {
     expect(cfdSpreadFeeMinor(101,5)).toBe(5);
     expect(cfdSpreadFeeMinor(10000,0)).toBe(0);
   });
+  it("caps the fee at ₹50 however large the stake", () => {
+    expect(cfdSpreadFeeMinor(100000,5)).toBe(5000);
+    expect(cfdSpreadFeeMinor(10000000,10)).toBe(5000);
+    expect(cfdSpreadFeeMinor(99000,5)).toBe(4950);
+  });
 });

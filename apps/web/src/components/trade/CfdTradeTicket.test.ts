@@ -13,7 +13,7 @@ it.each([[/Buy\s*Price goes up/i, "LONG"], [/Sell\s*Price goes down/i, "SHORT"]]
   vi.stubGlobal("fetch", (url: string, options: RequestInit) => url.includes("market-status") ? Promise.resolve({ ok: true, json: async () => ({ status: "open" }) }) : post(url, options));
   render(h(CfdTradeTicket, { symbol: "BTCUSDT", pair: "BTC/USDT", accountId: "demo", currency: "INR", onOpened }));
   await act(async () => { await Promise.resolve(); });
-  expect(screen.getByText(/Spread fee \(5%\): ₹5.00/)).toBeTruthy();
+  expect(screen.getByText(/Spread fee \(5%, max ₹50.00\): ₹5.00/)).toBeTruthy();
   expect(screen.queryByText("Stop Loss / Take Profit")).toBeNull();
   await act(async () => fireEvent.click(screen.getByRole("button", { name })));
   expect(post).toHaveBeenCalledTimes(1);
