@@ -7,7 +7,7 @@ import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor } from "@/lib/format-money";
 import { clockTime, countdown } from "@/lib/format-time";
 import { useNowSec } from "@/lib/use-now";
-import { cfdOpenPnl, closedRowDisplay, grossReturnMinor, openSide } from "./pnl-display";
+import { cfdOpenPnl, closedRowDisplay, grossReturnMinor, openSide, settledAmountText } from "./pnl-display";
 import { AssetIcon } from "./AssetIcon";
 
 type Tab = "open" | "closed";
@@ -147,7 +147,7 @@ const ClosedTradeRow = memo(function ClosedTradeRow({
       asset={asset}
       currency={currency}
       time={<span className="led justify-self-end text-[13px] text-ink-2">{clockTime(trade.expiryTs)}</span>}
-      pnl={`${display.sign}${formatMinor(display.amountMinor, currency)}`}
+      pnl={settledAmountText(trade, currency)}
       pnlClass={display.className}
     />
   );

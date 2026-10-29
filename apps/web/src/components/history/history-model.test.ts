@@ -83,6 +83,9 @@ describe("amounts", () => {
   it("shows a win as stake plus profit, like the trades panel", () => {
     expect(tradeAmount(trade(), "INR")).toEqual({ text: "+₹193.00", tone: "up" });
     expect(tradeAmount(trade({ status: "LOST", pnl: -10000 }), "INR")).toEqual({ text: "−₹100.00", tone: "down" });
+    // CFD: a profitable close reads like a win, a losing one shows only the loss.
+    expect(tradeAmount(trade({ status: "CLOSED", pnl: 1000 }), "INR")).toEqual({ text: "+₹110.00", tone: "up" });
+    expect(tradeAmount(trade({ status: "CLOSED", pnl: -1000 }), "INR")).toEqual({ text: "−₹10.00", tone: "down" });
   });
 });
 
