@@ -2,7 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { sendEmail } = vi.hoisted(() => ({
   sendEmail: vi.fn<
-    (msg: { to: string; subject: string; html: string; idempotencyKey?: string; tag?: string }) => Promise<{ ok: true; id: string }>
+    (msg: {
+      to: string;
+      subject: string;
+      html: string;
+      idempotencyKey?: string;
+      tag?: string;
+      attachments?: Array<{ filename: string; content: string; contentId?: string }>;
+    }) => Promise<{ ok: true; id: string }>
   >(async () => ({ ok: true, id: "em_1" })),
 }));
 vi.mock("./send", () => ({ sendEmail }));
@@ -45,6 +52,16 @@ describe("notify senders", () => {
 
     await sendWithdrawalRejectedEmail({ to: "a@gmail.com", withdrawalId: "w1", name: "Asha", amountLabel: "₹1.00", reason: "Bad UPI" });
     expect(last()).toMatchObject({ idempotencyKey: "withdrawal-rejected/w1", tag: "withdrawal_rejected" });
+  });
+
+  it("attaches the rendered certificate inline when one is given", async () => {
+    await sendWithdrawalPaidEmail({
+      to: "a@gmail.com", withdrawalId: "w1", name: "Asha", payToLabel: "UPI",
+      certificate: { name: "Asha", amountLabel: "₹1.00", dateLabel: "29/10/2026", refId: "W1" },
+      certificateJpegBase64: "/9j/AA==",
+    });
+    expect(last().html).toContain("cid:ixt-certificate");
+    expect(last().attachments).toEqual([{ filename: "IndianxTrade-certificate.jpg", content: "/9j/AA==", contentId: "ixt-certificate" }]);
   });
 
   it("uses the deposit id's short form as the reference", async () => {
