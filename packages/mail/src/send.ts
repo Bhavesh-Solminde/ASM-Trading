@@ -24,8 +24,8 @@ export interface EmailMessage {
   idempotencyKey?: string | undefined;
   /** ASCII category shown in the Resend dashboard, e.g. "deposit_credited". */
   tag?: string | undefined;
-  /** Inline images referenced as `cid:<contentId>` (used by the sample sender). */
-  attachments?: Array<{ filename: string; content: string; contentId: string }> | undefined;
+  /** Base64 files; one with a contentId is an inline image, referenced as `cid:<contentId>`. */
+  attachments?: Array<{ filename: string; content: string; contentId?: string | undefined }> | undefined;
   cid?: string | undefined;
 }
 

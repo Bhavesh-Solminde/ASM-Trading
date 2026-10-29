@@ -173,7 +173,7 @@ describe("withdrawal emails", () => {
     });
     expect(html).toContain("On security hold");
   });
-  it("embeds the paid-stage certificate", () => {
+  it("falls back to the HTML certificate when there is no rendered image", () => {
     const { subject, html } = withdrawalPaidEmail({
       name: "Asha",
       certificate: { name: "Asha Rao", amountLabel: "₹2,500.00", dateLabel: "11 Oct 2026", refId: "8F3A21C9" },
@@ -182,6 +182,19 @@ describe("withdrawal emails", () => {
     expect(subject).toBe("Your withdrawal is paid. Here's your certificate");
     expect(html).toContain("Proudly presented to");
     expect(html).toContain("paid out by IndianxTrade");
+  });
+  it("shows only the certificate image when an image is given", () => {
+    const { subject, html } = withdrawalPaidEmail({
+      name: "Asha",
+      certificate: { name: "Asha <Rao>", amountLabel: "₹2,500.00", dateLabel: "29/10/2026", refId: "8F3A21C9" },
+      payToLabel: "UPI · asha@okhdfc",
+      certificateImageCid: "ixt-certificate",
+    });
+    expect(subject).toBe("Your withdrawal is paid. Here's your certificate");
+    expect(html).toContain('src="cid:ixt-certificate"');
+    expect(html).toContain("Asha &lt;Rao&gt;");
+    expect(html).not.toContain("We've sent");
+    expect(html).not.toContain("Proudly presented to");
   });
   it("gives the rejection reason and says the money is back", () => {
     const { html } = withdrawalRejectedEmail({
