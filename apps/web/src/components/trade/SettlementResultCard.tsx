@@ -1,7 +1,6 @@
 import type { TradeView } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
-import { formatMinor } from "@/lib/format-money";
-import { closedRowDisplay } from "./pnl-display";
+import { closedRowDisplay, settledAmountText } from "./pnl-display";
 
 export function SettlementResultCard({ trade, currency, pair, onDismiss }: {
   trade: TradeView;
@@ -9,7 +8,7 @@ export function SettlementResultCard({ trade, currency, pair, onDismiss }: {
   pair: string;
   onDismiss: () => void;
 }) {
-  const { sign, amountMinor } = closedRowDisplay(trade);
+  const { sign } = closedRowDisplay(trade);
   const color = sign === "+" ? "bg-up text-up-ink" : sign === "−" ? "bg-down text-down-ink" : "bg-tile text-ink";
 
   return (
@@ -27,7 +26,7 @@ export function SettlementResultCard({ trade, currency, pair, onDismiss }: {
           {trade.status === "WON" ? "Payout" : "Result"} · {pair}
         </span>
         <span className="led text-[17px] font-black leading-none">
-          {sign}{formatMinor(amountMinor, currency)}
+          {settledAmountText(trade, currency)}
         </span>
       </div>
     </div>
