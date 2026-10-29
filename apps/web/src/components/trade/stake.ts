@@ -10,6 +10,15 @@ export function defaultStake(currency: string): string {
   return currency === "INR" ? "100" : "10";
 }
 
+/** The largest investment the ticket accepts, in major units (₹10,00,000). */
+export const MAX_STAKE_MAJOR = 1_000_000;
+
+/** The investment field's next text: digits and "." only; `prev` when the typed amount would pass MAX_STAKE_MAJOR. */
+export function nextStakeInput(raw: string, prev: string): string {
+  const text = raw.replace(/[^0-9.]/g, "");
+  return Number(text) > MAX_STAKE_MAJOR ? prev : text;
+}
+
 /** Stake in minor units from the ticket's text field; 0 when empty or not a positive number. */
 export function stakeToMinor(stakeInput: string): number {
   const major = Number(stakeInput);

@@ -6,6 +6,7 @@ import { currencySymbol, formatMinor } from "@/lib/format-money";
 import { useScrollLock } from "@/lib/use-scroll-lock";
 import { grossReturnMinor } from "./pnl-display";
 import {
+  MAX_STAKE_MAJOR,
   PERCENT_PRESETS,
   groupAmount,
   percentValue,
@@ -80,7 +81,7 @@ export function StakeSheet({
     inPercent && balanceMinor !== null && pct > 0 && Math.floor((balanceMinor * pct) / 100) < minStakeMinor;
   const profit = profitForStake(amountMinor, payoutPct);
   const symbol = currencySymbol(currency);
-  const maxMajor = balanceMinor === null ? 0 : Math.floor(balanceMinor / 100);
+  const maxMajor = balanceMinor === null ? 0 : Math.min(MAX_STAKE_MAJOR, Math.floor(balanceMinor / 100));
   const maxUsable = maxMajor >= minStakeMinor / 100;
 
   const press = useCallback(
@@ -91,6 +92,7 @@ export function StakeSheet({
         const cur = prev === "0" ? "" : prev;
         if ((cur + key).length > maxLen) return prev;
         const next = (cur + key).replace(/^0+(?=\d)/, "") || "0";
+        if (!inPercent && Number(next) > MAX_STAKE_MAJOR) return prev;
         return inPercent && Number(next) > 100 ? "100" : next;
       });
     },

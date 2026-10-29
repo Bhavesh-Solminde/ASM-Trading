@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cfdSpreadFeeMinor, cfdSpreadFeePct, CFD_LEVERAGE, type CfdOpenTradeResult } from "@asm/contracts";
+import { DURATIONS_SEC } from "@asm/trading";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { minStakeMinor } from "@/lib/currency";
 import { currencySymbol, formatMinor } from "@/lib/format-money";
+import { hms } from "@/lib/format-time";
 import { StakeSheet } from "./StakeSheet";
-import { defaultStake, groupAmount } from "./stake";
+import { defaultStake, groupAmount, nextStakeInput } from "./stake";
 
 type CfdDirection = "LONG" | "SHORT";
 
@@ -22,13 +24,12 @@ const DURATION_PRESETS = [
 const CHIP =
   "h-10 min-w-0 rounded-xl text-[13px] font-bold tabular-nums transition-colors land:h-9";
 
-function formatDurationLabel(sec: number): string {
-  if (sec < 60) return `${sec}s`;
-  if (sec < 3600) return `${Math.floor(sec / 60)}m`;
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  return m > 0 ? `${h}h${m}m` : `${h}h`;
-}
+/** The desktop stepper's durations: the platform's offered ones up to the CFD maximum of 1h. */
+const STEP_DURATIONS = DURATIONS_SEC.filter((sec) => sec <= 3600);
+
+const STEP =
+  "grid h-12 place-items-center rounded border border-white/40 text-ink-2 hover:border-white/70 hover:bg-panel hover:text-ink";
+const DISPLAY = "grid h-12 place-items-center rounded border border-white/40 bg-panel";
 
 export function CfdTradeTicket({
   symbol,
@@ -68,6 +69,13 @@ export function CfdTradeTicket({
   const [error, setError] = useState<string | null>(null);
   const [fired, setFired] = useState<CfdDirection | null>(null);
   const minStake = minStakeMinor(currency);
+
+  function stepDuration(delta: number): void {
+    const at = STEP_DURATIONS.findIndex((sec) => sec >= durationSec);
+    const idx = at === -1 ? STEP_DURATIONS.length - 1 : at;
+    const next = Math.min(STEP_DURATIONS.length - 1, Math.max(0, idx + delta));
+    setDurationSec(STEP_DURATIONS[next]!);
+  }
 
   const stakeMajor = Number(stakeInput);
   const stakeMinor =
@@ -151,11 +159,22 @@ export function CfdTradeTicket({
       <div className="grid gap-3 phone:flex phone:flex-col phone:gap-2.5 land:gap-1.5">
         {/* ── Duration ────────────────────────────────── */}
         <div className="grid gap-1.5">
-          <span className="legend phone:hidden">Duration</span>
+          <span className="legend phone:hidden" id="cfd-duration">Duration</span>
+          <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5 phone:hidden">
+            <button type="button" aria-label="Shorter" onClick={() => stepDuration(-1)} className={STEP}>
+              <Icon name="minus" className="size-[18px]" />
+            </button>
+            <div aria-labelledby="cfd-duration" className={DISPLAY}>
+              <span className="led led-lit text-[22px]">{hms(durationSec)}</span>
+            </div>
+            <button type="button" aria-label="Longer" onClick={() => stepDuration(1)} className={STEP}>
+              <Icon name="plus" className="size-[18px]" />
+            </button>
+          </div>
           <div
             role="group"
             aria-label="Duration"
-            className="grid grid-cols-5 gap-1.5"
+            className="hidden grid-cols-5 gap-1.5 phone:grid"
           >
             {DURATION_PRESETS.map((p) => (
               <button
@@ -172,23 +191,6 @@ export function CfdTradeTicket({
                 {p.label}
               </button>
             ))}
-          </div>
-          <input
-            type="range"
-            min={5}
-            max={3600}
-            step={1}
-            value={durationSec}
-            onChange={(e) => setDurationSec(Number(e.target.value))}
-            aria-label="Duration slider"
-            className="mt-1 h-1.5 w-full cursor-pointer accent-brand phone:hidden"
-          />
-          <div className="flex justify-between text-xs text-ink-3 phone:hidden">
-            <span>5s</span>
-            <span className="font-semibold text-ink-2">
-              {formatDurationLabel(durationSec)}
-            </span>
-            <span>1h</span>
           </div>
         </div>
 
@@ -234,10 +236,10 @@ export function CfdTradeTicket({
                   inputMode="decimal"
                   autoComplete="off"
                   value={stakeInput}
-                  onChange={(e) =>
-                    setStakeInput(e.target.value.replace(/[^0-9.]/g, ""))
-                  }
-                  className="w-[5ch] bg-transparent font-bold outline-none"
+                  onChange={(e) => setStakeInput(nextStakeInput(e.target.value, stakeInput))}
+                  // Inline outline beats the unlayered global :focus-visible ring; the box's border shows focus.
+                  style={{ width: `${Math.max(1, stakeInput.length)}ch`, outline: "none" }}
+                  className="bg-transparent font-bold"
                 />
               </span>
             </div>
@@ -248,11 +250,11 @@ export function CfdTradeTicket({
       </div>
 
       {/* ── Preview ───────────────────────────────────── */}
-      <div className="flex items-center justify-between border-t border-dashed border-rule pb-0.5 pt-2.5 text-xs text-ink-3 phone:hidden">
+      <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 border-t border-dashed border-rule pb-0.5 pt-2.5 text-xs text-ink-3 phone:hidden">
         <span>100× · If +1% move</span>
-        <span className="font-semibold text-up">+{pnlIfUp}</span>
+        <span className="whitespace-nowrap text-right font-semibold tabular-nums text-up">+{pnlIfUp}</span>
         <span>If -1% move</span>
-        <span className="font-semibold text-down">-{pnlIfUp}</span>
+        <span className="whitespace-nowrap text-right font-semibold tabular-nums text-down">-{pnlIfUp}</span>
       </div>
 
       {error ? (
