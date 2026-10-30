@@ -35,13 +35,15 @@ const config: ExpoConfig = {
     // The MMKV caches (resume snapshot with balances and trades, prefs) must not be copied into a cloud backup.
     allowBackup: false,
     adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#06080b" },
-    permissions: ["android.permission.INTERNET", "android.permission.USE_BIOMETRIC", "android.permission.VIBRATE"],
+    permissions: ["android.permission.INTERNET", "android.permission.USE_BIOMETRIC", "android.permission.VIBRATE", "android.permission.CAMERA"],
     // The Expo/RN templates merge in an overlay permission and legacy storage permissions this app never uses; a
     // real-money app should not ask Play (or the user) for them. `tools:node="remove"` strips them from the merge.
     blockedPermissions: [
       "android.permission.SYSTEM_ALERT_WINDOW",
       "android.permission.READ_EXTERNAL_STORAGE",
       "android.permission.WRITE_EXTERNAL_STORAGE",
+      // Photographing ID documents never records audio (expo-camera's plugin would otherwise add this permission).
+      "android.permission.RECORD_AUDIO",
     ],
   },
   plugins: [
@@ -53,6 +55,19 @@ const config: ExpoConfig = {
     "@react-native-google-signin/google-signin",
     // Android 11+ package visibility: lets the pay screen ask which UPI apps can open (see the plugin).
     "./plugins/with-upi-queries",
+    // KYC capture. The camera plugin's default adds RECORD_AUDIO, which a stills-only app must not ask for.
+    ["expo-camera", { cameraPermission: "IndianxTrade uses the camera to photograph your ID documents and take a verification selfie.", recordAudioAndroid: false }],
+    // The gallery option uses Android's photo picker, which needs no storage permission. `cameraPermission` must NOT be
+    // `false` here: the picker plugin turns that into a blocked CAMERA (tools:node="remove"), which would strip the
+    // permission expo-camera needs. A string only sets the (iOS-only) usage text. `microphonePermission: false` blocks RECORD_AUDIO.
+    [
+      "expo-image-picker",
+      {
+        photosPermission: "IndianxTrade reads a photo you choose from your gallery as your ID document or selfie.",
+        cameraPermission: "IndianxTrade uses the camera to photograph your ID documents and take a verification selfie.",
+        microphonePermission: false,
+      },
+    ],
     // SDK 57 dropped the top-level `splash` key; the splash is configured via this plugin.
     ["expo-splash-screen", { image: "./assets/splash.png", imageWidth: 200, resizeMode: "contain", backgroundColor: "#06080b" }],
     [

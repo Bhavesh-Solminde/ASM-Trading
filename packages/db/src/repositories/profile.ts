@@ -31,7 +31,8 @@ export const KYC_DOCUMENT_KINDS: readonly KycDocumentKind[] = [
   "SELFIE",
 ];
 
-const IDENTITY_FIELDS = ["firstName", "lastName", "dateOfBirth", "aadhaar", "pan", "address", "country"] as const;
+/** The profile fields a KYC submission needs. `KYC_IDENTITY_FIELDS` in @asm/contracts must match (see the drift test). */
+export const IDENTITY_FIELDS = ["firstName", "lastName", "dateOfBirth", "aadhaar", "pan", "address", "country"] as const;
 type IdentityField = (typeof IDENTITY_FIELDS)[number];
 
 /** Identity data is frozen while it is in review or once it is verified. */

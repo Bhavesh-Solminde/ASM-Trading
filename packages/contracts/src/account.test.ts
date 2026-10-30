@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ProfileViewSchema } from "./account";
+import { KYC_IDENTITY_FIELDS, ProfileViewSchema, UpdateProfileSchema } from "./account";
 
 const profile = {
   email: "a@b.co",
@@ -40,5 +40,19 @@ describe("ProfileViewSchema", () => {
   it("rejects a profile missing a field", () => {
     const { email: _email, ...rest } = profile;
     expect(ProfileViewSchema.safeParse(rest).success).toBe(false);
+  });
+});
+
+describe("KYC_IDENTITY_FIELDS", () => {
+  it("lists the seven identity fields a submission needs, in the order the form asks", () => {
+    expect(KYC_IDENTITY_FIELDS).toEqual(["firstName", "lastName", "dateOfBirth", "aadhaar", "pan", "address", "country"]);
+  });
+  it("only names fields a profile update accepts and a profile view returns", () => {
+    const updatable = Object.keys(UpdateProfileSchema.shape);
+    const viewed = Object.keys(ProfileViewSchema.shape);
+    for (const field of KYC_IDENTITY_FIELDS) {
+      expect(updatable).toContain(field);
+      expect(viewed).toContain(field);
+    }
   });
 });

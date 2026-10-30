@@ -571,5 +571,9 @@
     "existingNote": "Our team will review it. Wrong hash? Update your proof below.",
     "alreadyCredited": "This deposit is already credited.",
     "closed": "This deposit was closed. Contact support."
+  },
+  "kyc": {
+    "uploadTimedOut": "The upload took too long. Check your connection and try again.",
+    "photoTooLarge": "Photo too large, please retake."
   }
 }

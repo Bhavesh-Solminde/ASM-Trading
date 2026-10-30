@@ -39,6 +39,14 @@ export const TwoFaVerifySchema = z.strictObject({
 export type TwoFaVerifyInput = z.infer<typeof TwoFaVerifySchema>;
 
 export const KYC_DOCUMENT_KIND_VALUES = ["AADHAAR_FRONT", "AADHAAR_BACK", "PAN", "SELFIE"] as const;
+export type KycDocumentKindValue = (typeof KYC_DOCUMENT_KIND_VALUES)[number];
+
+/**
+ * The profile fields a KYC submission needs, in the order the form asks for them. @asm/db keeps its own copy
+ * (`IDENTITY_FIELDS`, which the server checks on submit); a test in @asm/db fails if the two drift apart.
+ */
+export const KYC_IDENTITY_FIELDS = ["firstName", "lastName", "dateOfBirth", "aadhaar", "pan", "address", "country"] as const;
+export type KycIdentityField = (typeof KYC_IDENTITY_FIELDS)[number];
 
 /**
  * The profile `GET /api/account` returns (inside `{ profile }`): `ProfileView` in
