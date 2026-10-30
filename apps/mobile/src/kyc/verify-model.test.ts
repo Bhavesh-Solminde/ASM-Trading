@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { KYC_STEP_CTA_KEYS, cardPress, detailsEditable, kycRequestErrorText, stepCta, verifyCards, verifyPhase } from "./verify-model";
+import { KYC_STEP_CTA_KEYS, cardPress, detailsEditable, kycRequestErrorText, stepCta, submitEnabled, verifyCards, verifyPhase } from "./verify-model";
 
 const DOCS = ["AADHAAR_FRONT", "AADHAAR_BACK", "PAN", "SELFIE"] as const;
 
@@ -101,5 +101,15 @@ describe("kycRequestErrorText", () => {
     expect(kycRequestErrorText(new ApiError("Boom", 500, null), t, "x")).toBe("<common.genericError>");
     expect(kycRequestErrorText(new ApiError("Something went wrong.", 400, null), t, "x")).toBe("<common.genericError>");
     expect(kycRequestErrorText(new Error("x"), t, "x")).toBe("<common.genericError>");
+  });
+});
+
+describe("submitEnabled", () => {
+  it("holds Submit for review until the declaration is ticked (client-side, as on the web)", () => {
+    expect(submitEnabled("review", false)).toBe(false);
+    expect(submitEnabled("review", true)).toBe(true);
+  });
+  it("never blocks the other steps' buttons", () => {
+    for (const step of ["details", "AADHAAR_FRONT", "AADHAAR_BACK", "PAN", "SELFIE"] as const) expect(submitEnabled(step, false)).toBe(true);
   });
 });

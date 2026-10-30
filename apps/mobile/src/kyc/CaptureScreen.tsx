@@ -10,7 +10,7 @@ import { color } from "@/theme/tokens";
 import { Button, Txt } from "@/theme/ui";
 import { Icon } from "@/ui/Icon";
 import { toast } from "@/ui/Toast";
-import { cameraFacing, captureHintKey, captureTitleKey, guideBox, permissionView, scrimRects, torchAvailable, type Size } from "./capture-model";
+import { cameraFacing, captureHintKey, captureTitleKey, cameraMounted, guideBox, permissionView, scrimRects, shutterEnabled, torchAvailable, type Size } from "./capture-model";
 import type { Compressed } from "./compress";
 import { compressForUpload } from "./compress-native";
 import type { KycDocKind } from "./kyc-flow";
@@ -95,6 +95,13 @@ export function CaptureScreen({ kind }: { kind: KycDocKind }) {
   // The compressed file of the current photo, kept so a Retry after a failed upload does not encode again.
   const compressed = useRef<Compressed | null>(null);
   const inFlight = useRef(false);
+  const cameraOn = cameraMounted({ view, focused, hasShot: shot !== null });
+
+  // `cameraReady` belongs to one mount of the CameraView: when it unmounts (blur, a photo to preview, permission
+  // lost) the next mount starts not-ready, so a quick tap after refocus cannot call takePictureAsync too early.
+  useEffect(() => {
+    if (!cameraOn) setCameraReady(false);
+  }, [cameraOn]);
 
   // Coming back from the system Settings screen (where the user may have allowed the camera) re-reads the permission.
   useEffect(() => {
@@ -111,7 +118,7 @@ export function CaptureScreen({ kind }: { kind: KycDocKind }) {
   };
 
   const take = async () => {
-    if (!cameraReady || capturing || !camera.current) return;
+    if (!shutterEnabled({ mounted: cameraOn, ready: cameraReady, capturing }) || !camera.current) return;
     setCapturing(true);
     try {
       const p = await camera.current.takePictureAsync({ quality: 1, skipProcessing: false, exif: false });
@@ -207,7 +214,7 @@ export function CaptureScreen({ kind }: { kind: KycDocKind }) {
   }
 
   const box = area ? guideBox(kind, area) : null;
-  const cameraOn = view === "ready" && focused;
+  const shutterOn = shutterEnabled({ mounted: cameraOn, ready: cameraReady, capturing });
   return (
     <View style={{ flex: 1, backgroundColor: BLACK }}>
       <View style={{ flex: 1, backgroundColor: "#0b0d10" }} onLayout={(e) => setArea({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
@@ -281,10 +288,10 @@ export function CaptureScreen({ kind }: { kind: KycDocKind }) {
           testID="kyc-capture"
           accessibilityRole="button"
           accessibilityLabel={t("kyc.capture")}
-          accessibilityState={{ disabled: !cameraReady || capturing, busy: capturing }}
-          disabled={!cameraReady || capturing}
+          accessibilityState={{ disabled: !shutterOn, busy: capturing }}
+          disabled={!shutterOn}
           onPress={() => void take()}
-          style={{ width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: "#ffffff", padding: 5, opacity: cameraReady && !capturing ? 1 : 0.5 }}
+          style={{ width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: "#ffffff", padding: 5, opacity: shutterOn ? 1 : 0.5 }}
         >
           <View style={{ flex: 1, borderRadius: 30, backgroundColor: "#ffffff" }} />
         </Pressable>

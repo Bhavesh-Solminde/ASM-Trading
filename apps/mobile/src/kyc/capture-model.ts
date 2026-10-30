@@ -78,3 +78,16 @@ export function scrimRects(hole: Rect, area: Size): [Rect, Rect, Rect, Rect] {
     { x: hole.x + hole.width, y: hole.y, width: area.width - hole.x - hole.width, height: hole.height },
   ];
 }
+
+/** The camera is mounted only with permission, on a focused screen, and not while a photo is being previewed: leaving releases it. */
+export function cameraMounted(p: { view: PermissionView; focused: boolean; hasShot: boolean }): boolean {
+  return p.view === "ready" && p.focused && !p.hasShot;
+}
+
+/**
+ * The shutter works on a mounted camera that has reported ready, one capture at a time. `ready` belongs to one mount:
+ * the screen resets it when the camera unmounts, and this also refuses a stale `ready` while it is not mounted.
+ */
+export function shutterEnabled(p: { mounted: boolean; ready: boolean; capturing: boolean }): boolean {
+  return p.mounted && p.ready && !p.capturing;
+}

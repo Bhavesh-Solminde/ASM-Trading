@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cameraFacing, captureHintKey, captureKind, captureTitleKey, guideBox, permissionView, scrimRects, torchAvailable } from "./capture-model";
+import { cameraFacing, cameraMounted, captureHintKey, captureKind, captureTitleKey, guideBox, permissionView, scrimRects, shutterEnabled, torchAvailable } from "./capture-model";
 
 describe("captureKind", () => {
   it("accepts the four document kinds", () => {
@@ -88,5 +88,25 @@ describe("scrimRects", () => {
     ]);
     const covered = rects.reduce((sum, r) => sum + r.width * r.height, 0);
     expect(covered + box.width * box.height).toBe(400 * 800);
+  });
+});
+
+describe("cameraMounted", () => {
+  it("mounts only with permission, on a focused screen, with no photo being previewed", () => {
+    expect(cameraMounted({ view: "ready", focused: true, hasShot: false })).toBe(true);
+    expect(cameraMounted({ view: "ready", focused: false, hasShot: false })).toBe(false);
+    expect(cameraMounted({ view: "ready", focused: true, hasShot: true })).toBe(false);
+    for (const view of ["loading", "ask", "settings"] as const) expect(cameraMounted({ view, focused: true, hasShot: false })).toBe(false);
+  });
+});
+
+describe("shutterEnabled", () => {
+  it("needs a mounted camera that reported ready, and no capture in progress", () => {
+    expect(shutterEnabled({ mounted: true, ready: true, capturing: false })).toBe(true);
+    expect(shutterEnabled({ mounted: true, ready: false, capturing: false })).toBe(false);
+    expect(shutterEnabled({ mounted: true, ready: true, capturing: true })).toBe(false);
+  });
+  it("is off when the camera is not mounted, even if an earlier mount had reported ready", () => {
+    expect(shutterEnabled({ mounted: false, ready: true, capturing: false })).toBe(false);
   });
 });

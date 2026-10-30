@@ -666,6 +666,7 @@
     "badLink": "This photo screen can't be opened.",
     "submitTimedOut": "Submitting took too long. Check your connection and look at this screen before trying again.",
     "saveTimedOut": "Saving took too long. Check your connection and try again.",
-    "pendingTitle": "We're checking your documents"
+    "pendingTitle": "We're checking your documents",
+    "declaration": "These documents are mine and the details are correct."
   }
 }

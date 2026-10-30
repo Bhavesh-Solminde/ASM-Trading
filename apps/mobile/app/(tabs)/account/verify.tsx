@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState, type ReactNode } from "react";
-import { Alert, RefreshControl, ScrollView, View } from "react-native";
+import { Alert, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/api/client";
@@ -10,10 +10,11 @@ import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSessionLive } from "@/auth/use-session-live";
 import { StepCards } from "@/kyc/StepCards";
 import { detailsComplete, nextKycStep, type KycDocKind } from "@/kyc/kyc-flow";
-import { cardPress, kycRequestErrorText, stepCta, verifyCards, verifyPhase, type StepAction, type VerifyCard } from "@/kyc/verify-model";
+import { cardPress, kycRequestErrorText, stepCta, submitEnabled, verifyCards, verifyPhase, type StepAction, type VerifyCard } from "@/kyc/verify-model";
 import { color } from "@/theme/tokens";
 import { Button, Screen, Skeleton, Txt } from "@/theme/ui";
 import { BackHeader } from "@/ui/BackHeader";
+import { Icon } from "@/ui/Icon";
 import { StatusTag } from "@/ui/StatusTag";
 
 /** Submitting is not money-moving, but a second tap after a slow answer would hit the server's 409: one tap at a time. */
@@ -48,6 +49,7 @@ export default function Verify() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [declared, setDeclared] = useState(false);
   const inFlight = useRef(false);
 
   // A photo or the details were just saved on another screen (which refetches the profile itself), or the admin
@@ -172,6 +174,23 @@ export default function Verify() {
           {t("kyc.intro")}
         </Txt>
         <StepCards cards={verifyCards(state)} onPress={onCard} />
+        {step === "review" ? (
+          <Pressable
+            testID="verify-declaration"
+            accessibilityRole="checkbox"
+            accessibilityLabel={t("kyc.declaration")}
+            accessibilityState={{ checked: declared }}
+            onPress={() => setDeclared((v) => !v)}
+            style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 12 }}
+          >
+            <View style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: declared ? color.accent : color.rule, backgroundColor: declared ? color.accent : "transparent", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {declared ? <Icon name="check" size={16} color={color.onAccent} strokeWidth={3} /> : null}
+            </View>
+            <Txt size={15} color={color.ink2} style={{ flex: 1 }}>
+              {t("kyc.declaration")}
+            </Txt>
+          </Pressable>
+        ) : null}
       </>
     );
     footer = (
@@ -181,7 +200,7 @@ export default function Verify() {
             {error}
           </Txt>
         ) : null}
-        <Button testID="verify-cta" kind="light" label={t(cta.labelKey)} busy={busy} onPress={() => run(cta.action)} />
+        <Button testID="verify-cta" kind="light" label={t(cta.labelKey)} busy={busy} disabled={!submitEnabled(step, declared)} onPress={() => run(cta.action)} />
       </View>
     );
   }

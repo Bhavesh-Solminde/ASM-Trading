@@ -100,3 +100,11 @@ export function kycRequestErrorText(e: unknown, t: (key: string) => string, time
   }
   return t("common.genericError");
 }
+
+/**
+ * Whether the main button can be pressed. Submit for review waits for the declaration ("These documents are mine and
+ * the details are correct"), as on the web; the server does not check it. Every other step's button is always enabled.
+ */
+export function submitEnabled(step: KycStep, declared: boolean): boolean {
+  return step !== "review" || declared;
+}
