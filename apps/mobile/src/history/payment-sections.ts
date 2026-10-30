@@ -24,11 +24,32 @@ export function paymentSections(rows: readonly PaymentRow[], filter: PaymentsFil
 export const MIN_SHOWN_ROWS = 8;
 
 /**
+ * How many pages a short list may fetch by itself per filter choice. Beyond it the user decides (scrolling to the end, or
+ * "Load more"): a filter that matches almost nothing in a long history must not download the whole history on its own.
+ */
+export const MAX_AUTO_PAGES = 3;
+
+interface LoadInput {
+  hasNextPage: boolean;
+  fetching: boolean;
+  failed: boolean;
+  shown: number;
+  /** Pages fetched automatically (reason "short") since the filter was chosen. */
+  autoPagesUsed: number;
+}
+
+/**
  * Whether to fetch the next page of payments: never when there is none, while one is loading, or after one failed (the
  * list shows a Retry instead, so a dead network is not hammered in a loop). Otherwise when the user scrolled to the end
- * (`end`), or when the filtered list is too short to scroll (`short`).
+ * (`end`), or when the filtered list is too short to scroll (`short`) and automatic paging has budget left.
  */
-export function shouldLoadMore(input: { hasNextPage: boolean; fetching: boolean; failed: boolean; shown: number; reason: "end" | "short" }): boolean {
+export function shouldLoadMore(input: LoadInput & { reason: "end" | "short" }): boolean {
   if (!input.hasNextPage || input.fetching || input.failed) return false;
-  return input.reason === "end" || input.shown < MIN_SHOWN_ROWS;
+  if (input.reason === "end") return true;
+  return input.shown < MIN_SHOWN_ROWS && input.autoPagesUsed < MAX_AUTO_PAGES;
+}
+
+/** Whether to show a "Load more" button: the list is still short, more exists, and automatic paging has used up its budget. */
+export function showLoadMore(input: LoadInput): boolean {
+  return input.hasNextPage && !input.fetching && !input.failed && input.shown < MIN_SHOWN_ROWS && input.autoPagesUsed >= MAX_AUTO_PAGES;
 }

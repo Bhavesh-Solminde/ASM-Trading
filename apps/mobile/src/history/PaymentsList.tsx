@@ -1,8 +1,9 @@
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { RefreshControl, SectionList, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { PaymentRow } from "@asm/client-core";
+import { shouldRefetchOnFocus } from "@/api/focus-refetch";
 import { paymentRows } from "@/api/payment-rows";
 import { usePaymentsInfinite } from "@/api/queries";
 import { useSessionLive } from "@/auth/use-session-live";
@@ -12,7 +13,7 @@ import { ListState } from "@/ui/ListState";
 import { PaymentListRow } from "@/ui/PaymentListRow";
 import { headingText } from "./format";
 import type { PaymentsFilter } from "./history-params";
-import { paymentSections, shouldLoadMore, type PaymentSection } from "./payment-sections";
+import { paymentSections, shouldLoadMore, showLoadMore, type PaymentSection } from "./payment-sections";
 
 /**
  * The Payments segment of History: deposits and withdrawals from the shared infinite payments query, grouped by day, newest
@@ -26,18 +27,30 @@ export function PaymentsList({ header, filter, onOpen }: { header: ReactElement;
   const { refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
   const [refreshing, setRefreshing] = useState(false);
 
-  // Never cancel a request already in flight (the first focus lands while the mount fetch is running); nothing fetches
-  // while locked or signed out (`refetch` ignores `enabled`, so the gate is here).
+  // Focus refetches only data that has gone stale: `refetch()` on an infinite query re-requests every loaded page, so a tab
+  // switch must not do it each time. Never cancels a request already in flight; nothing fetches while locked or signed out
+  // (`refetch` ignores `enabled`, so the gate is here). Pull-to-refresh below is the explicit refresh.
+  const updatedAt = useRef(query.dataUpdatedAt);
+  updatedAt.current = query.dataUpdatedAt;
   useFocusEffect(useCallback(() => {
-    if (live) void refetch({ cancelRefetch: false });
+    if (shouldRefetchOnFocus({ live, dataUpdatedAt: updatedAt.current, now: Date.now() })) void refetch({ cancelRefetch: false });
   }, [live, refetch]));
 
-  const sections = useMemo(() => paymentSections(paymentRows(query.data), filter, new Date()), [query.data, filter]);
+  // The day is part of the memo key, so "Today" / "Yesterday" roll over at midnight on the next render.
+  const day = new Date().toDateString();
+  const sections = useMemo(() => paymentSections(paymentRows(query.data), filter, new Date()), [query.data, filter, day]);
   const shown = sections.reduce((n, s) => n + s.data.length, 0);
 
+  // A filter that leaves too few rows loads pages by itself, but only up to MAX_AUTO_PAGES per filter choice; after that
+  // the user decides (scroll to the end, or the Load more button).
+  const [auto, setAuto] = useState({ filter, pages: 0 });
+  const autoPagesUsed = auto.filter === filter ? auto.pages : 0;
+  const loadState = { hasNextPage, fetching: isFetchingNextPage, failed: isFetchNextPageError, shown, autoPagesUsed };
   useEffect(() => {
-    if (shouldLoadMore({ hasNextPage, fetching: isFetchingNextPage, failed: isFetchNextPageError, shown, reason: "short" })) void fetchNextPage();
-  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, shown, fetchNextPage]);
+    if (!shouldLoadMore({ hasNextPage, fetching: isFetchingNextPage, failed: isFetchNextPageError, shown, autoPagesUsed, reason: "short" })) return;
+    setAuto({ filter, pages: autoPagesUsed + 1 });
+    void fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, shown, autoPagesUsed, filter, fetchNextPage]);
 
   const refresh = async () => {
     if (!live) return;
@@ -68,7 +81,7 @@ export function PaymentsList({ header, filter, onOpen }: { header: ReactElement;
       )}
       renderItem={({ item }) => (
         <View style={{ paddingHorizontal: 20 }}>
-          <PaymentListRow row={item} testID={`history-tx-${item.key}`} onPress={() => onOpen(item.key)} />
+          <PaymentListRow row={item} showTime testID={`history-tx-${item.key}`} onPress={() => onOpen(item.key)} />
         </View>
       )}
       ListEmptyComponent={
@@ -84,6 +97,7 @@ export function PaymentsList({ header, filter, onOpen }: { header: ReactElement;
       ListFooterComponent={
         <View style={{ paddingHorizontal: 20, paddingTop: 12, gap: 12 }}>
           {isFetchingNextPage ? <Skeleton height={54} /> : null}
+          {showLoadMore(loadState) ? <Button testID="history-load-more" label={t("history.loadMore")} kind="secondary" onPress={() => void fetchNextPage()} /> : null}
           {isFetchNextPageError && !isFetchingNextPage ? (
             <View testID="history-load-more-failed" style={{ gap: 8 }}>
               <Txt color={color.ink2}>{t("history.loadMoreFailed")}</Txt>
@@ -94,7 +108,7 @@ export function PaymentsList({ header, filter, onOpen }: { header: ReactElement;
       }
       onEndReachedThreshold={0.4}
       onEndReached={() => {
-        if (shouldLoadMore({ hasNextPage, fetching: isFetchingNextPage, failed: isFetchNextPageError, shown, reason: "end" })) void fetchNextPage();
+        if (shouldLoadMore({ ...loadState, reason: "end" })) void fetchNextPage();
       }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={color.accentText} colors={[color.accent]} />}
       contentContainerStyle={{ paddingBottom: 24 }}

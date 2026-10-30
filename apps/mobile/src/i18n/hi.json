@@ -306,7 +306,7 @@
       "copyReference": "संदर्भ {{reference}} कॉपी करें",
       "referenceCopied": "संदर्भ कॉपी हो गया",
       "timeline": "भुगतान की स्थिति",
-      "holdUntil": "रोक जारी रहेगी"
+      "holdUntil": "रोक इस समय तक"
     },
     "timeline": {
       "deposit": {
@@ -367,7 +367,8 @@
         "todo": "अभी नहीं",
         "ended": "समाप्त"
       }
-    }
+    },
+    "loadMore": "और लोड करें"
   },
   "redesign": {
     "duration": "अवधि",

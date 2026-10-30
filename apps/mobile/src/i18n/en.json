@@ -367,7 +367,8 @@
         "todo": "Not yet",
         "ended": "Ended"
       }
-    }
+    },
+    "loadMore": "Load more"
   },
   "redesign": {
     "duration": "Duration",

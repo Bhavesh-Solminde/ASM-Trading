@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PaymentRow } from "@asm/client-core";
-import { paymentSections, shouldLoadMore } from "./payment-sections";
+import { MAX_AUTO_PAGES, paymentSections, shouldLoadMore, showLoadMore } from "./payment-sections";
 
 const row = (id: string, kind: "deposit" | "withdrawal", at: Date): PaymentRow => ({
   key: `${kind === "deposit" ? "d" : "w"}:${id}`,
@@ -45,7 +45,7 @@ describe("paymentSections", () => {
 });
 
 describe("shouldLoadMore", () => {
-  const base = { hasNextPage: true, fetching: false, failed: false, shown: 3 };
+  const base = { hasNextPage: true, fetching: false, failed: false, shown: 3, autoPagesUsed: 0 };
   it("loads the next page when the list is short, and when the user reaches the end", () => {
     expect(shouldLoadMore({ ...base, reason: "short" })).toBe(true);
     expect(shouldLoadMore({ ...base, reason: "end" })).toBe(true);
@@ -59,5 +59,24 @@ describe("shouldLoadMore", () => {
     expect(shouldLoadMore({ ...base, fetching: true, reason: "short" })).toBe(false);
     expect(shouldLoadMore({ ...base, failed: true, reason: "short" })).toBe(false);
     expect(shouldLoadMore({ ...base, failed: true, reason: "end" })).toBe(false);
+  });
+  it("stops loading by itself after MAX_AUTO_PAGES, but the user reaching the end still loads", () => {
+    expect(shouldLoadMore({ ...base, autoPagesUsed: MAX_AUTO_PAGES - 1, reason: "short" })).toBe(true);
+    expect(shouldLoadMore({ ...base, autoPagesUsed: MAX_AUTO_PAGES, reason: "short" })).toBe(false);
+    expect(shouldLoadMore({ ...base, autoPagesUsed: MAX_AUTO_PAGES, reason: "end" })).toBe(true);
+  });
+});
+
+describe("showLoadMore", () => {
+  const base = { hasNextPage: true, fetching: false, failed: false, shown: 3, autoPagesUsed: MAX_AUTO_PAGES };
+  it("offers Load more when the list is still short, more exists and automatic paging has used its budget", () => {
+    expect(showLoadMore(base)).toBe(true);
+  });
+  it("does not while automatic paging may still run, when the list is long enough, or when nothing can load", () => {
+    expect(showLoadMore({ ...base, autoPagesUsed: MAX_AUTO_PAGES - 1 })).toBe(false);
+    expect(showLoadMore({ ...base, shown: 12 })).toBe(false);
+    expect(showLoadMore({ ...base, hasNextPage: false })).toBe(false);
+    expect(showLoadMore({ ...base, fetching: true })).toBe(false);
+    expect(showLoadMore({ ...base, failed: true })).toBe(false);
   });
 });

@@ -19,11 +19,11 @@ export interface KeyValueRow {
 /**
  * Label / value rows on a `surface` card. The label is a 14 `ink2` line that takes the room (`flex: 1`, so a Hindi
  * label wraps instead of squeezing the value); the value never shrinks, but is capped at 62% so a long value wraps
- * too. Rows are at least 28pt tall.
+ * too. Rows are at least 28pt tall. On a `surface` sheet pass `tone="raised"`, or the card has no edge.
  */
-export function KeyValueBox({ rows }: { rows: KeyValueRow[] }) {
+export function KeyValueBox({ rows, tone = "surface" }: { rows: KeyValueRow[]; tone?: "surface" | "raised" }) {
   return (
-    <View style={{ backgroundColor: color.surface, borderRadius: 14, padding: 16, gap: 4 }}>
+    <View style={{ backgroundColor: color[tone], borderRadius: 14, padding: 16, gap: 4 }}>
       {rows.map((row) => (
         <View key={row.key ?? row.label} testID={row.testID} style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 28 }}>
           <Txt size={14} color={color.ink2} style={{ flex: 1 }}>

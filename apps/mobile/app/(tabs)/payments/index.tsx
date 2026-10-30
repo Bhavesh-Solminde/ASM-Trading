@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "@/api/errors";
+import { shouldRefetchOnFocus } from "@/api/focus-refetch";
 import { queryClient, useBootstrap, useCheckout, usePaymentsInfinite, useWallet } from "@/api/queries";
 import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSession } from "@/auth/session-store";
@@ -40,10 +41,13 @@ export default function Payments() {
   // `refetch` ignores `enabled`, so the session gate is checked here: nothing fetches while locked or signed out.
   // The socket only moves balances on trades: a deposit credited, a withdrawal paid or a refund while away is
   // only in a fresh bootstrap, which re-seeds `balances` (timestamp rule), so focus and pull refresh it too.
+  // The payments list is an infinite query: `refetch()` re-requests every loaded page, so it refetches on focus only once stale.
+  const paymentsUpdatedAt = useRef(payments.dataUpdatedAt);
+  paymentsUpdatedAt.current = payments.dataUpdatedAt;
   useFocusEffect(useCallback(() => {
     if (!sessionLive) return;
     void refetchWallet({ cancelRefetch: false });
-    void refetchPayments({ cancelRefetch: false });
+    if (shouldRefetchOnFocus({ live: sessionLive, dataUpdatedAt: paymentsUpdatedAt.current, now: Date.now() })) void refetchPayments({ cancelRefetch: false });
     refreshBootstrap(queryClient);
   }, [sessionLive, refetchWallet, refetchPayments]));
   // The deposit the user started and has not finished: read on every focus (the pay screen may have just ended it), and

@@ -17,6 +17,7 @@ import { pollIntervalMs } from "@/payments/checkout-poll";
 import { UsdtChainStatusSchema } from "@/payments/usdt-progress";
 import { ApiError, shouldRetry } from "./errors";
 import { invalidateMoneyOn, refetchWalletSettledOn } from "./invalidate-money";
+import { findPaymentRow } from "./payment-rows";
 import { latestStamp } from "./request-stamp";
 
 export const queryClient = new QueryClient({
@@ -52,16 +53,26 @@ export const useAppConfig = () =>
 export const useWallet = (enabled: boolean) =>
   useQuery({ queryKey: ["wallet"], queryFn: () => api("/api/v1/wallet", { schema: WalletSchema }), enabled });
 
+/** The one declaration of the payments list's key (see `query-ownership.test.ts`). */
+const PAYMENTS_KEY = ["payments"] as const;
+
 /** Deposits and withdrawals, newest first, 20 per page; the cursor is the last row's `createdAt`. */
 export const usePaymentsInfinite = (enabled: boolean) =>
   useInfiniteQuery({
-    queryKey: ["payments"],
+    queryKey: PAYMENTS_KEY,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
       api(`/api/v1/payments?limit=20${pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : ""}`, { schema: PaymentsPageSchema }),
     getNextPageParam: (last) => last.nextCursor,
     enabled,
   });
+
+/**
+ * A payment from the loaded payments list, read straight from the cache: no subscription, so reading it never starts a
+ * refetch (a second observer of the infinite query would re-request every loaded page once the data is stale).
+ */
+export const cachedPaymentRow = (key: string): PaymentRowDto | undefined =>
+  findPaymentRow(queryClient.getQueryData<{ pages: ReadonlyArray<{ rows: readonly PaymentRowDto[] }> }>(PAYMENTS_KEY), key);
 
 /**
  * One of the caller's payments by its deep-link key (`GET /api/v1/payments/:key`), for the History detail sheet: a link or

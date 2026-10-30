@@ -23,12 +23,19 @@ const read = (file: string) => readFileSync(file, "utf8");
 describe("query ownership", () => {
   it("declares the wallet and payments keys once, in queries.ts", () => {
     const queries = read(join(SRC, "api", "queries.ts"));
-    for (const key of ["wallet", "payments"]) {
-      // One `queryKey:` declaration, and no other literal of the key in the file (a constant, a second hook, a
-      // setQueryData): every occurrence of the bare array is that one declaration.
-      expect(queries.match(new RegExp(String.raw`queryKey:\s*\[\s*["']${key}["']\s*[\],]`, "g"))).toHaveLength(1);
-      expect(queries.match(new RegExp(String.raw`\[\s*["']${key}["']\s*[\],]`, "g"))).toHaveLength(1);
-    }
+    // The wallet: one `queryKey:` declaration and no other literal. Payments: one literal, the `PAYMENTS_KEY` constant,
+    // which the infinite query and the non-hook cache reader (`cachedPaymentRow`) both use.
+    expect(queries.match(/queryKey:\s*\[\s*["']wallet["']\s*[\],]/g)).toHaveLength(1);
+    expect(queries.match(/\[\s*["']wallet["']\s*[\],]/g)).toHaveLength(1);
+    expect(queries.match(/\[\s*["']payments["']\s*[\],]/g)).toHaveLength(1);
+    expect(queries.match(/queryKey:\s*PAYMENTS_KEY\b/g)).toHaveLength(1);
+    expect(queries.match(/getQueryData[^;]*PAYMENTS_KEY/g)).toHaveLength(1);
+  });
+
+  it("opens the payment sheet without subscribing to the payments list (a subscription refetches every loaded page)", () => {
+    const sheet = read(join(SRC, "history", "DetailSheet.tsx"));
+    expect(sheet).not.toMatch(/usePaymentsInfinite/);
+    expect(sheet).toMatch(/cachedPaymentRow\(/);
   });
 
   it("never names the wallet or payments key as an array literal outside queries.ts and invalidate-money.ts", () => {

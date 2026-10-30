@@ -16,7 +16,7 @@ function Dot({ state }: { state: StepState }) {
 
 /**
  * The steps a deposit or withdrawal goes through, from client-core `timelineSteps(kind, status)`, as a vertical list on a
- * `surface` card. Each row is announced as one line ("Paid. Sent to your payout details. Done"): the dot's colour is never
+ * `raised` card (the sheet itself is `surface`). Each row is announced as one line ("Paid. Sent to your payout details. Done"): the dot's colour is never
  * the only signal. The connector under a step is `up` when the next step has been reached, `downText` into an ended step, `rule` otherwise. The server
  * keeps no per-step times, so none are shown here (Created / Confirmed are rows of the facts box above).
  */
@@ -24,7 +24,7 @@ export function Timeline({ kind, status }: { kind: TimelineKind; status: string 
   const { t } = useTranslation();
   const steps = timelineSteps(kind, status);
   return (
-    <View testID="payment-timeline" style={{ backgroundColor: color.surface, borderRadius: 14, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 }}>
+    <View testID="payment-timeline" style={{ backgroundColor: color.raised, borderRadius: 14, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 }}>
       {steps.map((step, i) => {
         const copy = timelineCopy(kind, step);
         const next = steps[i + 1];

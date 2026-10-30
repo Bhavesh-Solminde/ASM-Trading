@@ -4,8 +4,7 @@ import { Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { PaymentRow } from "@asm/client-core";
 import { ApiError } from "@/api/errors";
-import { usePayment, usePaymentsInfinite } from "@/api/queries";
-import { findPaymentRow } from "@/api/payment-rows";
+import { cachedPaymentRow, usePayment } from "@/api/queries";
 import { useSessionLive } from "@/auth/use-session-live";
 import { money } from "@/money/format";
 import { statusTagTone } from "@/payments/status-tone";
@@ -77,7 +76,7 @@ function PaymentDetailBody({ row }: { row: PaymentRow }) {
         <Money text={amount} size={36} weight={600} color={color[model.tone]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={{ width: "100%" }} />
         <Txt size={16} color={color.ink2}>{t("history.detail.subtitle", { what, account: t("history.detail.liveAccount") })}</Txt>
       </View>
-      <KeyValueBox rows={rows} />
+      <KeyValueBox rows={rows} tone="raised" />
       <Txt size={18} weight={600} accessibilityRole="header">{t("history.detail.timeline")}</Txt>
       <Timeline kind={row.kind} status={row.status} />
       {model.canCancel ? (
@@ -87,14 +86,25 @@ function PaymentDetailBody({ row }: { row: PaymentRow }) {
   );
 }
 
-/** Loads the payment for `paymentKey` (the loaded list's row shows at once; the server's fresh one replaces it) and picks the state. */
+/**
+ * Loads the payment for `paymentKey`. The row from the loaded list (read from the cache, never subscribed to) shows at
+ * once and the server's fresh one replaces it; if the refresh fails the list's row stays, with a Retry under it.
+ */
 function PaymentDetail({ paymentKey }: { paymentKey: string }) {
   const { t } = useTranslation();
   const live = useSessionLive();
-  const list = usePaymentsInfinite(live);
-  const query = usePayment(paymentKey, live, findPaymentRow(list.data, paymentKey));
+  const cached = cachedPaymentRow(paymentKey);
+  const query = usePayment(paymentKey, live, cached);
   const notFound = query.error instanceof ApiError && query.error.status === 404;
-  if (query.data) return <PaymentDetailBody row={query.data} />;
+  const row = query.data ?? (query.isError && !notFound ? cached : undefined);
+  if (row) {
+    return (
+      <View style={{ gap: 16 }}>
+        <PaymentDetailBody row={row} />
+        {query.isError ? <ListState loading={false} error onRetry={() => void query.refetch()} /> : null}
+      </View>
+    );
+  }
   if (notFound) {
     return (
       <View testID="payment-detail-missing" style={{ gap: 8, paddingVertical: 24 }}>

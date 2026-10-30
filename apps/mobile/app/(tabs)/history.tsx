@@ -40,17 +40,19 @@ export default function History() {
   // A link (`/history?filter=payments|deposits|withdrawals|trades&tx=d:<id>|w:<id>`) picks the segment, the filter and the
   // sheet once, then clears its params so the same link works again (this tab stays mounted between visits). Cleared on
   // this screen's own route, never on whichever route happens to be focused.
-  const navigation = useNavigation();
+  const navigation = useNavigation<{ setParams(params: { tx?: string; filter?: string }): void }>();
   const params = useLocalSearchParams<{ tx?: string | string[]; filter?: string | string[] }>();
   const asked = historyParams(params);
   const { segment: askedSegment, filter: askedFilter, txKey: askedTx } = asked;
+  // Any `tx` / `filter` on the route is cleared once seen, valid or not, so a stale junk value never rides along.
+  const hasParams = params.tx !== undefined || params.filter !== undefined;
   useEffect(() => {
-    if (askedSegment === null && askedTx === null) return;
+    if (!hasParams) return;
     if (askedSegment !== null) setSegment(askedSegment);
     if (askedFilter !== null) setFilter(askedFilter);
     if (askedTx !== null) setOpenKey(askedTx);
-    navigation.setParams({ tx: undefined, filter: undefined } as never);
-  }, [askedSegment, askedFilter, askedTx, navigation]);
+    navigation.setParams({ tx: undefined, filter: undefined });
+  }, [hasParams, askedSegment, askedFilter, askedTx, navigation]);
 
   const header = (
     <View style={{ paddingTop: 20, gap: segment === "payments" ? 16 : 24 }}>
