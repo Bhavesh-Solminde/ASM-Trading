@@ -46,7 +46,26 @@
     "hi": "हिन्दी"
   },
   "account": {
-    "logout": "Log out"
+    "logout": "Log out",
+    "profile": "Profile",
+    "groupAccount": "Account",
+    "groupApp": "App",
+    "groupHelp": "Help",
+    "resetDemo": "Reset demo balance",
+    "resetDemoTitle": "Reset demo balance?",
+    "resetDemoBody": "Your demo balance goes back to its starting amount. Your live account is not affected.",
+    "resetDemoConfirm": "Reset",
+    "demoResetDone": "Demo balance reset",
+    "demoResetTimedOut": "No answer yet. Check your demo balance before trying again.",
+    "kycVerified": "KYC verified",
+    "kycReview": "KYC in review",
+    "kycRejected": "KYC rejected",
+    "kycNotDone": "KYC not done",
+    "lockFingerprint": "Fingerprint",
+    "lockPin": "PIN",
+    "lockOff": "Off",
+    "logoutTitle": "Log out?",
+    "logoutBody": "You will need to log in again to trade."
   },
   "lock": {
     "title": "Unlock IndianxTrade",
@@ -668,5 +687,31 @@
     "saveTimedOut": "Saving took too long. Check your connection and try again.",
     "pendingTitle": "We're checking your documents",
     "declaration": "These documents are mine and the details are correct."
+  },
+  "profile": {
+    "title": "Profile",
+    "heading": "Your details",
+    "nickname": "Display name",
+    "email": "Email",
+    "identityTitle": "Identity details",
+    "editIdentity": "Edit identity details",
+    "notAdded": "Not added",
+    "save": "Save changes",
+    "saved": "Profile saved",
+    "saveTimedOut": "No answer yet. Check your profile before trying again.",
+    "err": {
+      "nickname": "Enter a display name of up to 40 characters."
+    },
+    "field": {
+      "name": "Name"
+    }
+  },
+  "language": {
+    "title": "Language",
+    "hint": "Used across the app and for the notifications we send you."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "soon": "Notifications arrive in the next update"
   }
 }

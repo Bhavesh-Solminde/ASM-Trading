@@ -1,15 +1,20 @@
+import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { color } from "@/theme/tokens";
 import { Screen, Txt } from "@/theme/ui";
+import { BackHeader } from "@/ui/BackHeader";
 
-/** Stub: a later P3 task replaces this screen. It exists now so every link to it type-checks. */
-export default function Stub() {
+/** A stub until push notifications ship; the route stays (`/account/notifications`) because the notification screen replaces this file. */
+export default function Notifications() {
   const { t } = useTranslation();
   return (
-    <Screen style={{ paddingHorizontal: 20, paddingTop: 24 }}>
-      <Txt size={15} color={color.ink2}>
-        {t("tabs.soon")}
-      </Txt>
+    <Screen>
+      <View style={{ padding: 20, gap: 20 }}>
+        <BackHeader title={t("notifications.title")} />
+        <Txt testID="notifications-soon" size={15} color={color.ink2}>
+          {t("notifications.soon")}
+        </Txt>
+      </View>
     </Screen>
   );
 }
