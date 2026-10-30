@@ -41,11 +41,13 @@ interface LoadInput {
 /**
  * Whether to fetch the next page of payments: never when there is none, while one is loading, or after one failed (the
  * list shows a Retry instead, so a dead network is not hammered in a loop). Otherwise when the user scrolled to the end
- * (`end`), or when the filtered list is too short to scroll (`short`) and automatic paging has budget left.
+ * (`end`, and only after a real scroll: see `userScrolled`), or when the filtered list is too short to scroll (`short`) and automatic paging has budget left.
  */
-export function shouldLoadMore(input: LoadInput & { reason: "end" | "short" }): boolean {
+export function shouldLoadMore(input: LoadInput & { reason: "end" | "short"; userScrolled: boolean }): boolean {
   if (!input.hasNextPage || input.fetching || input.failed) return false;
-  if (input.reason === "end") return true;
+  // `end` counts only after the user really scrolled: RN fires onEndReached again on every content-size change, and a list
+  // too short to scroll is always "at the end", so a layout-fired event would page the whole history past the budget.
+  if (input.reason === "end") return input.userScrolled;
   return input.shown < MIN_SHOWN_ROWS && input.autoPagesUsed < MAX_AUTO_PAGES;
 }
 

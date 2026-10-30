@@ -45,15 +45,23 @@ export function PaymentsList({ header, filter, onOpen }: { header: ReactElement;
   // the user decides (scroll to the end, or the Load more button).
   const [auto, setAuto] = useState({ filter, pages: 0 });
   const autoPagesUsed = auto.filter === filter ? auto.pages : 0;
+  // Set by a real drag / fling, cleared once an end event has used it and on a filter change or refresh: only then does
+  // onEndReached count (a layout-fired one on a short list must not bypass the budget).
+  const userScrolled = useRef(false);
   const loadState = { hasNextPage, fetching: isFetchingNextPage, failed: isFetchNextPageError, shown, autoPagesUsed };
   useEffect(() => {
-    if (!shouldLoadMore({ hasNextPage, fetching: isFetchingNextPage, failed: isFetchNextPageError, shown, autoPagesUsed, reason: "short" })) return;
+    if (!shouldLoadMore({ hasNextPage, fetching: isFetchingNextPage, failed: isFetchNextPageError, shown, autoPagesUsed, reason: "short", userScrolled: false })) return;
     setAuto({ filter, pages: autoPagesUsed + 1 });
     void fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, shown, autoPagesUsed, filter, fetchNextPage]);
 
+  useEffect(() => {
+    userScrolled.current = false;
+  }, [filter]);
+
   const refresh = async () => {
     if (!live) return;
+    userScrolled.current = false;
     setRefreshing(true);
     try {
       await refetch();
@@ -65,6 +73,8 @@ export function PaymentsList({ header, filter, onOpen }: { header: ReactElement;
   const noRows = sections.length === 0;
   const hasAnyRows = query.data !== undefined;
   const moreComing = hasNextPage && !isFetchNextPageError;
+  // Automatic paging has used its budget and nothing matched yet: stop the skeleton and say so above Load more.
+  const capped = showLoadMore(loadState);
   const emptyText = filter === "deposits" ? t("history.empty.deposits") : filter === "withdrawals" ? t("history.empty.withdrawals") : t("redesign.noPayments");
 
   return (
@@ -87,9 +97,9 @@ export function PaymentsList({ header, filter, onOpen }: { header: ReactElement;
       ListEmptyComponent={
         <View style={{ paddingHorizontal: 20 }}>
           <ListState
-            loading={query.isPending || (hasAnyRows && noRows && moreComing)}
+            loading={query.isPending || (hasAnyRows && noRows && moreComing && !capped)}
             error={query.isError && !hasAnyRows}
-            empty={hasAnyRows && noRows && !hasNextPage ? emptyText : undefined}
+            empty={hasAnyRows && noRows ? (!hasNextPage ? emptyText : capped ? t("history.empty.recent") : undefined) : undefined}
             onRetry={() => void refetch()}
           />
         </View>
@@ -108,8 +118,12 @@ export function PaymentsList({ header, filter, onOpen }: { header: ReactElement;
       }
       onEndReachedThreshold={0.4}
       onEndReached={() => {
-        if (shouldLoadMore({ ...loadState, reason: "end" })) void fetchNextPage();
+        const load = shouldLoadMore({ ...loadState, reason: "end", userScrolled: userScrolled.current });
+        userScrolled.current = false;
+        if (load) void fetchNextPage();
       }}
+      onScrollBeginDrag={() => { userScrolled.current = true; }}
+      onMomentumScrollBegin={() => { userScrolled.current = true; }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={color.accentText} colors={[color.accent]} />}
       contentContainerStyle={{ paddingBottom: 24 }}
     />

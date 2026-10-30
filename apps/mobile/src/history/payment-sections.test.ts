@@ -45,7 +45,7 @@ describe("paymentSections", () => {
 });
 
 describe("shouldLoadMore", () => {
-  const base = { hasNextPage: true, fetching: false, failed: false, shown: 3, autoPagesUsed: 0 };
+  const base = { hasNextPage: true, fetching: false, failed: false, shown: 3, autoPagesUsed: 0, userScrolled: true };
   it("loads the next page when the list is short, and when the user reaches the end", () => {
     expect(shouldLoadMore({ ...base, reason: "short" })).toBe(true);
     expect(shouldLoadMore({ ...base, reason: "end" })).toBe(true);
@@ -60,15 +60,30 @@ describe("shouldLoadMore", () => {
     expect(shouldLoadMore({ ...base, failed: true, reason: "short" })).toBe(false);
     expect(shouldLoadMore({ ...base, failed: true, reason: "end" })).toBe(false);
   });
-  it("stops loading by itself after MAX_AUTO_PAGES, but the user reaching the end still loads", () => {
+  it("stops loading by itself after MAX_AUTO_PAGES, but a user who scrolled to the end still loads", () => {
     expect(shouldLoadMore({ ...base, autoPagesUsed: MAX_AUTO_PAGES - 1, reason: "short" })).toBe(true);
     expect(shouldLoadMore({ ...base, autoPagesUsed: MAX_AUTO_PAGES, reason: "short" })).toBe(false);
-    expect(shouldLoadMore({ ...base, autoPagesUsed: MAX_AUTO_PAGES, reason: "end" })).toBe(true);
+    expect(shouldLoadMore({ ...base, autoPagesUsed: MAX_AUTO_PAGES, reason: "end", userScrolled: true })).toBe(true);
+  });
+  it("ignores an end event the layout fired (no user scroll): a list too short to scroll is always 'at the end'", () => {
+    // RN re-fires onEndReached on every content-size change, so a short list would page forever through "end".
+    expect(shouldLoadMore({ ...base, autoPagesUsed: 0, reason: "end", userScrolled: false })).toBe(false);
+    expect(shouldLoadMore({ ...base, autoPagesUsed: MAX_AUTO_PAGES, reason: "end", userScrolled: false })).toBe(false);
+  });
+  it("a run of layout-fired end events plus the budgeted short loads stops at the cap", () => {
+    let used = 0;
+    let loads = 0;
+    for (let step = 0; step < 50; step++) {
+      // Each page: the layout fires "end" (ignored), then the short rule may fetch within budget.
+      if (shouldLoadMore({ ...base, autoPagesUsed: used, reason: "end", userScrolled: false })) loads++;
+      if (shouldLoadMore({ ...base, autoPagesUsed: used, reason: "short" })) { loads++; used++; }
+    }
+    expect(loads).toBe(MAX_AUTO_PAGES);
   });
 });
 
 describe("showLoadMore", () => {
-  const base = { hasNextPage: true, fetching: false, failed: false, shown: 3, autoPagesUsed: MAX_AUTO_PAGES };
+  const base = { hasNextPage: true, fetching: false, failed: false, shown: 3, autoPagesUsed: MAX_AUTO_PAGES, userScrolled: false };
   it("offers Load more when the list is still short, more exists and automatic paging has used its budget", () => {
     expect(showLoadMore(base)).toBe(true);
   });

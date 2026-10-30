@@ -32,7 +32,7 @@ describe("query ownership", () => {
     expect(queries.match(/getQueryData[^;]*PAYMENTS_KEY/g)).toHaveLength(1);
   });
 
-  it("opens the payment sheet without subscribing to the payments list (a subscription refetches every loaded page)", () => {
+  it("DetailSheet.tsx reads the list row through cachedPaymentRow and never calls usePaymentsInfinite (a subscription refetches every loaded page)", () => {
     const sheet = read(join(SRC, "history", "DetailSheet.tsx"));
     expect(sheet).not.toMatch(/usePaymentsInfinite/);
     expect(sheet).toMatch(/cachedPaymentRow\(/);

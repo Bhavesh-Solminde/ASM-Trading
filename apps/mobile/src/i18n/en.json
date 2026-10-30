@@ -266,7 +266,8 @@
     },
     "empty": {
       "deposits": "No deposits yet",
-      "withdrawals": "No withdrawals yet"
+      "withdrawals": "No withdrawals yet",
+      "recent": "Nothing in your recent payments yet"
     },
     "day": {
       "today": "Today",
