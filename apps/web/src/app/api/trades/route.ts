@@ -56,6 +56,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Account not found." }, { status: 404 });
   }
 
+  // Stale-currency guard. The account can be converted (INR <-> USD, ₹100 = $1) from another tab or device while a
+  // ticket is open; a stake typed for the old currency would then be 100x off. A client that states its currency
+  // is refused on a mismatch (before the minimum-stake check, which would blame the wrong number). Clients that
+  // send none (older app builds, cached web pages) are unaffected.
+  if (parsed.data.currency && parsed.data.currency !== account.currency) {
+    return NextResponse.json(
+      { error: "Your account currency changed. Check your stake and try again.", code: "currency_changed" },
+      { status: 409 },
+    );
+  }
+
   const minStake = minStakeMinor(account.currency);
   if (parsed.data.stake < minStake) {
     return NextResponse.json(
@@ -65,7 +76,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await engineOpenTrade({ ...parsed.data, actorId: session.userId });
+    // `currency` is the guard above, not part of the engine's request (its schema is strict).
+    const order = { ...parsed.data };
+    delete order.currency;
+    const result = await engineOpenTrade({ ...order, actorId: session.userId });
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof EngineRejected) {

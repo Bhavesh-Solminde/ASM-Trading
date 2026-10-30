@@ -189,7 +189,16 @@ export function TradeTicket({
       const res = await fetch("/api/trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, direction, stake: stakeMinor, durationSec: effectiveDurationSec, accountId }),
+        // The account's currency rides along so the server can refuse a stake typed for a currency the account has
+        // since been converted out of (a second tab or the phone app). Only the two the contract accepts.
+        body: JSON.stringify({
+          symbol,
+          direction,
+          stake: stakeMinor,
+          durationSec: effectiveDurationSec,
+          accountId,
+          ...(currency === "INR" || currency === "USD" ? { currency } : {}),
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as Partial<OpenTradeResult> & { error?: string };
       if (res.ok && data.trade && data.balances) {

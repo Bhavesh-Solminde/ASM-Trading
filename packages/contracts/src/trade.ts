@@ -28,7 +28,15 @@ const tradeRequestShape = {
  * expiryTs or payoutPct is rejected outright — those are server-determined,
  * and an attempt to supply them is worth logging, not silently discarding.
  */
-export const OpenTradeSchema = z.strictObject(tradeRequestShape);
+export const OpenTradeSchema = z.strictObject({
+  ...tradeRequestShape,
+  /**
+   * The currency the client believes the account is in (stale-currency guard). Optional so older app builds and
+   * cached web clients, which send nothing, keep working. The web app compares it with the account's real currency
+   * and refuses on a mismatch, then strips it: it is not part of the engine request.
+   */
+  currency: z.enum(["INR", "USD"]).optional(),
+});
 export type OpenTradeInput = z.infer<typeof OpenTradeSchema>;
 
 /**
