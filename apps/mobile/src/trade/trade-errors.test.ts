@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
+import en from "@/i18n/en.json";
+import hi from "@/i18n/hi.json";
 import { tradeErrorKey } from "./trade-errors";
 
 describe("tradeErrorKey", () => {
@@ -10,6 +12,7 @@ describe("tradeErrorKey", () => {
     ["unknown_asset", "trade.assetUnavailable"],
     ["trading_unavailable", "trade.unavailable"],
     ["timeout", "trade.timedOut"],
+    ["currency_changed", "trade.currencyChanged"],
   ])("maps the server code %s to %s", (code, key) => {
     expect(tradeErrorKey(new ApiError("English server text", 409, code))).toBe(key);
   });
@@ -25,5 +28,12 @@ describe("tradeErrorKey", () => {
 
   it("falls back to trade.failed for anything that is not an ApiError", () => {
     expect(tradeErrorKey(new Error("boom"))).toBe("trade.failed");
+  });
+});
+
+describe("currency_changed copy", () => {
+  it("exists in English and Hindi", () => {
+    expect(en.trade.currencyChanged.length).toBeGreaterThan(0);
+    expect(hi.trade.currencyChanged.length).toBeGreaterThan(0);
   });
 });

@@ -34,6 +34,9 @@ const files = [
   "app/(tabs)/account/notifications.tsx",
   "src/account/useDemoReset.ts",
   "src/account/demo-reset.ts",
+  "app/(tabs)/account/currency.tsx",
+  "src/account/useCurrencySwitch.ts",
+  "src/account/currency-switch.ts",
 ];
 const literal = files.flatMap((f) => [...readFileSync(join(root, f), "utf8").matchAll(/\bt\(\s*"([A-Za-z0-9_.]+)"/g)].map((m) => m[1] as string));
 

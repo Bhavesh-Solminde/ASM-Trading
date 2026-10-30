@@ -152,6 +152,7 @@
     "selectMarket": "Market: {{name}}. Tap to change.",
     "timedOut": "No reply yet. Check Your trades before trying again.",
     "failed": "Trade failed.",
+    "currencyChanged": "Your account currency changed. Check your stake and try again.",
     "maxStake": "Maximum stake is {{amount}}",
     "delete": "Delete",
     "point": "Decimal point",
@@ -416,6 +417,17 @@
     "currency": "Currency",
     "notifications": "Notifications",
     "support": "Help & support"
+  },
+  "currency": {
+    "title": "Currency",
+    "intro": "Switch an account between rupees and dollars. Your whole balance converts at a fixed rate of ₹100 = $1, and the rate does not follow the market.",
+    "balance": "Balance",
+    "switchTo": "Switch to {{currency}}",
+    "preview": "{{from}} becomes about {{to}}",
+    "confirmTitle": "Switch to {{currency}}?",
+    "confirmBody": "{{from}} becomes about {{to}}. Your whole balance, bonus included, and your trades convert at the fixed rate of ₹100 = $1. Amounts are rounded to the nearest cent.",
+    "done": "Switched to {{currency}}",
+    "timedOut": "No reply yet. Check your balance before trying again."
   },
   "withdraw": {
     "title": "Withdraw",

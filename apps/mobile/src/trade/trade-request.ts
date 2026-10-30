@@ -15,12 +15,20 @@ export function buildOpenTradeBody(input: {
   direction: "UP" | "DOWN";
   stakeMinor: number;
   durationSec: number;
+  /**
+   * The selected account's currency, as this device last saw it. The server refuses the trade (`currency_changed`)
+   * when the account has been converted since, so a stake typed in the old currency is never placed in the new one.
+   */
+  currency: string;
 }): OpenTradeInput {
+  // A currency the contract does not know is left out rather than failing every trade; the server still checks the stake.
+  const currency = OpenTradeSchema.shape.currency.safeParse(input.currency);
   return OpenTradeSchema.parse({
     symbol: input.symbol,
     direction: input.direction,
     stake: input.stakeMinor,
     durationSec: input.durationSec,
     accountId: input.accountId,
+    ...(currency.success && currency.data !== undefined ? { currency: currency.data } : {}),
   });
 }
