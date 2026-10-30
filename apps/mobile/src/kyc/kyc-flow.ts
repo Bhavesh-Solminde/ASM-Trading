@@ -1,4 +1,4 @@
-import { KYC_DOCUMENT_KIND_VALUES, KYC_IDENTITY_FIELDS, type KycDocumentKindValue } from "@asm/contracts";
+import { KYC_DOCUMENT_KIND_VALUES, KYC_IDENTITY_FIELDS, type KycDocumentKindValue, type KycIdentityField } from "@asm/contracts";
 
 /** The four photos a submission needs, in the order the flow asks for them. */
 export const KYC_DOCS: readonly KycDocumentKindValue[] = KYC_DOCUMENT_KIND_VALUES;
@@ -17,7 +17,7 @@ export const KYC_GROUPS: ReadonlyArray<{ id: KycGroupId; kinds: readonly KycDocK
 ];
 
 /** True when every identity field the server requires on submit holds something other than whitespace. */
-export function detailsComplete(profile: Readonly<Record<string, string | null | undefined>>): boolean {
+export function detailsComplete(profile: { readonly [K in KycIdentityField]?: string | null | undefined }): boolean {
   return KYC_IDENTITY_FIELDS.every((field) => (profile[field] ?? "").trim() !== "");
 }
 

@@ -574,6 +574,98 @@
   },
   "kyc": {
     "uploadTimedOut": "The upload took too long. Check your connection and try again.",
-    "photoTooLarge": "Photo too large, please retake."
+    "photoTooLarge": "Photo too large, please retake.",
+    "title": "Verify your identity",
+    "intro": "Needed once, before your first withdrawal. Takes about 3 minutes.",
+    "next": "Next",
+    "done": "Done",
+    "card": {
+      "details": {
+        "title": "Your details",
+        "sub": "Name, date of birth, Aadhaar, PAN and address"
+      },
+      "aadhaar": {
+        "title": "Aadhaar card",
+        "sub": "Front and back"
+      },
+      "pan": {
+        "title": "PAN card",
+        "sub": "Front side"
+      },
+      "selfie": {
+        "title": "Selfie",
+        "sub": "Use your phone's camera"
+      }
+    },
+    "cta": {
+      "details": "Add your details",
+      "AADHAAR_FRONT": "Photograph Aadhaar",
+      "AADHAAR_BACK": "Photograph Aadhaar back",
+      "PAN": "Photograph PAN card",
+      "SELFIE": "Take a selfie",
+      "review": "Submit for review"
+    },
+    "doc": {
+      "AADHAAR_FRONT": "Aadhaar, front",
+      "AADHAAR_BACK": "Aadhaar, back",
+      "PAN": "PAN card",
+      "SELFIE": "Selfie"
+    },
+    "chooseSide": "Which side do you want to retake?",
+    "verified": "Verified",
+    "verifiedBody": "Withdrawals are unlocked.",
+    "pending": "In review",
+    "pendingBody": "We have your details and documents and are checking them, usually within 24 hours. Withdrawals unlock as soon as you're verified.",
+    "rejected": "Not approved",
+    "rejectedBody": "Your last verification wasn't approved.",
+    "reason": "Reason: {{note}}",
+    "rejectedFix": "Replace anything that needs it and submit again.",
+    "startAgain": "Start again",
+    "detailsTitle": "Your details",
+    "detailsIntro": "Exactly as they appear on your Aadhaar and PAN card. You can't change them once you submit.",
+    "detailsLocked": "Your details can't be changed while your verification is in review or approved.",
+    "field": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "dateOfBirth": "Date of birth",
+      "aadhaar": "Aadhaar number",
+      "pan": "PAN number",
+      "address": "Address",
+      "country": "Country"
+    },
+    "placeholder": {
+      "dateOfBirth": "YYYY-MM-DD",
+      "aadhaar": "12 digits",
+      "pan": "ABCDE1234F",
+      "address": "House, street, city, PIN code"
+    },
+    "dobHint": "Year, month, day. For example 1990-01-31.",
+    "saveDetails": "Save and continue",
+    "err": {
+      "firstName": "Enter your first name as on your Aadhaar.",
+      "lastName": "Enter your last name as on your Aadhaar.",
+      "dateOfBirth": "Enter your date of birth as YYYY-MM-DD.",
+      "underage": "You must be 18 or older to verify.",
+      "aadhaar": "Aadhaar number is 12 digits.",
+      "pan": "PAN looks like ABCDE1234F.",
+      "address": "Enter your address.",
+      "country": "Enter your country."
+    },
+    "cameraNeeded": "Allow camera access to take the photo here. You can also choose one from your gallery.",
+    "allowCamera": "Allow camera",
+    "openSettings": "Open settings",
+    "useGallery": "Choose from gallery",
+    "gallery": "Gallery",
+    "capture": "Take photo",
+    "torch": "Torch",
+    "usePhoto": "Use photo",
+    "retake": "Retake",
+    "uploading": "Uploading…",
+    "selfieHint": "Centre your face in the oval",
+    "cardHint": "Fit the whole card inside the frame",
+    "badLink": "This photo screen can't be opened.",
+    "submitTimedOut": "Submitting took too long. Check your connection and look at this screen before trying again.",
+    "saveTimedOut": "Saving took too long. Check your connection and try again.",
+    "pendingTitle": "We're checking your documents"
   }
 }

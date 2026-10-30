@@ -38,3 +38,12 @@ export async function compressWith(run: (maxSide: number, quality: number) => Pr
 export function fitResize(width: number, height: number, maxSide: number): { width: number } | { height: number } {
   return width >= height ? { width: Math.min(width, maxSide) } : { height: Math.min(height, maxSide) };
 }
+
+/**
+ * A file's size in bytes, or a throw when the platform cannot say (`File.size` is `number | null`). An unknown size
+ * must not read as 0 or "too large": the caller shows a generic error, not "Photo too large, please retake".
+ */
+export function knownSize(size: number | null | undefined): number {
+  if (typeof size !== "number" || !Number.isFinite(size)) throw new Error("The size of the compressed photo is unknown.");
+  return size;
+}

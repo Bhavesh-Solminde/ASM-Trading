@@ -25,7 +25,8 @@ describe("detailsComplete", () => {
     }
   });
   it("ignores fields that are not identity fields (nickname, email)", () => {
-    expect(detailsComplete({ ...FULL, nickname: null, email: "a@b.co" })).toBe(true);
+    const profile = { ...FULL, nickname: null, email: "a@b.co", emailVerified: true };
+    expect(detailsComplete(profile)).toBe(true);
   });
 });
 
