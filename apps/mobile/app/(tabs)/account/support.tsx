@@ -154,11 +154,14 @@ export default function Support() {
               {t("support.ticketsTitle")}
             </Txt>
             <View style={{ flexShrink: 0 }}>
-              <Button testID="support-new-ticket" kind="secondary" label={t("support.newTicket")} onPress={() => sheet.current?.present()} />
+              <Button testID="support-new-ticket" kind="secondary" label={t("support.newTicket")} onPress={() => {
+                setError(null);
+                sheet.current?.present();
+              }} />
             </View>
           </View>
           <ListState
-            loading={tickets.isPending && sessionLive}
+            loading={tickets.isPending}
             error={tickets.isError && list.length === 0}
             {...(tickets.isSuccess && list.length === 0 ? { empty: t("support.ticketsEmpty") } : null)}
             onRetry={() => void refetch()}

@@ -717,7 +717,7 @@
   "security": {
     "title": "Security",
     "appLock": "App lock",
-    "appLockHint": "Ask for your fingerprint or PIN when you open the app and after 5 minutes away.",
+    "appLockHint": "Ask for your fingerprint, face or PIN when you open the app and after 5 minutes away.",
     "methodTitle": "Unlock method",
     "changePin": "Change PIN",
     "usePin": "Use a PIN instead",
@@ -727,13 +727,14 @@
     "turnOffFailed": "Couldn't turn off the app lock. Try again.",
     "lockOn": "App lock is on",
     "lockOff": "App lock is off",
-    "fingerprintOn": "Fingerprint unlock is on",
+    "fingerprintOn": "Biometric unlock is on",
     "pinSaved": "PIN saved",
     "verifyBody": "Enter your current PIN to continue.",
-    "verifyBiometricBody": "Confirm with your fingerprint to continue.",
-    "confirmBiometric": "Confirm with fingerprint",
+    "verifyBiometricBody": "Confirm with your fingerprint or face to continue.",
+    "confirmBiometric": "Confirm with biometrics",
     "setBody": "Choose a PIN you will remember. You enter it when you open the app.",
-    "fingerprintNotOn": "Fingerprint unlock wasn't turned on. Your PIN still works."
+    "fingerprintNotOn": "Biometric unlock wasn't turned on. Your PIN still works.",
+    "usePinFallback": "Use your app PIN instead"
   },
   "support": {
     "contactTitle": "Chat with us",

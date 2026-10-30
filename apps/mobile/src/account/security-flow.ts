@@ -35,10 +35,27 @@ export function decideToggle(lock: LockSnapshot, biometricAvailable: boolean): T
   return lock.method === "biometric" ? { kind: "verify-biometric-then-disable" } : { kind: "verify-pin-then-disable" };
 }
 
-export type Reverify = "biometric" | "pin";
-/** How the owner is asked to confirm a sensitive change: by the method the lock already uses. */
-export function reverifyVia(lock: LockSnapshot): Reverify {
-  return lock.method === "biometric" ? "biometric" : "pin";
+export type DecideNone = { kind: "none" };
+
+/**
+ * "Use fingerprint" on a PIN lock. The system fingerprint prompt also takes the phone's own screen-lock PIN, so it
+ * proves nothing about the owner of the app lock: the app PIN is verified first, like every other change.
+ */
+export function decideUseFingerprint(lock: LockSnapshot, biometricAvailable: boolean): { kind: "verify-pin-then-enable-biometric" } | DecideNone {
+  return lockIsOn(lock) && lock.method === "pin" && biometricAvailable ? { kind: "verify-pin-then-enable-biometric" } : { kind: "none" };
+}
+
+/** "Use a PIN instead" on a fingerprint lock: the biometric (alone, no phone screen-lock fallback) is verified first. */
+export function decideUsePin(lock: LockSnapshot): { kind: "verify-biometric-then-set-pin" } | DecideNone {
+  return lockIsOn(lock) && lock.method === "biometric" ? { kind: "verify-biometric-then-set-pin" } : { kind: "none" };
+}
+
+/**
+ * After a biometric check failed or was cancelled: the same step through the app PIN, if a PIN is stored; otherwise
+ * null and the lock stays exactly as it was.
+ */
+export function biometricFailureFallback(next: AfterVerify, pinStored: boolean): AfterVerify | null {
+  return pinStored ? next : null;
 }
 
 /** Which of the optional rows under the switch show. */
@@ -54,30 +71,34 @@ export function afterEnableBiometric(enabled: boolean): "done" | "set-pin" {
 }
 
 export type PinMode = "set" | "verify";
-export type AfterVerify = "disable" | "change";
+export type AfterVerify = "disable" | "change" | "fingerprint";
 export interface PinParams {
   mode: PinMode;
   /** What a verify leads to; always null for a set. */
   next: AfterVerify | null;
+  /** A verify by the app PIN although the lock is a fingerprint lock (the fallback after the biometric failed). */
+  via: "pin" | null;
 }
 
 type Param = string | string[] | undefined;
 const first = (v: Param): string | undefined => (Array.isArray(v) ? v[0] : v);
 
 /** The route params of `/account/security-pin`. A verify must say what it is for: there is no default, least of all "turn the lock off". */
-export function parsePinParams(raw: { mode?: Param; next?: Param }): PinParams | null {
+export function parsePinParams(raw: { mode?: Param; next?: Param; via?: Param }): PinParams | null {
   const mode = first(raw.mode);
-  if (mode === "set") return { mode, next: null };
+  if (mode === "set") return { mode, next: null, via: null };
   if (mode === "verify") {
     const next = first(raw.next);
-    return next === "disable" || next === "change" ? { mode, next } : null;
+    if (next !== "disable" && next !== "change" && next !== "fingerprint") return null;
+    return { mode, next, via: first(raw.via) === "pin" ? "pin" : null };
   }
   return null;
 }
 
 /** The params to put on the route for a mode (the inverse of `parsePinParams`). */
-export function pinParams(mode: PinMode, next?: AfterVerify): { mode: PinMode; next?: AfterVerify } {
-  return mode === "verify" && next ? { mode, next } : { mode };
+export function pinParams(mode: PinMode, next?: AfterVerify, via?: "pin"): { mode: PinMode; next?: AfterVerify; via?: "pin" } {
+  if (mode !== "verify" || !next) return { mode };
+  return via ? { mode, next, via } : { mode, next };
 }
 
 /** How long a passed verify lets the PIN be replaced. Shorter than the 5 minutes after which the app relocks. */
@@ -90,6 +111,7 @@ export function grantFresh(grantedAt: number | null, now: number): boolean {
 export interface PinScreenStep {
   step: "set" | "verify" | "leave";
   next: AfterVerify | null;
+  via: "pin" | null;
 }
 
 /**
@@ -98,11 +120,11 @@ export interface PinScreenStep {
  * the lock is off is turning it on, which needs nothing.
  */
 export function pinScreenStep(params: PinParams | null, lock: LockSnapshot, verified: boolean): PinScreenStep {
-  if (params === null) return { step: "leave", next: null };
+  if (params === null) return { step: "leave", next: null, via: null };
   if (params.mode === "set") {
-    return lockIsOn(lock) && !verified ? { step: "verify", next: "change" } : { step: "set", next: null };
+    return lockIsOn(lock) && !verified ? { step: "verify", next: "change", via: null } : { step: "set", next: null, via: null };
   }
-  return lockIsOn(lock) ? { step: "verify", next: params.next } : { step: "leave", next: null };
+  return lockIsOn(lock) ? { step: "verify", next: params.next, via: params.via } : { step: "leave", next: null, via: null };
 }
 
 export interface PinEntry {
@@ -132,10 +154,20 @@ export function wrongPinCount(attempts: number): number | null {
   return Math.max(0, MAX_PIN_ATTEMPTS - attempts);
 }
 
+/** The biometric check on its own (no phone screen-lock fallback: the lock store's `confirmBiometric`). A throw never verifies. */
+export async function confirmWithBiometric(deps: { confirm: () => Promise<boolean> }): Promise<"verified" | "not-verified" | "failed"> {
+  try {
+    return (await deps.confirm()) ? "verified" : "not-verified";
+  } catch {
+    return "failed";
+  }
+}
+
 /** Fingerprint path of "turn the lock off": the lock goes off only if the check passed. */
 export async function disableWithBiometric(deps: { verify: () => Promise<boolean>; disable: () => Promise<void> }): Promise<"disabled" | "not-verified" | "failed"> {
+  const checked = await confirmWithBiometric({ confirm: deps.verify });
+  if (checked !== "verified") return checked;
   try {
-    if (!(await deps.verify())) return "not-verified";
     await deps.disable();
     return "disabled";
   } catch {
@@ -143,10 +175,17 @@ export async function disableWithBiometric(deps: { verify: () => Promise<boolean
   }
 }
 
-/** After the current PIN was entered correctly: switch the lock off, or go on to choose the new PIN. */
-export async function finishVerify(next: AfterVerify, deps: { disable: () => Promise<void> }): Promise<"disabled" | "set-pin" | "failed"> {
+/**
+ * After the current PIN was entered correctly: switch the lock off, go on to choose the new PIN, or turn the
+ * fingerprint on (the system prompt may still be declined, which leaves the PIN lock as it was).
+ */
+export async function finishVerify(
+  next: AfterVerify,
+  deps: { disable: () => Promise<void>; enableBiometric: () => Promise<boolean> },
+): Promise<"disabled" | "set-pin" | "fingerprint-on" | "fingerprint-declined" | "failed"> {
   if (next === "change") return "set-pin";
   try {
+    if (next === "fingerprint") return (await deps.enableBiometric()) ? "fingerprint-on" : "fingerprint-declined";
     await deps.disable();
     return "disabled";
   } catch {

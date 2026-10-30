@@ -29,6 +29,11 @@ const modelKeys = [
   ...(["OPEN", "ANSWERED", "CLOSED"] as const).map((s) => ticketTag(s).labelKey),
   ...Object.values(ticketProblems("", "")),
   "lock.mismatch",
+  // Picked by a ternary inside t(...), which the literal scan cannot see.
+  "security.turnOnFailed",
+  "security.turnOffFailed",
+  "security.verifyFailed",
+  "common.genericError",
   "support.whatsapp",
   "support.telegram",
   biometricLabelKey([]),
@@ -104,6 +109,24 @@ describe("Security screen guards (no render tests exist, so the source is checke
     expect(calls(security)).toBe(1);
     expect(pin).toMatch(/finishVerify\(next/);
     expect(calls(pin)).toBe(1);
+  });
+
+  it("never uses the plain unlock prompt for a re-verify: only the biometric-only confirmBiometric (no phone screen-lock fallback)", () => {
+    for (const source of [security, pin]) {
+      expect(source).not.toMatch(/unlockWithBiometric/);
+      expect(source).toMatch(/confirmBiometric\(/);
+    }
+  });
+
+  it("turns the fingerprint on only when the lock is off (the switch) or after the app PIN was verified (finishVerify)", () => {
+    const calls = (source: string) => [...source.matchAll(/enableBiometric\(\)/g)].length;
+    expect(calls(security)).toBe(1);
+    const turnOn = security.slice(security.indexOf('case "enable-biometric"'), security.indexOf('case "set-pin"'));
+    expect(turnOn).toMatch(/enableBiometric\(\)/);
+    expect(calls(pin)).toBe(1);
+    expect(pin).toMatch(/finishVerify\(next, \{[^}]*enableBiometric:/);
+    // "Use fingerprint" on a PIN lock goes to the PIN verify step, never straight to the prompt.
+    expect(security).toMatch(/decideUseFingerprint\(lock, biometric\.available\)\.kind === "verify-pin-then-enable-biometric"\) toPinScreen\("verify", "fingerprint"\)/);
   });
 
   it("sets a PIN only through the set step, whose decision is pinScreenStep", () => {

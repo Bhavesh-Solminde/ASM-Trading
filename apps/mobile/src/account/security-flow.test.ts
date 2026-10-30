@@ -3,7 +3,11 @@ import { MAX_PIN_ATTEMPTS } from "@/lock/rules";
 import {
   GRANT_TTL_MS,
   afterEnableBiometric,
+  biometricFailureFallback,
+  confirmWithBiometric,
   decideToggle,
+  decideUseFingerprint,
+  decideUsePin,
   disableWithBiometric,
   finishVerify,
   grantFresh,
@@ -13,7 +17,6 @@ import {
   parsePinParams,
   pinParams,
   pinScreenStep,
-  reverifyVia,
   submitPin,
   verifyOutcome,
   wrongPinCount,
@@ -56,13 +59,6 @@ describe("decideToggle", () => {
   });
 });
 
-describe("reverifyVia", () => {
-  it("is the method the lock is on", () => {
-    expect(reverifyVia(PIN)).toBe("pin");
-    expect(reverifyVia(BIO)).toBe("biometric");
-  });
-});
-
 describe("lockRows", () => {
   it("shows nothing while the lock is off", () => {
     expect(lockRows(OFF, true)).toEqual({ changePin: false, useFingerprint: false, usePin: false });
@@ -89,13 +85,20 @@ describe("afterEnableBiometric", () => {
 
 describe("parsePinParams", () => {
   it("reads set and verify, and the step a verify leads to", () => {
-    expect(parsePinParams({ mode: "set" })).toEqual({ mode: "set", next: null });
-    expect(parsePinParams({ mode: "verify", next: "disable" })).toEqual({ mode: "verify", next: "disable" });
-    expect(parsePinParams({ mode: "verify", next: "change" })).toEqual({ mode: "verify", next: "change" });
+    expect(parsePinParams({ mode: "set" })).toEqual({ mode: "set", next: null, via: null });
+    expect(parsePinParams({ mode: "verify", next: "disable" })).toEqual({ mode: "verify", next: "disable", via: null });
+    expect(parsePinParams({ mode: "verify", next: "change" })).toEqual({ mode: "verify", next: "change", via: null });
+    expect(parsePinParams({ mode: "verify", next: "fingerprint" })).toEqual({ mode: "verify", next: "fingerprint", via: null });
+  });
+
+  it("reads via=pin on a verify (the app PIN as the fallback for a fingerprint lock) and nothing else", () => {
+    expect(parsePinParams({ mode: "verify", next: "disable", via: "pin" })).toEqual({ mode: "verify", next: "disable", via: "pin" });
+    expect(parsePinParams({ mode: "verify", next: "disable", via: "biometric" })).toEqual({ mode: "verify", next: "disable", via: null });
+    expect(parsePinParams({ mode: "set", via: "pin" })).toEqual({ mode: "set", next: null, via: null });
   });
 
   it("takes the first value of a repeated param", () => {
-    expect(parsePinParams({ mode: ["verify", "set"], next: ["change", "disable"] })).toEqual({ mode: "verify", next: "change" });
+    expect(parsePinParams({ mode: ["verify", "set"], next: ["change", "disable"], via: ["pin", "x"] })).toEqual({ mode: "verify", next: "change", via: "pin" });
   });
 
   it("rejects an unknown or missing mode", () => {
@@ -110,13 +113,9 @@ describe("parsePinParams", () => {
     expect(parsePinParams({ mode: "verify", next: "wipe" })).toBeNull();
   });
 
-  it("ignores next on a set", () => {
-    expect(parsePinParams({ mode: "set", next: "disable" })).toEqual({ mode: "set", next: null });
-  });
-
   it("round-trips through pinParams", () => {
-    for (const [mode, next] of [["set", undefined], ["verify", "disable"], ["verify", "change"]] as const) {
-      expect(parsePinParams(pinParams(mode, next))).toEqual({ mode, next: next ?? null });
+    for (const [mode, next, via] of [["set", undefined, undefined], ["verify", "disable", undefined], ["verify", "change", "pin"], ["verify", "fingerprint", undefined]] as const) {
+      expect(parsePinParams(pinParams(mode, next, via))).toEqual({ mode, next: next ?? null, via: via ?? null });
     }
   });
 });
@@ -135,28 +134,31 @@ describe("grantFresh", () => {
 });
 
 describe("pinScreenStep (what /account/security-pin does when it opens)", () => {
+  const set = { mode: "set", next: null, via: null } as const;
+
   it("a set on a live lock without a fresh verify is sent to verify first, so a deep link cannot change the PIN", () => {
-    expect(pinScreenStep({ mode: "set", next: null }, PIN, false)).toEqual({ step: "verify", next: "change" });
-    expect(pinScreenStep({ mode: "set", next: null }, BIO, false)).toEqual({ step: "verify", next: "change" });
+    expect(pinScreenStep(set, PIN, false)).toEqual({ step: "verify", next: "change", via: null });
+    expect(pinScreenStep(set, BIO, false)).toEqual({ step: "verify", next: "change", via: null });
   });
 
   it("a set after a fresh verify, or while the lock is off (turning it on), goes ahead", () => {
-    expect(pinScreenStep({ mode: "set", next: null }, PIN, true)).toEqual({ step: "set", next: null });
-    expect(pinScreenStep({ mode: "set", next: null }, OFF, false)).toEqual({ step: "set", next: null });
-    expect(pinScreenStep({ mode: "set", next: null }, OFF_STALE_PIN, false)).toEqual({ step: "set", next: null });
+    expect(pinScreenStep(set, PIN, true)).toEqual({ step: "set", next: null, via: null });
+    expect(pinScreenStep(set, OFF, false)).toEqual({ step: "set", next: null, via: null });
+    expect(pinScreenStep(set, OFF_STALE_PIN, false)).toEqual({ step: "set", next: null, via: null });
   });
 
-  it("a verify on a live lock stays a verify and keeps its next", () => {
-    expect(pinScreenStep({ mode: "verify", next: "disable" }, PIN, false)).toEqual({ step: "verify", next: "disable" });
-    expect(pinScreenStep({ mode: "verify", next: "change" }, PIN, true)).toEqual({ step: "verify", next: "change" });
+  it("a verify on a live lock stays a verify and keeps its next and via", () => {
+    expect(pinScreenStep({ mode: "verify", next: "disable", via: null }, PIN, false)).toEqual({ step: "verify", next: "disable", via: null });
+    expect(pinScreenStep({ mode: "verify", next: "change", via: "pin" }, BIO, true)).toEqual({ step: "verify", next: "change", via: "pin" });
+    expect(pinScreenStep({ mode: "verify", next: "fingerprint", via: null }, PIN, false)).toEqual({ step: "verify", next: "fingerprint", via: null });
   });
 
   it("a verify with no live lock has nothing to verify: leave", () => {
-    expect(pinScreenStep({ mode: "verify", next: "disable" }, OFF, false)).toEqual({ step: "leave", next: null });
+    expect(pinScreenStep({ mode: "verify", next: "disable", via: null }, OFF, false)).toEqual({ step: "leave", next: null, via: null });
   });
 
   it("unreadable params leave", () => {
-    expect(pinScreenStep(null, PIN, true)).toEqual({ step: "leave", next: null });
+    expect(pinScreenStep(null, PIN, true)).toEqual({ step: "leave", next: null, via: null });
   });
 });
 
@@ -244,25 +246,106 @@ describe("disableWithBiometric", () => {
 });
 
 describe("finishVerify (what happens after the PIN was right)", () => {
-  it("disable switches the lock off", async () => {
-    const disable = vi.fn(async () => {});
-    expect(await finishVerify("disable", { disable })).toBe("disabled");
-    expect(disable).toHaveBeenCalledTimes(1);
+  const deps = () => ({ disable: vi.fn(async () => {}), enableBiometric: vi.fn(async () => true) });
+
+  it("disable switches the lock off and nothing else", async () => {
+    const d = deps();
+    expect(await finishVerify("disable", d)).toBe("disabled");
+    expect(d.disable).toHaveBeenCalledTimes(1);
+    expect(d.enableBiometric).not.toHaveBeenCalled();
   });
 
-  it("change goes on to the set step and switches nothing off", async () => {
-    const disable = vi.fn(async () => {});
-    expect(await finishVerify("change", { disable })).toBe("set-pin");
-    expect(disable).not.toHaveBeenCalled();
+  it("change goes on to the set step and switches nothing", async () => {
+    const d = deps();
+    expect(await finishVerify("change", d)).toBe("set-pin");
+    expect(d.disable).not.toHaveBeenCalled();
+    expect(d.enableBiometric).not.toHaveBeenCalled();
   });
 
-  it("a failed switch-off is reported", async () => {
+  it("fingerprint turns the fingerprint on (the PIN lock becomes a fingerprint lock) and switches nothing off", async () => {
+    const d = deps();
+    expect(await finishVerify("fingerprint", d)).toBe("fingerprint-on");
+    expect(d.enableBiometric).toHaveBeenCalledTimes(1);
+    expect(d.disable).not.toHaveBeenCalled();
+  });
+
+  it("a declined fingerprint prompt leaves the PIN lock as it was", async () => {
+    const d = { ...deps(), enableBiometric: vi.fn(async () => false) };
+    expect(await finishVerify("fingerprint", d)).toBe("fingerprint-declined");
+  });
+
+  it("a failed switch-off, or a fingerprint enrolment that throws, is reported as failed", async () => {
+    const boom = async () => {
+      throw new Error("keystore write");
+    };
+    expect(await finishVerify("disable", { ...deps(), disable: boom })).toBe("failed");
+    expect(await finishVerify("fingerprint", { ...deps(), enableBiometric: boom })).toBe("failed");
+  });
+});
+
+describe("confirmWithBiometric", () => {
+  it("is verified, not verified, or failed (a throwing sensor never verifies)", async () => {
+    expect(await confirmWithBiometric({ confirm: async () => true })).toBe("verified");
+    expect(await confirmWithBiometric({ confirm: async () => false })).toBe("not-verified");
     expect(
-      await finishVerify("disable", {
-        disable: async () => {
-          throw new Error("keystore write");
+      await confirmWithBiometric({
+        confirm: async () => {
+          throw new Error("sensor");
         },
       }),
     ).toBe("failed");
+  });
+});
+
+describe("decideUseFingerprint (PIN lock -> fingerprint lock)", () => {
+  it("needs the app PIN first: the system prompt also takes the phone's screen-lock code, so it proves nothing", () => {
+    expect(decideUseFingerprint(PIN, true)).toEqual({ kind: "verify-pin-then-enable-biometric" });
+  });
+  it("is not offered without a fingerprint, or on a lock that is not a PIN lock", () => {
+    expect(decideUseFingerprint(PIN, false)).toEqual({ kind: "none" });
+    expect(decideUseFingerprint(BIO, true)).toEqual({ kind: "none" });
+    expect(decideUseFingerprint(OFF, true)).toEqual({ kind: "none" });
+    expect(decideUseFingerprint(OFF_STALE_PIN, true)).toEqual({ kind: "none" });
+  });
+});
+
+describe("decideUsePin (fingerprint lock -> PIN lock)", () => {
+  it("needs the biometric first, and only on a fingerprint lock", () => {
+    expect(decideUsePin(BIO)).toEqual({ kind: "verify-biometric-then-set-pin" });
+    expect(decideUsePin(PIN)).toEqual({ kind: "none" });
+    expect(decideUsePin(OFF)).toEqual({ kind: "none" });
+  });
+});
+
+describe("biometricFailureFallback", () => {
+  it("offers the app PIN for the same step when one is stored", () => {
+    for (const next of ["disable", "change", "fingerprint"] as const) expect(biometricFailureFallback(next, true)).toBe(next);
+  });
+  it("offers nothing when there is no PIN: the lock stays exactly as it was", () => {
+    for (const next of ["disable", "change", "fingerprint"] as const) expect(biometricFailureFallback(next, false)).toBeNull();
+  });
+});
+
+describe("no path changes a live lock without an app-level verify", () => {
+  const LIVE = [PIN, BIO];
+  it("every decision on a live lock starts with a verify step (the PIN, or the biometric alone)", () => {
+    for (const lock of LIVE) {
+      for (const bio of [true, false]) {
+        const decisions = [decideToggle(lock, bio), decideUseFingerprint(lock, bio), decideUsePin(lock)].filter((d) => d.kind !== "none");
+        expect(decisions.length, `${lock.method} bio=${bio}`).toBeGreaterThan(0);
+        for (const d of decisions) expect(d.kind, `${lock.method} bio=${bio}`).toMatch(/^verify-/);
+      }
+    }
+  });
+
+  it("a PIN lock is only ever verified by its PIN, and a fingerprint lock only by the biometric", () => {
+    expect(decideToggle(PIN, true).kind).toBe("verify-pin-then-disable");
+    expect(decideUseFingerprint(PIN, true).kind).toBe("verify-pin-then-enable-biometric");
+    expect(decideToggle(BIO, true).kind).toBe("verify-biometric-then-disable");
+    expect(decideUsePin(BIO).kind).toBe("verify-biometric-then-set-pin");
+  });
+
+  it("the set step on a live lock needs a verify behind it, whichever way it was reached", () => {
+    for (const lock of LIVE) expect(pinScreenStep({ mode: "set", next: null, via: null }, lock, false).step).toBe("verify");
   });
 });
