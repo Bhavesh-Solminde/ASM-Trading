@@ -713,5 +713,86 @@
   "notifications": {
     "title": "Notifications",
     "soon": "Notifications arrive in the next update"
+  },
+  "security": {
+    "title": "Security",
+    "appLock": "App lock",
+    "appLockHint": "Ask for your fingerprint or PIN when you open the app and after 5 minutes away.",
+    "methodTitle": "Unlock method",
+    "changePin": "Change PIN",
+    "usePin": "Use a PIN instead",
+    "verifyPrompt": "Confirm it's you",
+    "verifyFailed": "We couldn't confirm it's you, so the app lock is still on.",
+    "turnOnFailed": "Couldn't turn on the app lock. Try again.",
+    "turnOffFailed": "Couldn't turn off the app lock. Try again.",
+    "lockOn": "App lock is on",
+    "lockOff": "App lock is off",
+    "fingerprintOn": "Fingerprint unlock is on",
+    "pinSaved": "PIN saved",
+    "verifyBody": "Enter your current PIN to continue.",
+    "verifyBiometricBody": "Confirm with your fingerprint to continue.",
+    "confirmBiometric": "Confirm with fingerprint",
+    "setBody": "Choose a PIN you will remember. You enter it when you open the app.",
+    "fingerprintNotOn": "Fingerprint unlock wasn't turned on. Your PIN still works."
+  },
+  "support": {
+    "contactTitle": "Chat with us",
+    "contactHint": "Message our team directly.",
+    "whatsapp": "WhatsApp",
+    "telegram": "Telegram",
+    "openFailed": "Couldn't open the link.",
+    "faqTitle": "Frequently asked questions",
+    "ticketsTitle": "Your requests",
+    "newTicket": "New ticket",
+    "ticketsEmpty": "You haven't sent us a request yet.",
+    "sheetTitle": "New ticket",
+    "subject": "Subject",
+    "subjectPlaceholder": "What do you need help with?",
+    "message": "Message",
+    "messagePlaceholder": "Describe the problem",
+    "send": "Send",
+    "errSubject": "Enter a subject of at least 3 characters.",
+    "errBody": "Describe the problem in at least 10 characters.",
+    "sent": "Ticket sent",
+    "ticketTimedOut": "No answer yet, so your ticket may have been sent. Check Your requests before sending again.",
+    "status": {
+      "open": "Open",
+      "answered": "Answered",
+      "closed": "Closed"
+    },
+    "faq": {
+      "1": {
+        "q": "How do I withdraw money from the account?",
+        "a": "First verify your identity once (Account → Verify now: your details, Aadhaar + PAN photos and a selfie). Then open Withdrawal, enter an amount within your available balance, then choose Bank, UPI or USDT and add where to send it. Requests are processed within 5–10 hours."
+      },
+      "2": {
+        "q": "How long does it take to withdraw funds?",
+        "a": "Within 5–10 hours of your request."
+      },
+      "3": {
+        "q": "What is the minimum withdrawal amount?",
+        "a": "$1.00 in this build."
+      },
+      "4": {
+        "q": "Is there a fee for depositing or withdrawing?",
+        "a": "No platform fee. The deposit conversion rate includes a spread, which is where a real processor takes its margin."
+      },
+      "5": {
+        "q": "Why is my bonus not withdrawable?",
+        "a": "A 100% deposit bonus carries a 3× turnover requirement. Until that trading volume is reached, bonus funds stay separate from your withdrawable balance."
+      },
+      "6": {
+        "q": "What is account verification?",
+        "a": "Verification confirms who you are before money leaves the platform. Fill in every field under Account → Personal data and save — your details go to review, and withdrawals unlock once the account shows Verified."
+      },
+      "7": {
+        "q": "Why does my deposit say Processing?",
+        "a": "A deposit is confirmed by matching the exact amount against the receiving account. Until that match is found it stays in Processing, which can take up to 48 hours."
+      },
+      "8": {
+        "q": "Is this a real trading platform?",
+        "a": "No. ASM Trade is a demonstration of how manipulated trading platforms operate. No real money is involved and no order reaches any market."
+      }
+    }
   }
 }

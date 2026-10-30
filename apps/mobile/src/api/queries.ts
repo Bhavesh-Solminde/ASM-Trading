@@ -8,6 +8,7 @@ import {
   PaymentsPageSchema,
   type PaymentRowDto,
   ProfileViewSchema,
+  TicketsResponseSchema,
   WalletSchema,
   WithdrawalPrefillSchema,
 } from "@asm/contracts";
@@ -138,6 +139,10 @@ const ProfileResponse = z.object({ profile: ProfileViewSchema });
 /** The signed-in user's profile (`GET /api/account` wraps it in `{ profile }`). */
 export const useProfile = (enabled: boolean) =>
   useQuery({ queryKey: ["profile"], queryFn: async () => (await api("/api/account", { schema: ProfileResponse })).profile, enabled });
+
+/** The signed-in user's support tickets, newest first (`GET /api/support` answers `{ tickets }`, at most 20). */
+export const useTickets = (enabled: boolean) =>
+  useQuery({ queryKey: ["tickets"], queryFn: async () => (await api("/api/support", { schema: TicketsResponseSchema })).tickets, enabled });
 
 /** After any money movement: refetch wallet, payments, ledger, payment details and deposit config, then the bootstrap. */
 export const invalidateMoney = () => invalidateMoneyOn(queryClient);

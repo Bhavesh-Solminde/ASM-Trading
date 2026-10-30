@@ -30,7 +30,7 @@ vi.mock("expo-crypto", () => ({
 vi.mock("expo-local-authentication", () => ({
   hasHardwareAsync: () => auth.hardware(),
   isEnrolledAsync: () => auth.enrolled(),
-  authenticateAsync: () => auth.authenticate(),
+  authenticateAsync: (o: unknown) => auth.authenticate(o),
 }));
 vi.mock("i18next", () => ({ default: { t: (k: string) => k } }));
 vi.mock("@/auth/session-store", () => ({ useSession: { getState: () => ({ signOut, token: session.token }) } }));
@@ -226,6 +226,13 @@ describe("useLock biometric unlock", () => {
     auth.authenticate.mockResolvedValue({ success: false });
     expect(await useLock.getState().unlockWithBiometric()).toBe(false);
     expect(disk.get("ixt.lock.attempts")).toBe("1");
+  });
+
+  it("shows the caller's prompt text when one is given (the Security screen asks to confirm, not to unlock)", async () => {
+    await useLock.getState().unlockWithBiometric("security.verifyPrompt");
+    expect(auth.authenticate).toHaveBeenLastCalledWith(expect.objectContaining({ promptMessage: "security.verifyPrompt" }));
+    await useLock.getState().unlockWithBiometric();
+    expect(auth.authenticate).toHaveBeenLastCalledWith(expect.objectContaining({ promptMessage: "lock.title" }));
   });
 });
 

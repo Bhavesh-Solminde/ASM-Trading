@@ -95,7 +95,15 @@ export {
   type TwoFaToggleInput,
   type TwoFaVerifyInput,
 } from "./account";
-export { CreateTicketSchema, FAQ, type CreateTicketInput } from "./support";
+export {
+  CreateTicketSchema,
+  FAQ,
+  TicketSchema,
+  TicketsResponseSchema,
+  type CreateTicketInput,
+  type TicketDto,
+  type TicketsResponseDto,
+} from "./support";
 export {
   LeaderboardEntrySchema,
   LeaderboardResultSchema,

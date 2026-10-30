@@ -37,7 +37,8 @@ interface LockState {
   enableBiometric: () => Promise<boolean>;
   setPin: (pin: string) => Promise<void>;
   verifyPin: (pin: string) => Promise<"ok" | "wrong" | "logout">;
-  unlockWithBiometric: () => Promise<boolean>;
+  /** `promptMessage` replaces the default "Unlock" text where the prompt re-verifies an owner instead (Security). */
+  unlockWithBiometric: (promptMessage?: string) => Promise<boolean>;
   onBackground: (now: number) => void;
   onForeground: (now: number) => void;
   /**
@@ -167,8 +168,8 @@ export const useLock = create<LockState>((set, get) => ({
     }
     return "wrong";
   },
-  unlockWithBiometric: async () => {
-    const ok = await prompt(i18n.t("lock.title"));
+  unlockWithBiometric: async (promptMessage) => {
+    const ok = await prompt(promptMessage ?? i18n.t("lock.title"));
     if (ok) {
       await SecureStore.deleteItemAsync(K.attempts).catch(() => {});
       set({ locked: false, attempts: 0 });

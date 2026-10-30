@@ -6,10 +6,26 @@ export const CreateTicketSchema = z.strictObject({
 });
 export type CreateTicketInput = z.infer<typeof CreateTicketSchema>;
 
+/**
+ * One support ticket as `GET /api/support` sends it: `listTicketsForActor` returns the whole SupportTicket row, JSON
+ * turns `createdAt` into an ISO string, and `userId` rides along (the caller's own id; dropped here, not needed).
+ */
+export const TicketSchema = z.object({
+  id: z.string(),
+  subject: z.string(),
+  body: z.string(),
+  status: z.enum(["OPEN", "ANSWERED", "CLOSED"]),
+  createdAt: z.iso.datetime(),
+});
+export type TicketDto = z.infer<typeof TicketSchema>;
+
+export const TicketsResponseSchema = z.object({ tickets: z.array(TicketSchema) });
+export type TicketsResponseDto = z.infer<typeof TicketsResponseSchema>;
+
 export const FAQ = [
   {
     q: "How do I withdraw money from the account?",
-    a: "First verify your identity once (Account → Verify now: your details, Aadhaar + PAN photos and a selfie). Then open Withdrawal, enter an amount within your available balance, and choose a method you have already deposited with. Requests are processed within 5–10 hours.",
+    a: "First verify your identity once (Account → Verify now: your details, Aadhaar + PAN photos and a selfie). Then open Withdrawal, enter an amount within your available balance, then choose Bank, UPI or USDT and add where to send it. Requests are processed within 5–10 hours.",
   },
   {
     q: "How long does it take to withdraw funds?",
