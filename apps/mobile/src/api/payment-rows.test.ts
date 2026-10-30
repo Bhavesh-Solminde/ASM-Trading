@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paymentRows } from "./payment-rows";
+import { findPaymentRow, paymentRows } from "./payment-rows";
 
 const row = (key: string) => ({ key });
 describe("paymentRows", () => {
@@ -13,5 +13,17 @@ describe("paymentRows", () => {
   });
   it("is empty before data arrives", () => {
     expect(paymentRows(undefined)).toEqual([]);
+  });
+});
+
+describe("findPaymentRow", () => {
+  const data = { pages: [{ rows: [{ key: "d:1" }, { key: "w:2" }] }, { rows: [{ key: "d:3" }] }] };
+  it("finds a row on any loaded page", () => {
+    expect(findPaymentRow(data, "d:3")).toEqual({ key: "d:3" });
+    expect(findPaymentRow(data, "w:2")).toEqual({ key: "w:2" });
+  });
+  it("is undefined for an unloaded key or no data", () => {
+    expect(findPaymentRow(data, "d:9")).toBeUndefined();
+    expect(findPaymentRow(undefined, "d:1")).toBeUndefined();
   });
 });

@@ -1,0 +1,63 @@
+import { describe, expect, it } from "vitest";
+import type { PaymentRow } from "@asm/client-core";
+import { paymentSections, shouldLoadMore } from "./payment-sections";
+
+const row = (id: string, kind: "deposit" | "withdrawal", at: Date): PaymentRow => ({
+  key: `${kind === "deposit" ? "d" : "w"}:${id}`,
+  id,
+  kind,
+  createdAt: at.toISOString(),
+  updatedAt: null,
+  status: "COMPLETED",
+  methodLabel: "UPI",
+  amountMinor: 100,
+  currency: "INR",
+  destination: null,
+  expiresAt: null,
+  holdUntil: null,
+  cancelableUntil: null,
+});
+const now = new Date(2026, 9, 21, 15);
+const rows = [
+  row("a", "deposit", new Date(2026, 9, 21, 9)),
+  row("b", "withdrawal", new Date(2026, 9, 21, 8)),
+  row("c", "deposit", new Date(2026, 9, 20, 22)),
+  row("d", "deposit", new Date(2026, 8, 3, 10)),
+];
+
+describe("paymentSections", () => {
+  it("groups by day, newest first, one section per day with a stable key", () => {
+    const sections = paymentSections(rows, "all", now);
+    expect(sections.map((s) => s.data.map((r) => r.id))).toEqual([["a", "b"], ["c"], ["d"]]);
+    expect(sections.map((s) => s.heading)).toEqual([{ kind: "today" }, { kind: "yesterday" }, { kind: "date", day: 3, month: 8, year: null }]);
+    expect(new Set(sections.map((s) => s.key)).size).toBe(3);
+  });
+  it("sorts rows that arrive out of order", () => {
+    expect(paymentSections([...rows].reverse(), "all", now).map((s) => s.data.map((r) => r.id))).toEqual([["a", "b"], ["c"], ["d"]]);
+  });
+  it("filters to deposits or withdrawals and drops empty days", () => {
+    expect(paymentSections(rows, "deposits", now).map((s) => s.data.map((r) => r.id))).toEqual([["a"], ["c"], ["d"]]);
+    expect(paymentSections(rows, "withdrawals", now).map((s) => s.data.map((r) => r.id))).toEqual([["b"]]);
+  });
+  it("is empty for no rows", () => {
+    expect(paymentSections([], "all", now)).toEqual([]);
+  });
+});
+
+describe("shouldLoadMore", () => {
+  const base = { hasNextPage: true, fetching: false, failed: false, shown: 3 };
+  it("loads the next page when the list is short, and when the user reaches the end", () => {
+    expect(shouldLoadMore({ ...base, reason: "short" })).toBe(true);
+    expect(shouldLoadMore({ ...base, reason: "end" })).toBe(true);
+  });
+  it("does not load when the list is already long enough to scroll, unless the user reached the end", () => {
+    expect(shouldLoadMore({ ...base, shown: 12, reason: "short" })).toBe(false);
+    expect(shouldLoadMore({ ...base, shown: 12, reason: "end" })).toBe(true);
+  });
+  it("never loads with no next page, while a fetch is running, or after a failed one (no retry loop)", () => {
+    expect(shouldLoadMore({ ...base, hasNextPage: false, reason: "end" })).toBe(false);
+    expect(shouldLoadMore({ ...base, fetching: true, reason: "short" })).toBe(false);
+    expect(shouldLoadMore({ ...base, failed: true, reason: "short" })).toBe(false);
+    expect(shouldLoadMore({ ...base, failed: true, reason: "end" })).toBe(false);
+  });
+});

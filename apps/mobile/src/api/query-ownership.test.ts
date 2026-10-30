@@ -42,7 +42,7 @@ describe("query ownership", () => {
 
   it("gates every money hook on the session: each takes `enabled` and passes it to its query", () => {
     const queries = read(join(SRC, "api", "queries.ts"));
-    for (const hook of ["useWallet", "usePaymentsInfinite", "useDepositConfig", "useWithdrawalPrefill", "useCheckout", "useUsdtChainStatus", "useProfile"]) {
+    for (const hook of ["useWallet", "usePaymentsInfinite", "usePayment", "useDepositConfig", "useWithdrawalPrefill", "useCheckout", "useUsdtChainStatus", "useProfile"]) {
       const start = queries.indexOf(`export const ${hook} =`);
       expect(start, hook).toBeGreaterThan(-1);
       const next = queries.indexOf("\nexport ", start + 1);

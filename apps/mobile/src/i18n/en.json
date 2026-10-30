@@ -258,6 +258,115 @@
     "title": {
       "deposit": "Deposit",
       "withdrawal": "Withdrawal"
+    },
+    "filter": {
+      "all": "All",
+      "deposits": "Deposits",
+      "withdrawals": "Withdrawals"
+    },
+    "empty": {
+      "deposits": "No deposits yet",
+      "withdrawals": "No withdrawals yet"
+    },
+    "day": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "date": "{{day}} {{month}}",
+      "dateYear": "{{day}} {{month}} {{year}}"
+    },
+    "month": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    },
+    "when": "{{date}}, {{time}}",
+    "loadMoreFailed": "Couldn't load more payments.",
+    "detail": {
+      "title": "Payment details",
+      "depositVia": "Deposit via {{method}}",
+      "withdrawalVia": "Withdrawal via {{method}}",
+      "subtitle": "{{what}} · {{account}}",
+      "account": "Account",
+      "accountValue": "Live · {{currency}}",
+      "liveAccount": "Live account",
+      "reference": "Reference",
+      "created": "Created",
+      "confirmed": "Confirmed",
+      "method": "Method",
+      "to": "To",
+      "copyReference": "Copy reference {{reference}}",
+      "referenceCopied": "Reference copied",
+      "timeline": "Payment timeline",
+      "holdUntil": "On hold until"
+    },
+    "timeline": {
+      "deposit": {
+        "started": {
+          "title": "Payment started",
+          "detail": "Waiting for your payment",
+          "done": "Your payment request has been created"
+        },
+        "submitted": {
+          "title": "Payment submitted",
+          "detail": "We confirm it as soon as the money reaches us",
+          "done": "We received your payment details"
+        },
+        "credited": {
+          "title": "Credited",
+          "detail": "Funds appear in your balance",
+          "done": "Added to your balance"
+        },
+        "rejected": {
+          "title": "Rejected",
+          "detail": "We could not match this payment"
+        },
+        "expired": {
+          "title": "Expired",
+          "detail": "The payment window closed before we received it"
+        }
+      },
+      "withdrawal": {
+        "requested": {
+          "title": "Requested",
+          "detail": "Balance reserved for this payout"
+        },
+        "review": {
+          "title": "In review",
+          "detail": "We check the payout details against your verified name"
+        },
+        "approved": {
+          "title": "Approved",
+          "detail": "Queued for payment"
+        },
+        "paid": {
+          "title": "Paid",
+          "detail": "Usually within 5–10 hours of review",
+          "done": "Sent to your payout details"
+        },
+        "rejected": {
+          "title": "Rejected",
+          "detail": "Not approved. The amount was returned to your balance"
+        },
+        "cancelled": {
+          "title": "Cancelled",
+          "detail": "You cancelled. The full amount was returned to your balance"
+        }
+      },
+      "state": {
+        "done": "Done",
+        "current": "In progress",
+        "todo": "Not yet",
+        "ended": "Ended"
+      }
     }
   },
   "redesign": {

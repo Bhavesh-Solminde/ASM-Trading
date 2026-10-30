@@ -1,6 +1,6 @@
 import { router } from "expo-router";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Alert, Pressable, View } from "react-native";
+import { useRef, useState, type ReactNode } from "react";
+import { Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { applyKey, currencySymbol } from "@asm/client-core";
 import { PAYOUT_METHODS, USDT_NETWORKS, USDT_NETWORK_INFO, withdrawalLimitsMinor, type PayoutMethod, type UsdtNetwork, type WithdrawalPrefill } from "@asm/contracts";
@@ -26,16 +26,14 @@ import {
   canCancelHeld,
   initialPayout,
   isFromLastWithdrawal,
-  nextCancelDeadlineMs,
   payoutDestinationLabel,
   withdrawAmountOpts,
   withdrawBody,
   withdrawModel,
   type PayoutDraft,
 } from "./withdraw-form";
-import { WITHDRAW_TIMEOUT_MS, createCancelSubmitter, createWithdrawSubmitter } from "./withdraw-submit";
-
-const refetchPrefill = () => void queryClient.invalidateQueries({ queryKey: ["withdrawal-prefill"] });
+import { refetchPrefill, useCancelWithdrawal } from "./useCancelWithdrawal";
+import { WITHDRAW_TIMEOUT_MS, createWithdrawSubmitter } from "./withdraw-submit";
 
 /**
  * Settles when the wallet and prefill refetches have landed or failed (an in-flight refetch is joined, not restarted).
@@ -46,9 +44,6 @@ const reconcileWithdrawal = () =>
     refetchWalletSettled(),
     queryClient.invalidateQueries({ queryKey: ["withdrawal-prefill"] }, { cancelRefetch: false }),
   ]);
-
-/** Longest a timer is set for: setTimeout overflows (and fires at once) past 2^31 ms. */
-const MAX_TIMER_MS = 2_000_000_000;
 
 /** A group heading above chips: the same 14/500 `ink3` line as "Pay with" on Add money. */
 function Heading({ children }: { children: string }) {
@@ -88,32 +83,14 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
   const [edits, setEdits] = useState<Partial<Record<PayoutMethod, PayoutDraft>>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
   // null until the user types in "Confirm account number"; until then it shows the saved bank account number.
   const [accountTyped, setAccountTyped] = useState<string | null>(null);
-  // Bumped to re-render when a cancel window closes; the check itself reads the clock at render, so it is never stale.
-  const [, setTick] = useState(0);
   const amountSheet = useRef<SheetRef>(null);
 
-  // Re-render when the next cancel window closes, so Cancel disappears while the screen is open.
   const heldRows = prefill.heldWithdrawals;
-  useEffect(() => {
-    const next = nextCancelDeadlineMs(heldRows, Date.now());
-    if (next === null) return;
-    const timer = setTimeout(() => setTick((n) => n + 1), Math.min(next - Date.now() + 250, MAX_TIMER_MS));
-    return () => clearTimeout(timer);
-  });
-  // After a cancel attempt ends (a refusal may mean the window just closed), look at the clock again.
-  const wasCancelling = useRef(false);
-  useEffect(() => {
-    if (cancellingId !== null) wasCancelling.current = true;
-    else if (wasCancelling.current) {
-      wasCancelling.current = false;
-      setTick((n) => n + 1);
-    }
-  }, [cancellingId]);
+  const { cancellingId, confirmCancel } = useCancelWithdrawal(currency, heldRows);
 
-  // The submitters are built once (their in-flight flags must survive re-renders); they read the latest `t` from here.
+  // The submitter is built once (its in-flight flag must survive re-renders); it reads the latest `t` from here.
   const latest = useRef({ t });
   latest.current = { t };
   const submitter = useRef<ReturnType<typeof createWithdrawSubmitter> | null>(null);
@@ -135,19 +112,6 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
       t: (key, options) => latest.current.t(key, options),
     });
   }
-  const canceller = useRef<ReturnType<typeof createCancelSubmitter> | null>(null);
-  if (canceller.current === null) {
-    canceller.current = createCancelSubmitter({
-      post: (id) => api(`/api/withdrawals/${encodeURIComponent(id)}/cancel`, { method: "POST", timeoutMs: WITHDRAW_TIMEOUT_MS }),
-      invalidateMoney,
-      invalidatePrefill: refetchPrefill,
-      toast,
-      session: () => useSession.getState().token,
-      setBusyId: setCancellingId,
-      t: (key, options) => latest.current.t(key, options),
-    });
-  }
-
   const method: PayoutMethod = pickedMethod ?? prefill.initialMethod ?? "UPI";
   const draft = edits[method] ?? initialPayout(prefill, method);
   const accountConfirm = accountConfirmValue(prefill, accountTyped);
@@ -180,14 +144,6 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
       return;
     }
     void submitter.current?.(body);
-  };
-
-  const confirmCancel = (id: string, amountMinor: number) => {
-    const amountText = money(amountMinor, currency, { trim: true });
-    Alert.alert(t("withdraw.cancelConfirmTitle"), t("withdraw.cancelConfirmBody", { amount: amountText }), [
-      { text: t("withdraw.cancelKeep"), style: "cancel" },
-      { text: t("withdraw.cancelYes"), style: "destructive", onPress: () => void canceller.current?.(id) },
-    ]);
   };
 
   // Cancel is offered only while the server would accept it (the row's `cancelableUntil`); after that the box just says so.

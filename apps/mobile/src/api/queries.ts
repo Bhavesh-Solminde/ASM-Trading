@@ -4,7 +4,9 @@ import {
   BootstrapSchema,
   CheckoutViewSchema,
   DepositConfigSchema,
+  PaymentRowSchema,
   PaymentsPageSchema,
+  type PaymentRowDto,
   ProfileViewSchema,
   WalletSchema,
   WithdrawalPrefillSchema,
@@ -59,6 +61,19 @@ export const usePaymentsInfinite = (enabled: boolean) =>
       api(`/api/v1/payments?limit=20${pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : ""}`, { schema: PaymentsPageSchema }),
     getNextPageParam: (last) => last.nextCursor,
     enabled,
+  });
+
+/**
+ * One of the caller's payments by its deep-link key (`GET /api/v1/payments/:key`), for the History detail sheet: a link or
+ * an old row needs no paging. `placeholder` (the row from the loaded list, when it is there) shows at once while the
+ * fresh one loads. A 404 means the key is not this user's (or not a payment): callers show "not found", never retry.
+ */
+export const usePayment = (key: string, enabled: boolean, placeholder?: PaymentRowDto) =>
+  useQuery({
+    queryKey: ["payment", key],
+    queryFn: () => api(`/api/v1/payments/${encodeURIComponent(key)}`, { schema: PaymentRowSchema }),
+    enabled,
+    placeholderData: placeholder,
   });
 
 export const useDepositConfig = (enabled: boolean) =>
