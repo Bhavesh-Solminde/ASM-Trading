@@ -81,6 +81,20 @@ export const PaymentRowSchema = z.object({
 });
 export type PaymentRowDto = z.infer<typeof PaymentRowSchema>;
 
+const PAYMENT_KEY = /^([dw]):([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
+
+/**
+ * A payment's deep-link key: `d:<depositId>` or `w:<withdrawalId>` (the ids are UUIDs). Anything else, a trade key
+ * included, is null, so a route or a link can refuse it before touching the database.
+ */
+export function parsePaymentKey(key: unknown): { kind: "deposit" | "withdrawal"; id: string } | null {
+  if (typeof key !== "string") return null;
+  const match = PAYMENT_KEY.exec(key);
+  return match ? { kind: match[1] === "d" ? "deposit" : "withdrawal", id: match[2]! } : null;
+}
+
+export const paymentKeyOf = (p: { kind: "deposit" | "withdrawal"; id: string }): string => `${p.kind === "deposit" ? "d" : "w"}:${p.id}`;
+
 export const PaymentsPageSchema = z.object({
   rows: z.array(PaymentRowSchema),
   nextCursor: z.string().nullable(),

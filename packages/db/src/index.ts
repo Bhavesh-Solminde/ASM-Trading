@@ -102,6 +102,7 @@ export {
   findLiveDepositByClaimedUtr,
   creditDepositToAccount,
   getDepositByToken,
+  getDepositForActor,
   listDepositsForActor,
   listPendingDeposits,
   rejectDeposit,
@@ -130,6 +131,7 @@ export {
   markWithdrawalPaid,
   getWithdrawalNotice,
   listWithdrawalsForActor,
+  getWithdrawalForActor,
   withdrawalLimitsMinor,
   type WithdrawalPayout,
 } from "./repositories/withdrawal";

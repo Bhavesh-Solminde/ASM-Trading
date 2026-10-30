@@ -460,6 +460,11 @@ export async function listDepositsForActor(actorId: string, limit: number, befor
   });
 }
 
+/** One of a user's own deposits by id, or null: someone else's deposit reads exactly like a missing one (ownership is in the predicate). */
+export async function getDepositForActor(actorId: string, depositId: string): Promise<Deposit | null> {
+  return prisma.deposit.findFirst({ where: { id: depositId, userId: actorId } });
+}
+
 /**
  * Records the user's self-declared reference and moves the deposit to
  * PENDING_CONFIRMATION, so the matcher's amount check is joined by a reference

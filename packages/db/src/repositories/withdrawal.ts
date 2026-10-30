@@ -581,6 +581,11 @@ export async function listWithdrawalsForActor(
   });
 }
 
+/** One of a user's own withdrawals by id, or null: someone else's reads exactly like a missing one (ownership is in the predicate). */
+export async function getWithdrawalForActor(actorId: string, withdrawalId: string): Promise<Withdrawal | null> {
+  return prisma.withdrawal.findFirst({ where: { id: withdrawalId, userId: actorId } });
+}
+
 /**
  * What the withdrawal emails need: amount, currency, payout destination and
  * who to write to. Read-only; the status is returned so a caller can refuse

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiErrorSchema, AppConfigSchema, CheckoutViewSchema, PreferencesUpdateSchema, WalletSchema, WithdrawalPrefillSchema } from "./app";
+import { ApiErrorSchema, AppConfigSchema, CheckoutViewSchema, PreferencesUpdateSchema, WalletSchema, WithdrawalPrefillSchema, parsePaymentKey, paymentKeyOf } from "./app";
 
 describe("app contracts", () => {
   it("accepts a wallet with live and demo accounts", () => {
@@ -111,5 +111,25 @@ describe("app contracts", () => {
       expect(WithdrawalPrefillSchema.parse(prefill([{ ...base, cancelableUntil: null }])).heldWithdrawals[0]?.cancelableUntil).toBeNull();
       expect(WithdrawalPrefillSchema.safeParse(prefill([{ ...base, cancelableUntil: 5 }])).success).toBe(false);
     });
+  });
+});
+
+describe("payment keys", () => {
+  const id = "7d3c9a1e-3b55-4e8a-9a0b-6f4e2a1d0c11";
+
+  it("reads a deposit and a withdrawal key", () => {
+    expect(parsePaymentKey(`d:${id}`)).toEqual({ kind: "deposit", id });
+    expect(parsePaymentKey(`w:${id}`)).toEqual({ kind: "withdrawal", id });
+  });
+
+  it("rejects anything else: other prefixes, a trade key, odd ids, empty, non-strings", () => {
+    for (const bad of [`t:${id}`, `D:${id}`, `d:${id}x`, "d:", "d:abc", id, "", `d:${id}\n`, `d: ${id}`, undefined, null, 5]) {
+      expect(parsePaymentKey(bad)).toBeNull();
+    }
+  });
+
+  it("round-trips with paymentKeyOf", () => {
+    expect(paymentKeyOf({ kind: "deposit", id })).toBe(`d:${id}`);
+    expect(parsePaymentKey(paymentKeyOf({ kind: "withdrawal", id }))).toEqual({ kind: "withdrawal", id });
   });
 });
