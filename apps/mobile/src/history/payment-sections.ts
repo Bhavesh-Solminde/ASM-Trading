@@ -51,7 +51,12 @@ export function shouldLoadMore(input: LoadInput & { reason: "end" | "short"; use
   return input.shown < MIN_SHOWN_ROWS && input.autoPagesUsed < MAX_AUTO_PAGES;
 }
 
-/** Whether to show a "Load more" button: the list is still short, more exists, and automatic paging has used up its budget. */
+/**
+ * Whether to show a "Load more" button: more pages exist, nothing is loading or has failed (a failure shows Retry), and the
+ * automatic loader is not about to run (a short list with budget left). Row count does not matter otherwise: a list of 10
+ * rows can still be too short to scroll to its end, and layout-fired end events are ignored, so the button is the way on.
+ */
 export function showLoadMore(input: LoadInput): boolean {
-  return input.hasNextPage && !input.fetching && !input.failed && input.shown < MIN_SHOWN_ROWS && input.autoPagesUsed >= MAX_AUTO_PAGES;
+  const autoLoaderPending = input.shown < MIN_SHOWN_ROWS && input.autoPagesUsed < MAX_AUTO_PAGES;
+  return input.hasNextPage && !input.fetching && !input.failed && !autoLoaderPending;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PaymentRow } from "@asm/client-core";
-import { MAX_AUTO_PAGES, paymentSections, shouldLoadMore, showLoadMore } from "./payment-sections";
+import { MAX_AUTO_PAGES, MIN_SHOWN_ROWS, paymentSections, shouldLoadMore, showLoadMore } from "./payment-sections";
 
 const row = (id: string, kind: "deposit" | "withdrawal", at: Date): PaymentRow => ({
   key: `${kind === "deposit" ? "d" : "w"}:${id}`,
@@ -83,15 +83,32 @@ describe("shouldLoadMore", () => {
 });
 
 describe("showLoadMore", () => {
-  const base = { hasNextPage: true, fetching: false, failed: false, shown: 3, autoPagesUsed: MAX_AUTO_PAGES, userScrolled: false };
-  it("offers Load more when the list is still short, more exists and automatic paging has used its budget", () => {
+  const base = { hasNextPage: true, fetching: false, failed: false, shown: 3, autoPagesUsed: MAX_AUTO_PAGES };
+  it("offers Load more when the list is short, more exists and automatic paging has used its budget", () => {
     expect(showLoadMore(base)).toBe(true);
   });
-  it("does not while automatic paging may still run, when the list is long enough, or when nothing can load", () => {
-    expect(showLoadMore({ ...base, autoPagesUsed: MAX_AUTO_PAGES - 1 })).toBe(false);
-    expect(showLoadMore({ ...base, shown: 12 })).toBe(false);
-    expect(showLoadMore({ ...base, hasNextPage: false })).toBe(false);
+  it("offers it on a list of 8 or more rows too: it may be too short to scroll to the end, and layout-fired end events are ignored", () => {
+    expect(showLoadMore({ ...base, shown: 10, autoPagesUsed: 0 })).toBe(true);
+    expect(showLoadMore({ ...base, shown: MIN_SHOWN_ROWS, autoPagesUsed: 1 })).toBe(true);
+    expect(showLoadMore({ ...base, shown: 40 })).toBe(true);
+  });
+  it("hides it while the automatic loader may still run (a short list with budget left)", () => {
+    expect(showLoadMore({ ...base, shown: 3, autoPagesUsed: MAX_AUTO_PAGES - 1 })).toBe(false);
+    expect(showLoadMore({ ...base, shown: 0, autoPagesUsed: 0 })).toBe(false);
+  });
+  it("hides it while loading, after a failed page (Retry shows instead) and with no next page", () => {
     expect(showLoadMore({ ...base, fetching: true })).toBe(false);
+    expect(showLoadMore({ ...base, shown: 10, fetching: true })).toBe(false);
     expect(showLoadMore({ ...base, failed: true })).toBe(false);
+    expect(showLoadMore({ ...base, hasNextPage: false })).toBe(false);
+    expect(showLoadMore({ ...base, shown: 10, hasNextPage: false })).toBe(false);
+  });
+  it("is exactly what the automatic loader leaves undone: never both at once", () => {
+    for (const shown of [0, 3, MIN_SHOWN_ROWS, 12]) {
+      for (let autoPagesUsed = 0; autoPagesUsed <= MAX_AUTO_PAGES + 1; autoPagesUsed++) {
+        const input = { hasNextPage: true, fetching: false, failed: false, shown, autoPagesUsed };
+        expect(showLoadMore(input) && shouldLoadMore({ ...input, reason: "short", userScrolled: false })).toBe(false);
+      }
+    }
   });
 });
