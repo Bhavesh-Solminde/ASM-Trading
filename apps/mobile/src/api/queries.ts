@@ -14,7 +14,7 @@ import { api } from "./client";
 import { pollIntervalMs } from "@/payments/checkout-poll";
 import { UsdtChainStatusSchema } from "@/payments/usdt-progress";
 import { ApiError, shouldRetry } from "./errors";
-import { invalidateMoneyOn } from "./invalidate-money";
+import { invalidateMoneyOn, refetchWalletSettledOn } from "./invalidate-money";
 import { latestStamp } from "./request-stamp";
 
 export const queryClient = new QueryClient({
@@ -115,3 +115,6 @@ export const useProfile = (enabled: boolean) =>
 
 /** After any money movement: refetch wallet, payments, ledger, payment details and deposit config, then the bootstrap. */
 export const invalidateMoney = () => invalidateMoneyOn(queryClient);
+
+/** Resolves when the wallet refetch has landed or failed; an in-flight one is joined, not restarted. */
+export const refetchWalletSettled = () => refetchWalletSettledOn(queryClient);

@@ -8,6 +8,9 @@ const CreatedSchema = z.object({ id: z.string().min(1), status: z.string() });
 /** A withdrawal POST that gets no answer by then is given up on; the server may still have recorded it (see `api` `timeoutMs`). */
 export const WITHDRAW_TIMEOUT_MS = 15_000;
 
+/** Longest a timed-out withdrawal keeps the button busy while the wallet and prefill refetch (as the trade Dock's reconcile wait). */
+export const WITHDRAW_RECONCILE_WAIT_MS = 10_000;
+
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 type Toast = (message: string, tone: "up" | "down") => void;
 
@@ -20,8 +23,8 @@ const HANDLED_ELSEWHERE = new Set(["rate_limited", "maintenance", "blocked", "up
  */
 export function withdrawErrorText(e: unknown, t: Translate): string {
   if (e instanceof ApiError) {
-    if (e.code === "offline") return t("common.noConnection");
-    if (e.code === "timeout") return t("withdraw.timedOut");
+    // A dropped connection can cut the request mid-flight, so it reads like a timeout: look in Payments before trying again.
+    if (e.code === "offline" || e.code === "timeout") return t("withdraw.timedOut");
     if (e.status >= 400 && e.status < 500 && e.message !== GENERIC_ERROR && e.message.trim() !== "") return e.message;
   }
   return t("common.genericError");
@@ -32,12 +35,31 @@ const isHandledElsewhere = (e: unknown) => e instanceof ApiError && e.code !== n
 const mayHaveLanded = (e: unknown) => e instanceof ApiError && (e.code === "timeout" || e.code === "offline");
 const isClientError = (e: unknown) => e instanceof ApiError && e.status >= 400 && e.status < 500;
 
+/** Waits for `work` to settle (resolve or reject) or for `ms` to pass, whichever is first; never rejects, and leaves no timer behind. */
+async function settleWithin(work: () => Promise<unknown>, ms: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const cap = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  try {
+    await Promise.race([Promise.resolve().then(work).catch(() => undefined), cap]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export interface WithdrawSubmitDeps {
   /** POST the validated body; resolves with the raw JSON. */
   post: (body: CreateWithdrawalInput) => Promise<unknown>;
   invalidateMoney: () => void;
   /** The prefill carries the KYC state, the saved payouts and the held withdrawals, all of which a request can change. */
   invalidatePrefill: () => void;
+  /**
+   * Settles (never needs to be awaited to completion: it is capped) when the wallet and prefill refetch has landed or
+   * failed. After a timeout the button stays busy until then, so a second tap cannot create a second withdrawal
+   * before the first one shows up.
+   */
+  awaitReconcile: () => Promise<unknown>;
   /** Leave the screen for the new withdrawal in History. */
   navigate: (id: string) => void;
   toast: Toast;
@@ -86,6 +108,8 @@ export function createWithdrawSubmitter(deps: WithdrawSubmitDeps): (body: Create
       // A refusal can mean the gate moved (KYC) or the saved payouts did: refetch the prefill the screen is built on.
       if (mayHaveLanded(e) || isClientError(e)) deps.invalidatePrefill();
       deps.toast(withdrawErrorText(e, deps.t), "down");
+      // The request may have been recorded: stay busy until the refetch shows it (capped), so a tap cannot double it.
+      if (mayHaveLanded(e)) await settleWithin(deps.awaitReconcile, WITHDRAW_RECONCILE_WAIT_MS);
     } finally {
       inFlight = created;
       if (!created) deps.setBusy(false);
@@ -108,7 +132,8 @@ export interface CancelSubmitDeps {
 /**
  * Cancelling a held withdrawal: a money-moving POST under the same rules (15 s timeout, one at a time across every
  * held box, never retried). A 4xx (the window passed, it was already reviewed) shows the server's message and refetches
- * the prefill, so a box that can no longer be cancelled stops being offered.
+ * the prefill, so the screen re-reads the row (it may have moved on). The Cancel button itself is hidden from the
+ * row's `cancelableUntil` (see `canCancelHeld`), not by this refetch: a row still HELD stays in the list.
  */
 export function createCancelSubmitter(deps: CancelSubmitDeps): (id: string) => Promise<void> {
   let inFlight = false;

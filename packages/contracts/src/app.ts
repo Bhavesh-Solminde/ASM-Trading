@@ -139,7 +139,18 @@ export const WithdrawalPrefillSchema = z.object({
   initialMethod: z.enum(PAYOUT_METHODS).nullable(),
   kycName: z.string(),
   kycStatus: KycStatusSchema,
-  heldWithdrawals: z.array(z.object({ id: z.string(), amountMinor: minor, createdAt: z.string() })),
+  heldWithdrawals: z.array(
+    z.object({
+      id: z.string(),
+      amountMinor: minor,
+      createdAt: z.string(),
+      /**
+       * ISO time until which the user may cancel; null when the row has no cancel deadline (it cannot be cancelled).
+       * Absent from an older server, which the app reads as "unknown" and keeps offering Cancel.
+       */
+      cancelableUntil: z.string().nullable().optional(),
+    }),
+  ),
 });
 export type WithdrawalPrefill = z.infer<typeof WithdrawalPrefillSchema>;
 

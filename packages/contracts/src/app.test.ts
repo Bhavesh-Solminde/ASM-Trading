@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiErrorSchema, AppConfigSchema, CheckoutViewSchema, PreferencesUpdateSchema, WalletSchema } from "./app";
+import { ApiErrorSchema, AppConfigSchema, CheckoutViewSchema, PreferencesUpdateSchema, WalletSchema, WithdrawalPrefillSchema } from "./app";
 
 describe("app contracts", () => {
   it("accepts a wallet with live and demo accounts", () => {
@@ -84,6 +84,32 @@ describe("app contracts", () => {
 
     it("rejects a fractional money field", () => {
       expect(CheckoutViewSchema.safeParse({ ...base, creditedMinor: 1.5 }).success).toBe(false);
+    });
+  });
+
+  describe("WithdrawalPrefillSchema held withdrawals", () => {
+    const prefill = (held: unknown[]) => ({
+      lastPayouts: {},
+      initialMethod: null,
+      kycName: "Asha Rao",
+      kycStatus: "VERIFIED",
+      heldWithdrawals: held,
+    });
+
+    it("carries each held withdrawal's cancel deadline", () => {
+      const row = { id: "w-1", amountMinor: 500000, createdAt: "2026-10-20T08:00:00.000Z", cancelableUntil: "2026-10-20T20:00:00.000Z" };
+      expect(WithdrawalPrefillSchema.parse(prefill([row])).heldWithdrawals).toEqual([row]);
+    });
+
+    it("leaves the deadline absent in a reply from an older server, so the app can tell it from a server saying there is none", () => {
+      const parsed = WithdrawalPrefillSchema.parse(prefill([{ id: "w-1", amountMinor: 500000, createdAt: "2026-10-20T08:00:00.000Z" }]));
+      expect(parsed.heldWithdrawals[0]?.cancelableUntil).toBeUndefined();
+    });
+
+    it("accepts an explicit null deadline and refuses a non-string one", () => {
+      const base = { id: "w-1", amountMinor: 500000, createdAt: "2026-10-20T08:00:00.000Z" };
+      expect(WithdrawalPrefillSchema.parse(prefill([{ ...base, cancelableUntil: null }])).heldWithdrawals[0]?.cancelableUntil).toBeNull();
+      expect(WithdrawalPrefillSchema.safeParse(prefill([{ ...base, cancelableUntil: 5 }])).success).toBe(false);
     });
   });
 });

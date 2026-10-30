@@ -9,3 +9,7 @@ export function invalidateMoneyOn(client: Pick<QueryClient, "invalidateQueries">
   for (const key of MONEY_QUERY_KEYS) void client.invalidateQueries({ queryKey: [key] });
   refreshBootstrap(client);
 }
+
+/** Resolves when the wallet refetch has landed or failed; one already in flight is joined, not restarted. */
+export const refetchWalletSettledOn = (client: Pick<QueryClient, "invalidateQueries">) =>
+  client.invalidateQueries({ queryKey: ["wallet"] }, { cancelRefetch: false });

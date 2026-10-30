@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { CreateWithdrawalSchema, PayoutDetailsSchema, type WithdrawalPrefill } from "@asm/contracts";
 import {
   amountProblem,
+  accountConfirmValue,
   amountTextFromMinor,
+  canCancelHeld,
   checkPayout,
   initialPayout,
   isFromLastWithdrawal,
   maxWithdrawMinor,
+  nextCancelDeadlineMs,
   parseAmountMinor,
+  payoutDestinationLabel,
   payoutIssueKey,
   withdrawAmountOpts,
   withdrawBody,
@@ -259,5 +263,87 @@ describe("withdrawBody", () => {
   });
   it("throws for an account id that is not a uuid", () => {
     expect(() => withdrawBody("live", 70_000, { method: "UPI", upiId: "asha@okaxis" })).toThrow();
+  });
+});
+
+describe("withdrawModel account confirmation", () => {
+  const bank: PayoutDraft = { method: "BANK", accountHolder: "Asha Rao", accountNumber: "123456789012", ifsc: "HDFC0001234" };
+  const run = (accountConfirm?: string, payout: PayoutDraft = bank) =>
+    withdrawModel({ amountText: "5000", currency: "INR", withdrawable: 820_000, payout, accountConfirm });
+
+  it("blocks a bank payout until the number is typed twice the same", () => {
+    expect(run("123456789012")).toMatchObject({ canSubmit: true, accountConfirmKey: null });
+  });
+  it("blocks on a mismatch and names the problem line", () => {
+    expect(run("123456789013")).toMatchObject({ canSubmit: false, accountConfirmKey: "withdraw.errAccountMatch" });
+  });
+  it("blocks while the confirmation is empty or was never given", () => {
+    expect(run("")).toMatchObject({ canSubmit: false, accountConfirmKey: "withdraw.errAccountMatch" });
+    expect(run(undefined)).toMatchObject({ canSubmit: false, accountConfirmKey: "withdraw.errAccountMatch" });
+  });
+  it("ignores surrounding spaces in the confirmation", () => {
+    expect(run(" 123456789012 ")).toMatchObject({ canSubmit: true });
+  });
+  it("is not asked for UPI or USDT payouts", () => {
+    expect(run(undefined, { method: "UPI", upiId: "asha@okaxis" })).toMatchObject({ canSubmit: true, accountConfirmKey: null });
+    expect(run("zzz", { method: "USDT", usdtNetwork: "tron", usdtAddress: TRON })).toMatchObject({ canSubmit: true, accountConfirmKey: null });
+  });
+});
+
+describe("accountConfirmValue", () => {
+  const saved = prefill({ lastPayouts: { BANK: { accountHolder: "Asha Rao", accountNumber: "123456789012", ifsc: "HDFC0001234" } } });
+  it("starts as the saved account number (as on the website), so an untouched saved payout needs no retyping", () => {
+    expect(accountConfirmValue(saved, null)).toBe("123456789012");
+  });
+  it("starts empty when there is no saved bank payout", () => {
+    expect(accountConfirmValue(prefill(), null)).toBe("");
+  });
+  it("is what the user typed once they have typed (even nothing)", () => {
+    expect(accountConfirmValue(saved, "1234")).toBe("1234");
+    expect(accountConfirmValue(saved, "")).toBe("");
+  });
+});
+
+describe("payoutDestinationLabel", () => {
+  it("shows a UPI ID in full", () => {
+    expect(payoutDestinationLabel({ method: "UPI", upiId: "asha.rao@okaxis" })).toBe("asha.rao@okaxis");
+  });
+  it("shows a bank payout as holder, masked account and IFSC", () => {
+    expect(payoutDestinationLabel({ method: "BANK", accountHolder: "Asha Rao", accountNumber: "123456789012", ifsc: "HDFC0001234" })).toBe(
+      "Asha Rao\nA/c \u2022\u2022\u2022\u20229012 \u00b7 HDFC0001234",
+    );
+  });
+  it("shows a USDT payout as its network and a shortened address", () => {
+    expect(payoutDestinationLabel({ method: "USDT", usdtNetwork: "tron", usdtAddress: TRON })).toBe("TRC-20 TQrY8t\u2026yn4STm");
+    expect(payoutDestinationLabel({ method: "USDT", usdtNetwork: "bsc", usdtAddress: BSC })).toBe("BEP-20 0x5290\u2026169EE7");
+  });
+});
+
+describe("canCancelHeld", () => {
+  const NOW = Date.parse("2026-10-20T12:00:00Z");
+  it("offers Cancel only while the cancel deadline is ahead", () => {
+    expect(canCancelHeld({ cancelableUntil: "2026-10-20T12:00:01Z" }, NOW)).toBe(true);
+    expect(canCancelHeld({ cancelableUntil: "2026-10-20T12:00:00Z" }, NOW)).toBe(false);
+    expect(canCancelHeld({ cancelableUntil: "2026-10-20T08:00:00Z" }, NOW)).toBe(false);
+  });
+  it("keeps offering it when an older server sent no deadline field at all, or one that cannot be read", () => {
+    expect(canCancelHeld({}, NOW)).toBe(true);
+    expect(canCancelHeld({ cancelableUntil: undefined }, NOW)).toBe(true);
+    expect(canCancelHeld({ cancelableUntil: "soon" }, NOW)).toBe(true);
+  });
+  it("does not offer it when the server says the row has no cancel deadline (null: it cannot be cancelled)", () => {
+    expect(canCancelHeld({ cancelableUntil: null }, NOW)).toBe(false);
+  });
+});
+
+describe("nextCancelDeadlineMs", () => {
+  const NOW = Date.parse("2026-10-20T12:00:00Z");
+  it("is the soonest deadline still ahead, so the screen can re-check then", () => {
+    const rows = [{ cancelableUntil: "2026-10-20T08:00:00Z" }, { cancelableUntil: "2026-10-20T15:00:00Z" }, { cancelableUntil: "2026-10-20T13:00:00Z" }, { cancelableUntil: null }];
+    expect(nextCancelDeadlineMs(rows, NOW)).toBe(Date.parse("2026-10-20T13:00:00Z"));
+  });
+  it("is null when none is ahead", () => {
+    expect(nextCancelDeadlineMs([{ cancelableUntil: "2026-10-20T08:00:00Z" }, { cancelableUntil: null }], NOW)).toBeNull();
+    expect(nextCancelDeadlineMs([], NOW)).toBeNull();
   });
 });

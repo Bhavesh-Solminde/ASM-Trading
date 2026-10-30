@@ -1,11 +1,11 @@
 import { router } from "expo-router";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { applyKey, currencySymbol } from "@asm/client-core";
 import { PAYOUT_METHODS, USDT_NETWORKS, USDT_NETWORK_INFO, withdrawalLimitsMinor, type PayoutMethod, type UsdtNetwork, type WithdrawalPrefill } from "@asm/contracts";
 import { api } from "@/api/client";
-import { invalidateMoney, queryClient } from "@/api/queries";
+import { invalidateMoney, queryClient, refetchWalletSettled } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
 import { money, groupTyped } from "@/money/format";
 import { amountInWords } from "@/money/words";
@@ -21,9 +21,13 @@ import type { SheetRef } from "@/ui/Sheet";
 import { toast } from "@/ui/Toast";
 import { AmountSheet } from "./AmountSheet";
 import {
+  accountConfirmValue,
   amountTextFromMinor,
+  canCancelHeld,
   initialPayout,
   isFromLastWithdrawal,
+  nextCancelDeadlineMs,
+  payoutDestinationLabel,
   withdrawAmountOpts,
   withdrawBody,
   withdrawModel,
@@ -32,6 +36,19 @@ import {
 import { WITHDRAW_TIMEOUT_MS, createCancelSubmitter, createWithdrawSubmitter } from "./withdraw-submit";
 
 const refetchPrefill = () => void queryClient.invalidateQueries({ queryKey: ["withdrawal-prefill"] });
+
+/**
+ * Settles when the wallet and prefill refetches have landed or failed (an in-flight refetch is joined, not restarted).
+ * A timed-out withdrawal keeps its button busy until then, so a second tap cannot create a second one first.
+ */
+const reconcileWithdrawal = () =>
+  Promise.allSettled([
+    refetchWalletSettled(),
+    queryClient.invalidateQueries({ queryKey: ["withdrawal-prefill"] }, { cancelRefetch: false }),
+  ]);
+
+/** Longest a timer is set for: setTimeout overflows (and fires at once) past 2^31 ms. */
+const MAX_TIMER_MS = 2_000_000_000;
 
 /** A group heading above chips: the same 14/500 `ink3` line as "Pay with" on Add money. */
 function Heading({ children }: { children: string }) {
@@ -72,7 +89,29 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  // null until the user types in "Confirm account number"; until then it shows the saved bank account number.
+  const [accountTyped, setAccountTyped] = useState<string | null>(null);
+  // Bumped to re-render when a cancel window closes; the check itself reads the clock at render, so it is never stale.
+  const [, setTick] = useState(0);
   const amountSheet = useRef<SheetRef>(null);
+
+  // Re-render when the next cancel window closes, so Cancel disappears while the screen is open.
+  const heldRows = prefill.heldWithdrawals;
+  useEffect(() => {
+    const next = nextCancelDeadlineMs(heldRows, Date.now());
+    if (next === null) return;
+    const timer = setTimeout(() => setTick((n) => n + 1), Math.min(next - Date.now() + 250, MAX_TIMER_MS));
+    return () => clearTimeout(timer);
+  });
+  // After a cancel attempt ends (a refusal may mean the window just closed), look at the clock again.
+  const wasCancelling = useRef(false);
+  useEffect(() => {
+    if (cancellingId !== null) wasCancelling.current = true;
+    else if (wasCancelling.current) {
+      wasCancelling.current = false;
+      setTick((n) => n + 1);
+    }
+  }, [cancellingId]);
 
   // The submitters are built once (their in-flight flags must survive re-renders); they read the latest `t` from here.
   const latest = useRef({ t });
@@ -83,6 +122,7 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
       post: (body) => api("/api/withdrawals", { method: "POST", body, timeoutMs: WITHDRAW_TIMEOUT_MS }),
       invalidateMoney,
       invalidatePrefill: refetchPrefill,
+      awaitReconcile: reconcileWithdrawal,
       navigate: (id) => {
         // Back to where the user came from, then on to the new withdrawal in History (its detail sheet opens on `tx`).
         if (router.canGoBack()) router.back();
@@ -110,7 +150,8 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
 
   const method: PayoutMethod = pickedMethod ?? prefill.initialMethod ?? "UPI";
   const draft = edits[method] ?? initialPayout(prefill, method);
-  const model = withdrawModel({ amountText: amount, currency, withdrawable, payout: draft });
+  const accountConfirm = accountConfirmValue(prefill, accountTyped);
+  const model = withdrawModel({ amountText: amount, currency, withdrawable, payout: draft, accountConfirm });
   const limits = withdrawalLimitsMinor(currency);
   const locale = i18n.language.startsWith("hi") ? "hi" : "en";
 
@@ -149,31 +190,37 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
     ]);
   };
 
-  const held = prefill.heldWithdrawals.map((w) => (
-    <View key={w.id} testID={`withdraw-held-${w.id}`} style={{ backgroundColor: color.surface, borderRadius: 14, padding: 16, gap: 4 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <Txt size={16} weight={600} style={{ flex: 1 }}>
-          {t("withdraw.heldTitle", { amount: money(w.amountMinor, currency, { trim: true }) })}
-        </Txt>
-        <Pressable
-          testID={`withdraw-cancel-${w.id}`}
-          accessibilityRole="button"
-          accessibilityLabel={t("withdraw.cancel")}
-          accessibilityState={{ disabled: cancellingId !== null, busy: cancellingId === w.id }}
-          disabled={cancellingId !== null}
-          onPress={() => confirmCancel(w.id, w.amountMinor)}
-          style={{ minHeight: 44, minWidth: 44, flexShrink: 0, justifyContent: "center", alignItems: "flex-end", opacity: cancellingId !== null ? 0.5 : 1 }}
-        >
-          <Txt size={14} weight={600} color={color.downText}>
-            {t("withdraw.cancel")}
+  // Cancel is offered only while the server would accept it (the row's `cancelableUntil`); after that the box just says so.
+  const held = heldRows.map((w) => {
+    const cancelable = canCancelHeld(w, Date.now());
+    return (
+      <View key={w.id} testID={`withdraw-held-${w.id}`} style={{ backgroundColor: color.surface, borderRadius: 14, padding: 16, gap: 4 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <Txt size={16} weight={600} style={{ flex: 1 }}>
+            {t("withdraw.heldTitle", { amount: money(w.amountMinor, currency, { trim: true }) })}
           </Txt>
-        </Pressable>
+          {cancelable ? (
+            <Pressable
+              testID={`withdraw-cancel-${w.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={t("withdraw.cancel")}
+              accessibilityState={{ disabled: cancellingId !== null, busy: cancellingId === w.id }}
+              disabled={cancellingId !== null}
+              onPress={() => confirmCancel(w.id, w.amountMinor)}
+              style={{ minHeight: 44, minWidth: 44, flexShrink: 0, justifyContent: "center", alignItems: "flex-end", opacity: cancellingId !== null ? 0.5 : 1 }}
+            >
+              <Txt size={14} weight={600} color={color.downText}>
+                {t("withdraw.cancel")}
+              </Txt>
+            </Pressable>
+          ) : null}
+        </View>
+        <Txt testID={`withdraw-held-note-${w.id}`} size={13} color={color.ink2}>
+          {t(cancelable ? "withdraw.heldBody" : "withdraw.heldBodyLocked")}
+        </Txt>
       </View>
-      <Txt size={13} color={color.ink2}>
-        {t("withdraw.heldBody")}
-      </Txt>
-    </View>
-  ));
+    );
+  });
 
   if (prefill.kycStatus !== "VERIFIED") {
     const status = prefill.kycStatus;
@@ -243,6 +290,7 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
               label={t(`withdraw.method.${m}`)}
               selected={method === m}
               onPress={() => setPickedMethod(m)}
+              disabled={busy}
               style={{ flex: 1, paddingHorizontal: 4 }}
             />
           ))}
@@ -252,71 +300,87 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
       <View style={{ gap: 14 }}>
         {draft.method === "UPI" ? (
           <Block>
-          <Field
-            testID="withdraw-upi"
-            label={t("withdraw.upi")}
-            value={draft.upiId}
-            onChangeText={(text) => edit((d) => (d.method === "UPI" ? { ...d, upiId: text.replace(/\s+/g, "") } : d))}
-            onBlur={() => touch("upiId")}
-            placeholder={t("withdraw.upiPlaceholder")}
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="off"
-            keyboardType="email-address"
-            editable={!busy}
-            trailing={model.payout.ok ? <Icon name="badgeCheck" size={22} color={color.up} /> : null}
-          />
-          {fieldProblem("upiId", "withdraw-error-upi")}
+            <Field
+              testID="withdraw-upi"
+              label={t("withdraw.upi")}
+              value={draft.upiId}
+              onChangeText={(text) => edit((d) => (d.method === "UPI" ? { ...d, upiId: text.replace(/\s+/g, "") } : d))}
+              onBlur={() => touch("upiId")}
+              placeholder={t("withdraw.upiPlaceholder")}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="off"
+              keyboardType="email-address"
+              editable={!busy}
+              trailing={model.payout.ok ? <Icon name="badgeCheck" size={22} color={color.up} /> : null}
+            />
+            {fieldProblem("upiId", "withdraw-error-upi")}
           </Block>
         ) : null}
 
         {draft.method === "BANK" ? (
           <>
             <Block>
-<Field
-              testID="withdraw-holder"
-              label={t("withdraw.holder")}
-              value={draft.accountHolder}
-              onChangeText={(text) => edit((d) => (d.method === "BANK" ? { ...d, accountHolder: text } : d))}
-              onBlur={() => touch("accountHolder")}
-              placeholder={t("withdraw.holderPlaceholder")}
-              autoCapitalize="words"
-              autoCorrect={false}
-              maxLength={80}
-              editable={!busy}
-            />
-            {fieldProblem("accountHolder", "withdraw-error-holder")}
+              <Field
+                testID="withdraw-holder"
+                label={t("withdraw.holder")}
+                value={draft.accountHolder}
+                onChangeText={(text) => edit((d) => (d.method === "BANK" ? { ...d, accountHolder: text } : d))}
+                onBlur={() => touch("accountHolder")}
+                placeholder={t("withdraw.holderPlaceholder")}
+                autoCapitalize="words"
+                autoCorrect={false}
+                maxLength={80}
+                editable={!busy}
+              />
+              {fieldProblem("accountHolder", "withdraw-error-holder")}
             </Block>
             <Block>
-<Field
-              testID="withdraw-account"
-              label={t("withdraw.account")}
-              value={draft.accountNumber}
-              onChangeText={(text) => edit((d) => (d.method === "BANK" ? { ...d, accountNumber: text.replace(/\D/g, "").slice(0, 18) } : d))}
-              onBlur={() => touch("accountNumber")}
-              keyboardType="number-pad"
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={18}
-              editable={!busy}
-            />
-            {fieldProblem("accountNumber", "withdraw-error-account")}
+              <Field
+                testID="withdraw-account"
+                label={t("withdraw.account")}
+                value={draft.accountNumber}
+                onChangeText={(text) => edit((d) => (d.method === "BANK" ? { ...d, accountNumber: text.replace(/\D/g, "").slice(0, 18) } : d))}
+                onBlur={() => touch("accountNumber")}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={18}
+                editable={!busy}
+              />
+              {fieldProblem("accountNumber", "withdraw-error-account")}
             </Block>
             <Block>
-<Field
-              testID="withdraw-ifsc"
-              label={t("withdraw.ifsc")}
-              value={draft.ifsc}
-              onChangeText={(text) => edit((d) => (d.method === "BANK" ? { ...d, ifsc: text.replace(/\s+/g, "").toUpperCase().slice(0, 11) } : d))}
-              onBlur={() => touch("ifsc")}
-              placeholder={t("withdraw.ifscPlaceholder")}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              autoComplete="off"
-              maxLength={11}
-              editable={!busy}
-            />
-            {fieldProblem("ifsc", "withdraw-error-ifsc")}
+              <Field
+                testID="withdraw-account-confirm"
+                label={t("withdraw.accountConfirm")}
+                value={accountConfirm}
+                onChangeText={(text) => setAccountTyped(text.replace(/\D/g, "").slice(0, 18))}
+                onBlur={() => touch("accountConfirm")}
+                placeholder={t("withdraw.accountConfirmPlaceholder")}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={18}
+                editable={!busy}
+              />
+              {model.accountConfirmKey && (touched.accountConfirm || (touched.accountNumber && accountConfirm !== "")) ? <Problem testID="withdraw-error-account-confirm">{t(model.accountConfirmKey)}</Problem> : null}
+            </Block>
+            <Block>
+              <Field
+                testID="withdraw-ifsc"
+                label={t("withdraw.ifsc")}
+                value={draft.ifsc}
+                onChangeText={(text) => edit((d) => (d.method === "BANK" ? { ...d, ifsc: text.replace(/\s+/g, "").toUpperCase().slice(0, 11) } : d))}
+                onBlur={() => touch("ifsc")}
+                placeholder={t("withdraw.ifscPlaceholder")}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                autoComplete="off"
+                maxLength={11}
+                editable={!busy}
+              />
+              {fieldProblem("ifsc", "withdraw-error-ifsc")}
             </Block>
           </>
         ) : null}
@@ -334,25 +398,26 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
                     label={USDT_NETWORK_INFO[n].standard}
                     selected={network === n}
                     onPress={() => edit((d) => (d.method === "USDT" ? { ...d, usdtNetwork: n } : d))}
+                    disabled={busy}
                     style={{ flex: 1, paddingHorizontal: 4 }}
                   />
                 ))}
               </View>
             </View>
             <Block>
-<Field
-              testID="withdraw-address"
-              label={t("withdraw.address", { network: USDT_NETWORK_INFO[network].standard })}
-              value={draft.usdtAddress}
-              onChangeText={(text) => edit((d) => (d.method === "USDT" ? { ...d, usdtAddress: text.replace(/\s+/g, "").slice(0, 64) } : d))}
-              onBlur={() => touch("usdtAddress")}
-              placeholder={network === "tron" ? "T…" : "0x…"}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="off"
-              editable={!busy}
-            />
-            {fieldProblem("usdtAddress", "withdraw-error-address")}
+              <Field
+                testID="withdraw-address"
+                label={t("withdraw.address", { network: USDT_NETWORK_INFO[network].standard })}
+                value={draft.usdtAddress}
+                onChangeText={(text) => edit((d) => (d.method === "USDT" ? { ...d, usdtAddress: text.replace(/\s+/g, "").slice(0, 64) } : d))}
+                onBlur={() => touch("usdtAddress")}
+                placeholder={network === "tron" ? "T…" : "0x…"}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="off"
+                editable={!busy}
+              />
+              {fieldProblem("usdtAddress", "withdraw-error-address")}
             </Block>
           </>
         ) : null}
@@ -367,6 +432,7 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
       <KeyValueBox
         rows={[
           { key: "receive", label: t("withdraw.youReceive"), value: <Money text={money(model.amountMinor, currency)} size={14} weight={600} /> },
+          { key: "to", label: t("withdraw.to"), testID: "withdraw-to", value: model.payout.ok ? payoutDestinationLabel(model.payout.payout) : "\u2014" },
           { key: "arrives", label: t("withdraw.arrives"), value: t("withdraw.eta") },
         ]}
       />

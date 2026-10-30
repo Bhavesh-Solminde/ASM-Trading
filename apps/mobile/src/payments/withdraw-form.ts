@@ -6,6 +6,7 @@ import {
   type CreateWithdrawalInput,
   type PayoutDetails,
   type PayoutMethod,
+  USDT_NETWORK_INFO,
   type UsdtNetwork,
   type WithdrawalPrefill,
 } from "@asm/contracts";
@@ -95,6 +96,14 @@ export function initialPayout(prefill: WithdrawalPrefill, method: PayoutMethod):
   }
 }
 
+/**
+ * The "Confirm account number" text: what the user typed, else the saved bank account number (as on the website, so an
+ * untouched saved payout needs no retyping; editing the number above makes the two differ until it is retyped).
+ */
+export function accountConfirmValue(prefill: WithdrawalPrefill, typed: string | null): string {
+  return typed ?? prefill.lastPayouts.BANK?.accountNumber ?? "";
+}
+
 /** True while the draft still equals the user's saved payout of its method ("Filled in from your last withdrawal"). A KYC-name-only default is not one. */
 export function isFromLastWithdrawal(prefill: WithdrawalPrefill, draft: PayoutDraft): boolean {
   switch (draft.method) {
@@ -159,23 +168,81 @@ export interface WithdrawModel {
   maxMinor: number;
   /** The balance cannot reach the minimum however it is entered. */
   belowMinimum: boolean;
+  /** Bank only: the key of the "account numbers don't match" line while the confirmation differs from the number; else null. */
+  accountConfirmKey: string | null;
   canSubmit: boolean;
 }
 
+/** The i18n key of the line shown when the confirmed bank account number differs from the first. */
+export const ACCOUNT_MATCH_KEY = "withdraw.errAccountMatch";
+
 /** Everything the screen draws and gates on, from the typed amount, the live balance and the payout fields. */
-export function withdrawModel(input: { amountText: string; currency: string; withdrawable: number; payout: PayoutDraft }): WithdrawModel {
+export function withdrawModel(input: {
+  amountText: string;
+  currency: string;
+  withdrawable: number;
+  payout: PayoutDraft;
+  /** The "Confirm account number" text; a bank payout needs it equal to the account number (client-side only, as on the website). */
+  accountConfirm?: string;
+}): WithdrawModel {
   const amountMinor = parseAmountMinor(input.amountText, input.currency);
   const problem = amountProblem(amountMinor, input.currency, input.withdrawable);
   const payout = checkPayout(input.payout);
   const maxMinor = maxWithdrawMinor(input.withdrawable, input.currency);
+  const accountConfirmKey =
+    input.payout.method === "BANK" && input.payout.accountNumber.trim() !== (input.accountConfirm ?? "").trim() ? ACCOUNT_MATCH_KEY : null;
   return {
     amountMinor,
     problem,
     payout,
     maxMinor,
     belowMinimum: maxMinor < withdrawalLimitsMinor(input.currency).min,
-    canSubmit: amountMinor > 0 && problem === null && payout.ok,
+    accountConfirmKey,
+    canSubmit: amountMinor > 0 && problem === null && payout.ok && accountConfirmKey === null,
   };
+}
+
+/**
+ * Where the money is going, for a second look before the Withdraw tap: a UPI ID in full; a bank payout as the holder
+ * and, on a second line, "A/c ••••1234 · IFSC"; USDT as its network and a shortened address.
+ */
+export function payoutDestinationLabel(payout: PayoutDetails): string {
+  switch (payout.method) {
+    case "UPI":
+      return payout.upiId;
+    case "BANK":
+      return `${payout.accountHolder}\nA/c \u2022\u2022\u2022\u2022${payout.accountNumber.slice(-4)} \u00b7 ${payout.ifsc}`;
+    case "USDT":
+      return `${USDT_NETWORK_INFO[payout.usdtNetwork].standard} ${payout.usdtAddress.slice(0, 6)}\u2026${payout.usdtAddress.slice(-6)}`;
+  }
+}
+
+/** A held withdrawal as far as its cancel window is concerned. */
+export interface CancelWindow {
+  /** ISO deadline; null = the server says there is none (cannot be cancelled); absent = an older server that sends no such field. */
+  cancelableUntil?: string | null;
+}
+
+/**
+ * Whether to offer Cancel on a held withdrawal: only while its cancel deadline is ahead (the server refuses after it,
+ * and a row with no deadline can never be cancelled, as on the website). An older server sends no field at all, and an
+ * unreadable value is treated the same: keep offering it, as before.
+ */
+export function canCancelHeld(row: CancelWindow, nowMs: number): boolean {
+  if (row.cancelableUntil === null) return false;
+  if (row.cancelableUntil === undefined) return true;
+  const until = Date.parse(row.cancelableUntil);
+  return Number.isNaN(until) ? true : nowMs < until;
+}
+
+/** The soonest cancel deadline still ahead of `nowMs` (so the screen can re-check then), or null when none is. */
+export function nextCancelDeadlineMs(rows: readonly CancelWindow[], nowMs: number): number | null {
+  let next: number | null = null;
+  for (const row of rows) {
+    const until = row.cancelableUntil == null ? Number.NaN : Date.parse(row.cancelableUntil);
+    if (until > nowMs && (next === null || until < next)) next = until;
+  }
+  return next;
 }
 
 /**

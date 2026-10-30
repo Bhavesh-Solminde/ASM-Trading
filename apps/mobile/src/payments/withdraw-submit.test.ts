@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CreateWithdrawalInput } from "@asm/contracts";
 import { ApiError } from "@/api/errors";
 import {
+  WITHDRAW_RECONCILE_WAIT_MS,
   WITHDRAW_TIMEOUT_MS,
   createCancelSubmitter,
   createWithdrawSubmitter,
@@ -24,6 +25,7 @@ function setup(post: WithdrawSubmitDeps["post"], over: Partial<WithdrawSubmitDep
     post,
     invalidateMoney: () => calls.push("money"),
     invalidatePrefill: () => calls.push("prefill"),
+    awaitReconcile: async () => undefined,
     navigate: (id) => calls.push(`go:${id}`),
     toast: (m, tone) => calls.push(`toast:${tone}:${m}`),
     session: () => "s1",
@@ -35,8 +37,8 @@ function setup(post: WithdrawSubmitDeps["post"], over: Partial<WithdrawSubmitDep
 }
 
 describe("withdrawErrorText", () => {
-  it("translates offline, timeout, 5xx and a bare error, never showing the server's English for them", () => {
-    expect(withdrawErrorText(new ApiError("No connection.", 0, "offline"), t)).toBe("t:common.noConnection");
+  it("translates offline (it reads as check Payments, as the request may have landed), timeout, 5xx and a bare error, never showing the server's English for them", () => {
+    expect(withdrawErrorText(new ApiError("No connection.", 0, "offline"), t)).toBe("t:withdraw.timedOut");
     expect(withdrawErrorText(new ApiError("The request timed out.", 0, "timeout"), t)).toBe("t:withdraw.timedOut");
     expect(withdrawErrorText(new ApiError("Boom", 500, null), t)).toBe("t:common.genericError");
     expect(withdrawErrorText(new ApiError("Something went wrong.", 400, null), t)).toBe("t:common.genericError");
@@ -112,7 +114,7 @@ describe("createWithdrawSubmitter", () => {
     expect(busy).toEqual([true, false]);
   });
 
-  it("a second tap after a timeout is a fresh, deliberate attempt", async () => {
+  it("a second tap once the refetch has landed is a fresh, deliberate attempt", async () => {
     const post = vi
       .fn<WithdrawSubmitDeps["post"]>()
       .mockRejectedValueOnce(new ApiError("t", 0, "timeout"))
@@ -121,6 +123,82 @@ describe("createWithdrawSubmitter", () => {
     await run(body);
     await run(body);
     expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  describe("after a timeout or a dropped connection", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("stays busy until the wallet and prefill refetch has landed, so a second tap cannot double the withdrawal", async () => {
+      let release!: () => void;
+      const post = vi
+        .fn<WithdrawSubmitDeps["post"]>()
+        .mockRejectedValueOnce(new ApiError("The request timed out.", 0, "timeout"))
+        .mockResolvedValueOnce({ id: "w-9", status: "REQUESTED" });
+      const { run, calls, busy } = setup(post, { awaitReconcile: () => new Promise<void>((r) => (release = r)) });
+      const first = run(body);
+      await vi.waitFor(() => expect(calls).toContain("toast:down:t:withdraw.timedOut"));
+      await run(body); // a second tap while the refetch is pending
+      expect(post).toHaveBeenCalledTimes(1);
+      expect(busy).toEqual([true]);
+      release();
+      await first;
+      expect(busy).toEqual([true, false]);
+      await run(body);
+      expect(post).toHaveBeenCalledTimes(2);
+    });
+
+    it("gives up waiting after the cap and frees the button", async () => {
+      vi.useFakeTimers();
+      const post = vi.fn(async () => {
+        throw new ApiError("The request timed out.", 0, "timeout");
+      });
+      const { run, busy } = setup(post, { awaitReconcile: () => new Promise<void>(() => undefined) });
+      const first = run(body);
+      await vi.advanceTimersByTimeAsync(WITHDRAW_RECONCILE_WAIT_MS - 1);
+      expect(busy).toEqual([true]);
+      await vi.advanceTimersByTimeAsync(1);
+      await first;
+      expect(busy).toEqual([true, false]);
+    });
+
+    it("waits after a dropped connection too (the request may have landed)", async () => {
+      let release!: () => void;
+      const { run, busy } = setup(
+        async () => {
+          throw new ApiError("No connection.", 0, "offline");
+        },
+        { awaitReconcile: () => new Promise<void>((r) => (release = r)) },
+      );
+      const first = run(body);
+      await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+      expect(busy).toEqual([true]);
+      release();
+      await first;
+      expect(busy).toEqual([true, false]);
+    });
+
+    it("does not wait after a refusal that certainly did not land", async () => {
+      const awaitReconcile = vi.fn(async () => undefined);
+      const { run } = setup(
+        async () => {
+          throw new ApiError("Verify your identity.", 400, null);
+        },
+        { awaitReconcile },
+      );
+      await run(body);
+      expect(awaitReconcile).not.toHaveBeenCalled();
+    });
+
+    it("a refetch that fails still frees the button", async () => {
+      const { run, busy } = setup(
+        async () => {
+          throw new ApiError("t", 0, "timeout");
+        },
+        { awaitReconcile: async () => Promise.reject(new Error("offline")) },
+      );
+      await run(body);
+      expect(busy).toEqual([true, false]);
+    });
   });
 
   it("on a 4xx shows the server's message, refreshes the prefill (the gate may have changed) and frees the button", async () => {
@@ -210,7 +288,7 @@ describe("createCancelSubmitter", () => {
     await first;
   });
 
-  it("shows the server's message when the window has passed, and refreshes the prefill so the box goes", async () => {
+  it("shows the server's message when the window has passed, and refreshes the prefill so the screen re-reads the row's cancel deadline", async () => {
     const { run, calls, busy } = setupCancel(async () => {
       throw new ApiError("The cancel window has passed.", 409, null);
     });
