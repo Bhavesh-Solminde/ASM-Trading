@@ -5,8 +5,7 @@
  * the user places it. The engine's magnet then steers the shown price toward
  * the outcome across the full trade duration, so settlement never has to snap
  * the chart. Demo trades always resolve to HONEST — the algorithm is invisible
- * on the demo side of the app. (The DEMO_WIN_RATE bias lives in the GLG
- * governor only — this legacy v2 governor keeps the HONEST short-circuit.)
+ * on the demo side of the app. (GLG does the same.)
  *
  * Win probability rises smoothly with the house's progress toward its daily
  * ₹ target (piecewise-linear `ladder`). Anti-tilt is layered on top: a user

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/shell/Icon";
-import { formatMinor, convertMinorBetween } from "@asm/client-core";
+import { formatMinor, USD_INR_RATE, convertMinorBetween } from "@asm/client-core";
 
 type Currency = "INR" | "USD";
 
@@ -26,7 +26,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Account balances + real-currency conversion (₹100 = $1). Shows "In account"
+ * Account balances + real-currency conversion (₹110 = $1). Shows "In account"
  * and, for the live account, "Available for withdrawal" — then lets the trader
  * convert the whole balance between INR and USD.
  */
@@ -63,13 +63,13 @@ export function CurrencyConvertCard({ accounts }: { accounts: AccountBalance[] }
           <span
             role="img"
             aria-label="Conversion rate notice"
-            title="Fixed conversion rate: ₹100 = $1. This applies to your whole balance (real and bonus). The rate is fixed — it does not follow live market FX."
+            title="Fixed conversion rate: ₹110 = $1. This applies to your whole balance (real and bonus). The rate is fixed — it does not follow live market FX."
             className="inline-grid size-4 flex-none cursor-help place-items-center rounded-full text-caution"
           >
             <Icon name="alert" className="size-4" />
           </span>
           <span className="min-w-0">
-            Convert your whole balance between rupees and dollars at a fixed <strong className="text-ink">₹100 = $1</strong>.
+            Convert your whole balance between rupees and dollars at a fixed <strong className="text-ink">₹{USD_INR_RATE} = $1</strong>.
           </span>
         </p>
 

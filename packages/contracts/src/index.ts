@@ -1,3 +1,4 @@
+export { USD_INR_RATE, convertMinorBetween } from "./currency";
 export {
   RegisterSchema,
   LoginSchema,
@@ -33,6 +34,9 @@ export {
   type TradeSettledMessage,
   type BalanceUpdateMessage,
   type SentimentMessage,
+  type CfdTradeOpenedMessage,
+  type CfdTradeSettledMessage,
+  type CfdTradeModifiedMessage,
 } from "./ws";
 export {
   TRADE_DURATIONS_SEC,
@@ -49,6 +53,24 @@ export {
   type BalancesDto,
   type OpenTradeResult,
 } from "./trade";
+export {
+  CfdDirectionSchema,
+  CfdOpenTradeSchema,
+  EngineCfdOpenTradeSchema,
+  CfdCloseTradeSchema,
+  CfdModifyTradeSchema,
+  directionToDb,
+  directionFromDb,
+  type CfdDirectionDto,
+  type CfdOpenTradeInput,
+  type EngineCfdOpenTradeInput,
+  type CfdCloseTradeInput,
+  type CfdModifyTradeInput,
+  type CfdCloseReasonDto,
+  type CfdTradeStatusDto,
+  type CfdTradeView,
+  type CfdOpenTradeResult,
+} from "./cfd-trade";
 export {
   DEPOSIT_METHODS,
   UPI_METHODS,
@@ -111,3 +133,9 @@ export {
   type LeaderboardResultDto,
 } from "./leaderboard";
 export * from "./app";
+
+export { CFD_LEVERAGE, CFD_MAX_PROFIT_MULTIPLIER, cfdProfitMinor, cfdMaxProfitPrice, cfdLiquidationPrice } from "./cfd-math";
+
+export { marketSessionOpen, marketStatus, type MarketStatus } from "./market-session";
+
+export { CFD_SPREAD_FEE_MULTIPLIER, CFD_SPREAD_FEE_CAP_MINOR, cfdSpreadFeeMinor, cfdSpreadFeePct } from "./cfd-fees";

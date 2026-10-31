@@ -50,11 +50,11 @@ describe("limitProblem", () => {
     expect(limitProblem("Gpay", 10_00_000)).toBeNull();
     expect(limitProblem("Gpay", 10_00_001)).toEqual({ kind: "max", rupees: 10_00_000 });
   });
-  it("reports the USDT limits in rupees ($10 to $10,000 at ₹100 = $1)", () => {
-    expect(limitProblem("USDT", 900)).toEqual({ kind: "min", rupees: 1_000 });
-    expect(limitProblem("USDT", 1_000)).toBeNull();
-    expect(limitProblem("USDT", 10_00_000)).toBeNull();
-    expect(limitProblem("USDT", 10_00_001)).toEqual({ kind: "max", rupees: 10_00_000 });
+  it("reports the USDT limits in rupees ($10 to $10,000 at ₹110 = $1)", () => {
+    expect(limitProblem("USDT", 1_000)).toEqual({ kind: "min", rupees: 1_100 });
+    expect(limitProblem("USDT", 1_100)).toBeNull();
+    expect(limitProblem("USDT", 11_00_000)).toBeNull();
+    expect(limitProblem("USDT", 11_00_001)).toEqual({ kind: "max", rupees: 11_00_000 });
   });
 });
 
@@ -63,7 +63,7 @@ describe("methodRows", () => {
     expect(methodRows(config, 1000).map((r) => r.method)).toEqual(["PhonePe", "Gpay", "PayTM", "UPI", "USDT"]);
   });
   it("marks every UPI method coming soon while UPI deposits are off, and leaves USDT alone", () => {
-    const rows = methodRows(withConfig({ upiEnabled: false }), 1000);
+    const rows = methodRows(withConfig({ upiEnabled: false }), 2000);
     expect(rows.filter((r) => r.state === "soon").map((r) => r.method)).toEqual(["PhonePe", "Gpay", "PayTM", "UPI"]);
     expect(rows.find((r) => r.method === "USDT")?.state).toBe("ok");
   });
@@ -75,7 +75,7 @@ describe("methodRows", () => {
     expect(at400.find((r) => r.method === "PhonePe")).toEqual({ method: "PhonePe", state: "limit", limit: { kind: "min", rupees: 500 } });
     const at900 = methodRows(config, 900);
     expect(at900.find((r) => r.method === "PhonePe")?.state).toBe("ok");
-    expect(at900.find((r) => r.method === "USDT")).toEqual({ method: "USDT", state: "limit", limit: { kind: "min", rupees: 1_000 } });
+    expect(at900.find((r) => r.method === "USDT")).toEqual({ method: "USDT", state: "limit", limit: { kind: "min", rupees: 1_100 } });
   });
   it("puts no limit on any method while nothing is entered", () => {
     expect(methodRows(config, 0).every((r) => r.state === "ok" && r.limit === null)).toBe(true);
@@ -130,8 +130,8 @@ describe("quickAmounts", () => {
   it("is the shared quick picks when every method is on", () => {
     expect(quickAmounts(config)).toEqual([...DEPOSIT_QUICK_INR]);
   });
-  it("drops picks that no method on offer can take (USDT-only starts at ₹1,000)", () => {
-    expect(quickAmounts(withConfig({ upiEnabled: false }))).toEqual([1000, 2000, 5000]);
+  it("drops picks that no method on offer can take (USDT-only starts at ₹1,100)", () => {
+    expect(quickAmounts(withConfig({ upiEnabled: false }))).toEqual([2000, 5000]);
   });
   it("still offers the UPI picks while UPI is off and there is no USDT, so the screen is never empty", () => {
     expect(quickAmounts(withConfig({ upiEnabled: false, usdtNetworks: [] }))).toEqual([...DEPOSIT_QUICK_INR]);
@@ -158,9 +158,9 @@ describe("depositBody", () => {
     expect(depositBody("PhonePe", 1000)).toEqual({ method: "PhonePe", amountInr: 100_000 });
     expect(depositBody("UPI", 500)).toEqual({ method: "UPI", amountInr: 50_000 });
   });
-  it("sends USDT in USDT cents (₹100 = $1, so ₹1 is one cent) with the network", () => {
-    expect(depositBody("USDT", 2000, "tron")).toEqual({ method: "USDT", network: "tron", amountUsdtMinor: 2000 });
-    expect(depositBody("USDT", 1234, "bsc")).toEqual({ method: "USDT", network: "bsc", amountUsdtMinor: 1234 });
+  it("sends USDT in USDT cents (₹110 = $1, so ₹1.10 is one cent) with the network", () => {
+    expect(depositBody("USDT", 2000, "tron")).toEqual({ method: "USDT", network: "tron", amountUsdtMinor: 1818 });
+    expect(depositBody("USDT", 1234, "bsc")).toEqual({ method: "USDT", network: "bsc", amountUsdtMinor: 1122 });
   });
   it("refuses a USDT deposit with no network, and an amount the contract rejects", () => {
     expect(() => depositBody("USDT", 2000)).toThrow();
@@ -189,10 +189,10 @@ describe("depositModel", () => {
     expect(model("400")).toMatchObject({ canPay: false, method: "PhonePe", problem: { kind: "min", rupees: 500 } });
   });
   it("cannot pay above the maximum", () => {
-    expect(model("1000001")).toMatchObject({ canPay: false, problem: { kind: "max", rupees: 10_00_000 } });
+    expect(model("1100001")).toMatchObject({ canPay: false, problem: { kind: "max", rupees: 10_00_000 } });
   });
   it("keeps a picked USDT that the amount has pushed under its minimum, blocked with its own limit", () => {
-    expect(model("900", { method: "USDT" })).toMatchObject({ canPay: false, method: "USDT", problem: { kind: "min", rupees: 1_000 } });
+    expect(model("900", { method: "USDT" })).toMatchObject({ canPay: false, method: "USDT", problem: { kind: "min", rupees: 1_100 } });
   });
   it("can pay USDT only with a network", () => {
     expect(model("2000", { method: "USDT" })).toMatchObject({ canPay: true, network: "tron" });

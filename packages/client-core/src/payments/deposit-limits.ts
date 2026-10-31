@@ -22,7 +22,7 @@ export interface Limits {
   max: number;
 }
 
-/** What one method accepts, in rupees (USDT converts at the platform's fixed ₹100 = $1). */
+/** What one method accepts, in rupees (USDT converts at the platform's fixed ₹110 = $1). */
 export function methodLimits(method: Method): Limits {
   return method === "USDT"
     ? { min: USDT_MIN_USD * USD_INR_RATE, max: USDT_MAX_USD * USD_INR_RATE }

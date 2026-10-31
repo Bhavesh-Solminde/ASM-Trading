@@ -1,6 +1,7 @@
 import { ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { USD_INR_RATE } from "@asm/contracts";
 import { currencyRows } from "@/account/currency-switch";
 import { useCurrencySwitch } from "@/account/useCurrencySwitch";
 import { useBootstrap } from "@/api/queries";
@@ -15,9 +16,9 @@ import { StatusTag } from "@/ui/StatusTag";
 
 /**
  * Currency (R5 settings rows): one card per account, Demo then Live, each with its balance and currency, a preview of
- * what the whole balance becomes at the fixed ₹100 = $1, and a "Switch to USD / INR" button. The button asks first (an
+ * what the whole balance becomes at the fixed ₹110 = $1 (`USD_INR_RATE`), and a "Switch to USD / INR" button. The button asks first (an
  * Alert), then sends the money-moving POST (see `useCurrencySwitch`): one at a time, never retried. The server decides
- * what is allowed; a refusal shows its message.
+ * what is allowed (it refuses a switch while a withdrawal is pending or a trade is open); a refusal shows its message.
  */
 export default function Currency() {
   const { t } = useTranslation();
@@ -34,7 +35,7 @@ export default function Currency() {
       <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 20 + insets.bottom }}>
         <BackHeader title={t("currency.title")} />
         <Txt size={14} color={color.ink2}>
-          {t("currency.intro")}
+          {t("currency.intro", { rate: USD_INR_RATE })}
         </Txt>
         {boot === undefined ? <Skeleton height={190} /> : null}
         {rows.map((row) => {

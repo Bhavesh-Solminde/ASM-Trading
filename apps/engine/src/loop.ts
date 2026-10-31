@@ -1,3 +1,4 @@
+import { marketStatus } from "@asm/contracts";
 import {
   autoPromoteHeldWithdrawals,
   istDateOf,
@@ -15,18 +16,30 @@ import {
   USE_HOUSE_GOVERNOR,
   isSymbolClosedForNight,
   pathBias,
+  computeMagnetPull,
+  type MagnetPosition,
 } from "@asm/algo";
 import { TICK_DT_SEC } from "@asm/pricing";
 import type { AssetRegistry } from "./assets/registry";
 import type { EngineServer } from "./server";
 import type { TradeDesk } from "./trading/trade-desk";
 import { computeSentiment } from "./sentiment";
+import type { QuoteBuffer } from "./feeds/quote-buffer";
+import { GapTracker, cryptoMaintenancePhase, isMarketClosed, assetCategory } from "./trading/gap";
+import type { CfdDesk } from "./trading/cfd-desk";
 
 // Emit one tick per simulated-time step, derived from the shared cadence
 // constant so the loop and the price model always agree on how long a tick is.
 // (A hand-tuned TICK_MS that disagrees with DT_SEC makes the chart move the
 // wrong amount per second and is what caused the over-frequent jitter.)
 const TICK_MS = Math.round(TICK_DT_SEC * 1000);
+const IS_CFD = process.env.TRADING_MODEL === "CFD";
+
+export interface CfdDeps {
+  quoteBuffer: QuoteBuffer;
+  gapTracker: GapTracker;
+  cfdDesk: CfdDesk;
+}
 
 /**
  * The tick loop (TICK_DT_SEC cadence — one update per second by default). Uses setTimeout
@@ -36,7 +49,8 @@ const TICK_MS = Math.round(TICK_DT_SEC * 1000);
 export function startTickLoop(
   registry: AssetRegistry,
   server: EngineServer,
-  desk: Pick<TradeDesk, "collectDue" | "openFor" | "preSettle">,
+  desk: Pick<TradeDesk, "collectDue" | "openFor" | "preSettle" | "recoverExpiredLegacy">,
+  cfdDeps?: CfdDeps,
 ): { stop(): void } {
   let running = true;
   let timer: NodeJS.Timeout | null = null;
@@ -51,92 +65,169 @@ export function startTickLoop(
   // Idempotent on the IST calendar day — the row-level guard inside
   // resetAffiliateAccountFloat closes the race if the engine restarts.
   let lastAffiliateResetSec = 0;
+  const prevRealPrices = new Map<string, number>();
 
   const run = async (): Promise<void> => {
     const startedAt = Date.now();
     const nowSec = Math.floor(startedAt / 1000);
 
-    // Pre-settle pass. For buckets expiring NEXT tick, pick the resolved exit
-    // price now and snap the chart to it so the user's countdown never ticks
-    // through a visible shift at expiry. Sync, no DB. See TradeDesk.preSettle.
-    desk.preSettle(nowSec, TICK_DT_SEC);
+    if (IS_CFD) {
+      await desk.recoverExpiredLegacy(nowSec).catch(() => {
+        logger.error({ evt: "trade.legacy_recovery_failed" }, "legacy recovery will retry next tick");
+      });
+    }
 
-    // Capture exit prices before this tick moves them: a trade expiring this
-    // second settles against the price its owner last saw. No awaiting here.
-    desk.collectDue(nowSec);
+    if (!IS_CFD) {
+      // Pre-settle pass. For buckets expiring NEXT tick, pick the resolved exit
+      // price now and snap the chart to it so the user's countdown never ticks
+      // through a visible shift at expiry. Sync, no DB. See TradeDesk.preSettle.
+      desk.preSettle(nowSec, TICK_DT_SEC);
+
+      // Capture exit prices before this tick moves them: a trade expiring this
+      // second settles against the price its owner last saw. No awaiting here.
+      desk.collectDue(nowSec);
+    }
 
     for (const asset of registry.all()) {
-      let result;
+      let broadcastPrice: number;
       try {
-        // Sigma read from the pre-tick MSM state — the MSM layers advance
-        // inside registry.tick() this same tick, but layer flips are rare
-        // and smooth, so this is a tight-enough approximation of the sigma
-        // stepPrice is about to use. Used to scale the bias cap only.
-        const sigma = registry.sigmaNow(asset.symbol, nowSec);
-        const openPositions = desk.openFor(asset.id);
-        const livePositions = openPositions.filter((p) => !p.isDemo);
-        // Every asset is house-first now. India symbols observe a nightly
-        // close (23:30–05:00 IST); crypto and forex are 24/7.
-        const closedNow = isSymbolClosedForNight(asset.symbol, startedAt);
-
-        // Vol-aware per-trade magnet. The chart is pulled toward each live
-        // stamped trade's targetPrice, with pull proportional to how busy
-        // MSM is right now — so steering only happens when natural noise
-        // can hide it. If no stamped trades are open, the chart wanders
-        // honestly (magnet=0, bias=0). Verdict overrides (heavy-side
-        // cascade + batch rule) happen at OPEN time in TradeDesk, before
-        // this magnet sees them — so the chart only ever steers toward
-        // final verdicts, and chart-as-source-of-truth at settlement
-        // guarantees no visible contradiction between chart and outcome.
-        const bias = 0;
-        let magnetPull = 0;
-
-        if ((USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) && !closedNow) {
-          const currentPrice = asset.state.price;
-          const msmScale = registry.volScaleNow(asset.symbol, nowSec);
-          for (const p of livePositions) {
-            // A trade without a governor stamp grandfathers as HONEST.
-            if (
-              !p.verdict ||
-              p.verdict === "HONEST" ||
-              !p.pathStyle ||
-              p.targetPrice === undefined ||
-              p.entrySec === undefined
-            ) {
-              continue;
-            }
-            const duration = p.expirySec - p.entrySec;
-            if (duration <= 0) continue;
-            const elapsedFrac = Math.max(
-              0,
-              Math.min(1, (nowSec - p.entrySec) / duration),
-            );
-            const pb = pathBias(p.pathStyle, elapsedFrac);
-            if (pb === 0) continue;
-            const gap = Math.log(p.targetPrice / currentPrice);
-            if (!Number.isFinite(gap) || gap === 0) continue;
-            magnetPull += pb * gap * msmScale;
+        if (IS_CFD && cfdDeps) {
+          // ── CFD path ──────────────────────────────────────────────
+          const { quoteBuffer, gapTracker, cfdDesk } = cfdDeps;
+          const status = marketStatus(asset.symbol, quoteBuffer.latest(asset.symbol)?.ts, startedAt);
+          if (status !== "open") {
+            // Retain the last published value for existing expiries, but never
+            // manufacture ticks/candles while the exchange is closed or stale.
+            const lastPrice = registry.lastPublishedPrice(asset.symbol) || asset.state.price;
+            if (lastPrice > 0) await cfdDesk.scanPositions(asset.id, asset.symbol, lastPrice, new Date(startedAt));
+            continue;
           }
-          const cap = MAGNET_CAP * sigma;
-          if (magnetPull > cap) magnetPull = cap;
-          else if (magnetPull < -cap) magnetPull = -cap;
+          const sigma = registry.sigmaNow(asset.symbol, nowSec);
+
+          // Advance the synthetic model honestly (zero steering) so MSM
+          // layers keep ticking and candle catchup on restart stays sane.
+          const honestResult = registry.tick(asset.symbol, nowSec, {
+            driftBias: 0,
+            magnet: 0,
+          });
+
+          // Real price: live feed if available, else the honest synthetic.
+          const quote = quoteBuffer.latest(asset.symbol);
+          const realPrice = quote?.price ?? honestResult.price;
+
+          // Direction of real market movement (for "never fight the trend").
+          const prevReal = prevRealPrices.get(asset.symbol) ?? realPrice;
+          const realMoveSign = Math.sign(realPrice - prevReal);
+          prevRealPrices.set(asset.symbol, realPrice);
+
+          // Crypto maintenance window: 4-5 AM IST frozen, 5-6 converging.
+          const phase = cryptoMaintenancePhase(new Date(startedAt));
+          const category = assetCategory(asset.symbol);
+          const isCrypto = category === "CRYPTO";
+
+          const marketClosed = isMarketClosed(category, new Date(startedAt));
+
+          if ((phase === "FROZEN" && isCrypto) || marketClosed) {
+            if (marketClosed) gapTracker.converge(asset.symbol, TICK_DT_SEC);
+            broadcastPrice = gapTracker.shownPrice(asset.symbol, realPrice);
+          } else {
+            if (phase === "CONVERGING" && isCrypto) {
+              gapTracker.converge(asset.symbol, TICK_DT_SEC);
+            }
+
+            // Gather open CFD positions for magnet + scan.
+            const openTrades = await cfdDesk.openPositionsForAsset(asset.id);
+
+            const magnetPositions: MagnetPosition[] = openTrades.map((t) => {
+              const isLong = t.direction === "UP";
+              const pnlFrac = isLong
+                ? (realPrice - t.entryPrice) / t.entryPrice
+                : (t.entryPrice - realPrice) / t.entryPrice;
+              return {
+                direction: t.direction as "UP" | "DOWN",
+                stake: t.stake,
+                stopLoss: t.stopLoss,
+                pnlFrac,
+              };
+            });
+
+            const activeUsers = new Set(openTrades.map((t) => t.accountId)).size;
+            const volScale = registry.volScaleNow(asset.symbol, nowSec);
+
+            const pull = computeMagnetPull({
+              positions: magnetPositions,
+              realMoveSign,
+              volatility: sigma * volScale,
+              sigma,
+              activeUsers,
+            });
+
+            gapTracker.push(asset.symbol, pull, TICK_DT_SEC);
+            const shownPrice = gapTracker.shownPrice(asset.symbol, realPrice);
+
+            broadcastPrice = shownPrice;
+          }
+          // Expiry must run even while quotes are frozen or the market is closed.
+          await cfdDesk.scanPositions(asset.id, asset.symbol,
+            Number(broadcastPrice.toFixed(asset.precision)), new Date(startedAt));
+        } else {
+          // ── Binary path (unchanged) ───────────────────────────────
+          const sigma = registry.sigmaNow(asset.symbol, nowSec);
+          const openPositions = desk.openFor(asset.id);
+          const livePositions = openPositions.filter((p) => !p.isDemo);
+          const closedNow = isSymbolClosedForNight(asset.symbol, startedAt);
+
+          const bias = 0;
+          let magnetPull = 0;
+
+          if ((USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) && !closedNow) {
+            const currentPrice = asset.state.price;
+            const msmScale = registry.volScaleNow(asset.symbol, nowSec);
+            for (const p of livePositions) {
+              if (
+                !p.verdict ||
+                p.verdict === "HONEST" ||
+                !p.pathStyle ||
+                p.targetPrice === undefined ||
+                p.entrySec === undefined
+              ) {
+                continue;
+              }
+              const duration = p.expirySec - p.entrySec;
+              if (duration <= 0) continue;
+              const elapsedFrac = Math.max(
+                0,
+                Math.min(1, (nowSec - p.entrySec) / duration),
+              );
+              const pb = pathBias(p.pathStyle, elapsedFrac);
+              if (pb === 0) continue;
+              const gap = Math.log(p.targetPrice / currentPrice);
+              if (!Number.isFinite(gap) || gap === 0) continue;
+              magnetPull += pb * gap * msmScale;
+            }
+            const cap = MAGNET_CAP * sigma;
+            if (magnetPull > cap) magnetPull = cap;
+            else if (magnetPull < -cap) magnetPull = -cap;
+          }
+
+          const selfAnchorTarget = SELF_ANCHOR_MODE
+            ? asset.honestState.price
+            : null;
+          const selfAnchorAlpha = !SELF_ANCHOR_MODE
+            ? 0
+            : closedNow
+              ? SELF_ANCHOR_ALPHA_CLOSED
+              : SELF_ANCHOR_ALPHA;
+
+          const result = registry.tick(asset.symbol, nowSec, {
+            driftBias: bias,
+            magnet: magnetPull,
+            selfAnchorTarget,
+            selfAnchorAlpha,
+          });
+
+          broadcastPrice = result.price;
         }
-
-        const selfAnchorTarget = SELF_ANCHOR_MODE
-          ? asset.honestState.price
-          : null;
-        const selfAnchorAlpha = !SELF_ANCHOR_MODE
-          ? 0
-          : closedNow
-            ? SELF_ANCHOR_ALPHA_CLOSED
-            : SELF_ANCHOR_ALPHA;
-
-        result = registry.tick(asset.symbol, nowSec, {
-          driftBias: bias,
-          magnet: magnetPull,
-          selfAnchorTarget,
-          selfAnchorAlpha,
-        });
       } catch (err) {
         logger.error(
           {
@@ -149,19 +240,17 @@ export function startTickLoop(
         continue;
       }
 
-      // Candles are built from the final shown price (after any commit snap),
-      // so a closed bar never holds a high/low the live chart did not draw.
-      const closed = registry.record(asset.symbol, nowSec, result.price);
+      broadcastPrice = Number(broadcastPrice.toFixed(asset.precision));
+      const closed = registry.record(asset.symbol, nowSec, broadcastPrice);
 
       server.broadcast(asset.symbol, {
         type: "tick",
         symbol: asset.symbol,
-        price: result.price,
+        price: broadcastPrice,
         ts: nowSec,
       });
 
-      // Once per second is plenty — the bar is a mood indicator, not a feed.
-      if (nowSec !== lastSentimentSec) {
+      if (!IS_CFD && nowSec !== lastSentimentSec) {
         const sentiment = computeSentiment(desk.openFor(asset.id));
         server.broadcast(asset.symbol, {
           type: "sentiment",

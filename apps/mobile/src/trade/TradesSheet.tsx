@@ -34,10 +34,12 @@ const TIME_NUDGE = 2;
 
 type Tab = "open" | "closed";
 
-const STAMP: Record<Exclude<TradeView["status"], "OPEN">, { key: "trade.statusWon" | "trade.statusLost" | "trade.statusRefund"; tone: "up" | "down" | "muted" }> = {
+const STAMP: Record<Exclude<TradeView["status"], "OPEN">, { key: "trade.statusWon" | "trade.statusLost" | "trade.statusRefund" | "trade.statusClosed"; tone: "up" | "down" | "muted" }> = {
   WON: { key: "trade.statusWon", tone: "up" },
   LOST: { key: "trade.statusLost", tone: "down" },
   REFUNDED: { key: "trade.statusRefund", tone: "muted" },
+  // A CFD position the trader or the desk closed (the website trades CFDs; the app lists them but does not open them).
+  CLOSED: { key: "trade.statusClosed", tone: "muted" },
 };
 
 function assetOf(assets: readonly AppAsset[], symbol: string) {

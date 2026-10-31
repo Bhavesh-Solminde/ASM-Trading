@@ -4,7 +4,16 @@ import { memo, useState, type ReactNode } from "react";
 import type { TradeView } from "@asm/contracts";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
 import { splitAssetName } from "@/lib/asset-name";
-import { formatMinor, clockTime, countdown, closedRowDisplay, grossReturnMinor, openSide } from "@asm/client-core";
+import {
+  cfdOpenPnl,
+  clockTime,
+  closedRowDisplay,
+  countdown,
+  formatMinor,
+  grossReturnMinor,
+  openSide,
+  settledAmountText,
+} from "@asm/client-core";
 import { useNowSec } from "@/lib/use-now";
 import { AssetIcon } from "./AssetIcon";
 
@@ -15,6 +24,7 @@ const STATUS_CHIP: Record<TradeView["status"], { label: string; className: strin
   WON: { label: "Won", className: "bg-up text-up-ink" },
   LOST: { label: "Lost", className: "text-down shadow-[inset_0_0_0_1px_var(--color-down)]" },
   REFUNDED: { label: "Refund", className: "bg-tile text-ink-2" },
+  CLOSED: { label: "Closed", className: "bg-tile text-ink" },
 };
 
 function RowShell({
@@ -26,6 +36,7 @@ function RowShell({
   pnlClass,
   chipOverride,
   children,
+  onSelectTrade, selectedTradeId,
 }: {
   trade: TradeView;
   asset: PlatformAsset | undefined;
@@ -35,6 +46,7 @@ function RowShell({
   pnlClass: string;
   chipOverride?: { label: string; className: string };
   children?: ReactNode;
+  onSelectTrade?: ((trade: TradeView) => void) | undefined; selectedTradeId?: string | undefined;
 }) {
   const precision = asset?.precision ?? 5;
   const chip = chipOverride ?? STATUS_CHIP[trade.status];
@@ -63,7 +75,9 @@ function RowShell({
       >
         {chip.label}
       </span>
+      {trade.durationSec != null && <span className="col-span-3 text-[11px] text-ink-3">Spread fee: {formatMinor(trade.spreadFee ?? 0, currency)}</span>}
       {children}
+      {onSelectTrade && trade.durationSec != null && <button type="button" aria-label={`Show ${trade.direction === "UP" ? "Buy" : "Sell"} trade ${trade.id} SL/TP`} aria-pressed={selectedTradeId === trade.id} onClick={() => onSelectTrade(trade)} className="absolute inset-0 rounded focus-visible:outline-2 focus-visible:outline-brand hover:bg-brand/5" />}
     </li>
   );
 }
@@ -73,13 +87,17 @@ const OpenTradeRow = memo(function OpenTradeRow({
   trade,
   asset,
   currency,
+  onSelectTrade, selectedTradeId,
 }: {
   trade: TradeView;
   asset: PlatformAsset | undefined;
   currency: string;
+  onSelectTrade?: ((trade: TradeView) => void) | undefined; selectedTradeId?: string | undefined;
 }) {
   const now = useNowSec();
   const price = useQuote(trade.symbol)?.price ?? null;
+  const cfdPnl = trade.durationSec != null ? cfdOpenPnl(trade, price) : null;
+  const cfdText = cfdPnl === null ? "—" : `${cfdPnl > 0 ? "+" : cfdPnl < 0 ? "−" : ""}${formatMinor(Math.abs(cfdPnl), currency)}`;
   const side = openSide(trade.direction, trade.entryPrice, price);
   const winning = side === "winning";
   const losing = side === "losing";
@@ -88,33 +106,18 @@ const OpenTradeRow = memo(function OpenTradeRow({
     now === null ? 0 : Math.min(1, Math.max(0, (now - trade.entryTs) / (trade.expiryTs - trade.entryTs)));
   const expired = now !== null && now >= trade.expiryTs;
 
-  // Freeze the outcome at the moment the countdown hits zero so a late tick
-  // the engine broadcasts after expiry can't flip the chip from WON to LOST
-  // (or vice versa) in the sub-second gap before the WS "trade:settled"
-  // event swaps this row for ClosedTradeRow.
-  const [frozen, setFrozen] = useState<{ winning: boolean; price: number | null } | null>(null);
-  if (expired && frozen === null) {
-    setFrozen({ winning, price });
-  }
-
-  // Instant settle: the second `expired` flips true, show the user WON or
-  // LOST (and the real PnL amount) based on the chart price they're looking
-  // at. No "Settling…" placeholder — the DB catches up asynchronously, and
-  // the engine fix guarantees it'll land on the same side we show here.
-  const displayWinning = expired ? (frozen?.winning ?? winning) : winning;
-  const pnlDisplay = displayWinning
+  // Only the engine can confirm a settlement and its actual outcome.
+  const pnlDisplay = expired ? "—" : trade.durationSec != null ? cfdText : winning
     ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
     : `−${formatMinor(trade.stake, currency)}`;
-  const pnlClass = displayWinning ? "text-up" : losing || expired ? "text-down" : "text-ink-2";
-
+  const pnlClass = expired ? "text-ink-2" : trade.durationSec != null ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
   const chipOverride = expired
-    ? displayWinning
-      ? { label: "Won", className: "bg-up text-up-ink" }
-      : { label: "Lost", className: "text-down shadow-[inset_0_0_0_1px_var(--color-down)]" }
+    ? { label: "Settling", className: "bg-tile text-ink-2" }
     : undefined;
 
   return (
     <RowShell
+      onSelectTrade={onSelectTrade} selectedTradeId={selectedTradeId}
       trade={trade}
       asset={asset}
       currency={currency}
@@ -136,19 +139,22 @@ const ClosedTradeRow = memo(function ClosedTradeRow({
   trade,
   asset,
   currency,
+  onSelectTrade, selectedTradeId,
 }: {
   trade: TradeView;
   asset: PlatformAsset | undefined;
   currency: string;
+  onSelectTrade?: ((trade: TradeView) => void) | undefined; selectedTradeId?: string | undefined;
 }) {
   const display = closedRowDisplay(trade);
   return (
     <RowShell
+      onSelectTrade={onSelectTrade} selectedTradeId={selectedTradeId}
       trade={trade}
       asset={asset}
       currency={currency}
       time={<span className="led justify-self-end text-[13px] text-ink-2">{clockTime(trade.expiryTs)}</span>}
-      pnl={`${display.sign}${formatMinor(display.amountMinor, currency)}`}
+      pnl={settledAmountText(trade, currency)}
       pnlClass={display.className}
     />
   );
@@ -158,10 +164,12 @@ export function TradesPanel({
   trades,
   currency,
   assets,
+  onSelectTrade, selectedTradeId,
 }: {
   trades: TradeView[];
   currency: string;
   assets: PlatformAsset[];
+  onSelectTrade?: ((trade: TradeView) => void) | undefined; selectedTradeId?: string | undefined;
 }) {
   const [tab, setTab] = useState<Tab>("open");
   const open = trades.filter((t) => t.status === "OPEN");
@@ -170,7 +178,7 @@ export function TradesPanel({
   const Row = tab === "open" ? OpenTradeRow : ClosedTradeRow;
 
   return (
-    <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
+    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
       <div role="tablist" className="flex border-b border-rule px-3">
         {(["open", "closed"] as const).map((t) => (
           <button
@@ -191,7 +199,7 @@ export function TradesPanel({
         ))}
       </div>
 
-      <ul aria-live="polite" className="m-0 list-none overflow-auto py-1">
+      <ul aria-live="polite" className="m-0 list-none overflow-auto overscroll-contain py-1">
         {shown.length === 0 ? (
           <li className="grid gap-1.5 px-[18px] py-7 text-center text-ink-3">
             <strong className="font-semibold text-ink-2">No {tab} trades on this account</strong>
@@ -201,7 +209,8 @@ export function TradesPanel({
           shown.map((trade) => (
             <Row
               key={trade.id}
-              trade={trade}
+              onSelectTrade={onSelectTrade} selectedTradeId={selectedTradeId}
+      trade={trade}
               currency={currency}
               asset={assets.find((a) => a.symbol === trade.symbol)}
             />

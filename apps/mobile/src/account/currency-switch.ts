@@ -1,5 +1,4 @@
-import { OpenTradeSchema, type Bootstrap } from "@asm/contracts";
-import { convertMinorBetween } from "@asm/client-core";
+import { OpenTradeSchema, convertMinorBetween, type Bootstrap } from "@asm/contracts";
 import { ApiError, GENERIC_ERROR } from "@/api/errors";
 
 /** The currencies an account can be converted between: the contract's own enum (the server accepts exactly these). */

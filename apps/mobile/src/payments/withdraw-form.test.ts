@@ -43,9 +43,9 @@ describe("maxWithdrawMinor", () => {
     expect(maxWithdrawMinor(820_099, "INR")).toBe(820_000);
     expect(maxWithdrawMinor(99, "INR")).toBe(0);
   });
-  it("keeps cents on a USD account and caps it at $500", () => {
+  it("keeps cents on a USD account and caps it at $454.55 (₹50,000 at ₹110 = $1)", () => {
     expect(maxWithdrawMinor(12_345, "USD")).toBe(12_345);
-    expect(maxWithdrawMinor(90_000, "USD")).toBe(50_000);
+    expect(maxWithdrawMinor(90_000, "USD")).toBe(45_455);
   });
   it("is never negative", () => {
     expect(maxWithdrawMinor(-500, "INR")).toBe(0);
@@ -113,10 +113,11 @@ describe("amountProblem", () => {
   it("cannot exceed the withdrawable balance", () => {
     expect(amountProblem(100_000, "INR", 90_000)).toBe("balance");
   });
-  it("uses $7 to $500 on a USD account", () => {
-    expect(amountProblem(699, "USD", 100_000)).toBe("min");
-    expect(amountProblem(50_001, "USD", 100_000)).toBe("max");
-    expect(amountProblem(700, "USD", 100_000)).toBeNull();
+  it("uses $6.36 to $454.55 on a USD account (₹700 to ₹50,000 at ₹110 = $1)", () => {
+    expect(amountProblem(635, "USD", 100_000)).toBe("min");
+    expect(amountProblem(45_456, "USD", 100_000)).toBe("max");
+    expect(amountProblem(636, "USD", 100_000)).toBeNull();
+    expect(amountProblem(45_455, "USD", 100_000)).toBeNull();
   });
   it("shows no problem for an empty amount (the button is simply off)", () => {
     expect(amountProblem(0, "INR", 10_000_000)).toBeNull();

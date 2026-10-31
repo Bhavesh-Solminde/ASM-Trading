@@ -28,6 +28,7 @@ import {
 import type { CandleDto, TradeView } from "@asm/contracts";
 import type { MarketStore } from "@/components/shell/market-store";
 import { formatMinor, countdown, TIMEFRAME_SEC, type ChartState } from "@asm/client-core";
+import { ChartBrackets } from "./ChartBrackets";
 import type { ChartType } from "./chart-types";
 import { HlcAreaSeriesView } from "./plugins/hlc-area-series";
 import { VolumeCandlesSeriesView } from "./plugins/volume-candles-series";
@@ -433,6 +434,12 @@ export function PriceChart({
   openTrades,
   currency,
   chartType = "candles",
+  enableBrackets = false,
+  bracketScope,
+  bracketControls = true,
+  bracketActionsContainer,
+  focusedTradeId, onSelectTrade, onShowAllTrades,
+  tickSize,
 }: {
   market: MarketStore;
   precision: number;
@@ -440,6 +447,14 @@ export function PriceChart({
   openTrades: TradeView[];
   currency: string;
   chartType?: ChartType;
+  enableBrackets?: boolean;
+  bracketScope?: string;
+  bracketControls?: boolean;
+  bracketActionsContainer?: HTMLElement | null | undefined;
+  focusedTradeId?: string | undefined;
+  onSelectTrade?: ((id: string) => void) | undefined;
+  onShowAllTrades?: (() => void) | undefined;
+  tickSize?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const countdownRef = useRef<HTMLDivElement | null>(null);
@@ -973,18 +988,17 @@ export function PriceChart({
     const series = seriesRef.current;
     if (!series) return;
     for (const line of tradeLinesRef.current) series.removePriceLine(line);
-    tradeLinesRef.current = openTrades.map((t) =>
-      series.createPriceLine({
+
+    tradeLinesRef.current = openTrades
+      .filter(t => !enableBrackets || t.durationSec == null)
+      .map(t => series.createPriceLine({
         price: t.entryPrice,
         color: t.direction === "UP" ? UP : DOWN,
-        lineWidth: 2,
-        lineStyle: LineStyle.Solid,
-        axisLabelVisible: true,
+        lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true,
         axisLabelTextColor: BRAND_INK,
         title: `${t.direction === "UP" ? "▲" : "▼"} ${formatMinor(t.stake, currency)}`,
-      }),
-    );
-  }, [openTrades, currency, chartVersion]);
+      }));
+  }, [openTrades, currency, chartVersion, enableBrackets]);
 
   return (
     <>
@@ -992,6 +1006,8 @@ export function PriceChart({
           internal z-index:50 canvases stay trapped below the overlay controls
           (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
+      {enableBrackets && <ChartBrackets key={`${bracketScope}:${focusedTradeId ?? "all"}`} focusedTradeId={focusedTradeId} onSelectTrade={onSelectTrade} onShowAllTrades={onShowAllTrades} actionsContainer={bracketActionsContainer} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
+        precision={precision} tickSize={tickSize ?? 10 ** -precision} currency={currency} chartVersion={chartVersion} market={market} />}
 
 
 

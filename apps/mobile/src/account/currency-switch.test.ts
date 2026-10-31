@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { USD_INR_RATE } from "@asm/contracts";
 import { ApiError } from "@/api/errors";
 import {
   CURRENCY_SWITCH_TIMEOUT_MS,
@@ -28,18 +29,18 @@ describe("currencyRows", () => {
   it("lists Demo then Live, each with the other currency and the converted preview of the whole balance", () => {
     const rows = currencyRows([LIVE, DEMO]);
     expect(rows.map((r) => r.type)).toEqual(["DEMO", "LIVE"]);
-    // Demo: INR minor (paise) / 100 = cents.
-    expect(rows[0]).toMatchObject({ accountId: "d1", currency: "INR", next: "USD", totalMinor: 10_00_000_00, previewMinor: 10_00_000_00 / 100 });
-    // Live: real + bonus, USD cents * 100 = paise.
-    expect(rows[1]).toMatchObject({ accountId: "l1", currency: "USD", next: "INR", totalMinor: 1_284_56, previewMinor: 1_284_56 * 100 });
+    // Demo: INR minor (paise) / 110 = cents (₹110 = $1), rounded.
+    expect(rows[0]).toMatchObject({ accountId: "d1", currency: "INR", next: "USD", totalMinor: 10_00_000_00, previewMinor: 9_09_091 });
+    // Live: real + bonus, USD cents * 110 = paise.
+    expect(rows[1]).toMatchObject({ accountId: "l1", currency: "USD", next: "INR", totalMinor: 1_284_56, previewMinor: 1_284_56 * USD_INR_RATE });
   });
   it("prefers the socket's live balance over the bootstrap's", () => {
     const rows = currencyRows([DEMO, LIVE], { l1: { realBalance: 200_00, bonusBalance: 0 } });
-    expect(rows[1]).toMatchObject({ totalMinor: 200_00, previewMinor: 200_00 * 100 });
+    expect(rows[1]).toMatchObject({ totalMinor: 200_00, previewMinor: 200_00 * USD_INR_RATE });
   });
   it("rounds an INR to USD preview the way the server does", () => {
     const rows = currencyRows([{ ...DEMO, realBalance: 15_050, bonusBalance: 49 }]);
-    expect(rows[0]!.previewMinor).toBe(Math.round(15_099 / 100));
+    expect(rows[0]!.previewMinor).toBe(Math.round(15_050 / USD_INR_RATE) + Math.round(49 / USD_INR_RATE));
   });
   it("rounds the real and the bonus balance separately, as the server does (149 + 149 paise is 2 cents, not 3)", () => {
     const rows = currencyRows([{ ...DEMO, realBalance: 149, bonusBalance: 149 }]);

@@ -1,5 +1,6 @@
 import { parsePaymentKey } from "@asm/contracts";
 import {
+  creditedMinorByDeposit,
   depositCreditMinor,
   getDepositForActor,
   getWithdrawalForActor,
@@ -12,12 +13,13 @@ import type { PaymentRow } from "./history-model";
 import { depositRow, withdrawalRow } from "./payment-rows";
 
 /**
- * One deposit as a row: its credited figure in the LIVE account currency, falling back to its own USD value
- * when that can't be derived (see `loadPaymentRows`).
+ * One deposit as a row: what the ledger says was credited (`creditedMinor`, already in the LIVE account currency)
+ * when there is one, else what the deposit will credit now, falling back to its own USD value when neither can be
+ * derived (see `loadPaymentRows`).
  */
-function depositRowFor(d: Deposit, liveCurrency: string): PaymentRow {
+function depositRowFor(d: Deposit, liveCurrency: string, creditedMinor?: number): PaymentRow {
   try {
-    return depositRow(d, depositCreditMinor(d, liveCurrency), liveCurrency);
+    return depositRow(d, creditedMinor ?? depositCreditMinor(d, liveCurrency), liveCurrency);
   } catch {
     const usd = d.method === "USDT" ? (d.amountUsdtMinor ?? 0) : d.amountUsd;
     return depositRow(d, usd, "USD");
@@ -30,10 +32,12 @@ function depositRowFor(d: Deposit, liveCurrency: string): PaymentRow {
  * `limit` rows in total (up to `limit` of each kind are fetched, then the merged
  * list is cut). `before` pages by creation time.
  *
- * Deposit amounts are shown in the user's LIVE account currency, the same
- * figure that was (or will be) credited, via `depositCreditMinor`. If that
- * can't be derived (e.g. a legacy account currency) it falls back to the
- * deposit's own USD value instead of hiding the row.
+ * Deposit amounts are shown in the user's LIVE account currency. A completed
+ * deposit shows what the ledger says was credited (restated in the current
+ * currency if the account switched since), so it never drifts when the rate
+ * changes; a pending one shows what it will credit, via `depositCreditMinor`.
+ * If neither can be derived (e.g. a legacy account currency) it falls back to
+ * the deposit's own USD value instead of hiding the row.
  */
 export async function loadPaymentRows(userId: string, limit = 50, before?: Date): Promise<PaymentRow[]> {
   const [deposits, withdrawals, accounts] = await Promise.all([
@@ -41,9 +45,16 @@ export async function loadPaymentRows(userId: string, limit = 50, before?: Date)
     listWithdrawalsForActor(userId, limit, before),
     listAccountsForActor(userId),
   ]);
-  const liveCurrency = accounts.find((a) => a.type === "LIVE")?.currency ?? "INR";
+  const live = accounts.find((a) => a.type === "LIVE");
+  const liveCurrency = live?.currency ?? "INR";
+  const credited = live
+    ? await creditedMinorByDeposit(live.id, deposits.filter((d) => d.status === "COMPLETED"), liveCurrency)
+    : new Map<string, number>();
 
-  const rows: PaymentRow[] = [...deposits.map((d) => depositRowFor(d, liveCurrency)), ...withdrawals.map((w) => withdrawalRow(w))];
+  const rows: PaymentRow[] = [
+    ...deposits.map((d) => depositRowFor(d, liveCurrency, credited.get(d.id))),
+    ...withdrawals.map((w) => withdrawalRow(w)),
+  ];
   return rows
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, limit);
@@ -62,5 +73,12 @@ export async function loadPaymentRow(userId: string, key: string): Promise<Payme
     return w ? withdrawalRow(w) : null;
   }
   const [d, accounts] = await Promise.all([getDepositForActor(userId, parsed.id), listAccountsForActor(userId)]);
-  return d ? depositRowFor(d, accounts.find((a) => a.type === "LIVE")?.currency ?? "INR") : null;
+  if (!d) return null;
+  const live = accounts.find((a) => a.type === "LIVE");
+  const liveCurrency = live?.currency ?? "INR";
+  const credited =
+    live && d.status === "COMPLETED"
+      ? await creditedMinorByDeposit(live.id, [d], liveCurrency)
+      : new Map<string, number>();
+  return depositRowFor(d, liveCurrency, credited.get(d.id));
 }

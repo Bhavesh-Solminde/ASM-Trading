@@ -1,5 +1,6 @@
 export { prisma } from "./client";
 export { toMinor, toMajor, formatMoney } from "./money";
+export { LEADERBOARD_COUNTRIES, normalizeCountry, isLeaderboardCountry } from "./country";
 export {
   listAccountsForActor,
   getAccountForActor,
@@ -50,6 +51,7 @@ export {
 } from "./repositories/fraud";
 export {
   dailyLeaderboard,
+  leaderboardCurrencyFor,
   type LeaderboardEntry,
   type LeaderboardResult,
 } from "./repositories/leaderboard";
@@ -72,7 +74,6 @@ export {
   DepositAlreadyResolved,
   DepositReversalRefused,
   UtrAlreadyClaimed,
-  USD_TO_INR_RATE,
   OFFSET_LOW,
   OFFSET_SPACE,
   DEPOSIT_TTL_MINUTES,
@@ -92,6 +93,7 @@ export {
   MAX_DEPOSIT_USDT_MINOR,
   USDT_RESERVATION_QUARANTINE_MS,
   depositCreditMinor,
+  creditedMinorByDeposit,
   expireStaleUsdtDeposits,
   createDepositIntent,
   createUsdtDepositIntent,

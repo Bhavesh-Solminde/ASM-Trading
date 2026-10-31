@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { AD_ENTRY_KEY } from "@/lib/ad-landing";
 
 /* ---------------------------------------------------------------------------
  * Meta (Facebook) Pixel — mounted only on the landing, login and register
@@ -17,8 +18,9 @@ import { useEffect } from "react";
  * so a client-side hop between these pages records no extra PageView — the
  * entry page (the ad click's landing) is what gets counted.
  *
- * The ID comes from metaPixelId() in @/lib/meta-pixel, read server-side by the
- * page; with META_PIXEL_ID unset — local dev, tests — nothing loads.
+ * The IDs come from metaPixelIds() in @/lib/meta-pixel, read server-side by
+ * the page; with META_PIXEL_ID unset — local dev, tests — nothing loads. With
+ * several IDs, each is init'ed and one fbq("track") reports to all of them.
  * ------------------------------------------------------------------------- */
 
 type Fbq = ((...args: unknown[]) => void) & {
@@ -40,7 +42,7 @@ declare global {
 const SCRIPT_SRC = "https://connect.facebook.net/en_US/fbevents.js";
 const initialised = new Set<string>();
 
-function loadPixel(pixelId: string): Fbq {
+function loadPixels(pixelIds: string[]): Fbq {
   if (!window.fbq) {
     const fbq = function (...args: unknown[]) {
       if (fbq.callMethod) fbq.callMethod(...args);
@@ -60,7 +62,8 @@ function loadPixel(pixelId: string): Fbq {
     document.head.appendChild(script);
   }
   const fbq = window.fbq;
-  if (!initialised.has(pixelId)) {
+  for (const pixelId of pixelIds) {
+    if (initialised.has(pixelId)) continue;
     fbq("set", "autoConfig", false, pixelId);
     fbq("init", pixelId);
     initialised.add(pixelId);
@@ -68,22 +71,50 @@ function loadPixel(pixelId: string): Fbq {
   return fbq;
 }
 
-export function MetaPixel({ pixelId }: { pixelId: string | null }) {
-  useEffect(() => {
-    if (!pixelId) return;
-    loadPixel(pixelId)("track", "PageView");
-  }, [pixelId]);
+/**
+ * Fire a standard event (e.g. CompleteRegistration) to every initialised
+ * pixel. No-op when no pixel was mounted on this page load. If fbevents.js is
+ * still loading the call is queued, and a client-side route change keeps the
+ * queue alive until it flushes.
+ */
+export function trackPixelEvent(event: string) {
+  window.fbq?.("track", event);
+}
 
-  if (!pixelId) return null;
+/** Custom funnel events contain only action context, never account details. */
+export function trackPixelCustomEvent(event: string, parameters: Record<string, string> = {}) {
+  window.fbq?.("trackCustom", event, parameters);
+}
+
+export function trackLogin(method: "email" | "google") {
+  let source = "website";
+  try {
+    if (sessionStorage.getItem(AD_ENTRY_KEY) === "/start") source = "ad_landing";
+  } catch { /* Tracking must never block authentication. */ }
+  trackPixelCustomEvent("Login", { method, source });
+}
+
+export function MetaPixel({ pixelIds }: { pixelIds: string[] }) {
+  // Stable dep: a fresh array from the server each render must not re-fire.
+  const key = pixelIds.join(",");
+  useEffect(() => {
+    if (!key) return;
+    loadPixels(key.split(","))("track", "PageView");
+  }, [key]);
+
+  if (pixelIds.length === 0) return null;
   return (
     <noscript>
-      <img
-        height="1"
-        width="1"
-        style={{ display: "none" }}
-        alt=""
-        src={`https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`}
-      />
+      {pixelIds.map((id) => (
+        <img
+          key={id}
+          height="1"
+          width="1"
+          style={{ display: "none" }}
+          alt=""
+          src={`https://www.facebook.com/tr?id=${id}&ev=PageView&noscript=1`}
+        />
+      ))}
     </noscript>
   );
 }

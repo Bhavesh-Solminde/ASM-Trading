@@ -61,12 +61,10 @@ export function MarketSelector({
   const { favourites, toggle: toggleFavourite } = useFavouriteMarkets();
 
   const toggleOpen = useCallback(() => {
-    setOpen((prev) => {
-      const next = !prev;
-      onOpenChange?.(next);
-      return next;
-    });
-  }, [onOpenChange]);
+    const next = !open;
+    setOpen(next);
+    onOpenChange?.(next);
+  }, [open, onOpenChange]);
 
   const close = useCallback(() => {
     setOpen(false);

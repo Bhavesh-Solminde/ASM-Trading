@@ -10,6 +10,7 @@ import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
 const REJECTION_MESSAGE: Record<string, string> = {
+  trading_model_mismatch: "Trading mode changed. Refresh the page before placing another trade.",
   insufficient_funds: "Not enough balance for that stake.",
   unknown_asset: "That asset is not available right now.",
   account_not_found: "Account not found.",
@@ -56,8 +57,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Account not found." }, { status: 404 });
   }
 
-  // Stale-currency guard. The account can be converted (INR <-> USD, ₹100 = $1) from another tab or device while a
-  // ticket is open; a stake typed for the old currency would then be 100x off. A client that states its currency
+  // Stale-currency guard. The account can be converted (INR <-> USD, ₹110 = $1) from another tab or device while a
+  // ticket is open; a stake typed for the old currency would then be 110x off. A client that states its currency
   // is refused on a mismatch (before the minimum-stake check, which would blame the wrong number). Clients that
   // send none (older app builds, cached web pages) are unaffected.
   if (parsed.data.currency && parsed.data.currency !== account.currency) {

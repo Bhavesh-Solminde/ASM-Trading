@@ -1,11 +1,17 @@
+import { marketStatus } from "@asm/contracts";
+import { tradeViewFrom } from "@asm/contracts";
 import Redis from "ioredis";
 import { config } from "@asm/config";
 import { logger } from "@asm/logger";
 import { prisma } from "@asm/db";
 import { AssetRegistry } from "./assets/registry";
 import { EngineServer } from "./server";
-import { startTickLoop } from "./loop";
+import { startTickLoop, type CfdDeps } from "./loop";
 import { createPriceFeed } from "./feeds";
+import { QuoteBuffer } from "./feeds/quote-buffer";
+import { GapTracker } from "./trading/gap";
+import { loadGapSnapshot, startGapSnapshotLoop } from "./trading/gap-persistence";
+import { CfdDesk } from "./trading/cfd-desk";
 import { createTicketAuthenticator } from "./auth/ws-ticket";
 import { createInternalApi } from "./internal-api";
 import { TradeDesk } from "./trading/trade-desk";
@@ -25,6 +31,10 @@ async function main(): Promise<void> {
   // Built first: a missing ENGINE_INTERNAL_SECRET must fail before hydrate
   // voids trades or the tick loop starts settling them.
   let desk: TradeDesk | null = null;
+  let _cfdDesk: CfdDesk | null = null;
+  let _registry: AssetRegistry | null = null;
+
+  let liveQuoteBuffer: QuoteBuffer | undefined;
   const internal = createInternalApi({
     desk: {
       open: (input) => {
@@ -34,10 +44,21 @@ async function main(): Promise<void> {
     },
     secret: process.env.ENGINE_INTERNAL_SECRET ?? "",
     port: HTTP_PORT,
+    ...(process.env.TRADING_MODEL === "CFD" && {
+      cfdDesk: new Proxy({} as CfdDesk, {
+        get(_target, prop) {
+          if (!_cfdDesk) throw new Error("cfd desk not ready");
+          return (_cfdDesk as unknown as Record<string, unknown>)[prop as string];
+        },
+      }),
+      marketStatus: (symbol: string) => marketStatus(symbol, liveQuoteBuffer?.latest(symbol)?.ts),
+      shownMidPrice: (symbol: string) => _registry?.publishedPrice(symbol) ?? 0,
+    }),
   });
 
   const registry = new AssetRegistry(Date.now() & 0x7fffffff);
   await registry.load();
+  _registry = registry;
 
   if (registry.symbols().length === 0) {
     throw new Error(
@@ -52,22 +73,63 @@ async function main(): Promise<void> {
   const controller = new ControllerBridge(Date.now() & 0x7fffffff);
 
   desk = new TradeDesk(registry, server, controller);
-  await desk.hydrate(Math.floor(Date.now() / 1000));
+  const IS_CFD = process.env.TRADING_MODEL === "CFD";
+  if (!IS_CFD) await desk.hydrate(Math.floor(Date.now() / 1000));
+  let cfdDeps: CfdDeps | undefined;
+  let feed: Awaited<ReturnType<typeof createPriceFeed>> | null = null;
+  let gapSnapshotLoop: { stop: () => Promise<void> } | null = null;
 
-  const loop = startTickLoop(registry, server, desk);
+  if (IS_CFD) {
+    const quoteBuffer = new QuoteBuffer();
+    liveQuoteBuffer = quoteBuffer;
+    const gapTracker = new GapTracker();
+    const cfdDesk = new CfdDesk(async (tradeId) => {
+      const trade = await prisma.trade.findUniqueOrThrow({
+        where: { id: tradeId }, include: { asset: true, account: true },
+      });
+      server.sendToUser(trade.account.userId, {
+        type: "trade:settled", trade: tradeViewFrom(trade, trade.asset.symbol),
+      });
+      server.sendToUser(trade.account.userId, {
+        type: "balance:update", accountId: trade.accountId,
+        realBalance: trade.account.realBalance, bonusBalance: trade.account.bonusBalance,
+      });
+    }, (result, actorId) => {
+      server.sendToUser(actorId, { type: "balance:update", accountId: result.trade.accountId, ...result.balances });
+    });
 
-  // Every market is house-first with the algo owning both the shown and the
-  // honest path. External price feeds would tug on both via the L4 anchor,
-  // undermining that authority — so unless EXTERNAL_ANCHORS=on is set for a
-  // debugging session, we skip feed startup entirely and no `setAnchor` call
-  // is ever made. Preserves the code path for future re-enablement.
-  const externalAnchors = process.env["EXTERNAL_ANCHORS"] === "on";
-  const feed = externalAnchors ? createPriceFeed(registry.symbols()) : null;
-  if (feed) {
+    for (const asset of registry.all()) {
+      const sigma1h = registry.sigmaNow(asset.symbol) * Math.sqrt(3600);
+      gapTracker.registerAsset(asset.symbol, { sigma1h, maxGapMultiple: 3 });
+    }
+
+    // Resume the magnet gap from before the last restart so the first
+    // post-restart tick doesn't snap shown price by the full pre-restart gap.
+    // Must run AFTER registerAsset for every asset — restore() skips unknown
+    // symbols. See apps/engine/src/trading/gap-persistence.ts for the why.
+    await loadGapSnapshot(gapTracker);
+    gapSnapshotLoop = startGapSnapshotLoop(gapTracker);
+
+    _cfdDesk = cfdDesk;
+    cfdDeps = { quoteBuffer, gapTracker, cfdDesk };
+
+    feed = createPriceFeed(registry.symbols());
     await feed.start((quote) => {
+      quoteBuffer.update(quote);
       registry.setAnchor(quote.symbol, quote.price);
     });
+  } else {
+    // Binary mode: external anchors only if explicitly enabled.
+    const externalAnchors = process.env["EXTERNAL_ANCHORS"] === "on";
+    feed = externalAnchors ? createPriceFeed(registry.symbols()) : null;
+    if (feed) {
+      await feed.start((quote) => {
+        registry.setAnchor(quote.symbol, quote.price);
+      });
+    }
   }
+
+  const loop = startTickLoop(registry, server, desk, cfdDeps);
 
   await internal.listen();
 
@@ -83,7 +145,7 @@ async function main(): Promise<void> {
   const reconciliationRunner = startReconciliationRunner();
 
   const crowd = new BotCrowd(registry, desk, (Date.now() >>> 1) & 0x7fffffff);
-  if (process.env.BOTS_ENABLED !== "false") {
+  if (process.env.TRADING_MODEL !== "CFD" && process.env.BOTS_ENABLED !== "false") {
     await crowd.provision();
     crowd.start();
   }
@@ -102,6 +164,7 @@ async function main(): Promise<void> {
     loop.stop(); // collect no new settlements
     await desk?.stop(); // let captured settlements persist (bounded)
     if (feed) await feed.stop();
+    if (gapSnapshotLoop) await gapSnapshotLoop.stop(); // one last gap persist before exit
     await server.stop();
     await redis.quit();
     await prisma.$disconnect();

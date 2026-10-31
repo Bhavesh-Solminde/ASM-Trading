@@ -5,7 +5,7 @@ import { TableControls } from "../../_components/TableControls";
 import { Avatar, EmptyRow, PageHead, Pager, StatusPill, TabBar } from "../../_components/ui";
 import { Icon } from "../../_lib/icons";
 import { PAYOUT_METHOD_LABEL, USDT_NETWORK_INFO, isUsdtNetwork } from "@asm/contracts";
-import { hrefWith, fmtDate, inrFromMinor, timeAgo } from "../../_lib/format";
+import { hrefWith, fmtDate, moneyFromMinor, timeAgo } from "../../_lib/format";
 import {
   approveWithdrawalAction,
   markWithdrawalPaidAction,
@@ -21,7 +21,7 @@ const PER_PAGE = 20;
 type Tab = "pending" | "approved" | "held" | "history";
 
 function money(minor: number, currency: string): string {
-  return currency === "INR" ? inrFromMinor(minor) : inrFromMinor(minor);
+  return moneyFromMinor(minor, currency);
 }
 
 function userName(u: { firstName: string | null; lastName: string | null; email: string }): string {

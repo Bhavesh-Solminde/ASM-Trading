@@ -23,6 +23,12 @@ export default async function PlatformLayout({ children }: { children: React.Rea
 
   const boot = await loadPlatformBootstrap(session.userId);
 
+  // Kick a frozen or banned user out of the trading surface entirely, even
+  // if their cookie slipped past the session delete. Mirrors the trade and
+  // withdrawal gates in packages/db. FLAGGED is a watchlist marker and stays
+  // in. A missing user row (deleted account) also fails closed.
+  if (!boot.active) redirect("/login?suspended=1");
+
   return (
     <PlatformProvider
       assets={boot.assets as PlatformAsset[]}

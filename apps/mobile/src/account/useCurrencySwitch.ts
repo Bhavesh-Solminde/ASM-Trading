@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Alert } from "react-native";
 import { useTranslation } from "react-i18next";
+import { USD_INR_RATE } from "@asm/contracts";
 import { api } from "@/api/client";
 import { invalidateMoney } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
@@ -35,7 +36,7 @@ export function useCurrencySwitch() {
   const confirmSwitch = (row: CurrencyRow) => {
     const from = money(row.totalMinor, row.currency);
     const to = money(row.previewMinor, row.next);
-    Alert.alert(t("currency.confirmTitle", { currency: row.next }), t("currency.confirmBody", { from, to }), [
+    Alert.alert(t("currency.confirmTitle", { currency: row.next }), t("currency.confirmBody", { from, to, rate: USD_INR_RATE }), [
       { text: t("common.cancel"), style: "cancel" },
       { text: t("currency.switchTo", { currency: row.next }), onPress: () => void submitter.current?.(row.accountId, row.next) },
     ]);

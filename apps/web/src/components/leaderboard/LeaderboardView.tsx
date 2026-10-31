@@ -48,7 +48,7 @@ function Row({ rank, entry, highlight }: { rank: number; entry: LeaderboardEntry
   );
 }
 
-export function LeaderboardView({ result }: { result: LeaderboardResultDto }) {
+export function LeaderboardView({ result, currency }: { result: LeaderboardResultDto; currency: string }) {
   const { entries, you } = result;
   return (
     <section aria-label="Daily standings" className="grid gap-4">
@@ -60,7 +60,7 @@ export function LeaderboardView({ result }: { result: LeaderboardResultDto }) {
           <div className="text-xs text-ink-2">Your position: {you.rank ?? "—"}</div>
         </div>
         <div className={`font-bold tabular-nums ${(you.entry?.pnlMinor ?? 0) >= 0 ? "text-up" : "text-down"}`}>
-          {you.entry ? formatMoney(you.entry.pnlMinor, you.entry.currency) : formatMoney(0, "INR")}
+          {you.entry ? formatMoney(you.entry.pnlMinor, you.entry.currency) : formatMoney(0, currency)}
         </div>
       </div>
 

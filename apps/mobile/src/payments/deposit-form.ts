@@ -98,7 +98,7 @@ export function bonusPreview(config: DepositConfig, rupees: number): BonusPrevie
 
 /**
  * The `POST /api/deposits` body, parsed through the contract so a body the server would refuse is never sent.
- * UPI amounts are paise; USDT amounts are USDT cents (₹100 = $1), the same figure the website sends.
+ * UPI amounts are paise; USDT amounts are USDT cents (₹110 = $1), the same figure the website sends.
  */
 export function depositBody(method: DepositMethod, rupees: number, network?: UsdtNetwork): CreateDepositInput {
   const body =

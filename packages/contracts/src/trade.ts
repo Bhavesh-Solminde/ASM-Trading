@@ -49,7 +49,7 @@ export const EngineOpenTradeSchema = z.strictObject({
 });
 export type EngineOpenTradeInput = z.infer<typeof EngineOpenTradeSchema>;
 
-export type TradeStatusDto = "OPEN" | "WON" | "LOST" | "REFUNDED";
+export type TradeStatusDto = "OPEN" | "WON" | "LOST" | "REFUNDED" | "CLOSED";
 
 export interface TradeView {
   id: string;
@@ -57,7 +57,15 @@ export interface TradeView {
   symbol: string;
   direction: DirectionDto;
   stake: number;
+  /** Opening fee in minor units, already deducted from balance. */
+  spreadFee?: number;
+  leverage?: number;
+  /** Absolute prices for CFD protection orders. */
+  stopLoss?: number | null;
+  takeProfit?: number | null;
   payoutPct: number;
+  /** Present for CFD positions; null or absent for binary trades. */
+  durationSec?: number | null;
   entryPrice: number;
   /** Epoch seconds. */
   entryTs: number;
@@ -84,7 +92,15 @@ export interface TradeRowLike {
   accountId: string;
   direction: DirectionDto;
   stake: number;
+  /** Opening fee in minor units, already deducted from balance. */
+  spreadFee?: number;
+  leverage?: number;
+  /** Absolute prices for CFD protection orders. */
+  stopLoss?: number | null;
+  takeProfit?: number | null;
   payoutPct: number;
+  /** Present for CFD positions; null or absent for binary trades. */
+  durationSec?: number | null;
   entryPrice: number;
   entryTs: Date;
   expiryTs: Date;
@@ -105,7 +121,12 @@ export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
     symbol,
     direction: row.direction,
     stake: row.stake,
+    spreadFee: row.spreadFee ?? 0,
+    leverage: row.leverage ?? 1,
+    stopLoss: row.stopLoss ?? null,
+    takeProfit: row.takeProfit ?? null,
     payoutPct: row.payoutPct,
+    durationSec: row.durationSec ?? null,
     entryPrice: row.entryPrice,
     entryTs: Math.floor(row.entryTs.getTime() / 1000),
     expiryTs: Math.floor(row.expiryTs.getTime() / 1000),
@@ -114,3 +135,5 @@ export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
     pnl: row.pnl,
   };
 }
+
+export * from "./cfd-trade";

@@ -171,6 +171,7 @@
     "statusWon": "Won",
     "statusLost": "Lost",
     "statusRefund": "Refund",
+    "statusClosed": "Closed",
     "catAll": "All",
     "catStarred": "Starred",
     "catCrypto": "Crypto",
@@ -420,12 +421,12 @@
   },
   "currency": {
     "title": "Currency",
-    "intro": "Switch an account between rupees and dollars. Your whole balance converts at a fixed rate of ₹100 = $1, and the rate does not follow the market.",
+    "intro": "Switch an account between rupees and dollars. Your whole balance converts at a fixed rate of ₹{{rate}} = $1, and the rate does not follow the market. You can switch only when you have no open trade and no withdrawal in progress.",
     "balance": "Balance",
     "switchTo": "Switch to {{currency}}",
     "preview": "{{from}} becomes about {{to}}",
     "confirmTitle": "Switch to {{currency}}?",
-    "confirmBody": "{{from}} becomes about {{to}}. Your whole balance, bonus included, and your trades convert at the fixed rate of ₹100 = $1. Amounts are rounded to the nearest cent.",
+    "confirmBody": "{{from}} becomes about {{to}}. Your whole balance, bonus included, converts at the fixed rate of ₹{{rate}} = $1. Amounts are rounded to the nearest cent.",
     "done": "Switched to {{currency}}",
     "timedOut": "No reply yet. Check your balance before trying again."
   },
