@@ -10,12 +10,6 @@ import type { Deposit } from "../models";
 type Tx = DbTransaction;
 
 /**
- * The PSP-style conversion rate. Deliberately above interbank — that spread is
- * the margin the real processors take before a customer has traded anything.
- */
-export const USD_TO_INR_RATE = 107.64;
-
-/**
  * The offset window is symmetric around the converted base amount: from
  * OFFSET_LOW to OFFSET_LOW + OFFSET_SPACE - 1 paise, i.e. -999 to +1000 for
  * the current values — roughly ±₹10, ~2,000 distinct slots. This is the pool
@@ -26,10 +20,12 @@ export const OFFSET_LOW = -999;
 export const OFFSET_SPACE = 2000;
 
 export const DEPOSIT_TTL_MINUTES = 60;
+// DISPLAY ONLY (admin settings page): these USD figures are not enforced anywhere.
+// The enforced deposit limits are the INR (UPI) and USDT bounds below.
 export const MIN_DEPOSIT_USD_MINOR = 500; // $5.00
 export const MAX_DEPOSIT_USD_MINOR = 96_100; // $961.00
 // Deposits are collected in rupees over UPI. Paise (minor units).
-// ₹100 ≈ $1, so the ₹500 UPI minimum is about $5.
+// At the shared ₹110 = $1 rate (USD_INR_RATE) the ₹500 UPI minimum is about $4.55.
 export const MIN_DEPOSIT_INR_MINOR = 50_000; // ₹500.00
 export const MAX_DEPOSIT_INR_MINOR = 100_000_000; // ₹10,00,000.00
 
@@ -115,9 +111,10 @@ export async function createDepositIntent(input: {
   }
 
   // The user enters rupees; that is the amount reserved and, for an INR
-  // account, credited. The USD figure is kept for the record only.
+  // account, credited. A USD account is credited the rupees actually paid
+  // (base + offset) converted at the shared rate, so depositing in INR and then
+  // switching lands on exactly the same dollars as the deposit credits directly.
   const baseInr = input.amountInrMinor;
-  const amountUsd = Math.round(input.amountInrMinor / USD_TO_INR_RATE);
   const expiresAt = new Date(Date.now() + DEPOSIT_TTL_MINUTES * 60_000);
 
   const start = randomBytes(2).readUInt16BE(0) % OFFSET_SPACE;
@@ -125,6 +122,7 @@ export async function createDepositIntent(input: {
   for (let probe = 0; probe < OFFSET_SPACE; probe++) {
     const offset = OFFSET_LOW + ((start + probe) % OFFSET_SPACE);
     const amountInr = baseInr + offset;
+    const amountUsd = convertMinorBetween(amountInr, "INR", "USD");
 
     try {
       return await prisma.deposit.create({
@@ -718,13 +716,14 @@ export async function creditDepositToAccount(input: {
     }
   }
 
-  // Credit in the account's own currency — see depositCreditMinor. For an
-  // admin resolution the credit is what actually arrived on-chain, which may
-  // differ from what the deposit reserved.
+  // For an admin resolution the credit is what actually arrived on-chain, which
+  // may differ from what the deposit reserved.
   const usdtOverride = admin?.usdtMinorOverride ?? received;
-  const credit = depositCreditMinor(deposit, account.currency, usdtOverride);
 
-  // Set inside the transaction; read after commit for the email.
+  // Set inside the transaction; read after commit for the email. The credit is
+  // computed there too: see the account lock below.
+  let credit = 0;
+  let creditCurrency = account.currency;
   let grantedBonus = 0;
 
   await prisma.$transaction(async (tx) => {
@@ -779,10 +778,17 @@ export async function creditDepositToAccount(input: {
     // Lock the LIVE account row before counting, so two of the user's deposits
     // completing at once can't both see the same deposit number: the second
     // blocks here until the first commits, and its count then includes it.
-    await tx.account.update({
+    const locked = await tx.account.update({
       where: { id: account.id },
       data: { version: { increment: 1 } },
+      select: { currency: true },
     });
+    // Credit in the account's own currency (see depositCreditMinor) as it is NOW,
+    // under the lock — not as it was when this function started. A currency
+    // switch holds this same row lock while it converts, so a credit computed
+    // from the pre-transaction read could land INR paise on a USD balance (100x).
+    creditCurrency = locked.currency;
+    credit = depositCreditMinor(deposit, creditCurrency, usdtOverride);
     // This deposit is already COMPLETED inside the transaction, so it counts.
     const depositNumber = await tx.deposit.count({
       where: { userId: deposit.userId, status: "COMPLETED" },
@@ -884,12 +890,113 @@ export async function creditDepositToAccount(input: {
     to: deposit.user.email,
     name: personName(deposit.user),
     depositId: deposit.id,
-    creditLabel: formatMoney(credit, account.currency),
-    bonusLabel: grantedBonus > 0 ? formatMoney(grantedBonus, account.currency) : null,
-    totalLabel: formatMoney(credit + grantedBonus, account.currency),
+    creditLabel: formatMoney(credit, creditCurrency),
+    bonusLabel: grantedBonus > 0 ? formatMoney(grantedBonus, creditCurrency) : null,
+    totalLabel: formatMoney(credit + grantedBonus, creditCurrency),
   }).catch(() => {
     /* sendEmail never throws; this guards a template bug */
   });
+}
+
+type CreditableDeposit = Pick<Deposit, "method" | "amountInr" | "amountUsd" | "amountUsdtMinor">;
+
+/**
+ * The currency a ledger DEPOSIT credit was written in, given the account's
+ * current one. The ledger is written once and never rewritten by a currency
+ * switch (the balance is), and every switch leaves a CURRENCY_CONVERT row, so
+ * the number of switches after the credit says where we are: an even count
+ * means the account is back in the credit's currency, an odd count that it is
+ * in the other one. (Switches only alternate INR and USD.) The credit's
+ * `createdAt` is its transaction's start time, which can precede a switch whose
+ * lock the credit waited on; the credit then already used the switched
+ * currency. So if exactly one currency reproduces the ledger amount at the
+ * deposit's CURRENT figures, and the switch count disagrees, trust the match.
+ */
+function currencyAtCredit(
+  deposit: CreditableDeposit,
+  creditAmount: number,
+  creditedAt: Date,
+  switchTimes: readonly Date[],
+  current: string,
+): string {
+  const after = switchTimes.filter((t) => t.getTime() > creditedAt.getTime()).length;
+  const other = current === "INR" ? "USD" : current === "USD" ? "INR" : current;
+  const byCount = after % 2 === 0 ? current : other;
+  const matches = ["INR", "USD"].filter((c) => {
+    try {
+      return depositCreditMinor(deposit, c) === creditAmount;
+    } catch {
+      return false;
+    }
+  });
+  if (matches.length === 1 && matches[0] !== byCount) return matches[0]!;
+  return byCount;
+}
+
+/**
+ * What the ledger says this deposit credited (real) and granted (bonus),
+ * restated in `current` units, plus `original`: the credit exactly as written
+ * (what `User.cumulativeDeposits` was incremented by, which a switch never
+ * rescales). Null when there is no credit row (legacy), in which case callers
+ * fall back to recomputing from the deposit.
+ */
+async function ledgerCreditInCurrentUnits(
+  db: Pick<Tx, "transaction">,
+  accountId: string,
+  deposit: CreditableDeposit & { id: string },
+  current: string,
+): Promise<{ credit: number; bonus: number; original: number } | null> {
+  const creditRow = await db.transaction.findFirst({
+    where: { accountId, refType: "Deposit", refId: deposit.id, kind: "DEPOSIT", amount: { gt: 0 } },
+    orderBy: { createdAt: "asc" },
+    select: { amount: true, createdAt: true },
+  });
+  if (!creditRow) return null;
+  const grant = await db.transaction.findFirst({
+    where: { accountId, refType: "Deposit", refId: deposit.id, kind: "BONUS_GRANT" },
+    select: { amount: true },
+  });
+  const switches = await db.transaction.findMany({
+    where: { accountId, kind: "CURRENCY_CONVERT", createdAt: { gt: creditRow.createdAt } },
+    select: { createdAt: true },
+  });
+  const was = currencyAtCredit(deposit, creditRow.amount, creditRow.createdAt, switches.map((x) => x.createdAt), current);
+  return {
+    credit: convertMinorBetween(creditRow.amount, was, current),
+    bonus: convertMinorBetween(grant?.amount ?? 0, was, current),
+    original: creditRow.amount,
+  };
+}
+
+/**
+ * The credited amount of each COMPLETED deposit in the account's current
+ * currency, from the ledger (not recomputed at today's rate), for display.
+ * Deposits with no ledger row are absent from the map.
+ */
+export async function creditedMinorByDeposit(
+  accountId: string,
+  deposits: readonly (CreditableDeposit & { id: string })[],
+  current: string,
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (deposits.length === 0) return out;
+  const rows = await prisma.transaction.findMany({
+    where: { accountId, refType: "Deposit", kind: "DEPOSIT", amount: { gt: 0 }, refId: { in: deposits.map((d) => d.id) } },
+    orderBy: { createdAt: "asc" },
+    select: { refId: true, amount: true, createdAt: true },
+  });
+  const switches = (
+    await prisma.transaction.findMany({
+      where: { accountId, kind: "CURRENCY_CONVERT" },
+      select: { createdAt: true },
+    })
+  ).map((x) => x.createdAt);
+  for (const d of deposits) {
+    const row = rows.find((r) => r.refId === d.id);
+    if (!row) continue;
+    out.set(d.id, convertMinorBetween(row.amount, currencyAtCredit(d, row.amount, row.createdAt, switches, current), current));
+  }
+  return out;
 }
 
 export class DepositReversalRefused extends Error {
@@ -951,22 +1058,20 @@ async function performDepositReversal(
   const account = await prisma.account.findFirstOrThrow({
     where: { userId: deposit.userId, type: "LIVE" },
   });
-  // The same figure creditDepositToAccount added (an admin resolution rewrote
-  // amountUsdtMinor to the credited amount, so it is read back here as-is).
-  const credit = depositCreditMinor(deposit, account.currency);
-  // The bonus actually granted for this deposit — its tier depended on the
-  // deposit number at credit time, so it is read back rather than recomputed.
-  const grant = await prisma.transaction.findFirst({
-    where: { accountId: account.id, refType: "Deposit", refId: deposit.id, kind: "BONUS_GRANT" },
-    select: { amount: true },
-  });
-  const bonus = grant?.amount ?? 0;
-
   await prisma.$transaction(async (tx) => {
     const fresh = await tx.account.findUniqueOrThrow({
       where: { id: account.id },
-      select: { realBalance: true, bonusBalance: true, version: true },
+      select: { realBalance: true, bonusBalance: true, version: true, currency: true },
     });
+    // Reclaim what the ledger says was credited and granted (the bonus tier
+    // depended on the deposit number at credit time, and the credit may have
+    // been made at a different rate than today's), restated in the account's
+    // current currency if a switch happened since. Only a deposit with no
+    // ledger row at all falls back to recomputing from the deposit.
+    const ledger = await ledgerCreditInCurrentUnits(tx, account.id, deposit, fresh.currency);
+    const credit = ledger ? ledger.credit : depositCreditMinor(deposit, fresh.currency);
+    const bonus = ledger ? ledger.bonus : 0;
+    const cumulativeCredit = ledger ? ledger.original : credit;
 
     const realCap = Math.min(credit, fresh.realBalance);
     const bonusCap = Math.min(bonus, fresh.bonusBalance);
@@ -998,7 +1103,7 @@ async function performDepositReversal(
 
     await tx.user.update({
       where: { id: deposit.userId },
-      data: { cumulativeDeposits: { decrement: credit } },
+      data: { cumulativeDeposits: { decrement: cumulativeCredit } },
     });
 
     const balanceAfter = fresh.realBalance + fresh.bonusBalance - realCap - bonusCap;

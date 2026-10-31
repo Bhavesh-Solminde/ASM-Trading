@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createAccountsForUser, createUsdtDepositIntent, prisma } from "@asm/db";
+import { USD_INR_RATE, createAccountsForUser, createUsdtDepositIntent, prisma } from "@asm/db";
 import { resolveBscConfig, startBscWatcher } from "./bsc-runner";
 import { TRANSFER_TOPIC } from "./evm-codec";
 import type { EvmChainProvider, EvmReceipt, EvmTransferLog } from "./types";
@@ -204,7 +204,7 @@ describe("startBscWatcher — startup verification", () => {
 });
 
 describe("startBscWatcher — end to end", () => {
-  it("a stub BSC transfer of the exact 18-dp amount is ingested, finalized and credits an INR live account at ×100 paise", async () => {
+  it("a stub BSC transfer of the exact 18-dp amount is ingested, finalized and credits an INR live account at ×USD_INR_RATE paise", async () => {
     const env = configuredEnv({ USDT_AUTO_CONFIRM_ENABLED: "true" });
     setEnv(env);
     const tokenContract = env.USDT_BSC_TOKEN_CONTRACT!;
@@ -263,7 +263,7 @@ describe("startBscWatcher — end to end", () => {
       const depositTx = await prisma.transaction.findFirstOrThrow({
         where: { accountId: liveAccount.id, refType: "Deposit", refId: deposit.id, kind: "DEPOSIT" },
       });
-      expect(depositTx.amount).toBe(usdtMinor * 100);
+      expect(depositTx.amount).toBe(usdtMinor * USD_INR_RATE);
     } finally {
       await prisma.transaction.deleteMany({ where: { account: { userId: user.id } } });
       await prisma.bonusGrant.deleteMany({ where: { account: { userId: user.id } } });

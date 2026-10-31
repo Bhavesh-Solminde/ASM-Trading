@@ -101,3 +101,13 @@ export function hrefWith(
   const qs = params.toString();
   return qs ? `${path}?${qs}` : path;
 }
+
+/**
+ * An amount in its own currency's minor units, formatted with that currency's
+ * symbol. A Withdrawal/Account row's `amount` is in the row's currency, so it
+ * must never be printed with another currency's formatter (a $500 withdrawal
+ * is 50,000 cents and would read as ₹500.00, underpaying the user 100x).
+ */
+export function moneyFromMinor(minor: number, currency: string, dp = 2): string {
+  return currency === "INR" ? inrFromMinor(minor, dp) : usdFromMinor(minor, dp);
+}

@@ -19,10 +19,10 @@ it.each([
     entryPrice: 100, stake: 10000, stakeFromBonus: 2500, leverage: 100,
     expiryTs: new Date(now.getTime() + 60000), stopLoss: null, takeProfit,
     trailingPct: null, liqPrice: null, peakPnl: 0 }]);
-  const update = vi.fn();
+  const update = vi.fn(async () => ({ count: 1 }));
   const credit = vi.fn();
   const treasury = vi.fn();
-  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { update },
+  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { updateMany: update },
     account: { update: credit, findUnique: async () => ({ type: "LIVE" }) },
     houseTreasury: { upsert: treasury } }));
   const notify = vi.fn();
@@ -43,7 +43,7 @@ it.each(["UP", "DOWN"] as const)("caps a manual %s close that beats the automati
   mocks.findUniqueOrThrow.mockResolvedValue({ id: "manual", accountId: "a", direction,
     status: "OPEN", entryPrice: 100, stake: 10000, stakeFromBonus: 0, leverage: 100,
     entryTs: new Date(Date.now() - 60000) });
-  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { update: vi.fn() },
+  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { updateMany: vi.fn(async () => ({ count: 1 })) },
     account: { update: credit, findUnique: async () => ({ type: "DEMO" }) } }));
   const result = await new CfdDesk().manualClose("manual", direction === "UP" ? 110 : 90,
     { id: "asset", symbol: "BTCUSDT", spreadBps: 0 }, 0, 60000);
@@ -60,10 +60,10 @@ it("settles expired positions, credits balances and notifies; a failed row does 
     entryPrice: 100, expiryTs: new Date(now.getTime() - 1000), stopLoss: null,
     takeProfit: null, trailingPct: null, liqPrice: 0, peakPnl: 0 };
   mocks.findMany.mockResolvedValue([{ ...base, id: "fail" }, { ...base, id: "ok" }]);
-  const update = vi.fn(async () => {});
+  const update = vi.fn(async () => ({ count: 1 }));
   const credit = vi.fn(async () => {});
   mocks.transaction.mockRejectedValueOnce(new Error("temporary"))
-    .mockImplementationOnce(async fn => fn({ trade: { update }, account: { update: credit, findUnique: async () => ({ type: "DEMO" }) } }));
+    .mockImplementationOnce(async fn => fn({ trade: { updateMany: update }, account: { update: credit, findUnique: async () => ({ type: "DEMO" }) } }));
   const notify = vi.fn(async () => {});
   const result = await new CfdDesk(notify).scanPositions("asset", "BTCUSDT", 101, now);
   expect(result).toEqual([{ tradeId: "ok", accountId: "account", reason: "DURATION", exitPrice: 101, pnl: 100 }]);
@@ -144,8 +144,8 @@ it("charges the full spread separately, logs it and credits LIVE treasury", asyn
 
 it("returns pure gross PnL on a flat close — the opening fee is not re-subtracted at close", async () => {
   const credit = vi.fn(async () => {});
-  const update = vi.fn(async () => {});
-  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { update },
+  const update = vi.fn(async () => ({ count: 1 }));
+  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { updateMany: update },
     account: { update: credit, findUnique: async () => ({ type: "DEMO" }) } }));
   const result = await new CfdDesk().closePosition({ id: "t", accountId: "a", direction: "UP",
     entryPrice: 100, stake: 100000, stakeFromBonus: 0, spreadFee: 50 }, "DURATION", 100, new Date());
@@ -211,7 +211,7 @@ it.each([
   mocks.findMany.mockResolvedValue([{ id: "protected", accountId: "a", direction, stake: 10000,
     spreadFee: 5, stakeFromBonus: 0, entryPrice: 100, expiryTs: new Date(Date.now() + 60000),
     stopLoss, takeProfit, trailingPct: null, liqPrice: null, peakPnl: 0 }]);
-  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { update: async () => {} },
+  mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { updateMany: async () => ({ count: 1 }) },
     account: { update: async () => {}, findUnique: async () => ({ type: "DEMO" }) } }));
   const result = await new CfdDesk().scanPositions("asset", "BTCUSDT", price, new Date());
   expect(result[0]?.reason).toBe(reason);
@@ -219,7 +219,7 @@ it.each([
 
 it.each([["STOP_LOSS", 80623, -21], ["TAKE_PROFIT", 80629, 53]] as const)("settles 100x %s using rounded paisa and credits the wallet", async (reason, exit, expected) => {
   const credit = vi.fn();
-  mocks.transaction.mockImplementationOnce(async fn => fn({trade:{update:vi.fn()},account:{update:credit,findUnique:async()=>({type:"DEMO"})}}));
+  mocks.transaction.mockImplementationOnce(async fn => fn({trade:{updateMany:vi.fn(async()=>({count:1}))},account:{update:credit,findUnique:async()=>({type:"DEMO"})}}));
   const result = await new CfdDesk().closePosition({id:"leveraged",accountId:"demo",direction:"UP",entryPrice:80624.69,stake:10000,stakeFromBonus:0,leverage:100},reason,exit,new Date());
   expect(result.pnl).toBe(expected);
   expect(credit).toHaveBeenCalledWith(expect.objectContaining({data:{realBalance:{increment:10000+expected},bonusBalance:{increment:0}}}));

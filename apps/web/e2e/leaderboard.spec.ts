@@ -35,6 +35,6 @@ test("leaderboard is region-only, single-currency and FX-correct", async ({ page
   const rupee = names.indexOf("E2E Rupee");
   expect(dollar).toBeGreaterThanOrEqual(0);
   expect(rupee).toBeGreaterThan(dollar);
-  expect(data[dollar]!.amount).toBe("+₹110,800.00"); // $1,108 at ₹100 = $1
+  expect(data[dollar]!.amount).toBe("+₹121,880.00"); // $1,108 at ₹110 = $1
   expect(data[dollar]!.flag).toBe(flagOf("IN")); // stored as "India", shown as 🇮🇳
 });

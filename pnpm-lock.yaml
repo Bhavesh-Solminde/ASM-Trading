@@ -282,6 +282,9 @@ importers:
       '@asm/config':
         specifier: workspace:*
         version: link:../config
+      '@asm/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@asm/logger':
         specifier: workspace:*
         version: link:../logger

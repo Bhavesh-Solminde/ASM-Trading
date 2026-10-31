@@ -18,6 +18,7 @@
   "dependencies": {
     "@asm/algo": "workspace:*",
     "@asm/config": "workspace:*",
+    "@asm/contracts": "workspace:*",
     "@asm/logger": "workspace:*",
     "@asm/mail": "workspace:*",
     "@asm/pricing": "workspace:*",
