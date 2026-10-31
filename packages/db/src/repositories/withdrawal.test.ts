@@ -638,6 +638,8 @@ describe("refunds after a currency switch (rows created before the pending-withd
       const ledger = await prisma.transaction.findFirstOrThrow({ where: { refType: "Withdrawal", refId: w.id } });
       expect(ledger.amount).toBe(50_000);
       expect(ledger.balanceAfter).toBe(51_000);
+      const audit = await prisma.auditLog.findFirstOrThrow({ where: { targetId: w.id, action: "withdrawal.rejected" } });
+      expect(audit.after).toMatchObject({ refund: 50_000, refundCurrency: "USD" });
       await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
     },
   );

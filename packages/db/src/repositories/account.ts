@@ -1,4 +1,4 @@
-import { prisma } from "../client";
+import { prisma, type DbTransaction } from "../client";
 import type { Account } from "../models";
 
 /** Supported account currencies and their DEMO starting balance (minor units). */
@@ -9,8 +9,8 @@ export const DEMO_START_BY_CURRENCY: Record<string, number> = {
 
 export class CurrencyChangeRefused extends Error {
   /** Machine-readable reason, set only for refusals the client acts on. */
-  readonly code?: "pending_withdrawal";
-  constructor(message: string, code?: "pending_withdrawal") {
+  readonly code?: "pending_withdrawal" | "open_positions";
+  constructor(message: string, code?: "pending_withdrawal" | "open_positions") {
     super(message);
     this.name = "CurrencyChangeRefused";
     if (code) this.code = code;
@@ -155,6 +155,41 @@ export async function changeAccountCurrency(input: {
 }
 
 /**
+ * Rewrites a trade's money columns from one currency's minor units to
+ * another's in a single UPDATE. INR→USD must round exactly like
+ * `convertMinorBetween` (JS `Math.round`: half toward +infinity, so −1.5 → −1),
+ * which `FLOOR(x + 0.5)` reproduces and Postgres `ROUND` (half away from zero)
+ * does not. USD→INR is an exact multiply. `spreadFee` and `peakPnl` are the CFD
+ * columns; both are nullable-safe.
+ */
+async function convertTradeAmounts(
+  tx: Pick<DbTransaction, "$executeRaw">,
+  accountId: string,
+  from: string,
+  to: string,
+): Promise<void> {
+  if (from === "INR" && to === "USD") {
+    await tx.$executeRaw`
+      UPDATE "Trade" SET
+        "stake" = FLOOR("stake"::numeric / ${USD_INR_RATE}::numeric + 0.5)::bigint,
+        "stakeFromBonus" = FLOOR("stakeFromBonus"::numeric / ${USD_INR_RATE}::numeric + 0.5)::bigint,
+        "pnl" = FLOOR("pnl"::numeric / ${USD_INR_RATE}::numeric + 0.5)::bigint,
+        "spreadFee" = FLOOR("spreadFee"::numeric / ${USD_INR_RATE}::numeric + 0.5)::int,
+        "peakPnl" = FLOOR("peakPnl"::numeric / ${USD_INR_RATE}::numeric + 0.5)::int
+      WHERE "accountId" = ${accountId}`;
+  } else if (from === "USD" && to === "INR") {
+    await tx.$executeRaw`
+      UPDATE "Trade" SET
+        "stake" = "stake" * ${USD_INR_RATE}::bigint,
+        "stakeFromBonus" = "stakeFromBonus" * ${USD_INR_RATE}::bigint,
+        "pnl" = "pnl" * ${USD_INR_RATE}::bigint,
+        "spreadFee" = "spreadFee" * ${USD_INR_RATE}::int,
+        "peakPnl" = "peakPnl" * ${USD_INR_RATE}::int
+      WHERE "accountId" = ${accountId}`;
+  }
+}
+
+/**
  * Converts an account's balances to another currency at the fixed rate
  * (`convertMinorBetween`). Unlike `changeAccountCurrency` this performs a real
  * cross-currency conversion of `realBalance` and `bonusBalance` — for DEMO and
@@ -180,13 +215,16 @@ export async function convertAccountCurrency(input: {
     // Everything below happens in ONE transaction behind a row lock on the
     // account. The balance used to be read before the transaction and written
     // back blind, so a trade debit, payout or withdrawal that committed in
-    // between was lost (or escaped the conversion). FOR UPDATE makes every
+    // between was lost (or escaped the conversion). FOR NO KEY UPDATE makes every
     // other writer of this account row — versioned or not — wait for us, and
-    // the reads after it see their committed result.
+    // the reads after it see their committed result. NO KEY UPDATE is the lock
+    // a plain UPDATE takes: it conflicts with every balance writer but not with
+    // the KEY SHARE that foreign-key inserts (Trade, Transaction rows) take, so
+    // ledger inserts are not blocked for the length of the switch.
     const locked = await tx.$queryRaw<{ id: string }[]>`
       SELECT "id" FROM "Account"
       WHERE "id" = ${input.accountId} AND "userId" = ${input.actorId}
-      FOR UPDATE`;
+      FOR NO KEY UPDATE`;
     if (locked.length === 0) throw new CurrencyChangeRefused("Account not found.");
 
     const account = await tx.account.findUniqueOrThrow({ where: { id: input.accountId } });
@@ -204,10 +242,24 @@ export async function convertAccountCurrency(input: {
       });
       if (pending > 0) {
         throw new CurrencyChangeRefused(
-          "Finish or cancel your pending withdrawal first.",
+          "You have a withdrawal in progress. You can switch currency once it is paid or rejected.",
           "pending_withdrawal",
         );
       }
+    }
+
+    // Binary settlement and CFD close read a trade's stake and then credit it,
+    // so an OPEN position of either kind (both are Trade rows) would pay out in
+    // the old currency's units after the switch — 100x on INR→USD. Refuse until
+    // none is open. Opening one is serialised against this check: a binary open
+    // debits under the same account row lock (it version-conflicts and retries
+    // against the new currency), and a CFD open's balance update is conditional
+    // on the currency it read, so it fails if the account switched under it.
+    const openPositions = await tx.trade.count({
+      where: { accountId: account.id, status: "OPEN" },
+    });
+    if (openPositions > 0) {
+      throw new CurrencyChangeRefused("Close your open trades first.", "open_positions");
     }
 
     const fromCurrency = account.currency;
@@ -220,21 +272,10 @@ export async function convertAccountCurrency(input: {
     });
     // Convert every trade's integer-minor amounts in-place so the UI (which
     // reads trade.stake/pnl in the account's current currency) stays honest
-    // across the convert — open trades, settled wins and settled losses alike.
-    const trades = await tx.trade.findMany({
-      where: { accountId: account.id },
-      select: { id: true, stake: true, stakeFromBonus: true, pnl: true },
-    });
-    for (const t of trades) {
-      await tx.trade.update({
-        where: { id: t.id },
-        data: {
-          stake: convertMinorBetween(t.stake, fromCurrency, currency),
-          stakeFromBonus: convertMinorBetween(t.stakeFromBonus, fromCurrency, currency),
-          pnl: convertMinorBetween(t.pnl, fromCurrency, currency),
-        },
-      });
-    }
+    // across the convert — settled wins and losses alike (none are OPEN here).
+    // One set-based statement: a per-row loop times out the 5 s interactive
+    // transaction for users with thousands of trades.
+    await convertTradeAmounts(tx, account.id, fromCurrency, currency);
     await tx.transaction.create({
       data: {
         accountId: account.id,

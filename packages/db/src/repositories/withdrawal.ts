@@ -524,7 +524,13 @@ export async function rejectWithdrawal(input: {
             action: "withdrawal.rejected",
             targetType: "Withdrawal",
             targetId: row.id,
-            after: { status: "REJECTED", reason: input.reason ?? null },
+            after: {
+              status: "REJECTED",
+              reason: input.reason ?? null,
+              // Traceability: the figure actually credited, and its units.
+              refund,
+              refundCurrency: fresh.currency,
+            },
           },
         });
       });

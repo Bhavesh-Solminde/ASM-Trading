@@ -59,11 +59,35 @@ describe("POST /api/account/currency", () => {
     const res = await post({ accountId: liveId, currency: "USD" });
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({
-      error: "Finish or cancel your pending withdrawal first.",
+      error: "You have a withdrawal in progress. You can switch currency once it is paid or rejected.",
       code: "pending_withdrawal",
     });
     expect((await prisma.account.findUniqueOrThrow({ where: { id: liveId } })).currency).toBe("INR");
     await prisma.withdrawal.delete({ where: { id: w.id } });
+  });
+
+  it("refuses with 409 and code open_positions while a trade is open", async () => {
+    const asset = await prisma.asset.create({
+      data: { symbol: `CURRT_${RUN.slice(0, 8)}`, displayName: "route test", kind: "OTC", basePrice: 1 },
+    });
+    await prisma.trade.create({
+      data: {
+        accountId: demoId,
+        assetId: asset.id,
+        direction: "UP",
+        stake: 10_000,
+        payoutPct: 92,
+        entryPrice: 1,
+        entryTs: new Date(),
+        expiryTs: new Date(Date.now() + 60_000),
+        status: "OPEN",
+      },
+    });
+    const res = await post({ accountId: demoId, currency: "USD" });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "Close your open trades first.", code: "open_positions" });
+    await prisma.trade.deleteMany({ where: { assetId: asset.id } });
+    await prisma.asset.delete({ where: { id: asset.id } });
   });
 
   it("keeps the plain 409 (no code) for other refusals, e.g. an account that is not yours", async () => {

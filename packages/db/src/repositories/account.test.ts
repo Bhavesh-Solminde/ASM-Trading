@@ -16,6 +16,7 @@ import {
   setDemoBalance,
 } from "./account";
 import { WithdrawalRefused, requestWithdrawal } from "./withdrawal";
+import { ConcurrentModification, openTrade } from "./trade";
 
 let alice = "";
 let bob = "";
@@ -264,7 +265,9 @@ describe("convertAccountCurrency", () => {
         entryPrice: 1,
         entryTs: new Date(),
         expiryTs: new Date(Date.now() + 60_000),
-        status: "OPEN",
+        // An OPEN trade now blocks the switch (see the open-positions suite),
+        // so the in-place rewrite is exercised on a settled (refunded) one.
+        status: "REFUNDED",
         pnl: 0,
       },
     });
@@ -353,7 +356,7 @@ describe("convertAccountCurrency with an in-flight withdrawal", () => {
         (e: unknown) => e,
       );
       expect(err).toBeInstanceOf(CurrencyChangeRefused);
-      expect((err as CurrencyChangeRefused).message).toBe("Finish or cancel your pending withdrawal first.");
+      expect((err as CurrencyChangeRefused).message).toBe("You have a withdrawal in progress. You can switch currency once it is paid or rejected.");
       expect((err as CurrencyChangeRefused).code).toBe("pending_withdrawal");
       // Nothing moved: still INR, balance untouched, no ledger row.
       const after = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
@@ -379,6 +382,31 @@ describe("convertAccountCurrency with an in-flight withdrawal", () => {
     expect(updated.currency).toBe("USD");
   });
 
+  it("requestWithdrawal refuses when the account currency changes between its read and its debit", async () => {
+    await prisma.user.update({ where: { id: uid }, data: { kycStatus: "VERIFIED" } });
+    // A transaction that converts the account and commits only after the
+    // request has read it (as INR) and queued its debit behind the row lock.
+    const hold = prisma.$transaction(async (tx) => {
+      await tx.account.update({
+        where: { id: liveId },
+        data: { currency: "USD", realBalance: 50_000, version: { increment: 1 } },
+      });
+      await new Promise((r) => setTimeout(r, 600));
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    const request = requestWithdrawal({
+      actorId: uid,
+      accountId: liveId,
+      amount: 100_000, // ₹1,000 as the INR form sent it
+      payout: { method: "UPI", upiId: "me@okaxis" },
+      destinationKey: "upi:me@okaxis",
+    });
+    await hold;
+    await expect(request).rejects.toThrow(/currency just changed/i);
+    expect(await prisma.withdrawal.count({ where: { userId: uid } })).toBe(0);
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: liveId } })).realBalance).toBe(50_000);
+  });
+
   it("never lets a withdrawal request and a currency switch both win the same race", async () => {
     await prisma.user.update({ where: { id: uid }, data: { kycStatus: "VERIFIED" } });
     for (let i = 0; i < 6; i++) {
@@ -390,7 +418,7 @@ describe("convertAccountCurrency with an in-flight withdrawal", () => {
           payout: { method: "UPI", upiId: "me@okaxis" },
           destinationKey: "upi:me@okaxis",
         }),
-        convertAccountCurrency({ actorId: uid, accountId: liveId, currency: i % 2 === 0 ? "USD" : "INR" }),
+        convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" }),
       ]);
       const account = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
       const rows = await prisma.withdrawal.findMany({ where: { userId: uid } });
@@ -416,6 +444,223 @@ describe("convertAccountCurrency with an in-flight withdrawal", () => {
       });
     }
   });
+});
+
+describe("convertAccountCurrency with open positions", () => {
+  // Settlement and CFD close credit `trade.stake` (+ pnl) read before they
+  // write; if the account were converted underneath an OPEN position the credit
+  // would land in the old currency's units (100x). So no OPEN trade may exist at
+  // switch time, and opening one must serialise against the switch.
+  let uid = "";
+  let liveId = "";
+  let demoId = "";
+  let assetId = "";
+
+  beforeAll(async () => {
+    const a = await prisma.asset.create({
+      data: { symbol: `CONVPOS_${randomUUID().slice(0, 8)}`, displayName: "conv", kind: "OTC", basePrice: 1 },
+    });
+    assetId = a.id;
+  });
+
+  afterAll(async () => {
+    await prisma.asset.delete({ where: { id: assetId } });
+  });
+
+  beforeEach(async () => {
+    const u = await prisma.user.create({
+      data: { email: `openpos-${randomUUID()}@test.local`, passwordHash: "x" },
+    });
+    uid = u.id;
+    const accounts = await createAccountsForUser(uid, 100_000_000, "INR");
+    liveId = accounts.find((x) => x.type === "LIVE")!.id;
+    demoId = accounts.find((x) => x.type === "DEMO")!.id;
+    await prisma.account.update({ where: { id: liveId }, data: { realBalance: 5_000_000 } });
+  });
+
+  afterEach(async () => {
+    await prisma.user.delete({ where: { id: uid } });
+  });
+
+  const trade = (
+    accountId: string,
+    status: "OPEN" | "WON" | "LOST" | "REFUNDED" | "CLOSED",
+    cfd = false,
+  ) =>
+    prisma.trade.create({
+      data: {
+        accountId,
+        assetId,
+        direction: "UP",
+        stake: 100_000,
+        payoutPct: cfd ? 0 : 92,
+        entryPrice: 1,
+        entryTs: new Date(),
+        expiryTs: new Date(Date.now() + 60_000),
+        status,
+        ...(cfd ? { durationSec: 60, leverage: 100 } : {}),
+      },
+    });
+
+  it.each([
+    ["binary trade", false],
+    ["CFD position", true],
+  ] as const)("refuses to switch while a %s is OPEN", async (_label, cfd) => {
+    await trade(liveId, "OPEN", cfd);
+    const err = await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" }).catch(
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(CurrencyChangeRefused);
+    expect((err as CurrencyChangeRefused).message).toBe("Close your open trades first.");
+    expect((err as CurrencyChangeRefused).code).toBe("open_positions");
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+    expect(after.currency).toBe("INR");
+    expect(after.realBalance).toBe(5_000_000);
+    const row = await prisma.trade.findFirstOrThrow({ where: { accountId: liveId } });
+    expect(row.stake).toBe(100_000);
+  });
+
+  it("refuses on a DEMO account too (open demo positions settle the same way)", async () => {
+    await trade(demoId, "OPEN");
+    const err = await convertAccountCurrency({ actorId: uid, accountId: demoId, currency: "USD" }).catch(
+      (e: unknown) => e,
+    );
+    expect((err as CurrencyChangeRefused).code).toBe("open_positions");
+  });
+
+  it("allows the switch when every trade is settled, and ignores other accounts' open trades", async () => {
+    await trade(liveId, "WON");
+    await trade(liveId, "LOST");
+    await trade(liveId, "REFUNDED");
+    await trade(liveId, "CLOSED", true);
+    await trade(demoId, "OPEN"); // the DEMO account's open trade does not block LIVE
+    const updated = await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" });
+    expect(updated.currency).toBe("USD");
+  });
+
+  it("opening a binary trade racing a switch never leaves an OPEN trade in the wrong units", async () => {
+    for (let i = 0; i < 6; i++) {
+      const [o, c] = await Promise.allSettled([
+        openTrade({
+          accountId: liveId,
+          assetId,
+          direction: "UP",
+          stake: 100_000,
+          payoutPct: 92,
+          entryPrice: 1,
+          entryTs: new Date(),
+          expiryTs: new Date(Date.now() + 60_000),
+        }),
+        convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" }),
+      ]);
+      const account = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+      const open = await prisma.trade.findMany({ where: { accountId: liveId, status: "OPEN" } });
+      if (account.currency === "USD") {
+        // Switched: any trade that opened must have been refused (or never exist).
+        expect(open).toHaveLength(0);
+        expect(c.status).toBe("fulfilled");
+      } else {
+        expect(c.status).toBe("rejected");
+        expect((c as PromiseRejectedResult).reason).toBeInstanceOf(CurrencyChangeRefused);
+        expect(o.status).toBe("fulfilled");
+      }
+      await prisma.trade.deleteMany({ where: { accountId: liveId } });
+      await prisma.account.update({ where: { id: liveId }, data: { currency: "INR", realBalance: 5_000_000 } });
+    }
+  });
+
+  it("a trade open that is retried across a switch is refused instead of debiting old units as new", async () => {
+    // Hold the account row inside a transaction that converts it, then let
+    // openTrade read the (still INR) row and block on its debit. When the
+    // switch commits, openTrade's version check fails and it retries against
+    // the USD account — with a stake the client still expressed in paise.
+    const hold = prisma.$transaction(async (tx) => {
+      await tx.account.update({
+        where: { id: liveId },
+        data: { currency: "USD", realBalance: 50_000, version: { increment: 1 } },
+      });
+      await new Promise((r) => setTimeout(r, 600));
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    const opened = openTrade({
+      accountId: liveId,
+      assetId,
+      direction: "UP",
+      stake: 10_000, // ₹100 as the INR client sent it
+      payoutPct: 92,
+      entryPrice: 1,
+      entryTs: new Date(),
+      expiryTs: new Date(Date.now() + 60_000),
+    });
+    await hold;
+    await expect(opened).rejects.toBeInstanceOf(ConcurrentModification);
+    expect(await prisma.trade.count({ where: { accountId: liveId } })).toBe(0);
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: liveId } })).realBalance).toBe(50_000);
+  });
+});
+
+describe("convertAccountCurrency over many trades", () => {
+  it("converts thousands of trade rows in one statement, rounding like convertMinorBetween", async () => {
+    const u = await prisma.user.create({
+      data: { email: `manytrades-${randomUUID()}@test.local`, passwordHash: "x" },
+    });
+    const a = await prisma.asset.create({
+      data: { symbol: `CONVMANY_${randomUUID().slice(0, 8)}`, displayName: "conv", kind: "OTC", basePrice: 1 },
+    });
+    const accounts = await createAccountsForUser(u.id, 0, "INR");
+    const liveId = accounts.find((x) => x.type === "LIVE")!.id;
+    const base = {
+      accountId: liveId,
+      assetId: a.id,
+      direction: "UP" as const,
+      payoutPct: 92,
+      entryPrice: 1,
+      entryTs: new Date(),
+      expiryTs: new Date(),
+      status: "LOST" as const,
+    };
+    const edge = [
+      { stake: 150, pnl: -150, spreadFee: 150, peakPnl: 150 }, // ±1.5 -> 2 / -1 (Math.round)
+      { stake: 149, pnl: -149, spreadFee: 149, peakPnl: null },
+      { stake: 151, pnl: -151, spreadFee: 51, peakPnl: 0 },
+      { stake: 50, pnl: -50, spreadFee: 50, peakPnl: -50 }, // -0.5 -> 0
+    ];
+    await prisma.trade.createMany({
+      data: [
+        ...edge.map((e) => ({ ...base, ...e, stakeFromBonus: 50 })),
+        ...Array.from({ length: 6_000 }, () => ({ ...base, stake: 100_000, pnl: -100_000, stakeFromBonus: 0 })),
+      ],
+    });
+
+    const started = Date.now();
+    await convertAccountCurrency({ actorId: u.id, accountId: liveId, currency: "USD" });
+    expect(Date.now() - started).toBeLessThan(4_000);
+
+    const rows = await prisma.trade.findMany({ where: { accountId: liveId, stake: { lt: 1_000 } } });
+    const mine = rows.filter((r) => r.stake <= 2);
+    expect(mine).toHaveLength(4);
+    for (const e of edge) {
+      const want = {
+        stake: convertMinorBetween(e.stake, "INR", "USD"),
+        pnl: convertMinorBetween(e.pnl, "INR", "USD"),
+        spreadFee: convertMinorBetween(e.spreadFee, "INR", "USD"),
+      };
+      const got = mine.find((r) => r.stake === want.stake && r.spreadFee === want.spreadFee && r.pnl === want.pnl);
+      expect(got, JSON.stringify({ e, want })).toBeDefined();
+    }
+    const big = await prisma.trade.findFirstOrThrow({ where: { accountId: liveId, stake: 1_000 } });
+    expect(big.pnl).toBe(-1_000);
+    expect(await prisma.trade.count({ where: { accountId: liveId, stake: 1_000 } })).toBe(6_000);
+    const peaks = await prisma.trade.findMany({ where: { accountId: liveId, spreadFee: 2 }, select: { peakPnl: true } });
+    expect(peaks[0]?.peakPnl).toBe(2); // 150 -> 2
+
+    // And back: USD -> INR is exact multiplication.
+    await convertAccountCurrency({ actorId: u.id, accountId: liveId, currency: "INR" });
+    expect(await prisma.trade.count({ where: { accountId: liveId, stake: 100_000 } })).toBe(6_000);
+
+    await prisma.user.delete({ where: { id: u.id } });
+    await prisma.asset.delete({ where: { id: a.id } });
+  }, 60_000);
 });
 
 describe("setDemoBalance", () => {

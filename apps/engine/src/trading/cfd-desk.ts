@@ -173,7 +173,10 @@ export class CfdDesk {
       });
 
       const debit = await tx.account.updateMany({
-        where: { id: input.accountId, realBalance: account.realBalance, bonusBalance: account.bonusBalance },
+        // `currency` pins the units `stake` was expressed in: a switch that lands
+        // after the read above also changes the balances, but a zero or
+        // coincidental balance must not let a stale-unit debit through.
+        where: { id: input.accountId, currency: account.currency, realBalance: account.realBalance, bonusBalance: account.bonusBalance },
         data: {
           realBalance: { decrement: fromReal },
           bonusBalance: { decrement: fromBonus + feeFromBonus },
