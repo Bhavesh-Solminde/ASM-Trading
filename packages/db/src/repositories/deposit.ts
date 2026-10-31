@@ -20,6 +20,8 @@ export const OFFSET_LOW = -999;
 export const OFFSET_SPACE = 2000;
 
 export const DEPOSIT_TTL_MINUTES = 60;
+// DISPLAY ONLY (admin settings page): these USD figures are not enforced anywhere.
+// The enforced deposit limits are the INR (UPI) and USDT bounds below.
 export const MIN_DEPOSIT_USD_MINOR = 500; // $5.00
 export const MAX_DEPOSIT_USD_MINOR = 96_100; // $961.00
 // Deposits are collected in rupees over UPI. Paise (minor units).
@@ -896,26 +898,105 @@ export async function creditDepositToAccount(input: {
   });
 }
 
+type CreditableDeposit = Pick<Deposit, "method" | "amountInr" | "amountUsd" | "amountUsdtMinor">;
+
 /**
- * Which currency a ledger DEPOSIT credit of `amount` was written in: the one
- * whose figure for this deposit equals it. Prefers `preferred` (the account's
- * current currency) when both match, and returns null if neither does (callers
- * then treat the amount as already current).
+ * The currency a ledger DEPOSIT credit was written in, given the account's
+ * current one. The ledger is written once and never rewritten by a currency
+ * switch (the balance is), and every switch leaves a CURRENCY_CONVERT row, so
+ * the number of switches after the credit says where we are: an even count
+ * means the account is back in the credit's currency, an odd count that it is
+ * in the other one. (Switches only alternate INR and USD.) The credit's
+ * `createdAt` is its transaction's start time, which can precede a switch whose
+ * lock the credit waited on; the credit then already used the switched
+ * currency. So if exactly one currency reproduces the ledger amount at the
+ * deposit's CURRENT figures, and the switch count disagrees, trust the match.
  */
-function creditCurrencyOf(
-  deposit: Pick<Deposit, "method" | "amountInr" | "amountUsd" | "amountUsdtMinor">,
-  amount: number,
-  preferred: string,
-): string | null {
-  const candidates = [preferred, ...["INR", "USD"].filter((c) => c !== preferred)];
-  for (const currency of candidates) {
+function currencyAtCredit(
+  deposit: CreditableDeposit,
+  creditAmount: number,
+  creditedAt: Date,
+  switchTimes: readonly Date[],
+  current: string,
+): string {
+  const after = switchTimes.filter((t) => t.getTime() > creditedAt.getTime()).length;
+  const other = current === "INR" ? "USD" : current === "USD" ? "INR" : current;
+  const byCount = after % 2 === 0 ? current : other;
+  const matches = ["INR", "USD"].filter((c) => {
     try {
-      if (depositCreditMinor(deposit, currency) === amount) return currency;
+      return depositCreditMinor(deposit, c) === creditAmount;
     } catch {
-      /* this currency cannot credit the deposit; try the next */
+      return false;
     }
+  });
+  if (matches.length === 1 && matches[0] !== byCount) return matches[0]!;
+  return byCount;
+}
+
+/**
+ * What the ledger says this deposit credited (real) and granted (bonus),
+ * restated in `current` units, plus `original`: the credit exactly as written
+ * (what `User.cumulativeDeposits` was incremented by, which a switch never
+ * rescales). Null when there is no credit row (legacy), in which case callers
+ * fall back to recomputing from the deposit.
+ */
+async function ledgerCreditInCurrentUnits(
+  db: Pick<Tx, "transaction">,
+  accountId: string,
+  deposit: CreditableDeposit & { id: string },
+  current: string,
+): Promise<{ credit: number; bonus: number; original: number } | null> {
+  const creditRow = await db.transaction.findFirst({
+    where: { accountId, refType: "Deposit", refId: deposit.id, kind: "DEPOSIT", amount: { gt: 0 } },
+    orderBy: { createdAt: "asc" },
+    select: { amount: true, createdAt: true },
+  });
+  if (!creditRow) return null;
+  const grant = await db.transaction.findFirst({
+    where: { accountId, refType: "Deposit", refId: deposit.id, kind: "BONUS_GRANT" },
+    select: { amount: true },
+  });
+  const switches = await db.transaction.findMany({
+    where: { accountId, kind: "CURRENCY_CONVERT", createdAt: { gt: creditRow.createdAt } },
+    select: { createdAt: true },
+  });
+  const was = currencyAtCredit(deposit, creditRow.amount, creditRow.createdAt, switches.map((x) => x.createdAt), current);
+  return {
+    credit: convertMinorBetween(creditRow.amount, was, current),
+    bonus: convertMinorBetween(grant?.amount ?? 0, was, current),
+    original: creditRow.amount,
+  };
+}
+
+/**
+ * The credited amount of each COMPLETED deposit in the account's current
+ * currency, from the ledger (not recomputed at today's rate), for display.
+ * Deposits with no ledger row are absent from the map.
+ */
+export async function creditedMinorByDeposit(
+  accountId: string,
+  deposits: readonly (CreditableDeposit & { id: string })[],
+  current: string,
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (deposits.length === 0) return out;
+  const rows = await prisma.transaction.findMany({
+    where: { accountId, refType: "Deposit", kind: "DEPOSIT", amount: { gt: 0 }, refId: { in: deposits.map((d) => d.id) } },
+    orderBy: { createdAt: "asc" },
+    select: { refId: true, amount: true, createdAt: true },
+  });
+  const switches = (
+    await prisma.transaction.findMany({
+      where: { accountId, kind: "CURRENCY_CONVERT" },
+      select: { createdAt: true },
+    })
+  ).map((x) => x.createdAt);
+  for (const d of deposits) {
+    const row = rows.find((r) => r.refId === d.id);
+    if (!row) continue;
+    out.set(d.id, convertMinorBetween(row.amount, currencyAtCredit(d, row.amount, row.createdAt, switches, current), current));
   }
-  return null;
+  return out;
 }
 
 export class DepositReversalRefused extends Error {
@@ -977,38 +1058,20 @@ async function performDepositReversal(
   const account = await prisma.account.findFirstOrThrow({
     where: { userId: deposit.userId, type: "LIVE" },
   });
-  // The bonus actually granted for this deposit — its tier depended on the
-  // deposit number at credit time, so it is read back rather than recomputed.
-  const grant = await prisma.transaction.findFirst({
-    where: { accountId: account.id, refType: "Deposit", refId: deposit.id, kind: "BONUS_GRANT" },
-    select: { amount: true },
-  });
-  const grantAmount = grant?.amount ?? 0;
-  // The ledger rows are written once, in the account's currency at credit time,
-  // and never rewritten by a later currency switch (the balance is, the ledger
-  // is not). Work out which currency the grant is in by matching the original
-  // DEPOSIT credit row against the deposit's per-currency figures.
-  const creditRow = await prisma.transaction.findFirst({
-    where: { accountId: account.id, refType: "Deposit", refId: deposit.id, kind: "DEPOSIT", amount: { gt: 0 } },
-    orderBy: { createdAt: "asc" },
-    select: { amount: true },
-  });
-  const grantCurrency = creditRow ? creditCurrencyOf(deposit, creditRow.amount, account.currency) : null;
-
   await prisma.$transaction(async (tx) => {
     const fresh = await tx.account.findUniqueOrThrow({
       where: { id: account.id },
       select: { realBalance: true, bonusBalance: true, version: true, currency: true },
     });
-    // The same figure creditDepositToAccount added (an admin resolution rewrote
-    // amountUsdtMinor to the credited amount, so it is read back here as-is),
-    // in the account's currency as read inside the transaction.
-    const credit = depositCreditMinor(deposit, fresh.currency);
-    // The grant converted into the same units, so a switch since the credit
-    // doesn't make the reversal try to reclaim 100x (or 1/100th) of the bonus.
-    const bonus = grantCurrency
-      ? convertMinorBetween(grantAmount, grantCurrency, fresh.currency)
-      : grantAmount;
+    // Reclaim what the ledger says was credited and granted (the bonus tier
+    // depended on the deposit number at credit time, and the credit may have
+    // been made at a different rate than today's), restated in the account's
+    // current currency if a switch happened since. Only a deposit with no
+    // ledger row at all falls back to recomputing from the deposit.
+    const ledger = await ledgerCreditInCurrentUnits(tx, account.id, deposit, fresh.currency);
+    const credit = ledger ? ledger.credit : depositCreditMinor(deposit, fresh.currency);
+    const bonus = ledger ? ledger.bonus : 0;
+    const cumulativeCredit = ledger ? ledger.original : credit;
 
     const realCap = Math.min(credit, fresh.realBalance);
     const bonusCap = Math.min(bonus, fresh.bonusBalance);
@@ -1040,7 +1103,7 @@ async function performDepositReversal(
 
     await tx.user.update({
       where: { id: deposit.userId },
-      data: { cumulativeDeposits: { decrement: credit } },
+      data: { cumulativeDeposits: { decrement: cumulativeCredit } },
     });
 
     const balanceAfter = fresh.realBalance + fresh.bonusBalance - realCap - bonusCap;

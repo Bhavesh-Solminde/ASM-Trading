@@ -27,7 +27,9 @@ describe("one FX rate for the whole platform", () => {
         else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) {
           const text = readFileSync(full, "utf8");
           if (/\b(?:const|let|var)\s+USD_INR_RATE\b/.test(text)) hits.push(full.replace(root + "/", ""));
-          if (/107\.64|USD_TO_INR_RATE/.test(text)) stale.push(full.replace(root + "/", ""));
+          if (/107\.64|USD_TO_INR_RATE|\b(?:INR|USD)_?(?:PER|TO)_?(?:USD|INR)\b/i.test(text)) {
+            stale.push(full.replace(root + "/", ""));
+          }
         }
       }
     };

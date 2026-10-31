@@ -1147,3 +1147,119 @@ describe("deposits across a currency switch", () => {
     expect((await prisma.deposit.findUniqueOrThrow({ where: { id: d.id } })).status).toBe("REJECTED");
   });
 });
+
+describe("reversal reclaims exactly what the ledger says was credited", () => {
+  // A reversal must take back the ledger figures (real credit + bonus grant),
+  // not a recomputation at today's rate: deposits credited before the ₹110
+  // decision were credited at the old rate and the ledger still says so.
+  let uid = "";
+  let liveId = "";
+
+  beforeEach(async () => {
+    const u = await prisma.user.create({
+      data: { email: `rev-ledger-${randomUUID()}@test.local`, passwordHash: "x" },
+    });
+    uid = u.id;
+    const accounts = await createAccountsForUser(uid, 0, "INR");
+    liveId = accounts.find((a) => a.type === "LIVE")!.id;
+  });
+
+  afterEach(async () => {
+    const ids = (await prisma.deposit.findMany({ where: { userId: uid }, select: { id: true } })).map((x) => x.id);
+    await prisma.auditLog.deleteMany({ where: { targetId: { in: ids } } });
+    await prisma.user.delete({ where: { id: uid } });
+  });
+
+  /** A USDT deposit credited to an INR account, then rewritten as if the old ₹100/USDT rate had applied. */
+  async function creditedAtOldRate() {
+    const d = await createUsdtDepositIntent({
+      userId: uid,
+      amountUsdtMinorRequested: 17_000,
+      network: "tron",
+      tokenContract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      receivingAddress: "TReceivingAddress1111111111111111",
+      correlationId: randomUUID(),
+    });
+    await creditDepositToAccount({ depositId: d.id, adminId: null });
+    const usdt = d.amountUsdtMinor!;
+    const oldCredit = usdt * 100;
+    const oldBonus = oldCredit; // first deposit: 100% tier
+    await prisma.transaction.updateMany({
+      where: { accountId: liveId, refType: "Deposit", refId: d.id, kind: "DEPOSIT" },
+      data: { amount: oldCredit },
+    });
+    await prisma.transaction.updateMany({
+      where: { accountId: liveId, refType: "Deposit", refId: d.id, kind: "BONUS_GRANT" },
+      data: { amount: oldBonus },
+    });
+    await prisma.account.update({ where: { id: liveId }, data: { realBalance: oldCredit, bonusBalance: oldBonus } });
+    await prisma.user.update({ where: { id: uid }, data: { cumulativeDeposits: oldCredit } });
+    return { d, oldCredit, oldBonus };
+  }
+
+  it("takes back the old-rate credit and bonus exactly, not 10% more (INR account, no switch)", async () => {
+    const { reverseCompletedDeposit } = await import("./deposit");
+    const { d } = await creditedAtOldRate();
+
+    await reverseCompletedDeposit({ depositId: d.id, adminId: "admin-panel", reason: "chargeback" });
+
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+    expect(account.realBalance).toBe(0);
+    expect(account.bonusBalance).toBe(0);
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: uid }, select: { cumulativeDeposits: true } });
+    expect(user.cumulativeDeposits).toBe(0);
+    const row = await prisma.transaction.findFirstOrThrow({
+      where: { accountId: liveId, refId: d.id, kind: "DEPOSIT", amount: { lt: 0 } },
+    });
+    expect(row.amount).toBe(-d.amountUsdtMinor! * 100);
+  });
+
+  it("converts the ledger figures at the shared rate when the account switched after the credit", async () => {
+    const { reverseCompletedDeposit } = await import("./deposit");
+    const { convertAccountCurrency } = await import("./account");
+    const { d, oldCredit, oldBonus } = await creditedAtOldRate();
+
+    await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" });
+    const mid = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+    expect(mid.realBalance).toBe(Math.round(oldCredit / USD_INR_RATE));
+
+    await reverseCompletedDeposit({ depositId: d.id, adminId: "admin-panel", reason: "chargeback" });
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+    expect(account.realBalance).toBe(0);
+    expect(account.bonusBalance).toBe(0); // the converted bonus grant was reclaimed in full
+    expect(mid.bonusBalance).toBe(Math.round(oldBonus / USD_INR_RATE));
+    const row = await prisma.transaction.findFirstOrThrow({
+      where: { accountId: liveId, refId: d.id, kind: "DEPOSIT", amount: { lt: 0 } },
+    });
+    expect(row.amount).toBe(-Math.round(oldCredit / USD_INR_RATE));
+  });
+
+  it("round-trips a switch there and back before the reversal (INR -> USD -> INR)", async () => {
+    const { reverseCompletedDeposit } = await import("./deposit");
+    const { convertAccountCurrency } = await import("./account");
+    const { d, oldCredit } = await creditedAtOldRate();
+    await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" });
+    await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "INR" });
+    // Even number of switches: the ledger is already in the account's currency, but the
+    // balance went through two roundings, so reclaim the ledger figure with force.
+    await reverseCompletedDeposit({ depositId: d.id, adminId: "admin-panel", reason: "chargeback", force: true });
+    const row = await prisma.transaction.findFirstOrThrow({
+      where: { accountId: liveId, refId: d.id, kind: "DEPOSIT", amount: { lt: 0 } },
+    });
+    expect(Math.abs(row.amount)).toBeLessThanOrEqual(oldCredit);
+    expect(Math.abs(row.amount)).toBeGreaterThan(oldCredit - 110);
+  });
+
+  it("history shows the ledger credit, not a recomputation at today's rate", async () => {
+    const { creditedMinorByDeposit } = await import("./deposit");
+    const { convertAccountCurrency } = await import("./account");
+    const { d, oldCredit } = await creditedAtOldRate();
+    const deposit = await prisma.deposit.findUniqueOrThrow({ where: { id: d.id } });
+
+    expect((await creditedMinorByDeposit(liveId, [deposit], "INR")).get(d.id)).toBe(oldCredit); // not usdt x 110
+    await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" });
+    expect((await creditedMinorByDeposit(liveId, [deposit], "USD")).get(d.id)).toBe(Math.round(oldCredit / USD_INR_RATE));
+    expect((await creditedMinorByDeposit(liveId, [], "USD")).size).toBe(0);
+  });
+});
+

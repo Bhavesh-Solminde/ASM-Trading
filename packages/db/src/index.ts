@@ -93,6 +93,7 @@ export {
   MAX_DEPOSIT_USDT_MINOR,
   USDT_RESERVATION_QUARANTINE_MS,
   depositCreditMinor,
+  creditedMinorByDeposit,
   expireStaleUsdtDeposits,
   createDepositIntent,
   createUsdtDepositIntent,
