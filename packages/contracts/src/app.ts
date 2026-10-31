@@ -168,6 +168,11 @@ export const WithdrawalPrefillSchema = z.object({
 });
 export type WithdrawalPrefill = z.infer<typeof WithdrawalPrefillSchema>;
 
+/** The UPI apps an operator can switch off (`UPI_APP_BLOCKLIST`). The system chooser is never one of them. */
+export const UPI_APP_NAMES = ["phonepe", "gpay", "paytm"] as const;
+export const UpiAppNameSchema = z.enum(UPI_APP_NAMES);
+export type UpiAppName = z.infer<typeof UpiAppNameSchema>;
+
 export const AppConfigSchema = z.object({
   minVersion: z.string().regex(SEMVER),
   latestVersion: z.string().regex(SEMVER),
@@ -175,6 +180,8 @@ export const AppConfigSchema = z.object({
   playUrl: z.string().nullable(),
   playLive: z.boolean(),
   support: z.object({ whatsapp: z.string().nullable(), telegram: z.string().nullable() }),
+  /** UPI apps whose button the app hides (an app that declines payments to a new merchant). Absent from an older server: none. */
+  upiAppBlocklist: z.array(UpiAppNameSchema).default([]),
 });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 

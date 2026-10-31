@@ -43,7 +43,7 @@ export const isNamedApp = (value: string): value is NamedUpiApp => value === "ph
 /**
  * The buttons to offer, best first. The installed apps (once each, none of them blocked), with the one the deposit
  * method names in front, then the system chooser last. The blocklist is the operator's switch (`UPI_APP_BLOCKLIST`,
- * wired in T9) for an app that is rejecting payments to new merchants; the chooser is never blocked.
+ * delivered in the app config) for an app that is rejecting payments to new merchants; the chooser is never blocked.
  */
 export function orderUpiApps(installed: readonly UpiApp[], preferredMethod: string, blocklist: readonly string[] = []): UpiApp[] {
   const blocked = new Set(blocklist);

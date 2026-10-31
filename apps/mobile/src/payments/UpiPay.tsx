@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Linking, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { CheckoutView } from "@asm/contracts";
+import { useAppConfig } from "@/api/queries";
 import { money } from "@/money/format";
 import { color } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
@@ -17,11 +18,8 @@ import { detectInstalledUpiApps, openUpiApp } from "./open-upi";
 import { payInstrumentsVisible, statusLineKey } from "./pay-model";
 import { buttonPlan, orderUpiApps, upiAppName, type NamedUpiApp, type UpiApp } from "./upi-apps";
 
-/**
- * Apps the operator has switched off (`UPI_APP_BLOCKLIST`, for an app that rejects payments to a new merchant).
- * T9 fills this from the app config; `orderUpiApps` already takes it.
- */
-const UPI_APP_BLOCKLIST: readonly string[] = [];
+/** Used until the app config arrives (and by a server that sends no list): nothing is blocked. */
+const NO_BLOCKS: readonly string[] = [];
 
 /** The button's words: "Open PhonePe", "Open UPI app"; or, in the grid, the bare app name ("Google Pay", "Other apps"). */
 function appLabel(app: UpiApp, big: boolean, t: (key: string, options?: Record<string, unknown>) => string): string {
@@ -81,7 +79,10 @@ export function UpiPay({ view, token }: { view: CheckoutView; token: string }) {
       alive = false;
     };
   }, []);
-  const ordered = useMemo(() => (installed ? orderUpiApps(installed, view.method, UPI_APP_BLOCKLIST) : null), [installed, view.method]);
+  // The operator's switch (`UPI_APP_BLOCKLIST` on the server) hides an app that declines payments to a new merchant,
+  // with no new build. The query is already warm from the gate; the chooser is never blocked.
+  const blocklist = useAppConfig().data?.upiAppBlocklist ?? NO_BLOCKS;
+  const ordered = useMemo(() => (installed ? orderUpiApps(installed, view.method, blocklist) : null), [installed, view.method, blocklist]);
   const plan = ordered ? buttonPlan(ordered) : null;
   const upiUri = view.upiUri;
   const vpa = view.vpa;

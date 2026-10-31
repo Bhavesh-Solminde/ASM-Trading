@@ -31,8 +31,32 @@ describe("app contracts", () => {
       playLive: false,
       support: { whatsapp: null, telegram: null },
     };
-    expect(AppConfigSchema.parse(ok)).toEqual(ok);
+    expect(AppConfigSchema.parse(ok)).toEqual({ ...ok, upiAppBlocklist: [] });
     expect(AppConfigSchema.safeParse({ ...ok, minVersion: "1.0" }).success).toBe(false);
+  });
+
+  describe("AppConfigSchema.upiAppBlocklist", () => {
+    const base = {
+      minVersion: "1.0.0",
+      latestVersion: "1.0.0",
+      apkUrl: "/download/app",
+      playUrl: null,
+      playLive: false,
+      support: { whatsapp: null, telegram: null },
+    };
+
+    it("defaults to empty, so an older server that sends none still parses", () => {
+      expect(AppConfigSchema.parse(base).upiAppBlocklist).toEqual([]);
+    });
+
+    it("keeps the named apps", () => {
+      expect(AppConfigSchema.parse({ ...base, upiAppBlocklist: ["gpay", "paytm"] }).upiAppBlocklist).toEqual(["gpay", "paytm"]);
+    });
+
+    it("refuses a name that is not one of the three apps", () => {
+      expect(AppConfigSchema.safeParse({ ...base, upiAppBlocklist: ["any"] }).success).toBe(false);
+      expect(AppConfigSchema.safeParse({ ...base, upiAppBlocklist: ["bhim"] }).success).toBe(false);
+    });
   });
 
   it("describes errors with a stable code", () => {

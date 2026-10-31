@@ -60,6 +60,10 @@ describe("orderUpiApps", () => {
     expect(orderUpiApps(["phonepe"], "PhonePe", ["phonepe"])).toEqual(["any"]);
   });
 
+  it("leaves the other installed app and the chooser when the user's pick is blocked", () => {
+    expect(orderUpiApps(["gpay", "phonepe"], "Gpay", ["gpay"])).toEqual(["phonepe", "any"]);
+  });
+
   it("ignores blocklist names it does not know and never blocks the chooser", () => {
     expect(orderUpiApps(["gpay"], "UPI", ["bhim", "any"])).toEqual(["gpay", "any"]);
   });
