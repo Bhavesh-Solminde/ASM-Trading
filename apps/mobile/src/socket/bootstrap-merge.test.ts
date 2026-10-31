@@ -150,6 +150,12 @@ describe("withFreshTrades (a currency switch converts the stored trades' amounts
     expect(out.tradesByAccount["a1"]?.map((t) => [t.id, t.stake])).toEqual([["fresh", 500], ["t1", 1_000]]);
   });
 
+  it("keeps a settled copy the socket just delivered in the new units when the fetched snapshot still says OPEN", () => {
+    const state = initialTradeState([settled({ id: "s1", stake: 1_000, entryTs: 200 }), trade({ id: "t1", stake: 100_000, entryTs: 100 })], {});
+    const out = withFreshTrades(state, "a1", [trade({ id: "s1", stake: 1_000, entryTs: 200 }), trade({ id: "t1", stake: 1_000, entryTs: 100 })]);
+    expect(out.tradesByAccount["a1"]?.map((t) => [t.id, t.status, t.stake])).toEqual([["s1", "WON", 1_000], ["t1", "OPEN", 1_000]]);
+  });
+
   it("leaves other accounts alone", () => {
     const state = initialTradeState([trade({ stake: 100_000 }), trade({ id: "x", accountId: "a2", stake: 7 })], {});
     const out = withFreshTrades(state, "a1", [trade({ stake: 1_000 })]);

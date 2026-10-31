@@ -42,7 +42,8 @@ export function mergeBootstrap(
  * every trade's amounts in place, and the plain merge keeps the stored copy of a trade it already holds, so the stored
  * trades would stay in the old currency's units. A trade's stake never changes otherwise, so the same trade id with
  * another stake means the account was converted: then the fetched list REPLACES the account's stored trades. Only a
- * stored trade newer than anything fetched is kept (it was opened after the snapshot, so it is already in the new units).
+ * stored trade that is already in the new units is kept: one newer than anything fetched (opened after the snapshot), or
+ * one whose stake matches the fetched copy (so a settlement the socket just delivered is not reopened by an older snapshot).
  * Without a converted trade this is the plain merge: a settled version still beats an open one.
  */
 export function withFreshTrades(state: TradeState, accountId: string, fetched: readonly TradeView[]): TradeState {
@@ -51,7 +52,9 @@ export function withFreshTrades(state: TradeState, accountId: string, fetched: r
   const converted = stored.some((t) => stakeById.has(t.id) && stakeById.get(t.id) !== t.stake);
   if (!converted) return withFetchedTrades(state, accountId, fetched);
   const newestFetched = fetched.reduce((max, t) => Math.max(max, t.entryTs), -Infinity);
-  const kept = stored.filter((t) => !stakeById.has(t.id) && t.entryTs > newestFetched);
+  // Kept: a trade the fetch does not hold but that is newer than it, and a trade whose stake already matches (it is in
+  // the new units, so the plain merge's precedence applies: a settled copy the socket just delivered beats an open snapshot).
+  const kept = stored.filter((t) => (stakeById.has(t.id) ? stakeById.get(t.id) === t.stake : t.entryTs > newestFetched));
   return withFetchedTrades({ ...state, tradesByAccount: { ...state.tradesByAccount, [accountId]: kept } }, accountId, fetched);
 }
 
