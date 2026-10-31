@@ -1,3 +1,4 @@
+import { PublishedPrices } from "../trading/published-prices";
 import {
   CandleAggregator,
   INTRADAY_PROFILES,
@@ -102,6 +103,14 @@ const DT_SEC = TICK_DT_SEC;
  * request model.
  */
 export class AssetRegistry {
+  private readonly publishedPrices = new PublishedPrices();
+
+  publishedPrice(symbol: string): number {
+    return this.publishedPrices.latest(symbol);
+  }
+
+  lastPublishedPrice(symbol: string): number { return this.publishedPrices.lastKnown(symbol); }
+
   private assets = new Map<string, LiveAsset>();
   private rng: Rng;
 
@@ -168,7 +177,7 @@ export class AssetRegistry {
       // stepPrice algorithm the live loop uses, upsert them into the
       // Candle table, and resume from the catchup END price so the live
       // chart carries on seamlessly.
-      const startPrice = await catchupMissingCandles({
+      const startPrice = process.env.TRADING_MODEL === "CFD" ? openedPrice : await catchupMissingCandles({
         assetId: row.id,
         symbol: row.symbol,
         precision: row.precision,
@@ -330,6 +339,7 @@ export class AssetRegistry {
       throw new Error(`record called for unknown symbol "${symbol}"`);
     }
     const rounded = Number(price.toFixed(asset.precision));
+    this.publishedPrices.record(symbol, rounded, nowSec);
     const closed: ClosedCandle[] = [];
     for (const [timeframe, aggregator] of asset.aggregators) {
       const candle = aggregator.addTick(nowSec, rounded);

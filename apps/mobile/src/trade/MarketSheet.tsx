@@ -3,7 +3,7 @@ import { forwardRef, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, View } from "react-native";
 import { color, radius } from "@/theme/tokens";
-import { Txt, useUiFamily } from "@/theme/ui";
+import { Txt, inputFont, useUiFamily } from "@/theme/ui";
 import { Chip } from "@/ui/Chip";
 import { Icon } from "@/ui/Icon";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
@@ -123,7 +123,7 @@ export const MarketSheet = forwardRef<
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
-            style={{ flex: 1, height: 46, color: color.ink, fontSize: 16, fontFamily: family }}
+            style={{ flex: 1, height: 46, color: color.ink, fontSize: 16, ...inputFont(family, 400) }}
           />
         </View>
       </View>

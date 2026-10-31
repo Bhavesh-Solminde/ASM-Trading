@@ -1,19 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { validPixelId } from "./meta-pixel";
+import { validPixelIds } from "./meta-pixel";
 
-describe("validPixelId", () => {
-  it("accepts a numeric pixel id", () => {
-    expect(validPixelId("1137830615432603")).toBe("1137830615432603");
+describe("validPixelIds", () => {
+  it("accepts a single numeric pixel id", () => {
+    expect(validPixelIds("1137830615432603")).toEqual(["1137830615432603"]);
+  });
+
+  it("accepts a comma-separated list, trimming whitespace", () => {
+    expect(validPixelIds("1137830615432603, 1176260014975763")).toEqual([
+      "1137830615432603",
+      "1176260014975763",
+    ]);
+  });
+
+  it("collapses duplicate ids", () => {
+    expect(validPixelIds("1137830615432603,1137830615432603")).toEqual([
+      "1137830615432603",
+    ]);
   });
 
   it("treats unset or empty as off", () => {
-    expect(validPixelId(undefined)).toBeNull();
-    expect(validPixelId("")).toBeNull();
+    expect(validPixelIds(undefined)).toEqual([]);
+    expect(validPixelIds("")).toEqual([]);
+    expect(validPixelIds(" , ")).toEqual([]);
   });
 
-  it("rejects anything that is not a bare numeric id", () => {
-    expect(validPixelId("1137830615432603&ev=Purchase")).toBeNull();
-    expect(validPixelId("abc")).toBeNull();
-    expect(validPixelId(" 1137830615432603")).toBeNull();
+  it("drops anything that is not a bare numeric id", () => {
+    expect(validPixelIds("1137830615432603&ev=Purchase")).toEqual([]);
+    expect(validPixelIds("abc,1176260014975763")).toEqual(["1176260014975763"]);
   });
 });

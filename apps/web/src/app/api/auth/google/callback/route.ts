@@ -1,3 +1,5 @@
+import { LOGIN_PIXEL_COOKIE } from "@/lib/ad-landing";
+import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { findUserByEmail } from "@asm/db";
 import { childLogger } from "@asm/logger";
@@ -74,8 +76,17 @@ export async function GET(req: NextRequest) {
   }
 
   const token = await createSession(result.userId, { ip: ctx.ip, userAgent: ctx.userAgent });
-  const response = NextResponse.redirect(new URL("/trade", origin));
+  // Auth success hops record conversions before entering the private platform.
+  const response = NextResponse.redirect(
+    new URL(result.created ? "/register/welcome" : "/login/welcome", origin),
+  );
   response.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);
+  if (!result.created) {
+    // A fresh non-sensitive receipt allows one conversion per actual OAuth login.
+    response.cookies.set(LOGIN_PIXEL_COOKIE, randomBytes(16).toString("hex"), {
+      ...SESSION_COOKIE_OPTIONS, path: "/login/welcome", maxAge: 60,
+    });
+  }
   response.cookies.set(GOOGLE_OAUTH_COOKIE, "", { path: "/api/auth/google", maxAge: 0 });
   return response;
 }

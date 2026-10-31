@@ -25,6 +25,7 @@ const WORDS: Record<string, string> = {
   "kyc.rejected": "Rejected a KYC submission",
   "user.updated": "Updated a user's account",
   "user.unfreeze": "Unfroze a user",
+  "user.status.flagged": "Flagged a user",
   "user.status.frozen": "Froze a user",
   "user.status.banned": "Banned a user",
   "user.status.active": "Reactivated a user",

@@ -6,7 +6,7 @@ import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = buildMetadata({
   title: "Platform Comparisons",
-  description: `Honest, feature-by-feature comparisons of ${SITE_NAME} against other short-term options platforms — deposits, payouts, demo and mobile experience.`,
+  description: `Honest, feature-by-feature comparisons of ${SITE_NAME} against other CFD trading platforms — deposits, leverage, SL/TP, demo and mobile experience.`,
   path: "/compare",
 });
 

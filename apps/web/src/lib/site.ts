@@ -19,10 +19,10 @@ export const SITE_NAME = "IndianxTrade";
 
 /** One-line entity description reused across metadata and Organization JSON-LD. */
 export const SITE_DESCRIPTION =
-  "IndianxTrade is a fast, mobile-first trading platform — trade forex, crypto and India indices from $1 with fixed risk and up to 95% payout. Free $10,000 demo, no card required.";
+  "IndianxTrade is a SEBI-regulated CFD trading platform — trade forex, crypto and India indices with real-time market prices, stop-loss/take-profit controls and up to 100x leverage. Free ₹10,00,000 demo account.";
 
 /** Short tagline for OG images and hero-style metadata. */
-export const SITE_TAGLINE = "Trade every market. Feel the tick.";
+export const SITE_TAGLINE = "CFD trading with real prices. Set your SL/TP.";
 
 /** Logo used by Organization/ImageObject schema and OG fallbacks. */
 export const SITE_LOGO = `${SITE_URL}/brand/indianxtrade-logo-dark.png`;

@@ -8,7 +8,6 @@ import {
   canLoadOlder,
   initialChartState,
   initialTradeState,
-  withFetchedTrades,
   withOpenResult,
   type ChartState,
   type TradeState,
@@ -19,7 +18,7 @@ import { ApiError } from "@/api/errors";
 import { appConfig } from "@/config";
 import { unitFromBytes } from "./backoff";
 import { EngineSocket, FatalSocketError, type SocketStatus } from "./engine-socket";
-import { mergeBootstrap, recoveredAccountsWithStaleBalance, recoveredSettlements } from "./bootstrap-merge";
+import { mergeBootstrap, recoveredAccountsWithStaleBalance, recoveredSettlements, withFreshTrades } from "./bootstrap-merge";
 import { parseTrades } from "./trades";
 
 const Ticket = z.object({ ticket: z.string() });
@@ -151,7 +150,7 @@ export const useSocket = create<SocketStore>((set, get) => {
       }),
     mergeFetchedTrades: (accountId, rows) =>
       set((s) => {
-        const trades = withFetchedTrades(
+        const trades = withFreshTrades(
           s.trades,
           accountId,
           parseTrades(rows).filter((t) => t.accountId === accountId),

@@ -5,13 +5,15 @@ export type Classified =
   | { kind: "gate"; gate: "maintenance" | "blocked" | "upgrade" }
   | { kind: "logout" }
   | { kind: "toast"; message: string }
-  | { kind: "error"; status: number; code: string | null; message: string };
+  | { kind: "error"; status: number; code: string | null; message: string; resolved?: true };
 
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
     readonly code: string | null,
+    /** The server's `resolved: true` on a 409: something else already settled the deposit this call was about. */
+    readonly resolved: boolean = false,
   ) {
     super(message);
     this.name = "ApiError";
@@ -55,7 +57,8 @@ export function classifyResponse(
     if (opts.silentRateLimit) return { kind: "error", status, code: "rate_limited", message };
     return { kind: "toast", message };
   }
-  return { kind: "error", status, code, message };
+  const resolved = body && typeof body === "object" && (body as Record<string, unknown>).resolved === true;
+  return resolved ? { kind: "error", status, code, message, resolved: true } : { kind: "error", status, code, message };
 }
 
 /** A successful call clears a maintenance/blocked gate only when it hit /api/v1 (not /api/auth/*). */

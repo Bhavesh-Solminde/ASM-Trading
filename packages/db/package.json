@@ -18,6 +18,7 @@
   "dependencies": {
     "@asm/algo": "workspace:*",
     "@asm/config": "workspace:*",
+    "@asm/contracts": "workspace:*",
     "@asm/logger": "workspace:*",
     "@asm/mail": "workspace:*",
     "@asm/pricing": "workspace:*",
@@ -27,6 +28,7 @@
     "argon2": "0.45.1"
   },
   "devDependencies": {
+    "@asm/contracts": "workspace:*",
     "dotenv": "17.4.2",
     "dotenv-cli": "10.0.0",
     "prisma": "7.10.0",

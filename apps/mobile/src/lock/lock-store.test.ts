@@ -30,7 +30,7 @@ vi.mock("expo-crypto", () => ({
 vi.mock("expo-local-authentication", () => ({
   hasHardwareAsync: () => auth.hardware(),
   isEnrolledAsync: () => auth.enrolled(),
-  authenticateAsync: () => auth.authenticate(),
+  authenticateAsync: (o: unknown) => auth.authenticate(o),
 }));
 vi.mock("i18next", () => ({ default: { t: (k: string) => k } }));
 vi.mock("@/auth/session-store", () => ({ useSession: { getState: () => ({ signOut, token: session.token }) } }));
@@ -226,6 +226,61 @@ describe("useLock biometric unlock", () => {
     auth.authenticate.mockResolvedValue({ success: false });
     expect(await useLock.getState().unlockWithBiometric()).toBe(false);
     expect(disk.get("ixt.lock.attempts")).toBe("1");
+  });
+
+  it("the normal unlock prompt is unchanged: Unlock text, device credential allowed", async () => {
+    await useLock.getState().unlockWithBiometric();
+    const options = auth.authenticate.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(options.promptMessage).toBe("lock.title");
+    expect(options.disableDeviceFallback).toBeUndefined();
+  });
+});
+
+describe("useLock.confirmBiometric (re-verifying the owner on the Security screens)", () => {
+  it("asks for the biometric only: the phone's screen-lock PIN or pattern is not accepted", async () => {
+    await useLock.getState().confirmBiometric("security.verifyPrompt");
+    expect(auth.authenticate).toHaveBeenLastCalledWith(expect.objectContaining({ promptMessage: "security.verifyPrompt", disableDeviceFallback: true }));
+  });
+
+  it("returns what the prompt said, and a throwing prompt is a no", async () => {
+    expect(await useLock.getState().confirmBiometric("x")).toBe(true);
+    auth.authenticate.mockResolvedValue({ success: false });
+    expect(await useLock.getState().confirmBiometric("x")).toBe(false);
+    auth.authenticate.mockRejectedValue(new Error("sensor"));
+    expect(await useLock.getState().confirmBiometric("x")).toBe(false);
+  });
+
+  it("changes nothing in the lock: no unlock, no attempt count touched", async () => {
+    await useLock.getState().setPin("1234");
+    await useLock.getState().verifyPin("0000");
+    useLock.setState({ locked: true });
+    await useLock.getState().confirmBiometric("x");
+    expect(useLock.getState().locked).toBe(true);
+    expect(useLock.getState().attempts).toBe(1);
+    expect(disk.get("ixt.lock.attempts")).toBe("1");
+  });
+});
+
+describe("useLock.hasPin", () => {
+  it("is false with no PIN, true after one is set, and still true after switching to the fingerprint", async () => {
+    expect(await useLock.getState().hasPin()).toBe(false);
+    await useLock.getState().setPin("1234");
+    expect(await useLock.getState().hasPin()).toBe(true);
+    await useLock.getState().enableBiometric();
+    expect(useLock.getState().method).toBe("biometric");
+    expect(await useLock.getState().hasPin()).toBe(true);
+  });
+
+  it("an unreadable keystore reads as no PIN (it must never offer a fallback it cannot check)", async () => {
+    await useLock.getState().setPin("1234");
+    fail.get.add("ixt.lock.pin");
+    expect(await useLock.getState().hasPin()).toBe(false);
+  });
+
+  it("is false after the lock is reset", async () => {
+    await useLock.getState().setPin("1234");
+    await useLock.getState().reset();
+    expect(await useLock.getState().hasPin()).toBe(false);
   });
 });
 

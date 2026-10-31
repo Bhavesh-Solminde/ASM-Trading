@@ -111,6 +111,42 @@ describe("POST /api/trades", () => {
     expect(engine).toHaveBeenLastCalledWith({ ...order(), actorId: alice.userId });
   });
 
+  // Stale-currency guard: an account converted in another tab/device (INR <-> USD) makes a stake typed in the old
+  // currency 100x off. A client that names its currency is refused on a mismatch; one that does not is unaffected.
+  it("refuses a trade whose currency is not the account's, without reaching the engine", async () => {
+    engine.mockClear();
+    const res = await post({ ...order(), currency: "USD" }, alice.cookie);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: "Your account currency changed. Check your stake and try again.",
+      code: "currency_changed",
+    });
+    expect(engine).not.toHaveBeenCalled();
+  });
+
+  it("places the trade when the stated currency matches, and strips it before the engine", async () => {
+    engine.mockClear();
+    engine.mockResolvedValueOnce({ trade: { id: "t2" }, balances: { realBalance: 1, bonusBalance: 0 } } as unknown as OpenTradeResult);
+    const res = await post({ ...order(), currency: "INR" }, alice.cookie);
+    expect(res.status).toBe(201);
+    expect(engine).toHaveBeenLastCalledWith({ ...order(), actorId: alice.userId });
+    expect(engine.mock.calls.at(-1)![0]).not.toHaveProperty("currency");
+  });
+
+  it("places the trade when no currency is sent (older app builds and cached web clients)", async () => {
+    engine.mockClear();
+    engine.mockResolvedValueOnce({ trade: { id: "t3" }, balances: { realBalance: 1, bonusBalance: 0 } } as unknown as OpenTradeResult);
+    expect((await post(order(), alice.cookie)).status).toBe(201);
+    expect(engine).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks ownership before the currency: a foreign account is still a 404", async () => {
+    engine.mockClear();
+    const res = await post({ ...order(), accountId: alice.demoId, currency: "USD" }, bob.cookie);
+    expect(res.status).toBe(404);
+    expect(engine).not.toHaveBeenCalled();
+  });
+
   it("maps an engine insufficient-funds rejection to a 409 the trader can read", async () => {
     engine.mockRejectedValueOnce(new EngineRejected(409, "insufficient_funds"));
     const res = await post(order(), alice.cookie);

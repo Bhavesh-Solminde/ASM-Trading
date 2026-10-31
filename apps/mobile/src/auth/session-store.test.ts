@@ -10,16 +10,19 @@ const clear = vi.hoisted(() => vi.fn());
 const resetSocket = vi.hoisted(() => vi.fn());
 const clearResume = vi.hoisted(() => vi.fn());
 const clearToasts = vi.hoisted(() => vi.fn());
+const clearPending = vi.hoisted(() => vi.fn());
 const signOutOfGoogle = vi.hoisted(() => vi.fn());
 
 vi.mock("expo-secure-store", () => ({ ...secure, WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1 }));
 vi.mock("@/api/client", () => apiMock);
 vi.mock("@/api/queries", () => ({ queryClient: { clear } }));
 vi.mock("@/cache/resume-cache", () => ({ clearResume }));
+vi.mock("@/payments/pending-checkout", () => ({ clearAllPendingCheckouts: clearPending }));
 vi.mock("@/ui/Toast", () => ({ toast: vi.fn(), clearToasts }));
 vi.mock("./google", () => ({ signOutOfGoogle }));
 vi.mock("@/socket/socket-store", () => ({ useSocket: { getState: () => ({ reset: resetSocket }) } }));
 
+import { useListLoaded } from "@/trade/list-loaded-store";
 import { useSession } from "./session-store";
 
 beforeEach(() => {
@@ -48,12 +51,14 @@ describe("useSession", () => {
     secure.getItemAsync.mockRejectedValue(new Error("keystore"));
     await useSession.getState().hydrate();
     expect(clearResume).toHaveBeenCalledTimes(1);
+    expect(clearPending).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the resume cache when the keystore is readable but empty", async () => {
     secure.getItemAsync.mockResolvedValue(null);
     await useSession.getState().hydrate();
     expect(clearResume).not.toHaveBeenCalled();
+    expect(clearPending).not.toHaveBeenCalled();
   });
 
   it("clears the in-memory token even when a cleanup step throws (a live token must not outlive a sign-out)", async () => {
@@ -80,6 +85,28 @@ describe("useSession", () => {
     expect(clearResume).toHaveBeenCalledTimes(1);
     expect(clearToasts).toHaveBeenCalledTimes(1);
     expect(signOutOfGoogle).toHaveBeenCalledTimes(1);
+    expect(useSession.getState().token).toBeNull();
+  });
+
+  it("forgets which account's trade list was loaded", async () => {
+    useSession.setState({ token: "tok", ready: true });
+    useListLoaded.getState().set("acct-1");
+    await useSession.getState().signOut({ remote: false });
+    expect(useListLoaded.getState().loadedFor).toBeNull();
+  });
+
+  it("forgets the payment in progress, so the next person on this phone is not offered it", async () => {
+    useSession.setState({ token: "tok", ready: true });
+    await useSession.getState().signOut({ remote: false });
+    expect(clearPending).toHaveBeenCalledTimes(1);
+  });
+
+  it("still ends the session when forgetting the payment in progress throws", async () => {
+    useSession.setState({ token: "tok", ready: true });
+    clearPending.mockImplementationOnce(() => {
+      throw new Error("storage");
+    });
+    await expect(useSession.getState().signOut({ remote: false })).rejects.toThrow("storage");
     expect(useSession.getState().token).toBeNull();
   });
 

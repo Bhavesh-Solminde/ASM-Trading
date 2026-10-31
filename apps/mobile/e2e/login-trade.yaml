@@ -32,8 +32,9 @@ appId: com.indianxtrade.app
 
 # Trade screen. Demo is the account we may trade on without risk.
 - extendedWaitUntil:
-    visible: { id: "account-demo" }
+    visible: { id: "account-selector" }
     timeout: 30000
+- tapOn: { id: "account-selector" }
 - tapOn: { id: "account-demo" }
 
 # The stake starts at the account's default (₹100 / $10) and keys append to it, so clear it first.
@@ -46,6 +47,7 @@ appId: com.indianxtrade.app
 - tapOn: { id: "key-0" }
 - tapOn: { id: "key-0" }
 - tapOn: { id: "keypad-done" }
+- tapOn: { id: "expiry-tile" }
 - tapOn: { id: "expiry-30" }
 - tapOn: { id: "buy" }
 

@@ -66,7 +66,8 @@ export async function checkNetwork(
   return { blocked: true, verdict };
 }
 
-export const VPN_BLOCKED_MESSAGE = "VPN, proxy or Tor detected. Turn it off and try again.";
+export const VPN_BLOCKED_MESSAGE =
+  "Your IP address is hidden (VPN, proxy, iCloud Private Relay or Tor). Turn it off and try again.";
 
 export function vpnBlockedResponse(): NextResponse {
   return NextResponse.json({ error: VPN_BLOCKED_MESSAGE, code: "vpn_blocked" }, { status: 403 });

@@ -28,7 +28,7 @@ export function JsonLd({ data }: { data: object | object[] }) {
 export function organizationSchema() {
   return {
     "@context": "https://schema.org",
-    "@type": "Organization",
+    "@type": ["Organization", "FinancialService"],
     "@id": `${SITE_URL}/#organization`,
     name: SITE_NAME,
     url: SITE_URL,
@@ -37,6 +37,18 @@ export function organizationSchema() {
       url: SITE_LOGO,
     },
     description: SITE_DESCRIPTION,
+    areaServed: "IN",
+    knowsAbout: [
+      "CFD trading",
+      "Contracts for Difference",
+      "Forex trading",
+      "Cryptocurrency trading",
+      "Stock index trading",
+      "Stop-loss orders",
+      "Take-profit orders",
+      "Leverage trading",
+      "Risk management",
+    ],
     ...(SITE_SAME_AS.length ? { sameAs: SITE_SAME_AS } : {}),
     contactPoint: {
       "@type": "ContactPoint",

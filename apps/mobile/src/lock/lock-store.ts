@@ -38,6 +38,13 @@ interface LockState {
   setPin: (pin: string) => Promise<void>;
   verifyPin: (pin: string) => Promise<"ok" | "wrong" | "logout">;
   unlockWithBiometric: () => Promise<boolean>;
+  /**
+   * Re-verify the owner before a sensitive change (Security). Biometric only: the phone's own screen-lock PIN or pattern
+   * is not accepted, because anyone who knows that must not be able to change the app lock. Touches no lock state.
+   */
+  confirmBiometric: (promptMessage: string) => Promise<boolean>;
+  /** Whether an app PIN is stored (it stays after switching to the fingerprint). An unreadable keystore reads as no. */
+  hasPin: () => Promise<boolean>;
   onBackground: (now: number) => void;
   onForeground: (now: number) => void;
   /**
@@ -50,9 +57,13 @@ interface LockState {
   reset: () => Promise<void>;
 }
 
-async function prompt(promptMessage: string): Promise<boolean> {
+async function prompt(promptMessage: string, opts: { biometricOnly?: boolean } = {}): Promise<boolean> {
   try {
-    const res = await LocalAuth.authenticateAsync({ promptMessage, cancelLabel: i18n.t("common.cancel") });
+    const res = await LocalAuth.authenticateAsync({
+      promptMessage,
+      cancelLabel: i18n.t("common.cancel"),
+      ...(opts.biometricOnly ? { disableDeviceFallback: true } : null),
+    });
     return res.success;
   } catch {
     return false;
@@ -174,6 +185,15 @@ export const useLock = create<LockState>((set, get) => ({
       set({ locked: false, attempts: 0 });
     }
     return ok;
+  },
+  confirmBiometric: (promptMessage) => prompt(promptMessage, { biometricOnly: true }),
+  hasPin: async () => {
+    try {
+      const [salt, stored] = await Promise.all([SecureStore.getItemAsync(K.salt), SecureStore.getItemAsync(K.pin)]);
+      return !!salt && !!stored;
+    } catch {
+      return false;
+    }
   },
   onBackground: (now) => set({ backgroundedAt: now }),
   onForeground: (now) => {

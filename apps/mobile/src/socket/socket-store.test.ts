@@ -400,6 +400,30 @@ describe("useSocket", () => {
       expect(useSocket.getState().recovered).toBe(first);
     });
 
+    it("replaces an account's stored trades when the refetched ones are in other units (after a currency switch)", () => {
+      const open = { ...trade, id: "l1", accountId: "a2", stake: 100_000 };
+      useSocket.getState().seed({ ...boot, recentTrades: [open] } as unknown as Bootstrap);
+      useSocket.getState().mergeFetchedTrades("a2", [{ ...open, stake: 1_000 }]);
+      expect(useSocket.getState().trades.tradesByAccount["a2"]?.map((t) => t.stake)).toEqual([1_000]);
+    });
+
+    it("still announces a settlement recovered in the same refetch that converted the units", () => {
+      const open = { ...trade, id: "l1", accountId: "a2", stake: 100_000 };
+      useSocket.getState().seed({ ...boot, recentTrades: [open] } as unknown as Bootstrap);
+      useSocket.getState().mergeFetchedTrades("a2", [{ ...open, stake: 1_000, status: "WON", pnl: 850, exitPrice: 1.2 }]);
+      expect(useSocket.getState().recovered.map((t) => t.id)).toEqual(["l1"]);
+    });
+
+    it("does not reopen or re-announce a trade the socket settled while a converting refetch was in flight", () => {
+      const settled = { ...trade, id: "s1", accountId: "a2", stake: 1_000, entryTs: 200, status: "WON", pnl: 850, exitPrice: 1.2 };
+      const old = { ...trade, id: "l1", accountId: "a2", stake: 100_000, entryTs: 100 };
+      useSocket.getState().seed({ ...boot, recentTrades: [settled, old] } as unknown as Bootstrap);
+      const before = useSocket.getState().recovered;
+      useSocket.getState().mergeFetchedTrades("a2", [{ ...settled, status: "OPEN", pnl: 0, exitPrice: null }, { ...old, stake: 1_000 }]);
+      expect(useSocket.getState().trades.tradesByAccount["a2"]?.map((t) => [t.id, t.status])).toEqual([["s1", "WON"], ["l1", "OPEN"]]);
+      expect(useSocket.getState().recovered).toBe(before);
+    });
+
     it("does not publish history it never saw open", () => {
       useSocket.getState().seed(boot);
       useSocket.getState().mergeFetchedTrades("a2", [{ ...trade, id: "old", accountId: "a2", status: "LOST", pnl: -1 }]);

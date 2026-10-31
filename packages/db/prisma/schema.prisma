@@ -97,6 +97,22 @@ enum TradeStatus {
   WON
   LOST
   REFUNDED
+  CLOSED
+}
+
+enum CloseReason {
+  DURATION
+  STOP_LOSS
+  TAKE_PROFIT
+  MANUAL
+  LIQUIDATION
+  TRAILING_STOP
+}
+
+enum FeedSource {
+  BINANCE
+  TWELVE_DATA
+  SYNTHETIC
 }
 
 enum DepositStatus {
@@ -152,6 +168,7 @@ enum TxKind {
   DEPOSIT
   WITHDRAWAL
   TRADE_STAKE
+  TRADE_FEE
   TRADE_PAYOUT
   TRADE_REFUND
   BONUS_GRANT
@@ -324,6 +341,9 @@ model Asset {
   msmM0           Float           @default(1.5)
   intradayProfile IntradayProfile @default(FX_MAJOR)
   anchorAlpha     Float           @default(0.08)
+  spreadBps       Int             @default(5)
+  feedSource      FeedSource      @default(SYNTHETIC)
+  marketHours     String?
   createdAt       DateTime        @default(now())
 
   candles Candle[]
@@ -350,6 +370,7 @@ model Candle {
 }
 
 model Trade {
+  leverage Int @default(1)
   id             String      @id @default(uuid())
   accountId      String
   assetId        String
@@ -357,6 +378,8 @@ model Trade {
   stake          BigInt
   /// The part of `stake` drawn from bonusBalance. Settlement credits return in this proportion.
   stakeFromBonus BigInt      @default(0)
+  /// Full spread charged separately at opening, in minor currency units.
+  spreadFee      Int         @default(0)
   payoutPct      Int
   entryPrice     Float
   entryTs        DateTime
@@ -373,12 +396,23 @@ model Trade {
   pathStyle   PathStyle?
   targetPrice Float?
 
+  /// CFD fields — nullable so binary trades keep working during transition.
+  durationSec  Int?
+  stopLoss     Float?
+  takeProfit   Float?
+  trailingPct  Float?
+  liqPrice     Float?
+  closeReason  CloseReason?
+  closedAt     DateTime?
+  peakPnl      Int?
+
   account Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   asset   Asset        @relation(fields: [assetId], references: [id])
   shadow  TradeShadow?
 
   @@index([accountId, createdAt])
   @@index([expiryTs, status])
+  @@index([assetId, status])
 }
 
 /// Per-IST-day house ledger. Written by the settlement path on every non-DEMO
@@ -402,8 +436,33 @@ model HouseDay {
 model HouseTreasury {
   id                  Int      @id @default(1)
   treasuryMinor       BigInt   @default(0)
-  treasuryTargetMinor BigInt   @default(1000000)
+  treasuryTargetMinor BigInt   @default(30000000)
   updatedAt           DateTime @updatedAt
+}
+
+/// Per-asset engine state that must survive a container restart to keep the
+/// shown price continuous across deploys. Right now this is just the
+/// GapTracker's accumulated magnet gap (shownPrice = realPrice × (1 + gap)):
+/// if we lose it, the first post-restart tick snaps shown back to real by the
+/// full gap value and the chart shows a visible step. Written every ~30s by
+/// the tick loop and once more on SIGTERM; read on engine boot.
+model EngineAssetState {
+  symbol    String   @id
+  gap       Float    @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+/// Access tokens for third-party integrations (currently just FYERS for NSE/BSE
+/// market data). Daily-expiring tokens that the admin re-authorizes via a
+/// browser OAuth round-trip; keyed by `provider` so one row per integration.
+/// Access-token values stay out of the repo and are only ever present in the
+/// prod database — never logged, never surfaced to the browser.
+model IntegrationToken {
+  provider     String   @id
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime
+  updatedAt    DateTime @updatedAt
 }
 
 /// Recorded for every settled trade, never exposed to a trading client.

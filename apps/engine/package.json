@@ -17,7 +17,9 @@
     "@asm/pricing": "workspace:*",
     "@asm/tatum": "workspace:*",
     "@asm/trading": "workspace:*",
+    "fyers-api-v3": "2.4.0",
     "ioredis": "5.9.0",
+    "socket.io-client": "4.8.1",
     "tronweb": "6.5.1",
     "ws": "8.21.3"
   },

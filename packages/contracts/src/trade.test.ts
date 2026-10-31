@@ -49,9 +49,36 @@ describe("OpenTradeSchema", () => {
   it("rejects an account id that is not a uuid", () => {
     expect(OpenTradeSchema.safeParse({ ...valid, accountId: "1; DROP TABLE" }).success).toBe(false);
   });
+
+  // The stale-currency guard: a client may say which currency its stake is in, so the server can refuse a stake
+  // typed for the old currency after the account was converted. Older clients send nothing.
+  it("accepts a request without a currency (older clients)", () => {
+    expect(OpenTradeSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("accepts the account currency the client believes it has", () => {
+    for (const currency of ["INR", "USD"]) {
+      expect(OpenTradeSchema.parse({ ...valid, currency }).currency).toBe(currency);
+    }
+  });
+
+  it("rejects a currency other than INR or USD", () => {
+    for (const currency of ["EUR", "inr", "", null, 1]) {
+      expect(OpenTradeSchema.safeParse({ ...valid, currency }).success).toBe(false);
+    }
+  });
+
+  it("still rejects unknown keys alongside a currency", () => {
+    expect(OpenTradeSchema.safeParse({ ...valid, currency: "INR", foo: 1 }).success).toBe(false);
+  });
 });
 
 describe("EngineOpenTradeSchema", () => {
+  it("does not take a currency: the web app strips it before the engine", () => {
+    const withActor = { ...valid, actorId: "3f2a9c1e-0000-4000-8000-000000000001" };
+    expect(EngineOpenTradeSchema.safeParse({ ...withActor, currency: "INR" }).success).toBe(false);
+  });
+
   it("requires the actor the web app verified", () => {
     expect(EngineOpenTradeSchema.safeParse(valid).success).toBe(false);
     expect(
@@ -94,6 +121,7 @@ describe("tradeViewFrom", () => {
       [
         "accountId",
         "direction",
+        "durationSec",
         "entryPrice",
         "entryTs",
         "exitPrice",
@@ -102,6 +130,10 @@ describe("tradeViewFrom", () => {
         "payoutPct",
         "pnl",
         "stake",
+        "spreadFee",
+        "leverage",
+        "stopLoss",
+        "takeProfit",
         "status",
         "symbol",
       ].sort(),
@@ -113,4 +145,11 @@ describe("tradeViewFrom", () => {
     expect(view.entryTs).toBe(Math.floor(Date.parse("2026-09-14T10:00:00Z") / 1000));
     expect(view.expiryTs - view.entryTs).toBe(60);
   });
+});
+
+it("retains the CFD duration when serializing a persisted trade", () => {
+  const row = { id: "t", accountId: "a", direction: "UP" as const, stake: 10000,
+    payoutPct: 0, durationSec: 30, entryPrice: 100, entryTs: new Date(),
+    expiryTs: new Date(), exitPrice: null, status: "OPEN" as const, pnl: 0 };
+  expect(tradeViewFrom(row, "BTCUSDT").durationSec).toBe(30);
 });

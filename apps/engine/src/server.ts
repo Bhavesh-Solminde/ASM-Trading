@@ -29,24 +29,46 @@ interface Client {
   messageBudget: number;
   /** Messages from one socket are handled strictly in arrival order. */
   queue: Promise<void>;
+  /** Closes a socket that never authenticates; cleared once it does. */
+  authTimer: NodeJS.Timeout | null;
 }
 
 const MESSAGE_BUDGET_PER_WINDOW = 60;
 const BUDGET_WINDOW_MS = 10_000;
 const HISTORY_CANDLES = 120;
+/**
+ * Client messages are small JSON commands; `ws` would otherwise buffer up to
+ * 100 MiB per frame, a cheap way to exhaust memory.
+ */
+const MAX_PAYLOAD_BYTES = 16 * 1024;
+
+export interface EngineServerLimits {
+  /** An unauthenticated socket is closed after this long (it holds a slot for free otherwise). */
+  authTimeoutMs?: number;
+  /** Sockets one user may hold; a new one evicts their oldest. Covers tabs plus reconnect overlap. */
+  maxSocketsPerUser?: number;
+}
+
+const DEFAULT_AUTH_TIMEOUT_MS = 10_000;
+const DEFAULT_MAX_SOCKETS_PER_USER = 5;
 
 export class EngineServer {
   private wss: WebSocketServer;
   private clients = new Set<Client>();
   private budgetTimer: NodeJS.Timeout;
   private readonly listening: Promise<void>;
+  private readonly authTimeoutMs: number;
+  private readonly maxSocketsPerUser: number;
 
   constructor(
     private readonly registry: AssetRegistry,
     port: number,
     private readonly authenticate: Authenticate,
+    limits: EngineServerLimits = {},
   ) {
-    this.wss = new WebSocketServer({ port });
+    this.authTimeoutMs = limits.authTimeoutMs ?? DEFAULT_AUTH_TIMEOUT_MS;
+    this.maxSocketsPerUser = limits.maxSocketsPerUser ?? DEFAULT_MAX_SOCKETS_PER_USER;
+    this.wss = new WebSocketServer({ port, maxPayload: MAX_PAYLOAD_BYTES });
     this.listening = new Promise((resolve) => this.wss.once("listening", () => resolve()));
     this.wss.on("connection", (socket) => this.onConnection(socket));
 
@@ -78,7 +100,11 @@ export class EngineServer {
       cid: newCorrelationId(),
       messageBudget: MESSAGE_BUDGET_PER_WINDOW,
       queue: Promise.resolve(),
+      authTimer: null,
     };
+    client.authTimer = setTimeout(() => {
+      if (!client.userId) client.socket.close(1008, "Unauthorised");
+    }, this.authTimeoutMs);
     this.clients.add(client);
 
     socket.on("message", (raw) => {
@@ -103,10 +129,23 @@ export class EngineServer {
           client.socket.close(1011, "Internal error");
         });
     });
-    socket.on("close", () => this.clients.delete(client));
-    socket.on("error", () => this.clients.delete(client));
+    const forget = () => {
+      if (client.authTimer) clearTimeout(client.authTimer);
+      this.clients.delete(client);
+    };
+    socket.on("close", forget);
+    socket.on("error", forget);
 
     this.send(client, { type: "ready", serverTs: Date.now() });
+  }
+
+  /** Keeps one user to `maxSocketsPerUser` sockets by closing their oldest (Set order is insertion order). */
+  private evictOldestBeyondCap(userId: string, log: ReturnType<typeof childLogger>): void {
+    const mine = [...this.clients].filter((c) => c.userId === userId && c.socket.readyState === c.socket.OPEN);
+    for (const old of mine.slice(0, Math.max(0, mine.length - this.maxSocketsPerUser))) {
+      log.warn({ evt: "security.ws_socket_cap", userId }, "closing oldest socket over per-user cap");
+      old.socket.close(1008, "Too many connections");
+    }
   }
 
   private async onMessage(client: Client, raw: string): Promise<void> {
@@ -146,6 +185,9 @@ export class EngineServer {
       }
 
       client.userId = userId;
+      if (client.authTimer) clearTimeout(client.authTimer);
+      client.authTimer = null;
+      this.evictOldestBeyondCap(userId, log);
       log.info({ evt: "engine.ws_authed", userId }, "socket authed");
       this.send(client, { type: "authed" });
       return;

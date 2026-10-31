@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { TIMEFRAMES, type TradeView } from "@asm/contracts";
+import { useChartProtection } from "@/lib/chart-protection-preference";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { SentimentBar } from "@/components/chart/SentimentBar";
 import { TimeframeTabs } from "@/components/chart/TimeframeTabs";
@@ -16,13 +17,18 @@ import {
 } from "@/components/shell/PlatformProvider";
 import { changePct, tickDirection } from "@/components/shell/quotes";
 import { splitAssetName } from "@/lib/asset-name";
-import { formatMinor, clockTime, grossReturnMinor } from "@asm/client-core";
+import { formatMinor, clockTime } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useNowSec } from "@/lib/use-now";
+import { useScrollLock } from "@/lib/use-scroll-lock";
 import { MarketSelector } from "./MarketSelector";
+import type { CfdOpenTradeResult } from "@asm/contracts";
+import { CfdTradeTicket } from "./CfdTradeTicket";
 import { TradeTicket } from "./TradeTicket";
 import { TradesPanel } from "./TradesPanel";
+
 import { AssetIcon } from "./AssetIcon";
+import { SettlementResultCard } from "./SettlementResultCard";
 import { PositionStrip } from "./PositionStrip";
 
 const NO_TRADES: TradeView[] = [];
@@ -195,41 +201,19 @@ function ResultPopup() {
 
   if (!shown || !activeAccount) return null;
   const { trade } = shown;
-  const won = trade.status === "WON";
-  const refunded = trade.status === "REFUNDED";
-  // A win shows what lands back in the balance: the stake plus the profit.
-  const amountMinor = won ? grossReturnMinor(trade.stake, trade.pnl) : refunded ? 0 : Math.abs(trade.pnl);
-  const sign = won ? "+" : refunded ? "" : "−";
   const asset = assets.find((a) => a.symbol === trade.symbol);
   const pair = asset ? splitAssetName(asset.displayName).pair : trade.symbol;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-[40%] z-20 grid place-items-center px-4">
-      <div
-        className={`result-pop pointer-events-auto relative grid gap-0.5 rounded-md py-1.5 pl-3 pr-6 text-center shadow-[0_14px_34px_-12px_rgba(0,0,0,.85)] ${
-          won ? "bg-up text-up-ink" : refunded ? "bg-tile text-ink" : "bg-down text-down-ink"
-        }`}
-      >
-        <button
-          type="button"
-          aria-label="Dismiss result"
-          onClick={() => {
-            setShown(null);
-            clearSettlement();
-          }}
-          className="absolute right-1 top-1 grid size-4 place-items-center rounded-full opacity-70 hover:bg-black/10 hover:opacity-100"
-        >
-          <Icon name="close" className="size-3" />
-        </button>
-        <span className="text-[8px] font-bold uppercase tracking-[0.14em] opacity-80">
-          {won ? "Payout" : "Result"} · {pair}
-        </span>
-        <span className="led text-[17px] font-black leading-none">
-          {sign}
-          {formatMinor(amountMinor, activeAccount.currency)}
-        </span>
-      </div>
-    </div>
+    <SettlementResultCard
+      trade={trade}
+      currency={activeAccount.currency}
+      pair={pair}
+      onDismiss={() => {
+        setShown(null);
+        clearSettlement();
+      }}
+    />
   );
 }
 
@@ -360,12 +344,49 @@ function ChartTools({
   );
 }
 
-export function TradeWorkspace() {
+/**
+ * History / trades bottom sheet — the compact + fullscreen replacement for the
+ * always-on desktop trades panel. Locks the page behind it so a swipe on the
+ * list scrolls the list, not the page.
+ */
+function TradesSheet({ onClose, ...panel }: ComponentProps<typeof TradesPanel> & { onClose: () => void }) {
+  useScrollLock();
+  return (
+    <div className="fixed inset-0 z-50">
+      <div aria-hidden onClick={onClose} className="absolute inset-0 bg-black/60" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trades-sheet-title"
+        className="sheet sheet-in absolute inset-x-0 bottom-0 mx-auto grid max-h-[72vh] w-full max-w-[560px] grid-rows-[auto_auto_minmax(0,1fr)] overscroll-contain">
+        <div aria-hidden className="sheet-handle" />
+        <div className="flex items-center justify-between pl-4 pr-2">
+          <h2 id="trades-sheet-title" className="text-sm font-semibold text-ink">Trades &amp; history</h2>
+          <button
+            type="button"
+            aria-label="Close trades"
+            onClick={onClose}
+            className="grid size-10 place-items-center rounded-lg text-ink-2 hover:bg-tile hover:text-ink"
+          >
+            <Icon name="close" className="size-[18px]" />
+          </button>
+        </div>
+        <div className="min-h-0 overflow-hidden">
+          <TradesPanel {...panel} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD" }) {
   const {
     assets,
     market,
     chartSymbol,
     selectChartSymbol,
+    selectedTradeId,
+    setSelectedTradeId,
     status,
     activeAccount,
     tradesByAccount,
@@ -374,6 +395,19 @@ export function TradeWorkspace() {
     setFocusMode,
   } = usePlatform();
 
+  const recordCfdOpened = useCallback(
+    (result: CfdOpenTradeResult) => {
+      recordOpened({
+        balances: result.balances,
+        trade: { ...result.trade, direction: result.trade.direction === "LONG" ? "UP" : "DOWN", payoutPct: 0, durationSec: result.trade.expiryTs - result.trade.entryTs },
+      });
+    },
+    [recordOpened],
+  );
+
+  const chartProtection = useChartProtection();
+  const chartTimeframe = useMarket(market, s => s.chart.timeframe);
+  const [chartActionsContainer, setChartActionsContainer] = useState<HTMLDivElement | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candles");
   const [marketPickerOpen, setMarketPickerOpen] = useState(false);
@@ -427,6 +461,13 @@ export function TradeWorkspace() {
     () => trades.filter((t) => t.status === "OPEN" && t.symbol === chartSymbol),
     [trades, chartSymbol],
   );
+  const focusedTrade = trades.find(t => t.id === selectedTradeId && t.symbol === chartSymbol);
+  const focusTrade = (trade: TradeView) => {
+    setSelectedTradeId(trade.id);
+    selectChartSymbol(trade.symbol);
+    setHistoryOpen(false);
+  };
+  const chartTrades = focusedTrade ? [focusedTrade] : openOnChart;
   const openCount = useMemo(() => trades.filter((t) => t.status === "OPEN").length, [trades]);
 
   const asset = assets.find((a) => a.symbol === chartSymbol);
@@ -450,8 +491,8 @@ export function TradeWorkspace() {
       <div
         className={
           focusMode
-            ? "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] gap-1 p-1.5 phone:p-0"
-            : "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[minmax(0,1fr)] phone:gap-0 phone:p-0"
+            ? "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-1 p-1.5 phone:p-0"
+            : "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[minmax(0,1fr)_auto] phone:gap-0 phone:p-0"
         }
       >
         {/* Desktop keeps the roomy market selector above the chart; on compact
@@ -473,9 +514,17 @@ export function TradeWorkspace() {
               market={market}
               precision={asset.precision}
               watermark={activeAccount.type === "DEMO" ? "DEMO" : ""}
-              openTrades={openOnChart}
+              openTrades={chartTrades}
               currency={activeAccount.currency}
               chartType={chartType}
+              enableBrackets={tradingModel === "CFD"}
+              bracketScope={`${activeAccount.id}:${asset.symbol}:${chartTimeframe}:${chartType}:${chartProtection}`}
+              bracketActionsContainer={chartActionsContainer}
+              bracketControls={chartProtection || !!focusedTrade}
+              focusedTradeId={focusedTrade?.id}
+              onSelectTrade={id => { const trade = trades.find(t => t.id === id); if (trade) focusTrade(trade); }}
+              onShowAllTrades={() => setSelectedTradeId(null)}
+              tickSize={asset.tickSize ?? 10 ** -asset.precision}
             />
 
             {/* Desktop top-left overlay (clock, focus-mode switcher + market/history
@@ -555,13 +604,13 @@ export function TradeWorkspace() {
                 openCount={openCount}
                 onOpenHistory={() => setHistoryOpen(true)}
               />
-              <PositionStrip
+              {tradingModel !== "CFD" && <PositionStrip
                 className="pointer-events-none min-w-0 max-w-[420px] flex-1 land:hidden"
                 trades={trades}
                 assets={assets}
                 currency={activeAccount.currency}
                 onOpen={() => setHistoryOpen(true)}
-              />
+              />}
             </div>
 
             {status === "unauthorised" ? (
@@ -583,54 +632,47 @@ export function TradeWorkspace() {
             <ResultPopup />
           </div>
         </div>
+        <div ref={setChartActionsContainer} data-testid="chart-protection-actions" className="flex flex-wrap items-center gap-1 empty:hidden" />
       </div>
 
       <aside
         aria-label="Trade ticket and trades"
         className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:rounded-t-[20px] phone:border-l-0 phone:bg-panel land:grid-rows-[auto_minmax(0,1fr)] land:rounded-none land:border-l land:bg-transparent"
       >
-        <TradeTicket
-          symbol={asset.symbol}
-          pair={splitAssetName(asset.displayName).pair}
-          payoutPct={payoutPct}
-          accountId={activeAccount.id}
-          currency={activeAccount.currency}
-          onOpened={recordOpened}
-        />
+        {tradingModel === "CFD" ? (
+          <CfdTradeTicket
+            symbol={asset.symbol}
+            pair={splitAssetName(asset.displayName).pair}
+            accountId={activeAccount.id}
+            currency={activeAccount.currency}
+            onOpened={recordCfdOpened}
+          />
+        ) : (
+          <TradeTicket
+            symbol={asset.symbol}
+            pair={splitAssetName(asset.displayName).pair}
+            payoutPct={payoutPct}
+            accountId={activeAccount.id}
+            currency={activeAccount.currency}
+            onOpened={recordOpened}
+          />
+        )}
         {focusMode ? null : (
           <div className="min-h-0 phone:hidden land:block">
-            <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} />
+            <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} onSelectTrade={focusTrade} selectedTradeId={focusedTrade?.id} />
           </div>
         )}
       </aside>
 
-      {/* History / trades bottom sheet — the compact + fullscreen replacement for
-          the always-on desktop trades panel. */}
       {historyOpen ? (
-        <div className="fixed inset-0 z-50">
-          <div aria-hidden onClick={() => setHistoryOpen(false)} className="absolute inset-0 bg-black/60" />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="trades-sheet-title"
-            className="sheet sheet-in absolute inset-x-0 bottom-0 mx-auto grid max-h-[72vh] w-full max-w-[560px] grid-rows-[auto_auto_minmax(0,1fr)]">
-            <div aria-hidden className="sheet-handle" />
-            <div className="flex items-center justify-between pl-4 pr-2">
-              <h2 id="trades-sheet-title" className="text-sm font-semibold text-ink">Trades &amp; history</h2>
-              <button
-                type="button"
-                aria-label="Close trades"
-                onClick={() => setHistoryOpen(false)}
-                className="grid size-10 place-items-center rounded-lg text-ink-2 hover:bg-tile hover:text-ink"
-              >
-                <Icon name="close" className="size-[18px]" />
-              </button>
-            </div>
-            <div className="min-h-0 overflow-hidden">
-              <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} />
-            </div>
-          </div>
-        </div>
+        <TradesSheet
+          trades={trades}
+          currency={activeAccount.currency}
+          assets={assets}
+          onSelectTrade={focusTrade}
+          selectedTradeId={focusedTrade?.id}
+          onClose={() => setHistoryOpen(false)}
+        />
       ) : null}
     </section>
   );

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { convertMinorBetween } from "./currency";
 import { USDT_NETWORKS } from "./deposit";
 
 /** How a user can be paid out. Independent of how they deposited. */
@@ -16,15 +17,19 @@ export const WITHDRAWAL_MIN_INR_MINOR = 700_00;
 export const WITHDRAWAL_MAX_INR_MINOR = 50_000_00;
 
 /**
- * The same limits in an account's own minor units. A USD account converts at
- * the platform's fixed ₹100 = $1 rate (USD_INR_RATE), so $7 – $500. The db
- * repository mirrors this; a drift test keeps the two in step.
+ * The same limits in an account's own minor units. The INR limits are the
+ * source of truth; a USD account gets the same range converted at the platform's
+ * fixed ₹110 = $1 rate (USD_INR_RATE): $6.36 – $454.55. The db repository
+ * re-exports this function, so server and form can never drift.
  */
 export function withdrawalLimitsMinor(currency: string): { min: number; max: number } {
   if (currency === "INR") {
     return { min: WITHDRAWAL_MIN_INR_MINOR, max: WITHDRAWAL_MAX_INR_MINOR };
   }
-  return { min: WITHDRAWAL_MIN_INR_MINOR / 100, max: WITHDRAWAL_MAX_INR_MINOR / 100 };
+  return {
+    min: convertMinorBetween(WITHDRAWAL_MIN_INR_MINOR, "INR", "USD"),
+    max: convertMinorBetween(WITHDRAWAL_MAX_INR_MINOR, "INR", "USD"),
+  };
 }
 
 const IFSC_RE = /^[A-Z]{4}0[A-Z0-9]{6}$/;
