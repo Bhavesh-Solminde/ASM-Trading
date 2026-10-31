@@ -8,11 +8,23 @@ export const DEMO_START_BY_CURRENCY: Record<string, number> = {
 };
 
 export class CurrencyChangeRefused extends Error {
-  constructor(message: string) {
+  /** Machine-readable reason, set only for refusals the client acts on. */
+  readonly code?: "pending_withdrawal";
+  constructor(message: string, code?: "pending_withdrawal") {
     super(message);
     this.name = "CurrencyChangeRefused";
+    if (code) this.code = code;
   }
 }
+
+/**
+ * Withdrawal statuses where the money has already left the account but the
+ * payout is not final — a cancel/reject can still refund it. A row in one of
+ * these holds `amount` in the currency the account had at request time, so the
+ * account may not change currency while one exists. PAID, REJECTED and
+ * CANCELLED_BY_USER are final (any refund has already happened).
+ */
+export const IN_FLIGHT_WITHDRAWAL_STATUSES = ["REQUESTED", "HELD", "APPROVED"] as const;
 
 export class DemoBalanceRefused extends Error {
   constructor(message: string) {
@@ -164,17 +176,44 @@ export async function convertAccountCurrency(input: {
     throw new CurrencyChangeRefused("Unsupported currency.");
   }
 
-  const account = await prisma.account.findFirst({
-    where: { id: input.accountId, userId: input.actorId },
-  });
-  if (!account) throw new CurrencyChangeRefused("Account not found.");
-  if (account.currency === currency) return account;
-
-  const fromCurrency = account.currency;
-  const newReal = convertMinorBetween(account.realBalance, fromCurrency, currency);
-  const newBonus = convertMinorBetween(account.bonusBalance, fromCurrency, currency);
-
   return prisma.$transaction(async (tx) => {
+    // Everything below happens in ONE transaction behind a row lock on the
+    // account. The balance used to be read before the transaction and written
+    // back blind, so a trade debit, payout or withdrawal that committed in
+    // between was lost (or escaped the conversion). FOR UPDATE makes every
+    // other writer of this account row — versioned or not — wait for us, and
+    // the reads after it see their committed result.
+    const locked = await tx.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "Account"
+      WHERE "id" = ${input.accountId} AND "userId" = ${input.actorId}
+      FOR UPDATE`;
+    if (locked.length === 0) throw new CurrencyChangeRefused("Account not found.");
+
+    const account = await tx.account.findUniqueOrThrow({ where: { id: input.accountId } });
+    if (account.currency === currency) return account;
+
+    // A withdrawal debits the account at request time and refunds it (cancel /
+    // reject) later in the row's own currency. Switching in between would turn
+    // ₹50,000 of paise into $50,000 of cents on refund. Only LIVE accounts can
+    // withdraw, and Withdrawal is keyed by user (one LIVE account per user).
+    // Checked inside the locked transaction, so a request that commits first is
+    // seen here and one that commits later finds the account already converted.
+    if (account.type === "LIVE") {
+      const pending = await tx.withdrawal.count({
+        where: { userId: account.userId, status: { in: [...IN_FLIGHT_WITHDRAWAL_STATUSES] } },
+      });
+      if (pending > 0) {
+        throw new CurrencyChangeRefused(
+          "Finish or cancel your pending withdrawal first.",
+          "pending_withdrawal",
+        );
+      }
+    }
+
+    const fromCurrency = account.currency;
+    const newReal = convertMinorBetween(account.realBalance, fromCurrency, currency);
+    const newBonus = convertMinorBetween(account.bonusBalance, fromCurrency, currency);
+
     const updated = await tx.account.update({
       where: { id: account.id },
       data: { currency, realBalance: newReal, bonusBalance: newBonus, version: { increment: 1 } },

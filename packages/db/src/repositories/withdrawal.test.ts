@@ -593,3 +593,75 @@ describe("admin payout lifecycle", () => {
     await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
   });
 });
+
+describe("refunds after a currency switch (rows created before the pending-withdrawal gate)", () => {
+  // Simulates a pre-fix row: the withdrawal is denominated in INR paise but the
+  // account has since been converted to USD (accountId's currency is USD here).
+  async function legacyInrWithdrawal(status: "HELD" | "REQUESTED" | "APPROVED") {
+    return prisma.withdrawal.create({
+      data: {
+        userId,
+        amount: 5_000_000, // ₹50,000 in paise
+        method: "UPI",
+        status,
+        currency: "INR",
+        upiId: "me@okaxis",
+        holdUntil: status === "HELD" ? new Date(Date.now() + 3_600_000) : null,
+        cancelableUntil: status === "HELD" ? new Date(Date.now() + 3_600_000) : null,
+      },
+    });
+  }
+
+  it("cancelHeldWithdrawal refunds in the account's current currency and ledgers the same figure", async () => {
+    await prisma.account.update({ where: { id: accountId }, data: { realBalance: 1_000 } }); // $10, USD account
+    const w = await legacyInrWithdrawal("HELD");
+
+    await cancelHeldWithdrawal({ actorId: userId, withdrawalId: w.id });
+
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.realBalance).toBe(1_000 + 50_000); // +$500, not +$50,000
+    const ledger = await prisma.transaction.findFirstOrThrow({ where: { refType: "Withdrawal", refId: w.id } });
+    expect(ledger.amount).toBe(50_000);
+    expect(ledger.balanceAfter).toBe(51_000);
+  });
+
+  it.each(["REQUESTED", "HELD", "APPROVED"] as const)(
+    "rejectWithdrawal (%s) refunds in the account's current currency and ledgers the same figure",
+    async (status) => {
+      await prisma.account.update({ where: { id: accountId }, data: { realBalance: 1_000 } });
+      const w = await legacyInrWithdrawal(status);
+
+      await rejectWithdrawal({ withdrawalId: w.id, adminId: "t", reason: "x" });
+
+      const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+      expect(account.realBalance).toBe(51_000);
+      const ledger = await prisma.transaction.findFirstOrThrow({ where: { refType: "Withdrawal", refId: w.id } });
+      expect(ledger.amount).toBe(50_000);
+      expect(ledger.balanceAfter).toBe(51_000);
+      await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
+    },
+  );
+
+  it("refunds USD-denominated rows onto an INR account at the fixed rate", async () => {
+    await prisma.account.update({ where: { id: accountId }, data: { currency: "INR", realBalance: 0 } });
+    const w = await prisma.withdrawal.create({
+      data: { userId, amount: 5_000, method: "UPI", status: "REQUESTED", currency: "USD", upiId: "me@okaxis" },
+    });
+    await rejectWithdrawal({ withdrawalId: w.id, adminId: "t" });
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.realBalance).toBe(500_000); // $50 → ₹5,000
+    await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
+  });
+
+  it("refunds a same-currency row unchanged", async () => {
+    await prisma.account.update({ where: { id: accountId }, data: { realBalance: 0 } });
+    const w = await prisma.withdrawal.create({
+      data: { userId, amount: 5_000, method: "UPI", status: "REQUESTED", currency: "USD", upiId: "me@okaxis" },
+    });
+    await rejectWithdrawal({ withdrawalId: w.id, adminId: "t" });
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.realBalance).toBe(5_000);
+    await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
+  });
+});
+

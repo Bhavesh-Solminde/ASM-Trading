@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../client";
 import {
   CurrencyChangeRefused,
@@ -14,6 +15,7 @@ import {
   listAccountsForActor,
   setDemoBalance,
 } from "./account";
+import { WithdrawalRefused, requestWithdrawal } from "./withdrawal";
 
 let alice = "";
 let bob = "";
@@ -313,6 +315,106 @@ describe("convertAccountCurrency", () => {
     expect(lostAfter.pnl).toBe(-500); // negative round-trip still exact
 
     await prisma.user.delete({ where: { id: u.id } });
+  });
+});
+
+describe("convertAccountCurrency with an in-flight withdrawal", () => {
+  // A withdrawal row holds `amount` in the currency of the account at request
+  // time and the money is already debited. Converting the account underneath it
+  // would make a later cancel/reject refund the wrong magnitude (₹50,000 as
+  // $50,000), so a LIVE account with any non-final withdrawal may not switch.
+  let uid = "";
+  let liveId = "";
+
+  beforeEach(async () => {
+    const u = await prisma.user.create({
+      data: { email: `pend-${randomUUID()}@test.local`, passwordHash: "x" },
+    });
+    uid = u.id;
+    const accounts = await createAccountsForUser(uid, 0, "INR");
+    liveId = accounts.find((x) => x.type === "LIVE")!.id;
+    await prisma.account.update({ where: { id: liveId }, data: { realBalance: 5_000_000 } });
+  });
+
+  afterEach(async () => {
+    await prisma.user.delete({ where: { id: uid } });
+  });
+
+  const withdrawal = (status: "REQUESTED" | "HELD" | "APPROVED" | "PAID" | "REJECTED" | "CANCELLED_BY_USER") =>
+    prisma.withdrawal.create({
+      data: { userId: uid, amount: 5_000_000, method: "UPI", status, currency: "INR" },
+    });
+
+  it.each(["REQUESTED", "HELD", "APPROVED"] as const)(
+    "refuses to switch a LIVE account while a %s withdrawal is in flight",
+    async (status) => {
+      await withdrawal(status);
+      const err = await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" }).catch(
+        (e: unknown) => e,
+      );
+      expect(err).toBeInstanceOf(CurrencyChangeRefused);
+      expect((err as CurrencyChangeRefused).message).toBe("Finish or cancel your pending withdrawal first.");
+      expect((err as CurrencyChangeRefused).code).toBe("pending_withdrawal");
+      // Nothing moved: still INR, balance untouched, no ledger row.
+      const after = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+      expect(after.currency).toBe("INR");
+      expect(after.realBalance).toBe(5_000_000);
+      expect(await prisma.transaction.count({ where: { accountId: liveId, kind: "CURRENCY_CONVERT" } })).toBe(0);
+    },
+  );
+
+  it("allows the switch when every withdrawal is final (PAID / REJECTED / CANCELLED_BY_USER)", async () => {
+    await withdrawal("PAID");
+    await withdrawal("REJECTED");
+    await withdrawal("CANCELLED_BY_USER");
+    const updated = await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" });
+    expect(updated.currency).toBe("USD");
+    expect(updated.realBalance).toBe(50_000);
+  });
+
+  it("does not gate a DEMO account (demo accounts cannot withdraw)", async () => {
+    await withdrawal("REQUESTED");
+    const demo = await prisma.account.findFirstOrThrow({ where: { userId: uid, type: "DEMO" } });
+    const updated = await convertAccountCurrency({ actorId: uid, accountId: demo.id, currency: "USD" });
+    expect(updated.currency).toBe("USD");
+  });
+
+  it("never lets a withdrawal request and a currency switch both win the same race", async () => {
+    await prisma.user.update({ where: { id: uid }, data: { kycStatus: "VERIFIED" } });
+    for (let i = 0; i < 6; i++) {
+      const [w, c] = await Promise.allSettled([
+        requestWithdrawal({
+          actorId: uid,
+          accountId: liveId,
+          amount: 100_000,
+          payout: { method: "UPI", upiId: "me@okaxis" },
+          destinationKey: "upi:me@okaxis",
+        }),
+        convertAccountCurrency({ actorId: uid, accountId: liveId, currency: i % 2 === 0 ? "USD" : "INR" }),
+      ]);
+      const account = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+      const rows = await prisma.withdrawal.findMany({ where: { userId: uid } });
+      // Every in-flight row must be denominated in the account's current currency.
+      for (const r of rows) expect(r.currency).toBe(account.currency);
+      // Both succeeding would leave a withdrawal in the old currency on a converted account.
+      if (w.status === "fulfilled" && c.status === "fulfilled") {
+        expect(account.currency).toBe(w.value.currency);
+      }
+      // Whatever lost must have been refused cleanly (not crashed).
+      for (const r of [w, c]) {
+        if (r.status === "rejected") {
+          expect(
+            r.reason instanceof CurrencyChangeRefused || r.reason instanceof WithdrawalRefused,
+          ).toBe(true);
+        }
+      }
+      // Reset for the next round: clear rows, restore INR + a funded balance.
+      await prisma.withdrawal.deleteMany({ where: { userId: uid } });
+      await prisma.account.update({
+        where: { id: liveId },
+        data: { currency: "INR", realBalance: 5_000_000 },
+      });
+    }
   });
 });
 
