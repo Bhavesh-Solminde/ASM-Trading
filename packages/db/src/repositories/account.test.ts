@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { USD_INR_RATE as contractsRate, convertMinorBetween as contractsConvert } from "@asm/contracts";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../client";
 import {
@@ -163,24 +164,29 @@ describe("changeAccountCurrency", () => {
 });
 
 describe("convertMinorBetween", () => {
-  it("converts INR paise to USD cents at ₹100 = $1", () => {
-    // ₹10,00,000 = 100_000_000 paise → $10,000 = 1_000_000 cents.
-    expect(convertMinorBetween(100_000_000, "INR", "USD")).toBe(1_000_000);
-    expect(USD_INR_RATE).toBe(100);
+  it("converts INR paise to USD cents at ₹110 = $1", () => {
+    // ₹11,00,000 = 110_000_000 paise → $10,000 = 1_000_000 cents.
+    expect(convertMinorBetween(110_000_000, "INR", "USD")).toBe(1_000_000);
+    expect(USD_INR_RATE).toBe(110);
   });
 
-  it("converts USD cents to INR paise at $1 = ₹100", () => {
-    // $100 = 10_000 cents → ₹10,000 = 1_000_000 paise.
-    expect(convertMinorBetween(10_000, "USD", "INR")).toBe(1_000_000);
+  it("converts USD cents to INR paise at $1 = ₹110", () => {
+    // $100 = 10_000 cents → ₹11,000 = 1_100_000 paise.
+    expect(convertMinorBetween(10_000, "USD", "INR")).toBe(1_100_000);
   });
 
   it("rounds INR→USD to the nearest cent", () => {
-    expect(convertMinorBetween(150, "INR", "USD")).toBe(2); // 1.5 → 2
-    expect(convertMinorBetween(149, "INR", "USD")).toBe(1); // 1.49 → 1
+    expect(convertMinorBetween(165, "INR", "USD")).toBe(2); // 1.5 → 2
+    expect(convertMinorBetween(164, "INR", "USD")).toBe(1); // 1.49 → 1
   });
 
   it("leaves the amount unchanged for the same currency", () => {
     expect(convertMinorBetween(1234, "INR", "INR")).toBe(1234);
+  });
+
+  it("is the one rate the whole platform shares (the contracts constant)", () => {
+    expect(USD_INR_RATE).toBe(contractsRate);
+    expect(convertMinorBetween).toBe(contractsConvert);
   });
 });
 
@@ -192,13 +198,13 @@ describe("convertAccountCurrency", () => {
       currency: "USD",
     });
     expect(updated.currency).toBe("USD");
-    expect(updated.realBalance).toBe(1_000_000); // ₹10,00,000 → $10,000
+    expect(updated.realBalance).toBe(convertMinorBetween(100_000_000, "INR", "USD")); // ₹10,00,000 → $9,090.91
 
     const ledger = await prisma.transaction.findFirst({
       where: { accountId: daveDemoId, kind: "CURRENCY_CONVERT" },
       orderBy: { createdAt: "desc" },
     });
-    expect(ledger?.amount).toBe(1_000_000);
+    expect(ledger?.amount).toBe(909_091);
   });
 
   it("converts real and bonus balances of a funded LIVE account (no rail lock)", async () => {
@@ -212,8 +218,8 @@ describe("convertAccountCurrency", () => {
       currency: "USD",
     });
     expect(updated.currency).toBe("USD");
-    expect(updated.realBalance).toBe(10_000); // ₹10,000 → $100
-    expect(updated.bonusBalance).toBe(5_000); // ₹5,000 → $50
+    expect(updated.realBalance).toBe(9_091); // ₹10,000 → $90.91
+    expect(updated.bonusBalance).toBe(4_545); // ₹5,000 → $45.45 (45.4545 rounds down)
   });
 
   it("is a no-op when the account is already in the target currency", async () => {
@@ -305,17 +311,17 @@ describe("convertAccountCurrency", () => {
     await convertAccountCurrency({ actorId: u.id, accountId: liveId, currency: "USD" });
 
     const openAfter = await prisma.trade.findUniqueOrThrow({ where: { id: openT.id } });
-    expect(openAfter.stake).toBe(1_000); // ₹1,000 paise → 1,000 cents = $10
-    expect(openAfter.stakeFromBonus).toBe(200); // ₹200 → $2
+    expect(openAfter.stake).toBe(909); // ₹1,000 → $9.09
+    expect(openAfter.stakeFromBonus).toBe(182); // ₹200 → $1.82
     expect(openAfter.pnl).toBe(0);
 
     const wonAfter = await prisma.trade.findUniqueOrThrow({ where: { id: wonT.id } });
-    expect(wonAfter.stake).toBe(1_000);
-    expect(wonAfter.pnl).toBe(920); // ₹920 → $9.20 (gross return: $19.20, not $1,920)
+    expect(wonAfter.stake).toBe(909);
+    expect(wonAfter.pnl).toBe(836); // ₹920 → $8.36 (not $920)
 
     const lostAfter = await prisma.trade.findUniqueOrThrow({ where: { id: lostT.id } });
-    expect(lostAfter.stake).toBe(500);
-    expect(lostAfter.pnl).toBe(-500); // negative round-trip still exact
+    expect(lostAfter.stake).toBe(455);
+    expect(lostAfter.pnl).toBe(-455); // ₹500 loss → -$4.55 (-4.545 rounds to -455)
 
     await prisma.user.delete({ where: { id: u.id } });
   });
@@ -372,7 +378,7 @@ describe("convertAccountCurrency with an in-flight withdrawal", () => {
     await withdrawal("CANCELLED_BY_USER");
     const updated = await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" });
     expect(updated.currency).toBe("USD");
-    expect(updated.realBalance).toBe(50_000);
+    expect(updated.realBalance).toBe(45_455); // ₹50,000 → $454.55
   });
 
   it("does not gate a DEMO account (demo accounts cannot withdraw)", async () => {
@@ -614,21 +620,21 @@ describe("convertAccountCurrency over many trades", () => {
       assetId: a.id,
       direction: "UP" as const,
       payoutPct: 92,
-      entryPrice: 1,
       entryTs: new Date(),
       expiryTs: new Date(),
       status: "LOST" as const,
     };
+    // entryPrice is untouched by the conversion, so it tags each edge row.
     const edge = [
-      { stake: 150, pnl: -150, spreadFee: 150, peakPnl: 150 }, // ±1.5 -> 2 / -1 (Math.round)
-      { stake: 149, pnl: -149, spreadFee: 149, peakPnl: null },
-      { stake: 151, pnl: -151, spreadFee: 51, peakPnl: 0 },
-      { stake: 50, pnl: -50, spreadFee: 50, peakPnl: -50 }, // -0.5 -> 0
+      { entryPrice: 1, stake: 165, pnl: -165, spreadFee: 165, peakPnl: 165 }, // ±1.5 -> 2 / -1 (Math.round)
+      { entryPrice: 2, stake: 164, pnl: -164, spreadFee: 164, peakPnl: null }, // 1.49 -> 1
+      { entryPrice: 3, stake: 55, pnl: -55, spreadFee: 55, peakPnl: -55 }, // ±0.5 -> 1 / 0
+      { entryPrice: 4, stake: 54, pnl: -54, spreadFee: 54, peakPnl: 0 }, // 0.49 -> 0
     ];
     await prisma.trade.createMany({
       data: [
-        ...edge.map((e) => ({ ...base, ...e, stakeFromBonus: 50 })),
-        ...Array.from({ length: 6_000 }, () => ({ ...base, stake: 100_000, pnl: -100_000, stakeFromBonus: 0 })),
+        ...edge.map((e) => ({ ...base, ...e, stakeFromBonus: 55 })),
+        ...Array.from({ length: 6_000 }, () => ({ ...base, entryPrice: 9, stake: 100_000, pnl: -100_000, stakeFromBonus: 0 })),
       ],
     });
 
@@ -636,31 +642,104 @@ describe("convertAccountCurrency over many trades", () => {
     await convertAccountCurrency({ actorId: u.id, accountId: liveId, currency: "USD" });
     expect(Date.now() - started).toBeLessThan(4_000);
 
-    const rows = await prisma.trade.findMany({ where: { accountId: liveId, stake: { lt: 1_000 } } });
-    const mine = rows.filter((r) => r.stake <= 2);
-    expect(mine).toHaveLength(4);
     for (const e of edge) {
-      const want = {
-        stake: convertMinorBetween(e.stake, "INR", "USD"),
-        pnl: convertMinorBetween(e.pnl, "INR", "USD"),
-        spreadFee: convertMinorBetween(e.spreadFee, "INR", "USD"),
-      };
-      const got = mine.find((r) => r.stake === want.stake && r.spreadFee === want.spreadFee && r.pnl === want.pnl);
-      expect(got, JSON.stringify({ e, want })).toBeDefined();
+      const row = await prisma.trade.findFirstOrThrow({ where: { accountId: liveId, entryPrice: e.entryPrice } });
+      expect(row.stake, `stake ${e.stake}`).toBe(convertMinorBetween(e.stake, "INR", "USD"));
+      expect(row.pnl, `pnl ${e.pnl}`).toBe(convertMinorBetween(e.pnl, "INR", "USD") + 0);
+      expect(row.stakeFromBonus).toBe(convertMinorBetween(55, "INR", "USD"));
+      expect(row.spreadFee).toBe(convertMinorBetween(e.spreadFee, "INR", "USD"));
+      expect(row.peakPnl).toBe(e.peakPnl === null ? null : convertMinorBetween(e.peakPnl, "INR", "USD") + 0);
     }
-    const big = await prisma.trade.findFirstOrThrow({ where: { accountId: liveId, stake: 1_000 } });
-    expect(big.pnl).toBe(-1_000);
-    expect(await prisma.trade.count({ where: { accountId: liveId, stake: 1_000 } })).toBe(6_000);
-    const peaks = await prisma.trade.findMany({ where: { accountId: liveId, spreadFee: 2 }, select: { peakPnl: true } });
-    expect(peaks[0]?.peakPnl).toBe(2); // 150 -> 2
+    const big = convertMinorBetween(100_000, "INR", "USD"); // 909
+    expect(big).toBe(909);
+    expect(await prisma.trade.count({ where: { accountId: liveId, entryPrice: 9, stake: big, pnl: -big } })).toBe(6_000);
 
-    // And back: USD -> INR is exact multiplication.
+    // And back: USD -> INR is exact multiplication by the shared rate.
     await convertAccountCurrency({ actorId: u.id, accountId: liveId, currency: "INR" });
-    expect(await prisma.trade.count({ where: { accountId: liveId, stake: 100_000 } })).toBe(6_000);
+    expect(
+      await prisma.trade.count({ where: { accountId: liveId, entryPrice: 9, stake: big * USD_INR_RATE } }),
+    ).toBe(6_000);
 
     await prisma.user.delete({ where: { id: u.id } });
     await prisma.asset.delete({ where: { id: a.id } });
   }, 60_000);
+});
+
+describe("trade-row SQL conversion agrees with convertMinorBetween", () => {
+  // The set-based UPDATE and the TS helper interpolate the same rate and must
+  // round identically (FLOOR(x + 0.5) vs Math.round), incl. negatives and ties.
+  const amounts = [0, 1, 54, 55, 56, 109, 110, 111, 165, 1_000, 9_999, 10_000, 123_457, 5_000_000, 100_000_000];
+
+  it("INR→USD and USD→INR match the TS helper for stake, stakeFromBonus, pnl, spreadFee and peakPnl", async () => {
+    const u = await prisma.user.create({
+      data: { email: `sqlparity-${randomUUID()}@test.local`, passwordHash: "x" },
+    });
+    const a = await prisma.asset.create({
+      data: { symbol: `CONVSQL_${randomUUID().slice(0, 8)}`, displayName: "conv", kind: "OTC", basePrice: 1 },
+    });
+    const accounts = await createAccountsForUser(u.id, 0, "INR");
+    const liveId = accounts.find((x) => x.type === "LIVE")!.id;
+    const rows = amounts.flatMap((n) => [n, -n]).filter((n, i, all) => all.indexOf(n) === i);
+    const small = (n: number) => Math.max(-2_000_000_000 / 110, Math.min(2_000_000_000 / 110, n));
+    await prisma.trade.createMany({
+      data: rows.map((n) => ({
+        accountId: liveId,
+        assetId: a.id,
+        direction: "UP" as const,
+        payoutPct: 92,
+        entryPrice: 1,
+        entryTs: new Date(),
+        expiryTs: new Date(),
+        status: "LOST" as const,
+        stake: Math.abs(n),
+        stakeFromBonus: Math.abs(n),
+        pnl: n,
+        spreadFee: Math.abs(small(n)),
+        peakPnl: small(n),
+      })),
+    });
+
+    await convertAccountCurrency({ actorId: u.id, accountId: liveId, currency: "USD" });
+    const toUsd = await prisma.trade.findMany({ where: { accountId: liveId } });
+    for (const n of rows) {
+      const row = toUsd.find((r) => r.pnl === convertMinorBetween(n, "INR", "USD") && r.stake === convertMinorBetween(Math.abs(n), "INR", "USD") && r.peakPnl === convertMinorBetween(small(n), "INR", "USD"));
+      expect(row, `INR->USD of ${n}`).toBeDefined();
+    }
+    // Every row accounted for with the helper's figure (no row matched by accident twice).
+    expect(toUsd).toHaveLength(rows.length);
+
+    // Round trip back: USD→INR is exact multiplication by the shared rate.
+    const snapshot = toUsd.map((r) => ({ stake: r.stake, pnl: r.pnl, peak: r.peakPnl, fee: r.spreadFee }));
+    await convertAccountCurrency({ actorId: u.id, accountId: liveId, currency: "INR" });
+    const toInr = await prisma.trade.findMany({ where: { accountId: liveId } });
+    for (const s of snapshot) {
+      const row = toInr.find(
+        (r) =>
+          r.stake === convertMinorBetween(s.stake, "USD", "INR") &&
+          r.pnl === convertMinorBetween(s.pnl, "USD", "INR") &&
+          r.peakPnl === (s.peak === null ? null : convertMinorBetween(s.peak, "USD", "INR")) &&
+          r.spreadFee === convertMinorBetween(s.fee, "USD", "INR"),
+      );
+      expect(row, JSON.stringify(s)).toBeDefined();
+    }
+    await prisma.user.delete({ where: { id: u.id } });
+    await prisma.asset.delete({ where: { id: a.id } });
+  });
+
+  it("an account's balances take the same INR→USD→INR path as the helper", async () => {
+    const u = await prisma.user.create({
+      data: { email: `balparity-${randomUUID()}@test.local`, passwordHash: "x" },
+    });
+    const accounts = await createAccountsForUser(u.id, 0, "INR");
+    const liveId = accounts.find((x) => x.type === "LIVE")!.id;
+    await prisma.account.update({ where: { id: liveId }, data: { realBalance: 123_457, bonusBalance: 55 } });
+    const usd = await convertAccountCurrency({ actorId: u.id, accountId: liveId, currency: "USD" });
+    expect(usd.realBalance).toBe(convertMinorBetween(123_457, "INR", "USD"));
+    expect(usd.bonusBalance).toBe(convertMinorBetween(55, "INR", "USD"));
+    const inr = await convertAccountCurrency({ actorId: u.id, accountId: liveId, currency: "INR" });
+    expect(inr.realBalance).toBe(convertMinorBetween(usd.realBalance, "USD", "INR"));
+    await prisma.user.delete({ where: { id: u.id } });
+  });
 });
 
 describe("setDemoBalance", () => {

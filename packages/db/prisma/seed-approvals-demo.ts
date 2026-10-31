@@ -14,7 +14,7 @@
 
 import argon2 from "argon2";
 import { prisma } from "../src/client";
-import { createAccountsForUser } from "../src/repositories/account";
+import { convertMinorBetween, createAccountsForUser } from "../src/repositories/account";
 
 const PASSWORD = "asm-approvals-demo-2026";
 const EMAIL = "approvals-demo@asm.local";
@@ -109,7 +109,7 @@ async function main(): Promise<void> {
         userId,
         method: d.method,
         amountInr: d.amountInrMinor,
-        amountUsd: Math.round(d.amountInrMinor / 107.64),
+        amountUsd: convertMinorBetween(d.amountInrMinor, "INR", "USD"),
         vpa: "ulkasolminde@okhdfcbank",
         checkoutToken: `${CORRELATION_TAG}-token-${i}-${now}`,
         claimedUtr: d.claimedUtr,

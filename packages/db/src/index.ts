@@ -74,7 +74,6 @@ export {
   DepositAlreadyResolved,
   DepositReversalRefused,
   UtrAlreadyClaimed,
-  USD_TO_INR_RATE,
   OFFSET_LOW,
   OFFSET_SPACE,
   DEPOSIT_TTL_MINUTES,

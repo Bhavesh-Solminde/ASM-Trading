@@ -10,12 +10,6 @@ import type { Deposit } from "../models";
 type Tx = DbTransaction;
 
 /**
- * The PSP-style conversion rate. Deliberately above interbank — that spread is
- * the margin the real processors take before a customer has traded anything.
- */
-export const USD_TO_INR_RATE = 107.64;
-
-/**
  * The offset window is symmetric around the converted base amount: from
  * OFFSET_LOW to OFFSET_LOW + OFFSET_SPACE - 1 paise, i.e. -999 to +1000 for
  * the current values — roughly ±₹10, ~2,000 distinct slots. This is the pool
@@ -29,7 +23,7 @@ export const DEPOSIT_TTL_MINUTES = 60;
 export const MIN_DEPOSIT_USD_MINOR = 500; // $5.00
 export const MAX_DEPOSIT_USD_MINOR = 96_100; // $961.00
 // Deposits are collected in rupees over UPI. Paise (minor units).
-// ₹100 ≈ $1, so the ₹500 UPI minimum is about $5.
+// At the shared ₹110 = $1 rate (USD_INR_RATE) the ₹500 UPI minimum is about $4.55.
 export const MIN_DEPOSIT_INR_MINOR = 50_000; // ₹500.00
 export const MAX_DEPOSIT_INR_MINOR = 100_000_000; // ₹10,00,000.00
 
@@ -115,9 +109,10 @@ export async function createDepositIntent(input: {
   }
 
   // The user enters rupees; that is the amount reserved and, for an INR
-  // account, credited. The USD figure is kept for the record only.
+  // account, credited. A USD account is credited the rupees actually paid
+  // (base + offset) converted at the shared rate, so depositing in INR and then
+  // switching lands on exactly the same dollars as the deposit credits directly.
   const baseInr = input.amountInrMinor;
-  const amountUsd = Math.round(input.amountInrMinor / USD_TO_INR_RATE);
   const expiresAt = new Date(Date.now() + DEPOSIT_TTL_MINUTES * 60_000);
 
   const start = randomBytes(2).readUInt16BE(0) % OFFSET_SPACE;
@@ -125,6 +120,7 @@ export async function createDepositIntent(input: {
   for (let probe = 0; probe < OFFSET_SPACE; probe++) {
     const offset = OFFSET_LOW + ((start + probe) % OFFSET_SPACE);
     const amountInr = baseInr + offset;
+    const amountUsd = convertMinorBetween(amountInr, "INR", "USD");
 
     try {
       return await prisma.deposit.create({

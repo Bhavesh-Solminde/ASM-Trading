@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../client";
-import { createAccountsForUser } from "./account";
+import { convertMinorBetween, createAccountsForUser } from "./account";
 import {
   approveWithdrawal,
   autoPromoteHeldWithdrawals,
@@ -182,17 +182,17 @@ describe("requestWithdrawal", () => {
     expect(withdrawal).toMatchObject({ method: "USDT", usdtNetwork: "tron", usdtAddress: addr });
   });
 
-  it("refuses less than the $7 minimum on a USD account", async () => {
+  it("refuses less than the $6.36 minimum on a USD account", async () => {
     await expect(
-      requestWithdrawal({ actorId: userId, accountId, amount: 699, ...UPI }),
-    ).rejects.toThrow(/minimum withdrawal is \$7/i);
+      requestWithdrawal({ actorId: userId, accountId, amount: 635, ...UPI }),
+    ).rejects.toThrow(/minimum withdrawal is \$6\.36/i);
   });
 
-  it("refuses more than the $500 maximum on a USD account", async () => {
+  it("refuses more than the $454.55 maximum on a USD account", async () => {
     await prisma.account.update({ where: { id: accountId }, data: { realBalance: 100_000 } });
     await expect(
-      requestWithdrawal({ actorId: userId, accountId, amount: 50_001, ...UPI }),
-    ).rejects.toThrow(/maximum withdrawal is \$500/i);
+      requestWithdrawal({ actorId: userId, accountId, amount: 45_456, ...UPI }),
+    ).rejects.toThrow(/maximum withdrawal is \$454\.55/i);
   });
 
   it("enforces ₹700 – ₹50,000 on an INR account", async () => {
@@ -619,10 +619,12 @@ describe("refunds after a currency switch (rows created before the pending-withd
     await cancelHeldWithdrawal({ actorId: userId, withdrawalId: w.id });
 
     const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
-    expect(account.realBalance).toBe(1_000 + 50_000); // +$500, not +$50,000
+    const refund = convertMinorBetween(5_000_000, "INR", "USD"); // ₹50,000 -> $454.55
+    expect(refund).toBe(45_455);
+    expect(account.realBalance).toBe(1_000 + refund); // not +$50,000
     const ledger = await prisma.transaction.findFirstOrThrow({ where: { refType: "Withdrawal", refId: w.id } });
-    expect(ledger.amount).toBe(50_000);
-    expect(ledger.balanceAfter).toBe(51_000);
+    expect(ledger.amount).toBe(refund);
+    expect(ledger.balanceAfter).toBe(1_000 + refund);
   });
 
   it.each(["REQUESTED", "HELD", "APPROVED"] as const)(
@@ -634,12 +636,13 @@ describe("refunds after a currency switch (rows created before the pending-withd
       await rejectWithdrawal({ withdrawalId: w.id, adminId: "t", reason: "x" });
 
       const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
-      expect(account.realBalance).toBe(51_000);
+      const refund = convertMinorBetween(5_000_000, "INR", "USD");
+      expect(account.realBalance).toBe(1_000 + refund);
       const ledger = await prisma.transaction.findFirstOrThrow({ where: { refType: "Withdrawal", refId: w.id } });
-      expect(ledger.amount).toBe(50_000);
-      expect(ledger.balanceAfter).toBe(51_000);
+      expect(ledger.amount).toBe(refund);
+      expect(ledger.balanceAfter).toBe(1_000 + refund);
       const audit = await prisma.auditLog.findFirstOrThrow({ where: { targetId: w.id, action: "withdrawal.rejected" } });
-      expect(audit.after).toMatchObject({ refund: 50_000, refundCurrency: "USD" });
+      expect(audit.after).toMatchObject({ refund: 45_455, refundCurrency: "USD" });
       await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
     },
   );
@@ -651,7 +654,7 @@ describe("refunds after a currency switch (rows created before the pending-withd
     });
     await rejectWithdrawal({ withdrawalId: w.id, adminId: "t" });
     const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
-    expect(account.realBalance).toBe(500_000); // $50 → ₹5,000
+    expect(account.realBalance).toBe(550_000); // $50 → ₹5,500
     await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
   });
 

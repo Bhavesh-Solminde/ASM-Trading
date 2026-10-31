@@ -8,9 +8,9 @@ import {
 } from "./withdrawal";
 
 describe("withdrawalLimitsMinor", () => {
-  it("is ₹700 – ₹50,000 on INR and $7 – $500 on USD", () => {
+  it("is ₹700 – ₹50,000 on INR and the same range at ₹110 = $1 on USD ($6.36 – $454.55)", () => {
     expect(withdrawalLimitsMinor("INR")).toEqual({ min: 700_00, max: 50_000_00 });
-    expect(withdrawalLimitsMinor("USD")).toEqual({ min: 7_00, max: 500_00 });
+    expect(withdrawalLimitsMinor("USD")).toEqual({ min: 636, max: 45_455 });
   });
 });
 

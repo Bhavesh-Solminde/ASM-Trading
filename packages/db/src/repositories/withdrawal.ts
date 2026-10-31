@@ -1,5 +1,6 @@
 import { prisma } from "../client";
 import type { Withdrawal } from "../models";
+import { withdrawalLimitsMinor } from "@asm/contracts";
 import { convertMinorBetween } from "./account";
 
 export class WithdrawalRefused extends Error {
@@ -74,14 +75,10 @@ function payoutColumns(p: WithdrawalPayout) {
   };
 }
 
-/**
- * Per-request limits in the account's minor units: ₹700 – ₹50,000, or $7 –
- * $500 on a USD account (fixed ₹100 = $1). Mirrors contracts
- * `withdrawalLimitsMinor`; apps/web keeps a drift test on the pair.
- */
-export function withdrawalLimitsMinor(currency: string): { min: number; max: number } {
-  return currency === "INR" ? { min: 700_00, max: 50_000_00 } : { min: 7_00, max: 500_00 };
-}
+// Per-request limits in the account's minor units live in @asm/contracts (₹700 –
+// ₹50,000, USD derived at the shared ₹110 = $1 rate); the form and the server
+// share this one function so they can never drift.
+export { withdrawalLimitsMinor };
 
 function formatLimit(minor: number, currency: string): string {
   const major = (minor / 100).toLocaleString(currency === "INR" ? "en-IN" : "en-US");
@@ -116,7 +113,7 @@ export async function withdrawableBalance(accountId: string): Promise<{
 /**
  * Requests a payout of real balance to a bank account, UPI ID or USDT wallet
  * the user names. Limits are ₹700 – ₹50,000 per request (USD accounts at the
- * fixed ₹100 = $1 rate) and the account's KYC must be VERIFIED.
+ * fixed ₹110 = $1 rate) and the account's KYC must be VERIFIED.
  *
  * The debit is optimistic-concurrency guarded exactly like a trade stake: the
  * balance is re-read and version-checked inside the transaction, so two

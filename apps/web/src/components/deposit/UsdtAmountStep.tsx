@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { USDT_NETWORK_INFO, type UsdtNetwork } from "@asm/contracts";
 import { SummaryCard } from "@/components/payments/SummaryCard";
+import { USD_INR_RATE } from "@/lib/currency";
 import { bonusMinor, formatInr, formatMinorCompact, inrToUsdt } from "./limits";
 
 const RECOMMENDED: UsdtNetwork = "bsc";
@@ -17,7 +18,7 @@ export function UsdtAmountStep({
 }: {
   /** Enabled networks, server-computed; never empty (DepositFlow guards that). */
   networks: UsdtNetwork[];
-  /** The amount chosen on step 1, in whole rupees (USDT is worth ₹100 each). */
+  /** The amount chosen on step 1, in whole rupees (USDT is worth ₹110 each). */
   amountInr: number;
   /** Back to the method list (step 2). */
   onBack: () => void;
@@ -85,7 +86,7 @@ export function UsdtAmountStep({
         ]}
       />
       <p className="-mt-2 text-xs text-ink-2">
-        {formatInr(amountInr)} at the fixed rate of ₹100 = $1. Min $10, max $10,000 per deposit.
+        {formatInr(amountInr)} at the fixed rate of ₹{USD_INR_RATE} = $1. Min $10, max $10,000 per deposit.
       </p>
 
       {networks.length > 1 ? (

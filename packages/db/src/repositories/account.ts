@@ -1,4 +1,5 @@
 import { prisma, type DbTransaction } from "../client";
+import { USD_INR_RATE, convertMinorBetween } from "@asm/contracts";
 import type { Account } from "../models";
 
 /** Supported account currencies and their DEMO starting balance (minor units). */
@@ -38,23 +39,9 @@ export function demoBalanceCap(currency: string): number {
   return DEMO_START_BY_CURRENCY[currency] ?? DEMO_START_BY_CURRENCY.USD!;
 }
 
-/**
- * Fixed conversion rate: ₹100 = $1. Because both currencies carry two minor
- * digits (paise / cents), the same factor relates their minor units:
- * `INR_minor = USD_minor × USD_INR_RATE`. Kept as a constant so a future live
- * rate has one place to change. Mirrored in the web client (`lib/currency.ts`)
- * for the pre-convert preview — keep the two in step.
- */
-export const USD_INR_RATE = 100;
-
-/** Convert a minor-unit amount between INR and USD at the fixed rate. */
-export function convertMinorBetween(amount: number, from: string, to: string): number {
-  if (from === to) return amount;
-  if (from === "INR" && to === "USD") return Math.round(amount / USD_INR_RATE);
-  if (from === "USD" && to === "INR") return amount * USD_INR_RATE;
-  // Unknown pair: no conversion (callers validate currencies first).
-  return amount;
-}
+// The platform's one fixed USD/INR rate and converter live in @asm/contracts
+// (pure, client-safe) so db, web, engine and any client share a single constant.
+export { USD_INR_RATE, convertMinorBetween };
 
 /**
  * Ownership is expressed in the query predicate, never as a check after the

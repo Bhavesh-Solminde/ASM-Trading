@@ -6,7 +6,6 @@ import {
   DepositNotFound,
   MAX_DEPOSIT_INR_MINOR,
   MIN_DEPOSIT_INR_MINOR,
-  USD_TO_INR_RATE,
   UtrAlreadyClaimed,
   claimUtr,
   claimUsdtPayment,
@@ -25,7 +24,7 @@ import {
   bonusPercentForDeposit,
   countCompletedDeposits,
 } from "./deposit";
-import { createAccountsForUser } from "./account";
+import { USD_INR_RATE, createAccountsForUser } from "./account";
 
 let userId = "";
 
@@ -115,8 +114,9 @@ describe("createDepositIntent", () => {
     // so the reserved amount stays within about ±₹10 of what the user asked for.
     expect(deposit.amountInr).toBeGreaterThanOrEqual(requestedInr - 999);
     expect(deposit.amountInr).toBeLessThanOrEqual(requestedInr + 1000);
-    // The USD figure is derived from the requested rupees for the record only.
-    expect(deposit.amountUsd).toBe(Math.round(requestedInr / USD_TO_INR_RATE));
+    // The USD figure is the reserved rupees (incl. offset) at the shared rate, so a
+    // USD account is credited exactly what an INR deposit would be worth after a switch.
+    expect(deposit.amountUsd).toBe(Math.round(deposit.amountInr / USD_INR_RATE));
     expect(deposit.status).toBe("AWAITING_PAYMENT");
   });
 
@@ -333,7 +333,7 @@ describe("creditDepositToAccount", () => {
     await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
   });
 
-  it("credits a USDT deposit into an INR account as paise (×100), never the negative amountInr sentinel", async () => {
+  it("credits a USDT deposit into an INR account as paise (×USD_INR_RATE), never the negative amountInr sentinel", async () => {
     await prisma.account.updateMany({ where: { userId, type: "LIVE" }, data: { currency: "INR" } });
     const deposit = await createUsdtDepositIntent({
       userId,
@@ -351,19 +351,19 @@ describe("creditDepositToAccount", () => {
     await creditDepositToAccount({ depositId: deposit.id, adminId: null });
 
     const after = await prisma.account.findFirstOrThrow({ where: { userId, type: "LIVE" } });
-    expect(after.realBalance - before.realBalance).toBe(usdt * 100);
+    expect(after.realBalance - before.realBalance).toBe(usdt * USD_INR_RATE);
     // The bonus tier depends on how many deposits this shared test user has
     // already had credited — the bonus tests below cover the tiers themselves.
     const nth = await prisma.deposit.count({ where: { userId, status: "COMPLETED" } });
     expect(after.bonusBalance - before.bonusBalance).toBe(
-      Math.floor((usdt * 100 * bonusPercentForDeposit(nth)) / 100),
+      Math.floor((usdt * USD_INR_RATE * bonusPercentForDeposit(nth)) / 100),
     );
     const tx = await prisma.transaction.findFirstOrThrow({
       where: { accountId: after.id, refId: deposit.id, kind: "DEPOSIT" },
     });
-    expect(tx.amount).toBe(usdt * 100);
+    expect(tx.amount).toBe(usdt * USD_INR_RATE);
     const userAfter = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    expect(userAfter.cumulativeDeposits - userBefore.cumulativeDeposits).toBe(usdt * 100);
+    expect(userAfter.cumulativeDeposits - userBefore.cumulativeDeposits).toBe(usdt * USD_INR_RATE);
   });
 
   it("credits a USDT deposit into a USD account 1:1 in cents", async () => {
@@ -424,10 +424,10 @@ describe("depositCreditMinor", () => {
   const upi = { method: "upi", amountInr: 1_000_037, amountUsd: 9_291, amountUsdtMinor: null };
 
   it("converts USDT-cents to the account currency and never uses the sentinel columns", () => {
-    expect(depositCreditMinor(usdt, "INR")).toBe(1_234_500);
+    expect(depositCreditMinor(usdt, "INR")).toBe(1_357_950); // 12,345 cents x 110
     expect(depositCreditMinor(usdt, "USD")).toBe(12_345);
     expect(depositCreditMinor(usdt, "USDT")).toBe(12_345);
-    expect(depositCreditMinor(usdt, "INR", 10_000)).toBe(1_000_000);
+    expect(depositCreditMinor(usdt, "INR", 10_000)).toBe(1_100_000);
   });
 
   it("keeps INR/UPI semantics unchanged", () => {
@@ -1112,7 +1112,7 @@ describe("deposits across a currency switch", () => {
 
     const account = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
     expect(account.currency).toBe("USD");
-    expect(account.realBalance).toBe(d.amountUsd); // ≈ $464.52, not 5,000,000 cents
+    expect(account.realBalance).toBe(d.amountUsd); // ≈ $454.5, not 5,000,000 cents
     expect(account.bonusBalance).toBe(d.amountUsd); // first deposit: 100% bonus on the right figure
     const ledger = await prisma.transaction.findFirstOrThrow({
       where: { accountId: liveId, kind: "DEPOSIT", refId: d.id },
@@ -1137,7 +1137,7 @@ describe("deposits across a currency switch", () => {
     // Credited in INR: real ≈ ₹50,000, bonus ≈ ₹50,000. Then the user switches.
     await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" });
     const mid = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
-    expect(mid.bonusBalance).toBe(Math.round(d.amountInr / 100)); // ≈ $500 bonus
+    expect(mid.bonusBalance).toBe(Math.round(d.amountInr / USD_INR_RATE)); // ≈ $455 bonus
 
     // Without conversion the reversal would try to reclaim 5,000,000 "cents" of
     // bonus and refuse; it must reclaim the $500 the grant is worth now.
