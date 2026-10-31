@@ -26,7 +26,7 @@ export function mergeBootstrap(
   for (const t of parseTrades(boot.recentTrades)) byAccount.set(t.accountId, [...(byAccount.get(t.accountId) ?? []), t]);
 
   let next = state;
-  for (const [accountId, fetched] of byAccount) next = withFetchedTrades(next, accountId, fetched);
+  for (const [accountId, fetched] of byAccount) next = withFreshTrades(next, accountId, fetched);
 
   const balances: Record<string, BalancesDto> = { ...next.balances };
   for (const a of boot.accounts) {
@@ -35,6 +35,24 @@ export function mergeBootstrap(
     }
   }
   return { ...next, balances };
+}
+
+/**
+ * `withFetchedTrades` for a list fetched from the server, which also copes with a currency switch. A switch converts
+ * every trade's amounts in place, and the plain merge keeps the stored copy of a trade it already holds, so the stored
+ * trades would stay in the old currency's units. A trade's stake never changes otherwise, so the same trade id with
+ * another stake means the account was converted: then the fetched list REPLACES the account's stored trades. Only a
+ * stored trade newer than anything fetched is kept (it was opened after the snapshot, so it is already in the new units).
+ * Without a converted trade this is the plain merge: a settled version still beats an open one.
+ */
+export function withFreshTrades(state: TradeState, accountId: string, fetched: readonly TradeView[]): TradeState {
+  const stored = state.tradesByAccount[accountId] ?? [];
+  const stakeById = new Map(fetched.map((t) => [t.id, t.stake]));
+  const converted = stored.some((t) => stakeById.has(t.id) && stakeById.get(t.id) !== t.stake);
+  if (!converted) return withFetchedTrades(state, accountId, fetched);
+  const newestFetched = fetched.reduce((max, t) => Math.max(max, t.entryTs), -Infinity);
+  const kept = stored.filter((t) => !stakeById.has(t.id) && t.entryTs > newestFetched);
+  return withFetchedTrades({ ...state, tradesByAccount: { ...state.tradesByAccount, [accountId]: kept } }, accountId, fetched);
 }
 
 /** The one balance rule: an account with no balance takes the bootstrap's; otherwise the request must have started after the last stamp. */

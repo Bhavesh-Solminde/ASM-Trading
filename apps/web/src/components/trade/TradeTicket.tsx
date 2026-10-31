@@ -21,6 +21,7 @@ import {
   isChipExpiry,
   stakePresets,
 } from "@asm/client-core";
+import { STALE_CURRENCY_NOTICE, isStaleCurrencyRefusal } from "@/lib/trade-refusal";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useMarketClosed, useNowSec } from "@/lib/use-now";
 import { StakeSheet } from "./StakeSheet";
@@ -185,6 +186,7 @@ export function TradeTicket({
     setFired(direction);
     setBusy(true);
     setError(null);
+    let reloading = false;
     try {
       const res = await fetch("/api/trades", {
         method: "POST",
@@ -203,13 +205,20 @@ export function TradeTicket({
       const data = (await res.json().catch(() => ({}))) as Partial<OpenTradeResult> & { error?: string };
       if (res.ok && data.trade && data.balances) {
         onOpened({ trade: data.trade, balances: data.balances });
+      } else if (isStaleCurrencyRefusal(res.status, data)) {
+        // The account was converted elsewhere. This page holds the old currency (and old-unit balances and trades), so
+        // every retry would be refused: reload to pick up the new one, as the website's own Convert does. Never resend.
+        setError(STALE_CURRENCY_NOTICE);
+        reloading = true;
+        window.setTimeout(() => window.location.reload(), 1500);
       } else {
         setError(data.error ?? "Could not place that trade.");
       }
     } catch {
       setError("Could not reach the server.");
     } finally {
-      setBusy(false);
+      // Stays busy while the page reloads, so a second tap cannot send the same stale stake again.
+      if (!reloading) setBusy(false);
     }
   }
 

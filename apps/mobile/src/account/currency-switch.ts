@@ -25,7 +25,7 @@ export interface CurrencyRow {
   /** Real + bonus, in `currency`'s minor units: the server converts the whole balance. */
   totalMinor: number;
   next: SwitchCurrency;
-  /** `totalMinor` converted at the fixed rate, in `next`'s minor units (the same rounding as the server). */
+  /** The balance converted at the fixed rate, in `next`'s minor units: real and bonus rounded separately, as the server does. */
   previewMinor: number;
 }
 
@@ -51,7 +51,8 @@ export function currencyRows(
       currency: account.currency,
       totalMinor,
       next,
-      previewMinor: convertMinorBetween(totalMinor, account.currency, next),
+      previewMinor:
+        convertMinorBetween(live.realBalance, account.currency, next) + convertMinorBetween(live.bonusBalance, account.currency, next),
     });
   }
   return rows;

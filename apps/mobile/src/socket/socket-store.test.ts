@@ -400,6 +400,20 @@ describe("useSocket", () => {
       expect(useSocket.getState().recovered).toBe(first);
     });
 
+    it("replaces an account's stored trades when the refetched ones are in other units (after a currency switch)", () => {
+      const open = { ...trade, id: "l1", accountId: "a2", stake: 100_000 };
+      useSocket.getState().seed({ ...boot, recentTrades: [open] } as unknown as Bootstrap);
+      useSocket.getState().mergeFetchedTrades("a2", [{ ...open, stake: 1_000 }]);
+      expect(useSocket.getState().trades.tradesByAccount["a2"]?.map((t) => t.stake)).toEqual([1_000]);
+    });
+
+    it("still announces a settlement recovered in the same refetch that converted the units", () => {
+      const open = { ...trade, id: "l1", accountId: "a2", stake: 100_000 };
+      useSocket.getState().seed({ ...boot, recentTrades: [open] } as unknown as Bootstrap);
+      useSocket.getState().mergeFetchedTrades("a2", [{ ...open, stake: 1_000, status: "WON", pnl: 850, exitPrice: 1.2 }]);
+      expect(useSocket.getState().recovered.map((t) => t.id)).toEqual(["l1"]);
+    });
+
     it("does not publish history it never saw open", () => {
       useSocket.getState().seed(boot);
       useSocket.getState().mergeFetchedTrades("a2", [{ ...trade, id: "old", accountId: "a2", status: "LOST", pnl: -1 }]);

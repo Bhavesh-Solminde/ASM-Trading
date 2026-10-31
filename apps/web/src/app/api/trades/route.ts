@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
   // is refused on a mismatch (before the minimum-stake check, which would blame the wrong number). Clients that
   // send none (older app builds, cached web pages) are unaffected.
   if (parsed.data.currency && parsed.data.currency !== account.currency) {
+    log.info({ evt: "trade.rejected", reason: "currency_changed", accountId: account.id }, "stake sent in a stale currency");
     return NextResponse.json(
       { error: "Your account currency changed. Check your stake and try again.", code: "currency_changed" },
       { status: 409 },

@@ -41,6 +41,11 @@ describe("currencyRows", () => {
     const rows = currencyRows([{ ...DEMO, realBalance: 15_050, bonusBalance: 49 }]);
     expect(rows[0]!.previewMinor).toBe(Math.round(15_099 / 100));
   });
+  it("rounds the real and the bonus balance separately, as the server does (149 + 149 paise is 2 cents, not 3)", () => {
+    const rows = currencyRows([{ ...DEMO, realBalance: 149, bonusBalance: 149 }]);
+    expect(rows[0]!.previewMinor).toBe(2);
+    expect(rows[0]!.totalMinor).toBe(298);
+  });
   it("leaves out an account whose currency cannot be switched", () => {
     expect(currencyRows([{ ...DEMO, currency: "EUR" }, LIVE]).map((r) => r.accountId)).toEqual(["l1"]);
   });
@@ -55,6 +60,10 @@ const t = (k: string, o?: Record<string, unknown>) => `<${k}${o ? JSON.stringify
 describe("currencySwitchErrorText", () => {
   it("shows the server's own message for a refusal (409)", () => {
     expect(currencySwitchErrorText(new ApiError("Account not found.", 409, null), t)).toBe("Account not found.");
+  });
+  it("shows the server's refusal verbatim, whatever its code (e.g. a pending withdrawal)", () => {
+    const msg = "Finish or cancel your pending withdrawal first.";
+    expect(currencySwitchErrorText(new ApiError(msg, 409, "pending_withdrawal"), t)).toBe(msg);
   });
   it("reads offline and timeout as 'check your balance first' (the switch may have landed)", () => {
     expect(currencySwitchErrorText(new ApiError("x", 0, "timeout"), t)).toBe("<currency.timedOut>");
