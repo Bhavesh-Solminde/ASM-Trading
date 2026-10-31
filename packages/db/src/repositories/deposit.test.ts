@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../client";
 import {
   DepositAlreadyResolved,
@@ -1057,5 +1057,93 @@ describe("deposit bonus tiers", () => {
 
     expect(before.bonusBalance - after.bonusBalance).toBe(granted);
     expect(before.realBalance - after.realBalance).toBe(third.amountInr);
+  });
+});
+
+describe("deposits across a currency switch", () => {
+  // A deposit row carries both amountInr and amountUsd; what gets credited must
+  // be picked from the currency the LIVE account has when the credit commits —
+  // read under the account lock, not before the transaction — or a switch in
+  // flight makes INR paise land in a USD balance (100x).
+  let uid = "";
+  let liveId = "";
+
+  beforeEach(async () => {
+    const u = await prisma.user.create({
+      data: { email: `dep-switch-${randomUUID()}@test.local`, passwordHash: "x" },
+    });
+    uid = u.id;
+    const accounts = await createAccountsForUser(uid, 0, "INR");
+    liveId = accounts.find((a) => a.type === "LIVE")!.id;
+  });
+
+  afterEach(async () => {
+    const ids = (await prisma.deposit.findMany({ where: { userId: uid }, select: { id: true } })).map((x) => x.id);
+    await prisma.auditLog.deleteMany({ where: { targetId: { in: ids } } });
+    await prisma.user.delete({ where: { id: uid } });
+  });
+
+  async function intentInr(amountInrMinor: number, utr: string) {
+    const d = await createDepositIntent({
+      userId: uid,
+      method: "upi",
+      amountInrMinor,
+      correlationId: randomUUID(),
+    });
+    await claimUtr(uid, d.id, utr);
+    return d;
+  }
+
+  it("credits the account's currency when the switch commits while the credit is in flight", async () => {
+    const d = await intentInr(5_000_000, "999999990101"); // ₹50,000 intent made while INR
+    // The switch holds the account row (converted, uncommitted) while the credit
+    // reads the account as INR and queues behind it.
+    const hold = prisma.$transaction(async (tx) => {
+      await tx.account.update({
+        where: { id: liveId },
+        data: { currency: "USD", version: { increment: 1 } },
+      });
+      await new Promise((r) => setTimeout(r, 600));
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    const credit = creditDepositToAccount({ depositId: d.id, adminId: "admin-panel", creditId: null });
+    await hold;
+    await credit;
+
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+    expect(account.currency).toBe("USD");
+    expect(account.realBalance).toBe(d.amountUsd); // ≈ $464.52, not 5,000,000 cents
+    expect(account.bonusBalance).toBe(d.amountUsd); // first deposit: 100% bonus on the right figure
+    const ledger = await prisma.transaction.findFirstOrThrow({
+      where: { accountId: liveId, kind: "DEPOSIT", refId: d.id },
+    });
+    expect(ledger.amount).toBe(d.amountUsd);
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: uid }, select: { cumulativeDeposits: true } });
+    expect(user.cumulativeDeposits).toBe(d.amountUsd);
+  });
+
+  it("credits the INR figure when the account is still INR (no switch)", async () => {
+    const d = await intentInr(5_000_000, "999999990102");
+    await creditDepositToAccount({ depositId: d.id, adminId: "admin-panel", creditId: null });
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+    expect(account.realBalance).toBe(d.amountInr);
+  });
+
+  it("reverses a deposit credited before a switch, reclaiming the bonus in the account's current units", async () => {
+    const { reverseCompletedDeposit } = await import("./deposit");
+    const { convertAccountCurrency } = await import("./account");
+    const d = await intentInr(5_000_000, "999999990103");
+    await creditDepositToAccount({ depositId: d.id, adminId: "admin-panel", creditId: null });
+    // Credited in INR: real ≈ ₹50,000, bonus ≈ ₹50,000. Then the user switches.
+    await convertAccountCurrency({ actorId: uid, accountId: liveId, currency: "USD" });
+    const mid = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+    expect(mid.bonusBalance).toBe(Math.round(d.amountInr / 100)); // ≈ $500 bonus
+
+    // Without conversion the reversal would try to reclaim 5,000,000 "cents" of
+    // bonus and refuse; it must reclaim the $500 the grant is worth now.
+    await reverseCompletedDeposit({ depositId: d.id, adminId: "admin-panel", reason: "chargeback" });
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: liveId } });
+    expect(after.bonusBalance).toBe(0);
+    expect((await prisma.deposit.findUniqueOrThrow({ where: { id: d.id } })).status).toBe("REJECTED");
   });
 });

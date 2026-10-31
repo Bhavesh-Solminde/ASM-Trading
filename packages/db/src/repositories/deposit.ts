@@ -718,13 +718,14 @@ export async function creditDepositToAccount(input: {
     }
   }
 
-  // Credit in the account's own currency — see depositCreditMinor. For an
-  // admin resolution the credit is what actually arrived on-chain, which may
-  // differ from what the deposit reserved.
+  // For an admin resolution the credit is what actually arrived on-chain, which
+  // may differ from what the deposit reserved.
   const usdtOverride = admin?.usdtMinorOverride ?? received;
-  const credit = depositCreditMinor(deposit, account.currency, usdtOverride);
 
-  // Set inside the transaction; read after commit for the email.
+  // Set inside the transaction; read after commit for the email. The credit is
+  // computed there too: see the account lock below.
+  let credit = 0;
+  let creditCurrency = account.currency;
   let grantedBonus = 0;
 
   await prisma.$transaction(async (tx) => {
@@ -779,10 +780,17 @@ export async function creditDepositToAccount(input: {
     // Lock the LIVE account row before counting, so two of the user's deposits
     // completing at once can't both see the same deposit number: the second
     // blocks here until the first commits, and its count then includes it.
-    await tx.account.update({
+    const locked = await tx.account.update({
       where: { id: account.id },
       data: { version: { increment: 1 } },
+      select: { currency: true },
     });
+    // Credit in the account's own currency (see depositCreditMinor) as it is NOW,
+    // under the lock — not as it was when this function started. A currency
+    // switch holds this same row lock while it converts, so a credit computed
+    // from the pre-transaction read could land INR paise on a USD balance (100x).
+    creditCurrency = locked.currency;
+    credit = depositCreditMinor(deposit, creditCurrency, usdtOverride);
     // This deposit is already COMPLETED inside the transaction, so it counts.
     const depositNumber = await tx.deposit.count({
       where: { userId: deposit.userId, status: "COMPLETED" },
@@ -884,12 +892,34 @@ export async function creditDepositToAccount(input: {
     to: deposit.user.email,
     name: personName(deposit.user),
     depositId: deposit.id,
-    creditLabel: formatMoney(credit, account.currency),
-    bonusLabel: grantedBonus > 0 ? formatMoney(grantedBonus, account.currency) : null,
-    totalLabel: formatMoney(credit + grantedBonus, account.currency),
+    creditLabel: formatMoney(credit, creditCurrency),
+    bonusLabel: grantedBonus > 0 ? formatMoney(grantedBonus, creditCurrency) : null,
+    totalLabel: formatMoney(credit + grantedBonus, creditCurrency),
   }).catch(() => {
     /* sendEmail never throws; this guards a template bug */
   });
+}
+
+/**
+ * Which currency a ledger DEPOSIT credit of `amount` was written in: the one
+ * whose figure for this deposit equals it. Prefers `preferred` (the account's
+ * current currency) when both match, and returns null if neither does (callers
+ * then treat the amount as already current).
+ */
+function creditCurrencyOf(
+  deposit: Pick<Deposit, "method" | "amountInr" | "amountUsd" | "amountUsdtMinor">,
+  amount: number,
+  preferred: string,
+): string | null {
+  const candidates = [preferred, ...["INR", "USD"].filter((c) => c !== preferred)];
+  for (const currency of candidates) {
+    try {
+      if (depositCreditMinor(deposit, currency) === amount) return currency;
+    } catch {
+      /* this currency cannot credit the deposit; try the next */
+    }
+  }
+  return null;
 }
 
 export class DepositReversalRefused extends Error {
@@ -951,22 +981,38 @@ async function performDepositReversal(
   const account = await prisma.account.findFirstOrThrow({
     where: { userId: deposit.userId, type: "LIVE" },
   });
-  // The same figure creditDepositToAccount added (an admin resolution rewrote
-  // amountUsdtMinor to the credited amount, so it is read back here as-is).
-  const credit = depositCreditMinor(deposit, account.currency);
   // The bonus actually granted for this deposit — its tier depended on the
   // deposit number at credit time, so it is read back rather than recomputed.
   const grant = await prisma.transaction.findFirst({
     where: { accountId: account.id, refType: "Deposit", refId: deposit.id, kind: "BONUS_GRANT" },
     select: { amount: true },
   });
-  const bonus = grant?.amount ?? 0;
+  const grantAmount = grant?.amount ?? 0;
+  // The ledger rows are written once, in the account's currency at credit time,
+  // and never rewritten by a later currency switch (the balance is, the ledger
+  // is not). Work out which currency the grant is in by matching the original
+  // DEPOSIT credit row against the deposit's per-currency figures.
+  const creditRow = await prisma.transaction.findFirst({
+    where: { accountId: account.id, refType: "Deposit", refId: deposit.id, kind: "DEPOSIT", amount: { gt: 0 } },
+    orderBy: { createdAt: "asc" },
+    select: { amount: true },
+  });
+  const grantCurrency = creditRow ? creditCurrencyOf(deposit, creditRow.amount, account.currency) : null;
 
   await prisma.$transaction(async (tx) => {
     const fresh = await tx.account.findUniqueOrThrow({
       where: { id: account.id },
-      select: { realBalance: true, bonusBalance: true, version: true },
+      select: { realBalance: true, bonusBalance: true, version: true, currency: true },
     });
+    // The same figure creditDepositToAccount added (an admin resolution rewrote
+    // amountUsdtMinor to the credited amount, so it is read back here as-is),
+    // in the account's currency as read inside the transaction.
+    const credit = depositCreditMinor(deposit, fresh.currency);
+    // The grant converted into the same units, so a switch since the credit
+    // doesn't make the reversal try to reclaim 100x (or 1/100th) of the bonus.
+    const bonus = grantCurrency
+      ? convertMinorBetween(grantAmount, grantCurrency, fresh.currency)
+      : grantAmount;
 
     const realCap = Math.min(credit, fresh.realBalance);
     const bonusCap = Math.min(bonus, fresh.bonusBalance);
