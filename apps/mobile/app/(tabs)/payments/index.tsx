@@ -100,7 +100,7 @@ export default function Payments() {
         </Pressable>
       </View> : null}
     </View>
-    <View style={{ flexDirection: "row", gap: 12 }}><View style={{ flex: 1 }}><Button label={t("withdraw.title")} kind="secondary" onPress={() => router.push("/payments/withdraw")} /></View><View style={{ flex: 1 }}><Button label={t("redesign.addMoney")} kind="light" onPress={() => router.push("/payments/deposit")} /></View></View>
+    <View style={{ flexDirection: "row", gap: 12 }}><View style={{ flex: 1 }}><Button testID="payments-withdraw" label={t("withdraw.title")} kind="secondary" onPress={() => router.push("/payments/withdraw")} /></View><View style={{ flex: 1 }}><Button testID="payments-deposit" label={t("redesign.addMoney")} kind="light" onPress={() => router.push("/payments/deposit")} /></View></View>
     {decision.row ? <PendingPaymentRow pending={decision.row} /> : null}
     {showKycNextStep(boot?.profile.kycStatus) ? <Card><Txt size={12} color={color.accentText}>{t("redesign.nextStep")}</Txt><Txt size={20} weight={600} style={{ marginTop: 8 }}>{t("redesign.verify")}</Txt><Txt size={14} color={color.ink2} style={{ marginVertical: 8 }}>{t("redesign.verificationHint")}</Txt><Button label={t("payments.verifyAction")} kind="text" onPress={() => router.push("/account/verify")} /></Card> : null}
     <View>

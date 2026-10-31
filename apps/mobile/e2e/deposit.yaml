@@ -1,0 +1,66 @@
+# UPI deposit: Payments -> Add money -> amount -> PhonePe -> pay screen -> the "I've paid" link -> UTR form.
+# Needs the state login-trade.yaml leaves behind (signed in, PIN 1234) and a web server started with
+# UPI_DEPOSITS_ENABLED=on, UPI_COLLECTION_VPAS=<any vpa> and UPI_MANUAL_CLAIM_DELAY_SEC=5 (the default delay is 90 s).
+# No SMS relay is needed: the flow stops at the UTR form and never pays.
+# Run: maestro test [-e DEV_CLIENT_URL=...] apps/mobile/e2e/deposit.yaml
+appId: com.indianxtrade.app
+---
+# Cold start is always locked.
+- stopApp
+- launchApp:
+    clearState: false
+- runFlow: subflows/open-dev-client.yaml
+- extendedWaitUntil:
+    visible: { id: "pin-1" }
+    timeout: 60000
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "1", D2: "2", D3: "3", D4: "4" }
+- extendedWaitUntil:
+    visible: { id: "tab-payments" }
+    timeout: 30000
+
+# Payments -> Add money.
+- tapOn: { id: "tab-payments" }
+- extendedWaitUntil:
+    visible: { id: "payments-deposit" }
+    timeout: 30000
+- tapOn: { id: "payments-deposit" }
+
+# The amount lives in a sheet (its keys show up ~2.5 s after it opens): 1000.
+- extendedWaitUntil:
+    visible: { id: "deposit-amount" }
+    timeout: 30000
+- tapOn: { id: "deposit-amount" }
+- extendedWaitUntil:
+    visible: { id: "key-1" }
+    timeout: 15000
+- tapOn: { id: "key-1" }
+- tapOn: { id: "key-0" }
+- tapOn: { id: "key-0" }
+- tapOn: { id: "key-0" }
+- tapOn: { id: "keypad-done" }
+
+# Pick PhonePe (it is greyed out, not tappable, if the server has UPI deposits off) and pay.
+- extendedWaitUntil:
+    visible: { id: "deposit-method-PhonePe" }
+    timeout: 15000
+- tapOn: { id: "deposit-method-PhonePe" }
+- tapOn: { id: "deposit-pay" }
+
+# The pay screen: the system chooser button is always offered (even on a phone with no UPI app), and the
+# waiting line shows. The "I've paid" link appears after the claim delay, then opens the UTR form.
+- extendedWaitUntil:
+    visible: { id: "pay-screen" }
+    timeout: 30000
+- extendedWaitUntil:
+    visible: { id: "pay-app-any" }
+    timeout: 15000
+- assertVisible: { id: "pay-status" }
+- extendedWaitUntil:
+    visible: { id: "pay-claim" }
+    timeout: 120000
+- tapOn: { id: "pay-claim" }
+- extendedWaitUntil:
+    visible: { id: "claim-utr" }
+    timeout: 15000

@@ -1,6 +1,6 @@
 # End-to-end flows (Maestro)
 
-Three flows for the Android app. **They have been written but not yet run**: Maestro was not installed on the
+Six flows for the Android app. **They have been written but not yet run**: Maestro was not installed on the
 machine that wrote them, and installing it needs the owner's OK. Expect to fix small things (timeouts, the
 dev-client hand-off) on the first real run, and record the output in the PR.
 
@@ -9,10 +9,14 @@ dev-client hand-off) on the first real run, and record the output in the PR.
 | `login-trade.yaml` | fresh install, sign in, set a PIN, 30s demo trade, settlement toast | web + engine, a test user |
 | `lock.yaml` | cold-start lock, short background keeps the app open, 5-minute background relocks, 5 wrong PINs end the session | the state `login-trade` leaves (PIN `1234`); **~6 minutes** |
 | `maintenance.yaml` | maintenance gate screen | web started with `MAINTENANCE_MODE=1` |
+| `deposit.yaml` | Payments, Add money, a 1000 UPI deposit with PhonePe, the pay screen, the "I've paid" link and the UTR form (never pays) | the state `login-trade` leaves; web with `UPI_DEPOSITS_ENABLED=on`, `UPI_COLLECTION_VPAS` and `UPI_MANUAL_CLAIM_DELAY_SEC=5` |
+| `withdraw-kyc.yaml` | Withdraw gate for a user who has not started KYC, and its button to the verify screen | the state `login-trade` leaves; a user with `kycStatus` NOT_STARTED |
+| `history.yaml` | History, Payments segment, Deposits filter, a deposit's detail sheet | the state `login-trade` leaves; at least one deposit (run `deposit.yaml` first) |
 
-`subflows/` holds helpers (`open-dev-client`, `enter-pin`). They are not flows of their own, so run the three
+`subflows/` holds helpers (`open-dev-client`, `enter-pin`). They are not flows of their own, so run the
 flows above one by one. Do not point `maestro test` at the whole folder: the order is alphabetical (`lock`
-before `login-trade`) and `maintenance` needs a different server.
+before `login-trade`) and `maintenance` needs a different server. After `login-trade`, run `deposit`, then
+`history` (it needs that deposit), then `withdraw-kyc`; each cold-starts the app and unlocks it with PIN `1234`.
 
 ## Setup
 
@@ -100,7 +104,12 @@ DEV='exp+indianxtrade://expo-development-client/?url=http%3A%2F%2Flocalhost%3A80
 
 maestro test -e EMAIL=<test user> -e PASSWORD=<its password> -e DEV_CLIENT_URL="$DEV" apps/mobile/e2e/login-trade.yaml
 maestro test -e DEV_CLIENT_URL="$DEV" apps/mobile/e2e/lock.yaml   # ~6 minutes, see below
+maestro test -e DEV_CLIENT_URL="$DEV" apps/mobile/e2e/deposit.yaml
+maestro test -e DEV_CLIENT_URL="$DEV" apps/mobile/e2e/history.yaml
+maestro test -e DEV_CLIENT_URL="$DEV" apps/mobile/e2e/withdraw-kyc.yaml
 ```
+
+`lock.yaml` ends signed out, so run it last or run `login-trade` again before the payments flows.
 
 For `maintenance.yaml`, restart the web server with `MAINTENANCE_MODE=1` (it needs the Node-runtime `proxy.ts`
 setup, so use `next dev` or `next start`), then:
@@ -131,6 +140,9 @@ Without `DEV_CLIENT_URL` the helper does nothing (it has no default in the YAML;
 - The stake keypad appends digits to the saved stake, so the flow clears it with the backspace key first.
 - IDs used: `login-email`, `login-password`, `login-submit`, `lock-set-pin`, `pin-<0-9>`, `lock-message`,
   `account-demo` (also `account-live`), `stake-tile`, `key-<0-9|back>`, `keypad-done`, `expiry-<seconds>`,
-  `buy` (also `sell`), `toast`, `gate-maintenance`.
+  `buy` (also `sell`), `toast`, `gate-maintenance`, `tab-<trade|payments|history|account>`, `payments-deposit`, `payments-withdraw`,
+  `deposit-amount`, `deposit-method-<PhonePe|Gpay|PayTM|UPI|USDT>`, `deposit-pay`, `pay-screen`, `pay-app-<phonepe|gpay|paytm|any>`,
+  `pay-status`, `pay-claim`, `claim-utr`, `withdraw-gate`, `withdraw-verify`, `withdraw-submit`, `verify-cta`, `history-seg-<trades|payments>`,
+  `history-filter-<all|deposits|withdrawals>`, `history-tx-<d|w>:<id>`, `payment-detail-status`, `payment-copy-reference`, `payment-timeline`.
 - The Hindi pass (screenshots of login, lock setup, trade, keypad, market and trades sheets) is a manual device
   check, not a flow here.
