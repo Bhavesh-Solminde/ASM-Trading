@@ -196,6 +196,13 @@ enum PathStyle {
 }
 
 model User {
+  notifyTrades       Boolean    @default(true)
+  notifyPayments     Boolean    @default(true)
+  notifyAccount      Boolean    @default(true)
+
+  pushDevices PushDevice[]
+  notificationOutboxRows NotificationOutbox[]
+
   id                 String     @id @default(uuid())
   email              String     @unique
   passwordHash       String
@@ -1022,4 +1029,43 @@ model ReconciliationIssue {
   @@unique([checkName, subjectType, subjectId])
   @@index([status, severity])
   @@index([checkName])
+}
+
+enum PushPlatform {
+  ANDROID
+  WEBPUSH
+}
+
+model PushDevice {
+  id         String       @id @default(uuid())
+  userId     String
+  platform   PushPlatform
+  /// FCM registration token, or the Web Push endpoint URL.
+  token      String       @unique
+  p256dh     String?
+  auth       String?
+  locale     String       @default("en")
+  createdAt  DateTime     @default(now())
+  lastSeenAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Written next to a payment/KYC status change; drained by the engine's sender.
+model NotificationOutbox {
+  id        String    @id @default(uuid())
+  userId    String
+  kind      String
+  payload   Json
+  createdAt DateTime  @default(now())
+  claimedAt DateTime?
+  claimToken String?
+  sentAt    DateTime?
+  attempts  Int       @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([sentAt, createdAt])
 }

@@ -1,3 +1,4 @@
+import { askPermissionAt } from "@/push/push";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { InteractionManager, Pressable, ScrollView, View } from "react-native";
@@ -64,6 +65,7 @@ export default function Deposit() {
     submitter.current = createDepositSubmitter({
       post: (body) => api("/api/deposits", { method: "POST", body, timeoutMs: CREATE_DEPOSIT_TIMEOUT_MS }),
       savePending: (checkoutToken) => {
+        void askPermissionAt("deposit_created").catch(() => {});
         const userId = latest.current.userId;
         if (userId) savePendingCheckout(userId, { token: checkoutToken, expiresAt: null, amountInr: null });
       },

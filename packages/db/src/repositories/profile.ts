@@ -1,3 +1,4 @@
+import { enqueueOutbox } from "./notifications";
 import { prisma } from "../client";
 import type { KycDocumentKind, Prisma } from "../../generated/prisma/client";
 
@@ -217,6 +218,7 @@ export async function reviewKyc(input: {
       data: { kycStatus: input.decision, kycReviewNote: note },
     });
     if (moved.count !== 1) throw new KycNotPending();
+    await enqueueOutbox(tx, input.userId, input.decision === "VERIFIED" ? "kyc_verified" : "kyc_rejected", note ? { note } : {});
     await tx.auditLog.create({
       data: {
         actorId: input.adminId,
@@ -267,5 +269,8 @@ export async function setTwoFactorPreferences(
 
 /** UI/push language. Not KYC-locked: it is a preference, not identity data. */
 export async function setLocale(userId: string, locale: "en" | "hi"): Promise<void> {
-  await prisma.user.update({ where: { id: userId }, data: { locale } });
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: userId }, data: { locale } });
+    await tx.pushDevice.updateMany({ where: { userId }, data: { locale } });
+  });
 }

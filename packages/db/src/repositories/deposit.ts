@@ -1,3 +1,4 @@
+import { enqueueOutbox } from "./notifications";
 import { randomBytes } from "node:crypto";
 import { sendDepositCreditedEmail } from "@asm/mail";
 import { personName } from "@asm/mail/templates";
@@ -846,6 +847,9 @@ export async function creditDepositToAccount(input: {
       data: { cumulativeDeposits: { increment: credit } },
     });
 
+    await enqueueOutbox(tx, deposit.userId, "deposit_credited", {
+      depositId: deposit.id, amountMinor: credit, bonusMinor: bonus, currency: creditCurrency,
+    });
     await tx.auditLog.create({
       data: {
         actorId: input.adminId,

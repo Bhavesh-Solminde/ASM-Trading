@@ -208,6 +208,9 @@ describe("creditDepositToAccount", () => {
     const updated = await prisma.deposit.findUniqueOrThrow({ where: { id: deposit.id } });
     expect(updated.status).toBe("COMPLETED");
     expect(updated.matchedCreditId).toBe(credit.id);
+    const notices = await prisma.notificationOutbox.findMany({ where: { userId, kind: "deposit_credited", payload: { path: ["depositId"], equals: deposit.id } } });
+    expect(notices).toHaveLength(1);
+    expect(notices[0]!.payload).toMatchObject({ depositId: deposit.id, amountMinor: deposit.amountInr, currency: "INR" });
 
     const consumedCredit = await prisma.bankCredit.findUniqueOrThrow({ where: { id: credit.id } });
     expect(consumedCredit.consumed).toBe(true);

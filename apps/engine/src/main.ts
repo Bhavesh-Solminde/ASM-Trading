@@ -1,3 +1,6 @@
+import { listPushDevices, deletePushDeviceByToken, liveAccountCurrencies, liveTradeResults, notifyPrefs } from "@asm/db";
+import { PushSender, fcmTransportFromEnv, startOutboxWorker, tradeResultsMessage, webPushTransportFromEnv } from "@asm/notify";
+import { TradeResultBatcher, withTradeResultPush } from "./push/trade-results";
 import { marketStatus } from "@asm/contracts";
 import { tradeViewFrom } from "@asm/contracts";
 import Redis from "ioredis";
@@ -70,9 +73,23 @@ async function main(): Promise<void> {
   const server = new EngineServer(registry, WS_PORT, createTicketAuthenticator(redis));
   await server.ready();
 
+  const fcm = fcmTransportFromEnv();
+  const web = webPushTransportFromEnv();
+  if (!fcm) logger.warn({ evt: "push.fcm_disabled" }, "Android push disabled: FCM configuration missing");
+  if (!web) logger.warn({ evt: "push.web_disabled" }, "Web Push disabled: VAPID configuration missing");
+  const sender = new PushSender({ fcm, web, devices: listPushDevices, dropToken: deletePushDeviceByToken });
+  const batcher = new TradeResultBatcher({
+    isOnline: (u) => server.isUserOnline(u), liveAccounts: liveAccountCurrencies, settledResults: liveTradeResults, prefs: notifyPrefs,
+    send: async (userId, results) => {
+      await sender.sendToUser(userId, (locale) => tradeResultsMessage(results, locale));
+    },
+  });
+  const notifier = withTradeResultPush(server, batcher);
+  const outbox = startOutboxWorker({ sender });
+
   const controller = new ControllerBridge(Date.now() & 0x7fffffff);
 
-  desk = new TradeDesk(registry, server, controller);
+  desk = new TradeDesk(registry, notifier, controller);
   const IS_CFD = process.env.TRADING_MODEL === "CFD";
   if (!IS_CFD) await desk.hydrate(Math.floor(Date.now() / 1000));
   let cfdDeps: CfdDeps | undefined;
@@ -87,7 +104,7 @@ async function main(): Promise<void> {
       const trade = await prisma.trade.findUniqueOrThrow({
         where: { id: tradeId }, include: { asset: true, account: true },
       });
-      server.sendToUser(trade.account.userId, {
+      notifier.sendToUser(trade.account.userId, {
         type: "trade:settled", trade: tradeViewFrom(trade, trade.asset.symbol),
       });
       server.sendToUser(trade.account.userId, {
@@ -165,6 +182,8 @@ async function main(): Promise<void> {
     await desk?.stop(); // let captured settlements persist (bounded)
     if (feed) await feed.stop();
     if (gapSnapshotLoop) await gapSnapshotLoop.stop(); // one last gap persist before exit
+    await batcher.flushAll();
+    await outbox.stop();
     await server.stop();
     await redis.quit();
     await prisma.$disconnect();

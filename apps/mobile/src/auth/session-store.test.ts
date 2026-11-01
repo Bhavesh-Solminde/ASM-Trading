@@ -77,7 +77,7 @@ describe("useSession", () => {
       useSession.getState().signOut({ remote: false }),
       useSession.getState().signOut(),
     ]);
-    expect(apiMock.api).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(apiMock.api).toHaveBeenCalledTimes(1));
     expect(apiMock.api).toHaveBeenCalledWith("/api/auth/logout", { method: "POST", token: "tok" });
     expect(secure.deleteItemAsync).toHaveBeenCalledTimes(1);
     expect(clear).toHaveBeenCalledTimes(1);
@@ -131,7 +131,7 @@ describe("useSession", () => {
       return new Promise(() => {}); // a stalled network: never settles
     });
     await useSession.getState().signOut();
-    expect(tokenAtRemoteCall).toBeNull();
+    await vi.waitFor(() => expect(tokenAtRemoteCall).toBeNull());
     expect(secure.deleteItemAsync).toHaveBeenCalledTimes(1);
     expect(clear).toHaveBeenCalledTimes(1);
     expect(useSession.getState().token).toBeNull();

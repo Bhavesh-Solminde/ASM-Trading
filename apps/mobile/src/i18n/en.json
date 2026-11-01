@@ -725,7 +725,13 @@
   },
   "notifications": {
     "title": "Notifications",
-    "soon": "Notifications arrive in the next update"
+    "soon": "Notifications arrive in the next update",
+    "off": "Notifications are off on this phone.",
+    "turnOn": "Turn on notifications",
+    "notifyTrades": "Trade results",
+    "notifyPayments": "Payments",
+    "notifyAccount": "Account and verification",
+    "error": "Could not save notification preferences. Try again."
   },
   "security": {
     "title": "Security",

@@ -185,8 +185,39 @@ export const AppConfigSchema = z.object({
 });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
-export const PreferencesUpdateSchema = z.strictObject({ locale: LocaleSchema.optional() });
+export const PreferencesUpdateSchema = z.strictObject({
+  locale: LocaleSchema.optional(),
+  notifyTrades: z.boolean().optional(),
+  notifyPayments: z.boolean().optional(),
+  notifyAccount: z.boolean().optional(),
+});
+export const PreferencesSchema = z.object({
+  locale: LocaleSchema,
+  notifyTrades: z.boolean().default(true),
+  notifyPayments: z.boolean().default(true),
+  notifyAccount: z.boolean().default(true),
+});
+
 export type PreferencesUpdate = z.infer<typeof PreferencesUpdateSchema>;
 
-export const PreferencesSchema = z.object({ locale: LocaleSchema });
 export type Preferences = z.infer<typeof PreferencesSchema>;
+
+export const RegisterDeviceSchema = z.discriminatedUnion("platform", [
+  z.strictObject({ platform: z.literal("ANDROID"), token: z.string().min(20).max(4096) }),
+  z.strictObject({
+    platform: z.literal("WEBPUSH"),
+    token: z.url().max(4096).refine((value) => {
+      try {
+      const u = new URL(value);
+      // Only browser push services. Never let a subscription make the engine request arbitrary internal URLs.
+      const h = u.hostname;
+      return u.protocol === "https:" && !u.username && !u.password && (!u.port || u.port === "443") &&
+        (h === "fcm.googleapis.com" || h === "updates.push.services.mozilla.com" || h === "web.push.apple.com" || h.endsWith(".notify.windows.com"));
+      } catch { return false; }
+    }),
+    p256dh: z.string().min(10).max(512),
+    auth: z.string().min(8).max(256),
+  }),
+]);
+export type RegisterDevice = z.infer<typeof RegisterDeviceSchema>;
+export const UnregisterDeviceSchema = z.strictObject({ token: z.string().min(1).max(4096) });

@@ -567,6 +567,8 @@ describe("admin payout lifecycle", () => {
     await markWithdrawalPaid({ withdrawalId: w.id, adminId: "t" });
     const row = await prisma.withdrawal.findUniqueOrThrow({ where: { id: w.id } });
     expect(row.status).toBe("PAID");
+    const notices = await prisma.notificationOutbox.findMany({ where: { userId } });
+    expect(notices.map((r) => r.kind).sort()).toEqual(["withdrawal_approved", "withdrawal_paid"]);
     // Paying moves no money: the debit happened at request time.
     const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
     expect(account.realBalance).toBe(40_000);
@@ -580,6 +582,9 @@ describe("admin payout lifecycle", () => {
 
     const row = await prisma.withdrawal.findUniqueOrThrow({ where: { id: w.id } });
     expect(row).toMatchObject({ status: "REJECTED", reason: "Wrong account" });
+    const notices = await prisma.notificationOutbox.findMany({ where: { userId, kind: "withdrawal_rejected" } });
+    expect(notices).toHaveLength(1);
+    expect(notices[0]!.payload).toMatchObject({ withdrawalId: w.id, amountMinor: 10_000, currency: "USD", reason: "Wrong account" });
     const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
     expect(account.realBalance).toBe(50_000);
     await prisma.auditLog.deleteMany({ where: { targetId: w.id } });
