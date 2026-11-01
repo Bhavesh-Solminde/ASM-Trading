@@ -59,7 +59,7 @@ function TradeStatusRow() {
  * collapses once the user has used every bonus tier. On /trade that row is the
  * slim status row instead (see TradeStatusRow).
  */
-export function PlatformShell({ children }: { children: React.ReactNode }) {
+export function PlatformShell({ children, userId }: { children: React.ReactNode; userId: string }) {
   const { focusMode, completedDeposits } = usePlatform();
   const promo = bonusPercentForDeposit(completedDeposits + 1) > 0;
   const pathname = usePathname();
@@ -67,15 +67,15 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
   const onTrade = pathname === "/trade" || pathname.startsWith("/trade/");
 
   if (focusMode) {
-    return <div className="grid h-dvh min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden"><ServiceWorkerRegistrar />{children}</div>;
+    return <div className="grid h-dvh min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden"><ServiceWorkerRegistrar sessionKey={userId} />{children}</div>;
   }
 
   return (
     <div
       style={{ "--phone-promo-h": onTrade ? "32px" : promo ? "56px" : "0px" } as CSSProperties}
-      className="grid h-dvh min-h-[640px] grid-cols-[76px_minmax(0,1fr)] grid-rows-[60px_32px_minmax(0,1fr)] phone:min-h-0 phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[50px_var(--phone-promo-h)_minmax(0,1fr)_var(--phone-nav-h,38px)] [@media(height<30rem)]:grid-rows-[48px_0px_minmax(0,1fr)]"
+      className="grid h-dvh min-h-[640px] grid-cols-[76px_minmax(0,1fr)] grid-rows-[60px_32px_minmax(0,1fr)] phone:min-h-0 phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[50px_var(--phone-promo-h)_minmax(0,1fr)_auto_var(--phone-nav-h,38px)] [@media(height<30rem)]:grid-rows-[48px_0px_minmax(0,1fr)]"
     >
-      <ServiceWorkerRegistrar />
+      <ServiceWorkerRegistrar sessionKey={userId} />
       <IosInstallSheet />
       <GetAppBar />
       <TopBar />

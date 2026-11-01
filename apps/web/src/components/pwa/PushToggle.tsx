@@ -1,7 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { browserStandalone, canOfferWebPush } from "@/lib/install-rules";
-import { deviceBody, urlBase64ToUint8Array } from "@/lib/web-push-client";
+import {
+  deviceBody,
+  syncExistingWebPush,
+  urlBase64ToUint8Array,
+} from "@/lib/web-push-client";
 /** Permission is requested synchronously from a tap, never from mounting this component. */
 export function PushToggle() {
   const [offer, setOffer] = useState(false),
@@ -19,13 +23,9 @@ export function PushToggle() {
       }) && "serviceWorker" in navigator;
     setOffer(ok);
     if (ok)
-      void navigator.serviceWorker
-        .getRegistration("/")
-        .then((r) => r?.pushManager.getSubscription())
-        .then((s) => {
-          if (live) setOn(!!s);
-        })
-        .catch(() => {});
+      void syncExistingWebPush().then((enabled) => {
+        if (live) setOn(enabled);
+      });
     return () => {
       live = false;
     };

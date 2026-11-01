@@ -41,7 +41,7 @@ export function GetAppBar() {
   if (!href || isPublicPath(pathname)) return null;
   return (
     <aside
-      className="fixed inset-x-0 bottom-[calc(var(--phone-nav-h,38px)+env(safe-area-inset-bottom))] z-30 flex items-center gap-2 border-y border-rule bg-panel px-3 py-2 text-xs sm:hidden"
+      className="col-start-1 row-start-4 hidden items-center gap-2 border-y border-rule bg-panel px-3 py-2 text-xs phone:flex land:hidden"
       aria-label="Android app"
     >
       <span className="flex-1">
