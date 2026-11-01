@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ token: "s1", currency: "INR", api: vi.fn(), merged: vi.fn(), generation: 0, preparedCurrency: "", last: null, refresh: vi.fn() }));
+vi.mock("@/push/push", () => ({ askPermissionAt: vi.fn() }));
 vi.mock("react-native", () => ({ AppState: {} }));
 vi.mock("@/api/client", () => ({ api: mocks.api }));
 vi.mock("@/auth/use-session-live", () => ({ useSessionLive: () => true }));
