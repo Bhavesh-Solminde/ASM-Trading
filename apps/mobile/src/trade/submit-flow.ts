@@ -27,7 +27,7 @@ export interface SubmitRequest {
   direction: "UP" | "DOWN";
   stakeMinor: number;
   durationSec: number;
-  /** The account's currency (for the minimum-stake copy). */
+  /** The account's currency as this device knows it: sent as the stale-currency guard, and used in the minimum-stake copy. */
   currency: string;
 }
 
@@ -75,6 +75,12 @@ export function createSubmitter(deps: SubmitDeps): (req: SubmitRequest) => Promi
         // duplicate before the first trade shows up.
         deps.invalidateBootstrap();
         await Promise.race([deps.refetchTrades(req.accountId), new Promise((r) => setTimeout(r, RECONCILE_WAIT_MS))]);
+      }
+      if (e instanceof ApiError && e.code === "currency_changed") {
+        // The account was converted elsewhere: nothing was placed. Learn the new currency and balance, and never
+        // resend, since the stake on screen was typed for the old currency. The toast tells the user to check it.
+        deps.invalidateBootstrap();
+        deps.refetchTrades(req.accountId);
       }
       if (!(e instanceof ApiError && e.code !== null && HANDLED_ELSEWHERE.has(e.code))) {
         deps.toast(tradeErrorText(e, req.currency, deps.t), "down");

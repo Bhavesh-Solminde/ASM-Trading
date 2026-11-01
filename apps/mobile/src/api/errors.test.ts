@@ -34,6 +34,7 @@ describe("classifyResponse", () => {
   });
   it("maps maintenance, VPN and outdated-app codes to gate screens", () => {
     expect(classifyResponse(503, { code: "maintenance" })).toEqual({ kind: "gate", gate: "maintenance" });
+    expect(classifyResponse(403, { code: "blocked" })).toEqual({ kind: "gate", gate: "blocked" });
     expect(classifyResponse(403, { code: "vpn_blocked" })).toEqual({ kind: "gate", gate: "blocked" });
     expect(classifyResponse(426, { code: "upgrade_required" })).toEqual({ kind: "gate", gate: "upgrade" });
   });
@@ -60,6 +61,21 @@ describe("classifyResponse", () => {
       code: null,
       message: "KYC is locked.",
     });
+  });
+  it("carries the server's `resolved: true` (the claim route's 'the matcher already credited it') and nothing else extra", () => {
+    expect(classifyResponse(409, { error: "This deposit has already been resolved.", resolved: true })).toEqual({
+      kind: "error",
+      status: 409,
+      code: null,
+      message: "This deposit has already been resolved.",
+      resolved: true,
+    });
+    expect(classifyResponse(409, { error: "x", resolved: "yes" })).not.toHaveProperty("resolved");
+    expect(classifyResponse(409, { error: "x", resolved: false })).not.toHaveProperty("resolved");
+  });
+  it("ApiError reads as not resolved unless told so", () => {
+    expect(new ApiError("x", 409, null).resolved).toBe(false);
+    expect(new ApiError("x", 409, null, true).resolved).toBe(true);
   });
   it("survives a non-JSON error body", () => {
     expect(classifyResponse(500, null)).toMatchObject({ kind: "error", status: 500, message: "Something went wrong." });

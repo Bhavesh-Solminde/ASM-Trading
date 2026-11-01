@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { formatMinor } from "@asm/client-core";
 import { Icon, type IconName } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
@@ -174,7 +174,8 @@ export function HistoryList({
     () => (includeTrades ? ["all", "trades", "deposits", "withdrawals"] : ["all", "deposits", "withdrawals"]),
     [includeTrades],
   );
-  const { activeAccount, tradesByAccount, assets, status } = usePlatform();
+  const router = useRouter();
+  const { activeAccount, tradesByAccount, assets, status, setSelectedTradeId, selectChartSymbol } = usePlatform();
   const searchParams = useSearchParams();
   const filter = parseFilter(searchParams.get("filter"), allowed);
   const txKey = searchParams.get("tx");
@@ -225,7 +226,14 @@ export function HistoryList({
       else p.set("filter", next);
     });
   }, []);
-  const open = useCallback((key: string) => replaceQuery((p) => p.set("tx", key)), []);
+  const open = useCallback((key: string) => {
+    const item = items.find(i => i.key === key);
+    if (item?.kind === "trade" && item.trade.durationSec != null) {
+      setSelectedTradeId(item.trade.id);
+      selectChartSymbol(item.trade.symbol);
+      router.push("/trade");
+    } else replaceQuery(p => p.set("tx", key));
+  }, [items, router, setSelectedTradeId, selectChartSymbol]);
   const close = useCallback(() => replaceQuery((p) => p.delete("tx")), []);
 
   const empty =

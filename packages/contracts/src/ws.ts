@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { TradeView } from "./trade";
+import type { CfdTradeView, CfdCloseReasonDto } from "./cfd-trade";
 
 /** Asset symbols are uppercase alphanumerics and underscores only. */
 export const SymbolSchema = z
@@ -153,6 +154,25 @@ export interface BalanceUpdateMessage {
   bonusBalance: number;
 }
 
+export interface CfdTradeOpenedMessage {
+  type: "cfd:trade:opened";
+  trade: CfdTradeView;
+}
+
+export interface CfdTradeSettledMessage {
+  type: "cfd:trade:settled";
+  trade: CfdTradeView;
+  closeReason: CfdCloseReasonDto;
+  pnl: number;
+}
+
+export interface CfdTradeModifiedMessage {
+  type: "cfd:trade:modified";
+  tradeId: string;
+  stopLoss: number | null;
+  takeProfit: number | null;
+}
+
 export interface SentimentMessage {
   type: "sentiment";
   symbol: string;
@@ -173,4 +193,7 @@ export type ServerMessage =
   | TradeOpenedMessage
   | TradeSettledMessage
   | BalanceUpdateMessage
-  | SentimentMessage;
+  | SentimentMessage
+  | CfdTradeOpenedMessage
+  | CfdTradeSettledMessage
+  | CfdTradeModifiedMessage;

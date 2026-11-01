@@ -34,11 +34,7 @@ describe("checkNetwork", () => {
     expect(await setup("block", "clean").run()).toEqual({ blocked: false, verdict: "clean" });
   });
 
-  it("allows a privacy relay such as iCloud Private Relay", async () => {
-    expect(await setup("block", "relay").run()).toEqual({ blocked: false, verdict: "relay" });
-  });
-
-  it.each(["vpn", "proxy", "tor", "datacenter"] as const)("blocks %s in block mode and logs it", async (v) => {
+  it.each(["relay", "vpn", "proxy", "tor", "datacenter"] as const)("blocks %s in block mode and logs it", async (v) => {
     const t = setup("block", v);
     expect(await t.run()).toEqual({ blocked: true, verdict: v });
     expect(t.log.warn).toHaveBeenCalledWith(

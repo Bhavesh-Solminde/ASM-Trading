@@ -1,17 +1,23 @@
+import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { Link, type Href } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color, radius } from "@/theme/tokens";
-import { Txt, useUiFamily } from "@/theme/ui";
+import { Txt, inputFont, useUiFamily } from "@/theme/ui";
 import { Icon } from "./Icon";
 
-/** Text input with its label above (visible while typing). Focus: blue border + 3pt ring. */
+/**
+ * Text input with its label above (visible while typing). Focus: blue border + 3pt ring.
+ * `inSheet`: the field sits inside a `Sheet`, so it must be the sheet's own input for the keyboard to lift the sheet.
+ * `minHeight`: a taller box for a message (text starts at the top); without it the field is the usual 52pt.
+ */
 // A caller's `style` is overridden by ours (set after the spread): every field looks the same.
-export function Field({ label, trailing, onFocus, onBlur, ...rest }: TextInputProps & { label: string; trailing?: ReactNode }) {
+export function Field({ label, trailing, onFocus, onBlur, inSheet = false, minHeight, ...rest }: TextInputProps & { label: string; trailing?: ReactNode; inSheet?: boolean; minHeight?: number }) {
   const [focused, setFocused] = useState(false);
   const family = useUiFamily(400);
+  const Input = inSheet ? BottomSheetTextInput : TextInput;
   return (
     <View style={{ gap: 6 }}>
       {/* The input carries the label for screen readers; the visible copy must not be a second stop. */}
@@ -19,7 +25,7 @@ export function Field({ label, trailing, onFocus, onBlur, ...rest }: TextInputPr
         {label}
       </Txt>
       <View style={{ margin: -3, borderWidth: 3, borderRadius: radius.md + 3, borderColor: focused ? color.accentDim : "transparent" }}>
-        <TextInput
+        <Input
           {...rest}
           accessibilityLabel={label}
           placeholderTextColor={color.ink3}
@@ -32,7 +38,7 @@ export function Field({ label, trailing, onFocus, onBlur, ...rest }: TextInputPr
             onBlur?.(e);
           }}
           style={{
-            minHeight: 52,
+            minHeight: minHeight ?? 52,
             borderRadius: radius.md,
             borderWidth: 1,
             borderColor: focused ? color.accent : color.rule,
@@ -40,8 +46,9 @@ export function Field({ label, trailing, onFocus, onBlur, ...rest }: TextInputPr
             color: color.ink,
             paddingLeft: 14,
             paddingRight: trailing ? 48 : 14,
+            ...(minHeight !== undefined ? { textAlignVertical: "top" as const, paddingTop: 14, paddingBottom: 14 } : null),
             fontSize: 16,
-            fontFamily: family,
+            ...inputFont(family, 400),
           }}
         />
         {trailing ? <View style={{ position: "absolute", right: 4, top: 0, bottom: 0, justifyContent: "center" }}>{trailing}</View> : null}

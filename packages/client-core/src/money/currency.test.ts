@@ -6,7 +6,7 @@ describe("minStakeMinor", () => {
     expect(minStakeMinor("INR")).toBe(10_000);
   });
 
-  it("is $1 on a USD account", () => {
+  it("is $1 on a USD account (a per-currency rule, not a conversion)", () => {
     expect(minStakeMinor("USD")).toBe(100);
   });
 });

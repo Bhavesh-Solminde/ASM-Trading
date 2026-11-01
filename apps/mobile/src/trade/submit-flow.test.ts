@@ -29,7 +29,7 @@ describe("createSubmitter", () => {
   it("sends the contract body, applies the parsed result, and toggles busy", async () => {
     const { deps, submit } = setup(async () => okResult);
     await submit(req);
-    expect(deps.openTrade).toHaveBeenCalledWith({ symbol: "EURUSD", direction: "UP", stake: 10_000, durationSec: 30, accountId: ACCOUNT });
+    expect(deps.openTrade).toHaveBeenCalledWith({ symbol: "EURUSD", direction: "UP", stake: 10_000, durationSec: 30, accountId: ACCOUNT, currency: "INR" });
     expect(deps.applyOpenResult).toHaveBeenCalledWith(okResult);
     expect(deps.haptic).toHaveBeenCalledTimes(1);
     expect(deps.toast).not.toHaveBeenCalled();
@@ -67,6 +67,18 @@ describe("createSubmitter", () => {
     });
     await submit(req);
     expect(deps.toast).toHaveBeenCalledWith("<trade.insufficient>", "down");
+  });
+
+  it("currency_changed: refreshes the bootstrap and the account's trades, tells the user, and never resends", async () => {
+    const { deps, submit } = setup(async () => {
+      throw new ApiError("Your account currency changed. Check your stake and try again.", 409, "currency_changed");
+    });
+    await submit(req);
+    expect(deps.openTrade).toHaveBeenCalledTimes(1);
+    expect(deps.invalidateBootstrap).toHaveBeenCalledTimes(1);
+    expect(deps.refetchTrades).toHaveBeenCalledWith(ACCOUNT);
+    expect(deps.toast).toHaveBeenCalledWith("<trade.currencyChanged>", "down");
+    expect(deps.setBusy.mock.calls.at(-1)).toEqual([false]);
   });
 
   it("an unknown server refusal reads trade.failed", async () => {

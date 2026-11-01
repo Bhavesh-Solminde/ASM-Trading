@@ -19,6 +19,7 @@ try {
 } catch {}
 
 export default defineConfig({
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     // Mirrors tsconfig.json's "@/*" -> "./src/*" path mapping. Next.js
     // resolves this at build/dev time, but vitest doesn't read tsconfig

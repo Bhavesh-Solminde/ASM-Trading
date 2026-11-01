@@ -15,7 +15,7 @@
  *  S8  Heavy-side cascade — User B's open flips User A's existing WINs
  *  S9  HONEST stamps are never flipped by either rule
  *  S10 Demo accounts never trigger the chart-steering rules at open
- *  S11 Demo inverted-majority at settlement: lossRatio < 60% → all WIN
+ *  S11 Demos settle at the chart, not at a forced exit one tick off entry
  *  S12 Chart-as-source-of-truth: LIVE settles at chart close, not stamp
  *
  * Prerequisites (per docs/.../local-browser-verification memory):
@@ -406,44 +406,45 @@ await scenario("S10 Demos never trigger chart-steering overrides at open", async
     })),
   );
   const stamps = tradesIn(USER_A.demo);
-  const winCount = stamps.filter((s) => s.verdict === "WIN").length;
-  log(`demo stamps: ${winCount}/15 WIN (expect ~75% ≈ 11)`);
-  // DEMO_WIN_RATE = 0.75 → P(≥ 9 WIN of 15) ≈ 0.97. If the override had
-  // mistakenly applied, we'd see ~0 WIN. 10+ WIN is strong evidence it
-  // did NOT apply.
-  ok("demo stamps match DEMO_WIN_RATE (not re-stamped)", winCount >= 8, `winCount=${winCount}`);
+  const honestCount = stamps.filter((s) => s.verdict === "HONEST").length;
+  log(`demo stamps: ${honestCount}/${stamps.length} HONEST (expect all)`);
+  // Demos stamp HONEST; if the LIVE batch rule had applied, WINs/LOSSes
+  // would show up here.
+  ok("demo stamps are all HONEST (not re-stamped)", honestCount === stamps.length && stamps.length === 15, `honest=${honestCount}/${stamps.length}`);
   // No cleanup — needed for S11.
 });
 
-await scenario("S11 Demo inverted-majority at settlement — all WIN when loss ratio < 60%", async ({ ok, log }) => {
+await scenario("S11 Demos settle at the chart, not at a forced exit", async ({ ok, log }) => {
   // Reads from the batch opened in S10. Capture the trade IDs BEFORE
   // settling (so we can look them up by id without any time window).
-  const stampsBefore = tradesIn(USER_A.demo);
   const demoIds = sql(
     `SELECT id FROM "Trade" WHERE "accountId" = '${USER_A.demo}' AND status = 'OPEN'`,
   ).map((r) => r[0]);
-  const lossBefore = stampsBefore.filter((s) => s.verdict === "LOSS").length;
-  const lossRatio = lossBefore / stampsBefore.length;
-  log(`demo batch before settle: ${lossBefore}/${stampsBefore.length} LOSS (ratio ${lossRatio.toFixed(2)})`);
 
   const settled = await waitSettlement([USER_A.demo], 120);
   ok("demos settled within 2 min", settled);
 
   const idList = demoIds.map((id) => `'${id}'`).join(",");
-  const final = sql(
-    `SELECT status, COUNT(*) FROM "Trade" WHERE id IN (${idList}) GROUP BY status`,
+  const rows = sql(
+    `SELECT t.status, t.direction, t."entryPrice"::text, t."exitPrice"::text, a."tickSize"::text
+       FROM "Trade" t JOIN "Asset" a ON a.id = t."assetId"
+      WHERE t.id IN (${idList})`,
   );
-  log(`final: ${final.map((r) => r.join("=")).join(", ")}`);
-  const wonCount = Number(final.find((r) => r[0] === "WON")?.[1] ?? 0);
-  const lostCount = Number(final.find((r) => r[0] === "LOST")?.[1] ?? 0);
-
-  if (lossRatio < 0.6) {
-    // All should settle WON.
-    ok("all demos WON (inverted-majority: loss<60% → all win)", wonCount >= 14 && lostCount <= 1, `WON=${wonCount} LOST=${lostCount}`);
-  } else {
-    // All should settle LOST.
-    ok("all demos LOST (inverted-majority: loss≥60% → all lose)", lostCount >= 14 && wonCount <= 1, `WON=${wonCount} LOST=${lostCount}`);
+  // The old rule wrote exit = entry ± 1 tick for every stamped demo, whatever
+  // the chart did. A chart exit lands exactly one tick away only by chance.
+  let oneTickOff = 0;
+  let statusMismatch = 0;
+  for (const [status, direction, entryText, exitText, tickText] of rows) {
+    const entry = Number(entryText);
+    const exit = Number(exitText);
+    const tick = Number(tickText);
+    if (Math.abs(Math.abs(exit - entry) - tick) < tick / 2) oneTickOff += 1;
+    const wonByChart = direction === "UP" ? exit > entry : exit < entry;
+    if (wonByChart !== (status === "WON")) statusMismatch += 1;
   }
+  log(`settled ${rows.length} demos: ${oneTickOff} exactly one tick off entry`);
+  ok("demo exits are not all forced to entry ± 1 tick", oneTickOff < rows.length, `oneTickOff=${oneTickOff}/${rows.length}`);
+  ok("every demo's status agrees with its exit vs entry", statusMismatch === 0, `mismatch=${statusMismatch}`);
   cleanOpenTrades([USER_A.demo]);
 });
 

@@ -121,7 +121,7 @@ export function TopBar() {
     >
       <MobileNav />
       <Link href="/trade" aria-label="IndianxTrade" className="flex h-11 flex-none items-center phone:mx-auto phone:h-10">
-        <LogoWordmark className="h-8 flex-none phone:h-[22px]" />
+        <LogoWordmark compact className="h-8 flex-none phone:h-[clamp(18px,6vw,24px)]" />
       </Link>
 
       <div className="ml-1 flex flex-none items-center gap-2.5 text-ink-3 phone:hidden">

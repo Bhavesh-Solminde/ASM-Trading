@@ -109,7 +109,7 @@ export interface StepPriceOutput {
  * unchanged when you retune this — a 1s update simply moves in one larger
  * step rather than many tiny ones.
  */
-export const TICK_DT_SEC = 5;
+export const TICK_DT_SEC = 3;
 
 /** Per-tick standard deviation in log-price space. */
 export function perTickSigma(sigma: number, dtSec: number = TICK_DT_SEC): number {

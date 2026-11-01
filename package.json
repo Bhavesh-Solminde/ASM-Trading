@@ -37,6 +37,12 @@
     "vitest": "5.0.0"
   },
   "pnpm": {
+    "packageExtensions": {
+      "next": {
+        "peerDependencies": { "@types/react": "*" },
+        "peerDependenciesMeta": { "@types/react": { "optional": true } }
+      }
+    },
     "onlyBuiltDependencies": [
       "@prisma/engines",
       "@shopify/react-native-skia",

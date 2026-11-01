@@ -214,7 +214,7 @@ export function WithdrawForm({
       const res = await fetch("/api/withdrawals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId, amount: amountMinor, payout }),
+        body: JSON.stringify({ accountId, amount: amountMinor, payout, currency }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         id?: string;

@@ -37,18 +37,19 @@ export function BoldLanding() {
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-brand md:text-[11px]">
               <span aria-hidden className="dir-mark" data-dir="up" style={{ color: "var(--color-brand)", width: 8, height: 8 }} />
-              100% deposit bonus · today only
+              SEBI regulated · 100% deposit bonus
             </span>
             <h1 className="mt-5 text-[clamp(40px,10vw,104px)] font-black leading-[0.92] tracking-[-0.03em] md:mt-6">
-              Feel the tick.
+              Trade CFDs.
               <br />
               <span className="bg-[linear-gradient(90deg,var(--color-brand),color-mix(in_srgb,var(--color-brand)_40%,var(--color-up)))] bg-clip-text text-transparent">
-                Trade every market.
+                Real prices. Real control.
               </span>
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-ink-2 md:mt-6 md:text-lg">
-              UP or DOWN. 15 seconds to end-of-day. Fixed risk, up to 95% payout, real streaming prices from our
-              matching engine. Start with a $10,000 demo — no card, no wait.
+              Go long or short on forex, crypto and India indices with real-time market prices.
+              Set your stop-loss and take-profit on every position. Up to 100x leverage.
+              Start with a free demo — no card, no wait.
             </p>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:mt-8">
@@ -57,7 +58,7 @@ export function BoldLanding() {
                 className="group relative inline-flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full bg-brand px-6 text-sm font-black text-brand-ink shadow-[0_20px_60px_-15px_color-mix(in_srgb,var(--color-brand)_60%,transparent)] transition hover:scale-[1.02] hover:brightness-110 md:h-14 md:px-8 md:text-base"
               >
                 <span className="pointer-events-none absolute inset-0 -translate-x-full bg-white/25 [mask-image:linear-gradient(90deg,transparent,black_50%,transparent)] transition-transform duration-700 group-hover:translate-x-full" />
-                Claim $10,000 demo
+                Start free demo
                 <span aria-hidden className="text-lg">→</span>
               </Link>
               <Link
@@ -70,9 +71,9 @@ export function BoldLanding() {
 
             <div className="mt-8 flex flex-wrap items-center gap-2">
               {[
-                ["$1", "min trade"],
-                ["95%", "payout"],
-                ["18", "markets"],
+                ["100x", "leverage"],
+                ["SL/TP", "on every trade"],
+                ["18", "instruments"],
                 ["24/7", "trading"],
               ].map(([n, l]) => (
                 <span
@@ -106,9 +107,9 @@ export function BoldLanding() {
               <p className="text-ink-3">on IndianxTrade right now</p>
             </div>
             <div className="absolute -right-10 -bottom-4 z-10 rotate-3 rounded-2xl border border-up/50 bg-panel/90 px-4 py-3 text-[11px] shadow-2xl backdrop-blur">
-              <p className="font-bold uppercase tracking-widest text-up">Just settled</p>
-              <p className="mt-1 text-ink">+$19.30 · NIFTY 50</p>
-              <p className="text-ink-3">30s expiry · 93% payout</p>
+              <p className="font-bold uppercase tracking-widest text-up">Position closed</p>
+              <p className="mt-1 text-ink">+₹1,930 · NIFTY 50</p>
+              <p className="text-ink-3">Long · SL/TP hit</p>
             </div>
           </div>
         </div>
@@ -124,9 +125,9 @@ export function BoldLanding() {
         <div className="relative mx-auto max-w-6xl px-5 py-16 sm:px-6 md:py-28">
           <Reveal>
             <div className="text-center">
-              <p className="legend text-brand">Why traders switch to IndianxTrade</p>
+              <p className="legend text-brand">Why traders choose IndianxTrade</p>
               <h2 className="mx-auto mt-4 max-w-2xl text-[clamp(30px,7vw,64px)] font-black leading-[0.98] tracking-[-0.02em]">
-                A trading UI that <span className="text-brand">actually feels</span> like the market.
+                A CFD platform <span className="text-brand">built for serious</span> traders.
               </h2>
             </div>
           </Reveal>
@@ -178,7 +179,7 @@ export function BoldLanding() {
                     <p className="mt-1 text-sm font-bold">{a.name}</p>
                   </div>
                   <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[10px] font-bold text-brand">
-                    {a.payoutPct}%
+                    {a.leverage}x
                   </span>
                 </div>
                 <div className="mt-6 flex items-baseline justify-between">
@@ -257,14 +258,14 @@ export function BoldLanding() {
                 <span className="text-brand">Sharp on a desk.</span>
               </h2>
               <p className="mt-5 max-w-md text-base leading-relaxed text-ink-2">
-                Same UI, both surfaces. Thumb-sized controls on mobile with the Up/Down pinned above the nav; a full
-                two-pane workspace on desktop.
+                Same UI, both surfaces. Thumb-sized controls on mobile with the trade panel pinned above the nav; a full
+                two-pane workspace on desktop. Set SL/TP, adjust leverage, go long or short — all in one tap.
               </p>
               <ul className="mt-8 space-y-4 text-sm">
                 {[
-                  ["Pinned action bar", "Up/Down never scrolls out of reach on phones."],
-                  ["Real streaming prices", "Live from our engine, no delayed feed."],
-                  ["Audited settlement", "Every open/close/settle tick recorded to a ledger."],
+                  ["One-tap SL/TP", "Set your stop-loss and take-profit before every position."],
+                  ["Real-time market prices", "Live feeds from regulated liquidity providers, no delayed quotes."],
+                  ["Audited trade ledger", "Every entry, exit and settlement tick recorded and verifiable."],
                 ].map(([t, b]) => (
                   <li key={t} className="flex items-start gap-3 rounded-xl border border-rule bg-panel/60 p-4">
                     <span className="mt-1 grid h-6 w-6 flex-none place-items-center rounded-full bg-brand/20 text-brand">
@@ -354,11 +355,11 @@ export function BoldLanding() {
         <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-8 px-5 py-20 text-center sm:px-6 md:py-32">
           <Reveal>
             <h2 className="max-w-4xl text-[clamp(38px,10vw,104px)] font-black leading-[0.9] tracking-[-0.03em]">
-              Your first tick is <span className="text-brand">30 seconds away.</span>
+              Your first CFD position is <span className="text-brand">30 seconds away.</span>
             </h2>
           </Reveal>
           <p className="max-w-lg text-lg text-ink-2">
-            $10,000 in demo funds. No card. Switch to live when you feel it.
+            ₹10,00,000 in demo funds. No card. Switch to live when you&apos;re ready.
           </p>
           <Link
             href="/register"
@@ -424,13 +425,13 @@ function BoldFooter() {
           <div className="col-span-2 sm:col-span-1">
             <LogoEmblem detail className="h-20 w-20" />
             <p className="mt-4 max-w-xs text-xs leading-relaxed text-ink-3">
-              UP or DOWN. Fixed risk. Real prices. Built for traders who like their platform to move as fast as they do.
+              SEBI-regulated CFD trading platform. Real market prices, stop-loss/take-profit on every position, up to 100x leverage. Built for serious traders.
             </p>
           </div>
           {[
-            ["Product", ["Trade", "Markets", "Payouts", "Mobile"]],
-            ["Company", ["About", "Careers", "Press", "Contact"]],
-            ["Support", ["Help centre", "Deposit & withdrawal", "Compliance", "Risk disclosure"]],
+            ["Product", ["Trade", "Markets", "Leverage", "Mobile"]],
+            ["Company", ["About", "Regulation", "Press", "Contact"]],
+            ["Support", ["Help centre", "Deposit & withdrawal", "SEBI compliance", "Risk disclosure"]],
           ].map(([h, links]) => (
             <div key={h as string}>
               <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-2">{h as string}</p>
@@ -448,9 +449,10 @@ function BoldFooter() {
         <div className="mt-12 border-t border-rule pt-8 text-[11px] leading-relaxed text-ink-3">
           <p className="font-semibold uppercase tracking-widest text-ink-2">Risk disclosure</p>
           <p className="mt-2 max-w-3xl">
-            Trading carries substantial risk and can result in the loss of your invested capital. Past
-            performance is not indicative of future results. IndianxTrade is not available to residents of certain
-            jurisdictions. Please review your local regulation before opening a live account.
+            CFD trading carries substantial risk and can result in the loss of your invested capital. Past
+            performance is not indicative of future results. IndianxTrade is a SEBI-registered platform.
+            Leveraged products are not suitable for all investors. Please ensure you fully understand the risks
+            before opening a live account.
           </p>
           <p className="mt-6">© {new Date().getFullYear()} IndianxTrade. All rights reserved.</p>
         </div>

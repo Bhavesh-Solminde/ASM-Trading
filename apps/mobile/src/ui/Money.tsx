@@ -1,10 +1,7 @@
 import { color } from "@/theme/tokens";
-import { FigText, type FigTextProps } from "./FigText";
-
-/**
- * A money figure. `text` comes from money() (any "+" / "−" prefix already applied, or a whole "today ₹93" line).
- * Digits are Martian Mono; ₹, Hindi words and the true minus are Anek (see FigText).
- */
-export function Money({ size = 15, weight = 600, color: ink = color.ink, tracking = -0.02, ...rest }: FigTextProps) {
-  return <FigText {...rest} size={size} weight={weight} color={ink} tracking={tracking} />;
+import { Txt } from "@/theme/ui";
+import type { FigTextProps } from "./FigText";
+/** R5 balances use clean sans figures with stable digit widths and native currency glyphs. */
+export function Money({ text, size = 15, weight = 600, color: ink = color.ink, tracking = -0.02, style, ...rest }: FigTextProps) {
+  return <Txt {...rest} size={size} weight={weight} color={ink} tracking={tracking} style={[{ fontVariant: ["tabular-nums"] }, style]}>{text}</Txt>;
 }

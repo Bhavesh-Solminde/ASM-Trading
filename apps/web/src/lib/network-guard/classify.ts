@@ -4,12 +4,15 @@ import { BlockList, isIP } from "node:net";
 export type IpVerdict = "clean" | "relay" | "vpn" | "proxy" | "tor" | "datacenter";
 
 /**
- * "relay" (iCloud Private Relay, Cloudflare WARP, corporate gateways such as
- * Zscaler) is deliberately allowed: those keep the user's real country and are
- * common on ordinary iPhones and office networks. "datacenter" is blocked
+ * Every way of hiding the real IP is blocked, "relay" included (iCloud Private
+ * Relay, Cloudflare WARP, secure web gateways such as Zscaler): the platform
+ * needs the user's own address for fraud linking and region checks. Safari
+ * users get one tap to fix it ("Show IP Address"); a user who can't switch a
+ * corporate gateway off gets `vpnExempt` from support. "datacenter" is blocked
  * because a self-hosted VPN on a cloud VM shows up as nothing else.
  */
 export const BLOCKED_VERDICTS: ReadonlySet<IpVerdict> = new Set<IpVerdict>([
+  "relay",
   "vpn",
   "proxy",
   "tor",
@@ -52,6 +55,15 @@ export function classifyIpapi(body: unknown): IpVerdict | null {
   if (b.is_proxy) return "proxy";
   if (b.is_datacenter) return "datacenter";
   return "clean";
+}
+
+/** The ISO alpha-2 country ipapi.is located the address in, or null. */
+export function countryFromIpapi(body: unknown): string | null {
+  if (typeof body !== "object" || body === null) return null;
+  const loc = (body as { location?: unknown }).location;
+  if (typeof loc !== "object" || loc === null) return null;
+  const cc = (loc as { country_code?: unknown }).country_code;
+  return typeof cc === "string" && /^[A-Za-z]{2}$/.test(cc) ? cc.toUpperCase() : null;
 }
 
 const NON_PUBLIC = new BlockList();

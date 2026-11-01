@@ -44,3 +44,18 @@ export {
   smoothstep,
   type PathStyle,
 } from "./path-style";
+export {
+  adaptiveAggression,
+  computeMagnetPull,
+  type MagnetInput,
+  type MagnetPosition,
+} from "./cfd-magnet";
+export {
+  dynamicMaxStake,
+  exposureCap,
+  dailyWinCap,
+  isDailyCircuitBroken,
+  emergencyModeConfig,
+  isVolCircuitBroken,
+  demoFillAdjustment,
+} from "./risk";

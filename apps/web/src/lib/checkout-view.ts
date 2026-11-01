@@ -1,5 +1,5 @@
 import type { CheckoutView } from "@asm/contracts";
-import type { getDepositByToken } from "@asm/db";
+import type { DepositReceipt, getDepositByToken } from "@asm/db";
 import { buildUpiDeepLink } from "@asm/client-core";
 import { upiCollection, upiManualClaimDelaySec } from "./upi-collection";
 
@@ -17,7 +17,8 @@ export function upiUriFor(deposit: Pick<Deposit, "id" | "vpa" | "amountInr">): s
   });
 }
 
-export function checkoutViewFor(deposit: Deposit): CheckoutView {
+/** `receipt` is `getDepositReceipt(deposit)`: the credit, bonus, new balance and UTR, all null until the deposit is credited. */
+export function checkoutViewFor(deposit: Deposit, receipt: DepositReceipt): CheckoutView {
   const isUsdt = deposit.method === "USDT";
   return {
     id: deposit.id,
@@ -35,5 +36,12 @@ export function checkoutViewFor(deposit: Deposit): CheckoutView {
     claimedUtr: deposit.claimedUtr ?? null,
     claimedTxHash: deposit.claimedTxHash ?? null,
     manualClaimDelaySec: upiManualClaimDelaySec(),
+    createdAt: deposit.createdAt.toISOString(),
+    creditedAt: receipt.creditedAt?.toISOString() ?? null,
+    creditedMinor: receipt.creditedMinor,
+    creditedCurrency: receipt.creditedCurrency,
+    bonusMinor: receipt.bonusMinor,
+    balanceAfterMinor: receipt.balanceAfterMinor,
+    utr: receipt.utr,
   };
 }

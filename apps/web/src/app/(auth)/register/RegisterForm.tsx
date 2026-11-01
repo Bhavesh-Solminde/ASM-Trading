@@ -7,6 +7,7 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { EmailInput } from "@/components/auth/EmailInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
+import { trackPixelEvent } from "@/components/seo/MetaPixel";
 
 const MIN_PASSWORD_LEN = 12;
 
@@ -46,6 +47,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
     });
 
     if (res.ok) {
+      trackPixelEvent("CompleteRegistration");
       router.push("/trade");
       return;
     }
@@ -88,7 +90,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
             autoFocus={!googleEnabled}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="As on your Aadhaar / PAN"
+            placeholder="Your name"
             className="mt-2 h-12 w-full rounded-lg border border-rule bg-panel/70 px-4 text-sm text-ink outline-none transition placeholder:text-ink-3 focus:border-brand focus:bg-panel"
           />
         </div>

@@ -1,24 +1,18 @@
-/**
- * The "Passbook" palette from the owner-approved design canvas (2026-10-14,
- * docs/design/passbook-canvas-2026-10-14). The app no longer mirrors the website's theme.
- *
- * Two values differ from the canvas so every text pair passes WCAG AA (owner to confirm in the PR):
- * `accent` is #3d6cf0 (canvas #3f6ff2; white on it is 4.56:1) and `ink3` is #7c8695 (canvas #737d8c).
- */
+/** Approved R5 mobile palette. Original bull/bear gradient assets are retained. */
 export const color = {
-  ground: "#06080b",
-  page: "#0a0d12",
-  surface: "#0f141b",
-  raised: "#171d26",
-  rule: "#252d39",
-  ruleSoft: "#1a212b",
-  ink: "#edf1f6",
-  ink2: "#a6b0be",
+  ground: "#080a10",
+  page: "#080a10",
+  surface: "#131720",
+  raised: "#1d2330",
+  rule: "#303747",
+  ruleSoft: "#222835",
+  ink: "#f4f6fb",
+  ink2: "#a4acbe",
   /** 5.02:1 on surface, 4.60:1 on raised. Never as text on the header (3.93:1 on headerTop). */
-  ink3: "#7c8695",
-  accent: "#3d6cf0",
+  ink3: "#858fa5",
+  accent: "#456ae7",
   onAccent: "#ffffff",
-  accentText: "#86a6ff",
+  accentText: "#a2b8ff",
   accentDim: "#142247",
   up: "#2ecf7a",
   /** Text on `up` fills. */
@@ -27,18 +21,22 @@ export const color = {
   down: "#d63a30",
   /** Text on `down` fills. */
   downInk: "#ffffff",
-  downText: "#ff7468",
+  downText: "#ff827a",
   /** Bonus only. */
-  gold: "#e2b54c",
+  gold: "#e4c58b",
+  /** The light card behind a QR code (a scanner needs dark-on-light). `ground` text on it is 18.3:1. */
+  paper: "#f4f6f8",
+  /** The KYC camera hint text, drawn over the live preview (16.4:1 on black, 15.5:1 on ground). */
+  cameraInk: "#dfe4ea",
   saffron: "#ff9933",
   tricolourWhite: "#f3f1ea",
   indiaGreen: "#1f9a12",
-  dock: "#0b0f14",
+  dock: "#080a10",
   headerTop: "#16284f",
   headerBottom: "#0b1220",
   switchRule: "#2a3858",
   switchInk: "#9fb0d4",
-  overlayPill: "#0f141bdd",
+  overlayPill: "#131720dd",
   scrim: "rgba(0, 0, 0, 0.62)",
   warnBg: "#2a1210",
 } as const;

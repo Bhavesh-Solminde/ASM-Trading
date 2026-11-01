@@ -35,7 +35,9 @@ export function parseBinanceQuote(raw: string, bySymbol: Record<string, string>)
   const price = Number(c);
   if (!Number.isFinite(price) || price <= 0) return null;
 
-  return { symbol: internal, price, ts: Math.floor(Date.now() / 1000) };
+  const eventTs = Number((payload as { E?: unknown }).E);
+  if (!Number.isFinite(eventTs) || eventTs <= 0) return null;
+  return { symbol: internal, price, ts: Math.floor(eventTs / 1000) };
 }
 
 /**

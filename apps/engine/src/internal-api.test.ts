@@ -38,7 +38,7 @@ const desk: TradeOpener = {
   },
 };
 
-const api = createInternalApi({ desk, secret: SECRET, port: 0 });
+const api = createInternalApi({ desk, secret: SECRET, port: 0, tradingModel: "BINARY" });
 let base = "";
 
 beforeAll(async () => {
@@ -127,5 +127,37 @@ describe("engine internal api", () => {
 
   it("404s any other route", async () => {
     expect((await post(body, SECRET, "/positions")).status).toBe(404);
+  });
+});
+
+describe("CFD mode boundary", () => {
+  it("rejects an old binary browser without creating a position", async () => {
+    const before = received.length;
+    const cfdApi = createInternalApi({ desk, secret: SECRET, port: 0, tradingModel: "CFD" });
+    const port = await cfdApi.listen();
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/trades`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${SECRET}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({ error: "trading_model_mismatch" });
+      expect(received.length).toBe(before);
+    } finally {
+      await cfdApi.close();
+    }
+  });
+});
+
+describe("CFD market gates", () => {
+  it.each(["closed", "unavailable"] as const)("rejects a new trade when market is %s before reading balances", async status => {
+    const api=createInternalApi({desk,secret:SECRET,port:0,tradingModel:"CFD",cfdDesk:{} as any,shownMidPrice:()=>100,marketStatus:()=>status});
+    const port=await api.listen();
+    try {
+      const res=await fetch(`http://127.0.0.1:${port}/cfd/trades`,{method:"POST",headers:{Authorization:`Bearer ${SECRET}`,"Content-Type":"application/json"},body:JSON.stringify({symbol:"BANKNIFTY",direction:"LONG",stake:10000,durationSec:30,accountId:"3f2a9c1e-0000-4000-8000-000000000000",actorId:"3f2a9c1e-0000-4000-8000-000000000001"})});
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({error:status==="closed"?"market_closed":"market_unavailable"});
+    } finally {await api.close();}
   });
 });

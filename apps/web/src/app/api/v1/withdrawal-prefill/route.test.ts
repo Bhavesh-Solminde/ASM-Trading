@@ -41,4 +41,25 @@ describe("GET /api/v1/withdrawal-prefill", () => {
     const body = WithdrawalPrefillSchema.parse(await res.json());
     expect(body).toMatchObject({ kycName: "Asha Rao", kycStatus: "VERIFIED", initialMethod: null, heldWithdrawals: [] });
   });
+
+  it("sends each held withdrawal with the time its cancel window closes (null when it has none)", async () => {
+    const createdAt = new Date("2026-10-20T08:00:00.000Z");
+    const open = await prisma.withdrawal.create({
+      data: { userId, amount: 500_000, method: "UPI", status: "HELD", upiId: "asha@okaxis", createdAt, holdUntil: new Date("2026-10-21T20:00:00.000Z"), cancelableUntil: new Date("2026-10-20T20:00:00.000Z") },
+    });
+    const legacy = await prisma.withdrawal.create({
+      data: { userId, amount: 600_000, method: "UPI", status: "HELD", upiId: "asha@okaxis", createdAt: new Date("2026-10-19T08:00:00.000Z"), holdUntil: new Date("2026-10-21T08:00:00.000Z") },
+    });
+    const res = await GET(
+      new NextRequest("http://localhost/api/v1/withdrawal-prefill", { headers: { authorization: `Bearer ${token}` } }),
+    );
+    const held = WithdrawalPrefillSchema.parse(await res.json()).heldWithdrawals;
+    expect(held.find((w) => w.id === open.id)).toEqual({
+      id: open.id,
+      amountMinor: 500_000,
+      createdAt: createdAt.toISOString(),
+      cancelableUntil: "2026-10-20T20:00:00.000Z",
+    });
+    expect(held.find((w) => w.id === legacy.id)?.cancelableUntil).toBeNull();
+  });
 });

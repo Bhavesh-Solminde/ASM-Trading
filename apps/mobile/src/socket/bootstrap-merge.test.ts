@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { initialTradeState } from "@asm/client-core";
 import type { Bootstrap, TradeView } from "@asm/contracts";
-import { mergeBootstrap, recoveredSettlements, recoveredAccountsWithStaleBalance } from "./bootstrap-merge";
+import { mergeBootstrap, recoveredSettlements, recoveredAccountsWithStaleBalance, withFreshTrades } from "./bootstrap-merge";
 
 const trade = (over: Partial<TradeView> = {}): TradeView => ({
   id: "t1",
@@ -132,5 +132,45 @@ describe("mergeBootstrap: recovered settlements", () => {
   it("recoveredSettlements is empty when nothing changed", () => {
     const s = initialTradeState([trade()], {});
     expect(recoveredSettlements(s, s)).toEqual([]);
+  });
+});
+
+describe("withFreshTrades (a currency switch converts the stored trades' amounts)", () => {
+  const settled = (over: Partial<TradeView> = {}) => trade({ status: "WON", pnl: 850, exitPrice: 2, ...over });
+
+  it("replaces the stored trades with the fetched ones when the same trade now has other units", () => {
+    const state = initialTradeState([trade({ stake: 100_000 }), settled({ id: "t0", stake: 100_000, pnl: 85_000, entryTs: 50 })], {});
+    const out = withFreshTrades(state, "a1", [trade({ stake: 1_000 }), settled({ id: "t0", stake: 1_000, pnl: 850, entryTs: 50 })]);
+    expect(out.tradesByAccount["a1"]?.map((t) => [t.id, t.stake, t.pnl])).toEqual([["t1", 1_000, 0], ["t0", 1_000, 850]]);
+  });
+
+  it("drops a stored trade the fetched window no longer holds when units changed, but keeps one opened after the snapshot", () => {
+    const state = initialTradeState([trade({ id: "old", stake: 100_000, entryTs: 10 }), trade({ id: "t1", stake: 100_000, entryTs: 100 }), trade({ id: "fresh", stake: 500, entryTs: 900 })], {});
+    const out = withFreshTrades(state, "a1", [trade({ id: "t1", stake: 1_000, entryTs: 100 })]);
+    expect(out.tradesByAccount["a1"]?.map((t) => [t.id, t.stake])).toEqual([["fresh", 500], ["t1", 1_000]]);
+  });
+
+  it("keeps a settled copy the socket just delivered in the new units when the fetched snapshot still says OPEN", () => {
+    const state = initialTradeState([settled({ id: "s1", stake: 1_000, entryTs: 200 }), trade({ id: "t1", stake: 100_000, entryTs: 100 })], {});
+    const out = withFreshTrades(state, "a1", [trade({ id: "s1", stake: 1_000, entryTs: 200 }), trade({ id: "t1", stake: 1_000, entryTs: 100 })]);
+    expect(out.tradesByAccount["a1"]?.map((t) => [t.id, t.status, t.stake])).toEqual([["s1", "WON", 1_000], ["t1", "OPEN", 1_000]]);
+  });
+
+  it("leaves other accounts alone", () => {
+    const state = initialTradeState([trade({ stake: 100_000 }), trade({ id: "x", accountId: "a2", stake: 7 })], {});
+    const out = withFreshTrades(state, "a1", [trade({ stake: 1_000 })]);
+    expect(out.tradesByAccount["a2"]).toEqual([trade({ id: "x", accountId: "a2", stake: 7 })]);
+  });
+
+  it("still merges as before when the units agree (a settled version beats an open one)", () => {
+    const state = initialTradeState([settled()], {});
+    const out = withFreshTrades(state, "a1", [trade()]);
+    expect(out.tradesByAccount["a1"]?.map((t) => t.status)).toEqual(["WON"]);
+  });
+
+  it("mergeBootstrap uses it too, so the demo list in a refreshed bootstrap shows the new units", () => {
+    const state = initialTradeState([trade({ stake: 100_000 })], {});
+    const out = mergeBootstrap(state, {}, boot({ real: 0, bonus: 0 }, [trade({ stake: 1_000 })]), 1_000);
+    expect(out.tradesByAccount["a1"]?.[0]?.stake).toBe(1_000);
   });
 });

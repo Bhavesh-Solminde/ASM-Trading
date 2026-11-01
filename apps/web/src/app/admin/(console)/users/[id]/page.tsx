@@ -8,6 +8,8 @@ import { Icon } from "../../../_lib/icons";
 import { fmtDate, inrFromMinor, num } from "../../../_lib/format";
 import { CopyText } from "../../deposits/_components/CopyText";
 import { updateUserAction } from "../actions";
+import { USER_STATUS_LABEL } from "../../../_lib/user-status";
+import { StatusControl } from "./StatusControl";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +55,16 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   if (!user) notFound();
 
   const kycDocs = await listKycDocuments(user.id);
+  const statusHistory = await prisma.auditLog.findMany({
+    where: {
+      targetType: "User",
+      targetId: user.id,
+      action: { startsWith: "user.status." },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { createdAt: true, actorId: true, action: true, after: true },
+  });
   const name = displayName(user);
   const live = user.accounts.find((a) => a.type === "LIVE");
   const demo = user.accounts.find((a) => a.type === "DEMO");
@@ -215,6 +227,49 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
           </dl>
         </Card>
       </div>
+
+      <Card
+        title="Account status"
+        sub={
+          user.status === "ACTIVE"
+            ? "Active — no restrictions"
+            : `${USER_STATUS_LABEL[user.status]}${user.statusReason ? " · " + user.statusReason : ""}${user.statusChangedAt ? " · " + fmtDate(user.statusChangedAt) : ""}`
+        }
+      >
+        <div className="admin-status__row">
+          <Pill
+            tone={
+              user.status === "ACTIVE"
+                ? "pos"
+                : user.status === "BANNED"
+                ? "neg"
+                : "warn"
+            }
+          >
+            {USER_STATUS_LABEL[user.status]}
+          </Pill>
+          <StatusControl userId={user.id} current={user.status} />
+        </div>
+        {statusHistory.length > 0 ? (
+          <div className="admin-status__history">
+            <div className="admin-label">Recent changes</div>
+            <ul>
+              {statusHistory.map((row, i) => {
+                const to = (row.after as { status?: string } | null)?.status ?? "?";
+                const reason = (row.after as { reason?: string } | null)?.reason ?? "";
+                return (
+                  <li key={i}>
+                    <span className="mono">{fmtDate(row.createdAt)}</span> ·{" "}
+                    <strong>{to.charAt(0) + to.slice(1).toLowerCase()}</strong>
+                    {reason ? <> · {reason}</> : null} ·{" "}
+                    <span className="admin-cell-sub">{row.actorId ?? "system"}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
+      </Card>
 
       <Card
         title="KYC submission"

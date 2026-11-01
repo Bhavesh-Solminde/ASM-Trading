@@ -8,6 +8,7 @@ import {
   SESSION_REFRESH_THRESHOLD_MS,
   SESSION_TTL_MS,
 } from "./session-cookie";
+import { fillCountryFromIp } from "./network-guard/country";
 
 export { SESSION_COOKIE, SESSION_COOKIE_OPTIONS };
 
@@ -41,6 +42,9 @@ export async function createSession(
       deviceName: meta.deviceName ?? null,
     },
   });
+  // Every sign-in path lands here; place the user for the leaderboard if
+  // they haven't given a country yet. Fire-and-forget, never delays sign-in.
+  void fillCountryFromIp(userId, meta.ip);
   return token;
 }
 

@@ -22,7 +22,7 @@ export interface Limits {
   max: number;
 }
 
-/** What one method accepts, in rupees (USDT converts at the platform's fixed ₹100 = $1). */
+/** What one method accepts, in rupees (USDT converts at the platform's fixed ₹110 = $1). */
 export function methodLimits(method: Method): Limits {
   return method === "USDT"
     ? { min: USDT_MIN_USD * USD_INR_RATE, max: USDT_MAX_USD * USD_INR_RATE }
@@ -69,3 +69,6 @@ export function overallLimits(methods: readonly Method[]): Limits {
   const all = methods.map(methodLimits);
   return { min: Math.min(...all.map((l) => l.min)), max: Math.max(...all.map((l) => l.max)) };
 }
+
+/** The quick-pick deposit amounts (whole rupees) on the amount screen, web and app alike. */
+export const DEPOSIT_QUICK_INR = [500, 1000, 2000, 5000] as const;

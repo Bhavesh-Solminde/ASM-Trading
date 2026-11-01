@@ -19,12 +19,24 @@ const doto = Doto({ subsets: ["latin"], variable: "--font-doto" });
 // is untouched. DNS verification is an alternative that needs nothing here.
 const gscVerification = process.env.NEXT_PUBLIC_GSC_VERIFICATION;
 
-const homeTitle = `${SITE_NAME} — Trading Platform`;
+const homeTitle = `${SITE_NAME} — SEBI Regulated CFD Trading Platform`;
 
 export const metadata: Metadata = {
-...buildMetadata({ path: "/" }),
-  // Homepage keeps a bespoke title (no brand suffix appended twice) that leads
-  // with the entity name for brand queries.
+...buildMetadata({
+    path: "/",
+    keywords: [
+      "CFD trading platform",
+      "SEBI regulated trading",
+      "forex CFD India",
+      "crypto CFD trading",
+      "NIFTY 50 CFD",
+      "stop loss take profit",
+      "leverage trading India",
+      "real-time market prices",
+      "online trading India",
+      "IndianxTrade",
+    ],
+  }),
   title: homeTitle,
   applicationName: SITE_NAME,
   openGraph: {...buildMetadata({ path: "/" }).openGraph, title: homeTitle },

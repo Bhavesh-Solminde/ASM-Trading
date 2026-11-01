@@ -2,11 +2,21 @@ import { tradeViewFrom, type TradeView } from "@asm/contracts";
 import { countCompletedDeposits, listAccountsForActor, listTradesForActor, prisma } from "@asm/db";
 
 export interface PlatformBootstrap {
-  assets: { symbol: string; displayName: string; payoutPct: number; precision: number; assetClass: string }[];
+  assets: {
+    symbol: string;
+    displayName: string;
+    payoutPct: number;
+    precision: number;
+    spreadBps: number;
+    tickSize: number;
+    assetClass: string;
+  }[];
   accounts: { id: string; type: "LIVE" | "DEMO"; currency: string; realBalance: number; bonusBalance: number }[];
   recentTrades: TradeView[];
   defaultSymbol: string;
   liveAccess: boolean;
+  /** False for a frozen or banned user, or a deleted account (row missing) — the web layout redirects them out. */
+  active: boolean;
   completedDeposits: number;
 }
 
@@ -17,9 +27,9 @@ export async function loadPlatformBootstrap(userId: string): Promise<PlatformBoo
     prisma.asset.findMany({
       where: { isOpen: true },
       orderBy: { symbol: "asc" },
-      select: { id: true, symbol: true, displayName: true, precision: true, payoutPct: true, assetClass: true },
+      select: { id: true, symbol: true, displayName: true, precision: true, spreadBps: true, tickSize: true, payoutPct: true, assetClass: true },
     }),
-    prisma.user.findUnique({ where: { id: userId }, select: { liveAccess: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { liveAccess: true, status: true } }),
     countCompletedDeposits(userId),
   ]);
 
@@ -34,6 +44,8 @@ export async function loadPlatformBootstrap(userId: string): Promise<PlatformBoo
       displayName: a.displayName,
       payoutPct: a.payoutPct,
       precision: a.precision,
+      spreadBps: a.spreadBps,
+      tickSize: a.tickSize,
       assetClass: String(a.assetClass),
     })),
     accounts: accounts.map((a) => ({
@@ -46,6 +58,8 @@ export async function loadPlatformBootstrap(userId: string): Promise<PlatformBoo
     recentTrades: recent.map((t) => tradeViewFrom(t, symbolById.get(t.assetId) ?? "UNKNOWN")),
     defaultSymbol,
     liveAccess: user?.liveAccess ?? false,
+    // FLAGGED is a watchlist marker and stays in; a missing row fails closed.
+    active: !!user && user.status !== "FROZEN" && user.status !== "BANNED",
     completedDeposits,
   };
 }

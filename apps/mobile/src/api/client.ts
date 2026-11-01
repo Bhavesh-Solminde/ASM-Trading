@@ -84,6 +84,6 @@ export async function api<T = unknown>(
       onToast(verdict.message);
       throw new ApiError(verdict.message, res.status, "rate_limited");
     case "error":
-      throw new ApiError(verdict.message, verdict.status, verdict.code);
+      throw new ApiError(verdict.message, verdict.status, verdict.code, verdict.resolved === true);
   }
 }

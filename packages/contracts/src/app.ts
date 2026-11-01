@@ -9,10 +9,25 @@ import { PAYOUT_METHODS } from "./withdrawal";
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
 const minor = z.number().int();
-const KycStatusSchema = z.enum(["NOT_STARTED", "PENDING", "VERIFIED", "REJECTED"]);
+export const KycStatusSchema = z.enum(["NOT_STARTED", "PENDING", "VERIFIED", "REJECTED"]);
 
 export const LocaleSchema = z.enum(["en", "hi"]);
 export type Locale = z.infer<typeof LocaleSchema>;
+
+/**
+ * A list read tolerantly: members that are not one of `values` are dropped, and anything that is not a list (or is
+ * absent) reads as `[]`. For a list the server may one day extend (a new UPI app, a new document kind): a strict
+ * enum there makes every build already shipped fail to parse the whole response, and for the app config that
+ * silently switches off the forced-upgrade gate. Use it where the app reads a list; the server still builds the list
+ * from its own strict source (see `apps/web/src/lib/app-config.ts`).
+ */
+export function knownValues<const T extends readonly [string, ...string[]]>(values: T) {
+  const known = new Set<string>(values);
+  return z
+    .array(z.unknown())
+    .transform((items) => items.filter((item): item is T[number] => typeof item === "string" && known.has(item)))
+    .catch([] as T[number][]);
+}
 
 export const ApiErrorSchema = z.object({ error: z.string(), code: z.string().optional() });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
@@ -81,6 +96,20 @@ export const PaymentRowSchema = z.object({
 });
 export type PaymentRowDto = z.infer<typeof PaymentRowSchema>;
 
+const PAYMENT_KEY = /^([dw]):([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
+
+/**
+ * A payment's deep-link key: `d:<depositId>` or `w:<withdrawalId>` (the ids are UUIDs). Anything else, a trade key
+ * included, is null, so a route or a link can refuse it before touching the database.
+ */
+export function parsePaymentKey(key: unknown): { kind: "deposit" | "withdrawal"; id: string } | null {
+  if (typeof key !== "string") return null;
+  const match = PAYMENT_KEY.exec(key);
+  return match ? { kind: match[1] === "d" ? "deposit" : "withdrawal", id: match[2]! } : null;
+}
+
+export const paymentKeyOf = (p: { kind: "deposit" | "withdrawal"; id: string }): string => `${p.kind === "deposit" ? "d" : "w"}:${p.id}`;
+
 export const PaymentsPageSchema = z.object({
   rows: z.array(PaymentRowSchema),
   nextCursor: z.string().nullable(),
@@ -112,6 +141,21 @@ export const CheckoutViewSchema = z.object({
   claimedUtr: z.string().nullable(),
   claimedTxHash: z.string().nullable(),
   manualClaimDelaySec: z.number().int(),
+  // Added for the app's receipt (P3 T3b). Every one is null until the server fills it, and defaults to null when an
+  // older server leaves it out, so a newer app talks to an older server and an older app ignores them.
+  /** When the deposit was created: the clock the "I've paid, add my UTR" delay counts from. */
+  createdAt: z.string().nullable().default(null),
+  /** COMPLETED only: when the credit landed. */
+  creditedAt: z.string().nullable().default(null),
+  /** COMPLETED only: what was credited to the account, in the account's own currency (`creditedCurrency`), bonus excluded. */
+  creditedMinor: minor.nullable().default(null),
+  creditedCurrency: z.string().nullable().default(null),
+  /** COMPLETED only: the bonus granted with it; null when none. */
+  bonusMinor: minor.nullable().default(null),
+  /** COMPLETED only: the account's balance (real plus bonus) right after the credit, in `creditedCurrency`. */
+  balanceAfterMinor: minor.nullable().default(null),
+  /** The UTR the user sent, else the matched bank credit's; null for USDT and while none is known. */
+  utr: z.string().nullable().default(null),
 });
 export type CheckoutView = z.infer<typeof CheckoutViewSchema>;
 
@@ -124,9 +168,25 @@ export const WithdrawalPrefillSchema = z.object({
   initialMethod: z.enum(PAYOUT_METHODS).nullable(),
   kycName: z.string(),
   kycStatus: KycStatusSchema,
-  heldWithdrawals: z.array(z.object({ id: z.string(), amountMinor: minor, createdAt: z.string() })),
+  heldWithdrawals: z.array(
+    z.object({
+      id: z.string(),
+      amountMinor: minor,
+      createdAt: z.string(),
+      /**
+       * ISO time until which the user may cancel; null when the row has no cancel deadline (it cannot be cancelled).
+       * Absent from an older server, which the app reads as "unknown" and keeps offering Cancel.
+       */
+      cancelableUntil: z.string().nullable().optional(),
+    }),
+  ),
 });
 export type WithdrawalPrefill = z.infer<typeof WithdrawalPrefillSchema>;
+
+/** The UPI apps an operator can switch off (`UPI_APP_BLOCKLIST`). The system chooser is never one of them. */
+export const UPI_APP_NAMES = ["phonepe", "gpay", "paytm"] as const;
+export const UpiAppNameSchema = z.enum(UPI_APP_NAMES);
+export type UpiAppName = z.infer<typeof UpiAppNameSchema>;
 
 export const AppConfigSchema = z.object({
   minVersion: z.string().regex(SEMVER),
@@ -135,6 +195,11 @@ export const AppConfigSchema = z.object({
   playUrl: z.string().nullable(),
   playLive: z.boolean(),
   support: z.object({ whatsapp: z.string().nullable(), telegram: z.string().nullable() }),
+  /**
+   * UPI apps whose button the app hides (an app that declines payments to a new merchant). Absent from an older
+   * server: none. Names this build does not know are dropped, never a parse failure (see `knownValues`).
+   */
+  upiAppBlocklist: knownValues(UPI_APP_NAMES),
 });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 

@@ -1,7 +1,7 @@
 // apps/web/src/lib/network-guard/routes.test.ts
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@asm/db";
 import { POST as login } from "@/app/api/auth/login/route";
 import { POST as register } from "@/app/api/auth/register/route";
@@ -16,16 +16,21 @@ import { POST as withdraw } from "@/app/api/withdrawals/route";
 import { hashPassword } from "@/lib/password";
 import { redis } from "@/lib/redis";
 import { SESSION_COOKIE, createSession } from "@/lib/session";
-import { verdictCacheKey } from "./lookup";
 
-// Fresh documentation-range IPv6 addresses per run, so per-IP rate-limit keys
-// never carry over between runs. The verdict cache is seeded, so nothing here
-// ever reaches ipapi.is.
-function randomPublicIp(): string {
-  return `2001:db8::${randomBytes(2).toString("hex")}:${randomBytes(2).toString("hex")}`;
-}
-const VPN_IP = randomPublicIp();
-const CLEAN_IP = randomPublicIp();
+// Fresh documentation-range IPv6 networks per run, so per-IP rate-limit keys
+// never carry over between runs. Each gets its own /64, the lists' granularity.
+// The lists are stubbed with VPN_IP as the only VPN, so nothing downloads.
+const { VPN_IP, CLEAN_IP } = await vi.hoisted(async () => {
+  const { randomBytes } = await import("node:crypto");
+  const hex = () => randomBytes(2).toString("hex");
+  return { VPN_IP: `2001:db8:${hex()}:${hex()}::1`, CLEAN_IP: `2001:db8:${hex()}:${hex()}::2` };
+});
+vi.mock("./intel", async (importOriginal) => {
+  const real = await importOriginal<typeof import("./intel")>();
+  const { IpRangeSet, parseCidr } = await import("./ip-ranges");
+  const intel = { ...real.EMPTY_INTEL, vpn: new IpRangeSet([parseCidr(VPN_IP)!]) };
+  return { ...real, currentIntel: () => intel };
+});
 const PASSWORD = "correct-horse-battery-staple";
 const NEW_EMAIL_PREFIX = `vpn-guard-new-${randomUUID()}`;
 
@@ -36,8 +41,6 @@ let email = "";
 beforeAll(async () => {
   previousMode = process.env.VPN_BLOCK_MODE;
   process.env.VPN_BLOCK_MODE = "block";
-  await redis.set(verdictCacheKey(VPN_IP), "vpn", "EX", 600);
-  await redis.set(verdictCacheKey(CLEAN_IP), "clean", "EX", 600);
   email = `vpn-guard-${randomUUID()}@test.local`;
   const user = await prisma.user.create({
     data: { email, passwordHash: await hashPassword(PASSWORD) },
@@ -48,7 +51,6 @@ beforeAll(async () => {
 afterAll(async () => {
   if (previousMode === undefined) delete process.env.VPN_BLOCK_MODE;
   else process.env.VPN_BLOCK_MODE = previousMode;
-  await redis.del(verdictCacheKey(VPN_IP), verdictCacheKey(CLEAN_IP));
   await prisma.user.deleteMany({
     where: { OR: [{ id: userId }, { email: { startsWith: NEW_EMAIL_PREFIX } }] },
   });

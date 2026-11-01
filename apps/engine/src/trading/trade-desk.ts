@@ -52,7 +52,6 @@ import { logger } from "@asm/logger";
 import type { AssetRegistry } from "../assets/registry";
 import type { ControllerBridge } from "../algo/controller-bridge";
 import { DeskRejection } from "./errors";
-import { demoSettlementExits } from "./demo-settlement";
 import {
   applyOpenTimeOverrides,
   expiryTickBucket,
@@ -169,8 +168,8 @@ export class TradeDesk {
     // House-governor stamps. Off by default — when the flag is on the verdict
     // is decided at OPEN time and the tick loop's per-trade magnet steers the
     // shown price toward the outcome across the full duration. Demo trades
-    // resolve HONEST under the v2 governor; under GLG they roll a fixed
-    // DEMO_WIN_RATE WIN/LOSS (ignored by ledger either way). On failure to
+    // resolve HONEST (they never steer the chart, so they settle on it, and
+    // are ignored by the ledgers). On failure to
     // read the ledger we fall through to HONEST (fail-safe: no bias applied).
     let governorStamp: {
       verdict: "WIN" | "LOSS" | "HONEST";
@@ -478,6 +477,23 @@ export class TradeDesk {
     );
   }
 
+  /** Binary orders accepted by the old mixed-mode UI have no valid CFD expiry
+   * price. Use the existing outage refund policy, retrying failed refunds. */
+  async recoverExpiredLegacy(nowSec: number): Promise<void> {
+    for (const position of await loadOpenPositions()) {
+      if (position.expirySec > nowSec) continue;
+      try {
+        const settled = await voidTrade(position.tradeId);
+        this.controller.invalidate(position.accountId);
+        this.announce(settled, this.symbolByAssetId.get(position.assetId) ?? "UNKNOWN");
+      } catch (error) {
+        if (error instanceof AlreadySettled) continue;
+        logger.error({ evt: "trade.legacy_refund_failed", tradeId: position.tradeId },
+          "expired legacy binary refund failed; will retry");
+      }
+    }
+  }
+
   /**
    * Pre-settle pass (2026-10-05). Runs at the start of every tick with
    * `nowSec = tickNowSec`. For buckets expiring at `nowSec + TICK_DT_SEC`
@@ -589,12 +605,6 @@ export class TradeDesk {
       const exitPrice = Number(asset.state.price.toFixed(asset.precision));
       const honestExitPrice = this.assets.honestPrice(symbol);
 
-      // Demo inverted-majority (user design 2026-10-12): co-direction demo
-      // groups of 5+ settle together; smaller groups settle by their own
-      // stamped verdict. Chart stays honest/LIVE-driven; this only decides
-      // each demo's exit. See demo-settlement.ts.
-      const demoExits = demoSettlementExits(bucket.positions, asset.tickSize, asset.precision);
-
       for (const position of bucket.positions) {
         const pending: PendingSettlement = {
           position,
@@ -604,21 +614,13 @@ export class TradeDesk {
           attempts: 0,
         };
 
-        // Demo isolation (Option B, 2026-10-05). Demos never contribute to
-        // the shown chart (the tick loop already filters them out of the
-        // magnet). Each stamped demo settles at the exit from
-        // demoSettlementExits; marking `resolvedExitPrice` means the bucket
-        // resolver skips it — demos never share a resolved price with live
-        // trades.
-        const demoExit = demoExits.get(position.tradeId);
-        if (demoExit !== undefined) {
-          pending.resolvedExitPrice = demoExit;
-        } else {
-          // Live (or honest-grandfathered) trade — the chart IS the exit.
-          // Skip the drain-time bucket resolver entirely so no later pass
-          // can rewrite exitPrice to something the user never saw.
-          pending.resolvedExitPrice = exitPrice;
-        }
+        // Every trade, live or demo, settles at the price on the chart. Demos
+        // used to get a forced exit from their stamped verdict, but they never
+        // steer the chart, so the result disagreed with what the user saw
+        // about half the time. Setting `resolvedExitPrice` skips the
+        // drain-time bucket resolver so no later pass can rewrite exitPrice
+        // to something the user never saw.
+        pending.resolvedExitPrice = exitPrice;
 
         this.pending.push(pending);
       }
@@ -691,11 +693,11 @@ export class TradeDesk {
 
       // Best-effort: the money has already moved, so a stats-update failure
       // must never roll the settlement back or retry it.
-      if (settled.trade.status !== "OPEN") {
+      if (settled.trade.status !== "OPEN" && settled.trade.status !== "CLOSED") {
         await recordSettledTrade({
           accountId: item.position.accountId,
           stake: item.position.stake,
-          outcome: settled.trade.status,
+          outcome: settled.trade.status as "WON" | "LOST" | "REFUNDED",
         }).catch((err: unknown) => {
           logger.error(
             {

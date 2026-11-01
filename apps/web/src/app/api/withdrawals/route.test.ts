@@ -89,6 +89,16 @@ describe("GET /api/withdrawals", () => {
 describe("POST /api/withdrawals", () => {
   const UPI = { method: "UPI", upiId: "alice@okaxis" };
 
+  it("refuses stale client currency without debiting or creating a withdrawal", async () => {
+    const before = await prisma.account.findUniqueOrThrow({ where: { id: alice.liveId } });
+    const count = await prisma.withdrawal.count({ where: { userId: alice.userId } });
+    const res = await post({ accountId: alice.liveId, amount: 1_000_00, payout: UPI, currency: "USD" }, alice.cookie);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: "currency_changed" });
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: alice.liveId } })).realBalance).toBe(before.realBalance);
+    expect(await prisma.withdrawal.count({ where: { userId: alice.userId } })).toBe(count);
+  });
+
   it("requires a session", async () => {
     const res = await post({ accountId: alice.liveId, amount: 1_000_00, payout: UPI }, null);
     expect(res.status).toBe(401);

@@ -7,16 +7,16 @@ describe("parseBinanceQuote", () => {
   it("parses a combined-stream miniTicker frame into an internal quote", () => {
     const raw = JSON.stringify({
       stream: "btcusdt@miniTicker",
-      data: { e: "24hrMiniTicker", s: "BTCUSDT", c: "95012.34", o: "94000", h: "96000", l: "93000" },
+      data: { e: "24hrMiniTicker", E: 1792849000000, s: "BTCUSDT", c: "95012.34", o: "94000", h: "96000", l: "93000" },
     });
     const quote = parseBinanceQuote(raw, BY_SYMBOL);
     expect(quote?.symbol).toBe("BTCUSD");
     expect(quote?.price).toBe(95012.34);
-    expect(typeof quote?.ts).toBe("number");
+    expect(quote?.ts).toBe(1792849000);
   });
 
   it("parses a single-stream frame that is the payload itself", () => {
-    const raw = JSON.stringify({ e: "24hrMiniTicker", s: "BTCUSDT", c: "95500.00" });
+    const raw = JSON.stringify({ e: "24hrMiniTicker", E: 1792849000000, s: "BTCUSDT", c: "95500.00" });
     expect(parseBinanceQuote(raw, BY_SYMBOL)?.price).toBe(95500);
   });
 
@@ -36,7 +36,9 @@ describe("parseBinanceQuote", () => {
   });
 
   it("matches the Binance symbol case-insensitively", () => {
-    const raw = JSON.stringify({ data: { s: "btcusdt", c: "42.5" } });
+    const raw = JSON.stringify({ data: { E: 1792849000000, s: "btcusdt", c: "42.5" } });
     expect(parseBinanceQuote(raw, BY_SYMBOL)?.symbol).toBe("BTCUSD");
   });
 });
+
+it("rejects quotes without an exchange timestamp",()=>expect(parseBinanceQuote(JSON.stringify({s:"BTCUSDT",c:"95000"}),BY_SYMBOL)).toBeNull());

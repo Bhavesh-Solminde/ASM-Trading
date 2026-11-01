@@ -6,7 +6,7 @@ import { MethodPicker } from "@/components/deposit/MethodPicker";
 import { AmountStep } from "@/components/deposit/AmountStep";
 import { UsdtAmountStep } from "@/components/deposit/UsdtAmountStep";
 import { BonusPreview } from "@/components/deposit/BonusPreview";
-import { formatInr, overallLimits, bonusPercentForDeposit } from "@asm/client-core";
+import { DEPOSIT_QUICK_INR, formatInr, overallLimits, bonusPercentForDeposit } from "@asm/client-core";
 import { AmountField, type AmountFieldHandle } from "@/components/payments/AmountField";
 import { StepHeader } from "@/components/payments/StepHeader";
 import { SummaryCard } from "@/components/payments/SummaryCard";
@@ -17,7 +17,6 @@ type Method = (typeof DEPOSIT_METHODS)[number];
 type Step = 1 | 2 | 3;
 
 const UPI_SET = new Set<string>(UPI_METHODS);
-const QUICK = [500, 1000, 2000, 5000];
 const STEP_NAME: Record<Step, string> = { 1: "Amount", 2: "Method", 3: "Pay" };
 
 /**
@@ -127,7 +126,7 @@ export function DepositFlow({
         </div>
 
         <div className="grid grid-cols-4 gap-2" role="group" aria-label="Quick amounts">
-          {QUICK.map((v) => {
+          {DEPOSIT_QUICK_INR.map((v) => {
             const selected = amountInr === v;
             return (
               <button

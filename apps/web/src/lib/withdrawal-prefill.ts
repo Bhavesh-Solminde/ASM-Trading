@@ -36,6 +36,26 @@ export function lastPayoutsFrom(recent: readonly WithdrawalLike[]): { lastPayout
   return { lastPayouts, initialMethod };
 }
 
+export interface HeldWithdrawalLike {
+  id: string;
+  status: string;
+  amount: number;
+  createdAt: Date;
+  cancelableUntil: Date | null;
+}
+
+/** The HELD rows among `recent`, each with the time its cancel window closes (null when it has none), as the web's held card reads it. */
+export function heldWithdrawalsFrom(recent: readonly HeldWithdrawalLike[]): WithdrawalPrefill["heldWithdrawals"] {
+  return recent
+    .filter((w) => w.status === "HELD")
+    .map((w) => ({
+      id: w.id,
+      amountMinor: w.amount,
+      createdAt: w.createdAt.toISOString(),
+      cancelableUntil: w.cancelableUntil?.toISOString() ?? null,
+    }));
+}
+
 export async function loadWithdrawalPrefill(userId: string): Promise<WithdrawalPrefill> {
   const [recent, profile] = await Promise.all([listWithdrawalsForActor(userId, 20), loadProfile(userId)]);
   const { lastPayouts, initialMethod } = lastPayoutsFrom(recent);
@@ -44,8 +64,6 @@ export async function loadWithdrawalPrefill(userId: string): Promise<WithdrawalP
     initialMethod,
     kycName: [profile.firstName, profile.lastName].filter(Boolean).join(" "),
     kycStatus: profile.kycStatus as WithdrawalPrefill["kycStatus"],
-    heldWithdrawals: recent
-      .filter((w) => w.status === "HELD")
-      .map((w) => ({ id: w.id, amountMinor: w.amount, createdAt: w.createdAt.toISOString() })),
+    heldWithdrawals: heldWithdrawalsFrom(recent),
   };
 }

@@ -2264,3 +2264,70 @@ a.admin-doc__img:hover {
     display: none;
   }
 }
+
+/* ───────────────────── Account status card ───────────────────── */
+.admin-status__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.admin-status__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.admin-status__action {
+  position: relative;
+}
+.admin-status__action > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.admin-status__action > summary::-webkit-details-marker {
+  display: none;
+}
+.admin-status__action[open] > summary {
+  outline: 2px solid var(--admin-border);
+  outline-offset: 2px;
+}
+.admin-status__form {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+  display: grid;
+  gap: 12px;
+  min-width: min(100%, 420px);
+}
+.admin-status__copy strong {
+  display: block;
+  margin-bottom: 4px;
+}
+.admin-status__copy p {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.admin-status__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.admin-status__history {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--admin-border);
+}
+.admin-status__history ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.admin-status__history li {
+  color: var(--admin-fg);
+}

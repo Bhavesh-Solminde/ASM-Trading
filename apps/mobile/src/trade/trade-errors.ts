@@ -11,6 +11,8 @@ const KEYS: Record<string, string> = {
   trading_unavailable: "trade.unavailable",
   // The request got no answer in time (see `api` timeoutMs); the trade may or may not have been placed.
   timeout: "trade.timedOut",
+  // The account was converted (INR <-> USD) after this device last saw it; the stake on screen is in the old currency.
+  currency_changed: "trade.currencyChanged",
 };
 
 /**

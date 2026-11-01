@@ -131,6 +131,13 @@ export async function openTrade(input: OpenTradeInput): Promise<OpenedTrade> {
     throw new Error(`stake must be a positive integer, received ${input.stake}`);
   }
 
+  // `stake` is in the minor units of the currency the client was showing when
+  // it sent the request. If a currency switch lands mid-request the retry
+  // would re-read the converted account and debit that old-unit figure as new
+  // units (₹100 = 10,000 paise becoming a $100 stake), so a retry that finds a
+  // different currency from the first attempt is refused instead.
+  let stakeCurrency: string | undefined;
+
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
       return await prisma.$transaction(async (tx) => {
@@ -139,12 +146,15 @@ export async function openTrade(input: OpenTradeInput): Promise<OpenedTrade> {
           include: { user: { select: { status: true } } },
         });
         if (!account) throw new Error(`Account ${input.accountId} not found`);
+        stakeCurrency ??= account.currency;
+        if (account.currency !== stakeCurrency) throw new ConcurrentModification();
         // Freeze / ban gate. Checked inside the transaction so a status flip
         // that lands mid-request wins the race: a user frozen a millisecond
         // before the trade opens is refused. Already-open trades are read
         // through settleTrade, which never re-checks status — a frozen user's
-        // in-flight positions still settle honestly.
-        if (account.user.status !== "ACTIVE") {
+        // in-flight positions still settle honestly. FLAGGED is a watchlist
+        // marker only and does not block.
+        if (account.user.status === "FROZEN" || account.user.status === "BANNED") {
           throw new AccountNotActive();
         }
         if (account.realBalance + account.bonusBalance < input.stake) {
@@ -374,7 +384,7 @@ export async function listTradesForActor(
 /** Rehydrates the engine's book after a restart. */
 export async function loadOpenPositions(): Promise<Position[]> {
   const rows = await prisma.trade.findMany({
-    where: { status: "OPEN" },
+    where: { status: "OPEN", durationSec: null },
     include: {
       account: {
         select: { type: true, user: { select: { role: true } } },

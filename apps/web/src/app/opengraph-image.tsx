@@ -36,7 +36,7 @@ export default function OpengraphImage() {
         {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img> */}
         <img src={wordmark} width={1000} height={253} alt="" />
         <div style={{ marginTop: 28, fontSize: 40, color: "#9e9b95" }}>
-          Fixed risk · up to 95% payout · free $10,000 demo
+          SEBI regulated CFD trading · SL/TP · real market prices · free demo
         </div>
       </div>
     ),

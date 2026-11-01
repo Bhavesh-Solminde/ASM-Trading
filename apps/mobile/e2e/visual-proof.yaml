@@ -1,0 +1,35 @@
+appId: com.indianxtrade.app
+---
+- assertVisible: { id: "buy" }
+- assertVisible: { id: "sell" }
+- takeScreenshot: r5-trade
+- tapOn: { id: "chart-fullscreen" }
+- assertNotVisible: { id: "tab-trade" }
+- assertVisible: { id: "account-selector" }
+- assertVisible: { id: "stake-tile" }
+- assertVisible: { id: "expiry-tile" }
+- assertVisible: { id: "buy" }
+- assertVisible: { id: "sell" }
+- takeScreenshot: r5-fullscreen
+- tapOn: "History.*"
+- extendedWaitUntil:
+    visible: "Your trades"
+    timeout: 10000
+- takeScreenshot: r5-history-sheet
+- back
+- assertNotVisible: { id: "tab-trade" }
+- back
+- assertVisible: { id: "tab-trade" }
+- tapOn: { id: "tab-history" }
+- takeScreenshot: r5-history
+- tapOn: { id: "tab-payments" }
+- extendedWaitUntil:
+    visible: "Recent activity"
+    timeout: 10000
+- takeScreenshot: r5-payments
+- tapOn: { id: "tab-account" }
+- extendedWaitUntil:
+    visible: "Screenshot Test"
+    timeout: 10000
+- takeScreenshot: r5-account
+- tapOn: { id: "tab-trade" }

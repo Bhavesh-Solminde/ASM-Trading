@@ -34,7 +34,7 @@ describe("classifyIpapi", () => {
     expect(classifyIpapi({ ...base, is_datacenter: true })).toBe("datacenter");
   });
 
-  it("lets iCloud Private Relay through as relay even though it reports is_datacenter", () => {
+  it("labels iCloud Private Relay as relay even though it reports is_datacenter", () => {
     const body = {
       ...base,
       is_datacenter: true,
@@ -43,7 +43,7 @@ describe("classifyIpapi", () => {
     expect(classifyIpapi(body)).toBe("relay");
   });
 
-  it("lets corporate secure web gateways through as relay", () => {
+  it("labels corporate secure web gateways as relay", () => {
     const body = { ...base, egress_service: { type: "secure_web_gateway", provider: "Zscaler" } };
     expect(classifyIpapi(body)).toBe("relay");
   });
@@ -58,8 +58,8 @@ describe("classifyIpapi", () => {
 });
 
 describe("BLOCKED_VERDICTS", () => {
-  it("blocks vpn, proxy, tor and datacenter but never clean or relay", () => {
-    expect([...BLOCKED_VERDICTS].sort()).toEqual(["datacenter", "proxy", "tor", "vpn"]);
+  it("blocks every IP-hiding verdict (relay, vpn, proxy, tor, datacenter) but never clean", () => {
+    expect([...BLOCKED_VERDICTS].sort()).toEqual(["datacenter", "proxy", "relay", "tor", "vpn"]);
   });
 });
 

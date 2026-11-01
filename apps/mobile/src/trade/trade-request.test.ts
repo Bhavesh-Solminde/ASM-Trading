@@ -5,16 +5,24 @@ import { OpenTradeResultSchema, buildOpenTradeBody } from "./trade-request";
 const ACCOUNT = "0b7d7e6e-5f0e-4c43-9a4f-2d3c1b0a9e11";
 
 describe("buildOpenTradeBody", () => {
-  it("builds exactly the contract's keys", () => {
-    const body = buildOpenTradeBody({ accountId: ACCOUNT, symbol: "EURUSD", direction: "UP", stakeMinor: 10_000, durationSec: 30 });
-    expect(Object.keys(body).sort()).toEqual(["accountId", "direction", "durationSec", "stake", "symbol"]);
+  it("builds exactly the contract's keys, with the account's currency (the stale-currency guard)", () => {
+    const body = buildOpenTradeBody({ accountId: ACCOUNT, symbol: "EURUSD", direction: "UP", stakeMinor: 10_000, durationSec: 30, currency: "INR" });
+    expect(Object.keys(body).sort()).toEqual(["accountId", "currency", "direction", "durationSec", "stake", "symbol"]);
+    expect(body.currency).toBe("INR");
     expect(OpenTradeSchema.parse(body)).toEqual(body);
   });
+  it("sends USD for a dollar account", () => {
+    expect(buildOpenTradeBody({ accountId: ACCOUNT, symbol: "EURUSD", direction: "UP", stakeMinor: 100, durationSec: 30, currency: "USD" }).currency).toBe("USD");
+  });
+  it("leaves the currency out for one the contract does not know, instead of failing every trade", () => {
+    const body = buildOpenTradeBody({ accountId: ACCOUNT, symbol: "EURUSD", direction: "UP", stakeMinor: 100, durationSec: 30, currency: "EUR" });
+    expect(body).not.toHaveProperty("currency");
+  });
   it("throws for a duration the contract does not offer", () => {
-    expect(() => buildOpenTradeBody({ accountId: ACCOUNT, symbol: "EURUSD", direction: "UP", stakeMinor: 10_000, durationSec: 31 })).toThrow();
+    expect(() => buildOpenTradeBody({ accountId: ACCOUNT, symbol: "EURUSD", direction: "UP", stakeMinor: 10_000, durationSec: 31, currency: "INR" })).toThrow();
   });
   it("throws for a non-integer stake", () => {
-    expect(() => buildOpenTradeBody({ accountId: ACCOUNT, symbol: "EURUSD", direction: "DOWN", stakeMinor: 100.5, durationSec: 30 })).toThrow();
+    expect(() => buildOpenTradeBody({ accountId: ACCOUNT, symbol: "EURUSD", direction: "DOWN", stakeMinor: 100.5, durationSec: 30, currency: "INR" })).toThrow();
   });
 });
 

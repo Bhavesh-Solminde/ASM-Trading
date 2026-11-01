@@ -20,6 +20,19 @@ export function uiFamily(weight: Weight, script: Script): string {
   return (script === "devanagari" ? DEVANAGARI : LATIN)[weight];
 }
 
+/**
+ * Family for a TextInput. Latin is the system sans (undefined), like `Txt`; Devanagari stays bundled Anek.
+ * Pair with `inputWeight`: without a family the weight is what picks the face.
+ */
+export function inputFamily(weight: Weight, script: Script): string | undefined {
+  return script === "devanagari" ? uiFamily(weight, script) : undefined;
+}
+
+/** `fontWeight` for a TextInput whose `inputFamily` is undefined; undefined when a bundled family carries the weight. */
+export function inputWeight(family: string | undefined, weight: Weight): "400" | "500" | "600" | undefined {
+  return family === undefined ? (String(weight) as "400" | "500" | "600") : undefined;
+}
+
 /** Family for figures (money, prices, times). Martian Mono has no ₹: <Money> sets the symbol in Anek. */
 export function figFamily(weight: Weight): string {
   return FIGURES[weight];

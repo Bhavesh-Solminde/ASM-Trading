@@ -1,0 +1,45 @@
+# History: the Payments segment, the Deposits filter, and a payment's detail sheet.
+# Needs the state login-trade.yaml leaves behind (signed in, PIN 1234) and at least one deposit on the account:
+# run deposit.yaml first (it leaves an unpaid one) or use a user with seeded deposits.
+# Run: maestro test [-e DEV_CLIENT_URL=...] apps/mobile/e2e/history.yaml
+appId: com.indianxtrade.app
+---
+- stopApp
+- launchApp:
+    clearState: false
+- runFlow: subflows/open-dev-client.yaml
+- extendedWaitUntil:
+    visible: { id: "pin-1" }
+    timeout: 60000
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "1", D2: "2", D3: "3", D4: "4" }
+- extendedWaitUntil:
+    visible: { id: "tab-history" }
+    timeout: 30000
+
+# History -> Payments -> Deposits.
+- tapOn: { id: "tab-history" }
+- extendedWaitUntil:
+    visible: { id: "history-seg-payments" }
+    timeout: 30000
+- tapOn: { id: "history-seg-payments" }
+- extendedWaitUntil:
+    visible: { id: "history-filter-deposits" }
+    timeout: 15000
+- tapOn: { id: "history-filter-deposits" }
+
+# A deposit row's id is history-tx-d:<deposit id> (the id is a regular expression). Open the first one.
+- extendedWaitUntil:
+    visible: { id: "history-tx-d:.*" }
+    timeout: 30000
+- tapOn:
+    id: "history-tx-d:.*"
+    index: 0
+
+# The detail sheet's content shows up ~2.5 s after it opens; assert only inside it.
+- extendedWaitUntil:
+    visible: { id: "payment-detail-status" }
+    timeout: 20000
+- assertVisible: { id: "payment-copy-reference" }
+- assertVisible: { id: "payment-timeline" }

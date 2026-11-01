@@ -111,12 +111,12 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet({ title, ch
       {scroll ? (
         <BottomSheetScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={bodyStyle}>
           {heading}
-          {children}
+          {presented ? children : null}
         </BottomSheetScrollView>
       ) : (
         <BottomSheetView style={bodyStyle}>
           {heading}
-          {children}
+          {presented ? children : null}
         </BottomSheetView>
       )}
     </BottomSheetModal>

@@ -226,16 +226,6 @@ export const MAX_CORRECTIVE_TICKS_GLG = 10;
 
 
 /**
- * Demo account win probability — GLG only. Demo trades under the Growth-Loop
- * Governor skip the treasury ladder and roll this fixed WIN/LOSS probability
- * instead; the engine's magnet still steers the chart to the stamped outcome,
- * and demo settlements are ignored by the HouseDay and Treasury ledgers.
- * 0.55 means a little over half of demo trades show as wins (lowered from
- * 0.75 on 2026-10-14). The legacy v2 governor still short-circuits demo to HONEST.
- */
-export const DEMO_WIN_RATE = 0.55;
-
-/**
  * Affiliate LIVE-account win rate — the probability `verdict = WIN` is
  * stamped at open for a trade whose account owner is `role=AFFILIATE` and
  * whose account type is LIVE. The GLG governor is bypassed entirely for

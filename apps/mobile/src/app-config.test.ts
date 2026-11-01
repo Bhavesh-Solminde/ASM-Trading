@@ -43,3 +43,24 @@ describe("android permissions", () => {
     for (const p of config.android?.permissions ?? []) expect(blocked.has(p)).toBe(false);
   });
 });
+
+describe("KYC camera permissions", () => {
+  const pluginOptions = (name: string): Record<string, unknown> => {
+    const entry = (config.plugins ?? []).find((p) => Array.isArray(p) && p[0] === name);
+    return (Array.isArray(entry) ? entry[1] : {}) as Record<string, unknown>;
+  };
+
+  it("requests CAMERA and blocks RECORD_AUDIO (a stills-only app never records audio)", () => {
+    expect(config.android?.permissions).toContain("android.permission.CAMERA");
+    expect(config.android?.blockedPermissions).toContain("android.permission.RECORD_AUDIO");
+  });
+
+  it("turns off the camera plugin's audio permission and the picker's microphone permission", () => {
+    expect(pluginOptions("expo-camera").recordAudioAndroid).toBe(false);
+    expect(pluginOptions("expo-image-picker").microphonePermission).toBe(false);
+  });
+
+  it("does not let the image picker block CAMERA: `cameraPermission: false` adds tools:node=remove and strips it from the manifest", () => {
+    expect(pluginOptions("expo-image-picker").cameraPermission).not.toBe(false);
+  });
+});
