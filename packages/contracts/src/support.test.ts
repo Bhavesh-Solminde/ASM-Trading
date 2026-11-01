@@ -25,7 +25,7 @@ describe("TicketSchema", () => {
   it("rejects a status it does not know and a missing field", () => {
     expect(TicketSchema.safeParse({ ...ROW, status: "ESCALATED" }).success).toBe(false);
     for (const key of ["id", "subject", "body", "status", "createdAt"] as const) {
-      const { [key]: _drop, ...rest } = ROW;
+      const rest = Object.fromEntries(Object.entries(ROW).filter(([name]) => name !== key));
       expect(TicketSchema.safeParse(rest).success, key).toBe(false);
     }
   });

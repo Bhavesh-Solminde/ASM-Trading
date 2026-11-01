@@ -12,6 +12,7 @@ const clearResume = vi.hoisted(() => vi.fn());
 const clearToasts = vi.hoisted(() => vi.fn());
 const clearPending = vi.hoisted(() => vi.fn());
 const signOutOfGoogle = vi.hoisted(() => vi.fn());
+const sweepKycTemp = vi.hoisted(() => vi.fn());
 
 vi.mock("expo-secure-store", () => ({ ...secure, WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1 }));
 vi.mock("@/api/client", () => apiMock);
@@ -19,6 +20,7 @@ vi.mock("@/api/queries", () => ({ queryClient: { clear } }));
 vi.mock("@/cache/resume-cache", () => ({ clearResume }));
 vi.mock("@/payments/pending-checkout", () => ({ clearAllPendingCheckouts: clearPending }));
 vi.mock("@/ui/Toast", () => ({ toast: vi.fn(), clearToasts }));
+vi.mock("@/kyc/temp-files-native", () => ({ sweepKycTemp }));
 vi.mock("./google", () => ({ signOutOfGoogle }));
 vi.mock("@/socket/socket-store", () => ({ useSocket: { getState: () => ({ reset: resetSocket }) } }));
 
@@ -27,6 +29,7 @@ import { useSession } from "./session-store";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sweepKycTemp.mockResolvedValue(undefined);
   secure.getItemAsync.mockResolvedValue(null);
   secure.setItemAsync.mockResolvedValue(undefined);
   secure.deleteItemAsync.mockResolvedValue(undefined);
@@ -107,6 +110,25 @@ describe("useSession", () => {
       throw new Error("storage");
     });
     await expect(useSession.getState().signOut({ remote: false })).rejects.toThrow("storage");
+    expect(useSession.getState().token).toBeNull();
+  });
+
+  it("sweeps the KYC photo cache, so an ID document taken by this user is not left for the next person on the phone", async () => {
+    useSession.setState({ token: "tok", ready: true });
+    await useSession.getState().signOut({ remote: false });
+    expect(sweepKycTemp).toHaveBeenCalledTimes(1);
+  });
+
+  it("still ends the session when the KYC photo sweep fails or throws", async () => {
+    useSession.setState({ token: "tok", ready: true });
+    sweepKycTemp.mockRejectedValueOnce(new Error("EBUSY"));
+    await useSession.getState().signOut({ remote: false });
+    expect(useSession.getState().token).toBeNull();
+    useSession.setState({ token: "tok2", ready: true });
+    sweepKycTemp.mockImplementationOnce(() => {
+      throw new Error("sync");
+    });
+    await useSession.getState().signOut({ remote: false });
     expect(useSession.getState().token).toBeNull();
   });
 

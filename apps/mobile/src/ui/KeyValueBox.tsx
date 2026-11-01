@@ -14,6 +14,7 @@ export interface KeyValueRow {
   /** Text values only. */
   valueColor?: string;
   testID?: string;
+  accessibilityLabel?: string;
 }
 
 /**
@@ -31,7 +32,7 @@ export function KeyValueBox({ rows, tone = "surface" }: { rows: KeyValueRow[]; t
           </Txt>
           <View style={{ flexShrink: 0, maxWidth: "62%", alignItems: "flex-end" }}>
             {typeof row.value === "string" ? (
-              <Txt size={14} weight={600} font={row.font} color={row.valueColor ?? color.ink} style={{ textAlign: "right" }}>
+              <Txt accessibilityLabel={row.accessibilityLabel} size={14} weight={600} font={row.font} color={row.valueColor ?? color.ink} style={{ textAlign: "right" }}>
                 {row.value}
               </Txt>
             ) : (

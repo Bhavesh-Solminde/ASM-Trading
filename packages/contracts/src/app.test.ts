@@ -53,9 +53,27 @@ describe("app contracts", () => {
       expect(AppConfigSchema.parse({ ...base, upiAppBlocklist: ["gpay", "paytm"] }).upiAppBlocklist).toEqual(["gpay", "paytm"]);
     });
 
-    it("refuses a name that is not one of the three apps", () => {
-      expect(AppConfigSchema.safeParse({ ...base, upiAppBlocklist: ["any"] }).success).toBe(false);
-      expect(AppConfigSchema.safeParse({ ...base, upiAppBlocklist: ["bhim"] }).success).toBe(false);
+    it("drops a name it does not know instead of failing, so a shipped build still reads the rest of the config (and its forced-upgrade gate) when a newer server lists a fourth app", () => {
+      const parsed = AppConfigSchema.safeParse({ ...base, minVersion: "2.0.0", upiAppBlocklist: ["phonepe", "bhim", "any", "gpay", "cred"] });
+      expect(parsed.success).toBe(true);
+      expect(parsed.success && parsed.data.upiAppBlocklist).toEqual(["phonepe", "gpay"]);
+      expect(parsed.success && parsed.data.minVersion).toBe("2.0.0");
+    });
+
+    it("reads a blocklist that is not a list of strings as empty, never as a failed config", () => {
+      for (const bad of [null, "phonepe", 7, { a: 1 }, [1, 2]]) {
+        const parsed = AppConfigSchema.safeParse({ ...base, upiAppBlocklist: bad });
+        expect(parsed.success).toBe(true);
+        expect(parsed.success && parsed.data.upiAppBlocklist).toEqual([]);
+      }
+    });
+
+    it("keeps the known names around a member that is not a string", () => {
+      expect(AppConfigSchema.parse({ ...base, upiAppBlocklist: ["phonepe", 3, null, "paytm"] }).upiAppBlocklist).toEqual(["phonepe", "paytm"]);
+    });
+
+    it("still refuses a config whose own required fields are wrong", () => {
+      expect(AppConfigSchema.safeParse({ ...base, minVersion: "1.0", upiAppBlocklist: ["bhim"] }).success).toBe(false);
     });
   });
 

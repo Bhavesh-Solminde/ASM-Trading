@@ -25,6 +25,7 @@ export function withdrawErrorText(e: unknown, t: Translate): string {
   if (e instanceof ApiError) {
     // A dropped connection can cut the request mid-flight, so it reads like a timeout: look in Payments before trying again.
     if (e.code === "offline" || e.code === "timeout") return t("withdraw.timedOut");
+    if (e.code === "currency_changed") return t("withdraw.currencyChanged");
     if (e.status >= 400 && e.status < 500 && e.message !== GENERIC_ERROR && e.message.trim() !== "") return e.message;
   }
   return t("common.genericError");
@@ -94,6 +95,8 @@ export function createWithdrawSubmitter(deps: WithdrawSubmitDeps): (body: Create
         deps.invalidateMoney();
         deps.invalidatePrefill();
         deps.toast(deps.t("withdraw.unclear"), "down");
+        // Same as a timeout: stay busy until the refetch shows the withdrawal (capped), so a tap cannot double it.
+        await settleWithin(deps.awaitReconcile, WITHDRAW_RECONCILE_WAIT_MS);
         return;
       }
       created = true;
@@ -104,7 +107,7 @@ export function createWithdrawSubmitter(deps: WithdrawSubmitDeps): (body: Create
     } catch (e) {
       if (deps.session() !== session) return;
       if (isHandledElsewhere(e)) return;
-      if (mayHaveLanded(e)) deps.invalidateMoney();
+      if (mayHaveLanded(e) || (e instanceof ApiError && e.code === "currency_changed")) deps.invalidateMoney();
       // A refusal can mean the gate moved (KYC) or the saved payouts did: refetch the prefill the screen is built on.
       if (mayHaveLanded(e) || isClientError(e)) deps.invalidatePrefill();
       deps.toast(withdrawErrorText(e, deps.t), "down");
@@ -151,7 +154,7 @@ export function createCancelSubmitter(deps: CancelSubmitDeps): (id: string) => P
     } catch (e) {
       if (deps.session() !== session) return;
       if (isHandledElsewhere(e)) return;
-      if (mayHaveLanded(e)) deps.invalidateMoney();
+      if (mayHaveLanded(e) || (e instanceof ApiError && e.code === "currency_changed")) deps.invalidateMoney();
       if (mayHaveLanded(e) || isClientError(e)) deps.invalidatePrefill();
       deps.toast(withdrawErrorText(e, deps.t), "down");
     } finally {

@@ -236,6 +236,38 @@ describe("createWithdrawSubmitter", () => {
     expect(busy).toEqual([true, false]);
   });
 
+  it("stays busy on an unreadable answer until the refetch shows the withdrawal, so a second tap cannot double it", async () => {
+    let release!: () => void;
+    const post = vi
+      .fn<WithdrawSubmitDeps["post"]>()
+      .mockResolvedValueOnce({ nope: true })
+      .mockResolvedValueOnce({ id: "w-9", status: "REQUESTED" });
+    const { run, calls, busy } = setup(post, { awaitReconcile: () => new Promise<void>((r) => (release = r)) });
+    const first = run(body);
+    await vi.waitFor(() => expect(calls).toContain("toast:down:t:withdraw.unclear"));
+    await run(body); // a second tap while the refetch is pending
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(busy).toEqual([true]);
+    release();
+    await first;
+    expect(busy).toEqual([true, false]);
+  });
+
+  it("gives up waiting on an unreadable answer after the cap and frees the button", async () => {
+    vi.useFakeTimers();
+    try {
+      const { run, busy } = setup(async () => ({ nope: true }), { awaitReconcile: () => new Promise<void>(() => undefined) });
+      const done = run(body);
+      await vi.advanceTimersByTimeAsync(WITHDRAW_RECONCILE_WAIT_MS - 1);
+      expect(busy).toEqual([true]);
+      await vi.advanceTimersByTimeAsync(1);
+      await done;
+      expect(busy).toEqual([true, false]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("drops a result that arrives under a different session", async () => {
     let token = "s1";
     const { run, calls } = setup(

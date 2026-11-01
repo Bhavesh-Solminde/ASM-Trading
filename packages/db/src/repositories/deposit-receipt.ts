@@ -1,3 +1,4 @@
+import { currencyAtCredit, type CreditableDeposit } from "./deposit-credit-currency";
 import { prisma } from "../client";
 import type { Deposit } from "../models";
 
@@ -7,7 +8,7 @@ export interface ReceiptTx {
   amount: number | bigint;
   balanceAfter: number | bigint;
   createdAt: Date;
-  account: { currency: string };
+  account: { currency: string; id: string };
 }
 
 /** What the app's receipt shows beyond the deposit row itself. Every field is null until it is known. */
@@ -40,15 +41,15 @@ function earliest(txs: readonly ReceiptTx[], kind: string): ReceiptTx | undefine
  * Pure: the receipt from a deposit's ledger rows and its UTR. The credit is the first positive `DEPOSIT` row (a later
  * reversal is a negative row and never counts), the bonus the first positive `BONUS_GRANT`.
  */
-export function buildDepositReceipt(input: { txs: readonly ReceiptTx[]; utr: string | null }): DepositReceipt {
+export function buildDepositReceipt(input: { txs: readonly ReceiptTx[]; utr: string | null; originalCurrency?: string | undefined; switched?: boolean }): DepositReceipt {
   const credit = earliest(input.txs, "DEPOSIT");
   const bonus = earliest(input.txs, "BONUS_GRANT");
   return {
     creditedAt: credit?.createdAt ?? null,
     creditedMinor: credit ? safeMinor(credit.amount) : null,
-    creditedCurrency: credit?.account.currency ?? null,
+    creditedCurrency: credit ? input.originalCurrency ?? credit.account.currency : null,
     bonusMinor: bonus ? safeMinor(bonus.amount) : null,
-    balanceAfterMinor: credit ? safeMinor(credit.balanceAfter) : null,
+    balanceAfterMinor: credit && !input.switched ? safeMinor(credit.balanceAfter) : null,
     utr: input.utr,
   };
 }
@@ -58,7 +59,7 @@ export function buildDepositReceipt(input: { txs: readonly ReceiptTx[]; utr: str
  * costs no query at all (the poll runs every 4s while it is open). A credited one reads its own `DEPOSIT` and
  * `BONUS_GRANT` rows on the owner's LIVE account, and the matched bank credit's UTR only when the user never entered one.
  */
-export async function getDepositReceipt(deposit: Pick<Deposit, "id" | "userId" | "status" | "claimedUtr" | "matchedCreditId">): Promise<DepositReceipt> {
+export async function getDepositReceipt(deposit: Pick<Deposit, "id" | "userId" | "status" | "claimedUtr" | "matchedCreditId"> & CreditableDeposit): Promise<DepositReceipt> {
   if (deposit.status !== "COMPLETED") return { ...EMPTY, utr: deposit.claimedUtr ?? null };
   const [txs, matched] = await Promise.all([
     prisma.transaction.findMany({
@@ -69,7 +70,7 @@ export async function getDepositReceipt(deposit: Pick<Deposit, "id" | "userId" |
         amount: { gt: 0 },
         account: { userId: deposit.userId, type: "LIVE" },
       },
-      select: { kind: true, amount: true, balanceAfter: true, createdAt: true, account: { select: { currency: true } } },
+      select: { kind: true, amount: true, balanceAfter: true, createdAt: true, account: { select: { id: true, currency: true } } },
       orderBy: { createdAt: "asc" },
       take: 10,
     }),
@@ -77,5 +78,16 @@ export async function getDepositReceipt(deposit: Pick<Deposit, "id" | "userId" |
       ? prisma.bankCredit.findUnique({ where: { id: deposit.matchedCreditId }, select: { utr: true } })
       : Promise.resolve(null),
   ]);
-  return buildDepositReceipt({ txs, utr: deposit.claimedUtr ?? matched?.utr ?? null });
+  const credit = earliest(txs, "DEPOSIT");
+  const switches = credit
+    ? await prisma.transaction.findMany({
+        where: { accountId: credit.account.id, kind: "CURRENCY_CONVERT", createdAt: { gt: credit.createdAt } },
+        select: { createdAt: true },
+      })
+    : [];
+  const amount = credit ? safeMinor(credit.amount) : null;
+  const originalCurrency = credit && amount !== null
+    ? currencyAtCredit(deposit, amount, credit.createdAt, switches.map((row) => row.createdAt), credit.account.currency)
+    : undefined;
+  return buildDepositReceipt({ txs, utr: deposit.claimedUtr ?? matched?.utr ?? null, originalCurrency, switched: switches.length > 0 });
 }

@@ -249,6 +249,6 @@ export function nextCancelDeadlineMs(rows: readonly CancelWindow[], nowMs: numbe
  * The `POST /api/withdrawals` body, parsed through the contract the server enforces, so a body it would refuse (a float
  * or zero amount, a bad payout, an id that is not a uuid) is never sent. Throws for such a body.
  */
-export function withdrawBody(accountId: string, amountMinor: number, payout: PayoutDetails): CreateWithdrawalInput {
-  return CreateWithdrawalSchema.parse({ accountId, amount: amountMinor, payout });
+export function withdrawBody(accountId: string, amountMinor: number, payout: PayoutDetails, currency?: string): CreateWithdrawalInput {
+  return CreateWithdrawalSchema.parse({ accountId, amount: amountMinor, payout, ...(currency === undefined ? {} : { currency }) });
 }

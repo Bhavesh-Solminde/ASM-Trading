@@ -49,7 +49,7 @@ export function classifyResponse(
   const code = field(body, "code");
   if (code === "unauthenticated" && authed) return { kind: "logout" };
   if (code === "maintenance") return { kind: "gate", gate: "maintenance" };
-  if (code === "vpn_blocked") return { kind: "gate", gate: "blocked" };
+  if (code === "vpn_blocked" || code === "blocked") return { kind: "gate", gate: "blocked" };
   if (code === "upgrade_required" || status === 426) return { kind: "gate", gate: "upgrade" };
   const message = field(body, "error") ?? field(body, "message") ?? GENERIC_ERROR;
   if (status === 429 || code === "rate_limited") {

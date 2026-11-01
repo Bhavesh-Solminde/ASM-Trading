@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AppState, Image, Linking, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSession } from "@/auth/session-store";
 import { queryClient } from "@/api/queries";
 import { color } from "@/theme/tokens";
 import { Button, Txt } from "@/theme/ui";
@@ -15,6 +16,7 @@ import type { Compressed } from "./compress";
 import { compressForUpload } from "./compress-native";
 import type { KycDocKind } from "./kyc-flow";
 import { submitPhoto } from "./submit-photo";
+import { discardKycFiles } from "./temp-files-native";
 import { uploadKycDocument } from "./upload";
 
 interface Shot {
@@ -95,6 +97,11 @@ export function CaptureScreen({ kind }: { kind: KycDocKind }) {
   // The compressed file of the current photo, kept so a Retry after a failed upload does not encode again.
   const compressed = useRef<Compressed | null>(null);
   const inFlight = useRef(false);
+  const mounted = useRef(true);
+  const ownerSession = useRef(useSession.getState().token);
+  const stillOwned = () => mounted.current && ownerSession.current === useSession.getState().token;
+  // The photo on screen, mirrored in a ref so the unmount cleanup sees the latest one.
+  const shotRef = useRef<Shot | null>(null);
   const cameraOn = cameraMounted({ view, focused, hasShot: shot !== null });
 
   // `cameraReady` belongs to one mount of the CameraView: when it unmounts (blur, a photo to preview, permission
@@ -111,8 +118,28 @@ export function CaptureScreen({ kind }: { kind: KycDocKind }) {
     return () => sub.remove();
   }, [refreshPermission]);
 
+  // ID-document photos must not outlive their use: delete the original (the camera's or the picker's cache copy; a
+  // gallery original outside the app cache is never touched) and the compressed file, on a retake, after a successful
+  // upload and when the screen goes away. Best effort and never throws.
+  const discardPhoto = () => {
+    void discardKycFiles([shotRef.current?.uri, compressed.current?.uri]);
+  };
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      discardPhoto();
+    };
+  }, []);
+
   const keep = (next: Shot | null) => {
+    if (!stillOwned()) {
+      void discardKycFiles([next?.uri]);
+      return;
+    }
+    discardPhoto();
     compressed.current = null;
+    shotRef.current = next;
     setError(null);
     setShot(next);
   };
@@ -148,12 +175,20 @@ export function CaptureScreen({ kind }: { kind: KycDocKind }) {
     const out = await submitPhoto({
       cached: compressed.current,
       compress: () => compressForUpload(shot.uri, shot.width, shot.height),
-      upload: (uri) => uploadKycDocument(kind, uri),
+      upload: (uri) => {
+        if (!stillOwned()) throw new Error("Capture screen closed");
+        return uploadKycDocument(kind, uri);
+      },
       t,
     });
+    if (!stillOwned()) {
+      await discardKycFiles([shot.uri, out.compressed?.uri]);
+      return;
+    }
     compressed.current = out.compressed;
     if (out.status === "done") {
       // Stay busy while leaving, so a tap on the way out cannot upload twice; Verify reads the new photo from the profile.
+      discardPhoto();
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
       closeScreen();
       return;

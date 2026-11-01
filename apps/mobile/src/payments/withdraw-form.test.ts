@@ -348,3 +348,8 @@ describe("nextCancelDeadlineMs", () => {
     expect(nextCancelDeadlineMs([], NOW)).toBeNull();
   });
 });
+
+it("includes the client's currency so stale form amounts cannot be debited in new units", () => {
+  expect(withdrawBody(ACCOUNT, 70_000, { method: "UPI", upiId: "asha@okaxis" }, "INR")).toMatchObject({ currency: "INR" });
+  expect(() => withdrawBody(ACCOUNT, 70_000, { method: "UPI", upiId: "asha@okaxis" }, "EUR")).toThrow();
+});

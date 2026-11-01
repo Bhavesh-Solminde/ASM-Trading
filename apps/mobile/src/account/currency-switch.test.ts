@@ -64,7 +64,8 @@ describe("currencySwitchErrorText", () => {
   });
   it("shows the server's refusal verbatim, whatever its code (e.g. a pending withdrawal)", () => {
     const msg = "Finish or cancel your pending withdrawal first.";
-    expect(currencySwitchErrorText(new ApiError(msg, 409, "pending_withdrawal"), t)).toBe(msg);
+    expect(currencySwitchErrorText(new ApiError(msg, 409, "pending_withdrawal"), t)).toBe("<currency.pendingWithdrawal>");
+    expect(currencySwitchErrorText(new ApiError(msg, 409, "open_positions"), t)).toBe("<currency.openPositions>");
   });
   it("reads offline and timeout as 'check your balance first' (the switch may have landed)", () => {
     expect(currencySwitchErrorText(new ApiError("x", 0, "timeout"), t)).toBe("<currency.timedOut>");

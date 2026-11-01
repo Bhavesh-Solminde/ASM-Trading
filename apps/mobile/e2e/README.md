@@ -1,11 +1,12 @@
 # End-to-end flows (Maestro)
 
-Six flows for the Android app. **They have been written but not yet run**: Maestro was not installed on the
+Six functional flows and a separate visual capture flow for the Android app. **They have been written but not yet run**: Maestro was not installed on the
 machine that wrote them, and installing it needs the owner's OK. Expect to fix small things (timeouts, the
 dev-client hand-off) on the first real run, and record the output in the PR.
 
 | Flow | What it covers | Needs |
 | --- | --- | --- |
+| `visual-proof.yaml` | R5 visual capture, run separately | seeded visual-test account and emulator |
 | `login-trade.yaml` | fresh install, sign in, set a PIN, 30s demo trade, settlement toast | web + engine, a test user |
 | `lock.yaml` | cold-start lock, short background keeps the app open, 5-minute background relocks, 5 wrong PINs end the session | the state `login-trade` leaves (PIN `1234`); **~6 minutes** |
 | `maintenance.yaml` | maintenance gate screen | web started with `MAINTENANCE_MODE=1` |

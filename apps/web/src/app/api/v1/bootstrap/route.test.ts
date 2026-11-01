@@ -45,4 +45,15 @@ describe("GET /api/v1/bootstrap", () => {
     expect(body.accounts.map((a) => a.type).sort()).toEqual(["DEMO", "LIVE"]);
     expect(body.profile.locale).toBe("en");
   });
+  it("blocks a frozen account even when its bearer session survives", async () => {
+    await prisma.user.update({ where: { id: userId }, data: { status: "FROZEN" } });
+    try {
+      const res = await get({ authorization: `Bearer ${token}` });
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "blocked" });
+    } finally {
+      await prisma.user.update({ where: { id: userId }, data: { status: "ACTIVE" } });
+    }
+  });
+
 });

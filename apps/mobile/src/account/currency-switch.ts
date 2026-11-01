@@ -71,6 +71,8 @@ const HANDLED_ELSEWHERE = new Set(["rate_limited", "maintenance", "blocked", "up
 export function currencySwitchErrorText(e: unknown, t: Translate): string {
   if (e instanceof ApiError) {
     if (e.code === "offline" || e.code === "timeout") return t("currency.timedOut");
+    if (e.code === "pending_withdrawal") return t("currency.pendingWithdrawal");
+    if (e.code === "open_positions") return t("currency.openPositions");
     if (e.status >= 400 && e.status < 500 && e.message !== GENERIC_ERROR && e.message.trim() !== "") return e.message;
   }
   return t("common.genericError");

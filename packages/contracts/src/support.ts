@@ -33,11 +33,11 @@ export const FAQ = [
   },
   {
     q: "What is the minimum withdrawal amount?",
-    a: "$1.00 in this build.",
+    a: "The minimum withdrawal is ₹700 for INR accounts and $6.36 for USD accounts at the current platform conversion rate. Check Withdrawal for your current limits before submitting.",
   },
   {
     q: "Is there a fee for depositing or withdrawing?",
-    a: "No platform fee. The deposit conversion rate includes a spread, which is where a real processor takes its margin.",
+    a: "The payment screen shows the amount and conversion before you submit. Currency conversion uses the platform rate of ₹110 = $1. Your bank, UPI app or crypto network may apply its own charges.",
   },
   {
     q: "Why is my bonus not withdrawable?",
@@ -45,7 +45,7 @@ export const FAQ = [
   },
   {
     q: "What is account verification?",
-    a: "Verification confirms who you are before money leaves the platform. Fill in every field under Account → Personal data and save — your details go to review, and withdrawals unlock once the account shows Verified.",
+    a: "Verification confirms your identity before withdrawals. Open Account → Verify now, complete your details, upload the front and back of your Aadhaar, your PAN and a selfie, then submit for review. Withdrawals require a Verified status.",
   },
   {
     q: "Why does my deposit say Processing?",
@@ -53,6 +53,6 @@ export const FAQ = [
   },
   {
     q: "Is this a real trading platform?",
-    a: "No. ASM Trade is a demonstration of how manipulated trading platforms operate. No real money is involved and no order reaches any market.",
+    a: "Live accounts use real funds; Demo accounts use practice funds. Prices are generated within the platform and trades are settled internally, rather than sent to an external exchange. Trading can result in losses.",
   },
 ] as const;

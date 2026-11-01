@@ -11,13 +11,14 @@ vi.mock("../client", () => ({ prisma: db }));
 import { buildDepositReceipt, getDepositReceipt, type ReceiptTx } from "./deposit-receipt";
 
 const CREATED = new Date("2026-10-21T10:01:00.000Z");
-const deposit = { id: "dep-1", userId: "user-1", status: "COMPLETED" as const, claimedUtr: null as string | null, matchedCreditId: null as string | null };
+const deposit = { id: "dep-1", userId: "user-1", status: "COMPLETED" as const, claimedUtr: null as string | null, matchedCreditId: null as string | null, method: "PhonePe", amountInr: 200000, amountUsd: 1818, amountUsdtMinor: null };
 
-const depositTx = (over: Partial<ReceiptTx> = {}): ReceiptTx => ({ kind: "DEPOSIT", amount: 200000, balanceAfter: 1645000, createdAt: CREATED, account: { currency: "INR" }, ...over });
-const bonusTx = (over: Partial<ReceiptTx> = {}): ReceiptTx => ({ kind: "BONUS_GRANT", amount: 200000, balanceAfter: 1645000, createdAt: CREATED, account: { currency: "INR" }, ...over });
+const depositTx = (over: Partial<ReceiptTx> = {}): ReceiptTx => ({ kind: "DEPOSIT", amount: 200000, balanceAfter: 1645000, createdAt: CREATED, account: { id: "live-1", currency: "INR" }, ...over });
+const bonusTx = (over: Partial<ReceiptTx> = {}): ReceiptTx => ({ kind: "BONUS_GRANT", amount: 200000, balanceAfter: 1645000, createdAt: CREATED, account: { id: "live-1", currency: "INR" }, ...over });
 
 beforeEach(() => {
   db.transaction.findMany.mockReset();
+  db.transaction.findMany.mockResolvedValue([]);
   db.bankCredit.findUnique.mockReset();
 });
 
@@ -65,6 +66,17 @@ describe("buildDepositReceipt", () => {
 });
 
 describe("getDepositReceipt", () => {
+  it("keeps an old INR credit in INR after a switch to USD and hides the obsolete balance", async () => {
+    db.transaction.findMany.mockResolvedValueOnce([depositTx({ account: { id: "live-1", currency: "USD" } }), bonusTx()]);
+    db.transaction.findMany.mockResolvedValueOnce([{ createdAt: new Date(CREATED.getTime() + 1000) }]);
+    const out = await getDepositReceipt(deposit);
+    expect(out).toMatchObject({ creditedMinor: 200000, creditedCurrency: "INR", bonusMinor: 200000, balanceAfterMinor: null });
+  });
+  it("handles a switch that committed while the deposit transaction waited for its lock", async () => {
+    db.transaction.findMany.mockResolvedValueOnce([depositTx({ amount: 1818, account: { id: "live-1", currency: "USD" } })]);
+    db.transaction.findMany.mockResolvedValueOnce([{ createdAt: new Date(CREATED.getTime() + 1000) }]);
+    expect(await getDepositReceipt(deposit)).toMatchObject({ creditedMinor: 1818, creditedCurrency: "USD", balanceAfterMinor: null });
+  });
   it("does not touch the database for a deposit that has not been credited, and keeps the UTR the user sent", async () => {
     const out = await getDepositReceipt({ ...deposit, status: "PENDING_CONFIRMATION", claimedUtr: "111222333" });
     expect(db.transaction.findMany).not.toHaveBeenCalled();
@@ -73,9 +85,9 @@ describe("getDepositReceipt", () => {
   });
 
   it("asks only for this deposit's credit and bonus on the owner's LIVE account", async () => {
-    db.transaction.findMany.mockResolvedValue([depositTx(), bonusTx()]);
+    db.transaction.findMany.mockResolvedValueOnce([depositTx(), bonusTx()]);
     await getDepositReceipt({ ...deposit, claimedUtr: "111222333" });
-    expect(db.transaction.findMany).toHaveBeenCalledTimes(1);
+    expect(db.transaction.findMany).toHaveBeenCalledTimes(2);
     const args = db.transaction.findMany.mock.calls[0]![0];
     expect(args.where).toMatchObject({
       refType: "Deposit",
@@ -84,18 +96,18 @@ describe("getDepositReceipt", () => {
       amount: { gt: 0 },
       account: { userId: "user-1", type: "LIVE" },
     });
-    expect(args.select.account).toEqual({ select: { currency: true } });
+    expect(args.select.account).toEqual({ select: { id: true, currency: true } });
   });
 
   it("prefers the UTR the user claimed over the matched bank credit's", async () => {
-    db.transaction.findMany.mockResolvedValue([depositTx()]);
+    db.transaction.findMany.mockResolvedValueOnce([depositTx()]);
     const out = await getDepositReceipt({ ...deposit, claimedUtr: "111222333", matchedCreditId: "bc-1" });
     expect(out.utr).toBe("111222333");
     expect(db.bankCredit.findUnique).not.toHaveBeenCalled();
   });
 
   it("falls back to the matched bank credit's UTR when the user never entered one", async () => {
-    db.transaction.findMany.mockResolvedValue([depositTx()]);
+    db.transaction.findMany.mockResolvedValueOnce([depositTx()]);
     db.bankCredit.findUnique.mockResolvedValue({ utr: "428713905561" });
     const out = await getDepositReceipt({ ...deposit, matchedCreditId: "bc-1" });
     expect(db.bankCredit.findUnique).toHaveBeenCalledWith({ where: { id: "bc-1" }, select: { utr: true } });
@@ -104,7 +116,7 @@ describe("getDepositReceipt", () => {
   });
 
   it("has no UTR for a deposit with neither (USDT)", async () => {
-    db.transaction.findMany.mockResolvedValue([depositTx({ account: { currency: "USD" } })]);
+    db.transaction.findMany.mockResolvedValueOnce([depositTx({ amount: 1818, account: { id: "live-1", currency: "USD" } })]);
     const out = await getDepositReceipt(deposit);
     expect(out.utr).toBeNull();
     expect(out.creditedCurrency).toBe("USD");

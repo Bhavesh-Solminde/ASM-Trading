@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { api, configureApi } from "@/api/client";
 import { queryClient } from "@/api/queries";
 import { clearResume } from "@/cache/resume-cache";
+import { sweepKycTemp } from "@/kyc/temp-files-native";
 import { clearAllPendingCheckouts } from "@/payments/pending-checkout";
 import { useSocket } from "@/socket/socket-store";
 import { useListLoaded } from "@/trade/list-loaded-store";
@@ -58,6 +59,13 @@ export const useSession = create<SessionState>((set, get) => ({
         clearAllPendingCheckouts();
         // Nor a "Won ₹…" toast still queued for this user.
         clearToasts();
+        // Nor the Aadhaar, PAN or selfie photos this user took: they live in the app cache until deleted. Background
+        // and best effort (the sweep never throws; the catch covers a synchronous failure of the import).
+        try {
+          void sweepKycTemp().catch(() => {});
+        } catch {
+          // Sign-out must complete whatever the disk says.
+        }
         // On a shared phone the next "Continue with Google" must ask which account.
         signOutOfGoogle();
         set({ token: null });

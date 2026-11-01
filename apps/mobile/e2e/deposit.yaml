@@ -31,7 +31,11 @@ appId: com.indianxtrade.app
 - extendedWaitUntil:
     visible: { id: "deposit-amount" }
     timeout: 30000
-- tapOn: { id: "deposit-amount" }
+- runFlow:
+    when:
+      notVisible: { id: "key-1" }
+    commands:
+      - tapOn: { id: "deposit-amount" }
 - extendedWaitUntil:
     visible: { id: "key-1" }
     timeout: 15000

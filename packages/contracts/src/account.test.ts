@@ -32,13 +32,19 @@ describe("ProfileViewSchema", () => {
     expect(ProfileViewSchema.safeParse({ ...profile, kycStatus: "APPROVED" }).success).toBe(false);
   });
 
-  it("restricts documents to the four kinds", () => {
-    expect(ProfileViewSchema.safeParse({ ...profile, kycDocuments: ["PAN", "AADHAAR_BACK"] }).success).toBe(true);
-    expect(ProfileViewSchema.safeParse({ ...profile, kycDocuments: ["PASSPORT"] }).success).toBe(false);
+  it("keeps the four known document kinds", () => {
+    expect(ProfileViewSchema.parse({ ...profile, kycDocuments: ["PAN", "AADHAAR_BACK"] }).kycDocuments).toEqual(["PAN", "AADHAAR_BACK"]);
+  });
+
+  it("ignores a document kind it does not know instead of failing, so an older build still opens the profile when the server adds one", () => {
+    const parsed = ProfileViewSchema.safeParse({ ...profile, kycDocuments: ["PAN", "PASSPORT", "SELFIE"] });
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.kycDocuments).toEqual(["PAN", "SELFIE"]);
+    expect(ProfileViewSchema.parse({ ...profile, kycDocuments: ["PASSPORT"] }).kycDocuments).toEqual([]);
   });
 
   it("rejects a profile missing a field", () => {
-    const { email: _email, ...rest } = profile;
+    const rest = Object.fromEntries(Object.entries(profile).filter(([key]) => key !== "email"));
     expect(ProfileViewSchema.safeParse(rest).success).toBe(false);
   });
 });

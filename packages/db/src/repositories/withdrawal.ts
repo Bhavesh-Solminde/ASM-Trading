@@ -4,7 +4,7 @@ import { withdrawalLimitsMinor } from "@asm/contracts";
 import { convertMinorBetween } from "./account";
 
 export class WithdrawalRefused extends Error {
-  constructor(message: string) {
+  constructor(message: string, readonly code?: "currency_changed") {
     super(message);
     this.name = "WithdrawalRefused";
   }
@@ -130,6 +130,7 @@ export async function requestWithdrawal(input: {
   actorId: string;
   accountId: string;
   amount: number;
+  currency?: "INR" | "USD";
   payout: WithdrawalPayout;
   /** Normalised destination (contracts `payoutDestinationKey`), for the admin's shared-destination flag. */
   destinationKey: string;
@@ -163,6 +164,9 @@ export async function requestWithdrawal(input: {
     throw new WithdrawalRefused("Demo funds cannot be withdrawn.");
   }
 
+  if (input.currency !== undefined && input.currency !== account.currency) {
+    throw new WithdrawalRefused("Your account currency changed. Check the amount and try again.", "currency_changed");
+  }
   const limits = withdrawalLimitsMinor(account.currency);
   if (input.amount < limits.min) {
     throw new WithdrawalRefused(`The minimum withdrawal is ${formatLimit(limits.min, account.currency)}.`);
@@ -217,7 +221,7 @@ export async function requestWithdrawal(input: {
         // read. If the account was converted in between, the amount is in the
         // wrong units — refuse rather than debit it (a retry would just re-read).
         if (fresh.currency !== account.currency) {
-          throw new WithdrawalRefused("Your account currency just changed. Please try again.");
+          throw new WithdrawalRefused("Your account currency just changed. Please try again.", "currency_changed");
         }
 
         // Only real balance is withdrawable; the bonus is sticky and is never

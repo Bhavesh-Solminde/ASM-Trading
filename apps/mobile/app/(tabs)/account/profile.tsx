@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { identityRows, nicknameProblem, NICKNAME_MAX, profileBody, saveEnabled } from "@/account/profile-model";
+import { ApiError } from "@/api/errors";
 import { api } from "@/api/client";
 import { shouldRefetchOnFocus } from "@/api/focus-refetch";
 import { queryClient, useProfile } from "@/api/queries";
@@ -63,6 +64,7 @@ export default function Profile() {
       refreshBootstrap(queryClient);
       toast(t("profile.saved"), "up");
     } catch (e) {
+      if (e instanceof ApiError && ["rate_limited", "maintenance", "blocked", "upgrade", "unauthenticated"].includes(e.code ?? "")) return;
       setError(kycRequestErrorText(e, t, "profile.saveTimedOut"));
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
     } finally {
@@ -93,7 +95,7 @@ export default function Profile() {
               <Txt size={16} weight={600} accessibilityRole="header">
                 {t("profile.identityTitle")}
               </Txt>
-              <KeyValueBox rows={identityRows(data).map((row) => ({ key: row.id, testID: `profile-${row.id}`, label: t(row.labelKey), value: row.value ?? t("profile.notAdded"), ...(row.value === null ? { valueColor: color.ink3 } : null) }))} />
+              <KeyValueBox rows={identityRows(data).map((row) => ({ key: row.id, testID: `profile-${row.id}`, label: t(row.labelKey), ...(row.id === "aadhaar" && row.value && /[0-9]{4}$/.test(row.value) ? { accessibilityLabel: t("profile.aadhaarEnding", { last4: row.value.slice(-4) }) } : {}), value: row.value ?? t("profile.notAdded"), ...(row.value === null ? { valueColor: color.ink3 } : null) }))} />
               {detailsEditable(data.kycStatus) ? (
                 <Button testID="profile-edit-identity" kind="secondary" label={t("profile.editIdentity")} onPress={() => router.push("/account/kyc-details")} />
               ) : (

@@ -21,12 +21,21 @@ export interface Compressed {
 /**
  * The first encode that is non-empty and at most `MAX_BYTES`, else null. There is no "smallest attempt" fallback
  * (the web has one): the app tells the user to retake the photo and never uploads something the proxy would refuse.
- * An encode that throws is the caller's to handle.
+ * An encode that throws is the caller's to handle. Every encode that is not returned is passed to `discard` (each
+ * attempt writes a new JPEG of an ID document into the cache); a `discard` that throws is ignored.
  */
-export async function compressWith(run: (maxSide: number, quality: number) => Promise<Compressed>): Promise<Compressed | null> {
+export async function compressWith(
+  run: (maxSide: number, quality: number) => Promise<Compressed>,
+  discard?: (uri: string) => void | Promise<void>,
+): Promise<Compressed | null> {
   for (const [maxSide, quality] of ATTEMPTS) {
     const out = await run(maxSide, quality);
     if (out.bytes > 0 && out.bytes <= MAX_BYTES) return out;
+    try {
+      await discard?.(out.uri);
+    } catch {
+      // A leftover file is swept at sign-out; it must not turn a retake prompt into an error.
+    }
   }
   return null;
 }

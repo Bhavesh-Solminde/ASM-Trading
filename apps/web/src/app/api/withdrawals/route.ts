@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
       userAgent: ctx.userAgent,
       accountId: parsed.data.accountId,
       amount: parsed.data.amount,
+      ...(parsed.data.currency === undefined ? {} : { currency: parsed.data.currency }),
       payout: parsed.data.payout,
       destinationKey: payoutDestinationKey(parsed.data.payout),
     });
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
     );
   } catch (err) {
     if (err instanceof WithdrawalRefused) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
+      return NextResponse.json({ error: err.message, ...(err.code ? { code: err.code } : {}) }, { status: err.code === "currency_changed" ? 409 : 400 });
     }
     throw err;
   }

@@ -428,7 +428,9 @@
     "confirmTitle": "Switch to {{currency}}?",
     "confirmBody": "{{from}} becomes about {{to}}. Your whole balance, bonus included, converts at the fixed rate of ₹{{rate}} = $1. Amounts are rounded to the nearest cent.",
     "done": "Switched to {{currency}}",
-    "timedOut": "No reply yet. Check your balance before trying again."
+    "timedOut": "No reply yet. Check your balance before trying again.",
+    "pendingWithdrawal": "Finish or cancel your pending withdrawal first.",
+    "openPositions": "Close your open positions before changing currency."
   },
   "withdraw": {
     "title": "Withdraw",
@@ -490,7 +492,8 @@
     "heldToast": "Withdrawal requested, on hold",
     "cancelled": "Withdrawal cancelled",
     "timedOut": "No reply yet. Check Payments before trying again.",
-    "unclear": "We couldn't confirm that. Check Payments before trying again."
+    "unclear": "We couldn't confirm that. Check Payments before trying again.",
+    "currencyChanged": "Your account currency changed. Check the amount and submit again."
   },
   "payments": {
     "verifyAction": "Start verification",
@@ -717,7 +720,8 @@
     },
     "field": {
       "name": "Name"
-    }
+    },
+    "aadhaarEnding": "Aadhaar ending {{last4}}"
   },
   "language": {
     "title": "Language",
@@ -785,11 +789,11 @@
       },
       "3": {
         "q": "What is the minimum withdrawal amount?",
-        "a": "$1.00 in this build."
+        "a": "The minimum withdrawal is ₹700 for INR accounts and $6.36 for USD accounts at the current platform conversion rate. Check Withdrawal for your current limits before submitting."
       },
       "4": {
         "q": "Is there a fee for depositing or withdrawing?",
-        "a": "No platform fee. The deposit conversion rate includes a spread, which is where a real processor takes its margin."
+        "a": "The payment screen shows the amount and conversion before you submit. Currency conversion uses the platform rate of ₹110 = $1. Your bank, UPI app or crypto network may apply its own charges."
       },
       "5": {
         "q": "Why is my bonus not withdrawable?",
@@ -797,7 +801,7 @@
       },
       "6": {
         "q": "What is account verification?",
-        "a": "Verification confirms who you are before money leaves the platform. Fill in every field under Account → Personal data and save — your details go to review, and withdrawals unlock once the account shows Verified."
+        "a": "Verification confirms your identity before withdrawals. Open Account → Verify now, complete your details, upload the front and back of your Aadhaar, your PAN and a selfie, then submit for review. Withdrawals require a Verified status."
       },
       "7": {
         "q": "Why does my deposit say Processing?",
@@ -805,7 +809,7 @@
       },
       "8": {
         "q": "Is this a real trading platform?",
-        "a": "No. ASM Trade is a demonstration of how manipulated trading platforms operate. No real money is involved and no order reaches any market."
+        "a": "Live accounts use real funds; Demo accounts use practice funds. Prices are generated within the platform and trades are settled internally, rather than sent to an external exchange. Trading can result in losses."
       }
     }
   }

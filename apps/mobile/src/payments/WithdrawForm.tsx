@@ -138,7 +138,7 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
     if (busy || !model.canSubmit || !model.payout.ok) return;
     let body;
     try {
-      body = withdrawBody(live.id, model.amountMinor, model.payout.payout);
+      body = withdrawBody(live.id, model.amountMinor, model.payout.payout, currency);
     } catch {
       toast(t("common.genericError"), "down");
       return;

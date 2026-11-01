@@ -89,6 +89,8 @@ export const CreateWithdrawalSchema = z.strictObject({
   accountId: z.string().uuid(),
   amount: z.number().int().positive().max(100_000_000),
   payout: PayoutDetailsSchema,
+  /** Client units; optional for older builds. Checked again inside the debit transaction. */
+  currency: z.enum(["INR", "USD"]).optional(),
 });
 export type CreateWithdrawalInput = z.infer<typeof CreateWithdrawalSchema>;
 

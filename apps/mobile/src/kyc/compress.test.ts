@@ -47,6 +47,34 @@ describe("compressWith", () => {
     const out = await compressWith(async () => ({ uri: "empty", bytes: 0 }));
     expect(out).toBeNull();
   });
+  it("reports every encode it rejected, never the one it returns, so the caller can delete the leftovers", async () => {
+    const discarded: string[] = [];
+    const out = await compressWith(
+      async (side, quality) => ({ uri: `s${side}q${quality}`, bytes: side > 1280 ? 1_200_000 : 800_000 }),
+      (uri) => { discarded.push(uri); },
+    );
+    expect(out?.uri).toBe("s1280q0.7");
+    expect(discarded).toEqual(["s1600q0.85", "s1600q0.7"]);
+  });
+  it("reports all five encodes when none fits", async () => {
+    const discarded: string[] = [];
+    let n = 0;
+    const out = await compressWith(
+      async () => ({ uri: `f${(n += 1)}`, bytes: 2_000_000 }),
+      (uri) => { discarded.push(uri); },
+    );
+    expect(out).toBeNull();
+    expect(discarded).toEqual(["f1", "f2", "f3", "f4", "f5"]);
+  });
+  it("a throwing discard hook never fails the compression", async () => {
+    const out = await compressWith(
+      async (side) => ({ uri: `s${side}`, bytes: side > 1280 ? 1_200_000 : 800_000 }),
+      () => {
+        throw new Error("EBUSY");
+      },
+    );
+    expect(out?.bytes).toBe(800_000);
+  });
   it("lets a failed encode surface to the caller", async () => {
     await expect(compressWith(async () => Promise.reject(new Error("decode failed")))).rejects.toThrow("decode failed");
   });

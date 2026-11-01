@@ -14,6 +14,21 @@ export const KycStatusSchema = z.enum(["NOT_STARTED", "PENDING", "VERIFIED", "RE
 export const LocaleSchema = z.enum(["en", "hi"]);
 export type Locale = z.infer<typeof LocaleSchema>;
 
+/**
+ * A list read tolerantly: members that are not one of `values` are dropped, and anything that is not a list (or is
+ * absent) reads as `[]`. For a list the server may one day extend (a new UPI app, a new document kind): a strict
+ * enum there makes every build already shipped fail to parse the whole response, and for the app config that
+ * silently switches off the forced-upgrade gate. Use it where the app reads a list; the server still builds the list
+ * from its own strict source (see `apps/web/src/lib/app-config.ts`).
+ */
+export function knownValues<const T extends readonly [string, ...string[]]>(values: T) {
+  const known = new Set<string>(values);
+  return z
+    .array(z.unknown())
+    .transform((items) => items.filter((item): item is T[number] => typeof item === "string" && known.has(item)))
+    .catch([] as T[number][]);
+}
+
 export const ApiErrorSchema = z.object({ error: z.string(), code: z.string().optional() });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
 
@@ -180,8 +195,11 @@ export const AppConfigSchema = z.object({
   playUrl: z.string().nullable(),
   playLive: z.boolean(),
   support: z.object({ whatsapp: z.string().nullable(), telegram: z.string().nullable() }),
-  /** UPI apps whose button the app hides (an app that declines payments to a new merchant). Absent from an older server: none. */
-  upiAppBlocklist: z.array(UpiAppNameSchema).default([]),
+  /**
+   * UPI apps whose button the app hides (an app that declines payments to a new merchant). Absent from an older
+   * server: none. Names this build does not know are dropped, never a parse failure (see `knownValues`).
+   */
+  upiAppBlocklist: knownValues(UPI_APP_NAMES),
 });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 

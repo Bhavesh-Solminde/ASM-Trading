@@ -1,5 +1,6 @@
 import { File } from "expo-file-system";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import { discardKycFiles } from "./temp-files-native";
 import { compressWith, fitResize, knownSize, type Compressed } from "./compress";
 
 /**
@@ -13,6 +14,11 @@ export function compressForUpload(uri: string, width: number, height: number): P
     const image = await ImageManipulator.manipulate(uri).resize(fitResize(width, height, maxSide)).renderAsync();
     const saved = await image.saveAsync({ compress: quality, format: SaveFormat.JPEG });
     // An unknown size throws (see `knownSize`): the screen shows a generic error, not "Photo too large".
-    return { uri: saved.uri, bytes: knownSize(new File(saved.uri).size) };
-  });
+    try {
+      return { uri: saved.uri, bytes: knownSize(new File(saved.uri).size) };
+    } catch (e) {
+      await discardKycFiles([saved.uri]);
+      throw e;
+    }
+  }, (uri) => discardKycFiles([uri]));
 }

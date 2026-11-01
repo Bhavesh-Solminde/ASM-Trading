@@ -34,6 +34,7 @@ describe("classifyResponse", () => {
   });
   it("maps maintenance, VPN and outdated-app codes to gate screens", () => {
     expect(classifyResponse(503, { code: "maintenance" })).toEqual({ kind: "gate", gate: "maintenance" });
+    expect(classifyResponse(403, { code: "blocked" })).toEqual({ kind: "gate", gate: "blocked" });
     expect(classifyResponse(403, { code: "vpn_blocked" })).toEqual({ kind: "gate", gate: "blocked" });
     expect(classifyResponse(426, { code: "upgrade_required" })).toEqual({ kind: "gate", gate: "upgrade" });
   });

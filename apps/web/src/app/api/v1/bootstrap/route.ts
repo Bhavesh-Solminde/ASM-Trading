@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   if (network.blocked) return vpnBlockedResponse();
 
   const [boot, profile] = await Promise.all([loadPlatformBootstrap(session.userId), loadProfile(session.userId)]);
+  if (!boot.active) return noStoreJson({ error: "This account is unavailable. Contact support.", code: "blocked" }, { status: 403 });
   return noStoreJson(
     BootstrapSchema.parse({
       ...boot,

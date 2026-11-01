@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     typeof body.currency !== "string" ||
     !CURRENCIES.has(body.currency.toUpperCase())
   ) {
-    return NextResponse.json({ error: "Pick a supported currency." }, { status: 400 });
+    return NextResponse.json({ error: "Pick a supported currency.", code: "bad_request" }, { status: 400 });
   }
 
   try {

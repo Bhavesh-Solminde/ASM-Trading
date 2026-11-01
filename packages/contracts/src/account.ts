@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { KycStatusSchema } from "./app";
+import { KycStatusSchema, knownValues } from "./app";
 
 /**
  * Strict, and deliberately omits role, kycStatus and cumulativeDeposits. Those
@@ -67,7 +67,8 @@ export const ProfileViewSchema = z.object({
   kycStatus: KycStatusSchema,
   /** Why an admin rejected the last submission (null unless REJECTED). */
   kycReviewNote: z.string().nullable(),
-  kycDocuments: z.array(z.enum(KYC_DOCUMENT_KIND_VALUES)),
+  /** Document kinds this build knows; a kind a newer server adds is ignored, not a parse failure (see `knownValues`). */
+  kycDocuments: knownValues(KYC_DOCUMENT_KIND_VALUES),
   twoFaForLogin: z.boolean(),
   twoFaForWithdrawal: z.boolean(),
   /** UI + push language ("en" | "hi"). */
