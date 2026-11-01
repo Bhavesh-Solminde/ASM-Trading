@@ -178,7 +178,7 @@ export default function Trade() {
       )}
       {/* With a resume cache the chart is still showing, so the error is a strip; without one, see below. */}
       {!boot && bootFailed && symbol ? <BootError compact onRetry={retry} /> : null}
-      {boot ? <ChartTools chartType={prefs.chartType} timeframe={timeframe} onChartType={setChartType} onTimeframe={setTimeframe} leading={<MarketPill assets={boot.assets} asset={asset} favourites={prefs.favourites} onPick={pickSymbol} onToggleFavourite={toggleStar} />} /> : null}
+      {boot ? <ChartTools chartType={prefs.chartType} timeframe={timeframe} onChartType={setChartType} onTimeframe={setTimeframe} leading={<MarketPill tradingModel={isCfd ? "CFD" : "BINARY"} assets={boot.assets} asset={asset} favourites={prefs.favourites} onPick={pickSymbol} onToggleFavourite={toggleStar} />} /> : null}
       <View style={{ flex: 1, minHeight: 100 }}>
         {symbol ? (
           <TradeChart

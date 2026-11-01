@@ -31,6 +31,13 @@ export function resolveSymbol(assets: readonly AppAsset[], saved: string | null,
 }
 
 /** The live payout (pushed over the socket) wins over the one bootstrap listed. */
+/** A CFD market never advertises the binary desk's fixed percentage, even if the wire still includes it. */
+export function marketReturnDisplay(model: "BINARY" | "CFD", asset: AppAsset | undefined, live: number | null): { kind: "variable" } | { kind: "fixed"; pct: number } | null {
+  if (model === "CFD") return { kind: "variable" };
+  const pct = payoutPctFor(asset, live);
+  return pct === null ? null : { kind: "fixed", pct };
+}
+
 export function payoutPctFor(asset: AppAsset | undefined, live: number | null): number | null {
   return live ?? asset?.payoutPct ?? null;
 }
