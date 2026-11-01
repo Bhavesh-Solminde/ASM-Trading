@@ -292,3 +292,6 @@ export type {
   BonusGrant,
 } from "./models";
 export type { DbClient, DbTransaction } from "./client";
+
+export * from "./repositories/notifications";
+export type { PushDevice, NotificationOutbox } from "../generated/prisma/client";

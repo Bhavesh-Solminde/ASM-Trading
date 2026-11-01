@@ -33,7 +33,7 @@ describe("PATCH /api/v1/account/preferences", () => {
   it("switches the language even while KYC locks the profile", async () => {
     const res = await patch({ locale: "hi" });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ locale: "hi" });
+    expect(await res.json()).toMatchObject({ locale: "hi", notifyTrades: true, notifyPayments: true, notifyAccount: true });
     expect((await prisma.user.findUniqueOrThrow({ where: { id: userId } })).locale).toBe("hi");
   });
 

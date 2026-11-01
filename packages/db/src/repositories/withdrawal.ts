@@ -1,3 +1,4 @@
+import { enqueueOutbox } from "./notifications";
 import { prisma } from "../client";
 import type { Withdrawal } from "../models";
 import { withdrawalLimitsMinor } from "@asm/contracts";
@@ -470,7 +471,7 @@ export async function rejectWithdrawal(input: {
 }): Promise<void> {
   const row = await prisma.withdrawal.findUnique({
     where: { id: input.withdrawalId },
-    select: { id: true, userId: true, amount: true, currency: true, status: true },
+    select: { id: true, userId: true, amount: true, currency: true, status: true, method: true },
   });
   if (!row) throw new WithdrawalRefused("Withdrawal not found.");
   if (row.status !== "REQUESTED" && row.status !== "HELD" && row.status !== "APPROVED") {
@@ -519,6 +520,9 @@ export async function rejectWithdrawal(input: {
           },
         });
 
+        await enqueueOutbox(tx, row.userId, "withdrawal_rejected", {
+          withdrawalId: row.id, amountMinor: refund, currency: fresh.currency, method: row.method, reason: input.reason ?? null,
+        });
         await tx.auditLog.create({
           data: {
             actorId: input.adminId,
@@ -554,7 +558,8 @@ export async function approveWithdrawal(input: {
   withdrawalId: string;
   adminId: string;
 }): Promise<void> {
-  const claimed = await prisma.withdrawal.updateMany({
+  await prisma.$transaction(async (tx) => {
+  const claimed = await tx.withdrawal.updateMany({
     where: { id: input.withdrawalId, status: "REQUESTED" },
     data: { status: "APPROVED", reviewedBy: input.adminId },
   });
@@ -562,7 +567,7 @@ export async function approveWithdrawal(input: {
     throw new WithdrawalRefused("That withdrawal has already been reviewed.");
   }
 
-  await prisma.auditLog.create({
+  await tx.auditLog.create({
     data: {
       actorId: input.adminId,
       action: "withdrawal.approved",
@@ -570,6 +575,9 @@ export async function approveWithdrawal(input: {
       targetId: input.withdrawalId,
       after: { status: "APPROVED" },
     },
+  });
+  const w = await tx.withdrawal.findUniqueOrThrow({ where: { id: input.withdrawalId } });
+  await enqueueOutbox(tx, w.userId, "withdrawal_approved", { withdrawalId: w.id, amountMinor: w.amount, currency: w.currency, method: w.method });
   });
 }
 
@@ -581,7 +589,8 @@ export async function markWithdrawalPaid(input: {
   withdrawalId: string;
   adminId: string;
 }): Promise<void> {
-  const claimed = await prisma.withdrawal.updateMany({
+  await prisma.$transaction(async (tx) => {
+  const claimed = await tx.withdrawal.updateMany({
     where: { id: input.withdrawalId, status: "APPROVED" },
     data: { status: "PAID", reviewedBy: input.adminId },
   });
@@ -589,7 +598,7 @@ export async function markWithdrawalPaid(input: {
     throw new WithdrawalRefused("Only an approved withdrawal can be marked paid.");
   }
 
-  await prisma.auditLog.create({
+  await tx.auditLog.create({
     data: {
       actorId: input.adminId,
       action: "withdrawal.paid",
@@ -597,6 +606,9 @@ export async function markWithdrawalPaid(input: {
       targetId: input.withdrawalId,
       after: { status: "PAID" },
     },
+  });
+  const w = await tx.withdrawal.findUniqueOrThrow({ where: { id: input.withdrawalId } });
+  await enqueueOutbox(tx, w.userId, "withdrawal_paid", { withdrawalId: w.id, amountMinor: w.amount, currency: w.currency, method: w.method });
   });
 }
 

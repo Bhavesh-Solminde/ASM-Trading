@@ -44,6 +44,7 @@ const config: ExpoConfig = {
   android: {
     package: variant === "direct" ? "com.indianxtrade.app.direct" : "com.indianxtrade.app",
     versionCode: 1,
+    ...(process.env.GOOGLE_SERVICES_JSON ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON } : {}),
     // The MMKV caches (resume snapshot with balances and trades, prefs) must not be copied into a cloud backup.
     allowBackup: false,
     adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#06080b" },
@@ -63,6 +64,7 @@ const config: ExpoConfig = {
     ["expo-dev-client", { addGeneratedScheme: process.env.APP_RELEASE_BUILD !== "1" }],
     // No `/_sitemap` page in the app: a deep link to it would list every route.
     ["expo-router", { sitemap: false }],
+    ["expo-notifications", { icon: "./assets/notification-icon.png", color: "#3d6cf0" }],
     "expo-secure-store",
     "expo-localization",
     "expo-web-browser",

@@ -1,3 +1,4 @@
+import { unregisterPushDevice } from "@/push/cleanup";
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { api, configureApi } from "@/api/client";
@@ -74,8 +75,12 @@ export const useSession = create<SessionState>((set, get) => ({
         if (get().token !== null) set({ token: null });
         signingOut = null;
       }
-      // Best effort in the background, with the captured token since the session no longer holds it.
-      if (remote) void api("/api/auth/logout", { method: "POST", token }).catch(() => {});
+      // Best effort, with the departed session captured; a slow push service must never hold sign-out open.
+      void (async () => {
+        await unregisterPushDevice(token);
+        // Unregister while the departed bearer is still valid, then revoke it.
+        if (remote) await api("/api/auth/logout", { method: "POST", token }).catch(() => {});
+      })();
     })();
     return signingOut;
   },

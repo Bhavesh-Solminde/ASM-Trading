@@ -1,3 +1,5 @@
+import { setupChannels, registerDevice, watchTokenRefresh } from "@/push/push";
+import { usePushRouting } from "@/push/usePushRouting";
 import { router, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
@@ -61,6 +63,13 @@ export function Gatekeeper({ fontsReady }: { fontsReady: boolean }) {
   const target = routeFor({ ready: ready && booted, token, locked, lockChosen: method !== null || skipped, gate, belowMin });
   const redirect = redirectFor(target, pathname);
   useUpdatePrompt(target === null && ready && booted && fontsReady);
+  const pushReady = target === null && ready && booted && !!token;
+  usePushRouting(pushReady);
+  useEffect(() => {
+    if (!pushReady) return;
+    void setupChannels().then(registerDevice).catch(() => {});
+    return watchTokenRefresh();
+  }, [pushReady, token]);
 
   // `pathname` too: if the route moves to another wrong one while `redirect` keeps its value, correct it again.
   useEffect(() => {

@@ -1,3 +1,6 @@
+import { askPermissionAt } from "@/push/push";
+import type { Bootstrap } from "@asm/contracts";
+import { queryClient } from "@/api/queries";
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,6 +37,8 @@ export function useResultFeedback(accountId: string | null, currency: string | n
         // Nothing to say before the account is known; do not use up the trade's one announcement either.
         if (selected === null || cur === null) return;
         for (const trade of toAnnounce(prev, s, seen, { accountId: selected })) {
+          const account = queryClient.getQueryData<Bootstrap>(["bootstrap"])?.accounts.find((a) => a.id === trade.accountId);
+          if (account?.type === "LIVE") void askPermissionAt("live_trade_settled").catch(() => {});
           const f = settledFeedback(trade, cur);
           const name = list?.find((a) => a.symbol === trade.symbol)?.displayName ?? trade.symbol;
           toast(`${name} · ${tr(f.key, { amount: f.amountText })}`, f.tone);
