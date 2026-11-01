@@ -15,6 +15,9 @@ describe("fmtPrice", () => {
   it("leaves small prices alone", () => {
     expect(fmtPrice(0.12345, 5)).toBe("0.12345");
     expect(fmtPrice(1.1, 5)).toBe("1.10000");
+    // Finer DOGE/JPY display grids preserve meaningful last digits.
+    expect(fmtPrice(0.300028, 6)).toBe("0.300028");
+    expect(fmtPrice(150.0028, 4)).toBe("150.0028");
   });
 
   it("keeps the sign", () => {
