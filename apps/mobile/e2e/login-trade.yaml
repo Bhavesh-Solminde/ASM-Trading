@@ -47,11 +47,16 @@ appId: com.indianxtrade.app
 - tapOn: { id: "key-0" }
 - tapOn: { id: "key-0" }
 - tapOn: { id: "keypad-done" }
-- tapOn: { id: "expiry-tile" }
+# Binary opens a duration sheet; CFD keeps its duration presets visible.
+- runFlow:
+    when:
+      visible: { id: "expiry-tile" }
+    commands:
+      - tapOn: { id: "expiry-tile" }
 - tapOn: { id: "expiry-30" }
 - tapOn: { id: "buy" }
 
-# Settlement toasts read "<market> · <result>" (error toasts never contain " · "), so this passes only
+# Both binary and CFD settlement toasts contain a middle dot (mutation errors do not), so this passes only
 # once the 30s trade has opened and settled.
 - extendedWaitUntil:
     visible: { id: "toast", text: ".* · .*" }

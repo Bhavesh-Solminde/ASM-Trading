@@ -466,3 +466,62 @@ describe("useSocket", () => {
     });
   });
 });
+
+const cfdPosition = {
+  id: "cfd1", accountId: "a1", symbol: "EURUSD", direction: "LONG" as const,
+  stake: 10000, spreadFee: 500, leverage: 100, entryPrice: 100, entryTs: 100, expiryTs: 400,
+  exitPrice: null, stopLoss: 99.5, takeProfit: 101, trailingPct: null, liqPrice: 99,
+  closeReason: null, status: "OPEN" as const, pnl: 0,
+};
+describe("CFD socket lifecycle", () => {
+  it("applies open, modification and close without putting CFD positions into the binary book", async () => {
+    const ws = await connect();
+    ws.receive({ type: "cfd:trade:opened", trade: cfdPosition });
+    expect(useSocket.getState().cfd.a1?.[0]).toEqual(cfdPosition);
+    expect(useSocket.getState().trades.tradesByAccount).toEqual({});
+    ws.receive({ type: "cfd:trade:modified", tradeId: "cfd1", stopLoss: 99.8, takeProfit: 100.5 });
+    expect(useSocket.getState().cfd.a1?.[0]).toMatchObject({ stopLoss: 99.8, takeProfit: 100.5 });
+    const closed = { ...cfdPosition, status: "CLOSED", exitPrice: 100.1, closeReason: "MANUAL", pnl: 1000 };
+    ws.receive({ type: "cfd:trade:settled", trade: closed, closeReason: "MANUAL", pnl: 1000 });
+    expect(useSocket.getState().lastCfdSettled).toEqual(closed);
+    useSocket.getState().applyCfdResult({ trade: cfdPosition, balances: { realBalance: 50, bonusBalance: 0 } });
+    expect(useSocket.getState().cfd.a1?.[0]?.status).toBe("CLOSED");
+  });
+  it("recovers missed closes from a refetch, but does not announce historic trades it never held open", () => {
+    const closed = { ...cfdPosition, status: "CLOSED", exitPrice: 100.1, closeReason: "MANUAL", pnl: 1000 };
+    useSocket.getState().mergeCfdTrades("a1", [closed]);
+    expect(useSocket.getState().lastCfdSettled).toBeNull();
+    useSocket.getState().reset();
+    useSocket.getState().mergeCfdTrades("a1", [cfdPosition]);
+    useSocket.getState().mergeCfdTrades("a1", [closed]);
+    const notified = useSocket.getState().lastCfdSettled;
+    expect(notified?.id).toBe("cfd1");
+    useSocket.getState().mergeCfdTrades("a1", [closed]);
+    expect(useSocket.getState().lastCfdSettled).toBe(notified);
+    useSocket.getState().reset();
+    expect(useSocket.getState().cfd).toEqual({});
+    expect(useSocket.getState().lastCfdSettled).toBeNull();
+  });
+  it("applies authoritative HTTP balance while offline, but never overwrites a live socket balance", async () => {
+    useSocket.getState().applyCfdResult({ trade: cfdPosition, balances: { realBalance: 123, bonusBalance: 4 } });
+    expect(useSocket.getState().trades.balances.a1).toEqual({ realBalance: 123, bonusBalance: 4 });
+    const ws = await connect();
+    ws.receive({ type: "balance:update", accountId: "a1", realBalance: 99, bonusBalance: 0 });
+    useSocket.getState().applyCfdResult({ trade: cfdPosition, balances: { realBalance: 123, bonusBalance: 4 } });
+    expect(useSocket.getState().trades.balances.a1).toEqual({ realBalance: 99, bonusBalance: 0 });
+  });
+});
+it("forgets the whole account CFD book when its currency changes and advances the request generation", () => {
+  const first = useSocket.getState().prepareCfdAccount("a1", "INR");
+  useSocket.getState().mergeCfdTrades("a1", [cfdPosition]);
+  expect(useSocket.getState().cfd.a1).toHaveLength(1);
+  const next = useSocket.getState().prepareCfdAccount("a1", "USD");
+  expect(next).toBeGreaterThan(first);
+  expect(useSocket.getState().cfd.a1).toEqual([]);
+});
+it("never feeds legacy CFD trade:settled notifications into binary feedback or the binary book", async () => {
+  const ws = await connect();
+  ws.receive({ type: "trade:settled", trade: { ...trade, durationSec: 300, status: "CLOSED", payoutPct: 0, pnl: 50 } });
+  expect(useSocket.getState().lastSettled).toBeNull();
+  expect(useSocket.getState().trades.tradesByAccount).toEqual({});
+});

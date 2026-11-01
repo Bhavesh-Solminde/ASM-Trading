@@ -55,6 +55,8 @@ export {
 } from "./trade";
 export {
   CfdDirectionSchema,
+  CfdTradeViewSchema,
+  cfdTradeViewFrom,
   CfdOpenTradeSchema,
   EngineCfdOpenTradeSchema,
   CfdCloseTradeSchema,

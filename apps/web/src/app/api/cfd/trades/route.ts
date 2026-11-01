@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CfdOpenTradeSchema } from "@asm/contracts";
+import { CfdOpenTradeSchema, cfdTradeViewFrom } from "@asm/contracts";
 import { formatMoney, getAccountForActor, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { getSession, unauthenticated } from "@/lib/request-session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { minStakeMinor } from "@asm/client-core";
@@ -10,6 +10,9 @@ import { EngineRejected, EngineUnavailable, engineCfdOpen } from "@/lib/engine-c
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 
 const REJECTION_MESSAGE: Record<string, string> = {
+  account_not_active: "This account is paused. Contact support.",
+  account_not_found: "Account not found.",
+  currency_changed: "Your account currency changed. Check the investment and try again.",
   market_closed: "This market is closed. Trading resumes when the market opens and live prices return.",
   invalid_stops: "Check stop loss and take profit. Each level must be on the correct side of the entry price.",
   unknown_asset: "That asset is not available right now.",
@@ -29,9 +32,9 @@ export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
 
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   if ((await checkNetwork({ ip: ctx.ip, route: "cfd_trades", log, userId: session.userId })).blocked) {
@@ -58,6 +61,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Account not found." }, { status: 404 });
   }
 
+  if (parsed.data.currency && parsed.data.currency !== account.currency) {
+    return NextResponse.json({ error: "Your account currency changed. Check the investment and try again.", code: "currency_changed" }, { status: 409 });
+  }
   const minStake = minStakeMinor(account.currency);
   if (parsed.data.stake < minStake) {
     return NextResponse.json(
@@ -72,7 +78,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof EngineRejected) {
       return NextResponse.json(
-        { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade." },
+        { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade.", code: err.reason },
         { status: BROWSER_STATUS[err.reason] ?? err.status },
       );
     }
@@ -85,9 +91,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   const accountId = req.nextUrl.searchParams.get("accountId");
@@ -100,32 +106,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Account not found." }, { status: 404 });
   }
 
-  const trades = await prisma.trade.findMany({
-    where: { accountId, durationSec: { not: null } },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-    include: { asset: { select: { symbol: true } } },
-  });
+  // Never hide an older open position behind more recent closes: it must remain manageable.
+  const [open, closed] = await Promise.all([
+    prisma.trade.findMany({ where: { accountId, durationSec: { not: null }, status: "OPEN" }, orderBy: { createdAt: "desc" }, include: { asset: { select: { symbol: true } } } }),
+    prisma.trade.findMany({ where: { accountId, durationSec: { not: null }, status: "CLOSED" }, orderBy: { closedAt: "desc" }, take: 50, include: { asset: { select: { symbol: true } } } }),
+  ]);
+  const trades = [...open, ...closed];
 
   return NextResponse.json(
     {
-      trades: trades.map((t) => ({
-        id: t.id,
-        symbol: t.asset.symbol,
-        direction: t.direction,
-        stake: t.stake,
-        leverage: t.leverage,
-        entryPrice: t.entryPrice,
-        exitPrice: t.exitPrice,
-        stopLoss: t.stopLoss,
-        takeProfit: t.takeProfit,
-        pnl: t.pnl,
-        status: t.status,
-        closeReason: t.closeReason,
-        createdAt: t.createdAt.toISOString(),
-        closedAt: t.closedAt?.toISOString() ?? null,
-        durationSec: t.durationSec,
-      })),
+      currency: account.currency,
+      trades: trades.map((t) => cfdTradeViewFrom(t, t.asset.symbol)),
     },
     { headers: { "Cache-Control": "no-store" } },
   );

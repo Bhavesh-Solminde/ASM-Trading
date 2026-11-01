@@ -1,3 +1,4 @@
+import { cfdChartTrade } from "@/cfd/model";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TradeView } from "@asm/contracts";
@@ -33,7 +34,9 @@ export function TradeChart({
   tradesSnapshot,
   topInset,
   hideReadout,
+  cfd = false,
 }: {
+  cfd?: boolean;
   symbol: string;
   timeframe: ResumeSnapshot["timeframe"];
   type: ChartType;
@@ -49,13 +52,14 @@ export function TradeChart({
   const { t } = useTranslation();
   const chart = useSocket((s) => s.chart);
   const liveTrades = useSocket((s) => (accountId ? s.trades.tradesByAccount[accountId] : undefined));
+  const cfdTrades = useSocket(s => accountId ? s.cfd[accountId] : undefined);
   const source = chartSource({ symbol, timeframe, chart, snapshot });
 
   const staleTrades = tradesSnapshot !== null && tradesSnapshot.accountId === accountId ? tradesSnapshot : null;
   const openTrades = useMemo<TradeView[]>(() => {
-    const from = staleTrades ? staleTrades.openTrades : (liveTrades ?? []);
+    const from = cfd ? (cfdTrades ?? []).map(cfdChartTrade) : staleTrades ? staleTrades.openTrades : (liveTrades ?? []);
     return from.filter((t) => t.status === "OPEN" && t.symbol === symbol);
-  }, [staleTrades, liveTrades, symbol]);
+  }, [cfd, cfdTrades, staleTrades, liveTrades, symbol]);
 
   // Tick only for live trades: frozen cached ones, and an empty book, need no countdown.
   const nowMs = useNow(openTrades.length > 0 && !staleTrades ? 1000 : null);

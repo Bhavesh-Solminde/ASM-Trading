@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CfdModifyTradeSchema, tradeViewFrom } from "@asm/contracts";
+import { CfdModifyTradeSchema, cfdTradeViewFrom } from "@asm/contracts";
 import { prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { getSession, unauthenticated } from "@/lib/request-session";
 import { requestContext } from "@/lib/request-context";
 import { EngineRejected, EngineUnavailable, engineCfdModify } from "@/lib/engine-client";
 
@@ -11,16 +11,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
 
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   const trade = await prisma.trade.findUnique({
     where: { id: tradeId },
-    select: { accountId: true, account: { select: { userId: true } } },
+    select: { accountId: true, durationSec: true, account: { select: { userId: true } } },
   });
-  if (!trade || trade.account.userId !== session.userId) {
+  if (!trade || trade.durationSec === null || trade.account.userId !== session.userId) {
     return NextResponse.json({ error: "Trade not found." }, { status: 404 });
   }
 
@@ -36,10 +36,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (parsed.data.takeProfit !== undefined) changes.takeProfit = parsed.data.takeProfit;
     await engineCfdModify(tradeId, changes);
     const updated = await prisma.trade.findUniqueOrThrow({ where: { id: tradeId }, include: { asset: true } });
-    return NextResponse.json({ trade: tradeViewFrom(updated, updated.asset.symbol) });
+    return NextResponse.json({ trade: cfdTradeViewFrom(updated, updated.asset.symbol) });
   } catch (err) {
     if (err instanceof EngineRejected) {
-      return NextResponse.json({ error: err.reason }, { status: err.status });
+      return NextResponse.json({ error: err.reason, code: err.reason }, { status: err.status });
     }
     if (err instanceof EngineUnavailable) {
       log.error({ evt: "cfd.modify_rejected", tradeId, reason: "engine_unavailable" }, err.message);

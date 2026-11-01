@@ -138,8 +138,12 @@ export class CfdDesk {
     const result = await prisma.$transaction(async (tx) => {
       const account = await tx.account.findUniqueOrThrow({
         where: { id: input.accountId },
+        include: { user: { select: { status: true } } },
       });
 
+      if (account.userId !== input.actorId) throw new Error("ACCOUNT_NOT_FOUND");
+      if (account.user.status === "FROZEN" || account.user.status === "BANNED") throw new Error("ACCOUNT_NOT_ACTIVE");
+      if (input.currency && input.currency !== account.currency) throw new Error("CURRENCY_CHANGED");
       const totalBalance = account.realBalance + account.bonusBalance;
       if (totalBalance < totalDebit) {
         throw new Error("INSUFFICIENT_BALANCE");

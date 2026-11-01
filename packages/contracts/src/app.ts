@@ -38,6 +38,7 @@ export const AppAssetSchema = z.object({
   precision: z.number().int(),
   payoutPct: z.number(),
   assetClass: z.string(),
+  spreadBps: z.number().nonnegative().optional(),
 });
 
 export const AppAccountSchema = z.object({
@@ -58,6 +59,7 @@ export const ProfileSummarySchema = z.object({
 /** Trades use the existing TradeView shape; kept loose here (validated by the engine contract). */
 export const BootstrapSchema = z.object({
   userId: z.string(),
+  tradingModel: z.enum(["CFD", "BINARY"]).default("BINARY"),
   assets: z.array(AppAssetSchema),
   accounts: z.array(AppAccountSchema),
   recentTrades: z.array(z.record(z.string(), z.unknown())),

@@ -3,6 +3,9 @@ import { useTranslation } from "react-i18next";
 import { BackHandler, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CfdDock } from "@/cfd/CfdDock";
+import { CfdPositions } from "@/cfd/CfdPositions";
+import { useCfdAccount, useCfdFeedback } from "@/cfd/useCfd";
 import { ChartToolbar } from "@/trade/ChartToolbar";
 import { useFullscreen } from "@/trade/fullscreen-store";
 import { TradingSkeleton } from "@/trade/TradingSkeleton";
@@ -88,13 +91,16 @@ export default function Trade() {
   const prefs = useUserPrefs(userId);
 
   const account: AppAccount | undefined = boot ? resolveAccount(boot.accounts, prefs.accountId, boot.liveAccess) : undefined;
+  const isCfd = boot?.tradingModel === "CFD";
+  const cfdAccount = useCfdAccount(account?.id, account?.currency, isCfd);
+  useCfdFeedback(account?.id, account?.currency);
   const accountId = account?.id ?? resume?.accountId ?? null;
   const symbol = boot ? resolveSymbol(boot.assets, prefs.symbol ?? resume?.symbol ?? null, boot.defaultSymbol) : (prefs.symbol ?? resume?.symbol ?? null);
   const timeframe = prefs.timeframe;
   const asset = boot ? findAsset(boot.assets, symbol) : undefined;
 
   // Any account's open trade counts: its settlement is watched (the keep-awake hook reads the store itself).
-  const hasOpenTrades = useSocket((s) => hasOpenTrade(s.trades.tradesByAccount));
+  const hasOpenTrades = useSocket((s) => hasOpenTrade(s.trades.tradesByAccount) || Object.values(s.cfd).some(rows => rows.some(t => t.status === "OPEN")));
   useKeepAwakeWhileOpen();
   useSettlementWatchdog(hasOpenTrades);
   // One fetch of the selected account's trade list (bootstrap carries only the default account's), shared by the
@@ -182,7 +188,8 @@ export default function Trade() {
             precision={precisionFor(asset, resume?.symbol === symbol ? resume.precision : undefined)}
             accountId={accountId}
             snapshot={candleSnapshot}
-            tradesSnapshot={boot ? null : resume}
+            tradesSnapshot={boot || isCfd ? null : resume}
+            cfd={isCfd}
             topInset={8}
             hideReadout={false}
           />
@@ -193,10 +200,10 @@ export default function Trade() {
         <View pointerEvents="none" style={{ position: "absolute", left: 12, bottom: 8, right: 120 }}>
           <StatusLine snapshot={candleSnapshot} symbol={symbol} timeframe={timeframe} />
         </View>
-        {boot && account ? <View pointerEvents="box-none" style={{ position: "absolute", bottom: 24, left: 0, right: 0 }}><PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} /></View> : null}
+        {boot && account ? <View pointerEvents="box-none" style={{ position: "absolute", bottom: 24, left: 0, right: 0 }}>{isCfd ? <CfdPositions compact accountId={account.id} currency={account.currency} assets={boot.assets} loaded={cfdAccount.loaded} /> : <PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} />}</View> : null}
       </View>
-      {boot && account ? <ChartToolbar timeframe={timeframe} onTimeframe={setTimeframe} accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} /> : null}
-      {boot && accountId && asset ? <Dock boot={boot} accountId={accountId} asset={asset} /> : null}
+      {boot && account ? <ChartToolbar cfd={isCfd} timeframe={timeframe} onTimeframe={setTimeframe} accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={isCfd ? cfdAccount.loaded : listLoaded} /> : null}
+      {boot && accountId && asset ? isCfd ? <CfdDock boot={boot} accountId={accountId} asset={asset} /> : <Dock boot={boot} accountId={accountId} asset={asset} /> : null}
     </Screen>
   );
 }

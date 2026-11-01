@@ -12,7 +12,7 @@ import {
   type ChartState,
   type TradeState,
 } from "@asm/client-core";
-import type { Bootstrap, OpenTradeResult, ServerMessage, Timeframe, TradeView } from "@asm/contracts";
+import type { Bootstrap, CfdOpenTradeResult, CfdTradeView, OpenTradeResult, ServerMessage, Timeframe, TradeView } from "@asm/contracts";
 import { api } from "@/api/client";
 import { ApiError } from "@/api/errors";
 import { appConfig } from "@/config";
@@ -20,6 +20,8 @@ import { unitFromBytes } from "./backoff";
 import { EngineSocket, FatalSocketError, type SocketStatus } from "./engine-socket";
 import { mergeBootstrap, recoveredAccountsWithStaleBalance, recoveredSettlements, withFreshTrades } from "./bootstrap-merge";
 import { parseTrades } from "./trades";
+
+import { mergeCfd, parseCfd, type CfdBook } from "@/cfd/model";
 
 const Ticket = z.object({ ticket: z.string() });
 
@@ -35,6 +37,13 @@ interface SocketStore {
   chart: ChartState;
   trades: TradeState;
   lastSettled: TradeView | null;
+  cfd: CfdBook;
+  cfdCurrency: Record<string, string>;
+  cfdGeneration: Record<string, number>;
+  prepareCfdAccount: (accountId: string, currency: string) => number;
+  lastCfdSettled: CfdTradeView | null;
+  mergeCfdTrades: (accountId: string, rows: readonly unknown[]) => void;
+  applyCfdResult: (r: CfdOpenTradeResult) => void;
   /**
    * Settlements the last bootstrap merge recovered (open here, settled in the response): the socket never
    * delivered them. A new array identity per merge that found any, so subscribers announce each batch once.
@@ -81,6 +90,10 @@ const initial = () => ({
   chart: initialChartState("", "1m"),
   trades: initialTradeState([], {}),
   lastSettled: null,
+  cfd: {} as CfdBook,
+  cfdCurrency: {} as Record<string, string>,
+  cfdGeneration: {} as Record<string, number>,
+  lastCfdSettled: null,
   recovered: [] as readonly TradeView[],
   balanceRefetch: [] as readonly string[],
   balanceAt: {} as Record<string, number>,
@@ -88,6 +101,8 @@ const initial = () => ({
 
 export const useSocket = create<SocketStore>((set, get) => {
   const onMessage = (m: ServerMessage) => {
+    // Legacy website CFD notifications share the binary channel; native consumes the full cfd:* DTO only.
+    if ((m.type === "trade:opened" || m.type === "trade:settled") && m.trade.durationSec != null) return;
     // The socket's JSON is not validated (a cast). A balance that is not a number would poison the store and every
     // figure derived from it, so such a message is ignored; the next bootstrap carries the real balance.
     if (m.type === "balance:update" && !(Number.isFinite(m.realBalance) && Number.isFinite(m.bonusBalance))) return;
@@ -97,6 +112,14 @@ export const useSocket = create<SocketStore>((set, get) => {
         trades: applyTradeMessage(s.trades, m),
       };
       if (m.type === "trade:settled") next.lastSettled = m.trade;
+      if (m.type === "cfd:trade:opened" || m.type === "cfd:trade:settled") {
+        const [trade] = parseCfd([m.trade]);
+        if (trade) next.cfd = mergeCfd(s.cfd, trade.accountId, [trade], "socket");
+        if (trade && m.type === "cfd:trade:settled") next.lastCfdSettled = trade;
+      }
+      if (m.type === "cfd:trade:modified") {
+        next.cfd = Object.fromEntries(Object.entries(s.cfd).map(([id, rows]) => [id, rows.map(t => t.id === m.tradeId ? { ...t, stopLoss: m.stopLoss, takeProfit: m.takeProfit } : t)]));
+      }
       if (m.type === "balance:update") next.balanceAt = { ...s.balanceAt, [m.accountId]: Date.now() };
       return next;
     });
@@ -140,6 +163,25 @@ export const useSocket = create<SocketStore>((set, get) => {
 
   return {
     ...initial(),
+    prepareCfdAccount: (accountId, currency) => {
+      const state = get();
+      if (state.cfdCurrency[accountId] === currency) return state.cfdGeneration[accountId] ?? 0;
+      const generation = (state.cfdGeneration[accountId] ?? 0) + 1;
+      set({ cfd: { ...state.cfd, [accountId]: [] }, cfdCurrency: { ...state.cfdCurrency, [accountId]: currency }, cfdGeneration: { ...state.cfdGeneration, [accountId]: generation } });
+      return generation;
+    },
+    mergeCfdTrades: (accountId, rows) => set(s => {
+      const parsed = parseCfd(rows);
+      const recovered = parsed.find(t => t.status === "CLOSED" && s.cfd[accountId]?.some(old => old.id === t.id && old.status === "OPEN"));
+      return { cfd: mergeCfd(s.cfd, accountId, parsed), ...(recovered ? { lastCfdSettled: recovered } : {}) };
+    }),
+    applyCfdResult: r => set(s => ({
+      cfd: mergeCfd(s.cfd, r.trade.accountId, [r.trade]),
+      ...(s.phase === "authed" ? {} : {
+        trades: { ...s.trades, balances: { ...s.trades.balances, [r.trade.accountId]: r.balances } },
+        balanceAt: { ...s.balanceAt, [r.trade.accountId]: Date.now() },
+      }),
+    })),
     seed: (boot, requestedAt = Date.now()) =>
       set((s) => {
         const trades = mergeBootstrap(s.trades, s.balanceAt, boot, requestedAt);
