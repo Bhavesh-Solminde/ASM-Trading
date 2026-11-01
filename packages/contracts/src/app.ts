@@ -206,15 +206,9 @@ export const RegisterDeviceSchema = z.discriminatedUnion("platform", [
   z.strictObject({ platform: z.literal("ANDROID"), token: z.string().min(20).max(4096) }),
   z.strictObject({
     platform: z.literal("WEBPUSH"),
-    token: z.url().max(4096).refine((value) => {
-      try {
-      const u = new URL(value);
-      // Only browser push services. Never let a subscription make the engine request arbitrary internal URLs.
-      const h = u.hostname;
-      return u.protocol === "https:" && !u.username && !u.password && (!u.port || u.port === "443") &&
-        (h === "fcm.googleapis.com" || h === "updates.push.services.mozilla.com" || h === "web.push.apple.com" || h.endsWith(".notify.windows.com"));
-      } catch { return false; }
-    }),
+    // Pure validation: this contract is also consumed by packages without DOM or Node global types.
+    // Exact production push-service hosts, no credentials, fragments, backslashes, or nonstandard ports.
+    token: z.url().max(4096).regex(/^https:\/\/(?:fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+(?:\.[a-z0-9-]+)*\.notify\.windows\.com)(?::443)?(?:[/?][^\s#\\]*)?$/i),
     p256dh: z.string().min(10).max(512),
     auth: z.string().min(8).max(256),
   }),
