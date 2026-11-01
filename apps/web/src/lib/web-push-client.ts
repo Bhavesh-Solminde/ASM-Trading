@@ -15,23 +15,68 @@ export function deviceBody(sub: {
   return { platform: "WEBPUSH" as const, token: sub.endpoint, p256dh, auth };
 }
 
-/** Best effort local removal before the cookie is revoked; never blocks sign-out. */
-export async function unregisterWebPush(): Promise<void> {
+/** Bound native browser operations as well as fetch: signing out must never wait on a stalled worker. */
+async function bounded<T>(work: () => Promise<T>, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
+    return await Promise.race([
+      Promise.resolve()
+        .then(work)
+        .catch(() => fallback),
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), 3000);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Rebind a persisted endpoint to the currently authenticated cookie before considering it enabled.
+ * Invoked by the signed-in shell, even if Account/Notifications is never opened.
+ * A rejected/expired session must stop using the old subscription locally.
+ */
+export async function syncExistingWebPush(): Promise<boolean> {
+  return bounded(async () => {
+    if (!("serviceWorker" in navigator)) return false;
+    const reg = await navigator.serviceWorker.getRegistration("/");
+    const sub = await reg?.pushManager.getSubscription();
+    if (!sub) return false;
+    try {
+      const body = deviceBody(sub.toJSON());
+      if (!body) throw Error("Invalid subscription");
+      const response = await fetch("/api/v1/push/devices", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(2500),
+      });
+      if (!response.ok) throw Error("Registration refused");
+      return true;
+    } catch {
+      await sub.unsubscribe().catch(() => false);
+      return false;
+    }
+  }, false);
+}
+
+/** Best effort local removal before the cookie is revoked, bounded across the entire operation. */
+export async function unregisterWebPush(): Promise<void> {
+  return bounded(async () => {
     if (!("serviceWorker" in navigator)) return;
     const reg = await navigator.serviceWorker.getRegistration("/");
     const sub = await reg?.pushManager.getSubscription();
     if (!sub) return;
-    // Unsubscribe locally first so failed network cleanup cannot leak the old user's alerts.
     const token = sub.endpoint;
     await sub.unsubscribe();
     await fetch("/api/v1/push/devices", {
       method: "DELETE",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(2500),
     });
-  } catch {
-    /* logout still proceeds */
-  }
+  }, undefined);
 }

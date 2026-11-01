@@ -41,7 +41,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       liveAccess={boot.liveAccess}
       completedDeposits={boot.completedDeposits}
     >
-      <PlatformShell>{children}</PlatformShell>
+      <PlatformShell userId={session.userId}>{children}</PlatformShell>
     </PlatformProvider>
   );
 }

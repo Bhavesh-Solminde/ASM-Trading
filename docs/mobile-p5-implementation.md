@@ -35,3 +35,11 @@ All nine planned code tasks are implemented on `codex/mobile-p5-distribution`, b
 Real Play/direct keystores and aliases/passwords; public OTA certificate plus matching server private key; both Firebase app files and FCM credentials; OAuth IDs; VAPID keys; pinned VPS host key; Google Play account/review. The release runbook names every local/GitHub/VPS location. These cannot be invented by an implementation agent.
 
 No physical iPhone/Android install, signed APK/AAB, real push delivery, signed OTA apply/rollback, deployment or live-money action was performed. Follow `docs/mobile-release.md` and complete Hindi/device review before an app release.
+
+## Independent review fixes
+
+The Android app banner now occupies its own automatic-height shell grid row above navigation; it no longer overlays or intercepts ticket controls. The chart uses the remaining flexible space while the ticket keeps its intrinsic height.
+
+The authenticated shell now synchronizes an existing browser push endpoint on account entry/change and on foreground return, even when Account settings is never opened. A new authenticated user replaces the prior endpoint owner before the toggle reports On; rejected/expired-session registration unsubscribes locally. Browser logout cleanup has a three-second deadline over the whole operation, including worker discovery/unsubscribe, so a stalled browser API cannot hold session revocation open.
+
+Regression checks cover A → expired session → B with a persisted subscription, expired-cookie cleanup and a never-completing browser worker lookup. These checks, TypeScript, ESLint and the production website build passed.
