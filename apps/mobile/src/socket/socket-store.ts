@@ -40,6 +40,8 @@ interface SocketStore {
   cfd: CfdBook;
   cfdCurrency: Record<string, string>;
   cfdGeneration: Record<string, number>;
+  cfdRevision: Record<string, number>;
+  touchCfdAccount: (accountId: string) => void;
   prepareCfdAccount: (accountId: string, currency: string) => number;
   lastCfdSettled: CfdTradeView | null;
   mergeCfdTrades: (accountId: string, rows: readonly unknown[]) => void;
@@ -93,6 +95,7 @@ const initial = () => ({
   cfd: {} as CfdBook,
   cfdCurrency: {} as Record<string, string>,
   cfdGeneration: {} as Record<string, number>,
+  cfdRevision: {} as Record<string, number>,
   lastCfdSettled: null,
   recovered: [] as readonly TradeView[],
   balanceRefetch: [] as readonly string[],
@@ -114,10 +117,16 @@ export const useSocket = create<SocketStore>((set, get) => {
       if (m.type === "trade:settled") next.lastSettled = m.trade;
       if (m.type === "cfd:trade:opened" || m.type === "cfd:trade:settled") {
         const [trade] = parseCfd([m.trade]);
-        if (trade) next.cfd = mergeCfd(s.cfd, trade.accountId, [trade], "socket");
+        if (trade) {
+          next.cfd = mergeCfd(s.cfd, trade.accountId, [trade], "socket");
+          next.cfdRevision = { ...s.cfdRevision, [trade.accountId]: (s.cfdRevision[trade.accountId] ?? 0) + 1 };
+        }
         if (trade && m.type === "cfd:trade:settled") next.lastCfdSettled = trade;
       }
-      if (m.type === "cfd:trade:modified") {
+      if (m.type === "cfd:trade:modified" && [m.stopLoss, m.takeProfit].every(level => level === null || typeof level === "number" && Number.isFinite(level) && level > 0)) {
+        const revision = { ...s.cfdRevision };
+        for (const [id, rows] of Object.entries(s.cfd)) if (rows.some(t => t.id === m.tradeId)) revision[id] = (revision[id] ?? 0) + 1;
+        next.cfdRevision = revision;
         next.cfd = Object.fromEntries(Object.entries(s.cfd).map(([id, rows]) => [id, rows.map(t => t.id === m.tradeId ? { ...t, stopLoss: m.stopLoss, takeProfit: m.takeProfit } : t)]));
       }
       if (m.type === "balance:update") next.balanceAt = { ...s.balanceAt, [m.accountId]: Date.now() };
@@ -163,6 +172,7 @@ export const useSocket = create<SocketStore>((set, get) => {
 
   return {
     ...initial(),
+    touchCfdAccount: accountId => set(s => ({ cfdRevision: { ...s.cfdRevision, [accountId]: (s.cfdRevision[accountId] ?? 0) + 1 } })),
     prepareCfdAccount: (accountId, currency) => {
       const state = get();
       if (state.cfdCurrency[accountId] === currency) return state.cfdGeneration[accountId] ?? 0;

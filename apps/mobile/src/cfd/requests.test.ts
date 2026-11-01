@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ token: "s1", currency: "INR", api: vi.fn(), merged: vi.fn(), generation: 0, preparedCurrency: "", last: null, refresh: vi.fn() }));
+const mocks = vi.hoisted(() => ({ token: "s1", currency: "INR", api: vi.fn(), merged: vi.fn(), generation: 0, revision: 0, preparedCurrency: "", last: null, refresh: vi.fn() }));
 vi.mock("@/push/push", () => ({ askPermissionAt: vi.fn() }));
 vi.mock("react-native", () => ({ AppState: {} }));
 vi.mock("@/api/client", () => ({ api: mocks.api }));
@@ -9,12 +9,12 @@ vi.mock("@/api/queries", () => ({ queryClient: { getQueryData: () => ({ accounts
 vi.mock("@/api/refresh-bootstrap", () => ({ refreshBootstrap: mocks.refresh }));
 vi.mock("@/ui/Toast", () => ({ toast: vi.fn() }));
 vi.mock("@/socket/socket-store", () => ({ useSocket: { getState: () => ({
-  cfdGeneration: { a1: mocks.generation }, lastCfdSettled: mocks.last,
+  cfdGeneration: { a1: mocks.generation }, cfdRevision: { a1: mocks.revision }, lastCfdSettled: mocks.last,
   prepareCfdAccount: (_account: string, currency: string) => { if (currency !== mocks.preparedCurrency) { mocks.preparedCurrency = currency; mocks.generation++; } return mocks.generation; },
   mergeCfdTrades: mocks.merged,
 }) } }));
 import { refreshCfd } from "./useCfd";
-beforeEach(() => { vi.resetAllMocks(); mocks.token = "s1"; mocks.currency = "INR"; mocks.generation = 0; mocks.preparedCurrency = ""; });
+beforeEach(() => { vi.resetAllMocks(); mocks.token = "s1"; mocks.currency = "INR"; mocks.generation = 0; mocks.revision = 0; mocks.preparedCurrency = ""; });
 describe("CFD request ownership", () => {
   it("drops an old response arriving after a currency switch under the same session", async () => {
     let finish!: (response: unknown) => void;
@@ -48,4 +48,16 @@ describe("CFD request ownership", () => {
     const first = refreshCfd("a1", "INR"), second = refreshCfd("a1", "INR");
     expect(first).toBe(second); await first; expect(mocks.api).toHaveBeenCalledTimes(1);
   });
+  it("fences out a pending list whose protection predates a socket modification", async () => {
+    let finish!: (response: unknown) => void;
+    mocks.api.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const old = refreshCfd("a1", "INR");
+    mocks.revision++; // socket has installed the newer stop protection
+    mocks.api.mockResolvedValueOnce({ currency: "INR", trades: ["new stops"] });
+    await refreshCfd("a1", "INR");
+    finish({ currency: "INR", trades: ["old stops"] });
+    expect(await old).toBe(false);
+    expect(mocks.merged.mock.calls).toEqual([["a1", ["new stops"]]]);
+  });
+
 });
