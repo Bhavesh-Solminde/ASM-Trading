@@ -23,11 +23,12 @@ export function refreshCfd(accountId: string, expectedCurrency = currentCurrency
   const token = useSession.getState().token;
   if (!token || !accountId) return Promise.resolve(false);
   const generation = expectedCurrency ? useSocket.getState().prepareCfdAccount(accountId, expectedCurrency) : useSocket.getState().cfdGeneration[accountId] ?? 0;
-  const key = token + accountId + expectedCurrency + generation;
+  const revision = useSocket.getState().cfdRevision[accountId] ?? 0;
+  const key = token + accountId + expectedCurrency + generation + ":" + revision;
   const old = pending.get(key);
   if (old) return old;
   const promise = api("/api/cfd/trades?accountId=" + encodeURIComponent(accountId), { schema: Lists, timeoutMs: 15000, silentRateLimit: true }).then(res => {
-    if (generation === (useSocket.getState().cfdGeneration[accountId] ?? 0) && token === useSession.getState().token && (!expectedCurrency || res.currency === expectedCurrency) && (!currentCurrency(accountId) || currentCurrency(accountId) === res.currency)) {
+    if (revision === (useSocket.getState().cfdRevision[accountId] ?? 0) && generation === (useSocket.getState().cfdGeneration[accountId] ?? 0) && token === useSession.getState().token && (!expectedCurrency || res.currency === expectedCurrency) && (!currentCurrency(accountId) || currentCurrency(accountId) === res.currency)) {
       const before = useSocket.getState().lastCfdSettled;
       useSocket.getState().mergeCfdTrades(accountId, res.trades);
       if (before !== useSocket.getState().lastCfdSettled) refreshBootstrap(queryClient);
@@ -77,6 +78,7 @@ export function useCfdMutation(accountId: string, currency: string) {
     const token = useSession.getState().token;
     if (!token) return false;
     flight.current = true; setBusy(true);
+    useSocket.getState().touchCfdAccount(accountId);
     let ok = false;
     try {
       const result = await api(path, { method, body, timeoutMs: 15000 });
@@ -88,6 +90,7 @@ export function useCfdMutation(accountId: string, currency: string) {
       if (useSession.getState().token === token) toast(t(cfdErrorKey(error)), "down");
     } finally {
       if (useSession.getState().token === token) {
+        useSocket.getState().touchCfdAccount(accountId);
         // Keep the button busy until the account's authoritative list has reconciled.
         await refreshCfd(accountId).catch(() => {});
         refreshBootstrap(queryClient);

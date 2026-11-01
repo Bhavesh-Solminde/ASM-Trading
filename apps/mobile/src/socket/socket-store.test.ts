@@ -525,3 +525,15 @@ it("never feeds legacy CFD trade:settled notifications into binary feedback or t
   expect(useSocket.getState().lastSettled).toBeNull();
   expect(useSocket.getState().trades.tradesByAccount).toEqual({});
 });
+it("advances the account request fence when protection changes over the socket", async () => {
+  useSocket.getState().prepareCfdAccount("a1", "INR");
+  useSocket.getState().mergeCfdTrades("a1", [cfdPosition]);
+  const before = useSocket.getState().cfdRevision.a1 ?? 0;
+  const ws = await connect();
+  ws.receive({ type: "cfd:trade:modified", tradeId: "cfd1", stopLoss: 99.9, takeProfit: 100.5 });
+  expect(useSocket.getState().cfdRevision.a1).toBeGreaterThan(before);
+  expect(useSocket.getState().cfd.a1?.[0]).toMatchObject({ stopLoss: 99.9, takeProfit: 100.5 });
+  const revision = useSocket.getState().cfdRevision.a1;
+  useSocket.getState().touchCfdAccount("a1");
+  expect(useSocket.getState().cfdRevision.a1).toBeGreaterThan(revision!);
+});

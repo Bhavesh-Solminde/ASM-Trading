@@ -848,6 +848,7 @@
       "trading_paused": "Trading is paused on this account.",
       "trade_not_open": "This position has already closed."
     },
-    "result": "Position closed · {{amount}} net"
+    "result": "Position closed · {{amount}} net",
+    "protectionChanged": "Protection changed on another screen. Reload the current levels before saving."
   }
 }

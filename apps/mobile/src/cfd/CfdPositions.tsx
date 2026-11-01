@@ -14,6 +14,7 @@ import { fmtPrice } from "@/chart/format-price";
 import { useNow } from "@/trade/useNow";
 import type { AppAsset } from "@/trade/markets";
 import { cfdNet, EMPTY_CFD } from "./model";
+import { beginProtectionEdit, protectionChanged, protectionPatch } from "./protection-edit";
 import { useCfdMutation } from "./useCfd";
 
 function Position({ trade, currency, assets }: { trade: CfdTradeView; currency: string; assets: readonly AppAsset[] }) {
@@ -25,10 +26,10 @@ function Position({ trade, currency, assets }: { trade: CfdTradeView; currency: 
   const precision = asset?.precision ?? 5;
   const { run, busy } = useCfdMutation(trade.accountId, currency);
   const [edit, setEdit] = useState(false);
-  const [sl, setSl] = useState(trade.stopLoss?.toString() ?? "");
-  const [tp, setTp] = useState(trade.takeProfit?.toString() ?? "");
-  const price = (text: string) => !text.trim() ? null : Number(text);
-  const validStops = [sl, tp].every(x => !x.trim() || /^\d+(\.\d+)?$/.test(x) && Number(x) > 0);
+  const [draft, setDraft] = useState(() => beginProtectionEdit(trade));
+  const patch = protectionPatch(draft, trade);
+  const conflict = protectionChanged(draft, trade);
+  const beginEdit = () => { setDraft(beginProtectionEdit(trade)); setEdit(true); };
   return <View style={{ marginVertical: 6, padding: 14, gap: 8, backgroundColor: color.raised, borderWidth: 1, borderColor: color.rule, borderRadius: 12 }}>
     <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 10 }}><Txt size={15} weight={600} style={{ flex: 1 }}>{asset?.displayName ?? trade.symbol} · {t(trade.direction === "LONG" ? "cfd.buy" : "cfd.sell")}</Txt><Money text={net === null ? "—" : `${net > 0 ? "+" : ""}${money(net, currency)}`} size={16} color={net !== null && net < 0 ? color.downText : color.up} /></View>
     <Txt size={11} color={color.ink3}>{new Date((trade.closedTs ?? trade.entryTs) * 1000).toLocaleString(i18n.language.startsWith("hi") ? "hi-IN" : "en-IN")}</Txt>
@@ -37,8 +38,8 @@ function Position({ trade, currency, assets }: { trade: CfdTradeView; currency: 
     {trade.status === "OPEN" ? <>
       <Txt size={12}>{trade.expiryTs <= now / 1000 ? t("trade.settling") : shortCountdown(Math.ceil(trade.expiryTs - now / 1000))} · SL {trade.stopLoss === null ? "—" : fmtPrice(trade.stopLoss, precision)} · TP {trade.takeProfit === null ? "—" : fmtPrice(trade.takeProfit, precision)}</Txt>
       <Txt size={11} color={color.ink3}>{t("cfd.liquidation", { price: fmtPrice(trade.liqPrice, precision) })}</Txt>
-      <View style={{ flexDirection: "row", gap: 8 }}><View style={{ flex: 1 }}><Button label={t("cfd.close")} disabled={busy || trade.expiryTs <= now / 1000} onPress={() => void run(`/api/cfd/trades/${trade.id}/close`)} /></View><View style={{ flex: 1 }}><Button kind="secondary" label={t("cfd.protection")} onPress={() => setEdit(v => !v)} /></View></View>
-      {edit ? <><Txt size={11} color={color.ink2}>{t("cfd.absoluteStops")}</Txt><View style={{ flexDirection: "row", gap: 8 }}>{([{ label: "SL", value: sl, set: setSl }, { label: "TP", value: tp, set: setTp }]).map(item => <TextInput key={item.label} accessibilityLabel={item.label} value={item.value} onChangeText={item.set} keyboardType="decimal-pad" placeholder={item.label} placeholderTextColor={color.ink3} style={{ color: color.ink, flex: 1, minHeight: 44, borderWidth: 1, borderColor: color.rule, borderRadius: 8, paddingHorizontal: 10 }} />)}</View><Button kind="secondary" label={t("profile.save")} disabled={!validStops || busy} onPress={() => void run(`/api/cfd/trades/${trade.id}`, { stopLoss: price(sl), takeProfit: price(tp) }, "PATCH")} /></> : null}
+      <View style={{ flexDirection: "row", gap: 8 }}><View style={{ flex: 1 }}><Button label={t("cfd.close")} disabled={busy || trade.expiryTs <= now / 1000} onPress={() => void run(`/api/cfd/trades/${trade.id}/close`)} /></View><View style={{ flex: 1 }}><Button kind="secondary" label={t("cfd.protection")} onPress={() => { if (edit) setEdit(false); else beginEdit(); }} /></View></View>
+      {edit ? <><Txt size={11} color={color.ink2}>{t("cfd.absoluteStops")}</Txt><View style={{ flexDirection: "row", gap: 8 }}>{([{ label: "SL", value: draft.stopLossText, set: (text: string) => setDraft(d => ({ ...d, stopLossText: text })) }, { label: "TP", value: draft.takeProfitText, set: (text: string) => setDraft(d => ({ ...d, takeProfitText: text })) }]).map(item => <TextInput key={item.label} accessibilityLabel={item.label} value={item.value} onChangeText={item.set} keyboardType="decimal-pad" placeholder={item.label} placeholderTextColor={color.ink3} style={{ color: color.ink, flex: 1, minHeight: 44, borderWidth: 1, borderColor: color.rule, borderRadius: 8, paddingHorizontal: 10 }} />)}</View>{conflict ? <><Txt accessibilityRole="alert" size={12} color={color.downText}>{t("cfd.protectionChanged")}</Txt><Button kind="secondary" label={t("common.retry")} onPress={beginEdit} /></> : null}<Button kind="secondary" label={t("profile.save")} disabled={!patch || !Object.keys(patch).length || busy} onPress={() => { if (patch && Object.keys(patch).length) void run(`/api/cfd/trades/${trade.id}`, patch, "PATCH").then(ok => { if (ok) setEdit(false); }); }} /></> : null}
       <Txt size={10} color={color.ink3}>{t("cfd.estimate")}</Txt>
     </> : <Txt size={12} color={color.ink2}>{t(`cfd.reason.${trade.closeReason ?? "DURATION"}`)} · {trade.exitPrice === null ? "—" : fmtPrice(trade.exitPrice, precision)}</Txt>}
   </View>;

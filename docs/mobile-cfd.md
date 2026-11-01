@@ -54,3 +54,16 @@ and reconnect, switch accounts/currencies and verify history units, and check
 English/Hindi layouts at 320dp. `login-trade.yaml` now selects either the binary
 sheet or the visible CFD duration preset. Do not fund a live test account or
 publish a release as part of these checks without the owner's release process.
+
+Follow-up review fixes:
+
+- CFD list currency, ownership and position amounts now share a RepeatableRead
+  database snapshot, so a concurrent conversion cannot label amounts in the
+  wrong units. All open positions remain present.
+- Protection drafts start from the latest server levels each time the editor
+  opens. Saves contain only changed fields, and an external level change while
+  editing requires reloading the current baseline before saving.
+- Per-account revisions fence pending list responses whenever a socket event or
+  mutation changes the position. An earlier response cannot restore stale SL/TP.
+- The existing open-position test fixtures now include the authorized owner and
+  active status required by the strict transaction guards; the guard is intact.
