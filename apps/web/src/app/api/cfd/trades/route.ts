@@ -101,22 +101,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "accountId is required." }, { status: 400 });
   }
 
-  const account = await getAccountForActor(session.userId, accountId);
-  if (!account) {
-    return NextResponse.json({ error: "Account not found." }, { status: 404 });
-  }
-
-  // Never hide an older open position behind more recent closes: it must remain manageable.
-  const [open, closed] = await Promise.all([
-    prisma.trade.findMany({ where: { accountId, durationSec: { not: null }, status: "OPEN" }, orderBy: { createdAt: "desc" }, include: { asset: { select: { symbol: true } } } }),
-    prisma.trade.findMany({ where: { accountId, durationSec: { not: null }, status: "CLOSED" }, orderBy: { closedAt: "desc" }, take: 50, include: { asset: { select: { symbol: true } } } }),
-  ]);
-  const trades = [...open, ...closed];
+  // Currency conversion updates the account and historical positions together. A repeatable
+  // snapshot prevents an old currency label from being paired with newly converted amounts.
+  const snapshot = await prisma.$transaction(async (tx) => {
+    const account = await tx.account.findFirst({
+      where: { id: accountId, userId: session.userId },
+      select: { currency: true },
+    });
+    if (!account) return null;
+    // Never hide an older open position behind more recent closes: it must remain manageable.
+    const [open, closed] = await Promise.all([
+      tx.trade.findMany({ where: { accountId, durationSec: { not: null }, status: "OPEN" }, orderBy: { createdAt: "desc" }, include: { asset: { select: { symbol: true } } } }),
+      tx.trade.findMany({ where: { accountId, durationSec: { not: null }, status: "CLOSED" }, orderBy: { closedAt: "desc" }, take: 50, include: { asset: { select: { symbol: true } } } }),
+    ]);
+    return { currency: account.currency, trades: [...open, ...closed] };
+  }, { isolationLevel: "RepeatableRead" });
+  if (!snapshot) return NextResponse.json({ error: "Account not found." }, { status: 404 });
 
   return NextResponse.json(
     {
-      currency: account.currency,
-      trades: trades.map((t) => cfdTradeViewFrom(t, t.asset.symbol)),
+      currency: snapshot.currency,
+      trades: snapshot.trades.map((t) => cfdTradeViewFrom(t, t.asset.symbol)),
     },
     { headers: { "Cache-Control": "no-store" } },
   );
