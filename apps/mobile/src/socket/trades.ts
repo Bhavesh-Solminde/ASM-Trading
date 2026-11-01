@@ -24,6 +24,8 @@ export const TradeViewSchema: z.ZodType<TradeView> = z.object({
 export function parseTrades(raw: readonly unknown[]): TradeView[] {
   const out: TradeView[] = [];
   for (const row of raw) {
+    // CFD rows have their own book and variable P/L. Never feed them to binary payoff logic.
+    if (row && typeof row === "object" && "durationSec" in row && row.durationSec != null) continue;
     const parsed = TradeViewSchema.safeParse(row);
     if (parsed.success) out.push(parsed.data);
   }

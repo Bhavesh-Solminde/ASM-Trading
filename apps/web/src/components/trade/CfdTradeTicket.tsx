@@ -115,6 +115,7 @@ export function CfdTradeTicket({
         stake: stakeMinor,
         durationSec,
         accountId,
+        currency,
       };
 
       const res = await fetch("/api/cfd/trades", {

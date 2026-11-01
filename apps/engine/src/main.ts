@@ -1,5 +1,5 @@
 import { marketStatus } from "@asm/contracts";
-import { tradeViewFrom } from "@asm/contracts";
+import { cfdTradeViewFrom, tradeViewFrom } from "@asm/contracts";
 import Redis from "ioredis";
 import { config } from "@asm/config";
 import { logger } from "@asm/logger";
@@ -87,6 +87,8 @@ async function main(): Promise<void> {
       const trade = await prisma.trade.findUniqueOrThrow({
         where: { id: tradeId }, include: { asset: true, account: true },
       });
+      const cfdView = cfdTradeViewFrom(trade, trade.asset.symbol);
+      server.sendToUser(trade.account.userId, { type: "cfd:trade:settled", trade: cfdView, closeReason: cfdView.closeReason ?? "DURATION", pnl: cfdView.pnl });
       server.sendToUser(trade.account.userId, {
         type: "trade:settled", trade: tradeViewFrom(trade, trade.asset.symbol),
       });
@@ -95,6 +97,7 @@ async function main(): Promise<void> {
         realBalance: trade.account.realBalance, bonusBalance: trade.account.bonusBalance,
       });
     }, (result, actorId) => {
+      server.sendToUser(actorId, { type: "cfd:trade:opened", trade: result.trade });
       server.sendToUser(actorId, { type: "balance:update", accountId: result.trade.accountId, ...result.balances });
     });
 

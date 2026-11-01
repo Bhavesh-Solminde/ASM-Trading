@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { AppState } from "react-native";
 import { useSocket } from "@/socket/socket-store";
 import { createKeepAwakeLock, foregroundAction, keepAwakePlan } from "./keep-awake-lock";
-import { awakeDeadlineSec } from "./open-trades";
+import { AWAKE_GRACE_SEC, awakeDeadlineSec } from "./open-trades";
 
 const TAG = "open-trades";
 
@@ -25,7 +25,11 @@ const lock = createKeepAwakeLock({
  * expo-keep-awake does not re-add it when its tag is already registered).
  */
 export function useKeepAwakeWhileOpen(): void {
-  const deadlineSec = useSocket((s) => awakeDeadlineSec(s.trades.tradesByAccount));
+  const deadlineSec = useSocket((s) => {
+    const binary = awakeDeadlineSec(s.trades.tradesByAccount);
+    const cfd = Object.values(s.cfd).flat().filter(t => t.status === "OPEN").map(t => t.expiryTs + AWAKE_GRACE_SEC);
+    return cfd.length ? Math.max(binary ?? 0, ...cfd) : binary;
+  });
   useEffect(() => {
     const plan = keepAwakePlan(deadlineSec, Date.now());
     if (!plan.hold) return;

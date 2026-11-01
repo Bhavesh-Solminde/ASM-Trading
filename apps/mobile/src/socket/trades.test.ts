@@ -24,3 +24,6 @@ describe("parseTrades", () => {
     expect(parseTrades([trade, { id: "bad" }, { ...trade, status: "WEIRD" }, null, "x"])).toEqual([trade]);
   });
 });
+it("does not parse a CFD row as a binary trade even while it is OPEN", () => {
+  expect(parseTrades([{ ...trade, durationSec: 300, payoutPct: 0 }])).toEqual([]);
+});

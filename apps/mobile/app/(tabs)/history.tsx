@@ -2,6 +2,8 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { CfdPositions } from "@/cfd/CfdPositions";
+import { useCfdAccount } from "@/cfd/useCfd";
 import { useBootstrap } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
 import { DetailSheet } from "@/history/DetailSheet";
@@ -24,6 +26,8 @@ export default function History() {
   const boot = query.data;
   const prefs = useUserPrefs(boot?.userId ?? null);
   const account = boot ? resolveAccount(boot.accounts, prefs.accountId, boot.liveAccess) : undefined;
+  const cfd = boot?.tradingModel === "CFD";
+  const cfdAccount = useCfdAccount(account?.id, account?.currency, cfd);
   // Trade owns the trade-list fetch and publishes which account is complete; History only reads it.
   const loadedFor = useListLoaded((s) => s.loadedFor);
   const loadedByTrade = listLoadedFor(loadedFor, account?.id, boot ? bootstrapTradesAccountId(boot.accounts) : undefined);
@@ -78,7 +82,7 @@ export default function History() {
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 24, gap: 24 }}>
           {header}
-          {boot && account ? <TradesBody accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={loaded} loadingWhenEmpty /> : query.isError ? <Button label={t("common.retry")} onPress={() => void query.refetch()} /> : <Skeleton height={100} />}
+          {boot && account ? cfd ? <CfdPositions accountId={account.id} currency={account.currency} assets={boot.assets} loaded={cfdAccount.loaded} /> : <TradesBody accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={loaded} loadingWhenEmpty /> : query.isError ? <Button label={t("common.retry")} onPress={() => void query.refetch()} /> : <Skeleton height={100} />}
         </ScrollView>
       )}
       <DetailSheet paymentKey={openKey} onClose={() => setOpenKey(null)} />

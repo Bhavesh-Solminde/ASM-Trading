@@ -808,5 +808,46 @@
         "a": "No. ASM Trade is a demonstration of how manipulated trading platforms operate. No real money is involved and no order reaches any market."
       }
     }
+  },
+  "cfd": {
+    "buy": "Buy / Long",
+    "sell": "Sell / Short",
+    "leverage": "CFD · {{leverage}}× leverage",
+    "fee": "Opening fee {{amount}}",
+    "protection": "SL / TP",
+    "stopLossPct": "Stop loss · price move %",
+    "takeProfitPct": "Take profit · price move %",
+    "optional": "Optional",
+    "risk": "Your investment is at risk. Profit is variable; opening fees apply.",
+    "failed": "Could not complete the trade. Check your positions before trying again.",
+    "unclear": "Connection lost. Check your positions before trying again; the trade may have completed.",
+    "positionSummary": "{{amount}} · {{leverage}}× · Entry {{entry}}",
+    "netAfterFee": "Net after opening fee",
+    "liquidation": "Liquidation price {{price}}",
+    "close": "Close position",
+    "absoluteStops": "Absolute price levels. Leave blank to remove a level.",
+    "estimate": "Live estimate before close adjustments; final proceeds may differ.",
+    "positions": "CFD positions",
+    "openCount": "{{count}} open positions",
+    "manage": "Manage",
+    "reason": {
+      "DURATION": "Duration ended",
+      "STOP_LOSS": "Stop loss",
+      "TAKE_PROFIT": "Take profit",
+      "MANUAL": "Closed manually",
+      "LIQUIDATION": "Liquidated",
+      "TRAILING_STOP": "Trailing stop"
+    },
+    "errors": {
+      "market_closed": "This market is closed.",
+      "market_unavailable": "Waiting for an open market and live prices.",
+      "insufficient_balance": "Check the minimum investment and balance including the opening fee.",
+      "lockout_active": "Please wait before closing this position.",
+      "invalid_stops": "Check the stop loss and take profit levels.",
+      "stake_exceeds_limit": "The investment exceeds the current limit.",
+      "trading_paused": "Trading is paused on this account.",
+      "trade_not_open": "This position has already closed."
+    },
+    "result": "Position closed · {{amount}} net"
   }
 }

@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   return noStoreJson(
     BootstrapSchema.parse({
       ...boot,
+      tradingModel: process.env.TRADING_MODEL === "CFD" ? "CFD" : "BINARY",
       userId: session.userId,
       profile: { nickname: profile.nickname, email: profile.email, kycStatus: profile.kycStatus, locale: profile.locale },
     }),
