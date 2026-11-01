@@ -9,7 +9,7 @@ import { Icon } from "@/ui/Icon";
 import { Sheet, type SheetRef } from "@/ui/Sheet";
 import { Stamp } from "@/ui/Stamp";
 import { clockHm, marketReopensAt } from "./market-hours";
-import { categoriesFor, filterMarkets, inCategory, type AppAsset, type MarketCategory } from "./markets";
+import { categoriesFor, filterMarkets, inCategory, marketReturnDisplay, type AppAsset, type MarketCategory } from "./markets";
 
 const SNAP_POINTS = ["75%", "92%"];
 const CATEGORY_KEY: Record<MarketCategory, string> = {
@@ -34,7 +34,9 @@ function Row({
   nowMs,
   onPick,
   onToggleFavourite,
+  tradingModel,
 }: {
+  tradingModel: "BINARY" | "CFD";
   asset: AppAsset;
   active: boolean;
   starred: boolean;
@@ -45,8 +47,9 @@ function Row({
   const { t } = useTranslation();
   const classKey = CLASS_KEY[asset.assetClass];
   const reopensAt = marketReopensAt(asset.symbol, nowMs);
+  const returns = marketReturnDisplay(tradingModel, asset, null);
   const subtitle = reopensAt !== null ? t("trade.closedOpens", { time: clockHm(reopensAt) }) : classKey ? t(classKey) : asset.symbol;
-  const payout = t("trade.payout", { pct: asset.payoutPct });
+  const payout = returns?.kind === "fixed" ? t("trade.payout", { pct: returns.pct }) : t("cfd.variableReturn");
   return (
     <View style={{ flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: color.ruleSoft, backgroundColor: active ? color.raised : "transparent" }}>
       <Pressable
@@ -61,14 +64,14 @@ function Row({
             {asset.displayName}
           </Txt>
           <Txt size={13} color={color.ink3} numberOfLines={1}>
-            {subtitle}
+            {subtitle}{returns?.kind === "variable" && reopensAt === null ? ` · ${t("cfd.variableReturn")}` : ""}
           </Txt>
         </View>
         {reopensAt !== null ? (
           <Stamp label={t("trade.closed")} tone="accent" />
         ) : (
-          <Txt font="fig" weight={600} size={14} color={color.up} style={{ width: 44, textAlign: "right" }}>
-            {payout}
+          <Txt font={returns?.kind === "fixed" ? "fig" : "ui"} weight={600} size={14} color={returns?.kind === "fixed" ? color.up : color.ink2} style={{ width: 44, textAlign: "right" }}>
+            {returns?.kind === "variable" ? "CFD" : payout}
           </Txt>
         )}
       </Pressable>
@@ -88,13 +91,14 @@ function Row({
 export const MarketSheet = forwardRef<
   SheetRef,
   {
+    tradingModel?: "BINARY" | "CFD";
     assets: AppAsset[];
     activeSymbol: string | null;
     favourites: string[];
     onPick: (symbol: string) => void;
     onToggleFavourite: (symbol: string) => void;
   }
->(function MarketSheet({ assets, activeSymbol, favourites, onPick, onToggleFavourite }, ref) {
+>(function MarketSheet({ assets, activeSymbol, favourites, onPick, onToggleFavourite, tradingModel = "BINARY" }, ref) {
   const { t } = useTranslation();
   const family = useUiFamily(400);
   const [query, setQuery] = useState("");
@@ -134,7 +138,7 @@ export const MarketSheet = forwardRef<
       </ScrollView>
       <View style={{ borderTopWidth: 1, borderTopColor: color.ruleSoft }}>
         {shown.map(({ a, star }) => (
-          <Row key={a.symbol} asset={a} active={a.symbol === activeSymbol} starred={star} nowMs={nowMs} onPick={onPick} onToggleFavourite={onToggleFavourite} />
+          <Row key={a.symbol} tradingModel={tradingModel} asset={a} active={a.symbol === activeSymbol} starred={star} nowMs={nowMs} onPick={onPick} onToggleFavourite={onToggleFavourite} />
         ))}
         {shown.length === 0 ? (
           <Txt color={color.ink2} style={{ textAlign: "center", paddingVertical: 24 }}>

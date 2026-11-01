@@ -6,17 +6,19 @@ import { color, radius } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 import { Icon } from "@/ui/Icon";
 import type { SheetRef } from "@/ui/Sheet";
-import { payoutPctFor, type AppAsset } from "./markets";
+import { marketReturnDisplay, type AppAsset } from "./markets";
 import { MarketSheet } from "./MarketSheet";
 
-/** The active market's name and payout; opens the market list. Always visible over the chart. */
+/** The active market and its model-appropriate return label; opens the market list. */
 export function MarketPill({
   assets,
   asset,
   favourites,
   onPick,
   onToggleFavourite,
+  tradingModel = "BINARY",
 }: {
+  tradingModel?: "BINARY" | "CFD";
   assets: AppAsset[];
   asset: AppAsset | undefined;
   favourites: string[];
@@ -27,13 +29,13 @@ export function MarketPill({
   const sheet = useRef<SheetRef>(null);
   const symbol = asset?.symbol ?? null;
   const livePayout = useSocket((s) => (symbol !== null && s.chart.symbol === symbol ? s.chart.payoutPct : null));
-  const payout = payoutPctFor(asset, livePayout);
+  const returns = marketReturnDisplay(tradingModel, asset, livePayout);
   const name = asset?.displayName ?? "";
   return (
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t("trade.selectMarket", { name })}
+        accessibilityLabel={`${t("trade.selectMarket", { name })}${returns?.kind === "variable" ? `, CFD, ${t("cfd.variableReturn")}` : ""}`}
         onPress={() => sheet.current?.present()}
         hitSlop={2}
         style={({ pressed }) => ({
@@ -55,15 +57,16 @@ export function MarketPill({
         <Txt weight={600} size={15} numberOfLines={1} style={{ flexShrink: 1 }}>
           {name}
         </Txt>
-        {payout !== null ? (
-          <Txt font="fig" weight={500} size={13} color={color.up}>
-            {t("trade.payout", { pct: payout })}
+        {returns !== null ? (
+          <Txt font={returns.kind === "fixed" ? "fig" : "ui"} weight={500} size={13} color={returns.kind === "fixed" ? color.up : color.ink2} accessibilityLabel={returns.kind === "variable" ? t("cfd.variableReturn") : undefined}>
+            {returns.kind === "variable" ? "CFD" : t("trade.payout", { pct: returns.pct })}
           </Txt>
         ) : null}
         <Icon name="chevronDown" size={16} strokeWidth={2} color={color.ink3} />
       </Pressable>
       <MarketSheet
         ref={sheet}
+        tradingModel={tradingModel}
         assets={assets}
         activeSymbol={symbol}
         favourites={favourites}

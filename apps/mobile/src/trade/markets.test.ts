@@ -6,6 +6,7 @@ import {
   inCategory,
   nextBonus,
   payoutPctFor,
+  marketReturnDisplay,
   precisionFor,
   resolveSymbol,
   sentimentSplit,
@@ -129,5 +130,17 @@ describe("market categories", () => {
     expect(inCategory(a("BTCUSDT", "CRYPTO"), "starred", ["BTCUSDT"])).toBe(true);
     expect(inCategory(a("BTCUSDT", "CRYPTO"), "starred", [])).toBe(false);
     expect(inCategory(a("BTCUSDT", "CRYPTO"), "all", [])).toBe(true);
+  });
+});
+
+describe("market return display by trading model", () => {
+  it("never presents binary percentage data as a CFD return, including a live 100% update", () => {
+    expect(marketReturnDisplay("CFD", assets[0], 100)).toEqual({ kind: "variable" });
+    expect(marketReturnDisplay("CFD", assets[1], null)).toEqual({ kind: "variable" });
+  });
+  it("preserves fixed payout percentage and live overrides for the binary desk", () => {
+    expect(marketReturnDisplay("BINARY", assets[0], 90)).toEqual({ kind: "fixed", pct: 90 });
+    expect(marketReturnDisplay("BINARY", assets[0], null)).toEqual({ kind: "fixed", pct: 85 });
+    expect(marketReturnDisplay("BINARY", undefined, null)).toBeNull();
   });
 });
