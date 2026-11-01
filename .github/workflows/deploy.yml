@@ -52,7 +52,7 @@ jobs:
                --filter @asm/db --filter @asm/config \
                --filter @asm/contracts --filter @asm/logger \
                --filter @asm/algo --filter @asm/pricing \
-               --filter @asm/trading --filter @asm/client-core \
+               --filter @asm/trading --filter @asm/client-core --filter @asm/notify \
                exec tsc --noEmit
 
   deploy:

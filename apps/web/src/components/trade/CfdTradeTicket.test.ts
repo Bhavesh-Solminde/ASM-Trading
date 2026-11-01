@@ -17,7 +17,7 @@ it.each([[/Buy\s*Price goes up/i, "LONG"], [/Sell\s*Price goes down/i, "SHORT"]]
   expect(screen.queryByText("Stop Loss / Take Profit")).toBeNull();
   await act(async () => fireEvent.click(screen.getByRole("button", { name })));
   expect(post).toHaveBeenCalledTimes(1);
-  expect(JSON.parse(post.mock.calls[0]![1].body)).toEqual({ symbol: "BTCUSDT", direction, accountId: "demo", stake: 10000, durationSec: 300 });
+  expect(JSON.parse(post.mock.calls[0]![1].body)).toEqual({ symbol: "BTCUSDT", direction, accountId: "demo", currency: "INR", stake: 10000, durationSec: 300 });
   expect(onOpened).toHaveBeenCalledTimes(1);
 });
 
