@@ -45,6 +45,7 @@ The final serial workspace test run exited successfully: **3,629 tests across 15
 - Emulator automation passed login, PIN creation/confirmation, Demo selection, Payments/History/Account navigation, cold-start unlock and the final CFD label. Native Hindi, physical-device performance, camera, actual payment intents and real notification delivery still need the release acceptance below.
 - The deterministic HTTP lifecycle test uses a real isolated PostgreSQL database and the real CFD desk. It verifies internal authentication, stale-currency rejection, exact investment/opening-fee debit, manual close and no second payout on a duplicate close. Its injected deterministic provider does not weaken production quote/session checks.
 - The ordinary local app correctly disabled trading when fresh external quotes were unavailable. No real-money trade was placed.
+- The first remote validation run reached engine tests and hit the adversarial Monte Carlo test's default five-second deadline (6.8 seconds on the shared runner). Its timeout now matches the other Monte Carlo scenarios at 30 seconds; all trials and assertions are unchanged.
 - Earlier baseline failures were repaired with realistic fixtures/oracles and display precision changes that preserve settlement ticks and economics; see [baseline evidence](testing/mobile-baseline-repairs.md).
 
 All database work used fresh local databases (`asm_codex_complete_test`, `asm_codex_mobile_smoke`) and separate Redis databases. Existing root/other-worktree edits were preserved. No production data or credentials were used.
