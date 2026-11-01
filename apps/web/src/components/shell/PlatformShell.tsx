@@ -1,5 +1,8 @@
 "use client";
 
+import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
+import { IosInstallSheet } from "@/components/pwa/IosInstallSheet";
+import { GetAppBar } from "@/components/pwa/GetAppBar";
 import type { CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { bonusPercentForDeposit, clockTime } from "@asm/client-core";
@@ -64,7 +67,7 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
   const onTrade = pathname === "/trade" || pathname.startsWith("/trade/");
 
   if (focusMode) {
-    return <div className="grid h-dvh min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden">{children}</div>;
+    return <div className="grid h-dvh min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden"><ServiceWorkerRegistrar />{children}</div>;
   }
 
   return (
@@ -72,6 +75,9 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
       style={{ "--phone-promo-h": onTrade ? "32px" : promo ? "56px" : "0px" } as CSSProperties}
       className="grid h-dvh min-h-[640px] grid-cols-[76px_minmax(0,1fr)] grid-rows-[60px_32px_minmax(0,1fr)] phone:min-h-0 phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[50px_var(--phone-promo-h)_minmax(0,1fr)_var(--phone-nav-h,38px)] [@media(height<30rem)]:grid-rows-[48px_0px_minmax(0,1fr)]"
     >
+      <ServiceWorkerRegistrar />
+      <IosInstallSheet />
+      <GetAppBar />
       <TopBar />
       <Ticker />
       <div className="col-start-1 row-start-2 hidden min-h-0 overflow-hidden phone:block [@media(height<30rem)]:hidden">

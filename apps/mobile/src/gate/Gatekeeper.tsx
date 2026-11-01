@@ -2,6 +2,7 @@ import { router, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
+import { useUpdatePrompt } from "@/update/useUpdates";
 import { useAppConfig } from "@/api/queries";
 import { useSession } from "@/auth/session-store";
 import { onAppStateChange, useAppStatus } from "@/lock/app-state";
@@ -59,6 +60,7 @@ export function Gatekeeper({ fontsReady }: { fontsReady: boolean }) {
   // Until the lock store has loaded too, `method` is unknown: route nowhere rather than briefly to /lock-setup.
   const target = routeFor({ ready: ready && booted, token, locked, lockChosen: method !== null || skipped, gate, belowMin });
   const redirect = redirectFor(target, pathname);
+  useUpdatePrompt(target === null && ready && booted && fontsReady);
 
   // `pathname` too: if the route moves to another wrong one while `redirect` keeps its value, correct it again.
   useEffect(() => {
