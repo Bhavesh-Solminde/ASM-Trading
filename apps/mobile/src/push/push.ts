@@ -1,13 +1,13 @@
 import { configurePushCleanup } from "./cleanup";
 // push.ts
 import * as Notifications from "expo-notifications";
-import { createMMKV } from "react-native-mmkv";
+import { openMmkv } from "@/cache/mmkv";
 import { Platform } from "react-native";
 import { useSession } from "@/auth/session-store";
 import { api } from "@/api/client";
 import { shouldAskPermission } from "./permission-moment";
 
-const store = createMMKV({ id: "ixt-push" });
+const store = () => openMmkv("ixt-push");
 const ASKED = "asked";
 const TOKEN = "token";
 
@@ -42,14 +42,14 @@ async function registerFor(session: string | null): Promise<void> {
   if (typeof token !== "string") return;
   if (useSession.getState().token !== session) return;
   await api("/api/v1/push/devices", { method: "POST", token: session, timeoutMs: 10_000, body: { platform: "ANDROID", token } });
-  if (useSession.getState().token === session) { store.set(TOKEN, token); registeredSession = session; }
+  if (useSession.getState().token === session) { store()?.set(TOKEN, token); registeredSession = session; }
   else await api("/api/v1/push/devices", { method: "DELETE", token: session, timeoutMs: 5_000, body: { token } }).catch(() => {});
 }
 
 export async function unregisterDevice(session?: string): Promise<void> {
   const owned = registeredSession === null || registeredSession === session;
-  const token = owned ? store.getString(TOKEN) : undefined;
-  if (owned) { store.remove(TOKEN); registeredSession = null; }
+  const token = owned ? store()?.getString(TOKEN) : undefined;
+  if (owned) { store()?.remove(TOKEN); registeredSession = null; }
   // Registration checks the departed session and removes its own late result. Wait before remote revocation.
   await registration.catch(() => {});
   if (!token) return;
@@ -59,8 +59,8 @@ export async function unregisterDevice(session?: string): Promise<void> {
 export async function askPermissionAt(event: "live_trade_settled" | "deposit_created" | "other"): Promise<void> {
   const perm = await nativeWithin(Notifications.getPermissionsAsync());
   const status = perm.status === "granted" ? "granted" : perm.canAskAgain ? "undetermined" : "denied";
-  if (!shouldAskPermission({ asked: store.getBoolean(ASKED) ?? false, status, event })) return;
-  store.set(ASKED, true);
+  if (!shouldAskPermission({ asked: store()?.getBoolean(ASKED) ?? false, status, event })) return;
+  store()?.set(ASKED, true);
   const res = await Notifications.requestPermissionsAsync();
   if (res.status === "granted") await registerDevice();
 }
