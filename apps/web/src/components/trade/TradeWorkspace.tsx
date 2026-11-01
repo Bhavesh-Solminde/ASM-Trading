@@ -19,6 +19,8 @@ import { changePct, tickDirection } from "@/components/shell/quotes";
 import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor, clockTime } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
+import { useCfdMarketStatus } from "@/lib/use-cfd-market-status";
+import { useMarketClosed } from "@/lib/use-now";
 import { useNowSec } from "@/lib/use-now";
 import { useScrollLock } from "@/lib/use-scroll-lock";
 import { MarketSelector } from "./MarketSelector";
@@ -255,17 +257,17 @@ function PhoneReadout({ symbol, precision }: { symbol: string; precision: number
   const change = quote ? changePct(quote) : null;
 
   return (
-    <div className="pointer-events-none flex items-baseline gap-2 pl-0.5">
+    <div className="pointer-events-none flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 pl-0.5">
       <span
         key={lastPrice ?? "none"}
-        className={`led led-lit text-[26px] font-extrabold leading-none tracking-[-0.02em] text-brand land:text-[20px] ${
+        className={`led led-lit text-[18px] font-extrabold leading-none tracking-[-0.02em] text-brand land:text-[20px] ${
           direction ? `tick-${direction}` : ""
         }`}
       >
         {lastPrice === null ? "—" : lastPrice.toFixed(precision)}
       </span>
       {change !== null ? (
-        <span className={`text-xs font-bold tabular-nums ${change >= 0 ? "text-up" : "text-down"}`}>
+        <span className={`text-[10px] font-bold tabular-nums ${change >= 0 ? "text-up" : "text-down"}`}>
           {change >= 0 ? "+" : "−"}
           {Math.abs(change).toFixed(2)}%
         </span>
@@ -289,7 +291,7 @@ function PhoneTimeframeTabs() {
           type="button"
           aria-pressed={tf === timeframe}
           onClick={() => selectTimeframe(tf)}
-          className={`relative h-7 rounded-lg px-2 text-xs font-bold transition-colors after:absolute after:inset-x-0 after:-inset-y-2 min-[380px]:px-[9px] ${
+          className={`relative h-6 rounded-md px-2 text-[11px] font-bold transition-colors after:absolute after:inset-x-0 after:-inset-y-2 min-[380px]:px-[9px] ${
             tf === timeframe ? "bg-tile-hi text-ink" : "text-ink-2 hover:text-ink"
           }`}
         >
@@ -405,6 +407,9 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     [recordOpened],
   );
 
+  const cfdMarketStatus = useCfdMarketStatus(chartSymbol, tradingModel === "CFD");
+  const nightlyClosed = useMarketClosed(chartSymbol);
+  const marketOpen = tradingModel === "CFD" ? cfdMarketStatus === "open" : !nightlyClosed;
   const chartProtection = useChartProtection();
   const chartTimeframe = useMarket(market, s => s.chart.timeframe);
   const [chartActionsContainer, setChartActionsContainer] = useState<HTMLDivElement | null>(null);
@@ -486,7 +491,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
   return (
     <section
       aria-label="Trade"
-      className={`${focusMode ? "h-dvh" : "h-full"} grid w-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[minmax(0,1fr)_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)] wide:grid-cols-[minmax(0,1fr)_360px]`}
+      className={`${focusMode ? "h-dvh" : "h-full"} grid w-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[65dvh_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)] wide:grid-cols-[minmax(0,1fr)_360px]`}
     >
       <div
         className={
@@ -509,9 +514,10 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
         <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[minmax(0,1fr)] phone:gap-0 phone:rounded-none phone:border-0 phone:p-0">
           <LiveSentiment />
 
-          <div className="relative min-h-0">
+          <div className="relative min-h-0 min-w-0">
             <PriceChart
               market={market}
+              marketOpen={marketOpen}
               precision={asset.precision}
               watermark={activeAccount.type === "DEMO" ? "DEMO" : ""}
               openTrades={chartTrades}
@@ -571,9 +577,9 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
                 the price under it, timeframes on the right. In fullscreen the
                 account switcher and clock sit above the pill. */}
             <div
-              className={`pointer-events-none absolute inset-x-3.5 top-3 ${marketPickerOpen ? "z-50" : "z-10"} hidden items-start justify-between gap-2 phone:flex land:inset-x-2 land:top-2`}
+              className={`pointer-events-none absolute inset-x-3.5 top-3 ${marketPickerOpen ? "z-50" : "z-10"} hidden grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1.5 phone:grid land:inset-x-2 land:top-2`}
             >
-              <div className="grid min-w-0 gap-2 land:gap-1">
+              <div className="col-span-2 grid min-w-0 gap-2 land:gap-1">
                 {focusMode ? (
                   <>
                     <FocusAccountSwitcher />
@@ -589,6 +595,8 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
                     onOpenChange={setMarketPickerOpen}
                   />
                 </div>
+              </div>
+              <div className="min-w-0 self-center">
                 <PhoneReadout symbol={asset.symbol} precision={asset.precision} />
               </div>
               <PhoneTimeframeTabs />
@@ -637,10 +645,11 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
 
       <aside
         aria-label="Trade ticket and trades"
-        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:rounded-t-[20px] phone:border-l-0 phone:bg-panel land:grid-rows-[auto_minmax(0,1fr)] land:rounded-none land:border-l land:bg-transparent"
+        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:rounded-t-xl phone:border-l-0 phone:bg-panel land:grid-rows-[auto_minmax(0,1fr)] land:rounded-none land:border-l land:bg-transparent"
       >
         {tradingModel === "CFD" ? (
           <CfdTradeTicket
+            marketStatus={cfdMarketStatus}
             symbol={asset.symbol}
             pair={splitAssetName(asset.displayName).pair}
             accountId={activeAccount.id}

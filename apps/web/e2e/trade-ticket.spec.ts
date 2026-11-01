@@ -60,11 +60,10 @@ test.describe("trade ticket keeps amount and time", () => {
     await page.getByRole("button", { name: "Longer" }).click();
     const time = (await timerDisplay(page).innerText()).trim();
 
-    // iPad split view: phone layout, where the stake shows on the dock tile.
+    // Compact layouts keep the same inline investment field.
     await page.setViewportSize({ width: 700, height: full.height });
-    const tile = page.getByRole("button", { name: /^Investment / });
-    await expect(tile).toBeVisible();
-    await expect(tile).toHaveAccessibleName(/1,250/);
+    await expect(stake(page)).toBeVisible();
+    await expect(stake(page)).toHaveValue("1250");
     await info.attach("split-view-kept", { body: await page.screenshot(), contentType: "image/png" });
 
     await page.setViewportSize(full);
@@ -140,32 +139,40 @@ test.describe("trade ticket keeps amount and time", () => {
     }
   });
 
-  test("phone keypad can switch to % and still respects the ₹100 floor", async ({ page }, info) => {
+  test("phone steppers can switch to % and still respect the ₹100 floor", async ({ page }, info) => {
     const viewer = await prisma.user.findUniqueOrThrow({ where: { email: VIEWER_EMAIL }, select: { id: true } });
     const demo = await prisma.account.findFirstOrThrow({ where: { userId: viewer.id, type: "DEMO" } });
     await prisma.account.update({ where: { id: demo.id }, data: { realBalance: 5_000_00, bonusBalance: 0 } });
     try {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto("/trade");
-      const tile = page.getByRole("button", { name: /^Investment / });
-      await tile.click();
-      const sheet = page.getByRole("dialog", { name: "Investment" });
-      await sheet.getByRole("radio", { name: "Percentage of balance" }).click();
-      await expect(sheet).toContainText("= ₹5,000.00 of demo balance ₹5,000.00");
-      await sheet.getByRole("button", { name: "1%", exact: true }).click();
-      await expect(sheet).toContainText("= ₹100.00 (minimum) of demo balance ₹5,000.00");
-      await info.attach("1-phone-sheet-one-percent", { body: await page.screenshot(), contentType: "image/png" });
-
-      await sheet.getByRole("button", { name: "10%", exact: true }).click();
-      await expect(sheet).toContainText("= ₹500.00 of demo balance ₹5,000.00");
-      await sheet.getByRole("button", { name: "Set 10%" }).click();
-      await expect(tile).toHaveAccessibleName(/₹500\.00 \(10% of balance\)/);
-      await info.attach("2-phone-tile-ten-percent", { body: await page.screenshot(), contentType: "image/png" });
+      await page.getByRole("button", { name: "Switch investment to a percentage of balance" }).click();
+      await expect(stake(page)).toHaveValue("100");
+      await stake(page).fill("1");
+      await expect(page.getByTestId("pct-investment")).toHaveText(/Investment \(minimum\)\s*₹100\.00/);
+      await page.getByRole("button", { name: "Increase investment" }).click();
+      await expect(stake(page)).toHaveValue("2");
+      await stake(page).fill("10");
+      await expect(page.getByTestId("pct-investment")).toHaveText(/Investment\s*₹500\.00/);
+      await info.attach("phone-compact-percent", { body: await page.screenshot(), contentType: "image/png" });
     } finally {
       await prisma.account.update({
         where: { id: demo.id },
         data: { realBalance: demo.realBalance, bonusBalance: demo.bonusBalance },
       });
+    }
+  });
+
+  test("portrait chart keeps 65% of the viewport with compact steppers", async ({ page }) => {
+    for (const viewport of [{ width: 320, height: 480 }, { width: 360, height: 640 }, { width: 390, height: 740 }]) {
+      await page.setViewportSize(viewport);
+      await openTicket(page);
+      const chart = await page.locator(".chartbox-bg").boundingBox();
+      expect(chart!.height / viewport.height).toBeCloseTo(0.65, 2);
+      await expect(page.getByRole("button", { name: "Increase investment" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Longer" })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Investment / })).toHaveCount(0);
+      if (viewport.height === 640) await expect(page.getByRole("button", { name: /^Buy / })).toBeInViewport({ ratio: 1 });
     }
   });
 });

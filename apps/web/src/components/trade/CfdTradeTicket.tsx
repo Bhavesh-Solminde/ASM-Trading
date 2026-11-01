@@ -1,25 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { cfdSpreadFeeMinor, cfdSpreadFeePct, CFD_LEVERAGE, type CfdOpenTradeResult } from "@asm/contracts";
 import { DURATIONS_SEC } from "@asm/trading";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
-import { currencySymbol, defaultStake, formatMinor, groupAmount, hms, minStakeMinor, nextStakeInput } from "@asm/client-core";
-import { StakeSheet } from "./StakeSheet";
+import type { CfdMarketStatus } from "@/lib/use-cfd-market-status";
+import { currencySymbol, defaultStake, formatMinor, hms, minStakeMinor, nextStakeInput, MAX_STAKE_MAJOR } from "@asm/client-core";
 
 type CfdDirection = "LONG" | "SHORT";
-
-const DURATION_PRESETS = [
-  { label: "30s", sec: 30 },
-  { label: "1m", sec: 60 },
-  { label: "5m", sec: 300 },
-  { label: "15m", sec: 900 },
-  { label: "1h", sec: 3600 },
-] as const;
-
-const CHIP =
-  "h-10 min-w-0 rounded-xl text-[13px] font-bold tabular-nums transition-colors land:h-9";
 
 /** The desktop stepper's durations: the platform's offered ones up to the CFD maximum of 1h. */
 const STEP_DURATIONS = DURATIONS_SEC.filter((sec) => sec <= 3600);
@@ -34,7 +23,9 @@ export function CfdTradeTicket({
   accountId,
   currency,
   onOpened,
+  marketStatus,
 }: {
+  marketStatus: CfdMarketStatus;
   symbol: string;
   pair: string;
   accountId: string;
@@ -43,25 +34,8 @@ export function CfdTradeTicket({
 }) {
   const [durationSec, setDurationSec] = useState(300);
   const [stakeInput, setStakeInput] = useState(() => defaultStake(currency));
-  const [stakeOpen, setStakeOpen] = useState(false);
-  const tileRef = useRef<HTMLButtonElement | null>(null);
-  const { balances, accounts, assets } = usePlatform();
-  const [market, setMarket] = useState<{symbol:string;status:string} | null>(null);
-  const canTrade = market?.symbol === symbol && market.status === "open";
-  useEffect(() => {
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    async function poll() {
-      try {
-        const res = await fetch(`/api/cfd/market-status?symbol=${encodeURIComponent(symbol)}`, {cache:"no-store",signal:controller.signal});
-        const data = await res.json();
-        if (!controller.signal.aborted) setMarket({symbol,status:res.ok?data.status:"unavailable"});
-      } catch {if (!controller.signal.aborted) setMarket({symbol,status:"unavailable"});}
-      if (!controller.signal.aborted) timer = setTimeout(poll, 3000);
-    }
-    void poll();
-    return () => {controller.abort();clearTimeout(timer);};
-  }, [symbol]);
+  const { assets } = usePlatform();
+  const canTrade = marketStatus === "open";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fired, setFired] = useState<CfdDirection | null>(null);
@@ -81,19 +55,10 @@ export function CfdTradeTicket({
       : 0;
   const spreadBps = assets.find((a) => a.symbol === symbol)?.spreadBps ?? 0;
   const spreadFee = cfdSpreadFeeMinor(stakeMinor, spreadBps);
-  const accountBalance = balances[accountId];
-  const balanceMinor = accountBalance
-    ? accountBalance.realBalance + accountBalance.bonusBalance
-    : null;
-  const accountLabel =
-    accounts.find((a) => a.id === accountId)?.type === "LIVE"
-      ? "Live"
-      : "Demo";
-
-  const closeStake = useCallback(() => {
-    setStakeOpen(false);
-    tileRef.current?.focus();
-  }, []);
+  function nudgeStake(delta: number): void {
+    const step = minStake / 100;
+    setStakeInput(String(Math.min(MAX_STAKE_MAJOR, Math.max(step, (Number(stakeInput) || 0) + delta * step))));
+  }
 
   async function place(direction: CfdDirection): Promise<void> {
     if (!canTrade) return;
@@ -138,7 +103,7 @@ export function CfdTradeTicket({
   }
 
   const slab =
-    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-16 phone:rounded-2xl phone:pl-3.5 phone:pr-3.5 phone:text-lg phone:font-extrabold phone:leading-none land:h-12";
+    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-14 phone:rounded-2xl phone:pl-3.5 phone:pr-3.5 phone:text-lg phone:font-extrabold phone:leading-none land:h-12";
   const slabLive =
     "hover:brightness-110 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40";
   const slabNote =
@@ -147,17 +112,17 @@ export function CfdTradeTicket({
     stakeMinor > 0 ? formatMinor(Math.floor(stakeMinor * 0.01 * CFD_LEVERAGE), currency) : "—";
 
   return (
-    <div className="relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:mx-auto phone:w-full phone:max-w-[560px] phone:gap-2.5 phone:border-b-0 phone:pb-3 phone:pt-3 land:max-w-none land:gap-1.5 land:px-2 land:pb-[max(4px,env(safe-area-inset-bottom))] land:pt-2">
+    <div className="trade-ticket relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:mx-auto phone:w-full phone:max-w-[560px] phone:gap-2 phone:border-b-0 phone:pb-2 phone:pt-2 land:max-w-none land:gap-1.5 land:px-2 land:pb-[max(4px,env(safe-area-inset-bottom))] land:pt-2">
       <div className="flex items-baseline justify-between phone:hidden">
         <span className="text-[17px] font-bold tracking-[0.03em]">{pair}</span>
         <span className="text-xs text-ink-2">CFD</span>
       </div>
 
-      <div className="grid gap-3 phone:flex phone:flex-col phone:gap-2.5 land:gap-1.5">
+      <div className="ticket-controls grid gap-3">
         {/* ── Duration ────────────────────────────────── */}
         <div className="grid gap-1.5">
-          <span className="legend phone:hidden" id="cfd-duration">Duration</span>
-          <div className="grid grid-cols-[36px_1fr_36px] items-center gap-1.5 phone:hidden">
+          <span className="legend ticket-label" id="cfd-duration">Timer</span>
+          <div className="ticket-stepper grid grid-cols-[36px_1fr_36px] items-center gap-1.5">
             <button type="button" aria-label="Shorter" onClick={() => stepDuration(-1)} className={STEP}>
               <Icon name="minus" className="size-[18px]" />
             </button>
@@ -168,64 +133,20 @@ export function CfdTradeTicket({
               <Icon name="plus" className="size-[18px]" />
             </button>
           </div>
-          <div
-            role="group"
-            aria-label="Duration"
-            className="hidden grid-cols-5 gap-1.5 phone:grid"
-          >
-            {DURATION_PRESETS.map((p) => (
-              <button
-                key={p.sec}
-                type="button"
-                aria-pressed={durationSec === p.sec}
-                onClick={() => setDurationSec(p.sec)}
-                className={`${CHIP} ${
-                  durationSec === p.sec
-                    ? "bg-brand-fill text-white"
-                    : "bg-tile text-ink-2 hover:text-ink"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+
         </div>
 
         {/* ── Stake ───────────────────────────────────── */}
-        <div className="grid gap-1.5 phone:order-first">
-          <label htmlFor="cfd-stake" className="legend phone:hidden">
+        <div className="grid gap-1.5">
+          <label htmlFor="cfd-stake" className="legend ticket-label">
             Investment
           </label>
-          <button
-            ref={tileRef}
-            type="button"
-            aria-haspopup="dialog"
-            aria-expanded={stakeOpen}
-            aria-label={`Investment ${formatMinor(stakeMinor, currency)}. Change investment`}
-            onClick={() => setStakeOpen(true)}
-            className="hidden h-14 w-full items-center gap-3 rounded-[14px] bg-tile px-3.5 text-left transition-colors active:bg-tile-hi phone:flex land:h-12"
-          >
-            <span className="grid gap-0.5">
-              <span className="text-[11px] leading-none text-ink-2">
-                Investment
-              </span>
-              <span
-                className={`text-[22px] font-extrabold leading-none tracking-[-0.02em] tabular-nums ${
-                  stakeMinor < minStake ? "text-down" : "text-ink"
-                }`}
-              >
-                {currencySymbol(currency)}
-                {groupAmount(stakeInput === "" ? "0" : stakeInput)}
-              </span>
-            </span>
-            <Icon
-              name="chevron"
-              className="ml-auto size-[18px] flex-none text-ink-3"
-              strokeWidth={2}
-            />
-          </button>
-          <div className="flex items-center gap-1.5 phone:hidden">
-            <div className="grid h-12 flex-1 place-items-center rounded border border-white/40 bg-panel focus-within:border-brand">
+
+          <div className="ticket-stepper grid grid-cols-[36px_minmax(0,1fr)_36px] items-center gap-1.5">
+            <button type="button" aria-label="Decrease investment" onClick={() => nudgeStake(-1)} className={STEP}>
+              <Icon name="minus" className="size-[18px]" />
+            </button>
+            <div className="ticket-field grid h-12 min-w-0 place-items-center rounded border border-white/40 bg-panel focus-within:border-brand">
               <span className="flex items-center justify-center gap-0.5 text-[22px] font-bold">
                 {currencySymbol(currency)}
                 <input
@@ -235,15 +156,16 @@ export function CfdTradeTicket({
                   value={stakeInput}
                   onChange={(e) => setStakeInput(nextStakeInput(e.target.value, stakeInput))}
                   // Inline outline beats the unlayered global :focus-visible ring; the box's border shows focus.
-                  style={{ width: `${Math.max(1, stakeInput.length)}ch`, outline: "none" }}
+                  style={{ width: `${Math.max(1, Math.min(8, stakeInput.length))}ch`, maxWidth: "100%", outline: "none" }}
                   className="bg-transparent font-bold"
                 />
               </span>
             </div>
+            <button type="button" aria-label="Increase investment" onClick={() => nudgeStake(1)} className={STEP}>
+              <Icon name="plus" className="size-[18px]" />
+            </button>
           </div>
         </div>
-
-
       </div>
 
       {/* ── Preview ───────────────────────────────────── */}
@@ -264,13 +186,13 @@ export function CfdTradeTicket({
         </div>
       ) : null}
 
-      <div className="text-xs text-ink-2 tabular-nums">
+      <div className="ticket-fees flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-xs text-ink-2 tabular-nums">
         Spread fee ({cfdSpreadFeePct(spreadBps)}%): {formatMinor(spreadFee, currency)}
-        <span className="block">Total deducted: {formatMinor(stakeMinor + spreadFee, currency)}</span>
+        <span>Total deducted: {formatMinor(stakeMinor + spreadFee, currency)}</span>
       </div>
-      {!canTrade && <p role="status" className="text-sm text-ink-2">{market?.symbol === symbol && market.status === "closed" ? "Market closed — trading resumes when the market opens and live prices return." : "Waiting for fresh market prices. Trading is temporarily unavailable."}</p>}
+      {!canTrade && <p role="status" className="ticket-status rounded-lg border border-rule bg-tile/50 px-2.5 py-2 text-xs leading-snug text-ink-2">{marketStatus === "closed" ? "Market closed. Trading resumes when live prices return." : "Waiting for live prices. Trading is temporarily unavailable."}</p>}
       {/* ── BUY / SELL buttons ─────────────────────── */}
-      <div className="grid gap-2 phone:grid-cols-2 phone:gap-2.5 land:grid-cols-1 land:gap-1.5">
+      <div className="ticket-actions grid gap-2 phone:grid-cols-2 phone:gap-2.5 land:grid-cols-1 land:gap-1.5">
         <button
           type="button"
           disabled={busy || !canTrade}
@@ -319,24 +241,7 @@ export function CfdTradeTicket({
         </button>
       </div>
 
-      {stakeOpen ? (
-        <StakeSheet
-          currency={currency}
-          initial={stakeInput}
-          initialPercent=""
-          unit="amount"
-          balanceMinor={balanceMinor}
-          minStakeMinor={minStake}
-          payoutPct={null}
-          accountLabel={accountLabel}
-          onSet={(stake) => {
-            setStakeInput(stake);
-            setError(null);
-            closeStake();
-          }}
-          onClose={closeStake}
-        />
-      ) : null}
+
     </div>
   );
 }
