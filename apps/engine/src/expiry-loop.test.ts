@@ -17,7 +17,8 @@ it.each([
   const scanPositions = vi.fn(async () => []);
   const recoverExpiredLegacy = vi.fn(async () => {});
   const registry = {
-    all: () => [{ id: "asset", symbol, precision: 2 }],
+    all: () => [{ id: "asset", symbol, precision: 2, state: { price: 100 } }],
+    lastPublishedPrice: () => 100,
     sigmaNow: () => 0.001, tick: () => ({ price: 100 }), record: () => [],
   };
   const loop = startTickLoop(registry as never, { broadcast: vi.fn() } as never,

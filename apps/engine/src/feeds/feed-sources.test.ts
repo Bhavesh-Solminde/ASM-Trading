@@ -13,8 +13,8 @@ describe("Binance — parseBinanceQuote (crypto feed)", () => {
   const BY_SYMBOL = { BTCUSDT: "BTCUSD", ETHUSDT: "ETHUSDT" };
 
   it("routes BTCUSDT → BTCUSD and keeps ETHUSDT as itself", () => {
-    expect(parseBinanceQuote(JSON.stringify({ data: { s: "BTCUSDT", c: "95000" } }), BY_SYMBOL)?.symbol).toBe("BTCUSD");
-    expect(parseBinanceQuote(JSON.stringify({ data: { s: "ETHUSDT", c: "3200" } }), BY_SYMBOL)?.symbol).toBe("ETHUSDT");
+    expect(parseBinanceQuote(JSON.stringify({ data: { s: "BTCUSDT", c: "95000", E: 1_729_800_000_000 } }), BY_SYMBOL)).toEqual({ symbol: "BTCUSD", price: 95000, ts: 1_729_800_000 });
+    expect(parseBinanceQuote(JSON.stringify({ data: { s: "ETHUSDT", c: "3200", E: 1_729_800_001_000 } }), BY_SYMBOL)).toEqual({ symbol: "ETHUSDT", price: 3200, ts: 1_729_800_001 });
   });
 
   it("skips untracked symbols so a mapping miss cannot wedge the engine", () => {
