@@ -110,7 +110,7 @@ export async function liveAccountCurrencies(ids: string[]): Promise<Map<string, 
 export async function liveTradeResults(ids: string[]) {
   if (!ids.length) return [];
   const rows = await prisma.$queryRaw<Array<{ id: string; symbol: string; displayName: string; pnl: bigint; stake: bigint; currency: string }>>`
-    SELECT t."id", a."symbol", a."displayName", t."pnl", t."stake", c."currency"
+    SELECT t."id", a."symbol", a."displayName", (t."pnl" - CASE WHEN t."durationSec" IS NOT NULL THEN t."spreadFee" ELSE 0 END) AS "pnl", t."stake", c."currency"
     FROM "Trade" t JOIN "Account" c ON c."id" = t."accountId" JOIN "Asset" a ON a."id" = t."assetId"
     WHERE t."id" = ANY(${ids}::text[]) AND c."type" = 'LIVE' AND t."status" != 'OPEN'`;
   return rows.map((r) => ({ ...r, pnl: Number(r.pnl), stake: Number(r.stake) }));

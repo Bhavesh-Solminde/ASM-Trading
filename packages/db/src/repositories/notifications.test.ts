@@ -84,11 +84,11 @@ it("reads a closed CFD result with its current currency and excludes demo/open t
   const asset = await prisma.asset.create({ data: { symbol: `PUSH${randomUUID()}`, displayName: "Push test", kind: "REAL" } });
   const live = await prisma.account.create({ data: { userId, type: "LIVE", currency: "USD" } });
   const demo = await prisma.account.create({ data: { userId, type: "DEMO", currency: "INR" } });
-  const base = { assetId: asset.id, direction: "UP" as const, stake: 91, payoutPct: 100, entryPrice: 1, entryTs: new Date(), expiryTs: new Date(), pnl: -9, durationSec: 60 };
+  const base = { assetId: asset.id, direction: "UP" as const, stake: 91, payoutPct: 100, entryPrice: 1, entryTs: new Date(), expiryTs: new Date(), pnl: -9, spreadFee: 7, durationSec: 60 };
   const closed = await prisma.trade.create({ data: { ...base, accountId: live.id, status: "CLOSED" } });
   const open = await prisma.trade.create({ data: { ...base, accountId: live.id, status: "OPEN" } });
   const practice = await prisma.trade.create({ data: { ...base, accountId: demo.id, status: "CLOSED" } });
   try {
-    expect(await liveTradeResults([closed.id, open.id, practice.id])).toEqual([{ id: closed.id, symbol: asset.symbol, displayName: "Push test", pnl: -9, stake: 91, currency: "USD" }]);
+    expect(await liveTradeResults([closed.id, open.id, practice.id])).toEqual([{ id: closed.id, symbol: asset.symbol, displayName: "Push test", pnl: -16, stake: 91, currency: "USD" }]);
   } finally { await prisma.trade.deleteMany({ where: { assetId: asset.id } }); await prisma.asset.delete({ where: { id: asset.id } }); }
 });

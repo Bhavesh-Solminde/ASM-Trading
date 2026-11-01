@@ -63,7 +63,8 @@ export function Gatekeeper({ fontsReady }: { fontsReady: boolean }) {
   const target = routeFor({ ready: ready && booted, token, locked, lockChosen: method !== null || skipped, gate, belowMin });
   const redirect = redirectFor(target, pathname);
   useUpdatePrompt(target === null && ready && booted && fontsReady);
-  const pushReady = target === null && ready && booted && !!token;
+  // Wait until canonical unlock/sign-in navigation finishes, or it would overwrite a notification tap.
+  const pushReady = target === null && ready && booted && !!token && navReady && redirect === null;
   usePushRouting(pushReady);
   useEffect(() => {
     if (!pushReady) return;
