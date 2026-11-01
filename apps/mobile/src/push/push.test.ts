@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const env = vi.hoisted(() => ({ session: "session-a" as string | null, store: new Map<string, string | boolean>(), post: vi.fn(), permission: vi.fn(), token: vi.fn(), request: vi.fn() }));
 vi.mock("expo-notifications", () => ({ setNotificationHandler: vi.fn(), getPermissionsAsync: env.permission, getDevicePushTokenAsync: env.token, requestPermissionsAsync: env.request, addPushTokenListener: vi.fn() }));
 vi.mock("react-native", () => ({ Platform: { OS: "android" } }));
-vi.mock("react-native-mmkv", () => ({ createMMKV: () => ({ getString: (k: string) => env.store.get(k), getBoolean: (k: string) => env.store.get(k), set: (k: string, v: string | boolean) => env.store.set(k, v), remove: (k: string) => env.store.delete(k) }) }));
+vi.mock("@/cache/mmkv", () => ({ openMmkv: () => ({ getString: (k: string) => env.store.get(k), getBoolean: (k: string) => env.store.get(k), set: (k: string, v: string | boolean) => env.store.set(k, v), remove: (k: string) => env.store.delete(k) }) }));
 vi.mock("@/api/client", () => ({ api: env.post }));
 vi.mock("@/auth/session-store", () => ({ useSession: { getState: () => ({ token: env.session }) } }));
 beforeEach(() => {
