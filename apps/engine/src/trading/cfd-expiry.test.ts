@@ -82,7 +82,7 @@ it("notifies the opening balance after the CFD debit commits", async () => {
     trade: { create: async () => trade },
     transaction: { createMany: async () => {} },
     account: { updateMany: async () => ({count: 1}), findUniqueOrThrow: vi.fn()
-      .mockResolvedValueOnce({ realBalance: 100000, bonusBalance: 0 })
+      .mockResolvedValueOnce({ userId: "user", user: { status: "ACTIVE" }, currency: "INR", type: "DEMO", realBalance: 100000, bonusBalance: 0 })
       .mockResolvedValueOnce({ realBalance: 90000, bonusBalance: 0 }) },
   }));
   const opened = vi.fn();
@@ -99,7 +99,7 @@ it("notifies the opening balance after the CFD debit commits", async () => {
 it.each(["LONG", "SHORT"] as const)("opens %s at the published chart price even with configured spread", async (direction) => {
   const create = vi.fn(async ({ data }) => ({ ...data, id: "trade", exitPrice: null, closeReason: null, pnl: 0 }));
   mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { create }, transaction: { createMany: async () => {} }, account: {
-    updateMany: async () => ({count: 1}), findUniqueOrThrow: async () => ({ realBalance: 100000, bonusBalance: 0 }),
+    updateMany: async () => ({count: 1}), findUniqueOrThrow: async () => ({ userId: "u", user: { status: "ACTIVE" }, currency: "INR", type: "DEMO", realBalance: 100000, bonusBalance: 0 }),
   } }));
   const result = await new CfdDesk().open({ actorId: "u", accountId: "a", symbol: "BTCUSDT",
     direction, stake: 10000, durationSec: 30 }, 81646.98,
@@ -119,7 +119,7 @@ it("charges the full spread separately, logs it and credits LIVE treasury", asyn
   mocks.transaction.mockImplementationOnce(async fn => fn({
     trade: { create: async ({ data }: any) => ({ ...data, id: "fee-trade", exitPrice: null, closeReason: null, pnl: 0 }) },
     account: { updateMany: debit, findUniqueOrThrow: vi.fn()
-      .mockResolvedValueOnce({ type: "LIVE", realBalance: 200000, bonusBalance: 0 })
+      .mockResolvedValueOnce({ userId: "u", user: { status: "ACTIVE" }, currency: "INR", type: "LIVE", realBalance: 200000, bonusBalance: 0 })
       .mockResolvedValueOnce({ realBalance: 95000, bonusBalance: 0 }) },
     transaction: { createMany: ledger }, houseTreasury: { upsert: treasury },
   }));
@@ -159,7 +159,7 @@ it("returns pure gross PnL on a flat close — the opening fee is not re-subtrac
 
 it("rejects an order when funds cover the investment but not its fee", async () => {
   mocks.transaction.mockImplementationOnce(async fn => fn({ account: {
-    findUniqueOrThrow: async () => ({ realBalance: 100000, bonusBalance: 0 }),
+    findUniqueOrThrow: async () => ({ userId: "u", user: { status: "ACTIVE" }, currency: "INR", type: "DEMO", realBalance: 100000, bonusBalance: 0 }),
   } }));
   await expect(new CfdDesk().open({ actorId: "u", accountId: "a", symbol: "BTCUSDT",
     direction: "SHORT", stake: 100000, durationSec: 30 }, 100,
@@ -173,7 +173,7 @@ it.each(["LONG", "SHORT"] as const)("converts percentage stops at execution for 
   mocks.transaction.mockImplementationOnce(async fn => fn({ trade: { create },
     transaction: { createMany: async () => {} }, account: {
       updateMany: async () => ({ count: 1 }),
-      findUniqueOrThrow: async () => ({ realBalance: 200000, bonusBalance: 0 }),
+      findUniqueOrThrow: async () => ({ userId: "u", user: { status: "ACTIVE" }, currency: "INR", type: "DEMO", realBalance: 200000, bonusBalance: 0 }),
     } }));
   const result = await new CfdDesk().open({ actorId: "u", accountId: "a", symbol: "BTCUSDT",
     direction, stake: 100000, durationSec: 30, stopLossPct: 10, takeProfitPct: 10 }, 80000,
