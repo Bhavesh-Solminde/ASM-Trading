@@ -22,3 +22,6 @@ describe("appUpgradeRequired", () => {
     expect(appUpgradeRequired("/api/v1/wallet", h("0.0.1"), {})).toBe(false);
   });
 });
+
+// An obsolete app must still be able to download its OTA repair.
+it("keeps OTA manifest and assets reachable below minimum version",()=>{const h=new Headers({"x-app-version":"0.1.0"});for(const p of ["/api/v1/app/updates","/api/v1/app/updates/assets"])expect(appUpgradeRequired(p,h,{APP_MIN_VERSION:"1.0.0"})).toBe(false);});

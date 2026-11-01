@@ -1,7 +1,7 @@
 import { appVersionFrom, compareVersions } from "./app-client";
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
-const ALWAYS_OPEN = new Set(["/api/v1/app/config"]);
+const ALWAYS_OPEN = new Set(["/api/v1/app/config", "/api/v1/app/updates", "/api/v1/app/updates/assets"]);
 
 /** True when an app build older than APP_MIN_VERSION calls the API. */
 export function appUpgradeRequired(

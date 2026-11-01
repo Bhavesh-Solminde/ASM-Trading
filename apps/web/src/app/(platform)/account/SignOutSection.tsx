@@ -1,5 +1,6 @@
 "use client";
 
+import { unregisterWebPush } from "@/lib/web-push-client";
 import { useState } from "react";
 import { ButtonRow, ListGroup } from "@/components/account/SettingsList";
 
@@ -16,6 +17,7 @@ export function SignOutSection() {
     if (busy) return;
     setBusy(scope);
     setError(null);
+    await unregisterWebPush();
     const url =
       scope === "all" ? "/api/auth/logout?all=1" : "/api/auth/logout";
     const res = await fetch(url, { method: "POST" });

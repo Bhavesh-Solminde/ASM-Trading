@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { ExpoConfig } from "expo/config";
 
 const variant = process.env.APP_VARIANT === "direct" ? "direct" : "play";
@@ -19,13 +21,23 @@ export function assertSecureUrls(input: { apiUrl: string; wsUrl: string; product
 const apiUrl = process.env.APP_API_URL ?? "https://indianxtrade.com";
 const wsUrl = process.env.APP_WS_URL ?? "wss://indianxtrade.com/ws";
 // Metro and the dev client run with NODE_ENV=development and may use a local http server; a release build may not.
-assertSecureUrls({ apiUrl, wsUrl, production: process.env.NODE_ENV === "production" });
+assertSecureUrls({ apiUrl, wsUrl, production: process.env.NODE_ENV === "production" || process.env.APP_RELEASE_BUILD === "1" });
 
 const config: ExpoConfig = {
   name: "IndianxTrade",
   slug: "indianxtrade",
   version,
   orientation: "portrait",
+  // Separate native variants must never consume each other's Expo extra config.
+  runtimeVersion: `${version}-${variant}`,
+  updates: existsSync(join(__dirname, "certs/certificate.pem")) ? {
+    url: `${apiUrl}/api/v1/app/updates`,
+    enabled: true,
+    checkAutomatically: "ON_LOAD",
+    fallbackToCacheTimeout: 0,
+    codeSigningCertificate: "./certs/certificate.pem",
+    codeSigningMetadata: { keyid: "main", alg: "rsa-v1_5-sha256" },
+  } : { enabled: false },
   scheme: "indianxtrade",
   userInterfaceStyle: "dark",
   icon: "./assets/icon.png",
@@ -47,6 +59,8 @@ const config: ExpoConfig = {
     ],
   },
   plugins: [
+    // The dev launcher scheme is useful for Metro, but must not be exported by signed release builds.
+    ["expo-dev-client", { addGeneratedScheme: process.env.APP_RELEASE_BUILD !== "1" }],
     // No `/_sitemap` page in the app: a deep link to it would list every route.
     ["expo-router", { sitemap: false }],
     "expo-secure-store",

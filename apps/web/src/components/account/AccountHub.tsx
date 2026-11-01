@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PushToggle } from "@/components/pwa/PushToggle";
 import { useEffect, useState } from "react";
 import { USD_INR_RATE, formatMinor } from "@asm/client-core";
 import { useChartProtection, setChartProtection } from "@/lib/chart-protection-preference";
@@ -177,6 +178,7 @@ export function AccountHub({
         />
       </ListGroup>
 
+      <PushToggle />
       <ListGroup title="Preferences">
         <ToggleRow icon="trade" label="Chart SL/TP controls" checked={chartProtection} onChange={setChartProtection} />
         <li className="px-4 pb-3 text-xs text-ink-2">Show optional chart controls. Hiding them keeps saved SL/TP active. Saved on this browser.</li>
