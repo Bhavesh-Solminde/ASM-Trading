@@ -500,6 +500,20 @@ export function PriceChart({
         vertLines: { color: "rgba(47, 129, 247, 0.07)" },
         horzLines: { color: "rgba(47, 129, 247, 0.07)" },
       },
+      // Keep drag-to-pan separate from wheel/trackpad zoom. Disabling wheel
+      // panning also prevents slight sideways trackpad motion shifting time
+      // while the user is trying to zoom with a vertical two-finger swipe.
+      handleScroll: {
+        mouseWheel: false,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        mouseWheel: true,
+        pinch: true,
+        axisPressedMouseMove: { time: true, price: false },
+      },
       rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.18, bottom: 0.1 } },
       timeScale: {
         borderVisible: false,

@@ -18,14 +18,14 @@
 @custom-variant wide (@media (min-width: 128rem));
 
 @theme {
-  /* Black + blue + white theme. Ground is true black; surfaces step up in
-     lightness for depth. Blue is the single brand accent (replaces the old
-     amber); up/green and down/red stay as trading semantics. */
-  --color-ground: #000000;
-  --color-panel: #0b0e13;
-  --color-tile: #12161d;
-  --color-tile-hi: #1c222c;
-  --color-rule: #232a34;
+  /* Blue-charcoal surfaces sampled from the approved OTC mockup. Panels and
+     controls step up from the ground; the chart has a quiet, solid surface. */
+  --color-ground: #080e16;
+  --color-panel: #0e1820;
+  --color-tile: #131f28;
+  --color-tile-hi: #1c2b36;
+  --color-chart: #0c141c;
+  --color-rule: #293a47;
   --color-ink: #f4f7fb;
   --color-ink-2: #98a2b3;
   /* Muted text. Lifted from #5a6472 (3.0:1 on tile) so helper copy, captions
@@ -175,9 +175,7 @@ button,
 }
 
 .chartbox-bg {
-  background:
-    radial-gradient(circle, rgba(47, 129, 247, 0.06) 1px, transparent 1.3px) 0 0 / 5px 5px,
-    #05070b;
+  background: var(--color-chart);
 }
 
 .slab-fired::after {
