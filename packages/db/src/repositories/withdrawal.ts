@@ -1,5 +1,7 @@
 import { prisma } from "../client";
 import type { Withdrawal } from "../models";
+import { withdrawalLimitsMinor } from "@asm/contracts";
+import { convertMinorBetween } from "./account";
 
 export class WithdrawalRefused extends Error {
   constructor(message: string) {
@@ -73,14 +75,10 @@ function payoutColumns(p: WithdrawalPayout) {
   };
 }
 
-/**
- * Per-request limits in the account's minor units: ₹700 – ₹50,000, or $7 –
- * $500 on a USD account (fixed ₹100 = $1). Mirrors contracts
- * `withdrawalLimitsMinor`; apps/web keeps a drift test on the pair.
- */
-export function withdrawalLimitsMinor(currency: string): { min: number; max: number } {
-  return currency === "INR" ? { min: 700_00, max: 50_000_00 } : { min: 7_00, max: 500_00 };
-}
+// Per-request limits in the account's minor units live in @asm/contracts (₹700 –
+// ₹50,000, USD derived at the shared ₹110 = $1 rate); the form and the server
+// share this one function so they can never drift.
+export { withdrawalLimitsMinor };
 
 function formatLimit(minor: number, currency: string): string {
   const major = (minor / 100).toLocaleString(currency === "INR" ? "en-IN" : "en-US");
@@ -115,7 +113,7 @@ export async function withdrawableBalance(accountId: string): Promise<{
 /**
  * Requests a payout of real balance to a bank account, UPI ID or USDT wallet
  * the user names. Limits are ₹700 – ₹50,000 per request (USD accounts at the
- * fixed ₹100 = $1 rate) and the account's KYC must be VERIFIED.
+ * fixed ₹110 = $1 rate) and the account's KYC must be VERIFIED.
  *
  * The debit is optimistic-concurrency guarded exactly like a trade stake: the
  * balance is re-read and version-checked inside the transaction, so two
@@ -212,8 +210,15 @@ export async function requestWithdrawal(input: {
       return await prisma.$transaction(async (tx) => {
         const fresh = await tx.account.findUniqueOrThrow({
           where: { id: input.accountId },
-          select: { realBalance: true, bonusBalance: true, version: true },
+          select: { realBalance: true, bonusBalance: true, version: true, currency: true },
         });
+
+        // The limits and the row's currency above came from the pre-transaction
+        // read. If the account was converted in between, the amount is in the
+        // wrong units — refuse rather than debit it (a retry would just re-read).
+        if (fresh.currency !== account.currency) {
+          throw new WithdrawalRefused("Your account currency just changed. Please try again.");
+        }
 
         // Only real balance is withdrawable; the bonus is sticky and is never
         // debited by a withdrawal. Re-read inside the transaction so the
@@ -303,6 +308,17 @@ export async function requestWithdrawal(input: {
 }
 
 /**
+ * A withdrawal's `amount` is in the currency the account had when it was
+ * requested. Currency switches are now refused while a withdrawal is in flight,
+ * but rows created before that gate can outlive a switch — refunding their raw
+ * amount would credit paise as cents (a 100x over-credit). Convert it to the
+ * account's current currency with the same fixed-rate helper the switch uses.
+ */
+function refundInAccountCurrency(amount: number, rowCurrency: string, accountCurrency: string): number {
+  return convertMinorBetween(amount, rowCurrency, accountCurrency);
+}
+
+/**
  * User-initiated cancel of a HELD withdrawal. Refunds the money to realBalance
  * and sets status=CANCELLED_BY_USER. Must be called within the row's cancel
  * window; the cancelableUntil check is repeated inside the transaction so two
@@ -318,6 +334,7 @@ export async function cancelHeldWithdrawal(input: {
       id: true,
       userId: true,
       amount: true,
+      currency: true,
       status: true,
       cancelableUntil: true,
     },
@@ -358,13 +375,14 @@ export async function cancelHeldWithdrawal(input: {
 
         const fresh = await tx.account.findUniqueOrThrow({
           where: { id: account.id },
-          select: { realBalance: true, bonusBalance: true, version: true },
+          select: { realBalance: true, bonusBalance: true, version: true, currency: true },
         });
+        const refund = refundInAccountCurrency(row.amount, row.currency, fresh.currency);
 
         const claimedAccount = await tx.account.updateMany({
           where: { id: account.id, version: fresh.version },
           data: {
-            realBalance: { increment: row.amount },
+            realBalance: { increment: refund },
             version: { increment: 1 },
           },
         });
@@ -374,8 +392,8 @@ export async function cancelHeldWithdrawal(input: {
           data: {
             accountId: account.id,
             kind: "WITHDRAWAL",
-            amount: row.amount,
-            balanceAfter: fresh.realBalance + fresh.bonusBalance + row.amount,
+            amount: refund,
+            balanceAfter: fresh.realBalance + fresh.bonusBalance + refund,
             refType: "Withdrawal",
             refId: row.id,
           },
@@ -448,7 +466,7 @@ export async function rejectWithdrawal(input: {
 }): Promise<void> {
   const row = await prisma.withdrawal.findUnique({
     where: { id: input.withdrawalId },
-    select: { id: true, userId: true, amount: true, status: true },
+    select: { id: true, userId: true, amount: true, currency: true, status: true },
   });
   if (!row) throw new WithdrawalRefused("Withdrawal not found.");
   if (row.status !== "REQUESTED" && row.status !== "HELD" && row.status !== "APPROVED") {
@@ -473,13 +491,14 @@ export async function rejectWithdrawal(input: {
 
         const fresh = await tx.account.findUniqueOrThrow({
           where: { id: account.id },
-          select: { realBalance: true, bonusBalance: true, version: true },
+          select: { realBalance: true, bonusBalance: true, version: true, currency: true },
         });
+        const refund = refundInAccountCurrency(row.amount, row.currency, fresh.currency);
 
         const bumped = await tx.account.updateMany({
           where: { id: account.id, version: fresh.version },
           data: {
-            realBalance: { increment: row.amount },
+            realBalance: { increment: refund },
             version: { increment: 1 },
           },
         });
@@ -489,8 +508,8 @@ export async function rejectWithdrawal(input: {
           data: {
             accountId: account.id,
             kind: "WITHDRAWAL",
-            amount: row.amount,
-            balanceAfter: fresh.realBalance + fresh.bonusBalance + row.amount,
+            amount: refund,
+            balanceAfter: fresh.realBalance + fresh.bonusBalance + refund,
             refType: "Withdrawal",
             refId: row.id,
           },
@@ -502,7 +521,13 @@ export async function rejectWithdrawal(input: {
             action: "withdrawal.rejected",
             targetType: "Withdrawal",
             targetId: row.id,
-            after: { status: "REJECTED", reason: input.reason ?? null },
+            after: {
+              status: "REJECTED",
+              reason: input.reason ?? null,
+              // Traceability: the figure actually credited, and its units.
+              refund,
+              refundCurrency: fresh.currency,
+            },
           },
         });
       });
