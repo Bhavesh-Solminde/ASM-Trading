@@ -4,6 +4,7 @@ node_modules
 **/.next
 apps/harness
 apps/relay
+apps/mobile
 .git
 .github
 .vscode

@@ -6,14 +6,16 @@ import type { OpenTradeResult } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { durationForTargetTime, offeredExpirySlots } from "@/lib/expiry-times";
-import { minStakeMinor } from "@/lib/currency";
-import { currencySymbol, formatMinor } from "@/lib/format-money";
-import { clockTime, countdown, hms } from "@/lib/format-time";
-import { useDismiss } from "@/lib/use-dismiss";
-import { useMarketClosed, useNowSec } from "@/lib/use-now";
-import { grossReturnMinor } from "./pnl-display";
 import {
   DEFAULT_STAKE_PCT,
+  minStakeMinor,
+  currencySymbol,
+  formatMinor,
+  clockTime,
+  countdown,
+  hms,
+  grossReturnMinor,
+  EXPIRY_CHIPS,
   EXPIRY_STORAGE_KEY,
   PERCENT_PRESETS,
   STAKE_PCT_STORAGE_KEY,
@@ -30,7 +32,11 @@ import {
   stakeStorageKey,
   type StakeUnit,
   type TimeMode,
-} from "./stake";
+} from "@asm/client-core";
+import { STALE_CURRENCY_NOTICE, isStaleCurrencyRefusal } from "@/lib/trade-refusal";
+import { useDismiss } from "@/lib/use-dismiss";
+import { useMarketClosed, useNowSec } from "@/lib/use-now";
+import { StakeSheet } from "./StakeSheet";
 
 /** The next wall-clock occurrence of an HH:MM, today or (if already past) tomorrow. */
 function nextOccurrenceMs(hhmm: string, nowMs: number): number | null {
@@ -264,22 +270,39 @@ export function TradeTicket({
     setFired(direction);
     setBusy(true);
     setError(null);
+    let reloading = false;
     try {
       const res = await fetch("/api/trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, direction, stake: stakeMinor, durationSec: effectiveDurationSec, accountId }),
+        // The account's currency rides along so the server can refuse a stake typed for a currency the account has
+        // since been converted out of (a second tab or the phone app). Only the two the contract accepts.
+        body: JSON.stringify({
+          symbol,
+          direction,
+          stake: stakeMinor,
+          durationSec: effectiveDurationSec,
+          accountId,
+          ...(currency === "INR" || currency === "USD" ? { currency } : {}),
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as Partial<OpenTradeResult> & { error?: string };
       if (res.ok && data.trade && data.balances) {
         onOpened({ trade: data.trade, balances: data.balances });
+      } else if (isStaleCurrencyRefusal(res.status, data)) {
+        // The account was converted elsewhere. This page holds the old currency (and old-unit balances and trades), so
+        // every retry would be refused: reload to pick up the new one, as the website's own Convert does. Never resend.
+        setError(STALE_CURRENCY_NOTICE);
+        reloading = true;
+        window.setTimeout(() => window.location.reload(), 1500);
       } else {
         setError(data.error ?? "Could not place that trade.");
       }
     } catch {
       setError("Could not reach the server.");
     } finally {
-      setBusy(false);
+      // Stays busy while the page reloads, so a second tap cannot send the same stale stake again.
+      if (!reloading) setBusy(false);
     }
   }
 

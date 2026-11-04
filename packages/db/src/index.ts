@@ -74,7 +74,6 @@ export {
   DepositAlreadyResolved,
   DepositReversalRefused,
   UtrAlreadyClaimed,
-  USD_TO_INR_RATE,
   OFFSET_LOW,
   OFFSET_SPACE,
   DEPOSIT_TTL_MINUTES,
@@ -94,6 +93,7 @@ export {
   MAX_DEPOSIT_USDT_MINOR,
   USDT_RESERVATION_QUARANTINE_MS,
   depositCreditMinor,
+  creditedMinorByDeposit,
   expireStaleUsdtDeposits,
   createDepositIntent,
   createUsdtDepositIntent,
@@ -104,6 +104,7 @@ export {
   findLiveDepositByClaimedUtr,
   creditDepositToAccount,
   getDepositByToken,
+  getDepositForActor,
   listDepositsForActor,
   listPendingDeposits,
   rejectDeposit,
@@ -112,6 +113,7 @@ export {
   claimUtr,
   claimUsdtPayment,
 } from "./repositories/deposit";
+export { buildDepositReceipt, getDepositReceipt, type DepositReceipt, type ReceiptTx } from "./repositories/deposit-receipt";
 export {
   matchCreditToDeposit,
   type MatchOutcome,
@@ -131,11 +133,13 @@ export {
   markWithdrawalPaid,
   getWithdrawalNotice,
   listWithdrawalsForActor,
+  getWithdrawalForActor,
   withdrawalLimitsMinor,
   type WithdrawalPayout,
 } from "./repositories/withdrawal";
 export {
   loadProfile,
+  setLocale,
   updateProfile,
   saveKycDocument,
   submitKyc,
@@ -288,3 +292,6 @@ export type {
   BonusGrant,
 } from "./models";
 export type { DbClient, DbTransaction } from "./client";
+
+export * from "./repositories/notifications";
+export type { PushDevice, NotificationOutbox } from "../generated/prisma/client";

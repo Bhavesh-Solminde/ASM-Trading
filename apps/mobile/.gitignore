@@ -1,0 +1,7 @@
+android/
+ios/
+.expo/
+node_modules/
+expo-env.d.ts
+
+google-services*.json

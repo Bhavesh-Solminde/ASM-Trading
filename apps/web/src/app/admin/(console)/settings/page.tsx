@@ -4,7 +4,8 @@ import {
   MAX_DEPOSIT_USD_MINOR,
   MIN_DEPOSIT_USD_MINOR,
   TURNOVER_MULTIPLE,
-  USD_TO_INR_RATE,
+  USD_INR_RATE,
+  convertMinorBetween,
   prisma,
 } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -40,8 +41,8 @@ export default async function SettingsPage() {
 
   // Deposit limits are stored in USD minor units; show them in USD and give
   // the rupee equivalent at the reservation rate.
-  const minInr = Math.round(MIN_DEPOSIT_USD_MINOR * USD_TO_INR_RATE);
-  const maxInr = Math.round(MAX_DEPOSIT_USD_MINOR * USD_TO_INR_RATE);
+  const minInr = convertMinorBetween(MIN_DEPOSIT_USD_MINOR, "USD", "INR");
+  const maxInr = convertMinorBetween(MAX_DEPOSIT_USD_MINOR, "USD", "INR");
 
   return (
     <>
@@ -53,7 +54,7 @@ export default async function SettingsPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 880 }}>
         <Card title="Platform">
           <Row label="Platform name" control="IndianxTrade" />
-          <Row label="USD → INR rate" desc="Used when reserving a deposit amount." control={`₹${USD_TO_INR_RATE}`} />
+          <Row label="USD → INR rate" desc="The one fixed rate: deposits, currency switch and derived limits." control={`₹${USD_INR_RATE}`} />
           <Row
             label="Deposit range"
             desc={`Per deposit · about ${inrFromMinor(minInr, 0)} – ${inrFromMinor(maxInr, 0)} at this rate.`}

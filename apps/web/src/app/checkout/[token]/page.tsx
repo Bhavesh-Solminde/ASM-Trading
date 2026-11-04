@@ -6,8 +6,8 @@ import { DepositResult } from "./DepositResult";
 import { UsdtStatusPoller } from "./UsdtStatusPoller";
 import { BackCancelGuard } from "./BackCancelGuard";
 import { usdtNetworkDisplay } from "@/lib/usdt-network-display";
-import { buildUpiDeepLink } from "@/lib/upi";
-import { upiCollection, upiManualClaimDelaySec } from "@/lib/upi-collection";
+import { upiUriFor } from "@/lib/checkout-view";
+import { upiManualClaimDelaySec } from "@/lib/upi-collection";
 import { GatewayIcon } from "@/components/deposit/GatewayIcon";
 import { checkoutTheme } from "@/components/deposit/checkout-theme";
 
@@ -40,14 +40,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
 
   const rupees = (deposit.amountInr / 100).toFixed(2);
   const usdtAmount = deposit.amountUsdtMinor != null ? (deposit.amountUsdtMinor / 100).toFixed(2) : "0.00";
-  const collection = upiCollection();
-  const upiUri = buildUpiDeepLink({
-    vpa: deposit.vpa,
-    payeeName: collection.payeeName,
-    amountInr: deposit.amountInr,
-    merchantCode: collection.merchantCode,
-    note: `IXT-${deposit.id.slice(0, 8)}`,
-  });
+  const upiUri = upiUriFor(deposit);
 
   const qrDataUri = await QRCode.toDataURL(isUsdt ? (deposit.receivingAddress ?? "") : upiUri, {
     width: 260,

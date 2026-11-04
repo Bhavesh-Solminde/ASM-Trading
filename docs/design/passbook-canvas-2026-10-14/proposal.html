@@ -1,0 +1,970 @@
+<title>IndianxTrade Passbook Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400..700&family=Anek+Latin:wdth,wght@75..125,300..700&family=Martian+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one reading column for the story; phone pairs sit on a wide grid (before | after | what changed), stacking to one column on a phone. */
+:root {
+  color-scheme: dark;
+  --ground: #06080b;
+  --page: #0a0d12;
+  --surface: #0f141b;
+  --raised: #171d26;
+  --rule: #252d39;
+  --rule-soft: #1a212b;
+  --ink: #edf1f6;
+  --ink2: #a6b0be;
+  --ink3: #737d8c;
+  --accent: #3f6ff2;
+  --accent-text: #86a6ff;
+  --accent-dim: #142247;
+  --up: #2ecf7a;
+  --up-ink: #04170c;
+  --down: #d63a30;
+  --down-text: #ff7468;
+  --gold: #e2b54c;
+  --saffron: #ff9933;
+  --india-green: #1f9a12;
+  --bezel: #1b2129;
+  --font-ui: "Anek Latin", "Anek Devanagari", system-ui, sans-serif;
+  --font-hi: "Anek Devanagari", "Anek Latin", system-ui, sans-serif;
+  --font-fig: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html { background: var(--page); }
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0;
+  padding-inline: clamp(16px, 4vw, 48px);
+  padding-block: 0 96px;
+}
+::selection { background: var(--accent); color: #fff; }
+a { color: var(--accent-text); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 3px; }
+
+.wrap { max-width: 1240px; margin-inline: auto; }
+.read { max-width: 68ch; }
+
+/* ---------- page head ---------- */
+.masthead { display: grid; gap: 28px; padding-block: 56px 40px; }
+.masthead img { width: min(360px, 80vw); height: auto; display: block; }
+.tri { height: 2px; background: linear-gradient(90deg, var(--saffron) 0 33.3%, #f3f1ea 33.3% 66.6%, var(--india-green) 66.6%); border-radius: 2px; }
+.tri.fade { background: linear-gradient(90deg, transparent, var(--saffron) 18%, var(--saffron) 33.3%, #f3f1ea 33.3% 66.6%, var(--india-green) 66.6% 82%, transparent); }
+h1 { font-size: clamp(34px, 5.4vw, 60px); line-height: 1.02; letter-spacing: -0.025em; font-weight: 640; font-stretch: 88%; margin: 0; text-wrap: balance; max-width: 18ch; }
+h2 { font-size: clamp(26px, 3.2vw, 36px); line-height: 1.1; letter-spacing: -0.02em; font-weight: 620; font-stretch: 92%; margin: 0 0 12px; text-wrap: balance; }
+h3 { font-size: 19px; line-height: 1.25; font-weight: 600; margin: 0 0 6px; }
+.lede { font-size: 19px; color: var(--ink2); margin: 0; max-width: 60ch; }
+p { margin: 0 0 12px; }
+.muted { color: var(--ink2); }
+section { padding-block: 72px 0; }
+section > .read { margin-bottom: 32px; }
+
+/* ---------- system strip ---------- */
+.system { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--rule-soft); border-radius: 14px; padding: 20px; min-width: 0; }
+.swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.sw { display: grid; gap: 6px; font-size: 12px; color: var(--ink2); }
+.sw i { display: block; height: 44px; border-radius: 8px; border: 1px solid #ffffff14; }
+.specimen-fig { font-family: var(--font-fig); font-size: 30px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 10px 0 2px; }
+.specimen-words { font-size: 14px; color: var(--ink2); }
+.specimen-hi { font-family: var(--font-hi); font-size: 22px; font-weight: 560; margin-top: 12px; }
+.moves { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.moves li { display: grid; gap: 2px; }
+.moves b { font-weight: 600; }
+.moves span { color: var(--ink2); font-size: 15px; }
+
+/* ---------- pairs ---------- */
+.pair { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 28px; align-items: start; padding-block: 40px; border-top: 1px solid var(--rule-soft); }
+.pair:first-of-type { border-top: 0; }
+.col-phone { display: grid; gap: 10px; justify-items: center; }
+.cap { font-size: 13px; color: var(--ink3); font-family: var(--font-fig); letter-spacing: 0.02em; }
+.cap.now { color: var(--accent-text); }
+.why { min-width: 0; padding-top: 8px; }
+.why ul { margin: 10px 0 0; padding-left: 18px; color: var(--ink2); display: grid; gap: 8px; }
+.why li::marker { color: var(--ink3); }
+.new-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 44px 28px; justify-items: center; }
+.new-item { display: grid; gap: 12px; justify-items: center; max-width: 320px; }
+.new-item .note { font-size: 14.5px; color: var(--ink2); text-align: left; width: 288px; max-width: 100%; }
+.new-item .note b { color: var(--ink); font-weight: 600; display: block; font-size: 16px; margin-bottom: 2px; }
+@media (max-width: 980px) {
+  .pair { grid-template-columns: auto auto; justify-content: center; }
+  .why { grid-column: 1 / -1; max-width: 640px; }
+}
+@media (max-width: 660px) {
+  .pair { grid-template-columns: 1fr; justify-items: center; }
+}
+
+/* ---------- phone frame ---------- */
+.phone {
+  width: 288px; max-width: 100%; aspect-ratio: 9 / 20; flex: none;
+  border-radius: 38px; padding: 7px;
+  background: linear-gradient(160deg, #262d37, #0c1015 60%);
+  box-shadow: 0 28px 50px -24px #000000d0, inset 0 0 0 1px #2c3440;
+}
+.screen {
+  position: relative; height: 100%; border-radius: 31px; overflow: hidden;
+  background: var(--ground); color: var(--ink);
+  font-family: var(--font-ui); font-size: 12px; line-height: 1.35;
+  display: flex; flex-direction: column;
+}
+.screen.shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sb { height: 28px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px 0 22px; font-size: 11.5px; font-weight: 600; }
+.sb .icons { display: flex; gap: 4px; align-items: center; }
+.sb svg { width: 12px; height: 12px; }
+.gesture { height: 18px; flex: none; display: grid; place-items: center; }
+.gesture::before { content: ""; width: 92px; height: 4px; border-radius: 4px; background: #e8ecf2c0; }
+.fig { font-family: var(--font-fig); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.lbl { font-size: 10px; color: var(--ink3); letter-spacing: 0.03em; }
+.pad-x { padding-inline: 14px; }
+.grow { flex: 1; min-height: 0; }
+.row { display: flex; align-items: center; gap: 8px; }
+.between { justify-content: space-between; }
+.stack { display: flex; flex-direction: column; }
+.up-t { color: var(--up); }
+.down-t { color: var(--down-text); }
+.acc-t { color: var(--accent-text); }
+.gold-t { color: var(--gold); }
+.i { width: 16px; height: 16px; flex: none; }
+.i-sm { width: 13px; height: 13px; flex: none; }
+.i-lg { width: 22px; height: 22px; flex: none; }
+
+/* buttons: 12px radius; chips: pill */
+.btn { height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; font-size: 14px; border: 0; color: var(--ink); background: transparent; font-family: inherit; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.line { border: 1px solid var(--rule); }
+.btn.text { height: 36px; color: var(--accent-text); font-weight: 500; }
+.btn.up { background: var(--up); color: var(--up-ink); }
+.btn.down { background: var(--down); color: #fff; }
+.btn.white { background: var(--ink); color: var(--ground); }
+.chip { height: 30px; padding: 0 12px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--rule); font-size: 12px; font-weight: 500; color: var(--ink2); white-space: nowrap; }
+.chip.on { background: var(--ink); border-color: var(--ink); color: var(--ground); font-weight: 600; }
+
+/* stamps: the passbook's rubber-stamp marks */
+.stamp { display: inline-flex; align-items: center; font-family: var(--font-fig); font-size: 8.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 5px; border: 1.2px solid currentColor; border-radius: 3px; outline: 1px solid currentColor; outline-offset: 1.5px; line-height: 1.2; }
+.stamp.ok { color: var(--up); }
+.stamp.no { color: var(--down-text); }
+.stamp.wait { color: var(--accent-text); }
+.stamp.gold { color: var(--gold); }
+.stamp.big { font-size: 13px; padding: 5px 10px; transform: rotate(-7deg); outline-offset: 2.5px; border-width: 2px; }
+
+/* bank-form boxes: one box per digit */
+.boxes { display: grid; grid-template-columns: repeat(4, 46px); gap: 10px; justify-content: center; }
+.box { height: 54px; border: 1.5px solid var(--rule); border-radius: 8px; display: grid; place-items: center; background: var(--surface); }
+.box.fill::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
+.box.cur { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.box.err { border-color: var(--down-text); }
+
+/* keypad: ledger grid of hairlines */
+.keys { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule-soft); }
+.keys > span { height: 46px; display: grid; place-items: center; font-size: 21px; font-weight: 500; border-bottom: 1px solid var(--rule-soft); }
+.keys > span:nth-child(3n+2) { border-inline: 1px solid var(--rule-soft); }
+.keys > span svg { width: 20px; height: 20px; color: var(--ink2); }
+
+/* top bar + nav */
+.topbar { display: flex; align-items: center; gap: 8px; padding: 4px 12px 6px; }
+.topbar .mark { width: 30px; height: auto; }
+.seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--surface); border: 1px solid var(--rule-soft); }
+.seg span { height: 24px; padding: 0 11px; border-radius: 999px; display: grid; place-items: center; font-size: 11.5px; font-weight: 600; color: var(--ink3); }
+.seg span.on { background: var(--raised); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule); }
+.seg span.live.on { color: var(--down-text); }
+.bal { margin-left: auto; text-align: right; display: grid; line-height: 1.15; }
+.bal .fig { font-size: 13px; font-weight: 600; }
+.dep { width: 34px; height: 34px; border-radius: 12px; background: var(--accent); display: grid; place-items: center; color: #fff; }
+.nav { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--rule-soft); background: var(--ground); padding-top: 6px; }
+.nav span { display: grid; justify-items: center; gap: 3px; font-size: 10px; color: var(--ink3); }
+.nav span i { width: 52px; height: 26px; border-radius: 999px; display: grid; place-items: center; }
+.nav span.on { color: var(--ink); font-weight: 600; }
+.nav span.on i { background: var(--accent-dim); color: var(--accent-text); }
+.nav svg { width: 18px; height: 18px; }
+
+/* chart */
+canvas.cv { display: block; width: 100%; }
+.chart-wrap { position: relative; }
+.overlay-row { position: absolute; left: 10px; right: 10px; top: 8px; display: flex; gap: 6px; align-items: center; }
+.pill { height: 30px; padding: 0 10px; border-radius: 999px; background: #0f141bdd; border: 1px solid var(--rule); display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; }
+.pill .fig { font-weight: 500; font-size: 11px; }
+.round { width: 30px; height: 30px; border-radius: 999px; background: #0f141bdd; border: 1px solid var(--rule); display: grid; place-items: center; color: var(--ink2); }
+
+/* dock */
+.dock { padding: 8px 12px 6px; display: grid; gap: 8px; background: linear-gradient(180deg, var(--ground), var(--surface) 30%); border-top: 1px solid var(--rule-soft); }
+.cheque { display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 2px 8px; padding: 7px 10px 6px; border-radius: 12px; border: 1px solid var(--rule); background: var(--ground); }
+.cheque .amt { justify-self: end; font-size: 18px; font-weight: 600; }
+.cheque .words { grid-column: 1 / -1; justify-self: end; font-size: 10px; color: var(--ink3); border-top: 1px dashed var(--rule); padding-top: 3px; width: 100%; text-align: right; }
+.chips { display: flex; gap: 6px; }
+.chips .chip { flex: 1; padding: 0; height: 30px; }
+.bs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bs .btn { height: 50px; flex-direction: column; gap: 0; line-height: 1.1; font-size: 15px; }
+.bs .btn small { font-size: 10px; font-weight: 500; opacity: 0.85; font-family: var(--font-fig); letter-spacing: -0.02em; }
+.bs .btn .row { gap: 4px; }
+.entry { margin: 0 12px; padding: 7px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--rule-soft); display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+.ring { width: 26px; height: 26px; border-radius: 50%; background: conic-gradient(var(--down-text) 0 26%, var(--rule) 0); display: grid; place-items: center; }
+.ring::after { content: ""; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); }
+
+/* sheets */
+.scrim { position: absolute; inset: 0; background: #00000099; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 18px 18px 0 0; border-top: 1px solid var(--rule); display: flex; flex-direction: column; }
+.handle { width: 36px; height: 4px; border-radius: 4px; background: var(--rule); margin: 8px auto 4px; }
+.sheet-title { font-size: 16px; font-weight: 620; padding: 4px 16px 8px; display: flex; align-items: center; justify-content: space-between; }
+
+/* ledger */
+.ledger { display: grid; grid-template-columns: minmax(0, 1fr) 50px 50px 62px; column-gap: 6px; padding-inline: 12px; }
+.ledger .h { font-size: 8.5px; color: var(--ink3); letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 0; border-bottom: 1px solid var(--rule); font-family: var(--font-fig); }
+.ledger .h.r, .ledger .n { text-align: right; }
+.ledger > div:not(.h):not(.day) { padding: 7px 0; border-bottom: 1px solid var(--rule-soft); min-width: 0; }
+.ledger .n { font-family: var(--font-fig); font-size: 9px; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; align-self: stretch; padding-top: 9px !important; }
+.ledger .p b { display: block; font-size: 11.5px; font-weight: 600; }
+.ledger .p span { font-size: 9.5px; color: var(--ink3); }
+.ledger .day { grid-column: 1 / -1; font-size: 10px; color: var(--ink2); font-weight: 600; padding: 10px 0 2px; }
+
+/* lists */
+.list > div { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--rule-soft); }
+.list > div:last-child { border-bottom: 0; }
+.list .tx { flex: 1; min-width: 0; display: grid; }
+.list .tx b { font-weight: 560; font-size: 12.5px; }
+.list .tx span { font-size: 10px; color: var(--ink3); }
+.ico { width: 30px; height: 30px; border-radius: 9px; background: var(--raised); display: grid; place-items: center; color: var(--ink2); flex: none; }
+.ico svg { width: 16px; height: 16px; }
+.group-h { font-size: 10.5px; color: var(--ink3); padding: 12px 14px 6px; letter-spacing: 0.02em; }
+.module { margin: 0 12px; border: 1px solid var(--rule-soft); border-radius: 12px; background: var(--surface); }
+
+/* field */
+.field { display: grid; gap: 5px; }
+.field label { font-size: 11px; color: var(--ink2); font-weight: 500; }
+.input { height: 42px; border-radius: 10px; border: 1px solid var(--rule); background: var(--surface); display: flex; align-items: center; padding: 0 12px; font-size: 13px; gap: 8px; }
+.input.focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.input .ph { color: var(--ink3); }
+
+/* receipt */
+.receipt { margin: 0 14px; background: var(--surface); border-radius: 12px; position: relative; padding: 16px 14px 12px; border: 1px solid var(--rule-soft); }
+.perf { height: 14px; margin: 10px -14px; background: radial-gradient(circle at 0 50%, var(--ground) 6px, transparent 6.5px) left/14px 14px no-repeat, radial-gradient(circle at 100% 50%, var(--ground) 6px, transparent 6.5px) right/14px 14px no-repeat; position: relative; }
+.perf::after { content: ""; position: absolute; left: 14px; right: 14px; top: 50%; border-top: 1.5px dashed var(--rule); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 7px 10px; font-size: 11.5px; }
+.kv dt { color: var(--ink3); }
+.kv dd { margin: 0; text-align: right; }
+
+/* qr placeholder drawn on canvas */
+.qr { width: 132px; height: 132px; border-radius: 10px; background: #f4f6f8; padding: 8px; }
+.qr canvas { width: 100%; height: 100%; display: block; }
+
+/* camera */
+.cam { flex: 1; position: relative; background: radial-gradient(120% 80% at 50% 40%, #1d232c, #050607); }
+.frame-guide { position: absolute; left: 22px; right: 22px; top: 92px; aspect-ratio: 85.6 / 54; border-radius: 12px; border: 2px solid #ffffffe0; box-shadow: 0 0 0 999px #000000a0; }
+.frame-guide::before, .frame-guide::after { content: ""; position: absolute; width: 18px; height: 18px; border: 3px solid var(--saffron); }
+.frame-guide::before { left: -3px; top: -3px; border-right: 0; border-bottom: 0; border-radius: 10px 0 0 0; }
+.frame-guide::after { right: -3px; bottom: -3px; border-left: 0; border-top: 0; border-radius: 0 0 10px 0; }
+.shutter { width: 62px; height: 62px; border-radius: 50%; border: 3px solid #fff; display: grid; place-items: center; }
+.shutter::after { content: ""; width: 48px; height: 48px; border-radius: 50%; background: #fff; }
+
+/* notification preview */
+.notif { margin: 0 16px; border-radius: 16px; background: #1f2630; padding: 10px 12px; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; }
+.notif img { width: 28px; height: auto; grid-row: span 2; align-self: center; }
+
+/* considered directions */
+.consider { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+.consider .panel h3 { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.tag { font-family: var(--font-fig); font-size: 11px; color: var(--ink3); font-weight: 500; letter-spacing: 0.02em; }
+.verdicts { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; font-size: 15px; }
+.verdicts li { display: grid; gap: 2px; padding-bottom: 12px; border-bottom: 1px solid var(--rule-soft); }
+.verdicts li:last-child { border-bottom: 0; padding-bottom: 0; }
+.verdicts span { color: var(--ink2); }
+@media (max-width: 860px) { .consider { grid-template-columns: 1fr; } }
+
+/* decisions */
+.decide { counter-reset: d; display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.decide li { counter-increment: d; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 12px; background: var(--surface); border: 1px solid var(--rule-soft); border-radius: 14px; padding: 16px 18px; }
+.decide li::before { content: counter(d); grid-row: span 2; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--accent-text); color: var(--accent-text); display: grid; place-items: center; font-family: var(--font-fig); font-size: 12px; font-weight: 600; }
+.decide b { font-weight: 600; }
+.decide span { color: var(--ink2); font-size: 15px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .phone { transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+  .phone:hover { transform: translateY(-4px); }
+}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <img src="brand/wordmark.webp" alt="IndianxTrade" width="520" height="170">
+  <div class="tri fade" style="max-width: 360px"></div>
+  <h1>Passbook: a redesign for the IndianxTrade app</h1>
+  <p class="lede">The app today works but looks like a template: plain blue buttons, empty black login and lock screens, nothing that says "this is safe for my money". This proposal keeps the logo and the dark ground, keeps the chart in charge of the Trade screen, and borrows its trust from the things every Indian already trusts with money: the bank passbook, the cheque and the UPI receipt.</p>
+</header>
+
+<section aria-labelledby="sys-h" style="padding-top: 24px">
+  <div class="read">
+    <h2 id="sys-h">The system</h2>
+    <p class="muted">One accent (a deeper version of today's blue), green and red only for Up and Down, gold only for bonus. Words in Anek, a typeface made in India for Latin and Devanagari together, so Hindi screens look designed rather than substituted. Every rupee figure is set in a monospaced face, the way a passbook printer prints entries, so columns of money line up.</p>
+  </div>
+  <div class="system">
+    <div class="panel">
+      <h3>Colour</h3>
+      <div class="swatches">
+        <div class="sw"><i style="background: var(--ground)"></i>Ground</div>
+        <div class="sw"><i style="background: var(--surface)"></i>Surface</div>
+        <div class="sw"><i style="background: var(--raised)"></i>Raised</div>
+        <div class="sw"><i style="background: var(--ink)"></i>Ink</div>
+        <div class="sw"><i style="background: var(--accent)"></i>Accent</div>
+        <div class="sw"><i style="background: var(--up)"></i>Up</div>
+        <div class="sw"><i style="background: var(--down)"></i>Down</div>
+        <div class="sw"><i style="background: var(--gold)"></i>Bonus</div>
+      </div>
+      <div class="tri" style="margin-top: 16px"></div>
+      <p class="muted" style="font-size: 14px; margin-top: 8px">The logo's tricolour, used only as a 2px rule on brand moments: login, the passbook cover, receipts.</p>
+    </div>
+    <div class="panel">
+      <h3>Type</h3>
+      <div class="specimen-fig">₹9,99,600.00</div>
+      <div class="specimen-words">Indian digit grouping everywhere (lakh, crore)</div>
+      <div class="specimen-fig" style="font-size: 22px; margin-top: 14px">₹ 1,000.00</div>
+      <div class="specimen-words">One thousand rupees only</div>
+      <div class="specimen-hi">आपका बैलेंस ₹12,450.00</div>
+      <div class="specimen-words" style="font-family: var(--font-hi)">एक हज़ार रुपये मात्र</div>
+    </div>
+    <div class="panel">
+      <h3>Five signature details</h3>
+      <ul class="moves">
+        <li><b>Amounts in words</b><span>Like a cheque. Stake, deposit and withdrawal amounts are spelled out, in Hindi too, so ₹10,000 can never be mistaken for ₹1,000.</span></li>
+        <li><b>One box per digit</b><span>PIN entry uses the boxes from every Indian bank form.</span></li>
+        <li><b>Passbook ledger</b><span>History has Debit, Credit and Balance columns with a running balance.</span></li>
+        <li><b>Rubber stamps</b><span>Won, Lost, Credited and Processing are stamped, never just coloured.</span></li>
+        <li><b>Receipts</b><span>A finished deposit or trade gets a perforated UPI-style receipt.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="ex-h">
+  <div class="read">
+    <h2 id="ex-h">Screens that exist today</h2>
+    <p class="muted">Left: screenshots from the current build on the emulator (the round gear is the developer menu, not part of the app). Right: the same screen in the new system. Example values are illustrative.</p>
+  </div>
+
+  <!-- 1 Login -->
+  <div class="pair">
+    <div class="col-phone"><div class="phone"><div class="screen shot"><img src="before/login.webp" alt="Current login screen: a Log in heading, two inputs and a blue button at the bottom of an empty black screen"></div></div><span class="cap">today</span></div>
+    <div class="col-phone"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="pad-x" style="padding-top: 18px">
+        <img src="brand/wordmark.webp" alt="IndianxTrade" style="width: 190px; display: block">
+        <div class="tri fade" style="width: 190px; margin-top: 2px"></div>
+      </div>
+      <div class="chart-wrap" style="margin-top: 6px"><canvas class="cv" data-kind="area" data-seed="7" data-h="96"></canvas>
+        <div class="row" style="position: absolute; left: 14px; bottom: 8px; gap: 6px"><span style="font-weight: 600; font-size: 11px">NIFTY 50</span><span class="fig up-t" style="font-size: 10.5px">24,812.40</span></div>
+      </div>
+      <div class="pad-x stack grow" style="gap: 10px; padding-top: 10px">
+        <div style="font-size: 20px; font-weight: 620">Log in</div>
+        <div class="field"><label>Email</label><div class="input focus">asha.rao@gmail.com</div></div>
+        <div class="field"><label>Password</label><div class="input"><span class="fig" style="letter-spacing: 2px">••••••••••</span><i data-lucide="eye" class="i" style="margin-left: auto; color: var(--ink3)"></i></div></div>
+        <div class="btn primary" style="margin-top: 4px">Log in</div>
+        <div class="row between" style="font-size: 11.5px"><span class="acc-t">Forgot password?</span><span class="muted">New here? <span class="acc-t">Create account</span></span></div>
+      </div>
+      <div class="row pad-x" style="justify-content: center; gap: 4px; padding-bottom: 4px; font-size: 11px">
+        <span class="chip on" style="height: 26px">English</span><span class="chip" style="height: 26px; font-family: var(--font-hi)">हिन्दी</span>
+      </div>
+      <div class="gesture"></div>
+    </div></div><span class="cap now">proposed</span></div>
+    <div class="why"><h3>Login</h3><p class="muted">The empty top half becomes the brand: the real logo, the tricolour rule, and a live market line that shows what the app does before you sign in.</p>
+      <ul><li>Labels sit above the fields, so they stay visible while typing.</li><li>Language switch on the first screen; many users read Hindi first.</li><li>"Continue with Google" appears under Log in once the Google client IDs are set.</li></ul></div>
+  </div>
+
+  <!-- 2 Lock setup -->
+  <div class="pair">
+    <div class="col-phone"><div class="phone"><div class="screen shot"><img src="before/lock-setup.webp" alt="Current lock setup: a heading and two buttons on an empty black screen"></div></div><span class="cap">today</span></div>
+    <div class="col-phone"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="stack grow pad-x" style="justify-content: center; gap: 22px">
+        <div class="boxes"><div class="box"></div><div class="box"></div><div class="box"></div><div class="box"></div></div>
+        <div style="display: grid; gap: 6px">
+          <div style="font-size: 21px; font-weight: 620; line-height: 1.15">Protect your account</div>
+          <div class="muted" style="font-size: 12.5px">Lock IndianxTrade so only you can open it. You unlock it when you open the app and after 5 minutes away.</div>
+        </div>
+        <div class="module">
+          <div class="list">
+            <div><span class="ico" style="color: var(--accent-text); background: var(--accent-dim)"><i data-lucide="fingerprint"></i></span><span class="tx"><b>Use fingerprint</b><span>Fastest. Recommended</span></span><i data-lucide="chevron-right" class="i-sm" style="color: var(--ink3)"></i></div>
+            <div><span class="ico"><i data-lucide="key-round"></i></span><span class="tx"><b>Set a 4-digit PIN</b><span>Works on every phone</span></span><i data-lucide="chevron-right" class="i-sm" style="color: var(--ink3)"></i></div>
+          </div>
+        </div>
+      </div>
+      <div class="btn text" style="margin-bottom: 6px">Not now</div>
+      <div class="gesture"></div>
+    </div></div><span class="cap now">proposed</span></div>
+    <div class="why"><h3>Lock setup</h3><p class="muted">The screen explains what the lock does and when it asks, in one sentence. Fingerprint leads because it is the faster choice.</p>
+      <ul><li>The empty PIN boxes preview the lock screen, so the next step is already familiar.</li><li>"Not now" is a quiet text button, not a second big button competing with the safe choice.</li></ul></div>
+  </div>
+
+  <!-- 3 Lock -->
+  <div class="pair">
+    <div class="col-phone"><div class="phone"><div class="screen shot"><img src="before/lock.webp" alt="Current lock screen with small dots, a grey keypad and a red error line"></div></div><span class="cap">today</span></div>
+    <div class="col-phone"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="stack grow" style="justify-content: center; gap: 16px; padding-top: 10px">
+        <div class="stack" style="align-items: center; gap: 8px">
+          <img src="brand/mark.webp" alt="" style="width: 54px">
+          <div style="font-size: 18px; font-weight: 620">Welcome back, Asha</div>
+          <div class="muted" style="font-size: 11.5px">Enter your PIN</div>
+        </div>
+        <div class="boxes"><div class="box fill err"></div><div class="box fill err"></div><div class="box cur"></div><div class="box"></div></div>
+        <div class="down-t" style="text-align: center; font-size: 11.5px; height: 16px">Wrong PIN. 1 try left.</div>
+      </div>
+      <div class="keys">
+        <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
+        <span><i data-lucide="fingerprint"></i></span><span>0</span><span><i data-lucide="delete"></i></span>
+      </div>
+      <div class="btn text" style="font-size: 12px">Forgot PIN? Log in again</div>
+      <div class="gesture"></div>
+    </div></div><span class="cap now">proposed</span></div>
+    <div class="why"><h3>Lock</h3><p class="muted">A greeting by name tells you it is your account. Four bank-form boxes make the PIN length obvious, and the error line has a fixed slot so the keypad never jumps (a bug the device check found).</p>
+      <ul><li>Fingerprint sits on the keypad, where the thumb already is.</li><li>The keypad is drawn as a ledger grid: no grey tiles, bigger numbers.</li></ul></div>
+  </div>
+
+  <!-- 4 Trade -->
+  <div class="pair">
+    <div class="col-phone"><div class="phone"><div class="screen shot"><img src="before/trade.webp" alt="Current trade screen with a crowded top bar, chart, open trade strip, stake, expiry chips and Buy and Sell"></div></div><span class="cap">today</span></div>
+    <div class="col-phone"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="topbar">
+        <img class="mark" src="brand/mark.webp" alt="IndianxTrade">
+        <span class="seg"><span class="on">Demo</span><span class="live">Live</span></span>
+        <span class="bal"><span class="lbl">Demo balance</span><span class="fig">₹9,99,600.00</span></span>
+        <span class="dep"><i data-lucide="plus" class="i"></i></span>
+      </div>
+      <div class="chart-wrap grow" style="display: flex; flex-direction: column">
+        <canvas class="cv" data-kind="candles" data-seed="3" data-trade="1" style="flex: 1; min-height: 0"></canvas>
+        <div class="overlay-row">
+          <span class="pill">BTC/USDT <span class="fig up-t">93%</span><i data-lucide="chevron-down" class="i-sm" style="color: var(--ink3)"></i></span>
+          <span class="round"><i data-lucide="ellipsis" class="i-sm"></i></span>
+          <span class="stamp gold" style="margin-left: auto">+100% bonus</span>
+        </div>
+      </div>
+      <div class="entry" style="margin-top: 6px">
+        <span class="ring"></span>
+        <span class="stack"><span style="font-weight: 600; font-size: 11.5px"><span class="down-t">Down</span> BTC/USDT <span class="fig" style="font-size: 10px; color: var(--ink2)">0:08</span></span><span class="fig" style="font-size: 9.5px; color: var(--ink3)">₹100.00 at 94,553.62</span></span>
+        <span class="stack" style="align-items: flex-end"><span class="fig up-t" style="font-weight: 600; font-size: 12px">+₹193.00</span><span style="font-size: 9px; color: var(--ink3)">if it ends now</span></span>
+      </div>
+      <div class="dock">
+        <div class="cheque"><span class="lbl" style="font-size: 11px">Amount</span><span class="amt fig">₹1,000.00</span><span class="words">One thousand rupees only</span></div>
+        <div class="chips"><span class="chip">30s</span><span class="chip on">1m</span><span class="chip">5m</span><span class="chip">15m</span><span class="chip">More</span></div>
+        <div class="bs">
+          <div class="btn up"><span class="row"><i data-lucide="arrow-up" class="i"></i>Up</span><small>win ₹1,930</small></div>
+          <div class="btn down"><span class="row"><i data-lucide="arrow-down" class="i"></i>Down</span><small>win ₹1,930</small></div>
+        </div>
+      </div>
+      <div class="nav"><span class="on"><i><i data-lucide="chart-candlestick"></i></i>Trade</span><span><i><i data-lucide="wallet"></i></i>Payments</span><span><i><i data-lucide="history"></i></i>History</span><span><i><i data-lucide="user"></i></i>Account</span></div>
+      <div class="gesture"></div>
+    </div></div><span class="cap now">proposed</span></div>
+    <div class="why"><h3>Trade</h3><p class="muted">Same layout, same two taps. The chart keeps most of the screen; the chrome around it gets quieter and more exact.</p>
+      <ul><li>Balance in Indian grouping with its account named ("Demo balance"), so Demo money is never mistaken for real money.</li><li>The amount is written in words under the figure, like a cheque.</li><li>Buy and Sell become Up and Down with arrows, and show the total you get back if you win, not a percentage to work out.</li><li>The open trade reads like a pending passbook entry: what, how much, at what price, and what it pays now.</li></ul></div>
+  </div>
+
+  <!-- 5 Keypad -->
+  <div class="pair">
+    <div class="col-phone"><div class="phone"><div class="screen shot"><img src="before/keypad.webp" alt="Current stake keypad sheet with a number, chips and grey keys"></div></div><span class="cap">today</span></div>
+    <div class="col-phone"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="chart-wrap grow"><canvas class="cv" data-kind="candles" data-seed="3" style="height: 100%"></canvas></div>
+      <div class="scrim"></div>
+      <div class="sheet" style="height: 79%">
+        <div class="handle"></div>
+        <div class="sheet-title"><span>Amount</span><span class="lbl" style="font-size: 11px">Demo account</span></div>
+        <div class="pad-x" style="display: grid; gap: 2px">
+          <div class="fig" style="font-size: 34px; font-weight: 600; letter-spacing: -0.04em">₹ 2,500</div>
+          <div style="font-size: 12px; color: var(--ink2); border-top: 1px dashed var(--rule); padding-top: 5px">Two thousand five hundred rupees only</div>
+        </div>
+        <div class="row pad-x" style="gap: 6px; padding-top: 12px; overflow: hidden"><span class="chip">₹100</span><span class="chip">₹500</span><span class="chip">₹1,000</span><span class="chip on">₹2,500</span><span class="chip">₹5,000</span></div>
+        <div class="row between pad-x" style="padding-block: 12px 10px; font-size: 11.5px"><span class="muted">If you win (93%)</span><span class="fig up-t" style="font-weight: 600">₹4,825.00</span></div>
+        <div class="keys grow" style="grid-auto-rows: 1fr">
+          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span style="color: var(--ink3)">.</span><span>0</span><span><i data-lucide="delete"></i></span>
+        </div>
+        <div class="pad-x" style="padding-block: 8px 4px"><div class="btn white">Done</div></div>
+        <div class="gesture"></div>
+      </div>
+    </div></div><span class="cap now">proposed</span></div>
+    <div class="why"><h3>Amount keypad</h3><p class="muted">The cheque idea at full size: the figure and the words together. This is also a safety feature: a stray zero shows up in words before it costs money.</p>
+      <ul><li>Shows the payout for the amount being typed, before Done.</li><li>The sheet names the account it is for.</li><li>Done is white, not blue: blue is kept for actions that move money.</li></ul></div>
+  </div>
+
+  <!-- 6 Expiry -->
+  <div class="pair">
+    <div class="col-phone"><div class="phone"><div class="screen shot"><img src="before/expiry.webp" alt="Current expiry sheet with a grid of time buttons"></div></div><span class="cap">today</span></div>
+    <div class="col-phone"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="chart-wrap grow"><canvas class="cv" data-kind="candles" data-seed="11" style="height: 100%"></canvas></div>
+      <div class="scrim"></div>
+      <div class="sheet" style="height: 52%">
+        <div class="handle"></div>
+        <div class="sheet-title"><span>Trade length</span></div>
+        <div class="pad-x" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px">
+          <span class="chip">5s</span><span class="chip">10s</span><span class="chip">15s</span><span class="chip on">30s</span>
+          <span class="chip">1m</span><span class="chip">2m</span><span class="chip">5m</span><span class="chip">10m</span>
+          <span class="chip">15m</span><span class="chip">30m</span><span class="chip">1h</span><span class="chip">2h</span>
+          <span class="chip">4h</span>
+        </div>
+        <div class="pad-x row between" style="margin-top: auto; padding-block: 12px; border-top: 1px solid var(--rule-soft); font-size: 12px">
+          <span class="muted">A trade placed now ends at</span><span class="fig" style="font-weight: 600">18:11:04</span>
+        </div>
+        <div class="gesture"></div>
+      </div>
+    </div></div><span class="cap now">proposed</span></div>
+    <div class="why"><h3>Trade length</h3><p class="muted">"Time" becomes "Trade length", and the sheet tells you the exact clock time the trade would end. One clear selected state (white chip) instead of blue.</p></div>
+  </div>
+
+  <!-- 7 Trades sheet -->
+  <div class="pair">
+    <div class="col-phone"><div class="phone"><div class="screen shot"><img src="before/trades.webp" alt="Current trades sheet with Open and Closed tabs and small badges"></div></div><span class="cap">today</span></div>
+    <div class="col-phone"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="chart-wrap" style="height: 24%"><canvas class="cv" data-kind="candles" data-seed="5" style="height: 100%"></canvas></div>
+      <div class="scrim"></div>
+      <div class="sheet" style="height: 80%">
+        <div class="handle"></div>
+        <div class="sheet-title"><span>Your trades</span></div>
+        <div class="row pad-x" style="gap: 6px; padding-bottom: 6px"><span class="chip">Open 0</span><span class="chip on">Closed 4</span></div>
+        <div class="ledger" style="grid-template-columns: 40px minmax(0, 1fr) 72px">
+          <div class="h">Time</div><div class="h">Trade</div><div class="h r">Result</div>
+          <div class="n" style="text-align: left">18:10</div><div class="p"><b>BTC/USDT <span class="down-t">Down</span></b><span class="fig">₹100 · 94,553.62 to 94,547.27</span></div><div class="n"><span class="up-t" style="font-size: 10px; font-weight: 600">+₹193.00</span><br><span class="stamp ok" style="margin-top: 4px">Won</span></div>
+          <div class="n" style="text-align: left">18:08</div><div class="p"><b>BTC/USDT <span class="up-t">Up</span></b><span class="fig">₹100 · 94,602.64 to 94,580.87</span></div><div class="n"><span class="down-t" style="font-size: 10px; font-weight: 600">−₹100.00</span><br><span class="stamp no" style="margin-top: 4px">Lost</span></div>
+          <div class="n" style="text-align: left">18:06</div><div class="p"><b>BTC/USDT <span class="up-t">Up</span></b><span class="fig">₹100 · 94,713.92 to 94,559.17</span></div><div class="n"><span class="down-t" style="font-size: 10px; font-weight: 600">−₹100.00</span><br><span class="stamp no" style="margin-top: 4px">Lost</span></div>
+          <div class="n" style="text-align: left">17:48</div><div class="p"><b>NIFTY 50 <span class="down-t">Down</span></b><span class="fig">₹100 · 23,997.78 to 23,988.27</span></div><div class="n"><span class="up-t" style="font-size: 10px; font-weight: 600">+₹193.00</span><br><span class="stamp ok" style="margin-top: 4px">Won</span></div>
+        </div>
+        <div class="row between pad-x" style="margin-top: auto; padding-block: 10px; border-top: 1px solid var(--rule); font-size: 11.5px"><span class="muted">Today, Demo</span><span class="fig up-t" style="font-weight: 600">+₹186.00</span></div>
+        <div class="gesture"></div>
+      </div>
+    </div></div><span class="cap now">proposed</span></div>
+    <div class="why"><h3>Your trades</h3><p class="muted">A small ledger: time, trade, result. Each result is stamped Won or Lost, so it reads without relying on colour, and the day's total sits at the foot like a passbook page total.</p></div>
+  </div>
+
+  <!-- 8 Markets -->
+  <div class="pair">
+    <div class="col-phone"><div class="phone"><div class="screen shot"><img src="before/markets.webp" alt="Current markets sheet with a search box and a plain list"></div></div><span class="cap">today</span></div>
+    <div class="col-phone"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="chart-wrap" style="height: 14%"><canvas class="cv" data-kind="candles" data-seed="9" style="height: 100%"></canvas></div>
+      <div class="scrim"></div>
+      <div class="sheet" style="height: 88%">
+        <div class="handle"></div>
+        <div class="sheet-title"><span>Markets</span></div>
+        <div class="pad-x"><div class="input"><i data-lucide="search" class="i" style="color: var(--ink3)"></i><span class="ph">Search markets</span></div></div>
+        <div class="row pad-x" style="gap: 6px; padding-block: 10px; overflow: hidden"><span class="chip on">All</span><span class="chip">Crypto</span><span class="chip">India</span><span class="chip">Forex</span><span class="chip"><i data-lucide="star" class="i-sm"></i></span></div>
+        <div class="list">
+          <div><span class="tx"><b>BTC/USDT</b><span>Bitcoin</span></span><span class="stack" style="align-items: flex-end"><span class="fig" style="font-size: 11px">94,553.62</span><span class="fig up-t" style="font-size: 9.5px">+0.84%</span></span><span class="fig up-t" style="width: 34px; text-align: right; font-weight: 600; font-size: 11px">93%</span></div>
+          <div><span class="tx"><b>ETH/USDT</b><span>Ethereum</span></span><span class="stack" style="align-items: flex-end"><span class="fig" style="font-size: 11px">3,412.08</span><span class="fig down-t" style="font-size: 9.5px">−0.31%</span></span><span class="fig up-t" style="width: 34px; text-align: right; font-weight: 600; font-size: 11px">93%</span></div>
+          <div><span class="tx"><b>NIFTY 50</b><span>India index</span></span><span class="stack" style="align-items: flex-end"><span class="fig" style="font-size: 11px">24,812.40</span><span class="fig up-t" style="font-size: 9.5px">+0.42%</span></span><span class="fig up-t" style="width: 34px; text-align: right; font-weight: 600; font-size: 11px">93%</span></div>
+          <div style="opacity: 0.62"><span class="tx"><b>BANK NIFTY</b><span>Closed, opens 05:00</span></span><span class="stamp wait">Closed</span></div>
+          <div><span class="tx"><b>EUR/USD</b><span>Euro / US dollar</span></span><span class="stack" style="align-items: flex-end"><span class="fig" style="font-size: 11px">1.08417</span><span class="fig up-t" style="font-size: 9.5px">+0.06%</span></span><span class="fig up-t" style="width: 34px; text-align: right; font-weight: 600; font-size: 11px">93%</span></div>
+        </div>
+      </div>
+    </div></div><span class="cap now">proposed</span></div>
+    <div class="why"><h3>Markets</h3><p class="muted">Category chips put Indian markets one tap away. Each row shows price and change as well as payout.</p>
+      <ul><li>A closed market says so, with its opening time, before you pick it. This also fixes a known gap: at night the app lets you tap Buy on a closed Indian index and only then shows the server's refusal.</li></ul></div>
+  </div>
+
+  <!-- 9 Bonus -->
+  <div class="pair">
+    <div class="col-phone"><div class="phone"><div class="screen shot"><img src="before/bonus.webp" alt="Current deposit bonus sheet with four green-outlined rows"></div></div><span class="cap">today</span></div>
+    <div class="col-phone"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="chart-wrap grow"><canvas class="cv" data-kind="candles" data-seed="3" style="height: 100%"></canvas></div>
+      <div class="scrim"></div>
+      <div class="sheet" style="height: 64%">
+        <div class="handle"></div>
+        <div class="sheet-title"><span>Deposit bonus</span></div>
+        <div class="pad-x muted" style="font-size: 11.5px; padding-bottom: 8px">Extra trading balance on each of your first 4 deposits.</div>
+        <div class="ledger" style="grid-template-columns: minmax(0, 1fr) 60px 66px">
+          <div class="h">Deposit</div><div class="h r">Bonus</div><div class="h r">Status</div>
+          <div class="p"><b>1st deposit</b></div><div class="n gold-t" style="font-size: 11px; font-weight: 600">100%</div><div class="n"><span class="stamp gold">Next</span></div>
+          <div class="p"><b>2nd deposit</b></div><div class="n" style="font-size: 11px">100%</div><div class="n" style="color: var(--ink3)">Upcoming</div>
+          <div class="p"><b>3rd deposit</b></div><div class="n" style="font-size: 11px">50%</div><div class="n" style="color: var(--ink3)">Upcoming</div>
+          <div class="p"><b>4th deposit</b></div><div class="n" style="font-size: 11px">50%</div><div class="n" style="color: var(--ink3)">Upcoming</div>
+        </div>
+        <div class="pad-x muted" style="font-size: 10.5px; padding-top: 10px">The bonus is added when your deposit is credited. It is for trading only; only your real balance can be withdrawn.</div>
+        <div class="pad-x" style="margin-top: auto; padding-block: 10px 4px"><div class="btn primary">Deposit</div></div>
+        <div class="gesture"></div>
+      </div>
+    </div></div><span class="cap now">proposed</span></div>
+    <div class="why"><h3>Deposit bonus</h3><p class="muted">The same rules as a small table, gold only on the next tier. The withdrawal rule stays in plain words right above the button.</p></div>
+  </div>
+</section>
+
+<section aria-labelledby="new-h">
+  <div class="read">
+    <h2 id="new-h">Screens not built yet (P3 and P4)</h2>
+    <p class="muted">Payments, History, Account, KYC and notifications, designed in the same system so the plans can be built straight into it. Names, amounts and IDs are examples.</p>
+  </div>
+  <div class="new-grid">
+
+    <!-- Payments -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div style="margin: 6px 12px 0; border-radius: 14px; background: linear-gradient(160deg, #13203d, #0e1420 70%); border: 1px solid #22314f; padding: 12px 14px 12px; position: relative; overflow: hidden">
+        <div class="row between"><span class="lbl" style="color: #9fb0d4">LIVE ACCOUNT</span><img src="brand/mark.webp" alt="" style="width: 26px"></div>
+        <div style="font-weight: 600; letter-spacing: 0.04em; font-size: 12px; margin-top: 2px">ASHA RAO</div>
+        <div class="fig" style="font-size: 9.5px; color: #9fb0d4">A/c ending 4821</div>
+        <div class="fig" style="font-size: 26px; font-weight: 600; margin-top: 10px; letter-spacing: -0.04em">₹12,450.00</div>
+        <div class="tri" style="margin-top: 10px; opacity: 0.9"></div>
+      </div>
+      <div class="pad-x" style="display: grid; gap: 6px; padding-top: 10px; font-size: 11.5px">
+        <div class="row between"><span class="muted">Can withdraw</span><span class="fig">₹8,200.00</span></div>
+        <div class="row between"><span class="muted">Bonus, for trading</span><span class="fig gold-t">₹4,250.00</span></div>
+      </div>
+      <div class="pad-x" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 10px"><div class="btn primary"><i data-lucide="plus" class="i"></i>Deposit</div><div class="btn line"><i data-lucide="arrow-up-right" class="i"></i>Withdraw</div></div>
+      <div class="row between pad-x" style="padding-top: 14px"><span style="font-weight: 600; font-size: 13px">Recent</span><span class="acc-t" style="font-size: 11.5px">See all</span></div>
+      <div class="list grow">
+        <div><span class="ico"><img src="brand/phonepe.webp" alt="" style="width: 18px; border-radius: 4px"></span><span class="tx"><b>Deposit</b><span>PhonePe UPI, 14 Oct</span></span><span class="stack" style="align-items: flex-end; gap: 3px"><span class="fig up-t" style="font-size: 11px">+₹2,000.00</span><span class="stamp ok">Credited</span></span></div>
+        <div><span class="ico"><i data-lucide="at-sign"></i></span><span class="tx"><b>Withdrawal</b><span>UPI ID, 12 Oct</span></span><span class="stack" style="align-items: flex-end; gap: 3px"><span class="fig down-t" style="font-size: 11px">−₹5,000.00</span><span class="stamp wait">Processing</span></span></div>
+      </div>
+      <div class="nav"><span><i><i data-lucide="chart-candlestick"></i></i>Trade</span><span class="on"><i><i data-lucide="wallet"></i></i>Payments</span><span><i><i data-lucide="history"></i></i>History</span><span><i><i data-lucide="user"></i></i>Account</span></div>
+      <div class="gesture"></div>
+    </div></div><div class="note"><b>Payments</b>The account as a passbook cover: holder name, masked account, balance. Below it, the honest split between money you can withdraw and bonus you can only trade with.</div></div>
+
+    <!-- Deposit amount + method -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="row pad-x" style="padding-block: 4px 8px"><i data-lucide="arrow-left" class="i"></i><span style="font-weight: 620; font-size: 15px">Deposit</span></div>
+      <div class="pad-x" style="display: grid; gap: 2px">
+        <span class="lbl" style="font-size: 11px">Amount</span>
+        <div class="fig" style="font-size: 30px; font-weight: 600; letter-spacing: -0.04em">₹ 2,000</div>
+        <div style="font-size: 11.5px; color: var(--ink2); border-top: 1px dashed var(--rule); padding-top: 5px">Two thousand rupees only</div>
+      </div>
+      <div class="pad-x" style="padding-top: 8px"><div class="row between" style="padding: 8px 10px; border-radius: 10px; border: 1px solid #4a3d1c; background: #1a160b; font-size: 11px"><span class="gold-t">1st deposit bonus, 100%</span><span class="fig gold-t" style="font-weight: 600">+₹2,000.00</span></div></div>
+      <div class="group-h">Pay with</div>
+      <div class="module"><div class="list">
+        <div><span class="ico" style="background: #fff"><img src="brand/phonepe.webp" alt="" style="width: 20px"></span><span class="tx"><b>PhonePe</b><span>Opens the app</span></span><span style="width: 16px; height: 16px; border-radius: 50%; border: 5px solid var(--accent)"></span></div>
+        <div><span class="ico" style="background: #fff"><img src="brand/gpay.webp" alt="" style="width: 20px"></span><span class="tx"><b>Google Pay</b><span>Opens the app</span></span><span style="width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--rule)"></span></div>
+        <div><span class="ico" style="background: #fff"><img src="brand/upi.webp" alt="" style="width: 24px"></span><span class="tx"><b>Any UPI app</b><span>Pick from your apps</span></span><span style="width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--rule)"></span></div>
+        <div style="opacity: 0.55"><span class="ico" style="background: #fff"><img src="brand/usdt.webp" alt="" style="width: 20px"></span><span class="tx"><b>USDT</b><span>From ₹2,500</span></span><span style="width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--rule)"></span></div>
+      </div></div>
+      <div class="grow"></div>
+      <div class="pad-x" style="padding-bottom: 4px"><div class="btn primary">Pay ₹2,000 with PhonePe</div></div>
+      <div class="gesture"></div>
+    </div></div><div class="note"><b>Deposit</b>Amount in figures and words, the bonus it earns, then the app to pay with. A method the amount doesn't qualify for stays visible with the reason.</div></div>
+
+    <!-- UPI pay -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="row pad-x between" style="padding-block: 4px 6px"><span class="row"><i data-lucide="x" class="i"></i><span style="font-weight: 620; font-size: 15px">Pay ₹2,000</span></span><span class="row fig" style="gap: 4px; font-size: 11px; color: var(--gold)"><i data-lucide="clock" class="i-sm"></i>09:42</span></div>
+      <div class="stack" style="align-items: center; gap: 10px; padding-top: 8px">
+        <div class="qr"><canvas class="qrc" data-seed="21"></canvas></div>
+        <div class="muted" style="font-size: 11px">Scan with any UPI app, or pay below</div>
+        <div class="row" style="gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--rule); font-size: 11px"><span class="fig">merchant@upi</span><i data-lucide="copy" class="i-sm" style="color: var(--accent-text)"></i></div>
+      </div>
+      <div class="pad-x" style="display: grid; gap: 8px; padding-top: 16px">
+        <div class="btn primary"><img src="brand/phonepe.webp" alt="" style="width: 18px; border-radius: 4px">Open PhonePe</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"><div class="btn line" style="font-size: 12.5px"><img src="brand/gpay.webp" alt="" style="width: 16px">Google Pay</div><div class="btn line" style="font-size: 12.5px"><img src="brand/upi.webp" alt="" style="width: 22px">Other apps</div></div>
+      </div>
+      <div class="grow"></div>
+      <div class="row pad-x" style="gap: 8px; padding: 10px 14px; margin: 0 12px 6px; border-radius: 12px; background: var(--surface); font-size: 11px"><span class="ring" style="width: 18px; height: 18px; background: conic-gradient(var(--accent-text) 0 30%, var(--rule) 0)"></span><span class="muted">Waiting for your payment. This updates by itself.</span></div>
+      <div class="btn text" style="font-size: 12px">I've paid, add my UTR</div>
+      <div class="gesture"></div>
+    </div></div><div class="note"><b>UPI pay screen</b>QR for scanning from another phone, buttons for the UPI apps installed on this one, and a status line that checks for the payment while you wait. The VPA shown is a placeholder.</div></div>
+
+    <!-- Deposit receipt -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="stack" style="align-items: center; gap: 6px; padding-block: 22px 18px">
+        <span style="width: 46px; height: 46px; border-radius: 50%; background: var(--up); color: var(--up-ink); display: grid; place-items: center"><i data-lucide="check" class="i-lg"></i></span>
+        <div style="font-size: 17px; font-weight: 620">Deposit credited</div>
+      </div>
+      <div class="receipt">
+        <span class="stamp ok big" style="position: absolute; right: 14px; top: 18px">Credited</span>
+        <div class="lbl" style="font-size: 10.5px">Amount</div>
+        <div class="fig" style="font-size: 26px; font-weight: 600; letter-spacing: -0.04em">₹2,000.00</div>
+        <div class="muted" style="font-size: 10.5px">Two thousand rupees only</div>
+        <div class="perf"></div>
+        <dl class="kv" style="margin: 0">
+          <dt>Bonus</dt><dd class="fig gold-t">+₹2,000.00</dd>
+          <dt>Paid with</dt><dd>PhonePe UPI</dd>
+          <dt>UTR</dt><dd class="fig" style="font-size: 10.5px">428713905561</dd>
+          <dt>Date</dt><dd class="fig" style="font-size: 10.5px">14 Oct 2026, 18:22</dd>
+        </dl>
+        <div class="perf"></div>
+        <div class="row between" style="font-size: 12px"><span class="muted">New balance</span><span class="fig" style="font-weight: 600">₹16,450.00</span></div>
+      </div>
+      <div class="grow"></div>
+      <div class="pad-x" style="display: grid; gap: 6px; padding-bottom: 4px"><div class="btn primary">Start trading</div><div class="btn text" style="height: 30px">Share receipt</div></div>
+      <div class="gesture"></div>
+    </div></div><div class="note"><b>Deposit result</b>The moment that earns trust: a perforated receipt with a rubber stamp, the UTR, and the new balance. Failed and expired payments get the same receipt shape with the next step.</div></div>
+
+    <!-- Withdraw -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="row pad-x" style="padding-block: 4px 8px"><i data-lucide="arrow-left" class="i"></i><span style="font-weight: 620; font-size: 15px">Withdraw</span></div>
+      <div class="pad-x" style="display: grid; gap: 2px">
+        <div class="row between"><span class="lbl" style="font-size: 11px">Amount</span><span class="acc-t" style="font-size: 11px">Max ₹8,200</span></div>
+        <div class="fig" style="font-size: 30px; font-weight: 600; letter-spacing: -0.04em">₹ 5,000</div>
+        <div style="font-size: 11.5px; color: var(--ink2); border-top: 1px dashed var(--rule); padding-top: 5px">Five thousand rupees only</div>
+        <div class="lbl" style="font-size: 10.5px; padding-top: 4px">₹700 to ₹50,000 per withdrawal</div>
+      </div>
+      <div class="group-h">Send to</div>
+      <div class="row pad-x" style="gap: 6px"><span class="chip">Bank</span><span class="chip on">UPI ID</span><span class="chip">USDT</span></div>
+      <div class="pad-x" style="padding-top: 10px"><div class="field"><label>UPI ID</label><div class="input">asha.rao@okhdfcbank<i data-lucide="badge-check" class="i" style="margin-left: auto; color: var(--up)"></i></div><span class="lbl" style="font-size: 10px">Filled in from your last withdrawal</span></div></div>
+      <div class="grow"></div>
+      <div class="module" style="margin-bottom: 8px"><dl class="kv" style="margin: 0; padding: 10px 12px">
+        <dt>You receive</dt><dd class="fig" style="font-weight: 600">₹5,000.00</dd>
+        <dt>Usually arrives</dt><dd>Within 24 hours</dd>
+      </dl></div>
+      <div class="pad-x" style="padding-bottom: 4px"><div class="btn primary">Withdraw ₹5,000</div></div>
+      <div class="gesture"></div>
+    </div></div><div class="note"><b>Withdraw</b>Limits and what you can take out are stated up front, the payout details come prefilled, and the button repeats the amount. "Usually arrives" needs your real payout time before it ships.</div></div>
+
+    <!-- History ledger -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="row pad-x between" style="padding-block: 4px 8px"><span style="font-weight: 620; font-size: 17px">History</span><span class="seg"><span>Demo</span><span class="on live">Live</span></span></div>
+      <div class="row pad-x" style="gap: 6px; overflow: hidden"><span class="chip on">All</span><span class="chip">Trades</span><span class="chip">Deposits</span><span class="chip">Withdrawals</span></div>
+      <div class="ledger grow" style="padding-top: 6px; align-content: start">
+        <div class="h">Particulars</div><div class="h r">Debit</div><div class="h r">Credit</div><div class="h r">Balance</div>
+        <div class="day">Today, 14 Oct</div>
+        <div class="p"><b>Deposit</b><span>PhonePe UPI <span class="stamp ok" style="font-size: 7px">Credited</span></span></div><div class="n"></div><div class="n up-t">2,000.00</div><div class="n">16,450.00</div>
+        <div class="p"><b>NIFTY 50, Down</b><span>Won, 1m</span></div><div class="n"></div><div class="n up-t">193.00</div><div class="n">14,450.00</div>
+        <div class="p"><b>NIFTY 50, Up</b><span>Stake, 1m</span></div><div class="n down-t">100.00</div><div class="n"></div><div class="n">14,257.00</div>
+        <div class="day">12 Oct</div>
+        <div class="p"><b>Withdrawal</b><span>UPI ID <span class="stamp wait" style="font-size: 7px">Processing</span></span></div><div class="n down-t">5,000.00</div><div class="n"></div><div class="n">14,357.00</div>
+        <div class="p"><b>BTC/USDT, Up</b><span>Lost, 30s</span></div><div class="n down-t">100.00</div><div class="n"></div><div class="n">19,357.00</div>
+      </div>
+      <div class="nav"><span><i><i data-lucide="chart-candlestick"></i></i>Trade</span><span><i><i data-lucide="wallet"></i></i>Payments</span><span class="on"><i><i data-lucide="history"></i></i>History</span><span><i><i data-lucide="user"></i></i>Account</span></div>
+      <div class="gesture"></div>
+    </div></div><div class="note"><b>History</b>A real passbook page: Particulars, Debit, Credit and a running Balance, grouped by day. Every Indian bank customer can read it without being taught. Tap a row for its detail.</div></div>
+
+    <!-- Payment detail -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="ledger" style="opacity: 0.4; padding-top: 30px"><div class="h">Particulars</div><div class="h r">Debit</div><div class="h r">Credit</div><div class="h r">Balance</div></div>
+      <div class="scrim"></div>
+      <div class="sheet" style="height: 82%">
+        <div class="handle"></div>
+        <div class="sheet-title"><span>Withdrawal</span><span class="stamp wait">Processing</span></div>
+        <div class="pad-x"><div class="fig" style="font-size: 26px; font-weight: 600; letter-spacing: -0.04em">₹5,000.00</div><div class="muted" style="font-size: 11px">To asha.rao@okhdfcbank</div></div>
+        <div class="pad-x" style="padding-top: 16px; display: grid; gap: 0">
+          <div class="row" style="align-items: flex-start; gap: 10px"><span style="display: grid; justify-items: center"><span style="width: 12px; height: 12px; border-radius: 50%; background: var(--up)"></span><span style="width: 2px; height: 34px; background: var(--up)"></span></span><span class="stack" style="margin-top: -3px"><b style="font-weight: 600">Requested</b><span class="fig muted" style="font-size: 10px">12 Oct, 14:02</span></span></div>
+          <div class="row" style="align-items: flex-start; gap: 10px"><span style="display: grid; justify-items: center"><span style="width: 12px; height: 12px; border-radius: 50%; background: var(--up)"></span><span style="width: 2px; height: 34px; background: var(--rule)"></span></span><span class="stack" style="margin-top: -3px"><b style="font-weight: 600">Approved</b><span class="fig muted" style="font-size: 10px">12 Oct, 16:40</span></span></div>
+          <div class="row" style="align-items: flex-start; gap: 10px"><span style="width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--accent-text)"></span><span class="stack" style="margin-top: -3px"><b style="font-weight: 600">Paid</b><span class="muted" style="font-size: 10px">Usually within 24 hours</span></span></div>
+        </div>
+        <div class="pad-x" style="padding-top: 16px"><dl class="kv" style="margin: 0"><dt>Reference</dt><dd class="fig" style="font-size: 10.5px">W-58213</dd><dt>Method</dt><dd>UPI ID</dd></dl></div>
+        <div class="pad-x" style="margin-top: auto; padding-block: 10px 4px"><div class="btn line" style="color: var(--down-text)">Cancel withdrawal</div></div>
+        <div class="gesture"></div>
+      </div>
+    </div></div><div class="note"><b>Payment detail</b>A tracking timeline, like a courier or UPI dispute status. A withdrawal that is still held can be cancelled from here.</div></div>
+
+    <!-- Account -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="row pad-x" style="gap: 12px; padding-block: 8px 12px">
+        <span style="width: 46px; height: 46px; border-radius: 50%; background: var(--raised); border: 1px solid var(--rule); display: grid; place-items: center; font-weight: 600; font-size: 15px">AR</span>
+        <span class="stack" style="gap: 2px"><b style="font-size: 15px; font-weight: 620">Asha Rao</b><span class="muted" style="font-size: 11px">asha.rao@gmail.com</span><span class="stamp ok" style="align-self: flex-start; margin-top: 3px">KYC verified</span></span>
+      </div>
+      <div class="group-h" style="padding-top: 2px">Account</div>
+      <div class="module"><div class="list">
+        <div><span class="ico"><i data-lucide="user"></i></span><span class="tx"><b>Profile</b></span><i data-lucide="chevron-right" class="i-sm" style="color: var(--ink3)"></i></div>
+        <div><span class="ico"><i data-lucide="indian-rupee"></i></span><span class="tx"><b>Currency</b></span><span class="muted" style="font-size: 11px">INR</span></div>
+        <div><span class="ico"><i data-lucide="rotate-ccw"></i></span><span class="tx"><b>Reset demo balance</b></span><i data-lucide="chevron-right" class="i-sm" style="color: var(--ink3)"></i></div>
+      </div></div>
+      <div class="group-h">App</div>
+      <div class="module"><div class="list">
+        <div><span class="ico"><i data-lucide="bell"></i></span><span class="tx"><b>Notifications</b></span><i data-lucide="chevron-right" class="i-sm" style="color: var(--ink3)"></i></div>
+        <div><span class="ico"><i data-lucide="shield-check"></i></span><span class="tx"><b>Security and app lock</b></span><span class="muted" style="font-size: 11px">Fingerprint</span></div>
+        <div><span class="ico"><i data-lucide="languages"></i></span><span class="tx"><b>Language</b></span><span class="muted" style="font-size: 11px; font-family: var(--font-hi)">हिन्दी</span></div>
+      </div></div>
+      <div class="group-h">Help</div>
+      <div class="module"><div class="list">
+        <div><span class="ico"><i data-lucide="life-buoy"></i></span><span class="tx"><b>Support</b></span><i data-lucide="chevron-right" class="i-sm" style="color: var(--ink3)"></i></div>
+      </div></div>
+      <div class="grow"></div>
+      <div class="nav"><span><i><i data-lucide="chart-candlestick"></i></i>Trade</span><span><i><i data-lucide="wallet"></i></i>Payments</span><span><i><i data-lucide="history"></i></i>History</span><span class="on"><i><i data-lucide="user"></i></i>Account</span></div>
+      <div class="gesture"></div>
+    </div></div><div class="note"><b>Account</b>Identity first, with the KYC stamp. Settings in three short groups; Leaderboard, Legal and Log out continue below the fold.</div></div>
+
+    <!-- KYC gate -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="row pad-x" style="padding-block: 4px 8px"><i data-lucide="arrow-left" class="i"></i><span style="font-weight: 620; font-size: 15px">Verify your identity</span></div>
+      <div class="pad-x muted" style="font-size: 12px">Needed once, before your first withdrawal. Takes about 3 minutes.</div>
+      <div class="pad-x" style="padding-top: 14px; display: grid; gap: 8px">
+        <div class="row" style="gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--rule-soft); background: var(--surface)"><span class="ico" style="background: var(--up); color: var(--up-ink)"><i data-lucide="check"></i></span><span class="tx" style="display: grid"><b style="font-size: 12.5px; font-weight: 560">Your details</b><span class="lbl">Name, date of birth, address</span></span></div>
+        <div class="row" style="gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--accent); background: var(--accent-dim)"><span class="ico" style="background: var(--accent); color: #fff"><i data-lucide="id-card"></i></span><span class="tx" style="display: grid"><b style="font-size: 12.5px; font-weight: 560">Aadhaar, front and back</b><span class="lbl" style="color: var(--accent-text)">Next</span></span></div>
+        <div class="row" style="gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--rule-soft)"><span class="ico"><i data-lucide="credit-card"></i></span><span class="tx" style="display: grid"><b style="font-size: 12.5px; font-weight: 560">PAN card</b><span class="lbl">Photo of the front</span></span></div>
+        <div class="row" style="gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--rule-soft)"><span class="ico"><i data-lucide="scan-face"></i></span><span class="tx" style="display: grid"><b style="font-size: 12.5px; font-weight: 560">Selfie</b><span class="lbl">To match your documents</span></span></div>
+      </div>
+      <div class="grow"></div>
+      <div class="pad-x" style="padding-bottom: 4px"><div class="btn primary">Photograph Aadhaar</div></div>
+      <div class="gesture"></div>
+    </div></div><div class="note"><b>Verify identity</b>Withdrawal sends unverified users here. The four steps are listed with what each needs, so nothing is a surprise halfway through.</div></div>
+
+    <!-- KYC camera -->
+    <div class="new-item"><div class="phone"><div class="screen" style="background: #000">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="cam">
+        <div class="row between" style="position: absolute; left: 14px; right: 14px; top: 10px; z-index: 2"><i data-lucide="x" class="i"></i><span style="font-weight: 600">Aadhaar, front</span><i data-lucide="flashlight" class="i"></i></div>
+        <div class="frame-guide"></div>
+        <div style="position: absolute; left: 22px; right: 22px; top: 270px; text-align: center; font-size: 12px; color: #dfe4ea">Fit the card inside the frame.<br>All four corners must be visible.</div>
+      </div>
+      <div class="row" style="justify-content: space-around; padding-block: 14px 10px; background: #000">
+        <span class="stack" style="align-items: center; gap: 2px; font-size: 10px; color: var(--ink2)"><i data-lucide="image" class="i"></i>Gallery</span>
+        <span class="shutter"></span>
+        <span style="width: 40px"></span>
+      </div>
+      <div class="gesture" style="background: #000"></div>
+    </div></div><div class="note"><b>Document photo</b>A card-shaped guide in the logo's saffron, one instruction, a torch for dim rooms, and a gallery fallback.</div></div>
+
+    <!-- Notifications prompt -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="chart-wrap grow"><canvas class="cv" data-kind="candles" data-seed="14" style="height: 100%"></canvas></div>
+      <div class="scrim"></div>
+      <div class="sheet" style="height: 58%">
+        <div class="handle"></div>
+        <div class="pad-x" style="padding-top: 8px"><div style="font-size: 17px; font-weight: 620; line-height: 1.2">Know the result even when the app is closed</div><div class="muted" style="font-size: 11.5px; padding-top: 6px">We'll notify you when a Live trade ends, a deposit is credited or a withdrawal is paid.</div></div>
+        <div style="padding-top: 14px"><div class="notif"><img src="brand/mark.webp" alt=""><span class="row between" style="font-size: 10.5px; color: var(--ink2)"><span>IndianxTrade</span><span>now</span></span><span style="font-size: 12px"><b style="font-weight: 600">Trade won</b> BTC/USDT <span class="fig up-t">+₹193.00</span></span></div></div>
+        <div class="pad-x" style="margin-top: auto; display: grid; gap: 4px; padding-bottom: 4px"><div class="btn primary">Allow notifications</div><div class="btn text" style="height: 32px">Not now</div></div>
+        <div class="gesture"></div>
+      </div>
+    </div></div><div class="note"><b>Notification permission</b>Asked after the first Live trade ends, never at launch, with a preview of exactly what the notification looks like.</div></div>
+
+    <!-- Update required -->
+    <div class="new-item"><div class="phone"><div class="screen">
+      <div class="sb"><span>9:41</span><span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+      <div class="stack grow pad-x" style="justify-content: center; gap: 14px">
+        <img src="brand/mark.webp" alt="" style="width: 56px">
+        <div style="font-size: 21px; font-weight: 620; line-height: 1.15">Update to keep trading</div>
+        <div class="muted" style="font-size: 12.5px">This version of IndianxTrade is no longer supported. Your balance is not affected.</div>
+        <div class="module" style="margin: 0"><dl class="kv" style="margin: 0; padding: 10px 12px"><dt>You have</dt><dd class="fig">1.0.3</dd><dt>Needed</dt><dd class="fig">1.2.0</dd></dl></div>
+      </div>
+      <div class="pad-x" style="padding-bottom: 4px"><div class="btn primary"><i data-lucide="download" class="i"></i>Update</div></div>
+      <div class="gesture"></div>
+    </div></div><div class="note"><b>Update required</b>The same quiet, centred-left pattern serves Maintenance and VPN blocked: what happened, that the money is fine, and one action.</div></div>
+
+  </div>
+</section>
+
+<section aria-labelledby="dir-h">
+  <div class="read">
+    <h2 id="dir-h">Other directions I weighed</h2>
+    <p class="muted">Passbook was built because it carries trust best. One strong alternative, and the ideas it borrowed from directions that lost.</p>
+  </div>
+  <div class="consider">
+    <div class="panel">
+      <h3>Scoreboard <span class="tag">alternative</span></h3>
+      <p class="muted">Styled after the live cricket score bar on TV: the market as the batting side, the trade countdown as the ball clock, the Up/Down sentiment as a win-predictor bar, results flashing like a boundary. Instantly familiar and very fast to read.</p>
+      <p style="margin: 0"><b style="font-weight: 600">Risk:</b> <span class="muted">it makes trading feel like a game. That works against "trust me with real money", which was your main complaint.</span></p>
+    </div>
+    <div class="panel">
+      <ul class="verdicts">
+        <li><b>Airport gate board</b><span>Kept: a balance that changes stays highlighted until you've seen it.</span></li>
+        <li><b>Railway split-flap board</b><span>Kept: when the balance updates, its digits roll into place.</span></li>
+        <li><b>Orienteering map</b><span>Kept: your trade lines sit on the chart in one reserved colour and never restyle the candles.</span></li>
+        <li><b>Dense Japanese web layout</b><span>Kept: hairline-ruled modules for the long Account list.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="dec-h">
+  <div class="read">
+    <h2 id="dec-h">What I need from you</h2>
+    <p class="muted">Nothing is built yet. Once you answer these, I'll write the plan, restyle the P2 screens, and build P3 directly in this design.</p>
+  </div>
+  <ol class="decide">
+    <li><b>Passbook, Scoreboard, or changes?</b><span>Approve this direction, switch to Scoreboard, or tell me what to change.</span></li>
+    <li><b>Indian digit grouping (₹9,99,600) everywhere in the app?</b><span>Today the app shows ₹999,600. The website would stay as it is.</span></li>
+    <li><b>Amounts in words under stake, deposit and withdrawal?</b><span>In English and Hindi. It costs one short line of space on the Trade screen.</span></li>
+    <li><b>Bundle the new fonts?</b><span>Anek and Martian Mono add about 300 KB to the app. The alternative is the phone's system font, which looks more generic.</span></li>
+    <li><b>Up and Down instead of Buy and Sell?</b><span>Clearer for first-time traders, with arrows. The website says Buy and Sell, so the two would differ.</span></li>
+  </ol>
+</section>
+
+</div>
+
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>
+(function () {
+  try { if (window.lucide) lucide.createIcons({ attrs: { "stroke-width": 1.75 } }); } catch (e) {}
+
+  function rng(seed) { let s = seed * 9301 + 49297; return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
+  const css = getComputedStyle(document.documentElement);
+  const C = {
+    up: css.getPropertyValue("--up").trim(), down: css.getPropertyValue("--down-text").trim(),
+    ink: css.getPropertyValue("--ink").trim(), ink3: css.getPropertyValue("--ink3").trim(),
+    rule: css.getPropertyValue("--rule-soft").trim(), acc: css.getPropertyValue("--accent-text").trim(),
+  };
+
+  function series(seed, n) {
+    const r = rng(seed); let p = 100; const out = [];
+    for (let i = 0; i < n; i++) {
+      const o = p; const drift = Math.sin(i / 9 + seed) * 0.35;
+      const c = o + (r() - 0.5) * 2.4 + drift;
+      const h = Math.max(o, c) + r() * 1.1; const l = Math.min(o, c) - r() * 1.1;
+      out.push({ o, c, h, l }); p = c;
+    }
+    return out;
+  }
+
+  function draw(cv) {
+    const w = cv.clientWidth || 274;
+    const h = Number(cv.dataset.h) || cv.clientHeight || 200;
+    if (cv.dataset.h) cv.style.height = h + "px";
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    const g = cv.getContext("2d"); g.scale(dpr, dpr);
+    const kind = cv.dataset.kind; const seed = Number(cv.dataset.seed) || 1;
+    const n = kind === "area" ? 70 : 46; const d = series(seed, n);
+    let lo = Infinity, hi = -Infinity; d.forEach(k => { lo = Math.min(lo, k.l); hi = Math.max(hi, k.h); });
+    const padT = kind === "area" ? 6 : 46, padB = 10, right = kind === "area" ? 0 : 52;
+    const y = v => padT + (hi - v) / (hi - lo) * (h - padT - padB);
+    const step = (w - right) / n;
+    g.strokeStyle = C.rule; g.lineWidth = 1;
+    for (let i = 1; i < 4; i++) { const yy = padT + i * (h - padT - padB) / 4; g.beginPath(); g.moveTo(0, yy); g.lineTo(w, yy); g.stroke(); }
+    if (kind === "area") {
+      const grad = g.createLinearGradient(0, padT, 0, h);
+      grad.addColorStop(0, "rgba(46,207,122,0.28)"); grad.addColorStop(1, "rgba(46,207,122,0)");
+      g.beginPath(); d.forEach((k, i) => { const x = i * step; i ? g.lineTo(x, y(k.c)) : g.moveTo(x, y(k.c)); });
+      g.lineTo((n - 1) * step, h); g.lineTo(0, h); g.closePath(); g.fillStyle = grad; g.fill();
+      g.beginPath(); d.forEach((k, i) => { const x = i * step; i ? g.lineTo(x, y(k.c)) : g.moveTo(x, y(k.c)); });
+      g.strokeStyle = C.up; g.lineWidth = 1.6; g.stroke();
+      const lx = (n - 1) * step, ly = y(d[n - 1].c);
+      g.fillStyle = C.up; g.beginPath(); g.arc(lx, ly, 3, 0, Math.PI * 2); g.fill();
+      return;
+    }
+    const bw = Math.max(2, step * 0.62);
+    d.forEach((k, i) => {
+      const x = i * step + step / 2; const col = k.c >= k.o ? C.up : C.down;
+      g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x, y(k.h)); g.lineTo(x, y(k.l)); g.stroke();
+      const top = y(Math.max(k.o, k.c)); const bh = Math.max(1, Math.abs(y(k.o) - y(k.c)));
+      g.fillRect(x - bw / 2, top, bw, bh);
+    });
+    const last = d[n - 1].c; const ly = y(last);
+    g.setLineDash([2, 3]); g.strokeStyle = C.ink3; g.beginPath(); g.moveTo(0, ly); g.lineTo(w - right, ly); g.stroke(); g.setLineDash([]);
+    g.fillStyle = C.ink; g.fillRect(w - right + 2, ly - 8, right - 4, 16);
+    g.fillStyle = "#06080b"; g.font = "600 8.5px 'Martian Mono', monospace"; g.textBaseline = "middle";
+    g.fillText("94,553.62", w - right + 5, ly);
+    if (cv.dataset.trade) {
+      const ei = n - 9; const ey = y(d[ei].c);
+      g.strokeStyle = C.acc; g.lineWidth = 1.2; g.beginPath(); g.moveTo(ei * step + step / 2, ey); g.lineTo(w - right, ey); g.stroke();
+      g.fillStyle = C.acc; g.beginPath(); g.arc(ei * step + step / 2, ey, 3, 0, Math.PI * 2); g.fill();
+      g.fillStyle = C.acc; g.fillRect(w - right + 2, ey - 8, right - 4, 16);
+      g.fillStyle = "#06080b"; g.fillText("Down 0:08", w - right + 4, ey);
+    }
+  }
+
+  function qr(cv) {
+    const n = 29, s = 4, size = n * s; cv.width = size; cv.height = size;
+    const g = cv.getContext("2d"); const r = rng(Number(cv.dataset.seed) || 3);
+    g.fillStyle = "#f4f6f8"; g.fillRect(0, 0, size, size); g.fillStyle = "#06080b";
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (r() > 0.52) g.fillRect(i * s, j * s, s, s);
+    [[0, 0], [n - 7, 0], [0, n - 7]].forEach(([a, b]) => {
+      g.fillStyle = "#f4f6f8"; g.fillRect((a - 1 < 0 ? 0 : a - 1) * s, (b - 1 < 0 ? 0 : b - 1) * s, 9 * s, 9 * s);
+      g.fillStyle = "#06080b"; g.fillRect(a * s, b * s, 7 * s, 7 * s);
+      g.fillStyle = "#f4f6f8"; g.fillRect((a + 1) * s, (b + 1) * s, 5 * s, 5 * s);
+      g.fillStyle = "#06080b"; g.fillRect((a + 2) * s, (b + 2) * s, 3 * s, 3 * s);
+    });
+  }
+
+  function all() { document.querySelectorAll("canvas.cv").forEach(draw); document.querySelectorAll("canvas.qrc").forEach(qr); }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(all); else all();
+  let t; window.addEventListener("resize", function () { clearTimeout(t); t = setTimeout(all, 150); });
+})();
+</script>

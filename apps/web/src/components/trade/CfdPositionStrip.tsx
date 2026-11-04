@@ -5,7 +5,7 @@ import { memo, useMemo, useState } from "react";
 import { Icon } from "@/components/shell/Icon";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
 import { splitAssetName } from "@/lib/asset-name";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor } from "@asm/client-core";
 
 export interface CfdOpenPosition {
   id: string;

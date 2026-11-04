@@ -4,10 +4,17 @@ import { memo, useState, type ReactNode } from "react";
 import type { TradeView } from "@asm/contracts";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
 import { splitAssetName } from "@/lib/asset-name";
-import { formatMinor } from "@/lib/format-money";
-import { clockTime, countdown } from "@/lib/format-time";
+import {
+  cfdOpenPnl,
+  clockTime,
+  closedRowDisplay,
+  countdown,
+  formatMinor,
+  grossReturnMinor,
+  openSide,
+  settledAmountText,
+} from "@asm/client-core";
 import { useNowSec } from "@/lib/use-now";
-import { cfdOpenPnl, closedRowDisplay, grossReturnMinor, openSide, settledAmountText } from "./pnl-display";
 import { AssetIcon } from "./AssetIcon";
 
 type Tab = "open" | "closed";

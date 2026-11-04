@@ -1,0 +1,93 @@
+import { unregisterPushDevice } from "@/push/cleanup";
+import * as SecureStore from "expo-secure-store";
+import { create } from "zustand";
+import { api, configureApi } from "@/api/client";
+import { queryClient } from "@/api/queries";
+import { clearResume } from "@/cache/resume-cache";
+import { sweepKycTemp } from "@/kyc/temp-files-native";
+import { clearAllPendingCheckouts } from "@/payments/pending-checkout";
+import { useSocket } from "@/socket/socket-store";
+import { useListLoaded } from "@/trade/list-loaded-store";
+import { clearToasts, toast } from "@/ui/Toast";
+import { signOutOfGoogle } from "./google";
+import { SESSION_KEY as KEY } from "./session-key";
+
+interface SessionState {
+  token: string | null;
+  ready: boolean;
+  hydrate: () => Promise<void>;
+  signIn: (token: string) => Promise<void>;
+  signOut: (opts?: { remote?: boolean }) => Promise<void>;
+}
+
+/** The sign-out in flight, so overlapping `unauthenticated` responses share one logout. */
+let signingOut: Promise<void> | null = null;
+
+export const useSession = create<SessionState>((set, get) => ({
+  token: null,
+  ready: false,
+  hydrate: async () => {
+    let token: string | null = null;
+    try {
+      token = await SecureStore.getItemAsync(KEY);
+    } catch {
+      // An unreadable keystore reads as signed out; the user can log in again. Whoever it was, their cached
+      // snapshot is not shown to the next person to sign in on this phone.
+      clearResume();
+      clearAllPendingCheckouts();
+    }
+    set({ token, ready: true });
+  },
+  signIn: async (token) => {
+    await SecureStore.setItemAsync(KEY, token, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+    set({ token });
+  },
+  signOut: ({ remote = true } = {}) => {
+    if (signingOut) return signingOut;
+    const token = get().token;
+    if (!token) return Promise.resolve();
+    signingOut = (async () => {
+      try {
+        // Local first: plain fetch has no timeout, so a stalled network must not hold the user signed in.
+        await SecureStore.deleteItemAsync(KEY).catch(() => {});
+        queryClient.clear();
+        // The next user to sign in must not see this user's trades or balances.
+        useSocket.getState().reset();
+        useListLoaded.getState().set(null);
+        // Nor may it see this user's cached balances on the next cold start.
+        clearResume();
+        // Nor be offered this user's unfinished deposit on the Payments tab.
+        clearAllPendingCheckouts();
+        // Nor a "Won ₹…" toast still queued for this user.
+        clearToasts();
+        // Nor the Aadhaar, PAN or selfie photos this user took: they live in the app cache until deleted. Background
+        // and best effort (the sweep never throws; the catch covers a synchronous failure of the import).
+        try {
+          void sweepKycTemp().catch(() => {});
+        } catch {
+          // Sign-out must complete whatever the disk says.
+        }
+        // On a shared phone the next "Continue with Google" must ask which account.
+        signOutOfGoogle();
+        set({ token: null });
+      } finally {
+        // A cleanup step that threw must not leave the session alive: the token goes regardless.
+        if (get().token !== null) set({ token: null });
+        signingOut = null;
+      }
+      // Best effort, with the departed session captured; a slow push service must never hold sign-out open.
+      void (async () => {
+        await unregisterPushDevice(token);
+        // Unregister while the departed bearer is still valid, then revoke it.
+        if (remote) await api("/api/auth/logout", { method: "POST", token }).catch(() => {});
+      })();
+    })();
+    return signingOut;
+  },
+}));
+
+configureApi({
+  token: () => useSession.getState().token,
+  logout: () => void useSession.getState().signOut({ remote: false }),
+  toast,
+});

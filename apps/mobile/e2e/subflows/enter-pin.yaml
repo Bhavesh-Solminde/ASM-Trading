@@ -1,0 +1,7 @@
+# Taps four digits on the PIN pad. Pass -e D1=.. D2=.. D3=.. D4=.. (the digits of the PIN).
+appId: com.indianxtrade.app
+---
+- tapOn: { id: "pin-${D1}" }
+- tapOn: { id: "pin-${D2}" }
+- tapOn: { id: "pin-${D3}" }
+- tapOn: { id: "pin-${D4}" }

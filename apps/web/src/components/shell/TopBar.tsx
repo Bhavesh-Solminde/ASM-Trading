@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import type { BalancesDto } from "@asm/contracts";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor } from "@asm/client-core";
 import { isMuted, setMuted } from "@/lib/sound";
 import { useDismiss } from "@/lib/use-dismiss";
 import { LogoWordmark } from "@/components/brand/Logo";

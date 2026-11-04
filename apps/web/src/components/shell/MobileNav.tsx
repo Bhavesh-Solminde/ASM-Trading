@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { LogoWordmark } from "@/components/brand/Logo";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor } from "@asm/client-core";
 import { DRAWER_ITEMS, isRailItemActive } from "@/lib/nav";
 import { useDismiss } from "@/lib/use-dismiss";
 import { Icon } from "./Icon";

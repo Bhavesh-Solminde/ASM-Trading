@@ -1,0 +1,91 @@
+# App lock. Needs the state login-trade.yaml leaves behind: signed in, PIN 1234, app lock on.
+# Takes about 6 minutes: Maestro cannot move the clock, so the "background >= 5 min" case really waits.
+# Run: maestro test [-e DEV_CLIENT_URL=...] apps/mobile/e2e/lock.yaml
+appId: com.indianxtrade.app
+---
+# 1. Cold start is always locked.
+- stopApp
+- launchApp:
+    clearState: false
+- runFlow: subflows/open-dev-client.yaml
+- extendedWaitUntil:
+    visible: { id: "pin-1" }
+    timeout: 60000
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "1", D2: "2", D3: "3", D4: "4" }
+- extendedWaitUntil:
+    visible: { id: "stake-tile" }
+    timeout: 30000
+
+# 2. A short trip to the home screen does not lock (the threshold is 5 minutes).
+- pressKey: Home
+- extendedWaitUntil:
+    visible: { id: "never-on-screen" }
+    timeout: 8000
+    optional: true
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: { id: "stake-tile" }
+    timeout: 15000
+- assertNotVisible: { id: "pin-1" }
+
+# 3. Backgrounded for 5 minutes or more -> locked on return. The process stays alive (stopApp: false),
+#    so this exercises the AppState timer, not a cold start. The wait below is a real 5 minutes 10 seconds.
+- pressKey: Home
+- extendedWaitUntil:
+    visible: { id: "never-on-screen" }
+    timeout: 310000
+    optional: true
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: { id: "pin-1" }
+    timeout: 15000
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "1", D2: "2", D3: "3", D4: "4" }
+- extendedWaitUntil:
+    visible: { id: "stake-tile" }
+    timeout: 30000
+
+# 4. Five wrong PINs end the session. Each attempt waits for the "tries left" line (which carries the
+#    count left, 4, 3, 2, 1) before the next, because the pad ignores keys while it checks a PIN.
+- stopApp
+- launchApp:
+    clearState: false
+- runFlow: subflows/open-dev-client.yaml
+- extendedWaitUntil:
+    visible: { id: "pin-1" }
+    timeout: 60000
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "9", D2: "9", D3: "9", D4: "9" }
+- extendedWaitUntil:
+    visible: { id: "lock-message", text: ".*4.*" }
+    timeout: 15000
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "9", D2: "9", D3: "9", D4: "9" }
+- extendedWaitUntil:
+    visible: { id: "lock-message", text: ".*3.*" }
+    timeout: 15000
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "9", D2: "9", D3: "9", D4: "9" }
+- extendedWaitUntil:
+    visible: { id: "lock-message", text: ".*2.*" }
+    timeout: 15000
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "9", D2: "9", D3: "9", D4: "9" }
+- extendedWaitUntil:
+    visible: { id: "lock-message", text: ".*1.*" }
+    timeout: 15000
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "9", D2: "9", D3: "9", D4: "9" }
+- extendedWaitUntil:
+    visible: { id: "login-email" }
+    timeout: 30000

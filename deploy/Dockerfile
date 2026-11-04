@@ -18,10 +18,12 @@ COPY apps/web/package.json ./apps/web/
 COPY apps/engine/package.json ./apps/engine/
 COPY packages/algo/package.json ./packages/algo/
 COPY packages/config/package.json ./packages/config/
+COPY packages/client-core/package.json ./packages/client-core/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/db/package.json ./packages/db/
 COPY packages/logger/package.json ./packages/logger/
 COPY packages/mail/package.json ./packages/mail/
+COPY packages/notify/package.json ./packages/notify/
 COPY packages/pricing/package.json ./packages/pricing/
 COPY packages/tatum/package.json ./packages/tatum/
 COPY packages/trading/package.json ./packages/trading/

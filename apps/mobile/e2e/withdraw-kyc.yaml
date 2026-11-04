@@ -1,0 +1,37 @@
+# Withdraw is gated on identity: a user whose KYC is NOT_STARTED sees the gate, and its button opens the verify screen.
+# Needs the state login-trade.yaml leaves behind (signed in, PIN 1234) with a user whose kycStatus is NOT_STARTED
+# (a freshly registered one is). Does not submit anything.
+# Run: maestro test [-e DEV_CLIENT_URL=...] apps/mobile/e2e/withdraw-kyc.yaml
+appId: com.indianxtrade.app
+---
+- stopApp
+- launchApp:
+    clearState: false
+- runFlow: subflows/open-dev-client.yaml
+- extendedWaitUntil:
+    visible: { id: "pin-1" }
+    timeout: 60000
+- runFlow:
+    file: subflows/enter-pin.yaml
+    env: { D1: "1", D2: "2", D3: "3", D4: "4" }
+- extendedWaitUntil:
+    visible: { id: "tab-payments" }
+    timeout: 30000
+
+# Payments -> Withdraw: the gate, not the form.
+- tapOn: { id: "tab-payments" }
+- extendedWaitUntil:
+    visible: { id: "payments-withdraw" }
+    timeout: 30000
+- tapOn: { id: "payments-withdraw" }
+- extendedWaitUntil:
+    visible: { id: "withdraw-gate" }
+    timeout: 30000
+- assertNotVisible: { id: "withdraw-submit" }
+
+# Its button opens the verify screen at the first step (the CTA there is the step's action).
+- tapOn: { id: "withdraw-verify" }
+- extendedWaitUntil:
+    visible: { id: "verify-cta" }
+    timeout: 30000
+- assertNotVisible: { id: "withdraw-gate" }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { SummaryCard } from "@/components/payments/SummaryCard";
-import { bonusMinor, formatInr, formatMinorCompact } from "./limits";
+import { bonusMinor, formatInr, formatMinorCompact } from "@asm/client-core";
 
 /**
  * Last step for a UPI-rail deposit. The amount was chosen on step 1 and the

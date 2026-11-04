@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor } from "@asm/client-core";
 import { useScrollLock } from "@/lib/use-scroll-lock";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pay with UPI</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400..700&amp;family=Anek+Latin:wdth,wght@75..125,300..700&amp;family=Martian+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#06080b}</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; padding-top: 32px; display: flex; flex-direction: column; background: #06080b; color: #edf1f6; font-family: 'Anek Latin', 'Anek Devanagari', system-ui, sans-serif; font-size: 15px; line-height: 1.35; overflow: hidden">
+  <div style="display: flex; align-items: center; gap: 6px; padding: 0 16px 10px 10px">
+    <a href="N-Deposit.dc.html" aria-label="Close" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #edf1f6"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></a>
+    <h1 style="margin: 0; font-size: 21px; font-weight: 620">Pay ₹2,000</h1>
+    <span style="margin-left: auto; display: flex; align-items: center; gap: 5px; font: 500 14px 'Martian Mono', monospace; color: #e2b54c"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>09:42</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 10px">
+    <div style="width: 196px; height: 196px; box-sizing: border-box; padding: 12px; border-radius: 14px; background: #f4f6f8">
+      <svg role="img" aria-label="Sample payment QR code" width="172" height="172" viewBox="0 0 116 116" style="display: block">
+        <path d="{{ qr }}" fill="#06080b"></path>
+      </svg>
+    </div>
+    <span style="font-size: 14px; color: #a6b0be">Scan with any UPI app, or pay below</span>
+    <button type="button" style="height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #edf1f6; display: flex; align-items: center; gap: 8px; font: 400 14px 'Martian Mono', monospace">merchant@upi
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#86a6ff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+    </button>
+  </div>
+
+  <div style="padding: 22px 20px 0; display: flex; flex-direction: column; gap: 10px">
+    <button type="button" style="height: 54px; border-radius: 12px; border: 0; background: {{accent}}; color: #ffffff; display: flex; align-items: center; justify-content: center; gap: 10px; font: 600 17px 'Anek Latin', sans-serif"><img src="/_blob/c08f311828d8647724277143a24c4a17" alt="" style="width: 24px; border-radius: 5px">Open PhonePe</button>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <button type="button" style="height: 50px; border-radius: 12px; border: 1px solid #252d39; background: transparent; color: #edf1f6; display: flex; align-items: center; justify-content: center; gap: 8px; font: 600 15px 'Anek Latin', sans-serif"><img src="/_blob/2471e03623f34934de89b6b06fb630e1" alt="" style="width: 20px">Google Pay</button>
+      <button type="button" style="height: 50px; border-radius: 12px; border: 1px solid #252d39; background: transparent; color: #edf1f6; display: flex; align-items: center; justify-content: center; gap: 8px; font: 600 15px 'Anek Latin', sans-serif"><img src="/_blob/532e3105bfe2f133d6751d11cf7a3f38" alt="" style="width: 28px">Other apps</button>
+    </div>
+  </div>
+
+  <div style="margin-top: auto; padding: 0 16px">
+    <div role="status" style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; background: #0f141b; font-size: 14px; color: #a6b0be">
+      <span style="width: 22px; height: 22px; border-radius: 50%; background: conic-gradient(#86a6ff 0 30%, #252d39 0); display: flex; align-items: center; justify-content: center"><span style="width: 16px; height: 16px; border-radius: 50%; background: #0f141b"></span></span>
+      Waiting for your payment. This updates by itself.
+    </div>
+  </div>
+  <a href="#" style="height: 52px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; color: #86a6ff; font-size: 15px; text-decoration: none">I've paid, add my UTR</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3f6ff2","options":["#3f6ff2","#2f81f7","#ff9933","#1f9a12"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  qrPath(seed) {
+    const n = 29, s = 4;
+    let v = seed * 9301 + 49297;
+    const r = () => { v = (v * 9301 + 49297) % 233280; return v / 233280; };
+    const finder = function (i, j) {
+      const inBox = function (a, b) { return i >= a - 1 && i <= a + 7 && j >= b - 1 && j <= b + 7; };
+      return inBox(0, 0) || inBox(n - 7, 0) || inBox(0, n - 7);
+    };
+    let d = '';
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (!finder(i, j) && r() > 0.52) d += 'M' + i * s + ' ' + j * s + 'h4v4h-4z';
+    [[0, 0], [n - 7, 0], [0, n - 7]].forEach(function (q) {
+      const x = q[0] * s, y = q[1] * s;
+      d += 'M' + x + ' ' + y + 'h28v28h-28z M' + (x + 4) + ' ' + (y + 4) + 'v20h20v-20z M' + (x + 8) + ' ' + (y + 8) + 'h12v12h-12z';
+    });
+    return d;
+  }
+  renderVals() { return { accent: this.props.accent ?? '#3f6ff2', qr: this.qrPath(21) }; }
+}
+</script>
+</body>
+</html>

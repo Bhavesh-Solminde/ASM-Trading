@@ -7,6 +7,7 @@ import {
   isApiPath,
   isMaintenanceMode,
 } from "@/lib/maintenance";
+import { appUpgradeRequired } from "@/lib/app-gate";
 
 /**
  * Security headers set centrally so no route can omit them. Asserted by an
@@ -32,7 +33,7 @@ export function proxy(request: NextRequest) {
   if (isMaintenanceMode() && !isAllowedDuringMaintenance(pathname)) {
     if (isApiPath(pathname)) {
       return NextResponse.json(
-        { error: "MAINTENANCE", message: "Service temporarily unavailable." },
+        { error: "MAINTENANCE", code: "maintenance", message: "Service temporarily unavailable." },
         {
           status: 503,
           headers: { "Retry-After": String(MAINTENANCE_RETRY_AFTER) },
@@ -43,6 +44,10 @@ export function proxy(request: NextRequest) {
       status: 503,
       headers: { "Retry-After": String(MAINTENANCE_RETRY_AFTER) },
     });
+  }
+
+  if (appUpgradeRequired(pathname, request.headers)) {
+    return NextResponse.json({ error: "Update the app to continue.", code: "upgrade_required" }, { status: 426 });
   }
 
   const response = NextResponse.next();
