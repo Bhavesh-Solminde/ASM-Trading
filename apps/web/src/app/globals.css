@@ -18,14 +18,14 @@
 @custom-variant wide (@media (min-width: 128rem));
 
 @theme {
-  /* Black + blue + white theme. Ground is true black; surfaces step up in
-     lightness for depth. Blue is the single brand accent (replaces the old
-     amber); up/green and down/red stay as trading semantics. */
-  --color-ground: #000000;
-  --color-panel: #0b0e13;
-  --color-tile: #12161d;
-  --color-tile-hi: #1c222c;
-  --color-rule: #232a34;
+  /* Blue-charcoal surfaces sampled from the approved OTC mockup. Panels and
+     controls step up from the ground; the chart has a quiet, solid surface. */
+  --color-ground: #080e16;
+  --color-panel: #0e1820;
+  --color-tile: #131f28;
+  --color-tile-hi: #1c2b36;
+  --color-chart: #0c141c;
+  --color-rule: #293a47;
   --color-ink: #f4f7fb;
   --color-ink-2: #98a2b3;
   /* Muted text. Lifted from #5a6472 (3.0:1 on tile) so helper copy, captions
@@ -56,6 +56,12 @@
   color-scheme: dark;
   /* Height of the phone bottom nav (plus the home-indicator inset); the shell grid sizes its last row by it. */
   --phone-nav-h: calc(38px + env(safe-area-inset-bottom, 0px));
+}
+
+html {
+  /* Keep embedded Android/iOS browsers from inflating text independently of controls. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html,
@@ -169,9 +175,7 @@ button,
 }
 
 .chartbox-bg {
-  background:
-    radial-gradient(circle, rgba(47, 129, 247, 0.06) 1px, transparent 1.3px) 0 0 / 5px 5px,
-    #05070b;
+  background: var(--color-chart);
 }
 
 .slab-fired::after {
@@ -289,4 +293,58 @@ button,
   @variant phone {
     mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
   }
+}
+
+
+/* Compact trading dock: two labelled steppers, then the action row. The chart
+   owns 65dvh; short viewports scroll the dock instead of compressing the chart. */
+@media (width < 64rem) or (height < 30rem) {
+  .trade-ticket {
+    max-width: none;
+    align-content: start;
+    gap: 4px;
+    padding: 6px 10px;
+  }
+  .ticket-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .ticket-controls > div { min-width: 0; gap: 3px; }
+  .ticket-label { font-size: 10px; line-height: 12px; letter-spacing: .04em; }
+  .ticket-stepper {
+    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    gap: 3px;
+  }
+  .ticket-stepper > * { height: 34px; min-width: 0; border-color: var(--color-rule); border-radius: 5px; }
+  .ticket-stepper > button::after { display: none; }
+  .ticket-stepper svg { width: 13px; height: 13px; }
+  .ticket-stepper .led { font-size: 13px; }
+  .ticket-field > span { min-width: 0; max-width: 100%; font-size: 14px; }
+  .ticket-field input { min-width: 0; max-width: 100%; font-size: 16px; }
+  .ticket-field > button { font-size: 8px; line-height: 10px; }
+  .ticket-fees { font-size: 10px; line-height: 13px; }
+  .ticket-status {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    font-size: 10px;
+    line-height: 13px;
+  }
+  .ticket-status svg { width: 12px; height: 12px; }
+  .ticket-actions { gap: 8px; }
+  .ticket-actions > button {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 7px;
+    font-size: 13px;
+  }
+  .ticket-actions > button > span { gap: 2px; }
+  .ticket-actions > button > span > span + span { font-size: 9px; }
+  .ticket-actions svg { width: 16px; height: 16px; }
+}
+@media (height < 30rem) and (orientation: landscape) {
+  .ticket-controls { grid-template-columns: minmax(0, 1fr); }
 }

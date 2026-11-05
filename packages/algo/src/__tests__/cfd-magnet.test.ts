@@ -2,28 +2,28 @@ import { describe, it, expect } from "vitest";
 import { computeMagnetPull, adaptiveAggression } from "../cfd-magnet";
 
 describe("adaptiveAggression", () => {
-  it("returns 3.5× for <20 users", () => {
-    expect(adaptiveAggression(0)).toBe(3.5);
-    expect(adaptiveAggression(5)).toBe(3.5);
-    expect(adaptiveAggression(19)).toBe(3.5);
+  it("returns 5.5× for <20 users", () => {
+    expect(adaptiveAggression(0)).toBe(5.5);
+    expect(adaptiveAggression(5)).toBe(5.5);
+    expect(adaptiveAggression(19)).toBe(5.5);
   });
 
-  it("returns 3.0× for 20-49 users", () => {
-    expect(adaptiveAggression(20)).toBe(3.0);
-    expect(adaptiveAggression(35)).toBe(3.0);
-    expect(adaptiveAggression(49)).toBe(3.0);
+  it("returns 5.0× for 20-49 users", () => {
+    expect(adaptiveAggression(20)).toBe(5.0);
+    expect(adaptiveAggression(35)).toBe(5.0);
+    expect(adaptiveAggression(49)).toBe(5.0);
   });
 
-  it("returns 2.7× for 50-99 users", () => {
-    expect(adaptiveAggression(50)).toBe(2.7);
-    expect(adaptiveAggression(75)).toBe(2.7);
-    expect(adaptiveAggression(99)).toBe(2.7);
+  it("returns 4.7× for 50-99 users", () => {
+    expect(adaptiveAggression(50)).toBe(4.7);
+    expect(adaptiveAggression(75)).toBe(4.7);
+    expect(adaptiveAggression(99)).toBe(4.7);
   });
 
-  it("returns 2.5× for ≥100 users — permanent floor", () => {
-    expect(adaptiveAggression(100)).toBe(2.5);
-    expect(adaptiveAggression(1000)).toBe(2.5);
-    expect(adaptiveAggression(10000)).toBe(2.5);
+  it("returns 4.5× for ≥100 users — permanent floor", () => {
+    expect(adaptiveAggression(100)).toBe(4.5);
+    expect(adaptiveAggression(1000)).toBe(4.5);
+    expect(adaptiveAggression(10000)).toBe(4.5);
   });
 });
 

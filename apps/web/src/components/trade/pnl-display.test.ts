@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cfdOpenPnl, closedRowDisplay, grossReturnMinor } from "./pnl-display";
+import { cfdOpenPnl, closedRowDisplay, grossReturnMinor, settledAmountText } from "./pnl-display";
 
 describe("grossReturnMinor", () => {
   it("adds profit to the stake", () => {
@@ -51,4 +51,21 @@ it("shows gross market PnL only — the opening fee is a sunk cost, not re-subtr
   // A flat move must read 0, not −fee. Previously this returned −50 and made
   // every low-move trade look red even while the chart was on the user's side.
   expect(cfdOpenPnl({ direction: "UP", stake: 100000, entryPrice: 100 }, 100)).toBe(0);
+});
+
+describe("settledAmountText", () => {
+  it("shows the total returned (stake + profit) on a win, classic or CFD", () => {
+    expect(settledAmountText({ status: "WON", stake: 10_000, pnl: 1_000 }, "INR")).toBe("+₹110.00");
+    expect(settledAmountText({ status: "CLOSED", stake: 10_000, pnl: 1_000 }, "USD")).toBe("+$110.00");
+  });
+
+  it("shows only the amount lost on a loss", () => {
+    expect(settledAmountText({ status: "LOST", stake: 10_000, pnl: -10_000 }, "INR")).toBe("−₹100.00");
+    expect(settledAmountText({ status: "CLOSED", stake: 10_000, pnl: -1_000 }, "INR")).toBe("−₹10.00");
+  });
+
+  it("reads a signless zero for a refund or flat close", () => {
+    expect(settledAmountText({ status: "REFUNDED", stake: 10_000, pnl: 0 }, "INR")).toBe("₹0.00");
+    expect(settledAmountText({ status: "CLOSED", stake: 10_000, pnl: 0 }, "INR")).toBe("₹0.00");
+  });
 });

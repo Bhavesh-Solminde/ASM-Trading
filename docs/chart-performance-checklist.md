@@ -6,7 +6,8 @@ must reduce display/transport cost without changing the market behavior.
 
 1. **Incremental candles and volume.** Load full history initially or on market /
    timeframe changes; then update only revised and appended bars. Keep the
-   reference line in place. Use bounded visual buffering so history retention
+   reference calculation internal; the owner requested no visible reference line.
+   Use bounded visual buffering so history retention
    does not force a full chart reload every minute. Preserve pan and zoom.
 2. **Stable interface elements.** Create watchlist, depth and tape rows once;
    patch changed values. Coalesce renders with requestAnimationFrame, cache

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_STAKE_MAJOR,
+  nextStakeInput,
   parseSavedExpiry,
   parseSavedPercent,
   parseSavedStake,
@@ -85,5 +87,17 @@ describe("percent stakes", () => {
     expect(parseSavedUnit("percent")).toBe("percent");
     expect(parseSavedUnit("amount")).toBe("amount");
     expect(parseSavedUnit("pct")).toBeNull();
+  });
+});
+
+describe("nextStakeInput", () => {
+  it("keeps digits and the decimal point only", () => {
+    expect(nextStakeInput("₹1,250", "100")).toBe("1250");
+  });
+  it("accepts up to the max and rejects anything above it", () => {
+    expect(MAX_STAKE_MAJOR).toBe(1_000_000);
+    expect(nextStakeInput("1000000", "100000")).toBe("1000000");
+    expect(nextStakeInput("10000000", "1000000")).toBe("1000000");
+    expect(nextStakeInput("1000000.5", "1000000")).toBe("1000000");
   });
 });

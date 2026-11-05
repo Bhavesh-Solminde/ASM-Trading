@@ -2,6 +2,7 @@ import { prisma } from "@asm/db";
 import { logger } from "@asm/logger";
 import {
   CFD_LEVERAGE,
+  cfdSpreadFeeMinor,
   cfdProfitMinor,
   cfdMaxProfitPrice,
   cfdLiquidationPrice,
@@ -115,7 +116,7 @@ export class CfdDesk {
     // The ticket and chart expose one execution price. Opening at an unseen
     // bid/ask or user-specific skew creates a displaced entry line immediately.
     const entry = shownMidPrice;
-    const spreadFee = Math.round(input.stake * asset.spreadBps / 10000);
+    const spreadFee = cfdSpreadFeeMinor(input.stake, asset.spreadBps);
     const totalDebit = input.stake + spreadFee;
     // Percent controls are resolved against the actual execution price and side.
     const side = dbDir === "UP" ? 1 : -1;

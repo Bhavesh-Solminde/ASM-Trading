@@ -11,7 +11,7 @@ const trade: TradeView = {
 };
 
 it.each([
-  { status: "CLOSED", pnl: 17029, amount: "+₹170.29", color: "bg-up text-up-ink" },
+  { status: "CLOSED", pnl: 17029, amount: "+₹1,170.29", color: "bg-up text-up-ink" },
   { status: "CLOSED", pnl: -17029, amount: "−₹170.29", color: "bg-down text-down-ink" },
   { status: "CLOSED", pnl: 0, amount: "₹0.00", color: "bg-tile text-ink" },
   { status: "WON", pnl: 85000, amount: "+₹1,850.00", color: "bg-up text-up-ink" },

@@ -437,6 +437,7 @@ function applySeriesAlpha(series: ISeriesApi<any>, type: ChartType, alpha: numbe
  * history is replaced), so a tick costs a canvas draw and no render.
  */
 export function PriceChart({
+  marketOpen = true,
   market,
   precision,
   watermark,
@@ -450,8 +451,11 @@ export function PriceChart({
   enableBrackets = false,
   bracketScope,
   bracketControls = true,
+  bracketActionsContainer,
+  focusedTradeId, onSelectTrade, onShowAllTrades,
   tickSize,
 }: {
+  marketOpen?: boolean;
   market: MarketStore;
   precision: number;
   watermark: string;
@@ -465,6 +469,10 @@ export function PriceChart({
   enableBrackets?: boolean;
   bracketScope?: string;
   bracketControls?: boolean;
+  bracketActionsContainer?: HTMLElement | null | undefined;
+  focusedTradeId?: string | undefined;
+  onSelectTrade?: ((id: string) => void) | undefined;
+  onShowAllTrades?: (() => void) | undefined;
   tickSize?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -730,6 +738,11 @@ export function PriceChart({
     const series = seriesRef.current;
     const priceLine = priceLineRef.current;
     if (!chart || !series || !priceLine) return;
+    // A stale last quote is still useful history, but has no live price marker.
+    if (!marketOpen) {
+      priceLine.applyOptions({ lineVisible: false, axisLabelVisible: false });
+      if (countdownRef.current) countdownRef.current.hidden = true;
+    }
 
     let prev: ChartState | null = null;
 
@@ -863,7 +876,7 @@ export function PriceChart({
       if (displayed !== paintedPrice) {
         changed=true;
         const color=appearance==="market"?(formingBar&&formingBar.close<formingBar.open?DOWN:UP):BRAND;
-        priceLine.applyOptions({ price: displayed,color,axisLabelColor:color,lineStyle:appearance==="market"?LineStyle.Dotted:LineStyle.Dashed,lineVisible: true, axisLabelVisible: true });
+        priceLine.applyOptions({ price: displayed,color,axisLabelColor:color,lineStyle:appearance==="market"?LineStyle.Dotted:LineStyle.Dashed,lineVisible: marketOpen, axisLabelVisible: marketOpen });
         paintedPrice = displayed;
       }
       if(changed)recordChartMetric("chartWork",performance.now()-began);
@@ -872,6 +885,7 @@ export function PriceChart({
     const placeCountdown = () => {
       const label = countdownRef.current;
       if (!label) return;
+      if (!marketOpen) { label.hidden = true; return; }
       const state = market.getSnapshot().chart;
       const lastTs = latestCandle(state)?.openTs;
       const y = state.lastPrice === null ? null : series.priceToCoordinate(state.lastPrice);
@@ -1017,7 +1031,7 @@ export function PriceChart({
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(placeCountdown);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(maybeLoadOlder);
     };
-  }, [market, precision, chartVersion, chartType,appearance]);
+  }, [market, precision, chartVersion, chartType,appearance,marketOpen]);
 
   useEffect(()=>{
     const chart=chartRef.current;if(!chart||!showVolume)return;
@@ -1074,7 +1088,7 @@ export function PriceChart({
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
       {showVolume?<OtcExpiry trades={openTrades} chartRef={chartRef} market={market} chartVersion={chartVersion}/>:null}
       {protectionDraft&&onProtectionChange?<OtcProtection key={bracketScope} draft={protectionDraft} onChange={onProtectionChange} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef} market={market} chartVersion={chartVersion} precision={precision} tickSize={tickSize??10**-precision}/>:null}
-      {enableBrackets && <ChartBrackets key={bracketScope} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
+      {enableBrackets && <ChartBrackets key={`${bracketScope}:${focusedTradeId ?? "all"}`} focusedTradeId={focusedTradeId} onSelectTrade={onSelectTrade} onShowAllTrades={onShowAllTrades} actionsContainer={bracketActionsContainer} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
         precision={precision} tickSize={tickSize ?? 10 ** -precision} currency={currency} chartVersion={chartVersion} market={market} />}
 
 
@@ -1091,6 +1105,7 @@ export function PriceChart({
       )}
 
       <div
+        data-testid="chart-countdown"
         ref={countdownRef}
         hidden
         className="pointer-events-none absolute left-0 top-0 h-[18px] rounded-[1px] bg-brand px-[5px] text-[10px] font-semibold leading-[18px] text-brand-ink"

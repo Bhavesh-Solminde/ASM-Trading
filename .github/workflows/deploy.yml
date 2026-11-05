@@ -49,6 +49,7 @@ jobs:
           pnpm --filter @asm/web --filter @asm/engine \
                --filter @asm/db --filter @asm/config \
                --filter @asm/contracts --filter @asm/logger \
+               --filter @asm/market-sim \
                --filter @asm/algo --filter @asm/pricing \
                --filter @asm/trading \
                exec tsc --noEmit
@@ -87,6 +88,7 @@ jobs:
             --exclude .git --exclude node_modules --exclude .next \
             --exclude apps/harness --exclude apps/relay \
             --exclude '.env' --exclude '.env.local' --exclude '.env.production' \
+            --exclude '.env.otc-staging' --exclude '.secrets' --exclude '*.otc-credentials.json' \
             --exclude reference --exclude skill-observations --exclude 'demo.html' \
             --exclude 'docs' --exclude '.claude' --exclude 'graphify-out' \
             --exclude '*.log' --exclude '.DS_Store' \
@@ -96,7 +98,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            'cd /opt/asmtrader/deploy && docker compose --env-file ../.env.production up -d --build 2>&1 | tail -40'
+            'bash -o pipefail -c "cd /opt/asmtrader/deploy && docker compose --env-file ../.env.production up -d --build 2>&1 | tail -40"'
 
       # Nginx changes are rare and involve the host config, which the deploy
       # user is not sudoered to `cp` into — those go through the manual

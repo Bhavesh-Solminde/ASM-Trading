@@ -1,5 +1,6 @@
 import { cfdProfitMinor } from "@asm/contracts";
 import type { TradeView } from "@asm/contracts";
+import { formatMinor } from "@/lib/format-money";
 
 /**
  * The gross amount a winning position returns: the stake plus its profit. A
@@ -40,6 +41,20 @@ export function closedRowDisplay(trade: Pick<TradeView, "status" | "stake" | "pn
   }
   // LOST: pnl is negative (−stake); show the magnitude lost.
   return { sign: "−", amountMinor: Math.abs(trade.pnl), className: "text-ink-3" };
+}
+
+/**
+ * A settled trade's result as the chart card and History show it. A win (a
+ * classic WON, or a CFD closed in profit) shows the total that came back,
+ * stake + profit (₹100 stake, ₹10 profit → "+₹110.00"). A loss shows only
+ * what was lost ("−₹10.00"); a refund or flat close reads "₹0.00".
+ */
+export function settledAmountText(trade: Pick<TradeView, "status" | "stake" | "pnl">, currency: string): string {
+  if (trade.status === "WON" || (trade.status === "CLOSED" && trade.pnl > 0)) {
+    return `+${formatMinor(grossReturnMinor(trade.stake, trade.pnl), currency)}`;
+  }
+  const d = closedRowDisplay(trade);
+  return `${d.sign}${formatMinor(d.amountMinor, currency)}`;
 }
 
 /**
