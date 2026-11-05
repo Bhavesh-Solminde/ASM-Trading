@@ -27,7 +27,7 @@ export function SettlementResultCard({ trade, currency, pair, onDismiss }: {
           {trade.status === "WON" ? "Payout" : "Result"} · {pair}
         </span>
         <span className="led text-[17px] font-black leading-none">
-          {sign}{formatMinor(amountMinor, currency)}
+          {sign}{formatMinor(amountMinor, trade.currency??currency)}
         </span>
       </div>
     </div>

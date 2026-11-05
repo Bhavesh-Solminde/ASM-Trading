@@ -29,7 +29,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
   containerRef: RefObject<HTMLDivElement | null>; precision: number; tickSize: number; currency: string; chartVersion: number; market: MarketStore; controlsEnabled?: boolean;
 }) {
   const now = useNowSec();
-  const positions = useMemo(() => trades.filter(t => t.durationSec != null && t.status === "OPEN" && (now == null || t.expiryTs > now)), [trades, now]);
+  const positions = useMemo(() => trades.filter(t => t.mode !== "OTC_FIXED" && t.durationSec != null && t.status === "OPEN" && (now == null || t.expiryTs > now)), [trades, now]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [editorId, setEditorId] = useState<string | null>(null);

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { OpenTradeSchema, tradeViewFrom } from "@asm/contracts";
+import { OpenTradeSchema,OtcOpenTradeSchema, tradeViewFrom } from "@asm/contracts";
 import { formatMoney, getAccountForActor, listTradesForActor, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
@@ -8,8 +8,13 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { minStakeMinor } from "@/lib/currency";
 import { EngineRejected, EngineUnavailable, engineOpenTrade } from "@/lib/engine-client";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
+import { engineOtcOpen } from "@/lib/otc-client";
 
 const REJECTION_MESSAGE: Record<string, string> = {
+  "Liquidity unavailable": "There is not enough liquidity for this trade. Your stake has been returned.",
+  "Market price unavailable": "Waiting for a recent market execution. Try again shortly.",
+  "Invalid stop loss": "Stop loss must be on the loss side of the entry price.",
+  "Invalid take profit": "Take profit must be on the profit side of the entry price.",
   trading_model_mismatch: "Trading mode changed. Refresh the page before placing another trade.",
   insufficient_funds: "Not enough balance for that stake.",
   unknown_asset: "That asset is not available right now.",
@@ -31,6 +36,7 @@ export async function POST(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  if(process.env.OTC_DRAIN_LEGACY==="true"&&process.env.OTC_ORDER_BOOK_ENABLED!=="true")return NextResponse.json({error:"New trades are paused for the OTC upgrade. Existing positions will settle normally."},{status:409});
 
   if ((await checkNetwork({ ip: ctx.ip, route: "trades", log, userId: session.userId })).blocked) {
     return vpnBlockedResponse();
@@ -41,7 +47,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Slow down a moment and try again." }, { status: 429 });
   }
 
-  const parsed = OpenTradeSchema.safeParse(await req.json().catch(() => null));
+  const otc=process.env.OTC_ORDER_BOOK_ENABLED==="true";
+  const parsed = (otc?OtcOpenTradeSchema:OpenTradeSchema).safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     log.warn({ evt: "security.validation_rejected", route: "trades" }, "rejected trade payload");
     return NextResponse.json({ error: "Check the trade details." }, { status: 400 });
@@ -66,12 +73,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await engineOpenTrade({ ...parsed.data, actorId: session.userId });
+    const result = otc?await engineOtcOpen({...OtcOpenTradeSchema.parse(parsed.data),actorId:session.userId}):await engineOpenTrade({ ...parsed.data, actorId: session.userId });
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof EngineRejected) {
       return NextResponse.json(
-        { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade." },
+        { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade.", ...(otc?{code:err.reason}:{}) },
         { status: BROWSER_STATUS[err.reason] ?? err.status },
       );
     }

@@ -205,6 +205,7 @@ export class EngineServer {
       return;
     }
 
+    if(message.type==="watchlist:subscribe")return;
     const asset = this.registry.get(message.symbol);
     if (!asset) {
       this.send(client, { type: "error", message: "Unknown asset." });

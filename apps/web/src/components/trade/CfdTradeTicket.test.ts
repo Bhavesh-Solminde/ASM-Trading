@@ -9,12 +9,13 @@ vi.mock("./StakeSheet", () => ({ StakeSheet: () => null }));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 it.each([[/Buy\s*Price goes up/i, "LONG"], [/Sell\s*Price goes down/i, "SHORT"]] as const)("opens %s without automatic SL/TP or a ticket toggle", async (name, direction) => {
   const onOpened = vi.fn();
-  const post = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ trade: { id: "demo-trade" }, balances: {} }) });
+  const post = vi.fn().mockImplementation(async (url:string) => ({ ok: true, json: async () => url.includes("market-status")?{status:"open"}:{ trade: { id: "demo-trade" }, balances: {} } }));
   vi.stubGlobal("fetch", post);
-  render(h(CfdTradeTicket, { symbol: "BTCUSDT", pair: "BTC/USDT", accountId: "demo", currency: "INR", onOpened }));
+  await act(async()=>{render(h(CfdTradeTicket, { symbol: "BTCUSDT", pair: "BTC/USDT", accountId: "demo", currency: "INR", onOpened }));});
   expect(screen.queryByText("Stop Loss / Take Profit")).toBeNull();
   await act(async () => fireEvent.click(screen.getByRole("button", { name })));
-  expect(post).toHaveBeenCalledTimes(1);
-  expect(JSON.parse(post.mock.calls[0]![1].body)).toEqual({ symbol: "BTCUSDT", direction, accountId: "demo", stake: 10000, durationSec: 300 });
+  const orders=post.mock.calls.filter(call=>call[0]==="/api/cfd/trades");
+  expect(orders).toHaveLength(1);
+  expect(JSON.parse(orders[0]![1].body)).toEqual({ symbol: "BTCUSDT", direction, accountId: "demo", stake: 10000, durationSec: 300 });
   expect(onOpened).toHaveBeenCalledTimes(1);
 });

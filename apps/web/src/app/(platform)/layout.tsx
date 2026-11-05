@@ -55,7 +55,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       assets={assets.map((a) => ({
         symbol: a.symbol,
         displayName: a.displayName,
-        payoutPct: a.payoutPct,
+        payoutPct: process.env.OTC_ORDER_BOOK_ENABLED==="true"?92:a.payoutPct,
         precision: a.precision,
         spreadBps: a.spreadBps,
         tickSize: a.tickSize,

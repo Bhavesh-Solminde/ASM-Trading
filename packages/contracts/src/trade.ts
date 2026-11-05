@@ -44,6 +44,14 @@ export type EngineOpenTradeInput = z.infer<typeof EngineOpenTradeSchema>;
 export type TradeStatusDto = "OPEN" | "WON" | "LOST" | "REFUNDED" | "CLOSED";
 
 export interface TradeView {
+  /** Fixed OTC contracts retain their opening currency. Legacy rows follow account currency. */
+  currency?:string;
+  flowLots?:number;
+  filledLots?:number;
+  entrySequence?:string|null;
+  settlementSequence?:string|null;
+  mode?:"LEGACY_BINARY"|"CFD"|"OTC_FIXED";
+  closeReason?:string|null;
   id: string;
   accountId: string;
   symbol: string;
@@ -52,11 +60,11 @@ export interface TradeView {
   /** Opening fee in minor units, already deducted from balance. */
   spreadFee?: number;
   leverage?: number;
-  /** Absolute prices for CFD protection orders. */
+  /** Absolute prices for CFD protection or fixed OTC SL/TP. */
   stopLoss?: number | null;
   takeProfit?: number | null;
   payoutPct: number;
-  /** Present for CFD positions; null or absent for binary trades. */
+  /** Present for CFD and fixed OTC positions; use mode to distinguish them. */
   durationSec?: number | null;
   entryPrice: number;
   /** Epoch seconds. */
@@ -80,6 +88,13 @@ export interface OpenTradeResult {
 
 /** The columns a trade row needs to be shown. Structural, so contracts never imports Prisma. */
 export interface TradeRowLike {
+  currency?:string|null;
+  flowLots?:number;
+  filledLots?:number;
+  entrySequence?:bigint|null;
+  settlementSequence?:bigint|null;
+  mode?:"LEGACY_BINARY"|"CFD"|"OTC_FIXED";
+  closeReason?:string|null;
   id: string;
   accountId: string;
   direction: DirectionDto;
@@ -108,6 +123,10 @@ export interface TradeRowLike {
  */
 export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
   return {
+    ...(row.currency?{currency:row.currency}:{}),
+    ...(row.mode==="OTC_FIXED"?{flowLots:row.flowLots??0,filledLots:row.filledLots??0,entrySequence:row.entrySequence?.toString()??null,settlementSequence:row.settlementSequence?.toString()??null}:{}),
+    ...(row.mode?{mode:row.mode}:{}),
+    ...(row.closeReason!==undefined?{closeReason:row.closeReason}:{}),
     id: row.id,
     accountId: row.accountId,
     symbol,

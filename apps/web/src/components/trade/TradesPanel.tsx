@@ -66,7 +66,7 @@ function RowShell({
       >
         {chip.label}
       </span>
-      {trade.durationSec != null && <span className="col-span-3 text-[11px] text-ink-3">Spread fee: {formatMinor(trade.spreadFee ?? 0, currency)}</span>}
+      {trade.durationSec != null && trade.mode!=="OTC_FIXED" && <span className="col-span-3 text-[11px] text-ink-3">Spread fee: {formatMinor(trade.spreadFee ?? 0, currency)}</span>}
       {children}
     </li>
   );
@@ -84,7 +84,8 @@ const OpenTradeRow = memo(function OpenTradeRow({
 }) {
   const now = useNowSec();
   const price = useQuote(trade.symbol)?.price ?? null;
-  const cfdPnl = trade.durationSec != null ? cfdOpenPnl(trade, price) : null;
+  const isCfd=trade.durationSec!=null&&trade.mode!=="OTC_FIXED";
+  const cfdPnl = isCfd ? cfdOpenPnl(trade, price) : null;
   const cfdText = cfdPnl === null ? "—" : `${cfdPnl > 0 ? "+" : cfdPnl < 0 ? "−" : ""}${formatMinor(Math.abs(cfdPnl), currency)}`;
   const side = openSide(trade.direction, trade.entryPrice, price);
   const winning = side === "winning";
@@ -95,10 +96,10 @@ const OpenTradeRow = memo(function OpenTradeRow({
   const expired = now !== null && now >= trade.expiryTs;
 
   // Only the engine can confirm a settlement and its actual outcome.
-  const pnlDisplay = expired ? "—" : trade.durationSec != null ? cfdText : winning
+  const pnlDisplay = expired ? "—" : isCfd ? cfdText : winning
     ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
     : `−${formatMinor(trade.stake, currency)}`;
-  const pnlClass = expired ? "text-ink-2" : trade.durationSec != null ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
+  const pnlClass = expired ? "text-ink-2" : isCfd ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
   const chipOverride = expired
     ? { label: "Settling", className: "bg-tile text-ink-2" }
     : undefined;
@@ -192,7 +193,7 @@ export function TradesPanel({
             <Row
               key={trade.id}
               trade={trade}
-              currency={currency}
+              currency={trade.currency??currency}
               asset={assets.find((a) => a.symbol === trade.symbol)}
             />
           ))

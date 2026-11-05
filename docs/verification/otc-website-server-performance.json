@@ -1,0 +1,1034 @@
+{
+  "scope": "Local isolated engine including worker; not a KVM or browser measurement",
+  "measurements": [
+    {
+      "time": "2026-11-05T09:49:50.021Z",
+      "databaseProbeMs": 2.639375000000655,
+      "metricsHttpMs": 3.9779579999994894,
+      "process": {
+        "time": "2026-11-05T09:49:49.554Z",
+        "cpuOneCorePct": 3.7371369053660266,
+        "rssBytes": 303874048,
+        "heapBytes": 55813216,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 40.763391
+      },
+      "transport": {
+        "connected": 0,
+        "authenticated": 0,
+        "bytesSent": 0,
+        "messagesSent": 0,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 0
+      }
+    },
+    {
+      "time": "2026-11-05T09:49:55.019Z",
+      "databaseProbeMs": 0.7841669999997976,
+      "metricsHttpMs": 1.8635410000006232,
+      "process": {
+        "time": "2026-11-05T09:49:54.554Z",
+        "cpuOneCorePct": 5.0136818783766035,
+        "rssBytes": 317800448,
+        "heapBytes": 64165136,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 63.864831
+      },
+      "transport": {
+        "connected": 1,
+        "authenticated": 1,
+        "bytesSent": 20283,
+        "messagesSent": 12,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 1
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:00.020Z",
+      "databaseProbeMs": 1.7360420000004524,
+      "metricsHttpMs": 1.8782090000004246,
+      "process": {
+        "time": "2026-11-05T09:49:59.554Z",
+        "cpuOneCorePct": 4.660176698666492,
+        "rssBytes": 334020608,
+        "heapBytes": 64615864,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 48.955391
+      },
+      "transport": {
+        "connected": 0,
+        "authenticated": 0,
+        "bytesSent": 34052,
+        "messagesSent": 24,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 1
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:05.022Z",
+      "databaseProbeMs": 1.6349579999987327,
+      "metricsHttpMs": 1.6096250000009604,
+      "process": {
+        "time": "2026-11-05T09:50:04.555Z",
+        "cpuOneCorePct": 1.9891787643386627,
+        "rssBytes": 346144768,
+        "heapBytes": 65454784,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 40.992767
+      },
+      "transport": {
+        "connected": 0,
+        "authenticated": 0,
+        "bytesSent": 34052,
+        "messagesSent": 24,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 1
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:10.021Z",
+      "databaseProbeMs": 0.6682080000027781,
+      "metricsHttpMs": 1.6117080000003625,
+      "process": {
+        "time": "2026-11-05T09:50:09.555Z",
+        "cpuOneCorePct": 2.272015316729165,
+        "rssBytes": 348520448,
+        "heapBytes": 77757304,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 48.201727
+      },
+      "transport": {
+        "connected": 0,
+        "authenticated": 0,
+        "bytesSent": 34052,
+        "messagesSent": 24,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 1
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:15.021Z",
+      "databaseProbeMs": 1.4450419999993755,
+      "metricsHttpMs": 0.8267500000001746,
+      "process": {
+        "time": "2026-11-05T09:50:14.556Z",
+        "cpuOneCorePct": 3.793401432232138,
+        "rssBytes": 359874560,
+        "heapBytes": 74743848,
+        "eventLoopP95Ms": 21.135359,
+        "eventLoopMaxMs": 32.440319
+      },
+      "transport": {
+        "connected": 49,
+        "authenticated": 49,
+        "bytesSent": 942684,
+        "messagesSent": 368,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:20.022Z",
+      "databaseProbeMs": 0.5782499999986612,
+      "metricsHttpMs": 1.1796249999970314,
+      "process": {
+        "time": "2026-11-05T09:50:19.557Z",
+        "cpuOneCorePct": 7.129252070707433,
+        "rssBytes": 360398848,
+        "heapBytes": 72032376,
+        "eventLoopP95Ms": 21.430271,
+        "eventLoopMaxMs": 40.697855
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 4681399,
+        "messagesSent": 2496,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:25.024Z",
+      "databaseProbeMs": 1.0922079999945709,
+      "metricsHttpMs": 2.195791999998619,
+      "process": {
+        "time": "2026-11-05T09:50:24.557Z",
+        "cpuOneCorePct": 4.458763339038171,
+        "rssBytes": 319324160,
+        "heapBytes": 57912320,
+        "eventLoopP95Ms": 21.135359,
+        "eventLoopMaxMs": 48.693247
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 7864819,
+        "messagesSent": 4496,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:30.027Z",
+      "databaseProbeMs": 1.7787499999976717,
+      "metricsHttpMs": 2.7484999999942374,
+      "process": {
+        "time": "2026-11-05T09:50:29.557Z",
+        "cpuOneCorePct": 6.047694157209017,
+        "rssBytes": 332251136,
+        "heapBytes": 62733992,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 48.365567
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 11038131,
+        "messagesSent": 6496,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:35.027Z",
+      "databaseProbeMs": 1.1960409999956028,
+      "metricsHttpMs": 2.015124999998079,
+      "process": {
+        "time": "2026-11-05T09:50:34.558Z",
+        "cpuOneCorePct": 17.465713511642882,
+        "rssBytes": 362676224,
+        "heapBytes": 80605520,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 50.298879
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 14238268,
+        "messagesSent": 8698,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:40.028Z",
+      "databaseProbeMs": 1.6883749999979045,
+      "metricsHttpMs": 2.4372500000026776,
+      "process": {
+        "time": "2026-11-05T09:50:39.559Z",
+        "cpuOneCorePct": 4.057364365758629,
+        "rssBytes": 368820224,
+        "heapBytes": 63835576,
+        "eventLoopP95Ms": 21.069823,
+        "eventLoopMaxMs": 30.343167
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 17377823,
+        "messagesSent": 10698,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:45.027Z",
+      "databaseProbeMs": 0.6191249999974389,
+      "metricsHttpMs": 0.9984169999952428,
+      "process": {
+        "time": "2026-11-05T09:50:44.561Z",
+        "cpuOneCorePct": 3.795517917826844,
+        "rssBytes": 374439936,
+        "heapBytes": 69376856,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 36.208639
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 20578252,
+        "messagesSent": 12698,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:50.027Z",
+      "databaseProbeMs": 0.4615829999966081,
+      "metricsHttpMs": 0.721624999998312,
+      "process": {
+        "time": "2026-11-05T09:50:49.560Z",
+        "cpuOneCorePct": 16.55776486276652,
+        "rssBytes": 355598336,
+        "heapBytes": 70452632,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 36.143103
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 23861170,
+        "messagesSent": 15110,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:50:55.028Z",
+      "databaseProbeMs": 0.8200840000063181,
+      "metricsHttpMs": 1.2440420000057202,
+      "process": {
+        "time": "2026-11-05T09:50:54.562Z",
+        "cpuOneCorePct": 17.24188016647269,
+        "rssBytes": 380780544,
+        "heapBytes": 90752240,
+        "eventLoopP95Ms": 21.184511,
+        "eventLoopMaxMs": 37.847039
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 27097125,
+        "messagesSent": 17278,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:00.030Z",
+      "databaseProbeMs": 1.0372500000084983,
+      "metricsHttpMs": 1.7846669999998994,
+      "process": {
+        "time": "2026-11-05T09:50:59.562Z",
+        "cpuOneCorePct": 5.1827632556099905,
+        "rssBytes": 320389120,
+        "heapBytes": 60031664,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 33.013759
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 30287529,
+        "messagesSent": 19278,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:05.031Z",
+      "databaseProbeMs": 0.8551670000015292,
+      "metricsHttpMs": 1.3382500000006985,
+      "process": {
+        "time": "2026-11-05T09:51:04.563Z",
+        "cpuOneCorePct": 5.174051795914468,
+        "rssBytes": 346537984,
+        "heapBytes": 68186568,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 39.583743
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 33518581,
+        "messagesSent": 21396,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:10.032Z",
+      "databaseProbeMs": 1.37995800000499,
+      "metricsHttpMs": 1.8321670000004815,
+      "process": {
+        "time": "2026-11-05T09:51:09.563Z",
+        "cpuOneCorePct": 41.23292874212699,
+        "rssBytes": 464142336,
+        "heapBytes": 176411696,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 24.313855
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 36946013,
+        "messagesSent": 24450,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:15.030Z",
+      "databaseProbeMs": 0.36404199998651166,
+      "metricsHttpMs": 0.7352079999982379,
+      "process": {
+        "time": "2026-11-05T09:51:14.564Z",
+        "cpuOneCorePct": 3.4014901491173943,
+        "rssBytes": 479674368,
+        "heapBytes": 189150808,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 21.856255
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 40055387,
+        "messagesSent": 26450,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:20.032Z",
+      "databaseProbeMs": 0.7569999999977881,
+      "metricsHttpMs": 1.0830829999904381,
+      "process": {
+        "time": "2026-11-05T09:51:19.565Z",
+        "cpuOneCorePct": 5.489517958369991,
+        "rssBytes": 334528512,
+        "heapBytes": 65047160,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 42.795007
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 43272717,
+        "messagesSent": 28450,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:25.033Z",
+      "databaseProbeMs": 0.5915419999946607,
+      "metricsHttpMs": 1.022207999994862,
+      "process": {
+        "time": "2026-11-05T09:51:24.566Z",
+        "cpuOneCorePct": 17.930804228205176,
+        "rssBytes": 363855872,
+        "heapBytes": 80486728,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 54.558719
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 46687712,
+        "messagesSent": 31224,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:30.033Z",
+      "databaseProbeMs": 0.49470799999835435,
+      "metricsHttpMs": 0.7917080000042915,
+      "process": {
+        "time": "2026-11-05T09:51:29.565Z",
+        "cpuOneCorePct": 57.05777913069075,
+        "rssBytes": 541016064,
+        "heapBytes": 91068568,
+        "eventLoopP95Ms": 21.053439,
+        "eventLoopMaxMs": 24.739839
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 49954203,
+        "messagesSent": 34280,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:35.032Z",
+      "databaseProbeMs": 0.5765410000021802,
+      "metricsHttpMs": 0.7307920000021113,
+      "process": {
+        "time": "2026-11-05T09:51:34.566Z",
+        "cpuOneCorePct": 6.264203085420444,
+        "rssBytes": 544309248,
+        "heapBytes": 119895064,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 36.405247
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 53041231,
+        "messagesSent": 36280,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:40.036Z",
+      "databaseProbeMs": 1.1874160000006668,
+      "metricsHttpMs": 1.6322080000099959,
+      "process": {
+        "time": "2026-11-05T09:51:39.566Z",
+        "cpuOneCorePct": 3.100743695658845,
+        "rssBytes": 544636928,
+        "heapBytes": 117757096,
+        "eventLoopP95Ms": 21.069823,
+        "eventLoopMaxMs": 33.816575
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 56258697,
+        "messagesSent": 38280,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:45.035Z",
+      "databaseProbeMs": 1.052332999999635,
+      "metricsHttpMs": 1.5276670000021113,
+      "process": {
+        "time": "2026-11-05T09:51:44.566Z",
+        "cpuOneCorePct": 17.681067425662285,
+        "rssBytes": 546914304,
+        "heapBytes": 71572080,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 21.577727
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 59758769,
+        "messagesSent": 41336,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:50.035Z",
+      "databaseProbeMs": 0.7557919999962905,
+      "metricsHttpMs": 1.1068340000056196,
+      "process": {
+        "time": "2026-11-05T09:51:49.566Z",
+        "cpuOneCorePct": 11.787244524201748,
+        "rssBytes": 559431680,
+        "heapBytes": 78212240,
+        "eventLoopP95Ms": 21.413887,
+        "eventLoopMaxMs": 27.475967
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 63599195,
+        "messagesSent": 43446,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:51:55.038Z",
+      "databaseProbeMs": 1.4235829999961425,
+      "metricsHttpMs": 1.6247500000026776,
+      "process": {
+        "time": "2026-11-05T09:51:54.568Z",
+        "cpuOneCorePct": 3.220323576226457,
+        "rssBytes": 559448064,
+        "heapBytes": 86535456,
+        "eventLoopP95Ms": 21.118975,
+        "eventLoopMaxMs": 33.341439
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 66790600,
+        "messagesSent": 45446,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:00.039Z",
+      "databaseProbeMs": 0.7402909999946132,
+      "metricsHttpMs": 1.5796669999836013,
+      "process": {
+        "time": "2026-11-05T09:51:59.568Z",
+        "cpuOneCorePct": 5.93870681774997,
+        "rssBytes": 344981504,
+        "heapBytes": 62883640,
+        "eventLoopP95Ms": 21.184511,
+        "eventLoopMaxMs": 36.700159
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 69981824,
+        "messagesSent": 47448,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:05.041Z",
+      "databaseProbeMs": 2.0934159999887925,
+      "metricsHttpMs": 1.561375000019325,
+      "process": {
+        "time": "2026-11-05T09:52:04.569Z",
+        "cpuOneCorePct": 15.321767436611156,
+        "rssBytes": 382664704,
+        "heapBytes": 69059272,
+        "eventLoopP95Ms": 21.118975,
+        "eventLoopMaxMs": 38.633471
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 73197903,
+        "messagesSent": 49648,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:10.039Z",
+      "databaseProbeMs": 0.3549590000184253,
+      "metricsHttpMs": 0.7496249999967404,
+      "process": {
+        "time": "2026-11-05T09:52:09.568Z",
+        "cpuOneCorePct": 4.0599788525476574,
+        "rssBytes": 386072576,
+        "heapBytes": 81727504,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 39.976959
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 75762074,
+        "messagesSent": 51430,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:15.041Z",
+      "databaseProbeMs": 0.9776249999995343,
+      "metricsHttpMs": 1.6456659999967087,
+      "process": {
+        "time": "2026-11-05T09:52:14.570Z",
+        "cpuOneCorePct": 11.151234219091233,
+        "rssBytes": 396574720,
+        "heapBytes": 85904736,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 40.140799
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 79540939,
+        "messagesSent": 53848,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:20.040Z",
+      "databaseProbeMs": 0.6757079999952111,
+      "metricsHttpMs": 0.8655000000144355,
+      "process": {
+        "time": "2026-11-05T09:52:19.570Z",
+        "cpuOneCorePct": 12.134461418573345,
+        "rssBytes": 395395072,
+        "heapBytes": 70134312,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 31.031295
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 82799873,
+        "messagesSent": 56244,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:25.042Z",
+      "databaseProbeMs": 0.671875,
+      "metricsHttpMs": 0.9921249999897555,
+      "process": {
+        "time": "2026-11-05T09:52:24.572Z",
+        "cpuOneCorePct": 5.288239750982791,
+        "rssBytes": 400474112,
+        "heapBytes": 87354288,
+        "eventLoopP95Ms": 21.184511,
+        "eventLoopMaxMs": 40.337407
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 86005081,
+        "messagesSent": 58246,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:30.043Z",
+      "databaseProbeMs": 0.8607079999928828,
+      "metricsHttpMs": 1.5668749999895226,
+      "process": {
+        "time": "2026-11-05T09:52:29.572Z",
+        "cpuOneCorePct": 6.210167238543231,
+        "rssBytes": 350060544,
+        "heapBytes": 63954024,
+        "eventLoopP95Ms": 21.135359,
+        "eventLoopMaxMs": 41.484287
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 89200364,
+        "messagesSent": 60248,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:35.045Z",
+      "databaseProbeMs": 1.212082999991253,
+      "metricsHttpMs": 1.7794169999833684,
+      "process": {
+        "time": "2026-11-05T09:52:34.573Z",
+        "cpuOneCorePct": 17.999126846630265,
+        "rssBytes": 392740864,
+        "heapBytes": 66989856,
+        "eventLoopP95Ms": 21.069823,
+        "eventLoopMaxMs": 49.545215
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 92473635,
+        "messagesSent": 62646,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:40.045Z",
+      "databaseProbeMs": 1.1746669999847654,
+      "metricsHttpMs": 1.6573750000097789,
+      "process": {
+        "time": "2026-11-05T09:52:39.604Z",
+        "cpuOneCorePct": 5.028540071833953,
+        "rssBytes": 398704640,
+        "heapBytes": 79409904,
+        "eventLoopP95Ms": 21.118975,
+        "eventLoopMaxMs": 54.657023
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 95697071,
+        "messagesSent": 64734,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:45.047Z",
+      "databaseProbeMs": 0.9977500000095461,
+      "metricsHttpMs": 2.3154579999973066,
+      "process": {
+        "time": "2026-11-05T09:52:44.605Z",
+        "cpuOneCorePct": 17.935897461191665,
+        "rssBytes": 395788288,
+        "heapBytes": 80885424,
+        "eventLoopP95Ms": 21.282815,
+        "eventLoopMaxMs": 30.441471
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 98986428,
+        "messagesSent": 67048,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:50.046Z",
+      "databaseProbeMs": 0.6103750000183936,
+      "metricsHttpMs": 1.393333000014536,
+      "process": {
+        "time": "2026-11-05T09:52:49.605Z",
+        "cpuOneCorePct": 4.507255181684237,
+        "rssBytes": 407289856,
+        "heapBytes": 103028480,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 21.872639
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 102217203,
+        "messagesSent": 69246,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:52:55.049Z",
+      "databaseProbeMs": 1.1713330000056885,
+      "metricsHttpMs": 1.8679580000170972,
+      "process": {
+        "time": "2026-11-05T09:52:54.605Z",
+        "cpuOneCorePct": 11.121859148159977,
+        "rssBytes": 416382976,
+        "heapBytes": 89019000,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 45.809663
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 105398800,
+        "messagesSent": 71448,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:00.050Z",
+      "databaseProbeMs": 1.2449159999960102,
+      "metricsHttpMs": 1.7934999999997672,
+      "process": {
+        "time": "2026-11-05T09:52:59.605Z",
+        "cpuOneCorePct": 10.623664291490027,
+        "rssBytes": 416628736,
+        "heapBytes": 71218928,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 36.208639
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 108607977,
+        "messagesSent": 73648,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:05.050Z",
+      "databaseProbeMs": 0.8944999999948777,
+      "metricsHttpMs": 1.451208000013139,
+      "process": {
+        "time": "2026-11-05T09:53:04.607Z",
+        "cpuOneCorePct": 5.051739657766898,
+        "rssBytes": 416907264,
+        "heapBytes": 84911848,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 36.175871
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 111848542,
+        "messagesSent": 75846,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:10.052Z",
+      "databaseProbeMs": 1.0239160000055563,
+      "metricsHttpMs": 1.765499999979511,
+      "process": {
+        "time": "2026-11-05T09:53:09.608Z",
+        "cpuOneCorePct": 10.134944517761795,
+        "rssBytes": 445612032,
+        "heapBytes": 132942528,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 33.882111
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 115059343,
+        "messagesSent": 78046,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:15.051Z",
+      "databaseProbeMs": 0.45833299998776056,
+      "metricsHttpMs": 0.7542079999984708,
+      "process": {
+        "time": "2026-11-05T09:53:14.608Z",
+        "cpuOneCorePct": 2.251338095561382,
+        "rssBytes": 450281472,
+        "heapBytes": 135046592,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 21.790719
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 118314837,
+        "messagesSent": 80248,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:20.053Z",
+      "databaseProbeMs": 0.9700420000008307,
+      "metricsHttpMs": 1.3910829999949783,
+      "process": {
+        "time": "2026-11-05T09:53:19.608Z",
+        "cpuOneCorePct": 14.136396061253759,
+        "rssBytes": 457785344,
+        "heapBytes": 67705088,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 36.700159
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 121550207,
+        "messagesSent": 82448,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:25.053Z",
+      "databaseProbeMs": 0.7537500000034925,
+      "metricsHttpMs": 0.9685000000172295,
+      "process": {
+        "time": "2026-11-05T09:53:24.607Z",
+        "cpuOneCorePct": 4.701462340196281,
+        "rssBytes": 458342400,
+        "heapBytes": 95447976,
+        "eventLoopP95Ms": 21.118975,
+        "eventLoopMaxMs": 25.575423
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 124825560,
+        "messagesSent": 84648,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:30.052Z",
+      "databaseProbeMs": 0.3756670000148006,
+      "metricsHttpMs": 0.7435830000031274,
+      "process": {
+        "time": "2026-11-05T09:53:29.609Z",
+        "cpuOneCorePct": 9.358371913737239,
+        "rssBytes": 368951296,
+        "heapBytes": 76406960,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 39.976959
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 128103887,
+        "messagesSent": 86848,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:35.054Z",
+      "databaseProbeMs": 0.6652499999909196,
+      "metricsHttpMs": 1.3183750000025611,
+      "process": {
+        "time": "2026-11-05T09:53:34.610Z",
+        "cpuOneCorePct": 4.4652215906036155,
+        "rssBytes": 386449408,
+        "heapBytes": 75748256,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 35.160063
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 131307388,
+        "messagesSent": 88848,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:40.054Z",
+      "databaseProbeMs": 0.6491249999962747,
+      "metricsHttpMs": 1.2611250000190921,
+      "process": {
+        "time": "2026-11-05T09:53:39.609Z",
+        "cpuOneCorePct": 8.3477732864675,
+        "rssBytes": 394936320,
+        "heapBytes": 73813192,
+        "eventLoopP95Ms": 21.086207,
+        "eventLoopMaxMs": 50.298879
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 134549986,
+        "messagesSent": 91046,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:45.056Z",
+      "databaseProbeMs": 0.5219579999975394,
+      "metricsHttpMs": 0.8126250000204891,
+      "process": {
+        "time": "2026-11-05T09:53:44.611Z",
+        "cpuOneCorePct": 2.9518845011574335,
+        "rssBytes": 393658368,
+        "heapBytes": 71982128,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 22.986751
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 137734780,
+        "messagesSent": 93048,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    },
+    {
+      "time": "2026-11-05T09:53:50.056Z",
+      "databaseProbeMs": 0.6749579999886919,
+      "metricsHttpMs": 1.22941699999501,
+      "process": {
+        "time": "2026-11-05T09:53:49.612Z",
+        "cpuOneCorePct": 4.856067500920085,
+        "rssBytes": 350339072,
+        "heapBytes": 61811488,
+        "eventLoopP95Ms": 21.102591,
+        "eventLoopMaxMs": 43.745279
+      },
+      "transport": {
+        "connected": 100,
+        "authenticated": 100,
+        "bytesSent": 140998288,
+        "messagesSent": 95248,
+        "slowClientCloses": 0,
+        "snapshotCacheEntries": 30
+      }
+    }
+  ]
+}

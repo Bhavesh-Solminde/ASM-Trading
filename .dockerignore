@@ -12,6 +12,9 @@ apps/relay
 .env.local
 .env.development
 .env.production
+.env.otc-staging
+.secrets
+**/*.otc-credentials.json
 **/*.log
 **/dist
 **/coverage

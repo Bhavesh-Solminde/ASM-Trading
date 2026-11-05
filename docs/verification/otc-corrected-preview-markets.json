@@ -1,0 +1,306 @@
+{
+  "recordedAt": "2026-11-05T11:16:59.192Z",
+  "scope": "Actual authenticated WebSocket snapshots from the corrected preview. Server/transport check, not browser FPS.",
+  "rows": [
+    {
+      "symbol": "BTCUSDT",
+      "bars": 51,
+      "firstOpen": 80284.82,
+      "lastClose": 80504.39,
+      "reference": 80306.41,
+      "source": "Binance ticker (receipt timestamp)",
+      "fullRangePct": 0.5142744173080249,
+      "matchedVolume": 48359
+    },
+    {
+      "symbol": "ETHUSDT",
+      "bars": 51,
+      "firstOpen": 2419.85,
+      "lastClose": 2440.9900000000002,
+      "reference": 2420.19,
+      "source": "Binance ticker (receipt timestamp)",
+      "fullRangePct": 1.1389323955186548,
+      "matchedVolume": 48463
+    },
+    {
+      "symbol": "BNBUSDT",
+      "bars": 51,
+      "firstOpen": 716.85,
+      "lastClose": 718.3240000000001,
+      "reference": 717.36,
+      "source": "Binance ticker (receipt timestamp)",
+      "fullRangePct": 0.7910112108749479,
+      "matchedVolume": 49442
+    },
+    {
+      "symbol": "SOLUSDT",
+      "bars": 51,
+      "firstOpen": 96.561,
+      "lastClose": 96.523,
+      "reference": 96.66,
+      "source": "Binance ticker (receipt timestamp)",
+      "fullRangePct": 0.8716166139521198,
+      "matchedVolume": 48674
+    },
+    {
+      "symbol": "XRPUSDT",
+      "bars": 51,
+      "firstOpen": 1.3187099999999998,
+      "lastClose": 1.32181,
+      "reference": 1.32,
+      "source": "Binance ticker (receipt timestamp)",
+      "fullRangePct": 0.8145630772044221,
+      "matchedVolume": 53909
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "bars": 51,
+      "firstOpen": 0.07689399999999999,
+      "lastClose": 0.077365,
+      "reference": 0.07692,
+      "source": "Binance ticker (receipt timestamp)",
+      "fullRangePct": 1.055842327545764,
+      "matchedVolume": 52524
+    },
+    {
+      "symbol": "ADAUSDT",
+      "bars": 51,
+      "firstOpen": 0.19760799999999998,
+      "lastClose": 0.197763,
+      "reference": 0.1978,
+      "source": "Binance ticker (receipt timestamp)",
+      "fullRangePct": 0.99977715200259,
+      "matchedVolume": 47841
+    },
+    {
+      "symbol": "LTCUSDT",
+      "bars": 51,
+      "firstOpen": 55.799899999999994,
+      "lastClose": 55.95739999999999,
+      "reference": 55.83,
+      "source": "Binance ticker (receipt timestamp)",
+      "fullRangePct": 0.8495321923741139,
+      "matchedVolume": 50444
+    },
+    {
+      "symbol": "LINKUSDT",
+      "bars": 51,
+      "firstOpen": 11.530999999999999,
+      "lastClose": 11.587399999999999,
+      "reference": 11.55,
+      "source": "Binance ticker (receipt timestamp)",
+      "fullRangePct": 0.8327767030717359,
+      "matchedVolume": 51736
+    },
+    {
+      "symbol": "DOTUSDT",
+      "bars": 51,
+      "firstOpen": 0.9551899999999999,
+      "lastClose": 0.9428799999999999,
+      "reference": 0.955,
+      "source": "Binance ticker (receipt timestamp)",
+      "fullRangePct": 1.7609555836082702,
+      "matchedVolume": 51363
+    },
+    {
+      "symbol": "EURUSD",
+      "bars": 51,
+      "firstOpen": 1.122989,
+      "lastClose": 1.122188,
+      "reference": 1.123,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.1101486472035118,
+      "matchedVolume": 50552
+    },
+    {
+      "symbol": "GBPUSD",
+      "bars": 51,
+      "firstOpen": 1.346032,
+      "lastClose": 1.345429,
+      "reference": 1.346,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.07946826881832791,
+      "matchedVolume": 48793
+    },
+    {
+      "symbol": "USDJPY",
+      "bars": 51,
+      "firstOpen": 158.34799999999998,
+      "lastClose": 158.4349,
+      "reference": 158.35,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.10300404248237971,
+      "matchedVolume": 46542
+    },
+    {
+      "symbol": "USDCHF",
+      "bars": 51,
+      "firstOpen": 0.817252,
+      "lastClose": 0.817592,
+      "reference": 0.8172,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.11233975064981472,
+      "matchedVolume": 47939
+    },
+    {
+      "symbol": "AUDUSD",
+      "bars": 51,
+      "firstOpen": 0.701684,
+      "lastClose": 0.701653,
+      "reference": 0.7017,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.05004441263400938,
+      "matchedVolume": 44941
+    },
+    {
+      "symbol": "USDCAD",
+      "bars": 51,
+      "firstOpen": 1.3956,
+      "lastClose": 1.396679,
+      "reference": 1.3956,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.13412263296133098,
+      "matchedVolume": 48549
+    },
+    {
+      "symbol": "NZDUSD",
+      "bars": 51,
+      "firstOpen": 0.563596,
+      "lastClose": 0.564245,
+      "reference": 0.5636,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.1937168963392688,
+      "matchedVolume": 45047
+    },
+    {
+      "symbol": "EURGBP",
+      "bars": 51,
+      "firstOpen": 0.834106,
+      "lastClose": 0.834012,
+      "reference": 0.8341,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.04281504739036546,
+      "matchedVolume": 47899
+    },
+    {
+      "symbol": "EURJPY",
+      "bars": 51,
+      "firstOpen": 177.76639999999998,
+      "lastClose": 177.6779,
+      "reference": 177.77,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.09607542849809914,
+      "matchedVolume": 48039
+    },
+    {
+      "symbol": "GBPJPY",
+      "bars": 51,
+      "firstOpen": 213.1272,
+      "lastClose": 212.95919999999998,
+      "reference": 213.118,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.15198160815892425,
+      "matchedVolume": 49485
+    },
+    {
+      "symbol": "NIFTY50",
+      "bars": 51,
+      "firstOpen": 24531.46,
+      "lastClose": 24589.31,
+      "reference": 24536.6,
+      "source": "NSE public index snapshot",
+      "fullRangePct": 0.30840856936114047,
+      "matchedVolume": 41262
+    },
+    {
+      "symbol": "BANKNIFTY",
+      "bars": 51,
+      "firstOpen": 57774.020000000004,
+      "lastClose": 57917.46,
+      "reference": 57773.65,
+      "source": "NSE public index snapshot",
+      "fullRangePct": 0.3911820652950704,
+      "matchedVolume": 42519
+    },
+    {
+      "symbol": "FINNIFTY",
+      "bars": 51,
+      "firstOpen": 26598.61,
+      "lastClose": 26629.32,
+      "reference": 26600.45,
+      "source": "NSE public index snapshot",
+      "fullRangePct": 0.3003128525616461,
+      "matchedVolume": 40876
+    },
+    {
+      "symbol": "NIFTYIT",
+      "bars": 51,
+      "firstOpen": 32838.97,
+      "lastClose": 32911.79,
+      "reference": 32837.85,
+      "source": "NSE public index snapshot",
+      "fullRangePct": 0.5121921580098165,
+      "matchedVolume": 40570
+    },
+    {
+      "symbol": "NIFTYMIDCAP100",
+      "bars": 51,
+      "firstOpen": 60618.880000000005,
+      "lastClose": 60672.47,
+      "reference": 60620.9,
+      "source": "NSE public index snapshot",
+      "fullRangePct": 0.34345100294466135,
+      "matchedVolume": 43842
+    },
+    {
+      "symbol": "SENSEX",
+      "bars": 51,
+      "firstOpen": 79307.98,
+      "lastClose": 79324.71,
+      "reference": 79310.01,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.3171886286847503,
+      "matchedVolume": 42715
+    },
+    {
+      "symbol": "XAUUSD",
+      "bars": 51,
+      "firstOpen": 4139.278,
+      "lastClose": 4133.58,
+      "reference": 4139.5,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.2970851828069332,
+      "matchedVolume": 51421
+    },
+    {
+      "symbol": "XAGUSD",
+      "bars": 51,
+      "firstOpen": 52.8655,
+      "lastClose": 52.87539999999999,
+      "reference": 52.875,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.713246520321853,
+      "matchedVolume": 51592
+    },
+    {
+      "symbol": "WTI",
+      "bars": 51,
+      "firstOpen": 88.663,
+      "lastClose": 88.837,
+      "reference": 88.72,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.5402661854274848,
+      "matchedVolume": 49527
+    },
+    {
+      "symbol": "BRENT",
+      "bars": 51,
+      "firstOpen": 96.105,
+      "lastClose": 96.069,
+      "reference": 96.22,
+      "source": "Yahoo public chart snapshot",
+      "fullRangePct": 0.6129460043647672,
+      "matchedVolume": 49854
+    }
+  ]
+}

@@ -86,6 +86,18 @@ enum Direction {
   DOWN
 }
 
+enum TradeMode {
+  LEGACY_BINARY
+  CFD
+  OTC_FIXED
+}
+
+enum MarketCommandStatus {
+  ACCEPTED
+  APPLIED
+  REJECTED
+}
+
 enum TradeStatus {
   OPEN
   WON
@@ -348,6 +360,7 @@ model Candle {
   h         Float
   l         Float
   c         Float
+  volume    Float @default(0)
   shadowO   Float?
   shadowH   Float?
   shadowL   Float?
@@ -360,6 +373,15 @@ model Candle {
 }
 
 model Trade {
+  /// OTC stake and result stay in their opening currency even if the account changes rail.
+  currency       String?
+  mode           TradeMode @default(LEGACY_BINARY)
+  idempotencyKey String?
+  marketCommandId String? @unique
+  entrySequence BigInt?
+  settlementSequence BigInt?
+  flowLots Int @default(0)
+  filledLots Int @default(0)
   leverage Int @default(1)
   id             String      @id @default(uuid())
   accountId      String
@@ -403,6 +425,96 @@ model Trade {
   @@index([accountId, createdAt])
   @@index([expiryTs, status])
   @@index([assetId, status])
+  @@unique([accountId, idempotencyKey])
+  @@index([mode, status, expiryTs])
+}
+
+/// One durable last-good external quote per market. A reference is not a fill.
+model MarketReference {
+  symbol String @id
+  price Float
+  quoteTime DateTime
+  receivedAt DateTime
+  source String
+  sourceUrl String
+  kind String
+  minuteBps Float
+  calibration String
+  sampleBars Int
+  session String
+}
+
+model MarketReferenceAudit {
+  id BigInt @id @default(autoincrement())
+  symbol String
+  quoteTime DateTime
+  receivedAt DateTime
+  payload Json
+  @@index([symbol, receivedAt])
+}
+
+/// Provider cooldown survives restarts, including failed or interrupted pulls.
+model MarketReferencePoll {
+  group String @id
+  attemptedAt DateTime
+  nextDueAt DateTime
+  failures Int @default(0)
+}
+
+/// State includes books, wallets, RNGs and outstanding fixed contracts.
+model MarketWorldCheckpoint {
+  id String @id
+  version Int
+  generation String
+  sequence BigInt
+  state Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Ordered write-ahead input stream: append before executing in the worker.
+model MarketCommand {
+  id String @id @default(uuid())
+  sequence BigInt @unique @default(autoincrement())
+  worldId String
+  accountId String?
+  actorId String?
+  idempotencyKey String?
+  acceptedAt DateTime @default(now())
+  status MarketCommandStatus @default(ACCEPTED)
+  input Json
+  result Json?
+  @@unique([accountId, idempotencyKey])
+  @@index([worldId, sequence])
+  @@index([status, acceptedAt])
+}
+
+/// Closed synthetic candles are separate from historical legacy feed candles.
+model OtcCandle {
+  worldId String
+  symbol String
+  openTs DateTime
+  o Float
+  h Float
+  l Float
+  c Float
+  volume Float
+  @@id([worldId, symbol, openTs])
+  @@index([worldId, openTs])
+}
+
+/// Bounded internal execution audit. Participant IDs never enter public tape.
+model MarketExecution {
+  worldId String
+  symbol String
+  sequence BigInt
+  time DateTime
+  price Float
+  quantity Int
+  side String
+  makerId String
+  takerId String
+  @@id([worldId, symbol, sequence])
+  @@index([worldId, time])
 }
 
 /// Per-IST-day house ledger. Written by the settlement path on every non-DEMO

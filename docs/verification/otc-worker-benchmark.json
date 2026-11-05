@@ -1,0 +1,165 @@
+{
+  "scope": "Actual local Node worker benchmark with frozen illustrative references. Includes worker and benchmark host; excludes website, database, Redis, VPS and browser. No orders or ticks are skipped.",
+  "markets": 30,
+  "bots": 6000,
+  "executionCount": 9089573,
+  "closedCount": 66600,
+  "volumeChecks": 66600,
+  "conservedFunding": true,
+  "executionDigest": "43d1d7268fc0ec8843ad4ae89d5eb549bf51b3eafd4b79adeca0e3ee518e5e49",
+  "exactRestart": true,
+  "retainedCandles": [
+    {
+      "symbol": "BTCUSDT",
+      "count": 1500
+    },
+    {
+      "symbol": "ETHUSDT",
+      "count": 1500
+    },
+    {
+      "symbol": "BNBUSDT",
+      "count": 1500
+    },
+    {
+      "symbol": "SOLUSDT",
+      "count": 1500
+    },
+    {
+      "symbol": "XRPUSDT",
+      "count": 1500
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "count": 1500
+    },
+    {
+      "symbol": "ADAUSDT",
+      "count": 1500
+    },
+    {
+      "symbol": "LTCUSDT",
+      "count": 1500
+    },
+    {
+      "symbol": "LINKUSDT",
+      "count": 1500
+    },
+    {
+      "symbol": "DOTUSDT",
+      "count": 1500
+    },
+    {
+      "symbol": "EURUSD",
+      "count": 1500
+    },
+    {
+      "symbol": "GBPUSD",
+      "count": 1500
+    },
+    {
+      "symbol": "USDJPY",
+      "count": 1500
+    },
+    {
+      "symbol": "USDCHF",
+      "count": 1500
+    },
+    {
+      "symbol": "AUDUSD",
+      "count": 1500
+    },
+    {
+      "symbol": "USDCAD",
+      "count": 1500
+    },
+    {
+      "symbol": "NZDUSD",
+      "count": 1500
+    },
+    {
+      "symbol": "EURGBP",
+      "count": 1500
+    },
+    {
+      "symbol": "EURJPY",
+      "count": 1500
+    },
+    {
+      "symbol": "GBPJPY",
+      "count": 1500
+    },
+    {
+      "symbol": "NIFTY50",
+      "count": 1500
+    },
+    {
+      "symbol": "BANKNIFTY",
+      "count": 1500
+    },
+    {
+      "symbol": "FINNIFTY",
+      "count": 1500
+    },
+    {
+      "symbol": "NIFTYIT",
+      "count": 1500
+    },
+    {
+      "symbol": "NIFTYMIDCAP100",
+      "count": 1500
+    },
+    {
+      "symbol": "SENSEX",
+      "count": 1500
+    },
+    {
+      "symbol": "XAUUSD",
+      "count": 1500
+    },
+    {
+      "symbol": "XAGUSD",
+      "count": 1500
+    },
+    {
+      "symbol": "WTI",
+      "count": 1500
+    },
+    {
+      "symbol": "BRENT",
+      "count": 1500
+    }
+  ],
+  "stages": [
+    {
+      "name": "Normal-speed scheduling, 10 seconds",
+      "elapsedMs": 10000.282375,
+      "simulationMs": 10000,
+      "cpuOneCorePct": 1.0991789619340624,
+      "rssBytes": 118702080,
+      "maxRssBytes": 132841472,
+      "eventLoopP95Ms": 22.085631,
+      "eventLoopMaxMs": 24.592383
+    },
+    {
+      "name": "300x playback, one simulation hour, all ticks retained",
+      "elapsedMs": 12025.221332999998,
+      "simulationMs": 3600000,
+      "cpuOneCorePct": 14.066210950796812,
+      "rssBytes": 182386688,
+      "maxRssBytes": 182386688,
+      "eventLoopP95Ms": 22.085631,
+      "eventLoopMaxMs": 24.756223
+    },
+    {
+      "name": "Long session, 36 simulation hours with bounded archive drains",
+      "elapsedMs": 29259.343042000004,
+      "simulationMs": 129600000,
+      "cpuOneCorePct": 115.74366161054148,
+      "rssBytes": 270270464,
+      "maxRssBytes": 270254080,
+      "eventLoopP95Ms": 21.970943,
+      "eventLoopMaxMs": 36.700159
+    }
+  ]
+}

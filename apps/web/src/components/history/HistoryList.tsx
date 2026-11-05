@@ -200,7 +200,7 @@ export function HistoryList({
           key: `t:${trade.id}`,
           atMs: trade.entryTs * 1000,
           trade,
-          currency,
+          currency:trade.currency??currency,
           pair: tradePairName(trade, asset?.displayName),
         });
       }

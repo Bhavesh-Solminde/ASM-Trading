@@ -20,6 +20,7 @@ async function requirePanel(): Promise<void> {
  */
 export async function setAssetPayoutAction(formData: FormData): Promise<void> {
   await requirePanel();
+  if(process.env.OTC_ORDER_BOOK_ENABLED==="true")throw new Error("OTC uses a fixed 92% profit payout.");
 
   const assetId = String(formData.get("assetId") ?? "");
   const payoutPct = Number(formData.get("payoutPct"));

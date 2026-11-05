@@ -1,0 +1,604 @@
+{
+  "recordedAt": "2026-11-05T10:36:31.194Z",
+  "scope": "Named disposable acceptance database, no user credentials",
+  "references": [
+    {
+      "symbol": "ADAUSDT",
+      "price": 0.1981,
+      "quoteTime": "2026-11-05T10:35:33.676Z",
+      "receivedAt": "2026-11-05T10:35:33.676Z",
+      "source": "Binance ticker (receipt timestamp)",
+      "sourceUrl": "https://data-api.binance.vision/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22BNBUSDT%22%2C%22SOLUSDT%22%2C%22XRPUSDT%22%2C%22DOGEUSDT%22%2C%22ADAUSDT%22%2C%22LTCUSDT%22%2C%22LINKUSDT%22%2C%22DOTUSDT%22%5D",
+      "kind": "PUBLIC_QUOTE",
+      "minuteBps": 9.514267410177826,
+      "calibration": "Measured completed 5-minute log returns; https://data-api.binance.vision/api/v3/klines?symbol=ADAUSDT&interval=5m&limit=1000",
+      "sampleBars": 999,
+      "session": "OPEN"
+    },
+    {
+      "symbol": "AUDUSD",
+      "price": 0.7016,
+      "quoteTime": "2026-11-05T10:31:25.000Z",
+      "receivedAt": "2026-11-05T10:31:47.926Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/AUDUSD%3DX?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 1.069618980091829,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/AUDUSD%3DX?interval=5m&range=1mo",
+      "sampleBars": 6541,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "BANKNIFTY",
+      "price": 57773.65,
+      "quoteTime": "2026-11-05T10:00:00.000Z",
+      "receivedAt": "2026-11-05T10:31:48.517Z",
+      "source": "NSE public index snapshot",
+      "sourceUrl": "https://www.nseindia.com/api/allIndices",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 3.9118554363592843,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/%5ENSEBANK?interval=5m&range=1mo",
+      "sampleBars": 1627,
+      "session": "CLOSED"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "price": 716,
+      "quoteTime": "2026-11-05T10:35:33.628Z",
+      "receivedAt": "2026-11-05T10:35:33.628Z",
+      "source": "Binance ticker (receipt timestamp)",
+      "sourceUrl": "https://data-api.binance.vision/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22BNBUSDT%22%2C%22SOLUSDT%22%2C%22XRPUSDT%22%2C%22DOGEUSDT%22%2C%22ADAUSDT%22%2C%22LTCUSDT%22%2C%22LINKUSDT%22%2C%22DOTUSDT%22%5D",
+      "kind": "PUBLIC_QUOTE",
+      "minuteBps": 5.362262875765594,
+      "calibration": "Measured completed 5-minute log returns; https://data-api.binance.vision/api/v3/klines?symbol=BNBUSDT&interval=5m&limit=1000",
+      "sampleBars": 999,
+      "session": "OPEN"
+    },
+    {
+      "symbol": "BRENT",
+      "price": 96.05,
+      "quoteTime": "2026-11-05T10:21:39.000Z",
+      "receivedAt": "2026-11-05T10:31:48.684Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/BZ%3DF?interval=1d&range=5d",
+      "kind": "FUTURES_PROXY",
+      "minuteBps": 7.782148766544006,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/BZ%3DF?interval=5m&range=1mo",
+      "sampleBars": 6089,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "price": 80391.14,
+      "quoteTime": "2026-11-05T10:35:31.948Z",
+      "receivedAt": "2026-11-05T10:35:31.948Z",
+      "source": "Binance ticker (receipt timestamp)",
+      "sourceUrl": "https://data-api.binance.vision/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22BNBUSDT%22%2C%22SOLUSDT%22%2C%22XRPUSDT%22%2C%22DOGEUSDT%22%2C%22ADAUSDT%22%2C%22LTCUSDT%22%2C%22LINKUSDT%22%2C%22DOTUSDT%22%5D",
+      "kind": "PUBLIC_QUOTE",
+      "minuteBps": 5.535255543684212,
+      "calibration": "Measured completed 5-minute log returns; https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=5m&limit=1000",
+      "sampleBars": 999,
+      "session": "OPEN"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "price": 0.07699,
+      "quoteTime": "2026-11-05T10:35:33.667Z",
+      "receivedAt": "2026-11-05T10:35:33.667Z",
+      "source": "Binance ticker (receipt timestamp)",
+      "sourceUrl": "https://data-api.binance.vision/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22BNBUSDT%22%2C%22SOLUSDT%22%2C%22XRPUSDT%22%2C%22DOGEUSDT%22%2C%22ADAUSDT%22%2C%22LTCUSDT%22%2C%22LINKUSDT%22%2C%22DOTUSDT%22%5D",
+      "kind": "PUBLIC_QUOTE",
+      "minuteBps": 7.974263712383181,
+      "calibration": "Measured completed 5-minute log returns; https://data-api.binance.vision/api/v3/klines?symbol=DOGEUSDT&interval=5m&limit=1000",
+      "sampleBars": 999,
+      "session": "OPEN"
+    },
+    {
+      "symbol": "DOTUSDT",
+      "price": 0.955,
+      "quoteTime": "2026-11-05T10:35:33.696Z",
+      "receivedAt": "2026-11-05T10:35:33.696Z",
+      "source": "Binance ticker (receipt timestamp)",
+      "sourceUrl": "https://data-api.binance.vision/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22BNBUSDT%22%2C%22SOLUSDT%22%2C%22XRPUSDT%22%2C%22DOGEUSDT%22%2C%22ADAUSDT%22%2C%22LTCUSDT%22%2C%22LINKUSDT%22%2C%22DOTUSDT%22%5D",
+      "kind": "PUBLIC_QUOTE",
+      "minuteBps": 10.57710774650937,
+      "calibration": "Measured completed 5-minute log returns; https://data-api.binance.vision/api/v3/klines?symbol=DOTUSDT&interval=5m&limit=1000",
+      "sampleBars": 999,
+      "session": "OPEN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "price": 2419.67,
+      "quoteTime": "2026-11-05T10:35:33.601Z",
+      "receivedAt": "2026-11-05T10:35:33.601Z",
+      "source": "Binance ticker (receipt timestamp)",
+      "sourceUrl": "https://data-api.binance.vision/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22BNBUSDT%22%2C%22SOLUSDT%22%2C%22XRPUSDT%22%2C%22DOGEUSDT%22%2C%22ADAUSDT%22%2C%22LTCUSDT%22%2C%22LINKUSDT%22%2C%22DOTUSDT%22%5D",
+      "kind": "PUBLIC_QUOTE",
+      "minuteBps": 7.801098264916282,
+      "calibration": "Measured completed 5-minute log returns; https://data-api.binance.vision/api/v3/klines?symbol=ETHUSDT&interval=5m&limit=1000",
+      "sampleBars": 999,
+      "session": "OPEN"
+    },
+    {
+      "symbol": "EURGBP",
+      "price": 0.8343,
+      "quoteTime": "2026-11-05T10:31:46.000Z",
+      "receivedAt": "2026-11-05T10:31:48.039Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/EURGBP%3DX?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 0.5580811021085388,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/EURGBP%3DX?interval=5m&range=1mo",
+      "sampleBars": 6538,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "EURJPY",
+      "price": 177.89,
+      "quoteTime": "2026-11-05T10:31:46.000Z",
+      "receivedAt": "2026-11-05T10:31:48.089Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/EURJPY%3DX?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 1.0563712680494137,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/EURJPY%3DX?interval=5m&range=1mo",
+      "sampleBars": 6533,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "EURUSD",
+      "price": 1.1237,
+      "quoteTime": "2026-11-05T10:31:25.000Z",
+      "receivedAt": "2026-11-05T10:31:47.754Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 1.0164383836534099,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?interval=5m&range=1mo",
+      "sampleBars": 6533,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "FINNIFTY",
+      "price": 26600.45,
+      "quoteTime": "2026-11-05T10:00:00.000Z",
+      "receivedAt": "2026-11-05T10:31:48.528Z",
+      "source": "NSE public index snapshot",
+      "sourceUrl": "https://www.nseindia.com/api/allIndices",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 4.101568575444107,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/NIFTY_FIN_SERVICE.NS?interval=5m&range=1mo",
+      "sampleBars": 1627,
+      "session": "CLOSED"
+    },
+    {
+      "symbol": "GBPJPY",
+      "price": 213.212,
+      "quoteTime": "2026-11-05T10:31:47.000Z",
+      "receivedAt": "2026-11-05T10:31:48.135Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/GBPJPY%3DX?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 1.0554111227442944,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/GBPJPY%3DX?interval=5m&range=1mo",
+      "sampleBars": 6533,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "GBPUSD",
+      "price": 1.3466,
+      "quoteTime": "2026-11-05T10:31:25.000Z",
+      "receivedAt": "2026-11-05T10:31:47.792Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/GBPUSD%3DX?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 0.8951147268556136,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/GBPUSD%3DX?interval=5m&range=1mo",
+      "sampleBars": 6535,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "price": 11.541,
+      "quoteTime": "2026-11-05T10:35:33.690Z",
+      "receivedAt": "2026-11-05T10:35:33.690Z",
+      "source": "Binance ticker (receipt timestamp)",
+      "sourceUrl": "https://data-api.binance.vision/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22BNBUSDT%22%2C%22SOLUSDT%22%2C%22XRPUSDT%22%2C%22DOGEUSDT%22%2C%22ADAUSDT%22%2C%22LTCUSDT%22%2C%22LINKUSDT%22%2C%22DOTUSDT%22%5D",
+      "kind": "PUBLIC_QUOTE",
+      "minuteBps": 10.219162919344894,
+      "calibration": "Measured completed 5-minute log returns; https://data-api.binance.vision/api/v3/klines?symbol=LINKUSDT&interval=5m&limit=1000",
+      "sampleBars": 999,
+      "session": "OPEN"
+    },
+    {
+      "symbol": "LTCUSDT",
+      "price": 55.93,
+      "quoteTime": "2026-11-05T10:35:33.683Z",
+      "receivedAt": "2026-11-05T10:35:33.683Z",
+      "source": "Binance ticker (receipt timestamp)",
+      "sourceUrl": "https://data-api.binance.vision/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22BNBUSDT%22%2C%22SOLUSDT%22%2C%22XRPUSDT%22%2C%22DOGEUSDT%22%2C%22ADAUSDT%22%2C%22LTCUSDT%22%2C%22LINKUSDT%22%2C%22DOTUSDT%22%5D",
+      "kind": "PUBLIC_QUOTE",
+      "minuteBps": 7.768814659288298,
+      "calibration": "Measured completed 5-minute log returns; https://data-api.binance.vision/api/v3/klines?symbol=LTCUSDT&interval=5m&limit=1000",
+      "sampleBars": 999,
+      "session": "OPEN"
+    },
+    {
+      "symbol": "NIFTY50",
+      "price": 24536.6,
+      "quoteTime": "2026-11-05T10:00:00.000Z",
+      "receivedAt": "2026-11-05T10:31:48.499Z",
+      "source": "NSE public index snapshot",
+      "sourceUrl": "https://www.nseindia.com/api/allIndices",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 3.720401137065171,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/%5ENSEI?interval=5m&range=1mo",
+      "sampleBars": 1627,
+      "session": "CLOSED"
+    },
+    {
+      "symbol": "NIFTYIT",
+      "price": 32837.85,
+      "quoteTime": "2026-11-05T10:00:00.000Z",
+      "receivedAt": "2026-11-05T10:31:48.540Z",
+      "source": "NSE public index snapshot",
+      "sourceUrl": "https://www.nseindia.com/api/allIndices",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 6.163593302021794,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/%5ECNXIT?interval=5m&range=1mo",
+      "sampleBars": 1627,
+      "session": "CLOSED"
+    },
+    {
+      "symbol": "NIFTYMIDCAP100",
+      "price": 60620.9,
+      "quoteTime": "2026-11-05T10:00:00.000Z",
+      "receivedAt": "2026-11-05T10:31:48.551Z",
+      "source": "NSE public index snapshot",
+      "sourceUrl": "https://www.nseindia.com/api/allIndices",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 4.240154546792436,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/NIFTY_MIDCAP_100.NS?interval=5m&range=1mo",
+      "sampleBars": 1627,
+      "session": "CLOSED"
+    },
+    {
+      "symbol": "NZDUSD",
+      "price": 0.5637,
+      "quoteTime": "2026-11-05T10:31:25.000Z",
+      "receivedAt": "2026-11-05T10:31:48.005Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/NZDUSD%3DX?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 1.4811212573109802,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/NZDUSD%3DX?interval=5m&range=1mo",
+      "sampleBars": 6541,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "SENSEX",
+      "price": 79310.01,
+      "quoteTime": "2026-11-05T10:02:36.000Z",
+      "receivedAt": "2026-11-05T10:31:48.592Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 4.005822937642042,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=5m&range=1mo",
+      "sampleBars": 1627,
+      "session": "CLOSED"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "price": 96.77,
+      "quoteTime": "2026-11-05T10:35:33.640Z",
+      "receivedAt": "2026-11-05T10:35:33.640Z",
+      "source": "Binance ticker (receipt timestamp)",
+      "sourceUrl": "https://data-api.binance.vision/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22BNBUSDT%22%2C%22SOLUSDT%22%2C%22XRPUSDT%22%2C%22DOGEUSDT%22%2C%22ADAUSDT%22%2C%22LTCUSDT%22%2C%22LINKUSDT%22%2C%22DOTUSDT%22%5D",
+      "kind": "PUBLIC_QUOTE",
+      "minuteBps": 9.06531060641376,
+      "calibration": "Measured completed 5-minute log returns; https://data-api.binance.vision/api/v3/klines?symbol=SOLUSDT&interval=5m&limit=1000",
+      "sampleBars": 999,
+      "session": "OPEN"
+    },
+    {
+      "symbol": "USDCAD",
+      "price": 1.3951,
+      "quoteTime": "2026-11-05T10:31:46.000Z",
+      "receivedAt": "2026-11-05T10:31:47.960Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/CAD%3DX?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 0.921205681882071,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/CAD%3DX?interval=5m&range=1mo",
+      "sampleBars": 6513,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "USDCHF",
+      "price": 0.8174,
+      "quoteTime": "2026-11-05T10:31:47.000Z",
+      "receivedAt": "2026-11-05T10:31:47.883Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/CHF%3DX?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 1.2170679091009688,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/CHF%3DX?interval=5m&range=1mo",
+      "sampleBars": 6511,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "USDJPY",
+      "price": 158.356,
+      "quoteTime": "2026-11-05T10:31:46.000Z",
+      "receivedAt": "2026-11-05T10:31:47.847Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/JPY%3DX?interval=1d&range=5d",
+      "kind": "PUBLIC_DELAYED",
+      "minuteBps": 1.019114053210107,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/JPY%3DX?interval=5m&range=1mo",
+      "sampleBars": 6509,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "WTI",
+      "price": 88.5,
+      "quoteTime": "2026-11-05T10:21:43.000Z",
+      "receivedAt": "2026-11-05T10:31:48.640Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/CL%3DF?interval=1d&range=5d",
+      "kind": "FUTURES_PROXY",
+      "minuteBps": 7.015863025828372,
+      "calibration": "Measured completed 5-minute log returns; https://query2.finance.yahoo.com/v8/finance/chart/CL%3DF?interval=5m&range=1mo",
+      "sampleBars": 6316,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "XAGUSD",
+      "price": 52.73,
+      "quoteTime": "2026-11-05T10:21:43.000Z",
+      "receivedAt": "2026-11-05T10:31:48.205Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/SI%3DF?interval=1d&range=5d",
+      "kind": "FUTURES_PROXY",
+      "minuteBps": 6.087831901802491,
+      "calibration": "Measured completed 5-minute log returns; futures movement proxy; https://query2.finance.yahoo.com/v8/finance/chart/SI%3DF?interval=5m&range=1mo",
+      "sampleBars": 6309,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "XAUUSD",
+      "price": 4133.4,
+      "quoteTime": "2026-11-05T10:21:38.000Z",
+      "receivedAt": "2026-11-05T10:31:48.171Z",
+      "source": "Yahoo public chart snapshot",
+      "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=1d&range=5d",
+      "kind": "FUTURES_PROXY",
+      "minuteBps": 3.204127105897021,
+      "calibration": "Measured completed 5-minute log returns; futures movement proxy; https://query2.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=5m&range=1mo",
+      "sampleBars": 6315,
+      "session": "UNKNOWN"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "price": 1.3198,
+      "quoteTime": "2026-11-05T10:35:33.658Z",
+      "receivedAt": "2026-11-05T10:35:33.658Z",
+      "source": "Binance ticker (receipt timestamp)",
+      "sourceUrl": "https://data-api.binance.vision/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22BNBUSDT%22%2C%22SOLUSDT%22%2C%22XRPUSDT%22%2C%22DOGEUSDT%22%2C%22ADAUSDT%22%2C%22LTCUSDT%22%2C%22LINKUSDT%22%2C%22DOTUSDT%22%5D",
+      "kind": "PUBLIC_QUOTE",
+      "minuteBps": 7.562075378428659,
+      "calibration": "Measured completed 5-minute log returns; https://data-api.binance.vision/api/v3/klines?symbol=XRPUSDT&interval=5m&limit=1000",
+      "sampleBars": 999,
+      "session": "OPEN"
+    }
+  ],
+  "schedule": [
+    {
+      "group": "calibration",
+      "attemptedAt": "2026-11-05T10:31:48.696Z",
+      "nextDueAt": "2026-11-05T11:31:48.696Z",
+      "failures": 0
+    },
+    {
+      "group": "crypto",
+      "attemptedAt": "2026-11-05T10:35:31.630Z",
+      "nextDueAt": "2026-11-05T10:36:36.439Z",
+      "failures": 0
+    },
+    {
+      "group": "futures",
+      "attemptedAt": "2026-11-05T10:31:48.609Z",
+      "nextDueAt": "2026-11-05T10:36:50.201Z",
+      "failures": 0
+    },
+    {
+      "group": "indices",
+      "attemptedAt": "2026-11-05T10:31:48.217Z",
+      "nextDueAt": "2026-11-05T10:46:50.466Z",
+      "failures": 0
+    },
+    {
+      "group": "rates",
+      "attemptedAt": "2026-11-05T10:31:47.460Z",
+      "nextDueAt": "2026-11-05T10:51:50.927Z",
+      "failures": 0
+    }
+  ],
+  "assets": [
+    {
+      "symbol": "ADAUSDT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "AUDUSD",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "BANKNIFTY",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "BRENT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "DOTUSDT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "EURGBP",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "EURJPY",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "EURUSD",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "FINNIFTY",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "GBPJPY",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "GBPUSD",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "LTCUSDT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "NIFTY50",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "NIFTYIT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "NIFTYMIDCAP100",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "NZDUSD",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "SENSEX",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "USDCAD",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "USDCHF",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "USDJPY",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "WTI",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "XAGUSD",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "XAUUSD",
+      "payoutPct": 92,
+      "kind": "OTC"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "payoutPct": 92,
+      "kind": "OTC"
+    }
+  ],
+  "roles": [
+    {
+      "_count": 100,
+      "role": "USER"
+    }
+  ],
+  "accounts": [
+    {
+      "_count": 100,
+      "type": "DEMO"
+    },
+    {
+      "_count": 100,
+      "type": "LIVE"
+    }
+  ],
+  "checkpoint": {
+    "generation": "267df383-7bf0-4b0a-833e-15da28700229",
+    "sequence": "2460",
+    "updatedAt": "2026-11-05T10:36:16.684Z"
+  },
+  "commands": 2576,
+  "executions": 25348,
+  "candles": 1500
+}

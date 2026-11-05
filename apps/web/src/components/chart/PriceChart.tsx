@@ -7,6 +7,7 @@ import {
   BaselineSeries,
   CandlestickSeries,
   LineSeries,
+  HistogramSeries,
   LineType,
   ColorType,
   CrosshairMode,
@@ -34,14 +35,19 @@ import { TIMEFRAME_SEC, type ChartState } from "./engine-state";
 import type { ChartType } from "./chart-types";
 import { HlcAreaSeriesView } from "./plugins/hlc-area-series";
 import { VolumeCandlesSeriesView } from "./plugins/volume-candles-series";
+import { recordChartMetric,finishChartSwitch } from "./diagnostics";
+import { OtcExpiry } from "./OtcExpiry";
+import { OtcProtection } from "./OtcProtection";
+import type { OtcProtectionDraft } from "./otc-protection";
 
 const BRAND = "#2f81f7";
 const BRAND_INK = "#ffffff";
-const UP = "#3be584";
-const DOWN = "#e5413b";
+const UP = "#089981";
+const DOWN = "#f23645";
 const CROSSHAIR = "rgba(47, 129, 247, 0.32)";
 const WATERMARK = "rgba(47, 129, 247, 0.045)";
-const CANDLE_SEC = TIMEFRAME_SEC["1m"];
+const marketClock = new Intl.DateTimeFormat("en-GB", { timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",hour12:false });
+const marketTime = (time:Time) => typeof time==="number" ? marketClock.format(time*1000) : "";
 /** Fetch older history once the left edge is within this many bars of the start. */
 const LOAD_OLDER_TRIGGER_BARS = 12;
 
@@ -162,9 +168,10 @@ function createSeriesForType(
   type: ChartType,
   precision: number,
   basePrice = 0,
+  naturalScale = false,
 ): ISeriesApi<any> {
   const series = addSeriesForType(chart, type, precision, basePrice);
-  series.applyOptions({ autoscaleInfoProvider: shrinkAutoscale });
+  if(!naturalScale)series.applyOptions({ autoscaleInfoProvider: shrinkAutoscale });
   return series;
 }
 
@@ -436,6 +443,10 @@ export function PriceChart({
   openTrades,
   currency,
   chartType = "candles",
+  showVolume=false,
+  appearance="classic",
+  protectionDraft,
+  onProtectionChange,
   enableBrackets = false,
   bracketScope,
   bracketControls = true,
@@ -447,6 +458,10 @@ export function PriceChart({
   openTrades: TradeView[];
   currency: string;
   chartType?: ChartType;
+  showVolume?:boolean;
+  appearance?:"classic"|"market";
+  protectionDraft?:OtcProtectionDraft|undefined;
+  onProtectionChange?:(draft:OtcProtectionDraft)=>void;
   enableBrackets?: boolean;
   bracketScope?: string;
   bracketControls?: boolean;
@@ -460,7 +475,6 @@ export function PriceChart({
   const seriesRef = useRef<ISeriesApi<any> | null>(null);
   const priceLineRef = useRef<IPriceLine | null>(null);
   const watermarkRef = useRef<ITextWatermarkPluginApi<Time> | null>(null);
-  const tradeLinesRef = useRef<IPriceLine[]>([]);
   const [chartVersion, setChartVersion] = useState(0);
 
   // Seamless in-engine wave transformation state (from latest point to the end)
@@ -478,39 +492,46 @@ export function PriceChart({
     // narrows the price scale and shortens the time scale, giving candles room.
     const compactMq = window.matchMedia("(width < 64rem) or (height < 30rem)");
     const axisFontSize = () => (compactMq.matches ? 9 : 11);
+    const marketStyle=appearance==="market";
+    const spacing=marketStyle?6:defaultBarSpacing();
 
     const chart: IChartApi = createChart(containerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#7d7a72",
+        background: { type: ColorType.Solid, color: marketStyle?"#0c141c":"#0d141b" },
+        textColor: marketStyle?"#a5bbc9":"#9ba8b7",
         // next/font renames the family, so read it from the token rather than by name.
         fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-ui").trim() || "sans-serif",
         fontSize: axisFontSize(),
-        attributionLogo: false,
+        attributionLogo: marketStyle,
       },
       grid: {
-        vertLines: { color: "rgba(47, 129, 247, 0.07)" },
-        horzLines: { color: "rgba(47, 129, 247, 0.07)" },
+        vertLines: { color: marketStyle?"#16232c":"rgba(47, 129, 247, 0.07)" },
+        horzLines: { color: marketStyle?"#16232c":"rgba(47, 129, 247, 0.07)" },
       },
-      rightPriceScale: { borderVisible: false, scaleMargins: { top: enableBrackets ? 0.24 : 0.18, bottom: 0.1 } },
+      rightPriceScale: { borderVisible: marketStyle,borderColor:"#293a47",scaleMargins: marketStyle?{top:compactMq.matches?.24:.12,bottom:.22}:{ top: enableBrackets ? 0.24 : 0.18, bottom: 0.1 } },
       timeScale: {
-        borderVisible: false,
+        borderVisible: marketStyle,
+        borderColor:"#293a47",
         timeVisible: true,
-        secondsVisible: true,
-        rightOffset: defaultRightOffset(defaultBarSpacing()),
-        barSpacing: defaultBarSpacing(),
+        secondsVisible: !marketStyle,
+        rightOffset: marketStyle?5:defaultRightOffset(spacing),
+        barSpacing: spacing,
+        ...(marketStyle?{tickMarkFormatter:marketTime}:{}),
         maxBarSpacing: maxBarSpacingFor(containerRef.current.clientWidth),
       },
       crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: { color: CROSSHAIR, labelBackgroundColor: "#1c1c1c" },
-        horzLine: { color: CROSSHAIR, labelBackgroundColor: "#1c1c1c" },
+        mode: marketStyle?CrosshairMode.Magnet:CrosshairMode.Normal,
+        vertLine: { color: marketStyle?"#9598a1":CROSSHAIR, labelBackgroundColor: "#1c1c1c" },
+        horzLine: { color: marketStyle?"#9598a1":CROSSHAIR, labelBackgroundColor: "#1c1c1c" },
       },
+      ...(marketStyle?{localization:{timeFormatter:(time:Time)=>`${marketTime(time)} IST`}}:{}),
       autoSize: true,
+      handleScroll:{mouseWheel:false,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},
+      handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:{time:true,price:false}},
     });
 
     const basePrice = market.getSnapshot().chart.candles[0]?.c ?? 0;
-    const initialSeries = createSeriesForType(chart, chartType, precision, basePrice);
+    const initialSeries = createSeriesForType(chart, chartType, precision, basePrice,marketStyle);
     populateSeriesData(initialSeries, chartType, market.getSnapshot().chart);
 
     priceLineRef.current = initialSeries.createPriceLine({
@@ -552,7 +573,7 @@ export function PriceChart({
     prevChartTypeRef.current = chartType;
     setChartVersion((v) => v + 1);
 
-    const onCompactChange = () => chart.applyOptions({ layout: { fontSize: axisFontSize() } });
+    const onCompactChange = () => chart.applyOptions({ layout: { fontSize: axisFontSize() },...(marketStyle?{rightPriceScale:{scaleMargins:{top:compactMq.matches?.24:.12,bottom:.22}}}:{}) });
     compactMq.addEventListener("change", onCompactChange);
 
     // The zoom cap is width-derived, so it has to follow the element (sidebar
@@ -572,10 +593,9 @@ export function PriceChart({
       activeOldSeriesRef.current = null;
       priceLineRef.current = null;
       watermarkRef.current = null;
-      tradeLinesRef.current = [];
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [precision, market]);
+  }, [precision, market,appearance]);
 
   // 2. Progressive Wave Transformation from the latest point (right) backwards to the start (left)
   useEffect(() => {
@@ -610,7 +630,7 @@ export function PriceChart({
     const allCandles = market.getSnapshot().chart.candles;
     const N = allCandles.length;
     const basePrice = allCandles[0]?.c ?? 0;
-    const newSeries = createSeriesForType(chart, chartType, precision, basePrice);
+    const newSeries = createSeriesForType(chart, chartType, precision, basePrice,appearance==="market");
 
     // Re-attach live price line to new series
     priceLineRef.current = newSeries.createPriceLine({
@@ -642,7 +662,7 @@ export function PriceChart({
     if (hudTimerRef.current) clearTimeout(hudTimerRef.current);
     hudTimerRef.current = setTimeout(() => setHudLabel(null), 1400);
 
-    if (reducedMotion || !oldSeries || N <= 1) {
+    if (reducedMotion || appearance==="market" || !oldSeries || N <= 1) {
       populateSeriesData(newSeries, chartType, market.getSnapshot().chart);
       if (oldSeries) {
         try {
@@ -702,7 +722,7 @@ export function PriceChart({
     };
 
     animFrameRef.current = requestAnimationFrame(transformWave);
-  }, [chartType, precision, market]);
+  }, [chartType, precision, market,appearance]);
 
   // Streams market data into the chart without rendering.
   useEffect(() => {
@@ -751,8 +771,9 @@ export function PriceChart({
     const paintPrice = () => {
       raf = requestAnimationFrame(paintPrice);
       if (target === null) return;
+      const began=performance.now();let changed=false;
 
-      if (displayed === null || reducedMotion) {
+      if (displayed === null || reducedMotion || appearance==="market") {
         displayed = target;
         tweenTo = target;
       } else {
@@ -798,6 +819,7 @@ export function PriceChart({
           dispLow !== paintedLow ||
           displayed !== paintedClose
         ) {
+          changed=true;
           if (isOhlc) {
             if (chartType === "hollow_candles") {
               const state = market.getSnapshot().chart;
@@ -839,9 +861,12 @@ export function PriceChart({
         }
       }
       if (displayed !== paintedPrice) {
-        priceLine.applyOptions({ price: displayed, lineVisible: true, axisLabelVisible: true });
+        changed=true;
+        const color=appearance==="market"?(formingBar&&formingBar.close<formingBar.open?DOWN:UP):BRAND;
+        priceLine.applyOptions({ price: displayed,color,axisLabelColor:color,lineStyle:appearance==="market"?LineStyle.Dotted:LineStyle.Dashed,lineVisible: true, axisLabelVisible: true });
         paintedPrice = displayed;
       }
+      if(changed)recordChartMetric("chartWork",performance.now()-began);
     };
 
     const placeCountdown = () => {
@@ -856,13 +881,15 @@ export function PriceChart({
         return;
       }
       label.hidden = false;
-      label.textContent = countdown(CANDLE_SEC - (Math.floor(Date.now() / 1000) % CANDLE_SEC));
+      const width=TIMEFRAME_SEC[state.timeframe];
+      label.textContent = countdown(width - (Math.floor(Date.now() / 1000) % width));
       label.style.transform = `translate(${Math.round(x + 14)}px, ${Math.round(y - 9)}px)`;
     };
 
     const draw = () => {
       const state = market.getSnapshot().chart;
       if (state === prev) return;
+      const began=performance.now();
 
       // When the chart switches to a different symbol, reset the eased
       // display price so the first tick on the new asset snaps to its own
@@ -887,7 +914,20 @@ export function PriceChart({
       // Closed history is written straight through; the forming bar and the
       // last-price line are handed to the eased paint loop below.
       if (!prev || state.candles !== prev.candles) {
-        if (chartType === "hollow_candles") {
+        const sameScope=prev&&prev.symbol===state.symbol&&prev.timeframe===state.timeframe;
+        const incremental=prev!==null&&sameScope&&prev.candles.length>0&&state.candles[0]?.openTs===prev.candles[0]?.openTs;
+        const viewport=sameScope&&!incremental?chartRef.current?.timeScale().getVisibleLogicalRange():null;
+        if(incremental&&prev){
+          const last=prev.candles.at(-1)!;
+          for(let i=0;i<state.candles.length;i++){
+            const b=state.candles[i]!;if(b.openTs<last.openTs)continue;
+            if(b.openTs===last.openTs&&b.o===last.o&&b.h===last.h&&b.l===last.l&&b.c===last.c)continue;
+            const historical=b.openTs<(prev.forming?.openTs??last.openTs);
+            if(chartType==="hollow_candles") (series as ISeriesApi<"Candlestick">).update(toHollowBar(b,i?state.candles[i-1]!.c:b.o),historical);
+            else if(isOhlc)(series as ISeriesApi<"Candlestick">).update(toBar(b),historical);
+            else (series as ISeriesApi<"Line">).update(toSingleValue(b),historical);
+          }
+        } else if (chartType === "hollow_candles") {
           (series as ISeriesApi<"Candlestick">).setData(
             state.candles.map((c, i) => {
               const prevClose = i > 0 ? state.candles[i - 1]!.c : c.o;
@@ -904,12 +944,19 @@ export function PriceChart({
             });
           }
         }
+        if(viewport&&prev){
+          const oldFirst=prev.candles[0]?.openTs,newFirst=state.candles[0]?.openTs;
+          const removed=oldFirst!==undefined&&newFirst!==undefined?(oldFirst<=newFirst?Math.max(0,prev.candles.findIndex(b=>b.openTs===newFirst)):-Math.max(0,state.candles.findIndex(b=>b.openTs===oldFirst))):0;
+          chartRef.current?.timeScale().setVisibleLogicalRange({from:viewport.from-removed,to:viewport.to-removed});
+        }
       }
 
       const last = state.candles.at(-1);
       const formingValid =
         state.forming && (!last || state.forming.openTs > last.openTs) ? state.forming : null;
       formingBar = formingValid ? toBar(formingValid) : null;
+      // Match the market demo's initial framing without resetting a live pan or zoom.
+      if(appearance==="market"&&state.candles.length&&(!prev?.candles.length||prev.symbol!==state.symbol||prev.timeframe!==state.timeframe))chart.timeScale().fitContent();
 
       if (state.lastPrice === null) {
         target = null;
@@ -925,6 +972,8 @@ export function PriceChart({
 
       prev = state;
       placeCountdown();
+      if(state.candles.length||state.forming)finishChartSwitch(`${state.symbol}:${state.timeframe}`);
+      recordChartMetric("chartWork",performance.now()-began);
     };
 
     // Scroll-left history: when the left edge nears the earliest loaded bar,
@@ -968,7 +1017,24 @@ export function PriceChart({
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(placeCountdown);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(maybeLoadOlder);
     };
-  }, [market, precision, chartVersion, chartType]);
+  }, [market, precision, chartVersion, chartType,appearance]);
+
+  useEffect(()=>{
+    const chart=chartRef.current;if(!chart||!showVolume)return;
+    const series=chart.addSeries(HistogramSeries,{priceScaleId:"volume",priceFormat:{type:"volume"},lastValueVisible:false,priceLineVisible:false});
+    chart.priceScale("volume").applyOptions({scaleMargins:{top:appearance==="market"?.86:.82,bottom:0},visible:false});
+    let previous:ChartState|null=null;
+    const draw=()=>{
+      const state=market.getSnapshot().chart;
+      const bars=state.forming?[...state.candles,state.forming]:state.candles;
+      const point=(b:CandleDto)=>({time:b.openTs as UTCTimestamp,value:b.volume??0,color:b.c>=b.o?"#08998180":"#f2364580"});
+      if(!previous||previous.symbol!==state.symbol||previous.timeframe!==state.timeframe||previous.candles[0]?.openTs!==state.candles[0]?.openTs)series.setData(bars.map(point));
+      else{const last=previous.forming?.openTs??previous.candles.at(-1)?.openTs??0;for(const b of bars)if(b.openTs>=last)series.update(point(b));}
+      previous=state;
+    };
+    draw();const unsubscribe=market.subscribe(draw);
+    return()=>{unsubscribe();if(chartRef.current===chart)chart.removeSeries(series);};
+  },[market,showVolume,chartVersion,appearance]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -983,18 +1049,22 @@ export function PriceChart({
   useEffect(() => {
     const series = seriesRef.current;
     if (!series) return;
-    for (const line of tradeLinesRef.current) series.removePriceLine(line);
-
-    tradeLinesRef.current = openTrades
+    const lines = openTrades
       .filter(t => !enableBrackets || t.durationSec == null)
       .map(t => series.createPriceLine({
         price: t.entryPrice,
         color: t.direction === "UP" ? UP : DOWN,
         lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true,
         axisLabelTextColor: BRAND_INK,
-        title: `${t.direction === "UP" ? "▲" : "▼"} ${formatMinor(t.stake, currency)}`,
+        title: `${t.direction === "UP" ? "▲" : "▼"} ${formatMinor(t.stake, t.currency??currency)}`,
       }));
-  }, [openTrades, currency, chartVersion, enableBrackets]);
+    for(const trade of openTrades)if(trade.mode==="OTC_FIXED"){
+      for(const [label,price,color] of [["SL",trade.stopLoss,DOWN],["TP",trade.takeProfit,UP]] as const){
+        if(price!=null)lines.push(series.createPriceLine({price,color,lineWidth:1,lineStyle:LineStyle.Dashed,axisLabelVisible:true,title:label}));
+      }
+    }
+    return ()=>{for(const line of lines)try{series.removePriceLine(line);}catch{}};
+  }, [openTrades, currency, chartVersion, enableBrackets,chartType]);
 
   return (
     <>
@@ -1002,6 +1072,8 @@ export function PriceChart({
           internal z-index:50 canvases stay trapped below the overlay controls
           (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
+      {showVolume?<OtcExpiry trades={openTrades} chartRef={chartRef} market={market} chartVersion={chartVersion}/>:null}
+      {protectionDraft&&onProtectionChange?<OtcProtection key={bracketScope} draft={protectionDraft} onChange={onProtectionChange} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef} market={market} chartVersion={chartVersion} precision={precision} tickSize={tickSize??10**-precision}/>:null}
       {enableBrackets && <ChartBrackets key={bracketScope} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
         precision={precision} tickSize={tickSize ?? 10 ** -precision} currency={currency} chartVersion={chartVersion} market={market} />}
 
@@ -1025,7 +1097,7 @@ export function PriceChart({
       />
       <div
         ref={ohlcRef}
-        className="pointer-events-none absolute bottom-[34px] left-2 whitespace-pre text-[11px] tracking-[0.02em] text-ink-2 phone:bottom-[24px] phone:left-1 phone:text-[9px]"
+        className={`pointer-events-none absolute bottom-[34px] ${appearance==="market"?"left-14 phone:left-12":"left-2 phone:left-1"} whitespace-pre text-[11px] tracking-[0.02em] text-ink-2 phone:bottom-[24px] phone:text-[9px]`}
       />
     </>
   );

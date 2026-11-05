@@ -20,6 +20,12 @@ export function initialQuotes(assets: readonly { symbol: string; payoutPct: numb
 /** Folds one server message into the ticker quotes. Unknown symbols are ignored. */
 export function applyQuoteMessage(quotes: Quotes, message: ServerMessage): Quotes {
   switch (message.type) {
+    case "otc:watchlist":{
+      let next=quotes;
+      for(const row of message.rows){const q=next[row.symbol];if(!q||q.price===row.price)continue;
+        next={...next,[row.symbol]:{...q,prevPrice:q.price,price:row.price,refPrice:q.refPrice??row.price,payoutPct:92}};}
+      return next;
+    }
     case "tick": {
       const q = quotes[message.symbol];
       if (!q || q.price === message.price) return quotes;

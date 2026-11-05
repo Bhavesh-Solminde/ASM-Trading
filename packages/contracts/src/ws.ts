@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { TradeView } from "./trade";
 import type { CfdTradeView, CfdCloseReasonDto } from "./cfd-trade";
+import type { OtcMarketMessage,OtcWatchlistMessage,OtcBotsMessage } from "./otc";
 
 /** Asset symbols are uppercase alphanumerics and underscores only. */
 export const SymbolSchema = z
@@ -29,6 +30,7 @@ export const CandleSchema = z.strictObject({
   h: z.number(),
   l: z.number(),
   c: z.number(),
+  volume: z.number().nonnegative().optional(),
 });
 export type CandleDto = z.infer<typeof CandleSchema>;
 
@@ -43,7 +45,10 @@ export const SubscribeMessageSchema = z.strictObject({
   type: z.literal("subscribe"),
   symbol: SymbolSchema,
   timeframe: TimeframeSchema,
+  generation:z.string().max(128).optional(),
+  since:z.number().int().nonnegative().optional(),
 });
+export const WatchlistMessageSchema=z.strictObject({type:z.literal("watchlist:subscribe"),symbols:z.array(SymbolSchema).max(30)});
 
 export const UnsubscribeMessageSchema = z.strictObject({
   type: z.literal("unsubscribe"),
@@ -68,6 +73,7 @@ export const ClientMessageSchema = z.discriminatedUnion("type", [
   SubscribeMessageSchema,
   UnsubscribeMessageSchema,
   LoadOlderMessageSchema,
+  WatchlistMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 
@@ -125,6 +131,8 @@ export interface PayoutUpdateMessage {
 export interface ReadyMessage {
   type: "ready";
   serverTs: number;
+  model?:"OTC_FIXED";
+  generation?:string;
 }
 
 export interface ErrorMessage {
@@ -182,6 +190,9 @@ export interface SentimentMessage {
 }
 
 export type ServerMessage =
+  | OtcMarketMessage
+  | OtcWatchlistMessage
+  | OtcBotsMessage
   | TickMessage
   | CandleHistoryMessage
   | CandleCloseMessage

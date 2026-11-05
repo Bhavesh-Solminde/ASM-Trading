@@ -33,6 +33,8 @@ export async function POST(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  if(process.env.OTC_ORDER_BOOK_ENABLED==="true")return NextResponse.json({error:"This market uses fixed-payout OTC trades."},{status:409});
+  if(process.env.OTC_DRAIN_LEGACY==="true")return NextResponse.json({error:"New trades are paused for the OTC upgrade. Existing positions will settle normally."},{status:409});
 
   if ((await checkNetwork({ ip: ctx.ip, route: "cfd_trades", log, userId: session.userId })).blocked) {
     return vpnBlockedResponse();

@@ -23,11 +23,13 @@ import { startTatumRunner } from "./tatum-runner";
 import { usdtProviderFor } from "@asm/tatum";
 import { ControllerBridge } from "./algo/controller-bridge";
 import { BotCrowd } from "./algo/crowd";
+import { startOtcEngine } from "./otc/boot";
 
 const WS_PORT = Number(process.env.ENGINE_WS_PORT ?? 4001);
 const HTTP_PORT = Number(process.env.ENGINE_HTTP_PORT ?? 4002);
 
 async function main(): Promise<void> {
+  if(process.env.OTC_ORDER_BOOK_ENABLED==="true"){await startOtcEngine();return;}
   // Built first: a missing ENGINE_INTERNAL_SECRET must fail before hydrate
   // voids trades or the tick loop starts settling them.
   let desk: TradeDesk | null = null;

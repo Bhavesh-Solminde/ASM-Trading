@@ -147,9 +147,10 @@ export async function changeAccountCurrency(input: {
  * (`convertMinorBetween`). Unlike `changeAccountCurrency` this performs a real
  * cross-currency conversion of `realBalance` and `bonusBalance` — for DEMO and
  * LIVE alike, funded or not — and ledgers it as a CURRENCY_CONVERT. Trades on
- * this account carry stake/stakeFromBonus/pnl in integer minor units with NO
- * currency column — the account's current currency is what the UI renders them
- * in — so they must be converted in the same transaction. Otherwise a ₹1,000
+ * this account carry stake/stakeFromBonus/pnl in integer minor units. Legacy
+ * rows follow the account currency, so their amounts convert atomically. OTC trades
+ * retain their explicit opening currency and immutable contract amounts.
+ * Otherwise a ₹1,000
  * trade (stake=100,000 paise) rendered after an INR→USD convert reads as
  * "$1,000" and its 92%-payout gross return as "$1,920". Ownership is enforced
  * by `actorId`.
@@ -164,26 +165,23 @@ export async function convertAccountCurrency(input: {
     throw new CurrencyChangeRefused("Unsupported currency.");
   }
 
-  const account = await prisma.account.findFirst({
-    where: { id: input.accountId, userId: input.actorId },
-  });
-  if (!account) throw new CurrencyChangeRefused("Account not found.");
-  if (account.currency === currency) return account;
-
-  const fromCurrency = account.currency;
-  const newReal = convertMinorBetween(account.realBalance, fromCurrency, currency);
-  const newBonus = convertMinorBetween(account.bonusBalance, fromCurrency, currency);
-
   return prisma.$transaction(async (tx) => {
+    // Match the OTC ledger's account-before-trade lock order. Re-read balances
+    // under this lock so a concurrent payout/debit cannot be overwritten.
+    await tx.$queryRaw`SELECT "id" FROM "Account" WHERE "id"=${input.accountId} AND "userId"=${input.actorId} FOR UPDATE`;
+    const account=await tx.account.findFirst({where:{id:input.accountId,userId:input.actorId}});
+    if(!account)throw new CurrencyChangeRefused("Account not found.");
+    if(account.currency===currency)return account;
+    const fromCurrency=account.currency,newReal=convertMinorBetween(account.realBalance,fromCurrency,currency),newBonus=convertMinorBetween(account.bonusBalance,fromCurrency,currency);
     const updated = await tx.account.update({
       where: { id: account.id },
       data: { currency, realBalance: newReal, bonusBalance: newBonus, version: { increment: 1 } },
     });
-    // Convert every trade's integer-minor amounts in-place so the UI (which
+    // Convert legacy trade integer-minor amounts in-place so the UI (which
     // reads trade.stake/pnl in the account's current currency) stays honest
     // across the convert — open trades, settled wins and settled losses alike.
     const trades = await tx.trade.findMany({
-      where: { accountId: account.id },
+      where: { accountId: account.id, mode:{not:"OTC_FIXED"} },
       select: { id: true, stake: true, stakeFromBonus: true, pnl: true },
     });
     for (const t of trades) {

@@ -179,7 +179,8 @@ export function PlatformProvider({
     },
     [market],
   );
-  const { status, send } = useEngineSocket({ symbol: chartSymbol, timeframe, watch, onMessage });
+  const resume=useCallback(()=>{const c=market.getSnapshot().chart,last=c.forming??c.candles.at(-1);return c.generation&&last?{generation:c.generation,since:last.openTs}:null;},[market]);
+  const { status, send } = useEngineSocket({ symbol: chartSymbol, timeframe, watch, onMessage,resume });
 
   // Let the market store reach the socket for scroll-left history backfill.
   useEffect(() => {

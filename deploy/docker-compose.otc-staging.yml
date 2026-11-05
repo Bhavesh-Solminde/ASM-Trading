@@ -1,0 +1,77 @@
+# Isolated acceptance stack. No production volumes, ports, nginx or env file.
+name: asmtrader-otc-staging
+x-app-env: &app-env
+  DATABASE_URL: postgresql://otc_stage:${OTC_STAGE_DB_PASSWORD:?Set staging DB password}@postgres:5432/otc_integration
+  DATABASE_MIGRATE_URL: postgresql://otc_stage:${OTC_STAGE_DB_PASSWORD:?Set staging DB password}@postgres:5432/otc_integration
+  REDIS_URL: redis://redis:6379
+  SESSION_SECRET: ${OTC_STAGE_SESSION_SECRET:?Set staging session secret}
+  ENGINE_INTERNAL_SECRET: ${OTC_STAGE_ENGINE_SECRET:?Set staging engine secret}
+  ENGINE_HTTP_URL: http://engine:4002
+  ENGINE_HTTP_PORT: "4002"
+  ENGINE_HTTP_HOST: 0.0.0.0
+  ENGINE_WS_PORT: "4001"
+  OTC_ORDER_BOOK_ENABLED: "true"
+  # Staging shares the VPS public IP; reserve the keyless three/hour budget for production.
+  OTC_YAHOO_RATES_ONLY: "true"
+  NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED: "true"
+  BANK_FEED: sms
+  VPN_BLOCK_MODE: "off"
+  LOGIN_IP_RL: "200"
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: otc_stage
+      POSTGRES_DB: otc_integration
+      POSTGRES_PASSWORD: ${OTC_STAGE_DB_PASSWORD:?Set staging DB password}
+    ports: ["127.0.0.1:15440:5432"]
+    volumes: ["otc_staging_postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U otc_stage -d otc_integration"]
+      interval: 5s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["otc_staging_redis:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+  migrate:
+    image: asmtrader-otc-staging:local
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        NEXT_PUBLIC_ENGINE_WS_URL: ws://127.0.0.1:4501
+        NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED: "true"
+    environment: *app-env
+    command: ["pnpm", "--filter", "@asm/db", "exec", "prisma", "migrate", "deploy"]
+    depends_on:
+      postgres: {condition: service_healthy}
+  assets:
+    image: asmtrader-otc-staging:local
+    environment: *app-env
+    command: ["pnpm", "--filter", "@asm/db", "seed:otc-markets"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  engine:
+    image: asmtrader-otc-staging:local
+    environment: *app-env
+    ports: ["127.0.0.1:14401:4001", "127.0.0.1:14402:4002"]
+    command: ["pnpm", "--filter", "@asm/engine", "start"]
+    depends_on:
+      assets: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+  web:
+    image: asmtrader-otc-staging:local
+    environment: *app-env
+    ports: ["127.0.0.1:14301:3000"]
+    command: ["pnpm", "--filter", "@asm/web", "start"]
+    depends_on:
+      assets: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+volumes:
+  otc_staging_postgres:
+  otc_staging_redis:

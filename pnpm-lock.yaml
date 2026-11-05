@@ -44,6 +44,9 @@ importers:
       '@asm/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@asm/market-sim':
+        specifier: workspace:*
+        version: link:../../packages/market-sim
       '@asm/pricing':
         specifier: workspace:*
         version: link:../../packages/pricing
@@ -59,6 +62,9 @@ importers:
       ioredis:
         specifier: 5.9.0
         version: 5.9.0
+      pg:
+        specifier: 8.23.0
+        version: 8.23.0
       socket.io-client:
         specifier: 4.8.1
         version: 4.8.1
@@ -69,6 +75,9 @@ importers:
         specifier: 8.21.3
         version: 8.21.3
     devDependencies:
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
       '@types/ws':
         specifier: 8.18.1
         version: 8.18.1
@@ -285,6 +294,9 @@ importers:
       '@asm/mail':
         specifier: workspace:*
         version: link:../mail
+      '@asm/market-sim':
+        specifier: workspace:*
+        version: link:../market-sim
       '@asm/pricing':
         specifier: workspace:*
         version: link:../pricing
@@ -335,6 +347,8 @@ importers:
       tsx:
         specifier: 4.20.6
         version: 4.20.6
+
+  packages/market-sim: {}
 
   packages/pricing: {}
 

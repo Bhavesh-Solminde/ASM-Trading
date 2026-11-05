@@ -1,0 +1,706 @@
+{
+  "run": "e879f36e-d8f8-4213-b62f-30c898e79dbe",
+  "initialPaperBalancePerLiveAccount": 5000000,
+  "accounts": [
+    {
+      "account": 1,
+      "trades": 59,
+      "pnl": -340400,
+      "balance": 4659600,
+      "ledgerRows": 75
+    },
+    {
+      "account": 2,
+      "trades": 46,
+      "pnl": -95200,
+      "balance": 4904800,
+      "ledgerRows": 74
+    },
+    {
+      "account": 3,
+      "trades": 47,
+      "pnl": -162800,
+      "balance": 4837200,
+      "ledgerRows": 70
+    },
+    {
+      "account": 4,
+      "trades": 48,
+      "pnl": -38400,
+      "balance": 4961600,
+      "ledgerRows": 76
+    },
+    {
+      "account": 5,
+      "trades": 50,
+      "pnl": -96800,
+      "balance": 4903200,
+      "ledgerRows": 72
+    },
+    {
+      "account": 6,
+      "trades": 46,
+      "pnl": -18400,
+      "balance": 4981600,
+      "ledgerRows": 78
+    },
+    {
+      "account": 7,
+      "trades": 47,
+      "pnl": -66800,
+      "balance": 4933200,
+      "ledgerRows": 75
+    },
+    {
+      "account": 8,
+      "trades": 46,
+      "pnl": -37600,
+      "balance": 4962400,
+      "ledgerRows": 77
+    },
+    {
+      "account": 9,
+      "trades": 46,
+      "pnl": -114400,
+      "balance": 4885600,
+      "ledgerRows": 73
+    },
+    {
+      "account": 10,
+      "trades": 47,
+      "pnl": -9200,
+      "balance": 4990800,
+      "ledgerRows": 78
+    },
+    {
+      "account": 11,
+      "trades": 40,
+      "pnl": -131200,
+      "balance": 4868800,
+      "ledgerRows": 55
+    },
+    {
+      "account": 12,
+      "trades": 40,
+      "pnl": -54400,
+      "balance": 4945600,
+      "ledgerRows": 59
+    },
+    {
+      "account": 13,
+      "trades": 40,
+      "pnl": -35200,
+      "balance": 4964800,
+      "ledgerRows": 60
+    },
+    {
+      "account": 14,
+      "trades": 40,
+      "pnl": -73600,
+      "balance": 4926400,
+      "ledgerRows": 58
+    },
+    {
+      "account": 15,
+      "trades": 40,
+      "pnl": -150400,
+      "balance": 4849600,
+      "ledgerRows": 54
+    },
+    {
+      "account": 16,
+      "trades": 40,
+      "pnl": -54400,
+      "balance": 4945600,
+      "ledgerRows": 59
+    },
+    {
+      "account": 17,
+      "trades": 39,
+      "pnl": -82800,
+      "balance": 4917200,
+      "ledgerRows": 58
+    },
+    {
+      "account": 18,
+      "trades": 40,
+      "pnl": -35200,
+      "balance": 4964800,
+      "ledgerRows": 60
+    },
+    {
+      "account": 19,
+      "trades": 39,
+      "pnl": -121200,
+      "balance": 4878800,
+      "ledgerRows": 56
+    },
+    {
+      "account": 20,
+      "trades": 39,
+      "pnl": -25200,
+      "balance": 4974800,
+      "ledgerRows": 61
+    },
+    {
+      "account": 21,
+      "trades": 30,
+      "pnl": -88800,
+      "balance": 4911200,
+      "ledgerRows": 42
+    },
+    {
+      "account": 22,
+      "trades": 30,
+      "pnl": -12000,
+      "balance": 4988000,
+      "ledgerRows": 46
+    },
+    {
+      "account": 23,
+      "trades": 30,
+      "pnl": -146400,
+      "balance": 4853600,
+      "ledgerRows": 39
+    },
+    {
+      "account": 24,
+      "trades": 30,
+      "pnl": -69600,
+      "balance": 4930400,
+      "ledgerRows": 43
+    },
+    {
+      "account": 25,
+      "trades": 30,
+      "pnl": -12000,
+      "balance": 4988000,
+      "ledgerRows": 46
+    },
+    {
+      "account": 26,
+      "trades": 30,
+      "pnl": -108000,
+      "balance": 4892000,
+      "ledgerRows": 41
+    },
+    {
+      "account": 27,
+      "trades": 30,
+      "pnl": -146400,
+      "balance": 4853600,
+      "ledgerRows": 39
+    },
+    {
+      "account": 28,
+      "trades": 30,
+      "pnl": -50400,
+      "balance": 4949600,
+      "ledgerRows": 44
+    },
+    {
+      "account": 29,
+      "trades": 30,
+      "pnl": -12000,
+      "balance": 4988000,
+      "ledgerRows": 46
+    },
+    {
+      "account": 30,
+      "trades": 30,
+      "pnl": 7200,
+      "balance": 5007200,
+      "ledgerRows": 47
+    },
+    {
+      "account": 31,
+      "trades": 29,
+      "pnl": -174800,
+      "balance": 4825200,
+      "ledgerRows": 38
+    },
+    {
+      "account": 32,
+      "trades": 27,
+      "pnl": -116400,
+      "balance": 4883600,
+      "ledgerRows": 42
+    },
+    {
+      "account": 33,
+      "trades": 26,
+      "pnl": -106400,
+      "balance": 4893600,
+      "ledgerRows": 43
+    },
+    {
+      "account": 34,
+      "trades": 29,
+      "pnl": -78800,
+      "balance": 4921200,
+      "ledgerRows": 43
+    },
+    {
+      "account": 35,
+      "trades": 29,
+      "pnl": -40400,
+      "balance": 4959600,
+      "ledgerRows": 45
+    },
+    {
+      "account": 36,
+      "trades": 28,
+      "pnl": -49600,
+      "balance": 4950400,
+      "ledgerRows": 47
+    },
+    {
+      "account": 37,
+      "trades": 28,
+      "pnl": -88000,
+      "balance": 4912000,
+      "ledgerRows": 43
+    },
+    {
+      "account": 38,
+      "trades": 28,
+      "pnl": -11200,
+      "balance": 4988800,
+      "ledgerRows": 47
+    },
+    {
+      "account": 39,
+      "trades": 27,
+      "pnl": -116400,
+      "balance": 4883600,
+      "ledgerRows": 42
+    },
+    {
+      "account": 40,
+      "trades": 26,
+      "pnl": 8800,
+      "balance": 5008800,
+      "ledgerRows": 49
+    },
+    {
+      "account": 41,
+      "trades": 19,
+      "pnl": -55600,
+      "balance": 4944400,
+      "ledgerRows": 29
+    },
+    {
+      "account": 42,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 43,
+      "trades": 20,
+      "pnl": -46400,
+      "balance": 4953600,
+      "ledgerRows": 29
+    },
+    {
+      "account": 44,
+      "trades": 20,
+      "pnl": -46400,
+      "balance": 4953600,
+      "ledgerRows": 29
+    },
+    {
+      "account": 45,
+      "trades": 20,
+      "pnl": -104000,
+      "balance": 4896000,
+      "ledgerRows": 26
+    },
+    {
+      "account": 46,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 47,
+      "trades": 20,
+      "pnl": -8000,
+      "balance": 4992000,
+      "ledgerRows": 31
+    },
+    {
+      "account": 48,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 49,
+      "trades": 20,
+      "pnl": -84800,
+      "balance": 4915200,
+      "ledgerRows": 27
+    },
+    {
+      "account": 50,
+      "trades": 20,
+      "pnl": -46400,
+      "balance": 4953600,
+      "ledgerRows": 29
+    },
+    {
+      "account": 51,
+      "trades": 20,
+      "pnl": -8000,
+      "balance": 4992000,
+      "ledgerRows": 31
+    },
+    {
+      "account": 52,
+      "trades": 19,
+      "pnl": 2000,
+      "balance": 5002000,
+      "ledgerRows": 32
+    },
+    {
+      "account": 53,
+      "trades": 19,
+      "pnl": -55600,
+      "balance": 4944400,
+      "ledgerRows": 29
+    },
+    {
+      "account": 54,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 55,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 56,
+      "trades": 20,
+      "pnl": -84800,
+      "balance": 4915200,
+      "ledgerRows": 27
+    },
+    {
+      "account": 57,
+      "trades": 20,
+      "pnl": -65600,
+      "balance": 4934400,
+      "ledgerRows": 28
+    },
+    {
+      "account": 58,
+      "trades": 20,
+      "pnl": -46400,
+      "balance": 4953600,
+      "ledgerRows": 29
+    },
+    {
+      "account": 59,
+      "trades": 20,
+      "pnl": -8000,
+      "balance": 4992000,
+      "ledgerRows": 31
+    },
+    {
+      "account": 60,
+      "trades": 19,
+      "pnl": 21200,
+      "balance": 5021200,
+      "ledgerRows": 33
+    },
+    {
+      "account": 61,
+      "trades": 20,
+      "pnl": -104000,
+      "balance": 4896000,
+      "ledgerRows": 26
+    },
+    {
+      "account": 62,
+      "trades": 20,
+      "pnl": -104000,
+      "balance": 4896000,
+      "ledgerRows": 28
+    },
+    {
+      "account": 63,
+      "trades": 19,
+      "pnl": -36400,
+      "balance": 4963600,
+      "ledgerRows": 32
+    },
+    {
+      "account": 64,
+      "trades": 20,
+      "pnl": -65600,
+      "balance": 4934400,
+      "ledgerRows": 28
+    },
+    {
+      "account": 65,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 66,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 32
+    },
+    {
+      "account": 67,
+      "trades": 20,
+      "pnl": -8000,
+      "balance": 4992000,
+      "ledgerRows": 33
+    },
+    {
+      "account": 68,
+      "trades": 20,
+      "pnl": -8000,
+      "balance": 4992000,
+      "ledgerRows": 31
+    },
+    {
+      "account": 69,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 70,
+      "trades": 20,
+      "pnl": -8000,
+      "balance": 4992000,
+      "ledgerRows": 33
+    },
+    {
+      "account": 71,
+      "trades": 20,
+      "pnl": -65600,
+      "balance": 4934400,
+      "ledgerRows": 28
+    },
+    {
+      "account": 72,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 73,
+      "trades": 20,
+      "pnl": -84800,
+      "balance": 4915200,
+      "ledgerRows": 27
+    },
+    {
+      "account": 74,
+      "trades": 20,
+      "pnl": -46400,
+      "balance": 4953600,
+      "ledgerRows": 29
+    },
+    {
+      "account": 75,
+      "trades": 20,
+      "pnl": -84800,
+      "balance": 4915200,
+      "ledgerRows": 27
+    },
+    {
+      "account": 76,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 77,
+      "trades": 20,
+      "pnl": -8000,
+      "balance": 4992000,
+      "ledgerRows": 31
+    },
+    {
+      "account": 78,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 79,
+      "trades": 20,
+      "pnl": -104000,
+      "balance": 4896000,
+      "ledgerRows": 26
+    },
+    {
+      "account": 80,
+      "trades": 20,
+      "pnl": -46400,
+      "balance": 4953600,
+      "ledgerRows": 29
+    },
+    {
+      "account": 81,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 82,
+      "trades": 19,
+      "pnl": 2000,
+      "balance": 5002000,
+      "ledgerRows": 32
+    },
+    {
+      "account": 83,
+      "trades": 20,
+      "pnl": -65600,
+      "balance": 4934400,
+      "ledgerRows": 28
+    },
+    {
+      "account": 84,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 85,
+      "trades": 19,
+      "pnl": -55600,
+      "balance": 4944400,
+      "ledgerRows": 29
+    },
+    {
+      "account": 86,
+      "trades": 20,
+      "pnl": -65600,
+      "balance": 4934400,
+      "ledgerRows": 28
+    },
+    {
+      "account": 87,
+      "trades": 20,
+      "pnl": -46400,
+      "balance": 4953600,
+      "ledgerRows": 29
+    },
+    {
+      "account": 88,
+      "trades": 20,
+      "pnl": -46400,
+      "balance": 4953600,
+      "ledgerRows": 29
+    },
+    {
+      "account": 89,
+      "trades": 20,
+      "pnl": -8000,
+      "balance": 4992000,
+      "ledgerRows": 31
+    },
+    {
+      "account": 90,
+      "trades": 19,
+      "pnl": 21200,
+      "balance": 5021200,
+      "ledgerRows": 33
+    },
+    {
+      "account": 91,
+      "trades": 20,
+      "pnl": -104000,
+      "balance": 4896000,
+      "ledgerRows": 28
+    },
+    {
+      "account": 92,
+      "trades": 20,
+      "pnl": -65600,
+      "balance": 4934400,
+      "ledgerRows": 34
+    },
+    {
+      "account": 93,
+      "trades": 19,
+      "pnl": -17200,
+      "balance": 4982800,
+      "ledgerRows": 33
+    },
+    {
+      "account": 94,
+      "trades": 20,
+      "pnl": -65600,
+      "balance": 4934400,
+      "ledgerRows": 30
+    },
+    {
+      "account": 95,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 30
+    },
+    {
+      "account": 96,
+      "trades": 20,
+      "pnl": -27200,
+      "balance": 4972800,
+      "ledgerRows": 36
+    },
+    {
+      "account": 97,
+      "trades": 20,
+      "pnl": -8000,
+      "balance": 4992000,
+      "ledgerRows": 33
+    },
+    {
+      "account": 98,
+      "trades": 19,
+      "pnl": 2000,
+      "balance": 5002000,
+      "ledgerRows": 32
+    },
+    {
+      "account": 99,
+      "trades": 19,
+      "pnl": -55600,
+      "balance": 4944400,
+      "ledgerRows": 29
+    },
+    {
+      "account": 100,
+      "trades": 20,
+      "pnl": -8000,
+      "balance": 4992000,
+      "ledgerRows": 33
+    }
+  ]
+}

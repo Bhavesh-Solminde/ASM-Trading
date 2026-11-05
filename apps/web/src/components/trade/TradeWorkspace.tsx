@@ -8,6 +8,7 @@ import { SentimentBar } from "@/components/chart/SentimentBar";
 import { TimeframeTabs } from "@/components/chart/TimeframeTabs";
 import { ChartTypeSelector } from "@/components/chart/ChartTypeSelector";
 import type { ChartType } from "@/components/chart/chart-types";
+import { EMPTY_OTC_PROTECTION,type OtcProtectionDraft } from "@/components/chart/otc-protection";
 import { Icon } from "@/components/shell/Icon";
 import { useMarket } from "@/components/shell/market-store";
 import {
@@ -380,7 +381,7 @@ function TradesSheet({ onClose, ...panel }: ComponentProps<typeof TradesPanel> &
   );
 }
 
-export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD" }) {
+export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD" | "OTC" }) {
   const {
     assets,
     market,
@@ -409,6 +410,10 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candles");
   const [marketPickerOpen, setMarketPickerOpen] = useState(false);
+  const protectionScope=`${activeAccount?.id??""}:${chartSymbol}`;
+  const [otcProtection,setOtcProtection]=useState<{scope:string;draft:OtcProtectionDraft}|null>(null);
+  const protectionDraft=otcProtection?.scope===protectionScope?otcProtection.draft:EMPTY_OTC_PROTECTION;
+  const changeOtcProtection=useCallback((draft:OtcProtectionDraft)=>setOtcProtection({scope:protectionScope,draft}),[protectionScope]);
 
   useEffect(() => {
     try {
@@ -497,7 +502,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
           </div>
         )}
 
-        <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[minmax(0,1fr)] phone:gap-0 phone:rounded-none phone:border-0 phone:p-0">
+        <div className={`${tradingModel==="OTC"?"bg-[#0c141c]":"chartbox-bg"} relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[minmax(0,1fr)] phone:gap-0 phone:rounded-none phone:border-0 phone:p-0`}>
           <LiveSentiment />
 
           <div className="relative min-h-0">
@@ -509,6 +514,10 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
               currency={activeAccount.currency}
               chartType={chartType}
               enableBrackets={tradingModel === "CFD"}
+              showVolume={tradingModel==="OTC"}
+              appearance={tradingModel==="OTC"?"market":"classic"}
+              protectionDraft={tradingModel==="OTC"?protectionDraft:undefined}
+              onProtectionChange={changeOtcProtection}
               bracketScope={`${activeAccount.id}:${asset.symbol}:${chartTimeframe}:${chartType}:${chartProtection}`}
               bracketControls={chartProtection}
               tickSize={asset.tickSize ?? 10 ** -asset.precision}
@@ -635,12 +644,17 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
           />
         ) : (
           <TradeTicket
+            key={protectionScope}
+            otc={tradingModel==="OTC"}
             symbol={asset.symbol}
             pair={splitAssetName(asset.displayName).pair}
             payoutPct={payoutPct}
             accountId={activeAccount.id}
             currency={activeAccount.currency}
             onOpened={recordOpened}
+            protectionDraft={protectionDraft}
+            onProtectionChange={changeOtcProtection}
+            market={market}
           />
         )}
         {focusMode ? null : (

@@ -147,7 +147,7 @@ export interface TradeAmount {
 export function tradeAmount(trade: TradeView, currency: string): TradeAmount {
   const d = closedRowDisplay(trade);
   const tone: Tone = trade.status === "WON" ? "up" : trade.status === "LOST" ? "down" : "neutral";
-  return { text: `${d.sign}${formatMinor(d.amountMinor, currency)}`, tone };
+  return { text: `${d.sign}${formatMinor(d.amountMinor, trade.currency??currency)}`, tone };
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");

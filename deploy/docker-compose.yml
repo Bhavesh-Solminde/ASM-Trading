@@ -93,6 +93,10 @@ services:
     image: asmtrader-app:latest
     restart: unless-stopped
     env_file: ../.env.production
+    environment:
+      # Internal HTTP must be reachable by web on the private compose network.
+      # Port 4002 remains unpublished on the host.
+      ENGINE_HTTP_HOST: 0.0.0.0
     ports:
       # Only WS is proxied publicly (as /ws). Internal HTTP (4002) is
       # not exposed — web reaches it as http://engine:4002 on the compose net.

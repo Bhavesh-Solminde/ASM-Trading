@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-11-05T11:16:17.514Z",
+  "base": "http://127.0.0.1:4300",
+  "registrationStatus": 201,
+  "loginStatus": 200,
+  "authenticatedPageStatus": 200,
+  "accountTypes": [
+    "LIVE",
+    "DEMO"
+  ],
+  "removedSectionsAbsentFromServerHtml": true,
+  "note": "HTTP render/login check only; does not prove canvas appearance or pointer behavior."
+}

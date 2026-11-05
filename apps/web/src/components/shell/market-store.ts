@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { ClientMessage, ServerMessage, Timeframe } from "@asm/contracts";
+import type { ClientMessage, ServerMessage, Timeframe,OtcMarketMessage,OtcBotsMessage } from "@asm/contracts";
 import {
   applyChartMessage,
   canLoadOlder,
@@ -9,11 +9,14 @@ import {
   type ChartState,
 } from "@/components/chart/engine-state";
 import { applyQuoteMessage, initialQuotes, type Quotes } from "./quotes";
+import { beginChartSwitch } from "@/components/chart/diagnostics";
 
 /** How many candles to pull per scroll-left backfill (server clamps to ≤500). */
 const LOAD_OLDER_LIMIT = 200;
 
 export interface MarketSnapshot {
+  readonly otc:OtcMarketMessage|null;
+  readonly bots:OtcBotsMessage["rows"];
   readonly chart: ChartState;
   readonly quotes: Quotes;
 }
@@ -34,11 +37,13 @@ export class MarketStore {
   private snapshot: MarketSnapshot;
   private readonly listeners = new Set<() => void>();
   private frame = 0;
+  private cache=new Map<string,ChartState>();
+  private workerGeneration:string|null=null;
   /** Sends a client message on the live socket; set by the socket owner. */
   private sender: ((message: ClientMessage) => void) | null = null;
 
   constructor(symbol: string, timeframe: Timeframe, assets: readonly { symbol: string; payoutPct: number }[]) {
-    this.snapshot = { chart: initialChartState(symbol, timeframe), quotes: initialQuotes(assets) };
+    this.snapshot = { chart: initialChartState(symbol, timeframe), quotes: initialQuotes(assets),otc:null,bots:[] };
   }
 
   readonly getSnapshot = (): MarketSnapshot => this.snapshot;
@@ -51,24 +56,35 @@ export class MarketStore {
   };
 
   apply(message: ServerMessage): void {
+    if(message.type==="ready"&&message.model==="OTC_FIXED"&&message.generation){
+      const previous=this.workerGeneration??this.snapshot.chart.generation;this.workerGeneration=message.generation;
+      if(previous&&message.generation!==previous){this.cache.clear();this.snapshot={...this.snapshot,chart:initialChartState(this.snapshot.chart.symbol,this.snapshot.chart.timeframe),otc:null,bots:[]};this.schedule();return;}
+    }
     const chart = applyChartMessage(this.snapshot.chart, message);
+    if(message.type==="otc:market"&&chart.generation===message.generation)this.workerGeneration=message.generation;
     const quotes = applyQuoteMessage(this.snapshot.quotes, message);
-    if (chart === this.snapshot.chart && quotes === this.snapshot.quotes) return;
-    this.snapshot = { chart, quotes };
+    const otc=message.type==="otc:market"&&message.symbol===chart.symbol&&message.timeframe===chart.timeframe&&chart.generation===message.generation&&chart.sequence===message.sequence?message:this.snapshot.otc;
+    const bots=message.type==="otc:bots"?message.rows:this.snapshot.bots;
+    if (chart === this.snapshot.chart && quotes === this.snapshot.quotes&&otc===this.snapshot.otc&&bots===this.snapshot.bots) return;
+    this.snapshot = { chart, quotes,otc,bots };
     this.schedule();
   }
 
   /** Points the chart at another symbol; ticks still in flight for the old one are ignored. */
   selectSymbol(symbol: string): void {
     if (this.snapshot.chart.symbol === symbol) return;
-    this.snapshot = { ...this.snapshot, chart: initialChartState(symbol, this.snapshot.chart.timeframe) };
+    this.cacheCurrent();
+    beginChartSwitch(`${symbol}:${this.snapshot.chart.timeframe}`,this.cache.has(`${symbol}:${this.snapshot.chart.timeframe}`));
+    this.snapshot = { ...this.snapshot,otc:null, chart:this.cache.get(`${symbol}:${this.snapshot.chart.timeframe}`)??initialChartState(symbol, this.snapshot.chart.timeframe) };
     this.schedule();
   }
 
   /** Switches the chart timeframe; resets candle state so fresh history loads. */
   selectTimeframe(timeframe: Timeframe): void {
     if (this.snapshot.chart.timeframe === timeframe) return;
-    this.snapshot = { ...this.snapshot, chart: initialChartState(this.snapshot.chart.symbol, timeframe) };
+    this.cacheCurrent();
+    beginChartSwitch(`${this.snapshot.chart.symbol}:${timeframe}`,this.cache.has(`${this.snapshot.chart.symbol}:${timeframe}`));
+    this.snapshot = { ...this.snapshot,otc:null, chart:this.cache.get(`${this.snapshot.chart.symbol}:${timeframe}`)??initialChartState(this.snapshot.chart.symbol, timeframe) };
     this.schedule();
   }
 
@@ -76,6 +92,7 @@ export class MarketStore {
   setSender(sender: ((message: ClientMessage) => void) | null): void {
     this.sender = sender;
   }
+  private cacheCurrent(){const chart=this.snapshot.chart,key=`${chart.symbol}:${chart.timeframe}`;this.cache.delete(key);this.cache.set(key,chart);if(this.cache.size>6)this.cache.delete(this.cache.keys().next().value!);}
 
   /**
    * Requests candles older than the earliest one held, for scroll-left history.

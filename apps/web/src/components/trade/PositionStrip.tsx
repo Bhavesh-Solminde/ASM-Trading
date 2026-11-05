@@ -31,7 +31,8 @@ const StripBody = memo(function StripBody({
   const now = useNowSec();
   const price = useQuote(trade.symbol)?.price ?? null;
   const up = trade.direction === "UP";
-  const cfdPnl = trade.durationSec != null ? cfdOpenPnl(trade, price) : null;
+  const isCfd = trade.durationSec != null && trade.mode !== "OTC_FIXED";
+  const cfdPnl = isCfd ? cfdOpenPnl(trade, price) : null;
   const cfdText = cfdPnl === null ? "—" : `${cfdPnl > 0 ? "+" : cfdPnl < 0 ? "−" : ""}${formatMinor(Math.abs(cfdPnl), currency)}`;
   const side = openSide(trade.direction, trade.entryPrice, price);
   const expired = now !== null && now >= trade.expiryTs;
@@ -42,12 +43,12 @@ const StripBody = memo(function StripBody({
   // No quote yet, or price exactly at the entry: there is no result to show, so
   // a dash in neutral ink instead of a red loss.
   const undecided = expired || shownSide === null || shownSide === "flat";
-  const plText = expired ? "Settling…" : trade.durationSec != null ? cfdText : undecided
+  const plText = expired ? "Settling…" : isCfd ? cfdText : undecided
     ? "—"
     : winning
       ? `+${formatMinor(grossReturnMinor(trade.stake, profit), currency)}`
       : `−${formatMinor(trade.stake, currency)}`;
-  const plClass = expired ? "text-ink-2" : trade.durationSec != null ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : undecided ? "text-ink-2" : winning ? "text-up" : "text-down";
+  const plClass = expired ? "text-ink-2" : isCfd ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : undecided ? "text-ink-2" : winning ? "text-up" : "text-down";
 
   const total = trade.expiryTs - trade.entryTs;
   const remaining = now === null ? total : trade.expiryTs - now;
@@ -88,7 +89,7 @@ const StripBody = memo(function StripBody({
       </span>
       <span className="ml-auto grid flex-none justify-items-end gap-px">
         <span className={`text-[15px] font-extrabold tabular-nums leading-tight ${plClass}`}>{plText}</span>
-        <span className="text-[10px] leading-tight text-ink-3">if it closed now</span>
+        <span className="text-[10px] leading-tight text-ink-3">{trade.mode === "OTC_FIXED" ? "if price stays here at expiry" : "if it closed now"}</span>
       </span>
       <Icon name="chevron" className="size-3.5 flex-none text-ink-3" strokeWidth={2.2} />
     </button>
@@ -123,7 +124,7 @@ export function PositionStrip({
         trade={trade}
         more={more}
         asset={assets.find((a) => a.symbol === trade.symbol)}
-        currency={currency}
+        currency={trade.currency??currency}
         onOpen={onOpen}
       />
     </div>

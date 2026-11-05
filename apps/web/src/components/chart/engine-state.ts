@@ -8,6 +8,8 @@ export { TIMEFRAME_SEC };
 const MAX_CANDLES = 5000;
 
 export interface ChartState {
+  readonly generation?:string;
+  readonly sequence?:number;
   readonly symbol: string;
   readonly timeframe: Timeframe;
   /** Closed candles, oldest first. */
@@ -61,6 +63,20 @@ export function initialChartState(symbol: string, timeframe: Timeframe): ChartSt
  */
 export function applyChartMessage(state: ChartState, message: ServerMessage): ChartState {
   switch (message.type) {
+    case "otc:market":{
+      if(message.symbol!==state.symbol||message.timeframe!==state.timeframe)return state;
+      if(state.generation===message.generation&&state.sequence!==undefined&&message.sequence<state.sequence)return state;
+      if(!message.reset&&state.generation!==undefined&&state.generation!==message.generation)return state;
+      const all=new Map<number,CandleDto>();
+      if(!message.reset){for(const b of state.candles)all.set(b.openTs,b);if(state.forming)all.set(state.forming.openTs,state.forming);}
+      for(const b of message.candles)all.set(b.openTs,b);
+      const current=Math.floor(message.time/1000/TIMEFRAME_SEC[state.timeframe])*TIMEFRAME_SEC[state.timeframe];
+      let ordered=[...all.values()].sort((a,b)=>a.openTs-b.openTs);
+      if(ordered.length>MAX_CANDLES)ordered=ordered.slice(-3500);
+      const closed=ordered.filter(b=>b.openTs<current),forming=ordered.find(b=>b.openTs===current)??null;
+      const same=closed.length===state.candles.length&&closed.every((b,i)=>{const old=state.candles[i]!;return b.openTs===old.openTs&&b.o===old.o&&b.h===old.h&&b.l===old.l&&b.c===old.c&&b.volume===old.volume;});
+      return {...state,generation:message.generation,sequence:message.sequence,candles:same?state.candles:closed,forming,lastPrice:ordered.at(-1)?.c??state.lastPrice,payoutPct:92,loadingOlder:false};
+    }
     case "candles:history": {
       if (message.symbol !== state.symbol || message.timeframe !== state.timeframe) return state;
       const candles = message.candles.slice(-MAX_CANDLES);
