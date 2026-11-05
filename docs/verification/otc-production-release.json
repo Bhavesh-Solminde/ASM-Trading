@@ -1,0 +1,315 @@
+{
+  "time": "2026-11-05T11:45:23.751Z",
+  "origin": "https://indianxtrade.com",
+  "sourceCommit": "71ced0c",
+  "login": "Normal existing account login HTTP 200",
+  "tradePage": 200,
+  "leaderboardPage": 200,
+  "ticketStatus": 200,
+  "markets": [
+    {
+      "symbol": "BTCUSDT",
+      "candles": 49,
+      "lastClose": 80493.45,
+      "reference": 80351.16,
+      "rangePct": 0.45599839504494294,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "ETHUSDT",
+      "candles": 49,
+      "lastClose": 2440.52,
+      "reference": 2419.73,
+      "rangePct": 0.9678765812714673,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "BNBUSDT",
+      "candles": 49,
+      "lastClose": 718.597,
+      "reference": 716.66,
+      "rangePct": 0.7018669941115693,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "SOLUSDT",
+      "candles": 49,
+      "lastClose": 96.19500000000001,
+      "reference": 96.49,
+      "rangePct": 0.8581200124365103,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "XRPUSDT",
+      "candles": 49,
+      "lastClose": 1.3203699999999998,
+      "reference": 1.3202,
+      "rangePct": 0.6559612179972817,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "candles": 49,
+      "lastClose": 0.077065,
+      "reference": 0.0769,
+      "rangePct": 0.8972691807542214,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "ADAUSDT",
+      "candles": 49,
+      "lastClose": 0.197874,
+      "reference": 0.1981,
+      "rangePct": 1.1095406360424056,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "LTCUSDT",
+      "candles": 49,
+      "lastClose": 55.965999999999994,
+      "reference": 55.81,
+      "rangePct": 0.8704533237770965,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "LINKUSDT",
+      "candles": 49,
+      "lastClose": 11.5565,
+      "reference": 11.536,
+      "rangePct": 0.7576282940360662,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "DOTUSDT",
+      "candles": 49,
+      "lastClose": 0.9442599999999999,
+      "reference": 0.955,
+      "rangePct": 1.5089005235602015,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "EURUSD",
+      "candles": 49,
+      "lastClose": 1.121623,
+      "reference": 1.1223,
+      "rangePct": 0.10915085093110662,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "GBPUSD",
+      "candles": 49,
+      "lastClose": 1.344644,
+      "reference": 1.3453,
+      "rangePct": 0.0800564929755441,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "USDJPY",
+      "candles": 49,
+      "lastClose": 158.5024,
+      "reference": 158.379,
+      "rangePct": 0.10733746266865399,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "USDCHF",
+      "candles": 49,
+      "lastClose": 0.8187369999999999,
+      "reference": 0.818,
+      "rangePct": 0.11992665036674936,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "AUDUSD",
+      "candles": 49,
+      "lastClose": 0.701571,
+      "reference": 0.7017,
+      "rangePct": 0.061137238135957346,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "USDCAD",
+      "candles": 49,
+      "lastClose": 1.397154,
+      "reference": 1.396,
+      "rangePct": 0.14333810888251575,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "NZDUSD",
+      "candles": 49,
+      "lastClose": 0.563898,
+      "reference": 0.5633,
+      "rangePct": 0.16705130481094987,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "EURGBP",
+      "candles": 49,
+      "lastClose": 0.83402,
+      "reference": 0.834,
+      "rangePct": 0.04448441247002521,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "EURJPY",
+      "candles": 49,
+      "lastClose": 177.63569999999999,
+      "reference": 177.686,
+      "rangePct": 0.08357439528157128,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "GBPJPY",
+      "candles": 49,
+      "lastClose": 212.9175,
+      "reference": 213.05,
+      "rangePct": 0.16700305092700676,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "NIFTY50",
+      "candles": 49,
+      "lastClose": 24554.24,
+      "reference": 24536.6,
+      "rangePct": 0.2069561389923577,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "BANKNIFTY",
+      "candles": 49,
+      "lastClose": 57885.11,
+      "reference": 57773.65,
+      "rangePct": 0.3106952737104199,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "FINNIFTY",
+      "candles": 49,
+      "lastClose": 26612.49,
+      "reference": 26600.45,
+      "rangePct": 0.2161993500110037,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "NIFTYIT",
+      "candles": 49,
+      "lastClose": 32835.5,
+      "reference": 32837.85,
+      "rangePct": 0.3280665451605375,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "NIFTYMIDCAP100",
+      "candles": 49,
+      "lastClose": 60651.48,
+      "reference": 60620.9,
+      "rangePct": 0.280348856582473,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "SENSEX",
+      "candles": 49,
+      "lastClose": 79260.5,
+      "reference": 79310.01,
+      "rangePct": 0.30627911911750294,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "XAUUSD",
+      "candles": 49,
+      "lastClose": 4141.36,
+      "reference": 4144.4,
+      "rangePct": 0.26064086478138404,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "XAGUSD",
+      "candles": 49,
+      "lastClose": 52.9141,
+      "reference": 52.875,
+      "rangePct": 0.7886524822695066,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "WTI",
+      "candles": 49,
+      "lastClose": 89.059,
+      "reference": 88.99,
+      "rangePct": 0.6888414428587637,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    },
+    {
+      "symbol": "BRENT",
+      "candles": 49,
+      "lastClose": 96.223,
+      "reference": 96.32,
+      "rangePct": 0.5388289036544908,
+      "valid": true,
+      "activeTobs": 0,
+      "openTobs": 0
+    }
+  ],
+  "leaderboardRows": 10,
+  "errors": [],
+  "scope": "Authenticated HTTP and WebSocket verification; not a browser screenshot or FPS measurement",
+  "model": "OTC_FIXED"
+}

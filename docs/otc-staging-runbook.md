@@ -2,7 +2,8 @@
 
 Implementation branch: `codex/otc-website-integration`.
 Checkout: `/Users/solminde/.codex/worktrees/otc-website-integration/asmtrading`.
-Production activation remains a separate step. Do not copy the local `.env`,
+Production activation was authorized and completed on 5 November 2026; see
+`otc-production-release.md`. Do not copy the local `.env`,
 test credentials or paper funding fixtures into production.
 
 ## Current local preview
@@ -21,8 +22,8 @@ provider is unavailable and no last-good cache exists, startup refuses the
 missing markets rather than showing illustrative prices. Restore provider access
 or a valid reference cache; never fabricate production quotes to bypass the guard.
 
-Use normal signup and login. The existing owner preview login is recorded in
-the local progress document. New LIVE accounts start at zero. Only USER + LIVE
+Use normal signup and login. Existing owner preview credentials stay in an
+ignored local manifest. New LIVE accounts start at zero. Only USER + LIVE
 creates Tob flow; DEMO stays paper-only. Internal bots never register accounts.
 
 From the implementation checkout:

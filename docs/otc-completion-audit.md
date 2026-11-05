@@ -1,8 +1,10 @@
 # Current completion audit — 5 November 2026
 
 Scope: full website integration in `codex/otc-website-integration`, with the
-owner's subsequent chart SL/TP and visibility changes. Production activation
-and a new integration commit/PR have not been requested or performed.
+owner's subsequent chart SL/TP and visibility changes. The owner subsequently
+authorized production release. Source `71ced0c` is deployed, OTC is active,
+and the four migrations applied. See `otc-production-release.md` for live
+verification and the remaining browser screenshot limitation.
 
 | Requirement | Current authoritative evidence | Status |
 | --- | --- | --- |
@@ -30,7 +32,7 @@ and a new integration commit/PR have not been requested or performed.
 |300× / hour jumps / long session | Worker300× achieved; durable KVM103× measured honestly; exactrestoration/volume/funding checks | Verified, durable300× not achieved |
 | Desktop/phone rendering, pan/zoom, overlays and account/market/style switching | Browser tool still rejects local access despite owner's Enabled reply | **Unverified / remaining gate** |
 | Actual browser frame/longtask/switch measurements | No current usable browser-control surface | **Unverified / remaining gate** |
-| Full current build/types/website checks | Productionbuild and strictweb/enginetsc;71websitefiles/458checks;19engineOTCchecks | Passed |
+| Full current build/types/website checks | Post-main-merge production build, strict deployed-package types, 75 website files/491 checks;19 engine OTC checks;39 market-model and82 contract checks | Passed |
 | Legacy full DB suite | Prior unchanged DOGE/USDJPY legacy display-step test fails | Known baseline failure; not allDBgreen |
 
 Earlier bot-parity and accounting/load reports do not prove the originally

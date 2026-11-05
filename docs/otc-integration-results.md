@@ -2,7 +2,11 @@
 
 The website integration is implemented in the separate
 `codex/otc-website-integration` checkout. The local website is
-`http://127.0.0.1:4300/trade`. Production has not been changed.
+`http://127.0.0.1:4300/trade`. The owner subsequently authorized production
+deployment: source `71ced0c` is live with OTC enabled. See
+`otc-production-release.md` for the post-merge checks, deployment and live
+authenticated verification. The remaining screenshot requires a working
+browser-tool connection.
 
 **Latest correction:** the owner's screenshots exposed an artificial startup
 trend caused by illustrative prices being used before the first reference pull.

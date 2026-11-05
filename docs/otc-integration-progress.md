@@ -160,8 +160,9 @@ stopped after completion. No load-generator job remains running.
    the disabled tool with external Playwright/CDP/native automation. It needs
    the app's permission state to become effective. Earlier screenshot predates
    these changes and is not fresh evidence. No browser-FPS claim is permitted.
-3. Final requirement audit after browser verification; production activation
-   remains a separate, unperformed step. No shutdown is requested now.
+3. Final visual audit after browser verification. Production activation is
+   complete under the owner's later authorization; see `otc-production-release.md`.
+   No shutdown is requested now.
 
 Restart/test/isolation instructions: `docs/otc-staging-runbook.md`. Scope and
 acceptance criteria: `docs/otc-website-integration-plan.md`.
