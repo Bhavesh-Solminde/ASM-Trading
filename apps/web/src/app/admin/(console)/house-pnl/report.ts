@@ -1,6 +1,11 @@
 import { convertMinorBetween, houseDateForInstant, prisma } from "@asm/db";
 
-export const DAILY_TARGET_MINOR = 1_000_000;
+const DEFAULT_DAILY_TARGET_MINOR = 1_000_000;
+
+export async function readDailyOtcTarget() {
+  const settings = await prisma.otcVaultSettings.findUnique({ where: { id: 1 } });
+  return settings ? Number(settings.dailyTargetMinor) : DEFAULT_DAILY_TARGET_MINOR;
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;

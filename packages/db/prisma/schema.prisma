@@ -542,6 +542,12 @@ model HouseTreasury {
   updatedAt           DateTime @updatedAt
 }
 
+/// Admin reporting benchmark for the OTC vault.
+model OtcVaultSettings {
+  id               Int    @id @default(1)
+  dailyTargetMinor BigInt
+}
+
 /// Per-asset engine state that must survive a container restart to keep the
 /// shown price continuous across deploys. Right now this is just the
 /// GapTracker's accumulated magnet gap (shownPrice = realPrice × (1 + gap)):

@@ -2,7 +2,8 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { AutoRefresh } from "../../_components/AutoRefresh";
 import { Card, PageHead, Pill, StatCard } from "../../_components/ui";
 import { num } from "../../_lib/format";
-import { DAILY_TARGET_MINOR, readDailyOtcVault } from "./report";
+import { DailyTargetForm } from "./DailyTargetForm";
+import { readDailyOtcTarget, readDailyOtcVault } from "./report";
 
 export const dynamic = "force-dynamic";
 
@@ -12,22 +13,19 @@ function money(minor: number) {
   return rupees.format(minor / 100);
 }
 
-function progress(minor: number) {
-  return (minor / DAILY_TARGET_MINOR) * 100;
-}
-
 export default async function HousePnlDashboard() {
   await requireAdmin();
-  const history = await readDailyOtcVault();
+  const [history, dailyTargetMinor] = await Promise.all([readDailyOtcVault(), readDailyOtcTarget()]);
   const today = history[0]!;
-  const targetMet = today.profit >= DAILY_TARGET_MINOR;
-  const remaining = Math.max(0, DAILY_TARGET_MINOR - today.profit);
+  const targetMet = today.profit >= dailyTargetMinor;
+  const remaining = Math.max(0, dailyTargetMinor - today.profit);
+  const progress = (minor: number) => (minor / dailyTargetMinor) * 100;
 
   return (
     <>
       <PageHead
         title="Daily OTC Vault"
-        desc="Track settled LIVE OTC trading P&L against a ₹10,000 daily target."
+        desc="Track settled LIVE OTC trading P&L against your daily target."
         actions={<AutoRefresh />}
       />
 
@@ -41,9 +39,14 @@ export default async function HousePnlDashboard() {
         />
         <StatCard
           label="Daily profit target"
-          value={money(DAILY_TARGET_MINOR)}
+          value={money(dailyTargetMinor)}
           icon="ledger"
-          foot="New reporting day at midnight IST"
+          foot={
+            <>
+              New reporting day at midnight IST
+              <DailyTargetForm dailyTargetMinor={dailyTargetMinor} />
+            </>
+          }
         />
         <StatCard
           label="Remaining to target"
@@ -77,7 +80,7 @@ export default async function HousePnlDashboard() {
         </p>
       </Card>
 
-      <Card title="Last 30 IST days" sub="Trades count on the day they settle." noBody>
+      <Card title="Last 30 IST days" sub="Trades count on the day they settle. Percentages use the current target." noBody>
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
