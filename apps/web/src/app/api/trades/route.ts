@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof EngineRejected) {
+      log.warn({ evt: "trade.rejected", reason: err.reason, symbol: parsed.data.symbol }, "trade rejected");
       return NextResponse.json(
         { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade.", ...(otc?{code:err.reason}:{}) },
         { status: BROWSER_STATUS[err.reason] ?? err.status },

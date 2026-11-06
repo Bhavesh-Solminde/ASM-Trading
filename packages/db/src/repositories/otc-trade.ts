@@ -34,12 +34,11 @@ export async function reserveOtcTrade(request:OtcTradeRequest,client:DbClient=pr
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(4281165,2)::text`;
     await assertOtcFence(tx,fence);
     await tx.$queryRaw`SELECT "id" FROM "Account" WHERE "id"=${request.accountId} AND "userId"=${request.actorId} FOR UPDATE`;
-    const account=await tx.account.findFirst({where:{id:request.accountId,userId:request.actorId},include:{user:{select:{role:true,status:true,liveAccess:true}}}});
+    const account=await tx.account.findFirst({where:{id:request.accountId,userId:request.actorId},include:{user:{select:{role:true,status:true}}}});
     if(!account)throw new OtcRejected("account_not_found");
     const existing=await tx.marketCommand.findUnique({where:{accountId_idempotencyKey:{accountId:account.id,idempotencyKey:request.idempotencyKey}}});
     if(existing){const intent=existing.input as unknown as OtcOpenIntent;if(intent.fingerprint!==fingerprint(request))throw new OtcRejected("idempotency_conflict");return existing;}
     if(["FROZEN","BANNED"].includes(account.user.status))throw new OtcRejected("account_not_active");
-    if(account.type==="LIVE"&&!account.user.liveAccess&&process.env.NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED!=="true")throw new OtcRejected("live_access_required");
     if(!["INR","USD"].includes(account.currency)||request.stake<(account.currency==="INR"?10000:100))throw new OtcRejected("stake_below_minimum");
     const asset=await tx.asset.findFirst({where:{symbol:request.symbol,isOpen:true}});if(!asset)throw new OtcRejected("unknown_asset");
     if(account.realBalance+account.bonusBalance<request.stake)throw new OtcRejected("insufficient_funds");

@@ -1,4 +1,4 @@
-import { afterAll,describe,expect,it } from "vitest";
+import { afterAll,describe,expect,it,vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { setTimeout as wait } from "node:timers/promises";
 import WebSocket from "ws";
@@ -11,15 +11,17 @@ import { seedTestReferences } from "./fixtures";
 const enabled=Boolean(process.env.OTC_TEST_DATABASE_URL);
 async function until(predicate:()=>boolean){const end=Date.now()+6000;while(!predicate()){if(Date.now()>end)throw new Error("Transport test timed out");await wait(10);}}
 describe.skipIf(!enabled)("authenticated OTC transports",()=>{
-  afterAll(()=>prisma.$disconnect());
+  afterAll(async()=>{vi.unstubAllEnvs();await prisma.$disconnect();});
   it("opens via HTTP, streams private trade events and exposes only sanitized market data",async()=>{
+    vi.stubEnv("NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED",undefined);
     const url=new URL(process.env.OTC_TEST_DATABASE_URL!);
     if(url.hostname!=="127.0.0.1"||url.pathname!=="/otc_integration"||process.env.DATABASE_URL!==process.env.OTC_TEST_DATABASE_URL)throw new Error("Isolated transport database required");
     await prisma.marketExecution.deleteMany({where:{worldId:"otc-main"}});await prisma.otcCandle.deleteMany({where:{worldId:"otc-main"}});
     await prisma.marketCommand.deleteMany({where:{worldId:"otc-main"}});await prisma.marketWorldCheckpoint.deleteMany({where:{id:"otc-main"}});
     await seedTestReferences(prisma);
     await prisma.asset.upsert({where:{symbol:"BTCUSDT"},create:{symbol:"BTCUSDT",displayName:"BTC OTC",kind:"OTC",payoutPct:92,isOpen:true},update:{}});
-    const user=await prisma.user.create({data:{email:`transport-${randomUUID()}@test.invalid`,passwordHash:"test-only",liveAccess:true}});
+    // A normal signup has the historical liveAccess flag unset.
+    const user=await prisma.user.create({data:{email:`transport-${randomUUID()}@test.invalid`,passwordHash:"test-only"}});
     const account=await prisma.account.create({data:{userId:user.id,type:"LIVE",realBalance:100000,currency:"INR"}});
     const runtime=await new OtcRuntime(prisma,process.env.OTC_TEST_DATABASE_URL!).start();
     const secret="test-transport-secret-at-least-16",http=createOtcHttp(runtime,secret,0),port=await http.listen();
@@ -48,7 +50,7 @@ describe.skipIf(!enabled)("authenticated OTC transports",()=>{
       await until(()=>messages.slice(olderStart).some(m=>m.type==="candles:older"));
       expect(messages.slice(olderStart).find(m=>m.type==="candles:older")!.candles).toHaveLength(10);
       const response=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(body)});expect(response.status).toBe(201);
-      const opened=await response.json() as OpenTradeResult;expect(opened.trade.mode).toBe("OTC_FIXED");expect(opened.balances.realBalance).toBe(90000);
+      const opened=await response.json() as OpenTradeResult;expect(opened.trade.mode).toBe("OTC_FIXED");expect(opened.trade.filledLots).toBeGreaterThan(0);expect(opened.balances.realBalance).toBe(90000);
       await until(()=>messages.some(m=>m.type==="trade:opened"));
       await runtime.advance(Date.now()+120000);await until(()=>messages.some(m=>m.type==="trade:settled"));
       await until(()=>messages.some(m=>m.type==="otc:bots"));
