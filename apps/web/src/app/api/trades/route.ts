@@ -11,6 +11,7 @@ import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { engineOtcOpen } from "@/lib/otc-client";
 
 const REJECTION_MESSAGE: Record<string, string> = {
+  display_quote_expired: "That displayed price has expired. Wait for a fresh price and try again.",
   "Liquidity unavailable": "There is not enough liquidity for this trade. Your stake has been returned.",
   "Market price unavailable": "Waiting for a recent market execution. Try again shortly.",
   "Invalid stop loss": "Stop loss must be on the loss side of the entry price.",
@@ -51,7 +52,8 @@ export async function POST(req: NextRequest) {
   const parsed = (otc?OtcOpenTradeSchema:OpenTradeSchema).safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     log.warn({ evt: "security.validation_rejected", route: "trades" }, "rejected trade payload");
-    return NextResponse.json({ error: "Check the trade details." }, { status: 400 });
+    const missingQuote=otc&&parsed.error.issues.some(issue=>issue.path[0]==="quoteToken");
+    return NextResponse.json({ error: missingQuote ? "Refresh the page to receive a current trading price." : "Check the trade details." }, { status: 400 });
   }
 
   // Ownership first — a foreign account never reaches the engine.

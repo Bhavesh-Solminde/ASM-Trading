@@ -6,7 +6,7 @@ export {
   type RegisterInput,
   type LoginInput,
 } from "./auth";
-export {OtcOpenTradeSchema,EngineOtcOpenTradeSchema,type OtcOpenTradeInput,type EngineOtcOpenTradeInput,type OtcMarketMessage,type OtcWatchlistMessage,type OtcBotsMessage} from "./otc";
+export {OtcOpenTradeSchema,EngineOtcOpenTradeSchema,type OtcOpenTradeInput,type EngineOtcOpenTradeInput,type OtcMarketMessage,type OtcWatchlistMessage,type OtcBotsMessage,type OtcDisplayQuote} from "./otc";
 export {
   SymbolSchema,
   TimeframeSchema,

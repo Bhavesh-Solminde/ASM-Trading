@@ -31,7 +31,7 @@ describe.skipIf(!enabled)("authenticated OTC transports",()=>{
     const observer=new WebSocket(`ws://127.0.0.1:${sockets.port()}`),observed:ServerMessage[]=[];
     observer.on("message",raw=>observed.push(JSON.parse(String(raw))));
     try{
-      const endpoint=`http://127.0.0.1:${port}/otc/trades`,body={symbol:"BTCUSDT",direction:"UP",stake:10000,durationSec:60,accountId:account.id,actorId:user.id,idempotencyKey:randomUUID()};
+      const endpoint=`http://127.0.0.1:${port}/otc/trades`,body={symbol:"BTCUSDT",direction:"UP",stake:10000,durationSec:60,accountId:account.id,actorId:user.id,idempotencyKey:randomUUID(),quoteToken:(await runtime.snapshot("BTCUSDT")).displayQuote!.token};
       expect((await fetch(endpoint,{method:"POST"})).status).toBe(401);
       const headers={Authorization:`Bearer ${secret}`,"Content-Type":"application/json"};
       expect((await fetch(endpoint,{method:"POST",headers,body:JSON.stringify({...body,role:"ADMIN"})})).status).toBe(400);
@@ -49,8 +49,14 @@ describe.skipIf(!enabled)("authenticated OTC transports",()=>{
       const olderStart=messages.length;ws.send(JSON.stringify({type:"candles:loadOlder",symbol:"BTCUSDT",timeframe:"1m",before:initial.candles.at(-1)!.openTs,limit:10}));
       await until(()=>messages.slice(olderStart).some(m=>m.type==="candles:older"));
       expect(messages.slice(olderStart).find(m=>m.type==="candles:older")!.candles).toHaveLength(10);
+      const displayed=messages.filter((m):m is OtcMarketMessage=>m.type==="otc:market").at(-1)!.displayQuote!;
+      body.quoteToken=displayed.token;
+      expect((await fetch(endpoint,{method:"POST",headers,body:JSON.stringify({...body,quoteToken:randomUUID()})})).status).toBe(409);
+      expect(await prisma.transaction.count({where:{accountId:account.id,kind:"TRADE_STAKE"}})).toBe(0);
+      await runtime.advance(Date.now()+1500);
       const response=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(body)});expect(response.status).toBe(201);
       const opened=await response.json() as OpenTradeResult;expect(opened.trade.mode).toBe("OTC_FIXED");expect(opened.trade.filledLots).toBeGreaterThan(0);expect(opened.balances.realBalance).toBe(90000);
+      expect(opened.trade.entryPrice).toBe(displayed.price);
       await until(()=>messages.some(m=>m.type==="trade:opened"));
       await runtime.advance(Date.now()+120000);await until(()=>messages.some(m=>m.type==="trade:settled"));
       await until(()=>messages.some(m=>m.type==="otc:bots"));

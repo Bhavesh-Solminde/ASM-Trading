@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps 
 import { TIMEFRAMES, type TradeView } from "@asm/contracts";
 import { useChartProtection } from "@/lib/chart-protection-preference";
 import { PriceChart } from "@/components/chart/PriceChart";
+import { useDisplayedPrice } from "@/components/chart/use-displayed-price";
 import { SentimentBar } from "@/components/chart/SentimentBar";
 import { TimeframeTabs } from "@/components/chart/TimeframeTabs";
 import { ChartTypeSelector } from "@/components/chart/ChartTypeSelector";
@@ -50,10 +51,7 @@ function toggleNativeFullscreen(on: boolean): void {
 /** The big price readout; the only part of the stage that renders on a tick. */
 function ChartReadout({ symbol, displayName, precision }: { symbol: string; displayName: string; precision: number }) {
   const { market } = usePlatform();
-  const lastPrice = useMarket(
-    market,
-    (s) => (s.chart.symbol === symbol ? s.chart.lastPrice : null) ?? s.quotes[symbol]?.price ?? null,
-  );
+  const lastPrice = useDisplayedPrice(market,symbol,precision);
   const quote = useQuote(symbol);
   const direction = quote ? tickDirection(quote) : null;
   const { pair, market: qualifier } = splitAssetName(displayName);
@@ -250,10 +248,7 @@ function LiveSentiment() {
 /** Phone price readout under the market pill: last price (blue, ticks green/red) and the move since the history started. */
 function PhoneReadout({ symbol, precision }: { symbol: string; precision: number }) {
   const { market } = usePlatform();
-  const lastPrice = useMarket(
-    market,
-    (s) => (s.chart.symbol === symbol ? s.chart.lastPrice : null) ?? s.quotes[symbol]?.price ?? null,
-  );
+  const lastPrice = useDisplayedPrice(market,symbol,precision);
   const quote = useQuote(symbol);
   const direction = quote ? tickDirection(quote) : null;
   const change = quote ? changePct(quote) : null;

@@ -188,21 +188,25 @@ readable.
 
 Opening a trade:
 
-1. The browser sends symbol, Up/Down, stake, expiry duration, optional SL/TP and
-   a client-generated idempotency key.
+1. The browser captures the server-issued quote ID committed with the visible
+   price when Buy or Sell is clicked. It sends that ID with symbol, Up/Down,
+   stake, expiry duration, optional SL/TP and a client-generated idempotency key.
 2. The web route verifies the session and account ownership, then forwards the
    authenticated actor ID to the engine exactly as it does today.
 3. In one database transaction the engine locks the selected account, checks status
-   and balance, debits the stake, and creates a `PENDING` trade intent.
+   and balance, verifies the quote's market and five-second validity, debits the
+   stake, and saves the exact displayed price in the durable trade intent.
+   An expired or unknown quote asks the trader to refresh the price.
 4. Only a USER-role LIVE trade is Tob flow. The worker converts its stake to a bounded flow-lot size using the market's
    catalogue scale and submits an immediate-or-cancel Up/Down flow order to the
    same finite book used by the bots.
 5. If nothing fills, the engine refunds the reserved stake and reports that
    liquidity was unavailable. It does not invent an entry price.
-6. If it fills, volume-weighted fill price becomes `entryPrice`. Store fill
-   quantity, execution sequence and market command ID, then mark the trade open.
+6. Use the verified displayed price as the contract `entryPrice`. Store matched
+   fill quantity, execution sequence and market command ID, then mark the trade open.
 7. Notify only after both the market result and database finalization are
-   durable. Repeating the same idempotency key returns the original result.
+   durable. Repeating the same idempotency key returns the original result,
+   including after quote expiry or an engine restart.
 
 The INR stake is the fixed-payout contract balance; the flow lots are a
 calibrated representation of its order-flow pressure. They must be stored

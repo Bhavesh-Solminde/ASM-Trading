@@ -12,14 +12,17 @@ it("retries an ambiguous OTC request with its original duration and key as clock
   localStorage.setItem("asm_ticket_expiry",JSON.stringify({durationSec:300,mode:"time",targetMs:now+300000}));
   const post=vi.fn().mockResolvedValueOnce({ok:false,status:503,json:async()=>({error:"Temporarily unavailable"})})
     .mockResolvedValueOnce({ok:true,status:201,json:async()=>({trade:{id:"original"},balances:{realBalance:9990000,bonusBalance:0}})});
-  vi.stubGlobal("fetch",post);const onOpened=vi.fn(),props={otc:true,symbol:"BTCUSDT",pair:"BTC/USDT",accountId:"demo",currency:"INR",payoutPct:92,onOpened};
+  let quoteToken="original-quote";
+  vi.stubGlobal("fetch",post);const onOpened=vi.fn(),props={otc:true,symbol:"BTCUSDT",pair:"BTC/USDT",accountId:"demo",currency:"INR",payoutPct:92,onOpened,
+    market:{getDisplayedQuote:()=>({price:100,token:quoteToken})} as any};
   let view:ReturnType<typeof render>;await act(async()=>{view=render(h(TradeTicket,props));});
   await act(async()=>fireEvent.click(screen.getByRole("button",{name:/^Buy/i})));
-  clock.mockReturnValue(now+100000);await act(async()=>view.rerender(h(TradeTicket,props)));
+  quoteToken="future-quote";clock.mockReturnValue(now+100000);await act(async()=>view.rerender(h(TradeTicket,props)));
   await act(async()=>fireEvent.click(screen.getByRole("button",{name:/^Buy/i})));
   expect(post).toHaveBeenCalledTimes(2);
   const first=JSON.parse(post.mock.calls[0]![1].body),retry=JSON.parse(post.mock.calls[1]![1].body);
   expect(first.durationSec).toBe(300);expect(retry).toEqual(first);expect(first.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+  expect(first.quoteToken).toBe("original-quote");
   expect(onOpened).toHaveBeenCalledTimes(1);
 });
 it("submits chart-picked levels and retries the same intent even after price crosses a line",async()=>{
@@ -28,7 +31,7 @@ it("submits chart-picked levels and retries the same intent even after price cro
     .mockResolvedValueOnce({ok:true,status:201,json:async()=>({trade:{id:"protected"},balances:{realBalance:9990000,bonusBalance:0}})});
   vi.stubGlobal("fetch",post);
   const onProtectionChange=vi.fn(),props={otc:true,symbol:"BTCUSDT",pair:"BTC/USDT",accountId:"demo",currency:"INR",payoutPct:92,onOpened:vi.fn(),
-    protectionDraft:{enabled:true,direction:"UP" as const,stopLoss:95,takeProfit:105},onProtectionChange,market:{getSnapshot:()=>({chart:{symbol:"BTCUSDT",lastPrice:price}})} as any};
+    protectionDraft:{enabled:true,direction:"UP" as const,stopLoss:95,takeProfit:105},onProtectionChange,market:{getDisplayedQuote:()=>({price,token:"displayed-quote"})} as any};
   await act(async()=>render(h(TradeTicket,props)));
   expect(screen.queryByLabelText("Stop loss price")).toBeNull();
   await act(async()=>fireEvent.click(screen.getByRole("button",{name:/^Sell(?! levels)/i})));

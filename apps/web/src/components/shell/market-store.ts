@@ -34,6 +34,7 @@ export interface MarketSnapshot {
  * tab is hidden.
  */
 export class MarketStore {
+  private displayedQuote: { symbol:string;generation:string;price:number;token:string } | null = null;
   private snapshot: MarketSnapshot;
   private readonly listeners = new Set<() => void>();
   private frame = 0;
@@ -48,6 +49,20 @@ export class MarketStore {
 
   readonly getSnapshot = (): MarketSnapshot => this.snapshot;
 
+  /** Called after the visible price readout commits its text to the DOM. */
+  markDisplayedQuote(symbol:string, price:number|null, precision:number, quote:OtcMarketMessage["displayQuote"]) {
+    const state=this.snapshot.chart;
+    if (state.symbol!==symbol) return;
+    if (!state.generation || !quote || price===null || quote.token!==this.snapshot.otc?.displayQuote?.token
+      || Number(price.toFixed(precision))!==quote.price) {this.displayedQuote=null;return;}
+    this.displayedQuote={symbol,generation:state.generation,price:quote.price,token:quote.token};
+  }
+
+  getDisplayedQuote(symbol:string) {
+    const quote=this.displayedQuote,state=this.snapshot.chart;
+    return quote?.symbol===symbol && state.symbol===symbol && quote.generation===state.generation ? quote : null;
+  }
+
   readonly subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
     return () => {
@@ -58,7 +73,7 @@ export class MarketStore {
   apply(message: ServerMessage): void {
     if(message.type==="ready"&&message.model==="OTC_FIXED"&&message.generation){
       const previous=this.workerGeneration??this.snapshot.chart.generation;this.workerGeneration=message.generation;
-      if(previous&&message.generation!==previous){this.cache.clear();this.snapshot={...this.snapshot,chart:initialChartState(this.snapshot.chart.symbol,this.snapshot.chart.timeframe),otc:null,bots:[]};this.schedule();return;}
+      if(previous&&message.generation!==previous){this.displayedQuote=null;this.cache.clear();this.snapshot={...this.snapshot,chart:initialChartState(this.snapshot.chart.symbol,this.snapshot.chart.timeframe),otc:null,bots:[]};this.schedule();return;}
     }
     const chart = applyChartMessage(this.snapshot.chart, message);
     if(message.type==="otc:market"&&chart.generation===message.generation)this.workerGeneration=message.generation;
@@ -73,6 +88,7 @@ export class MarketStore {
   /** Points the chart at another symbol; ticks still in flight for the old one are ignored. */
   selectSymbol(symbol: string): void {
     if (this.snapshot.chart.symbol === symbol) return;
+    this.displayedQuote=null;
     this.cacheCurrent();
     beginChartSwitch(`${symbol}:${this.snapshot.chart.timeframe}`,this.cache.has(`${symbol}:${this.snapshot.chart.timeframe}`));
     this.snapshot = { ...this.snapshot,otc:null, chart:this.cache.get(`${symbol}:${this.snapshot.chart.timeframe}`)??initialChartState(symbol, this.snapshot.chart.timeframe) };
@@ -82,6 +98,7 @@ export class MarketStore {
   /** Switches the chart timeframe; resets candle state so fresh history loads. */
   selectTimeframe(timeframe: Timeframe): void {
     if (this.snapshot.chart.timeframe === timeframe) return;
+    this.displayedQuote=null;
     this.cacheCurrent();
     beginChartSwitch(`${this.snapshot.chart.symbol}:${timeframe}`,this.cache.has(`${this.snapshot.chart.symbol}:${timeframe}`));
     this.snapshot = { ...this.snapshot,otc:null, chart:this.cache.get(`${this.snapshot.chart.symbol}:${timeframe}`)??initialChartState(this.snapshot.chart.symbol, timeframe) };

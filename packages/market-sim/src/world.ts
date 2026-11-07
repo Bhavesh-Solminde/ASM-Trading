@@ -7,6 +7,8 @@ import type { Execution } from "./order-book";
 
 export interface OpenContractCommand extends Omit<FixedContractInput,"entryPrice"|"entryTime"|"expiryTime"|"entrySequence">,Omit<AccountFlowInput,"side"> {
   durationSec:number;
+  /** Verified displayed price. Absent only in durable commands from older releases. */
+  displayedPrice?:number;
 }
 export interface OpenContractResult {contract:FixedContract;flowLots:number;filledLots:number;}
 export interface SimulationCheckpoint {
@@ -66,9 +68,9 @@ export class MarketWorld {
     const quote=isTob(input)?m.quoteTob(input.actorId,side,lots):{entryPrice:m.summary().lastPrice,filledLots:0};
     if(!quote.entryPrice)throw new Error("Liquidity unavailable");
     const request:FixedContractInput={id:input.id,accountId:input.accountId,actorId:input.actorId,symbol:input.symbol,direction:input.direction,
-      stake:input.stake,entryPrice:quote.entryPrice,entryTime:this.time,expiryTime:this.time+input.durationSec*1000,entrySequence:m.book.sequence,
+      stake:input.stake,entryPrice:input.displayedPrice??quote.entryPrice,entryTime:this.time,expiryTime:this.time+input.durationSec*1000,entrySequence:m.book.sequence,
       ...(input.stopLoss!==undefined?{stopLoss:input.stopLoss}:{}),...(input.takeProfit!==undefined?{takeProfit:input.takeProfit}:{})};
-    // Validate protection against the actual previewed fill before changing the book.
+    // Validate accepted contract levels before changing the book.
     new FixedContracts().open(request);
     const flow=submitAccountFlow(m,{actorId:input.actorId,role:input.role,accountType:input.accountType,side,stakeInrMinor:input.stakeInrMinor});
     if(flow.entryPrice!==quote.entryPrice||flow.filledLots!==quote.filledLots)throw new Error("Order preview diverged from execution");

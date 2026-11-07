@@ -8,13 +8,14 @@ import { assertOtcFence,type OtcFence } from "./otc-fence";
 export interface OtcTradeRequest {
   actorId:string;accountId:string;idempotencyKey:string;symbol:string;
   direction:"UP"|"DOWN";stake:number;durationSec:number;stopLoss?:number|null;takeProfit?:number|null;
+  quoteToken?:string;
 }
 export interface OtcOpenIntent {
   version:1;kind:"open";time:number;assetId:string;fromReal:number;fromBonus:number;fingerprint:string;currency?:string;
   contract:OpenContractCommand;
 }
 export class OtcRejected extends Error {}
-const fingerprint=(r:OtcTradeRequest)=>JSON.stringify({symbol:r.symbol,direction:r.direction,stake:r.stake,durationSec:r.durationSec,stopLoss:r.stopLoss??null,takeProfit:r.takeProfit??null});
+const fingerprint=(r:OtcTradeRequest)=>JSON.stringify({symbol:r.symbol,direction:r.direction,stake:r.stake,durationSec:r.durationSec,stopLoss:r.stopLoss??null,takeProfit:r.takeProfit??null,...(r.quoteToken?{quoteToken:r.quoteToken}:{})});
 const json=<T>(v:T)=>JSON.parse(JSON.stringify(v));
 async function serial<T>(client:DbClient,work:(tx:DbTransaction)=>Promise<T>):Promise<T>{
   for(let attempt=0;attempt<5;attempt++){
@@ -25,7 +26,7 @@ async function serial<T>(client:DbClient,work:(tx:DbTransaction)=>Promise<T>):Pr
 }
 
 /** Reserves actual account funds and writes the immutable worker input atomically. */
-export async function reserveOtcTrade(request:OtcTradeRequest,client:DbClient=prisma,now=Date.now(),fence?:OtcFence){
+export async function reserveOtcTrade(request:OtcTradeRequest,client:DbClient=prisma,now=Date.now(),fence?:OtcFence,resolveEntryPrice?:()=>number){
   if(!Number.isSafeInteger(request.stake)||request.stake<1||request.stake>100000000
     ||!request.idempotencyKey||request.idempotencyKey.length>128||!["UP","DOWN"].includes(request.direction)
     ||![5,10,15,30,60,120,300,600,900,1800,3600,7200,14400].includes(request.durationSec))throw new OtcRejected("invalid_trade");
@@ -38,6 +39,7 @@ export async function reserveOtcTrade(request:OtcTradeRequest,client:DbClient=pr
     if(!account)throw new OtcRejected("account_not_found");
     const existing=await tx.marketCommand.findUnique({where:{accountId_idempotencyKey:{accountId:account.id,idempotencyKey:request.idempotencyKey}}});
     if(existing){const intent=existing.input as unknown as OtcOpenIntent;if(intent.fingerprint!==fingerprint(request))throw new OtcRejected("idempotency_conflict");return existing;}
+    const displayedPrice=resolveEntryPrice?.();
     if(["FROZEN","BANNED"].includes(account.user.status))throw new OtcRejected("account_not_active");
     if(!["INR","USD"].includes(account.currency)||request.stake<(account.currency==="INR"?10000:100))throw new OtcRejected("stake_below_minimum");
     const asset=await tx.asset.findFirst({where:{symbol:request.symbol,isOpen:true}});if(!asset)throw new OtcRejected("unknown_asset");
@@ -47,7 +49,8 @@ export async function reserveOtcTrade(request:OtcTradeRequest,client:DbClient=pr
     if(claimed.count!==1)throw new OtcRejected("account_changed");
     const contract:OpenContractCommand={id,accountId:account.id,actorId:request.actorId,symbol:asset.symbol,direction:request.direction,
       stake:request.stake,stakeInrMinor:convertMinorBetween(request.stake,account.currency,"INR"),durationSec:request.durationSec,
-      role:account.user.role,accountType:account.type,stopLoss:request.stopLoss??null,takeProfit:request.takeProfit??null};
+      role:account.user.role,accountType:account.type,stopLoss:request.stopLoss??null,takeProfit:request.takeProfit??null,
+      ...(displayedPrice!==undefined?{displayedPrice}:{})};
     const intent:OtcOpenIntent={version:1,kind:"open",time:now,assetId:asset.id,fromReal,fromBonus,fingerprint:fingerprint(request),currency:account.currency,contract};
     const command=await tx.marketCommand.create({data:{id,worldId:"otc-main",accountId:account.id,actorId:request.actorId,idempotencyKey:request.idempotencyKey,input:json(intent)}});
     await tx.transaction.create({data:{accountId:account.id,kind:"TRADE_STAKE",amount:-request.stake,balanceAfter:account.realBalance+account.bonusBalance-request.stake,refType:"Trade",refId:id}});
@@ -77,6 +80,7 @@ export async function finalizeOtcOpen(commandId:string,result:OpenContractResult
     if(p.id!==row.id||p.accountId!==intent.contract.accountId||p.actorId!==intent.contract.actorId||p.stake!==intent.contract.stake||p.symbol!==intent.contract.symbol||p.status!=="OPEN"
       ||p.direction!==intent.contract.direction||p.payoutPct!==92||p.expiryTime-p.entryTime!==intent.contract.durationSec*1000
       ||(p.stopLoss??null)!==(intent.contract.stopLoss??null)||(p.takeProfit??null)!==(intent.contract.takeProfit??null))throw new Error("Worker open does not match reserved intent");
+    if(intent.contract.displayedPrice!==undefined&&p.entryPrice!==intent.contract.displayedPrice)throw new Error("Worker entry differs from the displayed quote");
     const trade=await tx.trade.create({data:{id:row.id,accountId:p.accountId,assetId:intent.assetId,mode:"OTC_FIXED",currency,direction:p.direction,
       stake:p.stake,stakeFromBonus:intent.fromBonus,payoutPct:92,entryPrice:p.entryPrice,entryTs:new Date(p.entryTime),expiryTs:new Date(p.expiryTime),
       durationSec:intent.contract.durationSec,stopLoss:p.stopLoss??null,takeProfit:p.takeProfit??null,entrySequence:BigInt(p.entrySequence),

@@ -283,9 +283,15 @@ export function TradeTicket({
     // Fingerprint the chosen controls, not a changing clock/percentage balance.
     // A network retry must retain the exact original stake and duration.
     const fingerprint=JSON.stringify({symbol,direction,accountId,stakeUnit,stakeInput,pctInput,mode,durationSec,targetMs,protection,stopLoss,takeProfit});
-    if(otc&&protection&&pending.current?.fingerprint!==fingerprint){const state=market?.getSnapshot().chart,price=state?.symbol===symbol?state.lastPrice:null;
-      const validation=protectionError(protectionDraft,direction,price??null);if(validation){setError(validation);return;}}
-    if(otc&&pending.current?.fingerprint!==fingerprint)pending.current={fingerprint,key:crypto.randomUUID(),body};
+    if(otc&&pending.current?.fingerprint!==fingerprint){
+      const displayedQuote=market?.getDisplayedQuote(symbol);
+      if(!displayedQuote){setError("Waiting for the displayed price. Try again in a moment.");return;}
+      if(protection){
+        const validation=protectionError(protectionDraft,direction,displayedQuote.price);
+        if(validation){setError(validation);return;}
+      }
+      pending.current={fingerprint,key:crypto.randomUUID(),body:{...body,quoteToken:displayedQuote.token}};
+    }
     placing.current=true;
     setFired(direction);
     setBusy(true);

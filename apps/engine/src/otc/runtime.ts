@@ -8,6 +8,7 @@ import { OtcWorker } from "./worker";
 import { OtcWriterLock } from "./writer-lock";
 import { persistOtcArchive,readOtcCandles,retainOtcHistory } from "./archive";
 import type { Timeframe } from "@asm/contracts";
+import { DisplayQuotes } from "./display-quotes";
 
 type SystemIntent={version:1;kind:"advance";time:number}|{version:1;kind:"reference";time:number;quote:ReferenceQuote};
 type Command=Awaited<ReturnType<DbClient["marketCommand"]["findUniqueOrThrow"]>>;
@@ -26,6 +27,7 @@ export class OtcRuntime {
   private closing=false;
   private watermark=0n;
   private time=0;
+  private displayedQuotes=new DisplayQuotes();
   private retainedAt=0;
   private notify:((tradeId:string,actorId:string)=>Promise<void>)|null=null;
   setNotifier(notify:((tradeId:string,actorId:string)=>Promise<void>)|null){this.notify=notify;}
@@ -125,14 +127,18 @@ export class OtcRuntime {
       for(const command of commands)await this.process(command);
     }
   }
-  open(request:OtcTradeRequest){return this.enqueue(async()=>{
-    const command=await reserveOtcTrade(request,this.client,Date.now(),this.fence);
-    await this.drain();
-    const final=await this.client.marketCommand.findUniqueOrThrow({where:{id:command.id}});
-    if(final.status==="REJECTED")throw new OtcRejected(String((final.result as {error:string}).error));
-    if(final.status!=="APPLIED")throw new Error("OTC command has not finalized");
-    return this.client.trade.findUniqueOrThrow({where:{id:command.id}});
-  });}
+  open(request:OtcTradeRequest){
+    const receivedAt=Date.now();
+    return this.enqueue(async()=>{
+      const command=await reserveOtcTrade(request,this.client,Date.now(),this.fence,
+        ()=>this.displayedQuotes.resolve(request.quoteToken,request.symbol,receivedAt));
+      await this.drain();
+      const final=await this.client.marketCommand.findUniqueOrThrow({where:{id:command.id}});
+      if(final.status==="REJECTED")throw new OtcRejected(String((final.result as {error:string}).error));
+      if(final.status!=="APPLIED")throw new Error("OTC command has not finalized");
+      return this.client.trade.findUniqueOrThrow({where:{id:command.id}});
+    });
+  }
   advance(time=Date.now()){return this.enqueue(async()=>{await this.append({version:1,kind:"advance",time});await this.drain();});}
   reference(quote:ReferenceQuote){return this.enqueue(async()=>{await this.append({version:1,kind:"reference",time:Math.max(Date.now(),quote.receivedAt),quote});await this.drain();});}
   checkpoint(){return this.enqueue(async()=>{
@@ -157,7 +163,11 @@ export class OtcRuntime {
       GROUP BY a.symbol`;
     return Object.fromEntries(rows.map(r=>[r.symbol,Number(r.count)]));
   }
-  snapshot(symbol:string,since?:number){return this.enqueue(()=>this.worker!.snapshot(symbol,since));}
+  snapshot(symbol:string,since?:number){return this.enqueue(async()=>{
+    const state=await this.worker!.snapshot(symbol,since);
+    const spec=MULTI_MARKETS.find(m=>m.symbol===symbol)!;
+    return {...state,displayQuote:this.displayedQuotes.issue(symbol,state.market.lastPrice,spec.precision)};
+  });}
   summaries(){return this.enqueue(()=>this.worker!.summaries());}
   leaderboard(){return this.enqueue(()=>this.worker!.leaderboard());}
   async stop(save=true){

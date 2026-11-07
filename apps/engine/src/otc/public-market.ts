@@ -1,7 +1,7 @@
-import { TIMEFRAME_SEC,type CandleDto,type Timeframe,type OtcMarketMessage } from "@asm/contracts";
+import { TIMEFRAME_SEC,type CandleDto,type Timeframe,type OtcMarketMessage,type OtcDisplayQuote } from "@asm/contracts";
 import type { MarketWorld } from "@asm/market-sim";
 
-export function publicMarket(state:ReturnType<MarketWorld["snapshot"]>,timeframe:Timeframe,generation:string,since?:number,openTobs=0):OtcMarketMessage{
+export function publicMarket(state:ReturnType<MarketWorld["snapshot"]>&{displayQuote?:OtcDisplayQuote|null},timeframe:Timeframe,generation:string,since?:number,openTobs=0):OtcMarketMessage{
   const width=TIMEFRAME_SEC[timeframe],buckets=new Map<number,CandleDto>();
   for(const b of state.market.candles){
     const openTs=Math.floor(b.time/width)*width,existing=buckets.get(openTs);
@@ -19,5 +19,5 @@ export function publicMarket(state:ReturnType<MarketWorld["snapshot"]>,timeframe
     depth:state.market.depth,
     tape:state.market.executions.map(f=>({sequence:f.sequence,time:f.time,price:f.price,quantity:f.quantity,side:f.side,origin:f.origin})),
     phase:!state.market.depth.bids.length||!state.market.depth.asks.length?"Liquidity stress":state.market.tobs.phase,
-    activeTobs:state.market.tobs.activeTobs,openTobs};
+    activeTobs:state.market.tobs.activeTobs,openTobs,displayQuote:state.displayQuote??null};
 }
