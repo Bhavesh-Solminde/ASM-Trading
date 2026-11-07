@@ -37,6 +37,7 @@ import { HlcAreaSeriesView } from "./plugins/hlc-area-series";
 import { VolumeCandlesSeriesView } from "./plugins/volume-candles-series";
 import { recordChartMetric,finishChartSwitch } from "./diagnostics";
 import { OtcExpiry } from "./OtcExpiry";
+import { OtcEntryLines } from "./OtcEntryLines";
 import { OtcProtection } from "./OtcProtection";
 import type { OtcProtectionDraft } from "./otc-protection";
 
@@ -1069,6 +1070,7 @@ export function PriceChart({
         price: t.entryPrice,
         color: t.direction === "UP" ? UP : DOWN,
         lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true,
+        lineVisible: t.mode !== "OTC_FIXED",
         axisLabelTextColor: BRAND_INK,
         title: `${t.direction === "UP" ? "▲" : "▼"} ${formatMinor(t.stake, t.currency??currency)}`,
       }));
@@ -1086,6 +1088,7 @@ export function PriceChart({
           internal z-index:50 canvases stay trapped below the overlay controls
           (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
+      <OtcEntryLines trades={openTrades} chartRef={chartRef} seriesRef={seriesRef} market={market} chartVersion={chartVersion} />
       {showVolume?<OtcExpiry trades={openTrades} chartRef={chartRef} market={market} chartVersion={chartVersion}/>:null}
       {protectionDraft&&onProtectionChange?<OtcProtection key={bracketScope} draft={protectionDraft} onChange={onProtectionChange} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef} market={market} chartVersion={chartVersion} precision={precision} tickSize={tickSize??10**-precision}/>:null}
       {enableBrackets && <ChartBrackets key={`${bracketScope}:${focusedTradeId ?? "all"}`} focusedTradeId={focusedTradeId} onSelectTrade={onSelectTrade} onShowAllTrades={onShowAllTrades} actionsContainer={bracketActionsContainer} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
