@@ -2,44 +2,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({ live: vi.fn(), demo: vi.fn(), currency: vi.fn().mockResolvedValue("INR") }));
 vi.mock("@asm/db", () => ({ dailyLeaderboard: mock.live, demoLeaderboard: mock.demo, leaderboardCurrencyFor: mock.currency }));
 import { loadLeaderboard } from "./leaderboard";
-afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
+const entry = (accountId: string, pnlMinor: number) => ({
+  accountId, userId: `user-${accountId}`, nickname: accountId, country: "IN",
+  currency: "INR", pnlMinor, market: "BANKNIFTY", returnPct: pnlMinor / 100_000,
+});
+afterEach(() => { vi.unstubAllEnvs(); vi.resetAllMocks(); mock.currency.mockResolvedValue("INR"); });
 describe("leaderboard mode", () => {
-  it("uses only fictional profiles when demo mode is explicitly selected", async () => {
+  it("mixes real and fictional traders into one profit-ranked list in demo mode", async () => {
     vi.stubEnv("LEADERBOARD_MODE", "demo");
-    mock.demo.mockResolvedValue({ source: "demo", entries: [], you: { rank: null, entry: null } });
+    const viewer = entry("viewer", 15_000);
+    mock.live.mockResolvedValue({ source: "live", entries: [viewer, entry("real", 5_000)], you: { rank: 1, entry: viewer } });
+    mock.demo.mockResolvedValue({ source: "demo", entries: [entry("demo", 20_000)], you: { rank: null, entry: null } });
     const result = await loadLeaderboard("viewer");
-    expect(result.result.source).toBe("demo");
-    expect(result.mode).toBe("demo");
-    expect(result.demoAvailable).toBe(true);
+    expect(result.result.entries.map(({ accountId }) => accountId)).toEqual(["demo", "viewer", "real"]);
+    expect(result.result.you).toEqual({ rank: 2, entry: viewer });
     expect(mock.demo).toHaveBeenCalledWith({ nowMs: expect.any(Number), displayCurrency: "INR" });
-    expect(mock.live).not.toHaveBeenCalled();
-  });
-  it("lets the real view bypass demo data even with both preview and order-book flags enabled", async () => {
-    vi.stubEnv("LEADERBOARD_MODE", "demo");
-    vi.stubEnv("OTC_ORDER_BOOK_ENABLED", "true");
-    const result = await loadLeaderboard("viewer", "live");
-    expect(result.mode).toBe("live");
-    expect(result.demoAvailable).toBe(true);
-    expect(mock.live).toHaveBeenCalledWith(expect.objectContaining({ includeBots: false }));
-    expect(mock.demo).not.toHaveBeenCalled();
-  });
-  it("lets the demo view explicitly select the fictional roster", async () => {
-    vi.stubEnv("LEADERBOARD_MODE", "demo");
-    const result = await loadLeaderboard("viewer", "demo");
-    expect(result.mode).toBe("demo");
-    expect(mock.demo).toHaveBeenCalled();
-    expect(mock.live).not.toHaveBeenCalled();
-  });
-  it("does not expose demo profiles through the URL when preview is disabled", async () => {
-    vi.stubEnv("LEADERBOARD_MODE", "live");
-    const result = await loadLeaderboard("viewer", "demo");
-    expect(result.mode).toBe("live");
-    expect(result.demoAvailable).toBe(false);
-    expect(mock.demo).not.toHaveBeenCalled();
     expect(mock.live).toHaveBeenCalledWith(expect.objectContaining({ includeBots: false }));
   });
   it.each(["live", "", "false"])("keeps actual human results with mode %s", async (mode) => {
     vi.stubEnv("LEADERBOARD_MODE", mode);
+    mock.live.mockResolvedValue({ source: "live", entries: [], you: { rank: null, entry: null } });
     await loadLeaderboard("viewer");
     expect(mock.live).toHaveBeenCalledWith(expect.objectContaining({ viewerUserId: "viewer", includeBots: false, limit: 10 }));
     expect(mock.demo).not.toHaveBeenCalled();
