@@ -4,12 +4,11 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { DIWALI_START, DIWALI_END, isDiwali, diwaliRouteAllowed, isCelebratedWin, FIREWORK_BURSTS } from "@/lib/diwali";
-import { festivalMotionEnabled, festivalSoundEnabled, subscribeFestivalPreferences } from "@/lib/festive-preferences";
 import { claimFestivalWin, registerFestivalSettlement } from "@/lib/festive-settlement";
-import { isMuted, subscribeSound } from "@/lib/sound";
+import { getSoundContext, isMuted, subscribeSound } from "@/lib/sound";
 import styles from "./SeasonalDiwali.module.css";
 
-const Celebration = dynamic(() => import("./DiwaliCelebration"));
+const VideoGreeting = dynamic(() => import("./FirstVisitDiwali").then(module => module.DiwaliGreeting));
 type Run = { id: string; serial: number } | null;
 const Festival = createContext({ active: false, open: () => {}, win: null as Run, cancel: () => {} });
 
@@ -49,33 +48,32 @@ export function SeasonalDiwali({ children }: { children: ReactNode }) {
     if (!active) return;
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
     const preferences = () => {
-      if (motion.matches || !festivalMotionEnabled()) cancel();
-      if (!festivalSoundEnabled() || isMuted()) stopSound.current();
-      // Fetch/decode only after the visitor has opted into festival sound.
-      if (festivalSoundEnabled() && !soundModule.current) void import("@/lib/festive-sound").then(module => { soundModule.current = module; });
+      if (motion.matches) cancel();
+      if (isMuted()) stopSound.current();
     };
     preferences();
     const unlock = () => {
-      if (festivalSoundEnabled() && !isMuted() && !motion.matches) void import("@/lib/festive-sound").then(module => { soundModule.current = module; return module.prepareFireworkSound(); });
+      if (isMuted() || motion.matches) return;
+      getSoundContext(); // Resume directly in the existing user gesture.
+      void import("@/lib/festive-sound").then(module => { soundModule.current = module; return module.prepareFireworkSound(); });
     };
     window.addEventListener("pointerdown", unlock, { passive: true });
     window.addEventListener("keydown", unlock);
-    const unpreferences = subscribeFestivalPreferences(preferences);
     const unmute = subscribeSound(preferences);
     motion.addEventListener("change", preferences);
     const unregister = registerFestivalSettlement(trade => {
       if (!isCelebratedWin(trade) || !/^\/trade(\/|$)/.test(pathname)) return false;
       // Consume even suppressed wins so they cannot appear after a modal closes.
       if (!claimFestivalWin(trade.id)) return true;
-      if (!isDiwali() || document.hidden || motion.matches || !festivalMotionEnabled() || document.querySelector("dialog[open]") || Date.now() < until.current) return false;
+      if (!isDiwali() || document.hidden || motion.matches || document.querySelector("dialog[open]") || Date.now() < until.current) return false;
       until.current = Date.now() + 2500;
       setWin({ id: trade.id, serial: ++serial.current });
-      const stop = festivalSoundEnabled() && !isMuted() ? soundModule.current?.playFireworkSound(true) : null;
+      const stop = !isMuted() ? soundModule.current?.playFireworkSound(true) : null;
       if (stop) stopSound.current = stop;
       timer.current = setTimeout(cancel, 2400);
       return !!stop; // Only replace the ordinary win chime when festive audio starts.
     });
-    return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); unregister(); unpreferences(); unmute(); motion.removeEventListener("change", preferences); cancel(); };
+    return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); unregister(); unmute(); motion.removeEventListener("change", preferences); cancel(); };
   }, [active, pathname, cancel]);
 
   const show = () => {
@@ -84,7 +82,7 @@ export function SeasonalDiwali({ children }: { children: ReactNode }) {
   };
   return <Festival.Provider value={{ active, open: show, win, cancel }}>
     {children}
-    {active && open ? <Celebration onClose={() => setOpen(false)} /> : null}
+    {active && open ? <VideoGreeting onDismiss={() => setOpen(false)} /> : null}
   </Festival.Provider>;
 }
 
@@ -99,7 +97,7 @@ export function FestiveLights() {
 
 export function DiwaliEntry({ compact = false, iconOnly = false }: { compact?: boolean; iconOnly?: boolean }) {
   const { active, open } = useContext(Festival);
-  return active ? <button type="button" onClick={open} className={styles.entry} aria-label="Celebrate Diwali" aria-haspopup="dialog"><DiyaIcon />{iconOnly ? null : <span>{compact ? "Happy Diwali" : "Celebrate Diwali"}</span>}</button> : null;
+  return active ? <button type="button" onClick={open} className={styles.entry} aria-label="Play Diwali greeting" aria-haspopup="dialog"><DiyaIcon />{iconOnly ? null : <span>{compact ? "Happy Diwali" : "Diwali greeting"}</span>}</button> : null;
 }
 export function DiwaliHero() {
   const { active } = useContext(Festival);

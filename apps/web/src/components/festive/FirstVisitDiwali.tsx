@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { isMuted } from "@/lib/sound";
 import { DIWALI_END, DIWALI_SEEN_KEY, isDiwali } from "@/lib/diwali";
 import styles from "./FirstVisitDiwali.module.css";
 
@@ -36,6 +37,7 @@ export function DiwaliGreeting({ onDismiss, preview = false }: { onDismiss: () =
       document.body.style.overflow = "hidden";
     } else if (element) element.open = true;
     const media = video.current;
+    if (media) { media.muted = isMuted(); setMuted(media.muted); }
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let resumeAfterVisibility = false;
     const play = () => {
