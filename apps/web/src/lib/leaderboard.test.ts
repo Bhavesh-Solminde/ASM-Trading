@@ -9,8 +9,34 @@ describe("leaderboard mode", () => {
     mock.demo.mockResolvedValue({ source: "demo", entries: [], you: { rank: null, entry: null } });
     const result = await loadLeaderboard("viewer");
     expect(result.result.source).toBe("demo");
+    expect(result.mode).toBe("demo");
+    expect(result.demoAvailable).toBe(true);
     expect(mock.demo).toHaveBeenCalledWith({ nowMs: expect.any(Number), displayCurrency: "INR" });
     expect(mock.live).not.toHaveBeenCalled();
+  });
+  it("lets the real view bypass demo data even with both preview and order-book flags enabled", async () => {
+    vi.stubEnv("LEADERBOARD_MODE", "demo");
+    vi.stubEnv("OTC_ORDER_BOOK_ENABLED", "true");
+    const result = await loadLeaderboard("viewer", "live");
+    expect(result.mode).toBe("live");
+    expect(result.demoAvailable).toBe(true);
+    expect(mock.live).toHaveBeenCalledWith(expect.objectContaining({ includeBots: false }));
+    expect(mock.demo).not.toHaveBeenCalled();
+  });
+  it("lets the demo view explicitly select the fictional roster", async () => {
+    vi.stubEnv("LEADERBOARD_MODE", "demo");
+    const result = await loadLeaderboard("viewer", "demo");
+    expect(result.mode).toBe("demo");
+    expect(mock.demo).toHaveBeenCalled();
+    expect(mock.live).not.toHaveBeenCalled();
+  });
+  it("does not expose demo profiles through the URL when preview is disabled", async () => {
+    vi.stubEnv("LEADERBOARD_MODE", "live");
+    const result = await loadLeaderboard("viewer", "demo");
+    expect(result.mode).toBe("live");
+    expect(result.demoAvailable).toBe(false);
+    expect(mock.demo).not.toHaveBeenCalled();
+    expect(mock.live).toHaveBeenCalledWith(expect.objectContaining({ includeBots: false }));
   });
   it.each(["live", "", "false"])("keeps actual human results with mode %s", async (mode) => {
     vi.stubEnv("LEADERBOARD_MODE", mode);

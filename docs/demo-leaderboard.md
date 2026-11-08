@@ -4,6 +4,13 @@ The current preview uses `LEADERBOARD_MODE=demo`. It displays the same five
 columns with ten fictional profiles from the earlier roster. The heading and
 API response identify the results as demo data.
 
+While preview mode is enabled, the leaderboard has Real traders and Demo traders
+views. Real traders always uses actual human LIVE-account results, with bots
+excluded even when the order-book flag is enabled. Demo traders uses the ten
+fictional profiles. The rankings are separate. The page and API accept
+`?view=live` or `?view=demo`; without a view, the preview defaults to Demo traders.
+Disabling preview hides the demo view and ignores requests for demo results.
+
 Web startup seeds the profiles idempotently with disabled logins, `isBot=true`,
 `liveAccess=false`, and zero-balance DEMO accounts. No LIVE accounts, settled
 trades, deposits, or ledger credits are created by this feature.
