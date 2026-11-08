@@ -11,13 +11,14 @@ export interface LeaderboardEntry {
   country: string | null;
   /** The board's display currency (every entry shares it). */
   currency: string;
-  /** Today's realized P/L in minor units of `currency`. */
+  /** Today's P/L in minor units of `currency`; illustrative when source is demo. */
   pnlMinor: number;
   market?: string;
   returnPct?: number | null;
 }
 
 export interface LeaderboardResult {
+  source?: "demo" | "live";
   entries: LeaderboardEntry[];
   /** The viewer's own standing; rank is 1-based, null when they have no ranked P/L today. */
   you: { rank: number | null; entry: LeaderboardEntry | null };

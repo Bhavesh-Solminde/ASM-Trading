@@ -11,8 +11,10 @@ function maskedId(userId: string): string {
 export function LeaderboardView({ result }: { result: LeaderboardResultDto; currency: string }) {
   return (
     <div className="overflow-auto rounded border border-rule bg-panel p-4">
-      <h2 className="mb-2 text-lg font-semibold">Top 10 traders</h2>
-      <p className="mb-4 text-xs text-ink-3">Ranked by today's realized profit and loss. Return is profit and loss as a percentage of settled stakes.</p>
+      <h2 className="mb-2 text-lg font-semibold">Top 10 traders{result.source === "demo" ? " · Demo" : ""}</h2>
+      <p className="mb-4 text-xs text-ink-3">{result.source === "demo"
+        ? "Simulated daily profits for development. Fictional profiles, not customer results."
+        : "Ranked by today's realized profit and loss. Return is profit and loss as a percentage of settled stakes."}</p>
       <table className="w-full text-left text-sm tabular-nums">
         <thead className="text-xs text-ink-3">
           <tr>{["Rank", "Trader", "Market", "Quote P&L", "Return"].map((label) => <th key={label} scope="col" >{label}</th>)}</tr>

@@ -54,6 +54,11 @@ jobs:
                --filter @asm/trading \
                exec tsc --noEmit
 
+      - name: Check leaderboard preview and live modes
+        run: |
+          pnpm --filter @asm/db exec vitest run src/repositories/demo-leaderboard.test.ts src/repositories/leaderboard-columns.test.ts
+          pnpm --filter @asm/web exec vitest run src/lib/leaderboard.test.ts
+
   deploy:
     needs: validate
     runs-on: ubuntu-latest

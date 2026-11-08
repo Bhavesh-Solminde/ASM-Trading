@@ -80,6 +80,9 @@ services:
     image: asmtrader-app:latest
     restart: unless-stopped
     env_file: ../.env.production
+    environment:
+      # Development preview: switch to live before accepting real users.
+      LEADERBOARD_MODE: ${LEADERBOARD_MODE:-demo}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
@@ -87,7 +90,7 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-    command: ["pnpm", "--filter", "@asm/web", "start"]
+    command: ["sh", "-c", "pnpm --filter @asm/db exec tsx src/seed-demo-leaderboard.ts && exec pnpm --filter @asm/web start"]
 
   engine:
     image: asmtrader-app:latest
