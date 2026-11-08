@@ -25,9 +25,7 @@ export function DiwaliGreeting({ onDismiss, preview = false }: { onDismiss: () =
   const dialog = useRef<HTMLDialogElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const titleId = useId();
-  const [muted, setMuted] = useState(true);
-  const [paused, setPaused] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [muted, setMuted] = useState(false);
 
   useEffect(() => {
     const element = dialog.current;
@@ -40,9 +38,16 @@ export function DiwaliGreeting({ onDismiss, preview = false }: { onDismiss: () =
     const media = video.current;
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let resumeAfterVisibility = false;
-    const play = () => { if (media) void media.play().catch(() => setPaused(true)); };
-    if (motion.matches) setPaused(true);
-    else play();
+    const play = () => {
+      if (!media) return;
+      void media.play().catch(() => {
+        // First-visit autoplay with sound may be blocked. Keep the same clean
+        // popup and fall back to muted video without adding another button.
+        media.muted = true; setMuted(true);
+        void media.play().catch(() => { /* The greeting poster remains visible. */ });
+      });
+    };
+    if (!motion.matches) play();
     const visibility = () => {
       if (!media) return;
       if (document.hidden) { resumeAfterVisibility = !media.paused; media.pause(); }
@@ -63,34 +68,16 @@ export function DiwaliGreeting({ onDismiss, preview = false }: { onDismiss: () =
     };
   }, [preview]);
 
-  const toggleSound = async () => {
-    const media = video.current;
-    if (!media) return;
-    const next = !muted;
-    media.muted = next;
-    setMuted(next);
-    try { await media.play(); } catch { media.muted = true; setMuted(true); setPaused(true); }
-  };
-
   return <dialog ref={dialog} open={preview || undefined} className={`${styles.dialog} ${preview ? styles.preview : ""}`} aria-labelledby={titleId} onCancel={onDismiss}>
-    <header className={styles.header}>
-      <h2 id={titleId}>A Diwali greeting for you</h2>
-      <button type="button" onClick={onDismiss} autoFocus aria-label="Skip Diwali greeting">Skip <span aria-hidden="true">×</span></button>
-    </header>
+    <h2 id={titleId} className="sr-only">Happy Diwali from IndianxTrade</h2>
+    <button type="button" className={styles.close} onClick={onDismiss} autoFocus aria-label="Close Diwali greeting"><span aria-hidden="true">×</span></button>
     <div className={styles.media}>
-      <video ref={video} muted={muted} playsInline preload="metadata" poster="/festive/diwali-welcome-2026.jpg" aria-label="Spinning chakri, fireworks, and Happy Diwali wishes from IndianxTrade" onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onEnded={() => { if (!preview) onDismiss(); }} onCanPlay={() => setFailed(false)} onError={() => { if (video.current?.error) { setFailed(true); setPaused(true); } }}>
+      <video ref={video} muted={muted} playsInline preload="metadata" poster="/festive/diwali-welcome-2026.jpg" aria-label="Spinning chakri, fireworks, and Happy Diwali wishes from IndianxTrade" onEnded={() => { if (!preview) onDismiss(); }}>
         <source media="(max-width: 767px)" src="/festive/diwali-welcome-2026-720p.mp4" type="video/mp4" />
         <source src="/festive/diwali-welcome-2026-1080p.mp4" type="video/mp4" />
       </video>
       <p className="sr-only">Happy Diwali. May your home be filled with light and joy.</p>
     </div>
-    <footer className={styles.footer}>
-      <div className={styles.playback}>
-        {!failed ? <button type="button" onClick={() => { const media = video.current; if (!media) return; if (media.paused) { if (media.ended) media.currentTime = 0; void media.play().catch(() => setPaused(true)); } else media.pause(); }}>{paused ? "Play greeting" : "Pause"}</button> : <span>Happy Diwali!</span>}
-        {!failed ? <button type="button" aria-pressed={!muted} onClick={() => void toggleSound()}>{muted ? "Turn sound on" : "Mute sound"}</button> : null}
-      </div>
-      <button type="button" className={styles.continue} onClick={onDismiss}>Continue to website</button>
-    </footer>
   </dialog>;
 }
 

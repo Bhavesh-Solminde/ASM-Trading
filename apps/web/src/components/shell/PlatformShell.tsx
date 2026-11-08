@@ -1,5 +1,6 @@
 "use client";
 
+import { SeasonalDiwali } from "@/components/festive/SeasonalDiwali";
 import type { CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { bonusPercentForDeposit } from "@/lib/bonus";
@@ -69,7 +70,7 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div
+    <SeasonalDiwali><div
       style={{ "--phone-promo-h": onTrade ? "0px" : promo ? "56px" : "0px" } as CSSProperties}
       className="grid h-dvh min-h-[640px] grid-cols-[76px_minmax(0,1fr)] grid-rows-[60px_32px_minmax(0,1fr)] phone:min-h-0 phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[50px_var(--phone-promo-h)_minmax(0,1fr)_var(--phone-nav-h,38px)] [@media(height<30rem)_and_(orientation:landscape)]:grid-rows-[48px_0px_minmax(0,1fr)]"
     >
@@ -83,6 +84,6 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
         {children}
       </div>
       <BottomNavBar />
-    </div>
+    </div></SeasonalDiwali>
   );
 }

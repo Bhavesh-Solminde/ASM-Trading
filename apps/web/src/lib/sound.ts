@@ -1,6 +1,12 @@
 export type SettledSound = "win" | "lose";
 
 const MUTE_KEY = "asm.sound";
+const muteListeners = new Set<() => void>();
+export function subscribeSound(listener: () => void) {
+  muteListeners.add(listener);
+  if (typeof window !== "undefined") window.addEventListener("storage", listener);
+  return () => { muteListeners.delete(listener); if (typeof window !== "undefined") window.removeEventListener("storage", listener); };
+}
 
 /** Maps a settled trade's status to the sound it should play, if any. */
 export function soundForSettled(status: string): SettledSound | null {
@@ -27,6 +33,8 @@ export function setMuted(muted: boolean): void {
     else localStorage.removeItem(MUTE_KEY);
   } catch {
     // Storage unavailable — nothing to do.
+  } finally {
+    muteListeners.forEach(listener => listener());
   }
 }
 
@@ -35,7 +43,7 @@ type AudioContextCtor = typeof AudioContext;
 let ctx: AudioContext | null = null;
 
 /** Lazily creates (and resumes) the one shared AudioContext. Null when unsupported. */
-function getContext(): AudioContext | null {
+export function getSoundContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   const Ctor: AudioContextCtor | undefined =
     window.AudioContext ?? (window as unknown as { webkitAudioContext?: AudioContextCtor }).webkitAudioContext;
@@ -43,7 +51,7 @@ function getContext(): AudioContext | null {
   if (!ctx) ctx = new Ctor();
   // Autoplay policies suspend a freshly created context until a user gesture;
   // settlement always follows one (opening the trade), so resume is safe here.
-  void ctx.resume();
+  void ctx.resume().catch(() => { /* A user gesture may be required. */ });
   return ctx;
 }
 
@@ -68,7 +76,7 @@ function blip(audio: AudioContext, freq: number, startAt: number, durationSec: n
 /** Ascending C5-E5-G5 major triad, staggered — the "win" chime. */
 export function playWin(): void {
   if (isMuted()) return;
-  const audio = getContext();
+  const audio = getSoundContext();
   if (!audio) return;
   const notes = [523.25, 659.25, 783.99];
   notes.forEach((freq, i) => blip(audio, freq, i * 0.07, 0.09, 0.15));
@@ -77,7 +85,7 @@ export function playWin(): void {
 /** Descending G4-C4 tone — the soft "lose" sound. */
 export function playLose(): void {
   if (isMuted()) return;
-  const audio = getContext();
+  const audio = getSoundContext();
   if (!audio) return;
   blip(audio, 392, 0, 0.14, 0.12);
   blip(audio, 261.63, 0.13, 0.14, 0.12);

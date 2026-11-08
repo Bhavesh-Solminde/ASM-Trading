@@ -29,7 +29,7 @@ describe("first-visit Diwali greeting", () => {
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(localStorage.getItem(DIWALI_SEEN_KEY)).toBe("1");
     expect(document.cookie).toContain("indianxtrade_diwali_2026_seen=1");
-    fireEvent.click(screen.getByRole("button", { name: "Skip Diwali greeting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close Diwali greeting" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     view.unmount(); render(h(Component));
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -59,21 +59,30 @@ describe("first-visit Diwali greeting", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.body.style.overflow).toBe("");
   });
-  it("offers manual playback for reduced motion and sound only after a click", async () => {
+  it("shows only the video and one Close button", () => {
+    render(h(Component));
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Close Diwali greeting" })).toBeTruthy();
+    expect(document.querySelector("video")!.controls).toBe(false);
+  });
+  it("uses the poster without autoplay for reduced motion", () => {
     route.reduced = true; render(h(Component));
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Play greeting" })).toBeTruthy();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+  it("falls back to muted autoplay when the browser rejects sound", async () => {
+    vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValueOnce(new Error("NotAllowedError"));
+    await act(async () => { render(h(Component)); });
     expect(document.querySelector("video")!.muted).toBe(true);
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Turn sound on" })); });
-    expect(document.querySelector("video")!.muted).toBe(false);
+    expect(screen.getAllByRole("button")).toHaveLength(1);
   });
   it("closes when the campaign expires while the page is open", () => {
     vi.setSystemTime(DIWALI_END - 500); render(h(Component));
     act(() => vi.advanceTimersByTime(501)); expect(screen.queryByRole("dialog")).toBeNull();
   });
-  it("keeps Continue available when the video fails", () => {
+  it("keeps Close available when the video fails", () => {
     render(h(Component)); Object.defineProperty(document.querySelector("video")!, "error", { value: { code: 4 }, configurable: true }); fireEvent.error(document.querySelector("video")!);
-    fireEvent.click(screen.getByRole("button", { name: "Continue to website" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close Diwali greeting" }));
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
