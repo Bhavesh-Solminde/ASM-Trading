@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  const { result } = await loadLeaderboard(session.userId);
+  const { result } = await loadLeaderboard(session.userId, req.nextUrl.searchParams.get("view"));
 
   return NextResponse.json(result, { headers: { "cache-control": "no-store" } });
 }
