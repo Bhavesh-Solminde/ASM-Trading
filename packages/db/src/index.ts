@@ -291,3 +291,5 @@ export type {
   BonusGrant,
 } from "./models";
 export type { DbClient, DbTransaction } from "./client";
+
+export { demoLeaderboard } from "./repositories/demo-leaderboard";
