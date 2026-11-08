@@ -1,14 +1,13 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import dynamic from "next/dynamic";
+import { DiwaliGreeting as VideoGreeting } from "./FirstVisitDiwali";
 import { usePathname } from "next/navigation";
 import { DIWALI_START, DIWALI_END, isDiwali, diwaliRouteAllowed, isCelebratedWin, FIREWORK_BURSTS } from "@/lib/diwali";
 import { claimFestivalWin, registerFestivalSettlement } from "@/lib/festive-settlement";
 import { getSoundContext, isMuted, subscribeSound } from "@/lib/sound";
 import styles from "./SeasonalDiwali.module.css";
 
-const VideoGreeting = dynamic(() => import("./FirstVisitDiwali").then(module => module.DiwaliGreeting));
 type Run = { id: string; serial: number } | null;
 const Festival = createContext({ active: false, open: () => {}, win: null as Run, cancel: () => {} });
 

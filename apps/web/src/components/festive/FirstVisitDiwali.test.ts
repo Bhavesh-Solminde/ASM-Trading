@@ -76,6 +76,31 @@ describe("first-visit Diwali greeting", () => {
     expect(document.querySelector("video")!.muted).toBe(true);
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
+  it("unmutes directly on a video tap after blocked autoplay, with one Close button", async () => {
+    vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValueOnce(new DOMException("blocked", "NotAllowedError"));
+    await act(async () => { render(h(Component)); });
+    expect(document.querySelector("video")!.muted).toBe(true);
+    expect(screen.getByText("Tap video for sound")).toBeTruthy();
+    await act(async () => { fireEvent.click(document.querySelector("video")!); });
+    expect(document.querySelector("video")!.muted).toBe(false);
+    expect(document.querySelector("video")!.volume).toBe(1);
+    expect(screen.queryByText("Tap video for sound")).toBeNull();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+  it("supports keyboard sound activation", async () => {
+    vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValueOnce(new DOMException("blocked", "NotAllowedError"));
+    await act(async () => { render(h(Component)); });
+    await act(async () => { fireEvent.keyDown(document.querySelector("video")!, { key: "Enter" }); });
+    expect(document.querySelector("video")!.muted).toBe(false);
+  });
+  it("does not let a stale StrictMode play rejection mute the current video", async () => {
+    let rejectOld: (error: Error) => void = () => {};
+    vi.mocked(HTMLMediaElement.prototype.play).mockImplementationOnce(() => new Promise<void>((_, reject) => { rejectOld = reject; }));
+    await act(async () => { render(h(StrictMode, null, h(Component))); });
+    await act(async () => { rejectOld(new DOMException("interrupted", "AbortError")); });
+    expect(document.querySelector("video")!.muted).toBe(false);
+    expect(screen.queryByText("Tap video for sound")).toBeNull();
+  });
   it("closes when the campaign expires while the page is open", () => {
     vi.setSystemTime(DIWALI_END - 500); render(h(Component));
     act(() => vi.advanceTimersByTime(501)); expect(screen.queryByRole("dialog")).toBeNull();

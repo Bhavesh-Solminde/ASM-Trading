@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const state=vi.hoisted(()=>({path:"/trade",reduced:false,stop:vi.fn(),played:vi.fn()}));
 vi.mock("next/navigation",()=>({usePathname:()=>state.path}));
-vi.mock("next/dynamic",()=>({default:()=>()=>h("div",null,"Video greeting")}));
+vi.mock("./FirstVisitDiwali",()=>({DiwaliGreeting:()=>h("div",null,"Video greeting")}));
 vi.mock("@/lib/festive-sound",()=>({prepareFireworkSound:async()=>true,playFireworkSound:()=>{state.played();return state.stop;}}));
 import { SeasonalDiwali, DiwaliEntry, WinDiwaliFireworks } from "./SeasonalDiwali";
 import { celebrateFestivalSettlement } from "@/lib/festive-settlement";

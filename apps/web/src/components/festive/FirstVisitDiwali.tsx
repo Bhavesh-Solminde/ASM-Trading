@@ -27,6 +27,7 @@ export function DiwaliGreeting({ onDismiss, preview = false }: { onDismiss: () =
   const video = useRef<HTMLVideoElement>(null);
   const titleId = useId();
   const [muted, setMuted] = useState(false);
+  const [soundHint, setSoundHint] = useState(false);
 
   useEffect(() => {
     const element = dialog.current;
@@ -40,15 +41,18 @@ export function DiwaliGreeting({ onDismiss, preview = false }: { onDismiss: () =
     if (media) { media.muted = isMuted(); setMuted(media.muted); }
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let resumeAfterVisibility = false;
+    let disposed = false;
     const play = () => {
       if (!media) return;
-      void media.play().catch(() => {
-        // First-visit autoplay with sound may be blocked. Keep the same clean
-        // popup and fall back to muted video without adding another button.
-        media.muted = true; setMuted(true);
+      void media.play().catch((error: unknown) => {
+        // StrictMode cleanup/visibility pause can abort an old play request.
+        // It must not mute a newer, successful playback attempt.
+        if (disposed || (error instanceof DOMException && error.name === "AbortError")) return;
+        media.muted = true; setMuted(true); setSoundHint(true);
         void media.play().catch(() => { /* The greeting poster remains visible. */ });
       });
     };
+    if (media?.muted || motion.matches) setSoundHint(true);
     if (!motion.matches) play();
     const visibility = () => {
       if (!media) return;
@@ -59,6 +63,7 @@ export function DiwaliGreeting({ onDismiss, preview = false }: { onDismiss: () =
     document.addEventListener("visibilitychange", visibility);
     motion.addEventListener("change", reduceMotion);
     return () => {
+      disposed = true;
       media?.pause();
       element?.close();
       document.removeEventListener("visibilitychange", visibility);
@@ -70,14 +75,29 @@ export function DiwaliGreeting({ onDismiss, preview = false }: { onDismiss: () =
     };
   }, [preview]);
 
+  const enableSound = () => {
+    const media = video.current;
+    if (!media) return;
+    // Run on the actual video tap/key press so browsers can grant sound.
+    // This changes only this video's sound, not the site's saved preference.
+    media.muted = false; media.volume = 1;
+    setMuted(false);
+    if (media.ended) media.currentTime = 0;
+    void media.play().then(() => setSoundHint(false)).catch(() => {
+      media.muted = true; setMuted(true); setSoundHint(true);
+      void media.play().catch(() => { /* Keep the poster available. */ });
+    });
+  };
+
   return <dialog ref={dialog} open={preview || undefined} className={`${styles.dialog} ${preview ? styles.preview : ""}`} aria-labelledby={titleId} onCancel={onDismiss}>
     <h2 id={titleId} className="sr-only">Happy Diwali from IndianxTrade</h2>
     <button type="button" className={styles.close} onClick={onDismiss} autoFocus aria-label="Close Diwali greeting"><span aria-hidden="true">×</span></button>
     <div className={styles.media}>
-      <video ref={video} muted={muted} playsInline preload="metadata" poster="/festive/diwali-welcome-2026.jpg" aria-label="Spinning chakri, fireworks, and Happy Diwali wishes from IndianxTrade" onEnded={() => { if (!preview) onDismiss(); }}>
+      <video ref={video} muted={muted} playsInline preload="metadata" poster="/festive/diwali-welcome-2026.jpg" tabIndex={0} aria-label="Diwali greeting video. Tap or press Enter to enable sound." aria-describedby={soundHint ? `${titleId}-sound` : undefined} onClick={enableSound} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); enableSound(); } }} onEnded={() => { if (!preview) onDismiss(); }}>
         <source media="(max-width: 767px)" src="/festive/diwali-welcome-2026-720p.mp4" type="video/mp4" />
         <source src="/festive/diwali-welcome-2026-1080p.mp4" type="video/mp4" />
       </video>
+      {soundHint ? <span id={`${titleId}-sound`} className={styles.soundHint} aria-live="polite">Tap video for sound</span> : null}
       <p className="sr-only">Happy Diwali. May your home be filled with light and joy.</p>
     </div>
   </dialog>;
