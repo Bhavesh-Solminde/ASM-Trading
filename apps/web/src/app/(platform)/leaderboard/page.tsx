@@ -5,24 +5,21 @@ import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { startOfDayMs } from "@/lib/day";
 import { PageFrame } from "@/components/shell/PageFrame";
 import { LeaderboardView } from "@/components/leaderboard/LeaderboardView";
-import { OtcBotLeaderboard } from "@/components/trade/OtcMarketPanel";
 
 export const dynamic = "force-dynamic";
 
-const INCLUDE_BOTS = process.env.LEADERBOARD_INCLUDE_BOTS !== "false";
 
 export default async function LeaderboardPage() {
   const store = await cookies();
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
-  if(process.env.OTC_ORDER_BOOK_ENABLED==="true")return <PageFrame width="narrow" title="Bot leaderboard" description="Internal order-book bots across all 30 markets."><OtcBotLeaderboard/></PageFrame>;
 
   const currency = await leaderboardCurrencyFor(session.userId);
   const result = await dailyLeaderboard({
     sinceMs: startOfDayMs(Date.now()),
     viewerUserId: session.userId,
     limit: 10,
-    includeBots: INCLUDE_BOTS,
+    includeBots: false,
     displayCurrency: currency,
   });
 
