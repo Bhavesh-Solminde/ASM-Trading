@@ -10,6 +10,8 @@ export const LeaderboardEntrySchema = z.object({
   currency: z.string(),
   /** Today's realized P/L in minor units of `currency`. */
   pnlMinor: z.number().int(),
+  market: z.string().optional(),
+  returnPct: z.number().nullable().optional(),
 });
 export type LeaderboardEntryDto = z.infer<typeof LeaderboardEntrySchema>;
 
