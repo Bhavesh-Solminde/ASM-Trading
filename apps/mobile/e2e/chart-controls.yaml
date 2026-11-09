@@ -34,5 +34,5 @@ appId: com.indianxtrade.app
     start: "50%, 48%"
     end: "50%, 35%"
     duration: 300
-- assertNotVisible: { id: "price-chart", text: ".*60.*" }
-- takeScreenshot: vertical-zoom
+- assertVisible: { id: "price-chart", text: ".*60.*" }
+- takeScreenshot: vertical-pan

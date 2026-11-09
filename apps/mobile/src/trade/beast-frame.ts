@@ -1,5 +1,5 @@
 /** Up/Down button height (canvas). */
-export const BUTTON_H = 62;
+export const BUTTON_H = 56;
 /** Owner set the engraved art to 100% (overlay blend). */
 export const BEAST_OPACITY = 1;
 const BULL = { w: 380, h: 513, drawH: 88, rightGap: 5.8, top: -3 };

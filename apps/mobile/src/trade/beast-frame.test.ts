@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { BEAST_OPACITY, BUTTON_H, bearFrame, bullFrame } from "./beast-frame";
 
 describe("beast-frame constants", () => {
-  it("matches the canvas: 62pt buttons, art at full opacity", () => {
-    expect(BUTTON_H).toBe(62);
+  it("matches the canvas: 56pt buttons, art at full opacity", () => {
+    expect(BUTTON_H).toBe(56);
     expect(BEAST_OPACITY).toBe(1);
   });
 });

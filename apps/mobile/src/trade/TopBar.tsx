@@ -8,7 +8,7 @@ import { useSocket } from "@/socket/socket-store";
 import { color, radius } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 import { AppHeader } from "@/ui/AppHeader";
-import { BrandMark } from "@/ui/Brand";
+import { Wordmark } from "@/ui/Brand";
 import { headerMetrics, PILL_FONT } from "@/ui/header-metrics";
 import { Icon } from "@/ui/Icon";
 import { Money } from "@/ui/Money";
@@ -83,20 +83,23 @@ const columnStyle = { flex: 1, alignItems: "flex-end", minWidth: 0 } as const;
  */
 export function TopBar({
   account,
+  accounts,
   liveEnabled,
   onSelectType,
 }: {
   account: AppAccount;
+  accounts: readonly AppAccount[];
   liveEnabled: boolean;
   onSelectType: (type: AppAccount["type"]) => void;
 }) {
   const { t } = useTranslation();
   const bal = useSocket((s) => s.trades.balances[account.id]) ?? account;
   const text = money(Math.round(bal.realBalance + bal.bonusBalance), account.currency);
+  const balances = useSocket(s => s.trades.balances);
   const selector = useRef<SheetRef>(null);
   return <>
     <AppHeader>
-      <BrandMark width={32} />
+      <Wordmark width={104} />
       <Pressable testID="account-selector" accessibilityRole="button" accessibilityLabel={t("trade.balance") + ": " + text} onPress={() => selector.current?.present()} style={{ flex: 1, minHeight: 52, alignItems: "center", justifyContent: "center" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Txt size={12} color={account.type === "LIVE" ? color.up : color.accentText}>{account.type === "LIVE" ? t("trade.live") : t("trade.demo")}</Txt>
@@ -114,7 +117,11 @@ export function TopBar({
         onSelectType(type); selector.current?.dismiss();
       }} style={{ minHeight: 60, padding: 16, borderRadius: 12, backgroundColor: account.type === type ? color.raised : color.surface, flexDirection: "row", justifyContent: "space-between" }}>
         <Txt weight={600}>{type === "LIVE" ? t("trade.live") : t("trade.demo")}</Txt>
-        {account.type === type ? <Money text={text} size={16} /> : null}
+        {(() => {
+          const entry = accounts.find(a => a.type === type);
+          const balance = entry ? balances[entry.id] ?? entry : null;
+          return <Money text={entry && balance ? money(Math.round(balance.realBalance + balance.bonusBalance), entry.currency) : "—"} size={16} />;
+        })()}
       </Pressable>)}
     </Sheet>
   </>;
@@ -143,7 +150,7 @@ export function StaleTopBar({
   const compact = isCompactWidth(width);
   const metrics = headerMetrics(compact);
   const typeLabel = type === "DEMO" ? t("trade.demo") : t("trade.live");
-  const fit = fitHeader({ windowWidth: width, fontScale, pillLabels: [typeLabel], hasDeposit: false, figure: text, today: null });
+  const fit = fitHeader({ windowWidth: width - (104 - metrics.mark), fontScale, pillLabels: [typeLabel], hasDeposit: false, figure: text, today: null });
   const balance = (
     <BalanceBlock
       text={text}
@@ -155,7 +162,7 @@ export function StaleTopBar({
   );
   return (
     <AppHeader compact={compact} below={fit.stacked ? balance : undefined}>
-      <BrandMark width={metrics.mark} />
+      <Wordmark width={104} />
       <View style={switchBox}>
         <View style={{ height: 30, paddingHorizontal: metrics.pillPad, justifyContent: "center" }}>
           <Txt weight={600} size={PILL_FONT} lineHeight={16} color={color.switchInk}>

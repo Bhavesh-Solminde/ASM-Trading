@@ -1,6 +1,3 @@
-import { AnekDevanagari_600SemiBold } from "@expo-google-fonts/anek-devanagari/600SemiBold";
-import { AnekLatin_600SemiBold } from "@expo-google-fonts/anek-latin/600SemiBold";
-import { MartianMono_600SemiBold } from "@expo-google-fonts/martian-mono/600SemiBold";
 import {
   Canvas,
   Circle,
@@ -9,12 +6,7 @@ import {
   LinearGradient,
   Line,
   Path,
-  RoundedRect,
   Skia,
-  Text as SkText,
-  type SkFont,
-  matchFont,
-  useFont,
   vec,
 } from "@shopify/react-native-skia";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -23,7 +15,6 @@ import { Pressable, View, type LayoutChangeEvent } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
 import { shortCountdown } from "@asm/client-core";
 import { TIMEFRAME_SEC, type Timeframe, type CandleDto, type TradeView } from "@asm/contracts";
-import { scriptFor } from "@/theme/font-families";
 import { color, radius } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 import { FigText } from "@/ui/FigText";
@@ -31,14 +22,15 @@ import { firstCandleShift, frontChanged, isFollowing, shouldRequestOlder, type E
 import { fmtPrice } from "./format-price";
 import { buildSeries, type SeriesPaths } from "./paths";
 import { indexForX, nearLeftEdge, priceRange, shiftForPrepend, visibleRange, xForIndex, yForPrice, rightLimit, zoomAround } from "./scale";
-import { clampTagY, entryIndex, entryBucketIndex, gridYs, hasNonAscii, priceTagRect, readoutBox, showReadout, tradeAvoidX, tradeTagRect } from "./tag-layout";
-import type { ChartType, Viewport } from "./types";
+import { entryIndex, entryBucketIndex, gridYs, readoutBox, showReadout } from "./tag-layout";
+import type { ChartType, PriceRange, Viewport } from "./types";
 import { useChartGestures } from "./useChartGestures";
 import { ProtectionHandle } from "./ProtectionHandle";
 import type { Protection } from "@/trade/otc-protection";
+import { selectedOpen } from "@/trade/selected-open";
 import { useHistoryCommit } from "./useHistoryCommit";
 
-const PRICE_AXIS = 56;
+const PRICE_AXIS = 12;
 const DEFAULT_VISIBLE = 60;
 const EMPTY: SeriesPaths = { up: "", down: "" };
 /** Dash pattern of the last-price line (hoisted: a fresh array per render would re-create the effect). */
@@ -59,6 +51,7 @@ export interface ChartProps {
   lastPrice: number | null;
   precision: number;
   openTrades: TradeView[];
+  selectedTradeId?: string | null;
   /** Epoch seconds, for the open-trade countdowns. */
   nowSec: number;
   /** The trade line's countdown text. Default: the plain countdown; the Trade screen says "Settling…" after expiry. */
@@ -107,7 +100,7 @@ const SeriesLayer = memo(function SeriesLayer({ type, series, height }: { type: 
     return (
       <>
         {up ? <Path path={up} style="stroke" strokeWidth={1.5} color="#089981" /> : null}
-        {down ? <Path path={down} style="stroke" strokeWidth={1.5} color={color.downText} /> : null}
+        {down ? <Path path={down} style="stroke" strokeWidth={1.5} color="#f23645" /> : null}
       </>
     );
   }
@@ -115,9 +108,9 @@ const SeriesLayer = memo(function SeriesLayer({ type, series, height }: { type: 
   return (
     <>
       {up ? <Path path={up} style="fill" color="#089981" /> : null}
-      {down ? <Path path={down} style="fill" color={color.downText} /> : null}
+      {down ? <Path path={down} style="fill" color="#f23645" /> : null}
       {upWicks ? <Path path={upWicks} style="stroke" strokeWidth={1} color="#089981" /> : null}
-      {downWicks ? <Path path={downWicks} style="stroke" strokeWidth={1} color={color.downText} /> : null}
+      {downWicks ? <Path path={downWicks} style="stroke" strokeWidth={1} color="#f23645" /> : null}
     </>
   );
 });
@@ -129,83 +122,11 @@ const GridLayer = memo(function GridLayer({ plotW, height }: { plotW: number; he
   return grid ? <Path path={grid} style="stroke" strokeWidth={1} color={color.ruleSoft} /> : null;
 });
 
-/**
- * An open trade: an accent line from the entry candle to the right edge ending in a dot at the entry, and a tag
- * "Down 0:08" (or "Down Settling…") sized by measuring its text. The width is memoised on font and text, so it is
- * measured only when either changes, not on every price tick.
- */
-const TradeLine = memo(function TradeLine({
-  side,
-  label,
-  x,
-  y,
-  showDot,
-  avoidX,
-  plotW,
-  figFont,
-  uiFont,
-}: {
-  side: string;
-  label: string;
-  x: number;
-  y: number;
-  /** False when the entry candle is older than the loaded history (x is clamped to 0): the line just runs in from the edge. */
-  showDot: boolean;
-  /** The price tag's x when it would overlap this tag, else null: the tag ends before it. */
-  avoidX: number | null;
-  plotW: number;
-  /** Martian Mono: for pure-ASCII tag text. */
-  figFont: SkFont;
-  /** Anek: for tag text with Hindi words or the ellipsis, which Martian has no glyphs for. */
-  uiFont: SkFont;
-}) {
-  const text = `${side} ${label}`;
-  const font = hasNonAscii(text) ? uiFont : figFont;
-  const textW = useMemo(() => font.measureText(text).width, [font, text]);
-  const tag = tradeTagRect(plotW, textW, avoidX);
-  return (
-    <Group>
-      <Line p1={vec(x, y)} p2={vec(plotW, y)} color={color.accent} strokeWidth={1.5} />
-      {showDot ? <Circle cx={x} cy={y} r={4} color={color.accent} /> : null}
-      <RoundedRect x={tag.x} y={y - 11} width={tag.w} height={22} r={4} color={color.accent} />
-      <SkText x={tag.textX} y={y + 4} text={text} font={font} color={color.onAccent} />
-    </Group>
-  );
-});
-
-/** The last-price tag: ink-white with dark text, hanging from the axis side, sized to its text (it may overlap the plot). */
-const PriceTag = memo(function PriceTag({
-  y,
-  plotW,
-  text,
-  textW,
-  font,
-}: {
-  y: number;
-  plotW: number;
-  text: string;
-  textW: number;
-  font: SkFont;
-}) {
-  const tag = priceTagRect(plotW, PRICE_AXIS, textW);
-  return (
-    <Group>
-      <RoundedRect x={tag.x} y={y - 11} width={tag.w} height={22} r={4} color={color.ink} />
-      <SkText x={tag.textX} y={y + 4} text={text} font={font} color={color.ground} />
-    </Group>
-  );
-});
-
 export function Chart(props: ChartProps) {
   const { type, candles, forming, lastPrice, precision, openTrades, nowSec, onNearLeftEdge } = props;
   const { labelFor = DEFAULT_LABEL, topInset = 0, hideReadout = false } = props;
-  const { t, i18n } = useTranslation();
-  const fallbackFont = useMemo(() => matchFont({ fontFamily: "sans-serif", fontSize: 11 }), []);
-  // Martian Mono (bundled) for prices on the canvas; the system font until it has loaded.
-  const figFont = useFont(MartianMono_600SemiBold, 11) ?? fallbackFont;
-  // Anek (bundled) for tag text Martian cannot draw (Hindi words, "…"). Skia draws unshaped, so conjuncts may be plain.
-  const uiFont = useFont(scriptFor(i18n.language) === "devanagari" ? AnekDevanagari_600SemiBold : AnekLatin_600SemiBold, 11) ?? fallbackFont;
-
+  const { t } = useTranslation();
+  const [manualRange, setManualRange] = useState<PriceRange | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<ViewState>({ rightIndex: 0, visibleCount: DEFAULT_VISIBLE, following: true });
   const [crossX, setCrossX] = useState<number | null>(null);
@@ -256,8 +177,8 @@ export function Chart(props: ChartProps) {
     ...openTrades.map((tr) => tr.entryPrice),
     ...(props.protection?.enabled ? [props.protection.stopLoss, props.protection.takeProfit].filter((p): p is number => p !== null) : []),
   ];
-  const liveRange = priceRange(all, from, to, extras);
-  const range = useHistoryCommit(liveRange, [type, candles, from, histTo, plotW, height, rightIndex, view.visibleCount]);
+  const liveRange = manualRange ?? priceRange(all, from, to, extras);
+  const range = useHistoryCommit(liveRange, [type, candles, from, histTo, plotW, height, rightIndex, view.visibleCount, manualRange]);
 
   // History layer: closed candles only, no last price.
   const history = useMemo(
@@ -278,14 +199,17 @@ export function Chart(props: ChartProps) {
     edge.current = next;
   }, [near, firstTs, onNearLeftEdge]);
 
+  const resetToLive = () => { setManualRange(null); setView(v => ({ ...v, following: true })); };
   const gesture = useChartGestures({
+    priceRange: range,
+    setPriceRange: setManualRange,
     viewport,
     total,
     indexShift,
     setViewport: (next) =>
       setView({ rightIndex: next.rightIndex, visibleCount: next.visibleCount, following: isFollowing(next.rightIndex, total) }),
     onCrosshair: setCrossX,
-    onResetToLive: () => setView((v) => ({ ...v, following: true })),
+    onResetToLive: resetToLive,
   });
 
   const onLayout = (e: LayoutChangeEvent) =>
@@ -293,16 +217,37 @@ export function Chart(props: ChartProps) {
 
   const fmt = (p: number) => fmtPrice(p, precision);
   const priceText = lastPrice !== null ? fmt(lastPrice) : "";
-  const priceTextW = useMemo(() => figFont.measureText(priceText).width, [figFont, priceText]);
-    const priceTagX = priceTagRect(plotW, PRICE_AXIS, priceTextW).x;
-  const priceY = ready && lastPrice !== null ? clampTagY(yForPrice(lastPrice, range, height), height) : null;
+  const priceY = ready && lastPrice !== null ? yForPrice(lastPrice, range, height) : null;
+  const soonest = selectedOpen(openTrades, props.selectedTradeId).selected;
+  const expiryX = (tr: ChartTrade) => {
+    const last = all[all.length - 1];
+    if (!last) return null;
+    const period = TIMEFRAME_SEC[props.timeframe ?? "1m"];
+    const index = tr.expiryTs > last.openTs ? all.length - 1 + (tr.expiryTs - last.openTs) / period : entryIndex(all, tr.expiryTs);
+    return xForIndex(index + 0.5, viewport);
+  };
 
   const crossIndex = crossX !== null && crossX <= plotW ? Math.floor(indexForX(crossX, viewport)) : null;
   const crossCandle = crossIndex !== null && crossIndex >= 0 && crossIndex < total ? all[crossIndex] : undefined;
   const crossLineX = crossIndex !== null && crossCandle ? xForIndex(crossIndex + 0.5, viewport) : null;
 
   return (
-    <View style={{ flex: 1 }} onLayout={onLayout}>
+    <View style={{ flex: 1 }}>
+      <View style={{ minHeight: 44, flexDirection: "row", alignItems: "center", paddingHorizontal: 12, gap: 8 }}>
+        <View style={{ flex: 1 }}><FigText testID="displayed-price" text={priceText || "—"} size={18} weight={600} />
+          {soonest ? <Txt size={11} color={color.ink2}>{labelFor(soonest, nowSec)}</Txt> : null}
+        </View>
+      <View style={{ flexDirection: "row", gap: 4 }}>
+        {([{ id: "out", factor: 0.8, label: "−" }, { id: "in", factor: 1.25, label: "+" }] as const).map(control => <Pressable key={control.id} testID={`chart-zoom-${control.id}`} accessibilityRole="button" accessibilityLabel={t(control.id === "in" ? "trade.zoomIn" : "trade.zoomOut")} onPress={() => {
+          setView(current => {
+            const next = zoomAround({ ...viewport, rightIndex: current.following ? total : current.rightIndex, visibleCount: current.visibleCount }, plotW, control.factor, total);
+            return { rightIndex: next.rightIndex, visibleCount: next.visibleCount, following: current.following };
+          });
+        }} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center", backgroundColor: color.surface, borderWidth: 1, borderColor: color.rule, borderRadius: radius.sm }}><Txt size={22}>{control.label}</Txt></Pressable>)}
+      </View>
+
+      </View>
+      <View style={{ flex: 1 }} onLayout={onLayout}>
       <View testID="price-chart" style={{ flex: 1 }} accessible accessibilityLabel={t("trade.chartLabel")} accessibilityValue={{ text: t("trade.visibleCandles", { count: Math.round(view.visibleCount) }) }}>
         <GestureDetector gesture={gesture}>
           <View collapsable={false} style={{ flex: 1 }}>
@@ -319,21 +264,19 @@ export function Chart(props: ChartProps) {
                     const index = tr.mode === "OTC_FIXED" ? entryBucketIndex(all, tr.entryTs, TIMEFRAME_SEC[props.timeframe ?? "1m"]) : entryIndex(all, tr.entryTs);
                     if (index === null) return null;
                     const rawX = xForIndex(index + 0.5, viewport);
-                    const tradeY = clampTagY(yForPrice(tr.entryPrice, range, height), height);
-                    return (
-                      <TradeLine
-                        key={tr.id}
-                        side={tr.direction === "UP" ? t("trade.up") : t("trade.down")}
-                        label={labelFor(tr, nowSec)}
-                        x={Math.max(0, rawX)}
-                        y={tradeY}
-                        showDot={rawX >= 0}
-                        avoidX={tradeAvoidX(tradeY, priceY, priceTagX)}
-                        plotW={plotW}
-                        figFont={figFont}
-                        uiFont={uiFont}
-                      />
-                    );
+                    const tradeY = yForPrice(tr.entryPrice, range, height);
+                    const ink = "#089981";
+                    const endX = expiryX(tr);
+                    const selected = tr.id === soonest?.id;
+                    return <Group key={tr.id} opacity={selected ? 1 : 0.35}>
+                      {endX !== null ? <Line p1={vec(endX, 0)} p2={vec(endX, height)} color={selected ? color.ink : color.ink3} strokeWidth={1}><DashPathEffect intervals={PRICE_DASH} /></Line> : null}
+                      <Line p1={vec(selected ? 0 : Math.max(0, rawX), tradeY)} p2={vec(plotW, tradeY)} color={ink} strokeWidth={1} />
+                      {rawX >= 0 ? <Circle cx={rawX} cy={tradeY} r={3} color={ink} /> : null}
+                      {(["stopLoss", "takeProfit"] as const).map(side => {
+                        const level = tr[side];
+                        return level == null ? null : <Line key={side} p1={vec(Math.max(0, rawX), yForPrice(level, range, height))} p2={vec(plotW, yForPrice(level, range, height))} color={side === "stopLoss" ? "#f23645" : "#089981"} strokeWidth={1}><DashPathEffect intervals={PRICE_DASH} /></Line>;
+                      })}
+                    </Group>;
                   })}
 
                   {priceY !== null ? (
@@ -345,10 +288,6 @@ export function Chart(props: ChartProps) {
                     <Line p1={vec(crossLineX, 0)} p2={vec(crossLineX, height)} color={color.ink2} strokeWidth={1} />
                   ) : null}
                 </Group>
-
-                {priceY !== null && lastPrice !== null ? (
-                  <PriceTag y={priceY} plotW={plotW} text={priceText} textW={priceTextW} font={figFont} />
-                ) : null}
               </>
             ) : null}
           </Canvas>
@@ -356,13 +295,10 @@ export function Chart(props: ChartProps) {
         </GestureDetector>
       </View>
 
-      {ready ? <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", gap: 4 }}>
-        {([{ id: "out", factor: 0.8, label: "−" }, { id: "in", factor: 1.25, label: "+" }] as const).map(control => <Pressable key={control.id} testID={`chart-zoom-${control.id}`} accessibilityRole="button" accessibilityLabel={t(control.id === "in" ? "trade.zoomIn" : "trade.zoomOut")} onPress={() => {
-          setView(current => {
-            const next = zoomAround({ ...viewport, rightIndex: current.following ? total : current.rightIndex, visibleCount: current.visibleCount }, plotW, control.factor, total);
-            return { rightIndex: next.rightIndex, visibleCount: next.visibleCount, following: current.following };
-          });
-        }} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center", backgroundColor: color.surface, borderWidth: 1, borderColor: color.rule, borderRadius: radius.sm }}><Txt size={22}>{control.label}</Txt></Pressable>)}
+      {ready ? <View pointerEvents="none" style={{ position: "absolute", inset: 0 }}>
+        {priceY !== null && priceY >= 8 && priceY <= height - 8 ? <View style={{ position: "absolute", left: 12, top: priceY - 8, backgroundColor: color.ground, paddingHorizontal: 4 }}><Txt size={10} color={color.ink2}>{t("trade.currentPrice")}</Txt></View> : null}
+        {soonest && yForPrice(soonest.entryPrice, range, height) >= 8 && yForPrice(soonest.entryPrice, range, height) <= height - 8 ? <View style={{ position: "absolute", left: priceY !== null && Math.abs(priceY - yForPrice(soonest.entryPrice, range, height)) < 18 ? 110 : 32, top: yForPrice(soonest.entryPrice, range, height) - 8, backgroundColor: color.ground, paddingHorizontal: 4 }}><Txt size={10} color="#089981">{t("trade.entryPrice")}</Txt></View> : null}
+        {soonest && expiryX(soonest) !== null && expiryX(soonest)! >= 0 && expiryX(soonest)! <= plotW ? <View style={{ position: "absolute", left: Math.max(0, Math.min(plotW - 100, expiryX(soonest)! - 50)), top: 4, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, backgroundColor: color.raised }}><Txt size={10}>{t("trade.expiryEnd")} · {labelFor(soonest, nowSec)}</Txt></View> : null}
       </View> : null}
       {ready && props.protection?.enabled && props.onProtectionPrice ? (["stopLoss", "takeProfit"] as const).map(side => {
         const price = props.protection![side];
@@ -392,12 +328,12 @@ export function Chart(props: ChartProps) {
         </View>
       ) : null}
 
-      {!view.following ? (
+      {!view.following || manualRange !== null ? (
         <Pressable
           accessibilityRole="button"
           testID="chart-reset"
           accessibilityLabel={t("trade.backToLive")}
-          onPress={() => setView((v) => ({ ...v, following: true }))}
+          onPress={resetToLive}
           hitSlop={8}
           style={{
             position: "absolute",
@@ -407,16 +343,17 @@ export function Chart(props: ChartProps) {
             minWidth: 44,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: color.accent,
+            backgroundColor: color.accentText,
             borderRadius: radius.pill,
             paddingHorizontal: 16,
           }}
         >
-          <Txt weight={600} size={14} color={color.onAccent}>
-            {t("trade.backToLive")} ›
+          <Txt weight={600} size={14} color={color.ground}>
+            {t("trade.backToLive")} →
           </Txt>
         </Pressable>
       ) : null}
+      </View>
     </View>
   );
 }

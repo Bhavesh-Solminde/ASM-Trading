@@ -193,7 +193,10 @@
     "retryPrevious": "पिछले ट्रेड का नतीजा जाँचा जा रहा है। उसी राशि और दिशा के साथ फिर कोशिश करें।",
     "dragProtection": "चार्ट पर SL और TP रेखाएँ खींचें",
     "fixedPayout": "जीत पर 92% लाभ · तय अवधि · मैन्युअल क्लोज़ नहीं",
-    "retryNamed": "पिछला {{direction}} {{symbol}} फिर जाँचें · {{amount}} कीमत {{price}}"
+    "retryNamed": "पिछला {{direction}} {{symbol}} फिर जाँचें · {{amount}} कीमत {{price}}",
+    "currentPrice": "मौजूदा भाव",
+    "entryPrice": "प्रवेश भाव",
+    "expiryEnd": "समाप्ति"
   },
   "bonus": {
     "title": "डिपॉज़िट बोनस",

@@ -9,7 +9,6 @@ import { chartSource } from "./chart-source";
 import { tradeLabel } from "./trade-label";
 import { useProtection, protectionFor } from "./protection-store";
 import { EMPTY_PROTECTION } from "./otc-protection";
-import { PriceReadout } from "./PriceReadout";
 import { View } from "react-native";
 import { useNow } from "./useNow";
 
@@ -28,6 +27,7 @@ const loadOlder = () => useSocket.getState().loadOlder();
  * pinned to the snapshot time, nothing settled locally); live socket/bootstrap trades replace them.
  */
 export function TradeChart({
+  selectedTradeId,
   symbol,
   timeframe,
   type,
@@ -38,6 +38,7 @@ export function TradeChart({
   topInset,
   hideReadout,
 }: {
+  selectedTradeId?: string | null;
   symbol: string;
   timeframe: ResumeSnapshot["timeframe"];
   type: ChartType;
@@ -83,12 +84,13 @@ export function TradeChart({
       forming={live ? chart.forming : null}
       lastPrice={live ? chart.lastPrice : null}
       precision={precision}
+      selectedTradeId={selectedTradeId}
       openTrades={openTrades}
       nowSec={nowSec}
       labelFor={labelFor}
       topInset={topInset}
       hideReadout={hideReadout}
       onNearLeftEdge={loadOlder}
-    />{live ? <PriceReadout symbol={symbol} precision={precision} /> : null}</View>
+    /></View>
   );
 }

@@ -71,12 +71,9 @@ export const shiftForPrepend = (vp: Viewport, prepended: number): Viewport => ({
 export const nearLeftEdge = (vp: Viewport, _total: number, threshold = 20) =>
   vp.rightIndex - vp.visibleCount <= threshold;
 
-export type DragAxis = "pan" | "zoom";
-export function dragAxis(dx: number, dy: number): DragAxis | null {
-  if (Math.hypot(dx, dy) < 8) return null;
-  return Math.abs(dy) > Math.abs(dx) * 1.2 ? "zoom" : "pan";
-}
-/** Vertical swipes zoom around the gesture's start. */
-export function dragViewport(vp: Viewport, dx: number, dy: number, focusX: number, total: number, axis: DragAxis): Viewport {
-  return axis === "pan" ? panBy(vp, dx, total) : zoomAround(vp, focusX, Math.exp(Math.max(-2, Math.min(2, -dy / 200))), total);
+/** Move prices with the finger without changing the price span or candle count. */
+export function panPriceRange(range: PriceRange, dy: number, height: number): PriceRange {
+  if (height <= 0 || ![range.min, range.max, dy, height].every(Number.isFinite)) return range;
+  const shift = dy / height * (range.max - range.min);
+  return { min: range.min + shift, max: range.max + shift };
 }

@@ -7,3 +7,6 @@
   It replaced an opaque near-black export that left a visible box on the login, register and forgot screens.
   `Wordmark` in `src/ui/Brand.tsx` takes its aspect ratio from the file size, so update `WORDMARK` there when the file changes.
 - `phonepe.jpg`, `gpay.png`, `paytm.png`, `upi.png`, `usdt.png`: the payment brand logos, copied unchanged from `apps/web/public/brand/`. They are drawn on a white tile (`IconTile`) and mapped by `src/ui/brand-logos.ts`.
+
+- `wordmark.png`: saved subtitle-free crop, 1170×229, copied byte-for-byte from `apps/web/public/brand/indianxtrade-wordmark-compact.png`. Both products use this crop; `wordmark.webp` is retained as the original export.
+- Launcher `../icon.png` and `../adaptive-icon.png` reuse the website’s IXT-only `icon-512.png` and safe-area-padded `maskable-512.png`. A native rebuild is required for installed launcher icons.

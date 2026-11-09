@@ -1,6 +1,6 @@
 import { Image } from "react-native";
 import markSrc from "../../assets/brand/mark.webp";
-import wordmarkSrc from "../../assets/brand/wordmark.webp";
+import wordmarkSrc from "../../assets/brand/wordmark.png";
 
 /** The IXT tricolour mark (175×120 source). Decorative: the screen title names the app. */
 export function BrandMark({ width }: { width: number }) {
@@ -16,8 +16,8 @@ export function BrandMark({ width }: { width: number }) {
   );
 }
 
-/** Pixel size of the wordmark file (assets/brand/wordmark.webp, a transparent RGBA export), for its aspect ratio. */
-const WORDMARK = { w: 750, h: 190 } as const;
+/** Shared subtitle-free crop from the website's official transparent artwork. */
+const WORDMARK = { w: 1170, h: 229 } as const;
 
 /**
  * The chrome "INDIAN X TRADE" wordmark. The file has real transparency (see assets/brand/README.md), so it sits on the

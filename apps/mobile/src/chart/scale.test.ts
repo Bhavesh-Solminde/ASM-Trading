@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CandleDto } from "@asm/contracts";
 import {
   clampVisible,
-  dragAxis,
-  dragViewport,
+  panPriceRange,
   rightLimit,
   indexForX,
   nearLeftEdge,
@@ -111,16 +110,15 @@ describe("scale", () => {
   });
 });
 
-it("zooms on vertical swipes and pans on horizontal drags", () => {
-  expect(dragAxis(0, 0)).toBeNull();
-  expect(dragAxis(1, -2)).toBeNull();
-  expect(dragAxis(100, 5)).toBe("pan");
-  expect(dragAxis(2, -100)).toBe("zoom");
-  expect(dragViewport(vp, 60, 5, 150, 100, "pan").rightIndex).toBe(90);
-  const zoomed = dragViewport(vp, 1, -100, 150, 100, "zoom");
-  expect(zoomed.visibleCount).toBeLessThan(vp.visibleCount);
-  expect(indexForX(150, zoomed)).toBeCloseTo(indexForX(150, vp));
-  expect(dragViewport(vp, 0, 100, 150, 100, "zoom").visibleCount).toBeGreaterThan(vp.visibleCount);
+it("pans vertically without changing price scale or candle zoom", () => {
+  const range = { min: 100, max: 200 };
+  const moved = panPriceRange(range, 50, 200);
+  expect(moved).toEqual({ min: 125, max: 225 });
+  expect(yForPrice(150, moved, 200) - yForPrice(150, range, 200)).toBe(50);
+  expect(panPriceRange(range, -50, 200)).toEqual({ min: 75, max: 175 });
+  expect(panPriceRange(range, NaN, 200)).toBe(range);
+  expect(panPriceRange(range, 50, 0)).toBe(range);
+  expect(panBy(vp, 0, 100).visibleCount).toBe(vp.visibleCount);
 });
 it("keeps at least half the window available for candles at maximum future pan", () => {
   const zoomed = { ...vp, visibleCount: 15 };

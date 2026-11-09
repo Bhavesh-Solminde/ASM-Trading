@@ -25,6 +25,7 @@ export const TradeDetailSheet = forwardRef<SheetRef, { trade: TradeView | null; 
       {shown.status === "OPEN" ? <OpenPositionCard trade={shown} more={0} name={asset?.displayName ?? shown.symbol} precision={asset?.precision ?? 5} currency={currency} onOpen={() => {}} /> : <Txt>{t(`trade.${shown.status === "WON" ? "statusWon" : shown.status === "LOST" ? "statusLost" : "statusRefund"}`)}</Txt>}
       <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 12 }}><Txt color={color.ink2}>{t("trade.amount")}</Txt><Txt weight={600}>{money(shown.stake, shown.currency ?? currency)}</Txt></View>
       <View style={{ flexDirection: "row", justifyContent: "space-between", paddingBottom: 12 }}><Txt color={color.ink2}>{t("redesign.entryPrice")}</Txt><Txt>{fmtPrice(shown.entryPrice, asset?.precision ?? 5)}</Txt></View>
+      {(["stopLoss", "takeProfit"] as const).map(side => shown[side] == null ? null : <View key={side} style={{ flexDirection: "row", justifyContent: "space-between", paddingBottom: 12 }}><Txt color={color.ink2}>{side === "stopLoss" ? "SL" : "TP"}</Txt><Txt>{fmtPrice(shown[side]!, asset?.precision ?? 5)}</Txt></View>)}
       <Button label={t("redesign.backToChart")} onPress={() => inner.current?.dismiss()} kind="light" />
     </> : null}
   </Sheet>;

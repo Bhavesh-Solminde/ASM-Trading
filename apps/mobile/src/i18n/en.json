@@ -193,7 +193,10 @@
     "retryPrevious": "Retry the previous trade with the same amount and direction while its result is being checked.",
     "dragProtection": "Drag SL and TP on the chart",
     "fixedPayout": "92% profit on a win · Fixed expiry · No manual close",
-    "retryNamed": "Retry previous {{direction}} {{symbol}} · {{amount}} at {{price}}"
+    "retryNamed": "Retry previous {{direction}} {{symbol}} · {{amount}} at {{price}}",
+    "currentPrice": "Current price",
+    "entryPrice": "Entry price",
+    "expiryEnd": "End"
   },
   "bonus": {
     "title": "Deposit bonus",

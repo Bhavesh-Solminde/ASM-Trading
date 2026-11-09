@@ -19,6 +19,9 @@ export const OpenPositionCard = memo(function OpenPositionCard({
   precision,
   currency,
   onOpen,
+  compact = false,
+  trailing,
+  netResult = compact,
 }: {
   trade: TradeView;
   more: number;
@@ -26,6 +29,9 @@ export const OpenPositionCard = memo(function OpenPositionCard({
   precision: number;
   currency: string;
   onOpen: () => void;
+  compact?: boolean;
+  netResult?: boolean;
+  trailing?: import("react").ReactNode;
 }) {
   const { t } = useTranslation();
   const live = useLiveTrade(trade);
@@ -43,19 +49,19 @@ export const OpenPositionCard = memo(function OpenPositionCard({
       accessibilityLabel={label}
       onPress={onOpen}
       style={({ pressed }) => ({
-        minHeight: 64,
+        minHeight: compact ? 44 : 64,
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
-        paddingVertical: 9,
-        paddingHorizontal: 12,
+        gap: compact ? 8 : 12,
+        paddingVertical: compact ? 0 : 9,
+        paddingHorizontal: compact ? 0 : 12,
         borderRadius: radius.md,
-        borderWidth: 1,
+        borderWidth: compact ? 0 : 1,
         borderColor: color.ruleSoft,
         backgroundColor: pressed ? color.raised : color.surface,
       })}
     >
-      <Svg width={34} height={34} viewBox="0 0 34 34" style={{ transform: [{ rotate: "-90deg" }] }}>
+      <Svg width={compact ? 28 : 34} height={compact ? 28 : 34} viewBox="0 0 34 34" style={{ transform: [{ rotate: "-90deg" }] }}>
         <Circle cx={17} cy={17} r={14} fill="none" strokeWidth={4} stroke={color.rule} />
         <Circle
           cx={17}
@@ -81,16 +87,17 @@ export const OpenPositionCard = memo(function OpenPositionCard({
       </View>
       <View style={{ alignItems: "flex-end", flexShrink: 0 }}>
         <Money
-          text={pnl === null ? "—" : `${pnl.sign}${money(pnl.amountMinor, currency)}`}
+          text={pnl === null ? "—" : `${pnl.sign}${money(netResult && pnl.tone === "up" ? pnl.amountMinor - trade.stake : pnl.amountMinor, currency)}`}
           size={15}
           weight={600}
           color={pnl === null ? color.ink3 : pnl.tone === "up" ? color.up : color.downText}
         />
         {/* One line, never a shrink-wrapped two-line box: multi-word Devanagari measured at its own width can wrap and clip. */}
-        <Txt size={12} color={color.ink3} numberOfLines={1}>
+        <Txt size={compact ? 10 : 12} color={color.ink3} numberOfLines={1}>
           {t("trade.ifClosedNow")}
         </Txt>
       </View>
+      {trailing}
     </Pressable>
   );
 });

@@ -13,7 +13,7 @@ import { useSocket } from "@/socket/socket-store";
 import { color, space } from "@/theme/tokens";
 import { Button, Screen, Skeleton, Txt } from "@/theme/ui";
 import { AppHeader } from "@/ui/AppHeader";
-import { BrandMark } from "@/ui/Brand";
+import { Wordmark } from "@/ui/Brand";
 import { accountOfType, bootstrapTradesAccountId, canUseLive, resolveAccount, staleBalance, type AppAccount } from "@/trade/accounts";
 import { ChartTools } from "@/trade/ChartTools";
 import { Dock } from "@/trade/Dock";
@@ -61,6 +61,7 @@ function BootError({ onRetry, compact }: { onRetry: () => void; compact?: boolea
 
 export default function Trade() {
   const [focused, setFocused] = useState(false);
+  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   useFocusEffect(useCallback(() => { setFocused(true); useSocket.getState().setChartActive(true); return () => { setFocused(false); useSocket.getState().setChartActive(false); }; }, []));
   const fullscreen = useFullscreen(s => s.active);
   const insets = useSafeAreaInsets();
@@ -161,6 +162,7 @@ export default function Trade() {
       {boot && account ? (
         <TopBar
           account={account}
+          accounts={boot.accounts}
           liveEnabled={canUseLive(boot.accounts, boot.liveAccess)}
           onSelectType={selectAccountType}
         />
@@ -168,7 +170,7 @@ export default function Trade() {
         <StaleTopBar totalMinor={stale.totalMinor} type={stale.type} currency={stale.currency} live={stale.live} />
       ) : (
         <AppHeader>
-          <BrandMark width={34} />
+          <Wordmark width={104} />
           <View style={{ flex: 1 }} />
           {bootFailed ? null : <Skeleton height={20} width={120} />}
         </AppHeader>
@@ -179,6 +181,7 @@ export default function Trade() {
       <View style={{ flex: 1, minHeight: 100 }}>
         {symbol ? (
           <TradeChart
+            selectedTradeId={selectedTradeId}
             symbol={symbol}
             timeframe={timeframe}
             type={prefs.chartType}
@@ -196,10 +199,12 @@ export default function Trade() {
         <View pointerEvents="none" style={{ position: "absolute", left: 12, bottom: 8, right: 120 }}>
           <StatusLine snapshot={candleSnapshot} symbol={symbol} timeframe={timeframe} />
         </View>
-        {boot && account ? <View pointerEvents="box-none" style={{ position: "absolute", bottom: 24, left: 0, right: 0 }}>{<PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} />}</View> : null}
       </View>
       {boot && account ? <ChartToolbar timeframe={timeframe} onTimeframe={setTimeframe} accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} /> : null}
-      {!fullscreen && boot && accountId && asset ? <Dock boot={boot} accountId={accountId} asset={asset} /> : null}
+      {boot && account ? <View style={{ backgroundColor: color.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 8, paddingBottom: 8, gap: 4 }}>
+        <PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} selectedTradeId={selectedTradeId} onSelect={trade => { setSelectedTradeId(trade.id); pickSymbol(trade.symbol); }} />
+        {accountId && asset ? <Dock boot={boot} accountId={accountId} asset={asset} /> : null}
+      </View> : null}
     </Screen>
   );
 }

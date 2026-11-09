@@ -1,0 +1,32 @@
+# Local fixture account with three open trades; no money actions.
+appId: com.indianxtrade.app
+---
+- runFlow:
+    when:
+      visible: { id: "pin-1" }
+    commands:
+      - tapOn: { id: "pin-1" }
+      - tapOn: { id: "pin-2" }
+      - tapOn: { id: "pin-3" }
+      - tapOn: { id: "pin-4" }
+- extendedWaitUntil:
+    visible: { id: "buy" }
+    timeout: 30000
+- assertVisible: { id: "open-trades-selector" }
+- takeScreenshot: ixt-compact-trade
+- tapOn: { id: "open-trades-selector" }
+- takeScreenshot: ixt-compact-open-trades
+- back
+- swipe:
+    start: "20%, 42%"
+    end: "70%, 42%"
+    duration: 400
+- assertVisible: { id: "chart-reset" }
+- takeScreenshot: ixt-compact-live
+- tapOn: { id: "chart-reset" }
+- assertNotVisible: { id: "chart-reset" }
+- tapOn: { id: "chart-fullscreen" }
+- assertNotVisible: { id: "tab-trade" }
+- assertVisible: { id: "open-trades-selector" }
+- assertVisible: { id: "buy" }
+- takeScreenshot: ixt-compact-fullscreen
