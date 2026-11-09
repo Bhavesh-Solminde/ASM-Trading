@@ -53,6 +53,15 @@ jobs:
           fi
           printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/mobile-keys/deploy"
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Prepare first-release storage
+        if: inputs.mode == 'build'
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i "$RUNNER_TEMP/mobile-keys/deploy" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" 'docker run --rm --pull=never --user 0:0 --entrypoint chown \
+            -v /srv/app/releases:/releases asmtrader-app:latest "$(id -u):$(id -g)" /releases'
       - name: Test, sign, verify and upload website APK
         if: inputs.mode == 'build'
         env:
