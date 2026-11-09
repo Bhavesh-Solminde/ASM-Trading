@@ -62,11 +62,11 @@ jobs:
         run: pnpm --filter @asm/mobile exec expo export --platform android --output-dir /tmp/mobile-export
       - name: Test OTC ledger and transport on a separate database
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/otc_integration
-          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/otc_integration
-          OTC_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/otc_integration
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/otc_integration
+          DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/otc_integration
+          OTC_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/otc_integration
         run: |
-          PGPASSWORD=postgres createdb -h localhost -U postgres otc_integration
+          PGPASSWORD=postgres createdb -h 127.0.0.1 -U postgres otc_integration
           pnpm --filter @asm/db exec prisma migrate deploy
           pnpm --filter @asm/db exec vitest run src/repositories/otc-trade.db.test.ts
           pnpm --filter @asm/engine exec vitest run src/otc
