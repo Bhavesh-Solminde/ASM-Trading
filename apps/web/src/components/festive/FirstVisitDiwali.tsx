@@ -106,7 +106,7 @@ export function DiwaliGreeting({ onDismiss, preview = false }: { onDismiss: () =
 /** Mounted once in the root layout; revisits never mount or download the video. */
 export function FirstVisitDiwali() {
   const pathname = usePathname();
-  const allowed = !/^\/(admin|maintenance|diwali-preview)(\/|$)/.test(pathname);
+  const allowed = !/^\/(admin|maintenance|diwali-preview|download)(\/|$)/.test(pathname);
   const [open, setOpen] = useState(false);
   const dismiss = useCallback(() => setOpen(false), []);
 
