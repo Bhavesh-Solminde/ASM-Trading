@@ -82,7 +82,7 @@ export function BoldLanding() {
                   </svg>
                   <span>
                     <span className="block text-xs text-ink-2">Android</span>
-                    <span className="block text-sm font-bold">Download APK</span>
+                    <span className="block text-sm font-bold">Download app</span>
                   </span>
                 </a>
                 <details className="group rounded-xl border border-rule bg-panel/70 open:border-brand/50">
