@@ -33,6 +33,32 @@ Set the signing key and push credentials. Verify `APP_MIN_VERSION`, `APP_LATEST_
 
 ## Full release
 
+### First website-only release
+
+Version 0.1.1 (Android versionCode 2) is prepared for the first public website APK.
+The owner runs `scripts/setup-direct-release.sh` locally to create or resume the
+publisher signing setup. It prompts for a password, keeps the PKCS12 keystore and
+encrypted OTA private key under `~/.indianxtrade/keys`, copies only the public OTA
+certificate into the repo, and writes the direct-signing credentials to GitHub
+Secrets. Back up the keys folder and its password before publishing. The setup
+does not publish an APK or start a release.
+
+Commit the public certificate through a PR. The `publish website Android app`
+workflow can then be dispatched on `main` with version `0.1.1` and mode `build`.
+Install and test that signed candidate, then dispatch mode `publish` to activate
+the exact existing bytes without rebuilding them. The workflow uses
+`APP_RELEASE_VARIANT=direct` and requires no Play upload key. If no direct Firebase
+configuration is provided, the website APK supports email login and disables
+Google login; Firebase push delivery is unavailable until configured. Existing
+full Play/direct and OTA release paths continue to require their Firebase files.
+
+The website workflow verifies signing and the server-side checksum before
+setting `APP_LATEST_VERSION`, recreates web through GitHub Actions, then downloads
+the public APK and verifies its bytes and checksum endpoint. It preserves
+`APP_MIN_VERSION`. Published version URLs cannot be overwritten with different
+bytes; publish a new version for a changed APK. Private OTA key/server setup is
+still required before publishing any OTA updates.
+
 1. Bump `apps/mobile/package.json` and `apps/mobile/app.config.ts` `version` together; increment `android.versionCode`. Any native dependency or plugin change requires a full build and a new app version.
 2. Check release blockers: CFD app/server compatibility, native Hindi review, physical-phone tests, Firebase/OAuth configuration, real signing identities and the OTA public certificate.
 3. Commit and tag `app-v<version>`. The GitHub `mobile release` workflow tests, prebuilds and signs both variants, then uploads the direct APK/checksum to the VPS and attaches both APK and Play AAB to the GitHub release. It never changes latest/minimum version settings.
