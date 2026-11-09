@@ -44,7 +44,7 @@ export function BoldLanding() {
               Trade CFDs.
               <br />
               <span className="bg-[linear-gradient(90deg,var(--color-brand),color-mix(in_srgb,var(--color-brand)_40%,var(--color-up)))] bg-clip-text text-transparent">
-                Real prices. Real control.
+                Real prices. <span className="whitespace-nowrap">Real control.</span>
               </span>
             </h1>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-2 sm:text-base">
