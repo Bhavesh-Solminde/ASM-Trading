@@ -1,0 +1,38 @@
+# Run after signing in; this flow changes only the chart viewport and places no trades.
+appId: com.indianxtrade.app
+---
+- launchApp
+- extendedWaitUntil:
+    visible: { id: "pin-1|price-chart" }
+    timeout: 30000
+- runFlow:
+    when:
+      visible: { id: "pin-1" }
+    file: subflows/enter-pin.yaml
+    env: { D1: "1", D2: "2", D3: "3", D4: "4" }
+- extendedWaitUntil:
+    visible: { id: "chart-zoom-in" }
+    timeout: 30000
+- assertVisible: { id: "price-chart", text: ".*60.*" }
+- tapOn: { id: "chart-zoom-in" }
+- assertVisible: { id: "price-chart", text: ".*48.*" }
+- takeScreenshot: zoomed-in
+- tapOn: { id: "chart-zoom-out" }
+- assertVisible: { id: "price-chart", text: ".*60.*" }
+- swipe:
+    start: "20%, 42%"
+    end: "75%, 42%"
+    duration: 300
+- assertVisible: { id: "chart-reset" }
+- takeScreenshot: panned-history
+- swipe:
+    start: "75%, 42%"
+    end: "15%, 42%"
+    duration: 300
+- takeScreenshot: panned-future
+- swipe:
+    start: "50%, 48%"
+    end: "50%, 35%"
+    duration: 300
+- assertNotVisible: { id: "price-chart", text: ".*60.*" }
+- takeScreenshot: vertical-zoom

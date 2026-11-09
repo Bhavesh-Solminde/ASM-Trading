@@ -30,7 +30,7 @@ import { FigText } from "@/ui/FigText";
 import { firstCandleShift, frontChanged, isFollowing, shouldRequestOlder, type EdgeState } from "./live";
 import { fmtPrice } from "./format-price";
 import { buildSeries, type SeriesPaths } from "./paths";
-import { indexForX, nearLeftEdge, priceRange, shiftForPrepend, visibleRange, xForIndex, yForPrice } from "./scale";
+import { indexForX, nearLeftEdge, priceRange, shiftForPrepend, visibleRange, xForIndex, yForPrice, rightLimit, zoomAround } from "./scale";
 import { clampTagY, entryIndex, entryBucketIndex, gridYs, hasNonAscii, priceTagRect, readoutBox, showReadout, tradeAvoidX, tradeTagRect } from "./tag-layout";
 import type { ChartType, Viewport } from "./types";
 import { useChartGestures } from "./useChartGestures";
@@ -242,7 +242,7 @@ export function Chart(props: ChartProps) {
     }
   }
 
-  const rightIndex = view.following ? total : Math.min(view.rightIndex, total);
+  const rightIndex = view.following ? total : Math.min(view.rightIndex, rightLimit(total, view.visibleCount));
   const viewport: Viewport = { width: plotW, height, rightIndex, visibleCount: view.visibleCount };
   const { from, to } = visibleRange(viewport, total);
   const histTo = Math.min(to, closed);
@@ -303,8 +303,9 @@ export function Chart(props: ChartProps) {
 
   return (
     <View style={{ flex: 1 }} onLayout={onLayout}>
-      <View style={{ flex: 1 }} accessible accessibilityLabel={t("trade.chartLabel")}>
+      <View testID="price-chart" style={{ flex: 1 }} accessible accessibilityLabel={t("trade.chartLabel")} accessibilityValue={{ text: t("trade.visibleCandles", { count: Math.round(view.visibleCount) }) }}>
         <GestureDetector gesture={gesture}>
+          <View collapsable={false} style={{ flex: 1 }}>
           <Canvas style={{ flex: 1 }}>
             {ready ? (
               <>
@@ -351,9 +352,18 @@ export function Chart(props: ChartProps) {
               </>
             ) : null}
           </Canvas>
+          </View>
         </GestureDetector>
       </View>
 
+      {ready ? <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", gap: 4 }}>
+        {([{ id: "out", factor: 0.8, label: "−" }, { id: "in", factor: 1.25, label: "+" }] as const).map(control => <Pressable key={control.id} testID={`chart-zoom-${control.id}`} accessibilityRole="button" accessibilityLabel={t(control.id === "in" ? "trade.zoomIn" : "trade.zoomOut")} onPress={() => {
+          setView(current => {
+            const next = zoomAround({ ...viewport, rightIndex: current.following ? total : current.rightIndex, visibleCount: current.visibleCount }, plotW, control.factor, total);
+            return { rightIndex: next.rightIndex, visibleCount: next.visibleCount, following: current.following };
+          });
+        }} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center", backgroundColor: color.surface, borderWidth: 1, borderColor: color.rule, borderRadius: radius.sm }}><Txt size={22}>{control.label}</Txt></Pressable>)}
+      </View> : null}
       {ready && props.protection?.enabled && props.onProtectionPrice ? (["stopLoss", "takeProfit"] as const).map(side => {
         const price = props.protection![side];
         return price === null ? null : <ProtectionHandle key={side} label={side === "stopLoss" ? "SL" : "TP"} price={price} range={range} height={height} axis={PRICE_AXIS} precision={precision} onPrice={price => props.onProtectionPrice!(side, price)} />;
@@ -385,6 +395,7 @@ export function Chart(props: ChartProps) {
       {!view.following ? (
         <Pressable
           accessibilityRole="button"
+          testID="chart-reset"
           accessibilityLabel={t("trade.backToLive")}
           onPress={() => setView((v) => ({ ...v, following: true }))}
           hitSlop={8}

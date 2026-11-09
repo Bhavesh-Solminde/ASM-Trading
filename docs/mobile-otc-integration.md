@@ -55,4 +55,11 @@ Deploy server changes only through the PR/main/GitHub Actions path. Compose appl
 
 The repository has no owner OTA certificate, and GitHub currently has no Android signing/Firebase secrets. A locally assembled APK signed by the Android development key is a verification artifact, not an owner-signed public release. Existing release automation intentionally refuses to publish without owner credentials. Actual push delivery and low-end physical-device FPS are not certified by this report.
 
-Production PR/deployment and final APK evidence will be recorded after those gates finish.
+## Production verification
+
+- Integration [PR #138](https://github.com/Bhavesh-Solminde/ASM-Trading/pull/138) merged as `f820a58e0e7ae2c7ff40534dd67c133824161e4e`.
+- [PR validation](https://github.com/Bhavesh-Solminde/ASM-Trading/actions/runs/42585117773) and [production deployment](https://github.com/Bhavesh-Solminde/ASM-Trading/actions/runs/42585943880) passed through GitHub Actions. Compose applied the required migrations.
+- Production API/WebSocket checks registered a normal QA USER, confirmed `OTC_FIXED` and 92% across all 30 markets, and received history and positive quote tokens for each market. A DEMO contract retained the issued displayed quote; retrying the same request returned the same contract without another debit.
+- Standalone Android verified normal production login, PIN setup, DEMO account selection, stake/duration selection and 30-second settlement. No LIVE funds were traded or credited.
+- The QA user's initial LIVE refusal was its account permission, not a chart/feed failure. At the owner's request, only that QA USER's `liveAccess` was enabled with an audit record. Role remained USER and LIVE balance stayed zero. Native LIVE switching then passed.
+- Native verification APK uses embedded production API/WS URLs and the Android development signing certificate; owner signing/OTA/Firebase setup and physical-device performance remain separate release gates.

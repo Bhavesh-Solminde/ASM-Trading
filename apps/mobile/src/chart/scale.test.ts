@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { CandleDto } from "@asm/contracts";
 import {
   clampVisible,
+  dragAxis,
+  dragViewport,
+  rightLimit,
   indexForX,
   nearLeftEdge,
   panBy,
@@ -53,9 +56,9 @@ describe("scale", () => {
     expect(indexForX(150, z)).toBeCloseTo(indexForX(150, vp));
   });
 
-  it("pans back in time and never past the live edge", () => {
+  it("pans in both directions with bounded future space", () => {
     expect(panBy(vp, 60, 100).rightIndex).toBeCloseTo(90);
-    expect(panBy(vp, -600, 100).rightIndex).toBe(100);
+    expect(panBy(vp, -600, 100).rightIndex).toBe(115);
   });
 
   it("detects when the user is near the oldest loaded candle", () => {
@@ -71,9 +74,9 @@ describe("scale", () => {
     expect(xForIndex(50, shifted)).toBeCloseTo(xForIndex(40, vp));
   });
 
-  it("never pans the live edge past a history shorter than the minimum window", () => {
+  it("keeps future space bounded even with only a few candles", () => {
     for (const dx of [-600, -1, 0, 1, 600]) {
-      expect(panBy(vp, dx, 3).rightIndex).toBeLessThanOrEqual(3);
+      expect(panBy(vp, dx, 3).rightIndex).toBeLessThanOrEqual(rightLimit(3, vp.visibleCount));
     }
     expect(panBy(vp, 600, 3).rightIndex).toBe(3);
   });
@@ -106,4 +109,18 @@ describe("scale", () => {
     expect(panBy(vp, Infinity, 100)).toBe(vp);
     expect(panBy(vp, 10, NaN)).toBe(vp);
   });
+});
+
+it("zooms on vertical swipes and pans on horizontal drags", () => {
+  expect(dragAxis(100, 5)).toBe("pan");
+  expect(dragAxis(2, -100)).toBe("zoom");
+  expect(dragViewport(vp, 60, 5, 150, 100, "pan").rightIndex).toBe(90);
+  const zoomed = dragViewport(vp, 1, -100, 150, 100, "zoom");
+  expect(zoomed.visibleCount).toBeLessThan(vp.visibleCount);
+  expect(indexForX(150, zoomed)).toBeCloseTo(indexForX(150, vp));
+  expect(dragViewport(vp, 0, 100, 150, 100, "zoom").visibleCount).toBeGreaterThan(vp.visibleCount);
+});
+it("keeps at least half the window available for candles at maximum future pan", () => {
+  const zoomed = { ...vp, visibleCount: 15 };
+  expect(panBy(zoomed, -10000, 100).rightIndex - 100).toBeLessThanOrEqual(7.5);
 });

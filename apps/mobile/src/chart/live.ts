@@ -117,4 +117,4 @@ export function shouldRequestOlder(prev: EdgeState, next: EdgeState): boolean {
 }
 
 /** Within half a candle of the live edge counts as following it. */
-export const isFollowing = (rightIndex: number, total: number) => rightIndex >= total - 0.5;
+export const isFollowing = (rightIndex: number, total: number) => Math.abs(rightIndex - total) <= 0.5;
