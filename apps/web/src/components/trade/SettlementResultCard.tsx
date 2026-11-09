@@ -1,7 +1,7 @@
 import { WinDiwaliFireworks } from "@/components/festive/SeasonalDiwali";
 import type { TradeView } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
-import { closedRowDisplay, settledAmountText } from "./pnl-display";
+import { closedRowDisplay, settledAmountText } from "@asm/client-core";
 
 export function SettlementResultCard({ trade, currency, pair, onDismiss }: {
   trade: TradeView;

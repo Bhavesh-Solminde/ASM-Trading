@@ -1,0 +1,72 @@
+name: mobile release
+on:
+  push:
+    tags: ["app-v*.*.*", "app-ota-v*.*.*"]
+permissions:
+  contents: write
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.33.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Prepare release secrets
+        env:
+          PLAY_KEY: ${{ secrets.PLAY_UPLOAD_KEYSTORE_B64 }}
+          DIRECT_KEY: ${{ secrets.DIRECT_KEYSTORE_B64 }}
+          GS_PLAY: ${{ secrets.GOOGLE_SERVICES_PLAY_B64 }}
+          GS_DIRECT: ${{ secrets.GOOGLE_SERVICES_DIRECT_B64 }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          mkdir -p "$RUNNER_TEMP/mobile-keys" "$RUNNER_TEMP/mobile-out" ~/.ssh
+          printf '%s' "$PLAY_KEY" | base64 -d > "$RUNNER_TEMP/mobile-keys/play.p12"
+          printf '%s' "$DIRECT_KEY" | base64 -d > "$RUNNER_TEMP/mobile-keys/direct.p12"
+          printf '%s' "$GS_PLAY" | base64 -d > "$RUNNER_TEMP/mobile-keys/gs-play.json"
+          printf '%s' "$GS_DIRECT" | base64 -d > "$RUNNER_TEMP/mobile-keys/gs-direct.json"
+          printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/mobile-keys/deploy"
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Test, build and upload
+        env:
+          APP_KEYS_DIR: ${{ runner.temp }}/mobile-keys
+          APP_RELEASE_OUT_DIR: ${{ runner.temp }}/mobile-out
+          APP_RELEASE_UPLOAD: "1"
+          PLAY_STORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
+          PLAY_KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
+          PLAY_KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+          DIRECT_STORE_PASSWORD: ${{ secrets.DIRECT_KEYSTORE_PASSWORD }}
+          DIRECT_KEY_ALIAS: ${{ secrets.DIRECT_KEY_ALIAS }}
+          DIRECT_KEY_PASSWORD: ${{ secrets.DIRECT_KEY_PASSWORD }}
+          APP_GOOGLE_WEB_CLIENT_ID: ${{ secrets.APP_GOOGLE_WEB_CLIENT_ID }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY_FILE: ${{ runner.temp }}/mobile-keys/deploy
+        run: |
+          if [[ "$GITHUB_REF_NAME" == app-ota-v* ]]; then
+            scripts/app-release.sh ota "${GITHUB_REF_NAME#app-ota-v}"
+          else
+            scripts/app-release.sh build "${GITHUB_REF_NAME#app-v}"
+          fi
+      - name: GitHub release
+        if: startsWith(github.ref_name, 'app-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ runner.temp }}/mobile-out/*.aab
+            ${{ runner.temp }}/mobile-out/*.apk
+            ${{ runner.temp }}/mobile-out/*.sha256
+      - name: Remove secrets
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/mobile-keys"

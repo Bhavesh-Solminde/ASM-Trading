@@ -2,13 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { OpenTradeSchema,OtcOpenTradeSchema, tradeViewFrom } from "@asm/contracts";
 import { formatMoney, getAccountForActor, listTradesForActor, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
-import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { requestContext } from "@/lib/request-context";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { minStakeMinor } from "@/lib/currency";
+import { minStakeMinor } from "@asm/client-core";
 import { EngineRejected, EngineUnavailable, engineOpenTrade } from "@/lib/engine-client";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { engineOtcOpen } from "@/lib/otc-client";
+import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
 const REJECTION_MESSAGE: Record<string, string> = {
   display_quote_expired: "That displayed price has expired. Wait for a fresh price and try again.",
@@ -33,9 +33,9 @@ export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
 
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
   if(process.env.OTC_DRAIN_LEGACY==="true"&&process.env.OTC_ORDER_BOOK_ENABLED!=="true")return NextResponse.json({error:"New trades are paused for the OTC upgrade. Existing positions will settle normally."},{status:409});
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   if (!(await checkRateLimit(`rl:trade:${session.userId}`, 60, 60))) {
     log.warn({ evt: "security.rate_limited", route: "trades" }, "trade throttled");
-    return NextResponse.json({ error: "Slow down a moment and try again." }, { status: 429 });
+    return rateLimited("Slow down a moment and try again.");
   }
 
   const otc=process.env.OTC_ORDER_BOOK_ENABLED==="true";
@@ -66,37 +66,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Account not found." }, { status: 404 });
   }
 
+  // Stale-currency guard. The account can be converted (INR <-> USD, ₹110 = $1) from another tab or device while a
+  // ticket is open; a stake typed for the old currency would then be 110x off. A client that states its currency
+  // is refused on a mismatch (before the minimum-stake check, which would blame the wrong number). Clients that
+  // send none (older app builds, cached web pages) are unaffected.
+  if (parsed.data.currency && parsed.data.currency !== account.currency) {
+    log.info({ evt: "trade.rejected", reason: "currency_changed", accountId: account.id }, "stake sent in a stale currency");
+    return NextResponse.json(
+      { error: "Your account currency changed. Check your stake and try again.", code: "currency_changed" },
+      { status: 409 },
+    );
+  }
+
   const minStake = minStakeMinor(account.currency);
   if (parsed.data.stake < minStake) {
     return NextResponse.json(
-      { error: `Minimum investment is ${formatMoney(minStake, account.currency)}.` },
+      { error: `Minimum investment is ${formatMoney(minStake, account.currency)}.`, code: "min_stake" },
       { status: 400 },
     );
   }
 
   try {
-    const result = otc?await engineOtcOpen({...OtcOpenTradeSchema.parse(parsed.data),actorId:session.userId}):await engineOpenTrade({ ...parsed.data, actorId: session.userId });
+    const order = { ...parsed.data };
+    delete order.currency;
+    const result = otc?await engineOtcOpen({...OtcOpenTradeSchema.parse(parsed.data),actorId:session.userId}):await engineOpenTrade({ ...order, actorId: session.userId });
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof EngineRejected) {
       log.warn({ evt: "trade.rejected", reason: err.reason, symbol: parsed.data.symbol }, "trade rejected");
       return NextResponse.json(
-        { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade.", ...(otc?{code:err.reason}:{}) },
+        { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade.", code:err.reason },
         { status: BROWSER_STATUS[err.reason] ?? err.status },
       );
     }
     if (err instanceof EngineUnavailable) {
       log.error({ evt: "trade.rejected", reason: "engine_unavailable" }, err.message);
-      return NextResponse.json({ error: "Trading is temporarily unavailable." }, { status: 503 });
+      return NextResponse.json({ error: "Trading is temporarily unavailable.", code: "trading_unavailable" }, { status: 503 });
     }
     throw err;
   }
 }
 
 export async function GET(req: NextRequest) {
-  const session = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await getSession(req);
   if (!session) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+    return unauthenticated();
   }
 
   const accountId = OpenTradeSchema.shape.accountId.safeParse(

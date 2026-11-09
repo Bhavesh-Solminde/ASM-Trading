@@ -1,5 +1,5 @@
 import { dailyLeaderboard, demoLeaderboard, leaderboardCurrencyFor } from "@asm/db";
-import { startOfDayMs } from "./day";
+import { startOfDayMs } from "@asm/client-core";
 
 export function isDemoLeaderboard(): boolean {
   return process.env.LEADERBOARD_MODE === "demo";

@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../client";
-import { createAccountsForUser } from "./account";
+import { USD_INR_RATE, createAccountsForUser } from "./account";
 import { claimUsdtPayment, createDepositIntent, createUsdtDepositIntent } from "./deposit";
 import {
   ChainCreditResolutionRefused,
@@ -111,8 +111,8 @@ describe("resolveChainCreditToDeposit", () => {
 
     await resolveChainCreditToDeposit({ chainCreditId: creditId, depositId: deposit.id, adminId: ADMIN, ...config });
 
-    // INR account: received USDT-cents × 100 paise.
-    expect((await liveBalance()) - before).toBe(received * 100);
+    // INR account: received USDT-cents × the shared rate in paise.
+    expect((await liveBalance()) - before).toBe(received * USD_INR_RATE);
 
     const d = await prisma.deposit.findUniqueOrThrow({ where: { id: deposit.id } });
     expect(d.status).toBe("COMPLETED");
@@ -239,7 +239,7 @@ describe("resolveChainCreditToDeposit", () => {
     expect(rejected.length).toBe(1);
     expect(rejected[0]!.reason).toBeInstanceOf(ChainCreditResolutionRefused);
 
-    expect((await liveBalance()) - before).toBe(a.amountUsdtMinor! * 100);
+    expect((await liveBalance()) - before).toBe(a.amountUsdtMinor! * USD_INR_RATE);
     const completed = await prisma.deposit.count({ where: { id: { in: [a.id, b.id] }, status: "COMPLETED" } });
     expect(completed).toBe(1);
   });

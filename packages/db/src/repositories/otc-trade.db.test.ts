@@ -36,6 +36,15 @@ describe.skipIf(!enabled)("OTC ledger against isolated Postgres",()=>{
     expect(ledger.reduce((n,r)=>n+r.amount,100000)).toBe(account.realBalance+account.bonusBalance);
     expect((await prisma.trade.findUniqueOrThrow({where:{id:command.id}})).mode).toBe("OTC_FIXED");
   });
+  it("rejects a stale mobile currency inside the reservation lock without debiting",async()=>{
+    const f=await fixture(),request={actorId:f.user.id,accountId:f.live.id,idempotencyKey:randomUUID(),symbol:"BTCUSDT",direction:"UP" as const,stake:10000,durationSec:60,currency:"INR"};
+    await convertAccountCurrency({actorId:f.user.id,accountId:f.live.id,currency:"USD"});
+    const before=await prisma.account.findUniqueOrThrow({where:{id:f.live.id}});
+    await expect(reserveOtcTrade(request)).rejects.toThrow("currency_changed");
+    expect(await prisma.account.findUniqueOrThrow({where:{id:f.live.id}})).toMatchObject({currency:"USD",realBalance:before.realBalance,bonusBalance:before.bonusBalance});
+    expect(await prisma.marketCommand.count({where:{accountId:f.live.id}})).toBe(0);
+    expect(await prisma.transaction.count({where:{accountId:f.live.id,kind:"TRADE_STAKE"}})).toBe(0);
+  });
   it("does not overspend when simultaneous requests compete for one balance",async()=>{
     const f=await fixture(10000);
     const results=await Promise.allSettled(Array.from({length:10},()=>reserveOtcTrade({actorId:f.user.id,accountId:f.live.id,idempotencyKey:randomUUID(),symbol:"BTCUSDT",direction:"UP",stake:10000,durationSec:60})));

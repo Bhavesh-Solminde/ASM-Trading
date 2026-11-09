@@ -7,7 +7,7 @@ import {
   canLoadOlder,
   initialChartState,
   type ChartState,
-} from "@/components/chart/engine-state";
+} from "@asm/client-core";
 import { applyQuoteMessage, initialQuotes, type Quotes } from "./quotes";
 import { beginChartSwitch } from "@/components/chart/diagnostics";
 

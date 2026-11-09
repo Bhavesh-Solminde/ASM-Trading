@@ -1,0 +1,72 @@
+name: mobile and shared backend validation
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mobile-validate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: asm_mobile_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/asm_mobile_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/asm_mobile_test
+      REDIS_URL: redis://localhost:6379/0
+      SESSION_SECRET: isolated-ci-test-secret-at-least-32-characters
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.33.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @asm/db exec prisma generate
+      - run: pnpm --filter @asm/db exec prisma migrate deploy
+      - name: Seed legacy test assets
+        run: |
+          psql "$DATABASE_URL" <<'SQL'
+          INSERT INTO "Asset" (id, symbol, "displayName", kind)
+          VALUES (gen_random_uuid(), 'AUDNZD_OTC', 'AUD/NZD OTC', 'OTC'),
+                 (gen_random_uuid(), 'BTCUSDT', 'BTC/USDT', 'REAL')
+          ON CONFLICT (symbol) DO NOTHING;
+          SQL
+      - name: Check application and shared package types
+        run: |
+          pnpm --filter @asm/mobile --filter @asm/web --filter @asm/engine \
+            --filter @asm/contracts --filter @asm/client-core --filter @asm/db \
+            --filter @asm/notify exec tsc --noEmit
+      - name: Test all workspace packages serially
+        run: pnpm test
+      - name: Bundle Android JavaScript
+        run: pnpm --filter @asm/mobile exec expo export --platform android --output-dir /tmp/mobile-export
+      - name: Test OTC ledger and transport on a separate database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/otc_integration
+          DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/otc_integration
+          OTC_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/otc_integration
+        run: |
+          PGPASSWORD=postgres createdb -h 127.0.0.1 -U postgres otc_integration
+          pnpm --filter @asm/db exec prisma migrate deploy
+          pnpm --filter @asm/db exec vitest run src/repositories/otc-trade.db.test.ts
+          pnpm --filter @asm/engine exec vitest run src/otc

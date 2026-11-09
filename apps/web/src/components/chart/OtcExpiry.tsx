@@ -3,7 +3,7 @@ import { useEffect,useMemo,useRef,type RefObject } from "react";
 import type { IChartApi,UTCTimestamp } from "lightweight-charts";
 import { TIMEFRAME_SEC,type TradeView } from "@asm/contracts";
 import type { MarketStore } from "@/components/shell/market-store";
-import { countdown } from "@/lib/format-time";
+import { countdown } from "@asm/client-core";
 
 /** Fixed contract expiry markers: DOM patches only, with no tick-rate React state. */
 export function OtcExpiry({trades,chartRef,market,chartVersion}:{trades:TradeView[];chartRef:RefObject<IChartApi|null>;market:MarketStore;chartVersion:number}){

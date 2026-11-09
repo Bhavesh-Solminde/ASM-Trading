@@ -1,0 +1,9 @@
+# Maintenance gate. The local web server must run with MAINTENANCE_MODE=1 (every /api/v1 call answers 503).
+# Run: maestro test [-e DEV_CLIENT_URL=...] apps/mobile/e2e/maintenance.yaml
+appId: com.indianxtrade.app
+---
+- launchApp
+- runFlow: subflows/open-dev-client.yaml
+- extendedWaitUntil:
+    visible: { id: "gate-maintenance" }
+    timeout: 60000

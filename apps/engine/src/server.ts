@@ -325,6 +325,10 @@ export class EngineServer {
     }
   }
 
+  isUserOnline(userId: string): boolean {
+    return [...this.clients].some((c) => c.userId === userId && c.socket.readyState === c.socket.OPEN);
+  }
+
   async stop(): Promise<void> {
     clearInterval(this.budgetTimer);
     for (const client of this.clients) client.socket.close(1001, "Server shutting down");

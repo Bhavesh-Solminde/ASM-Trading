@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { rateLimited } from "@/lib/request-session";
 import { findGatewayDepositByAddress } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import {
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
   const log = childLogger(ctx.cid);
 
   if (!(await checkRateLimit(`rl:tatum-webhook:${ctx.ip}`, RATE_LIMIT, RATE_WINDOW_SEC))) {
-    return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+    return rateLimited("Too many requests.");
   }
 
   const secret = (process.env["TATUM_WEBHOOK_HMAC_SECRET"] ?? "").trim();

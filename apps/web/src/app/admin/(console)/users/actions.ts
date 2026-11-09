@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { KycStatus, Role, UserStatus, prisma, setUserStatus } from "@asm/db";
+import { KycStatus, Role, UserStatus, enqueueOutbox, prisma, setUserStatus } from "@asm/db";
 import { logger } from "@asm/logger";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
 import { destroyAllSessionsForUser } from "@/lib/session";
@@ -52,11 +52,14 @@ export async function updateUserAction(formData: FormData): Promise<void> {
     before.liveAccess !== liveAccess ||
     before.vpnExempt !== vpnExempt
   ) {
-    await prisma.user.update({
+    await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    const current = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { kycStatus: true } });
+    await tx.user.update({
       where: { id: userId },
       data: { role: role as Role, kycStatus: kycStatus as KycStatus, liveAccess, vpnExempt },
     });
-    await prisma.auditLog.create({
+    await tx.auditLog.create({
       data: {
         actorId: ADMIN_ACTOR,
         action: "user.updated",
@@ -70,6 +73,10 @@ export async function updateUserAction(formData: FormData): Promise<void> {
         },
         after: { role, kycStatus, liveAccess, vpnExempt },
       },
+    });
+    if (current.kycStatus !== kycStatus && (kycStatus === "VERIFIED" || kycStatus === "REJECTED")) {
+      await enqueueOutbox(tx, userId, kycStatus === "VERIFIED" ? "kyc_verified" : "kyc_rejected", {});
+    }
     });
     logger.info(
       {
