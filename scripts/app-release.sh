@@ -3,8 +3,10 @@
 set -euo pipefail
 mode="${1:?Usage: app-release.sh build|ota VERSION}"
 version="${2:?Version is required}"
+variant_selection="${APP_RELEASE_VARIANT:-all}"
 [[ "$mode" == build || "$mode" == ota ]] || { echo "Mode must be build or ota" >&2; exit 1; }
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must be MAJOR.MINOR.PATCH" >&2; exit 1; }
+[[ "$variant_selection" == all || "$variant_selection" == direct ]] || { echo "APP_RELEASE_VARIANT must be all or direct" >&2; exit 1; }
 root="$(cd "$(dirname "$0")/.." && pwd)"
 app="$root/apps/mobile"
 keys="${APP_KEYS_DIR:-$HOME/.indianxtrade/keys}"
@@ -20,12 +22,22 @@ pnpm --filter @asm/mobile test
 pnpm --filter @asm/mobile typecheck
 cd "$app"
 export APP_RELEASE_BUILD=1
-for variant in play direct; do
+variants=(play direct)
+if [[ "$variant_selection" == direct ]]; then variants=(direct); fi
+for variant in "${variants[@]}"; do
   export APP_VARIANT="$variant"
   if [[ "$variant" == play ]]; then prefix=PLAY; else prefix=DIRECT; fi
   gs_var="${prefix}_GOOGLE_SERVICES_JSON"
   export GOOGLE_SERVICES_JSON="${!gs_var:-$keys/gs-$variant.json}"
-  [[ -f "$GOOGLE_SERVICES_JSON" ]] || { echo "Missing $variant Google services file" >&2; exit 1; }
+  if [[ ! -s "$GOOGLE_SERVICES_JSON" ]]; then
+    if [[ "$variant_selection" == direct && "$mode" == build ]]; then
+      # The website APK supports email login without Firebase; never show a nonfunctional Google login.
+      unset GOOGLE_SERVICES_JSON
+      export APP_GOOGLE_WEB_CLIENT_ID=""
+    else
+      echo "Missing $variant Google services file" >&2; exit 1
+    fi
+  fi
   # expo config must describe the same native runtime which the update targets.
   cfg="$out/config-$variant.json"
   pnpm exec expo config --json --type public > "$cfg"
@@ -45,6 +57,7 @@ for variant in play direct; do
     else
       (cd android && ./gradlew assembleRelease --no-daemon)
       cp android/app/build/outputs/apk/release/app-release.apk "$out/indianxtrade-$version.apk"
+      "${ANDROID_HOME:?}/build-tools/36.0.0/apksigner" verify --print-certs "$out/indianxtrade-$version.apk"
       (cd "$out" && shasum -a 256 "indianxtrade-$version.apk" > "indianxtrade-$version.apk.sha256")
     fi
     unset IXT_STORE_PASSWORD IXT_KEY_PASSWORD
@@ -63,6 +76,10 @@ if [[ "${APP_RELEASE_UPLOAD:-0}" == 1 ]]; then
   printf -v rsync_shell '%q ' "${ssh_cmd[@]}"
   if [[ "$mode" == build ]]; then
     "${ssh_cmd[@]}" "$VPS_USER@$VPS_HOST" 'mkdir -p /srv/app/releases'
+    apk="$out/indianxtrade-$version.apk"
+    checksum="$(shasum -a 256 "$apk" | cut -d ' ' -f 1)"
+    # Published version URLs are immutable; a retry may upload only identical bytes.
+    "${ssh_cmd[@]}" "$VPS_USER@$VPS_HOST" "if test -e /srv/app/releases/indianxtrade-$version.apk; then echo '$checksum  /srv/app/releases/indianxtrade-$version.apk' | sha256sum -c -; fi"
     rsync -av --delay-updates -e "$rsync_shell" "$out"/*.apk "$out"/*.sha256 "$VPS_USER@$VPS_HOST:/srv/app/releases/"
   else
     for dir in "$out"/updates/*/*; do
