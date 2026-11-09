@@ -185,3 +185,8 @@ describe("HistoryFlusher", () => {
     expect(flush).toHaveBeenCalledTimes(2);
   });
 });
+
+it("does not snap a manually panned future view back to the live candle", () => {
+  expect(isFollowing(110, 100)).toBe(false);
+  expect(isFollowing(100, 100)).toBe(true);
+});

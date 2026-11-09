@@ -3,6 +3,8 @@ import type { PriceRange, Viewport } from "./types";
 
 export const MIN_VISIBLE = 15;
 export const MAX_VISIBLE = 300;
+/** Keep candles visible while allowing the same right-side breathing room as the website. */
+export const rightLimit = (total: number, visibleCount: number) => total + Math.min(15, visibleCount / 2);
 const PAD = 0.08;
 
 export const clampVisible = (n: number) => Math.min(MAX_VISIBLE, Math.max(MIN_VISIBLE, n));
@@ -50,14 +52,14 @@ export function zoomAround(vp: Viewport, focusX: number, factor: number, total: 
   const visibleCount = clampVisible(vp.visibleCount / factor);
   // keep focusIndex under focusX at the new zoom level
   const rightIndex = focusIndex + (vp.width - focusX) / (vp.width / visibleCount);
-  return { ...vp, visibleCount, rightIndex: Math.min(total, rightIndex) };
+  return { ...vp, visibleCount, rightIndex: Math.min(rightLimit(total, visibleCount), rightIndex) };
 }
 
 export function panBy(vp: Viewport, dx: number, total: number): Viewport {
   if (!isUsable(vp) || !Number.isFinite(dx) || !Number.isFinite(total)) return vp;
   const rightIndex = vp.rightIndex - dx / step(vp);
-  // the live edge wins: never past `total`, even when total < MIN_VISIBLE / 2
-  return { ...vp, rightIndex: Math.min(total, Math.max(MIN_VISIBLE / 2, rightIndex)) };
+  // Bound empty future space to half the screen; dragging right still loads older candles.
+  return { ...vp, rightIndex: Math.min(rightLimit(total, vp.visibleCount), Math.max(Math.min(total, MIN_VISIBLE / 2), rightIndex)) };
 }
 
 /** Older candles were prepended: shift the edge so the on-screen candles stay put. */
@@ -68,3 +70,13 @@ export const shiftForPrepend = (vp: Viewport, prepended: number): Viewport => ({
 
 export const nearLeftEdge = (vp: Viewport, _total: number, threshold = 20) =>
   vp.rightIndex - vp.visibleCount <= threshold;
+
+export type DragAxis = "pan" | "zoom";
+export function dragAxis(dx: number, dy: number): DragAxis | null {
+  if (Math.hypot(dx, dy) < 8) return null;
+  return Math.abs(dy) > Math.abs(dx) * 1.2 ? "zoom" : "pan";
+}
+/** Vertical swipes zoom around the gesture's start. */
+export function dragViewport(vp: Viewport, dx: number, dy: number, focusX: number, total: number, axis: DragAxis): Viewport {
+  return axis === "pan" ? panBy(vp, dx, total) : zoomAround(vp, focusX, Math.exp(Math.max(-2, Math.min(2, -dy / 200))), total);
+}

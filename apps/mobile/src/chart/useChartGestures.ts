@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { Gesture } from "react-native-gesture-handler";
+import { Gesture, MouseButton } from "react-native-gesture-handler";
 import { startViewport } from "./live";
-import { panBy, zoomAround } from "./scale";
+import { dragAxis, dragViewport, zoomAround, type DragAxis } from "./scale";
 import type { Viewport } from "./types";
 
 export interface ChartGestureOpts {
@@ -20,7 +20,7 @@ export interface ChartGestureOpts {
 }
 
 /**
- * Pan, pinch-zoom, long-press crosshair and double-tap-to-live. Built once: the handlers read the latest
+ * Horizontal pan, vertical/pinch zoom, stationary crosshair and double-tap-to-live. Built once: the handlers read the latest
  * options and the gesture's start viewport from refs, so a re-render mid-gesture neither rebuilds the
  * recognisers (which would drop the touch) nor reads a stale viewport. `runOnJS(true)` keeps the
  * handlers on the JS thread, so they are plain functions and no worklets are involved.
@@ -28,6 +28,7 @@ export interface ChartGestureOpts {
 export function useChartGestures(opts: ChartGestureOpts) {
   const latest = useRef(opts);
   const start = useRef({ viewport: opts.viewport, shift: opts.indexShift });
+  const drag = useRef<{ axis: DragAxis | null; focusX: number }>({ axis: null, focusX: 0 });
   // Layout effect: runs in the commit itself, so no gesture event can see a stale shift or viewport.
   useLayoutEffect(() => {
     latest.current = opts;
@@ -42,12 +43,16 @@ export function useChartGestures(opts: ChartGestureOpts) {
       .runOnJS(true)
       .maxPointers(1)
       .minDistance(4)
-      .onStart(() => {
+      .mouseButton(MouseButton.LEFT)
+      .onStart((e) => {
         start.current = { viewport: latest.current.viewport, shift: latest.current.indexShift };
+        drag.current = { axis: null, focusX: e.x };
       })
       .onUpdate((e) => {
         const { total, setViewport } = latest.current;
-        setViewport(panBy(startNow(), e.translationX, total));
+        drag.current.axis ??= dragAxis(e.translationX, e.translationY);
+        if (!drag.current.axis) return;
+        setViewport(dragViewport(startNow(), e.translationX, e.translationY, drag.current.focusX, total, drag.current.axis));
       });
 
     const pinch = Gesture.Pinch()
@@ -60,13 +65,12 @@ export function useChartGestures(opts: ChartGestureOpts) {
         setViewport(zoomAround(startNow(), e.focalX, e.scale, total));
       });
 
-    // Pan that only activates after a 250ms hold; moving earlier fails it so the plain pan above takes over.
-    const crosshair = Gesture.Pan()
+    // A stationary hold shows OHLC; it must never take ownership of a later drag.
+    const crosshair = Gesture.LongPress()
       .runOnJS(true)
-      .maxPointers(1)
-      .activateAfterLongPress(250)
+      .minDuration(350)
+      .maxDistance(4)
       .onStart((e) => latest.current.onCrosshair(e.x))
-      .onUpdate((e) => latest.current.onCrosshair(e.x))
       .onFinalize(() => latest.current.onCrosshair(null));
 
     const doubleTap = Gesture.Tap()
@@ -76,6 +80,6 @@ export function useChartGestures(opts: ChartGestureOpts) {
         if (success) latest.current.onResetToLive();
       });
 
-    return Gesture.Race(Gesture.Simultaneous(Gesture.Exclusive(crosshair, pan), pinch), doubleTap);
+    return Gesture.Race(Gesture.Simultaneous(pan, pinch, crosshair), doubleTap);
   }, []);
 }
