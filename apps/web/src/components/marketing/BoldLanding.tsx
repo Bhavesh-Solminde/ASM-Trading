@@ -74,7 +74,7 @@ export function BoldLanding() {
             <div className="mt-8 max-w-lg border-t border-rule pt-5">
               <h2 className="text-base font-bold">You can also download our app now</h2>
               <p className="mt-1 text-sm text-ink-2">Android app, or save the website on your iPhone.</p>
-              <div className="mt-4 grid items-start gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] items-start gap-3">
                 <div>
                   <a
                     href="/download/app"
