@@ -29,16 +29,14 @@ export {
   GoogleAccountConflict,
 } from "./repositories/user";
 export {
-  AFFILIATE_DAILY_FLOAT_MINOR,
+  AFFILIATE_START_BALANCE_MINOR,
   AFFILIATE_CURRENCY,
   AffiliateCreationRefused,
   createAffiliate,
   listAffiliates,
   deleteAffiliateById,
   resetAffiliatePasswordById,
-  resetAffiliateAccountFloat,
-  listAffiliateAccountsNeedingReset,
-  istDateOf,
+  setAffiliateAccountBalance,
   type AffiliateListItem,
 } from "./repositories/affiliate";
 export {

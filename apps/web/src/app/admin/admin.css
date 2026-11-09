@@ -2047,6 +2047,9 @@ a.admin-doc__img:hover {
     flex: 1;
     width: 100%;
   }
+  .admin-table--stack .admin-row-actions > .admin-affiliate-balance[open] {
+    flex: 1 1 100%;
+  }
   .admin-table--stack .admin-row-actions .admin-btn {
     height: 44px;
     font-size: 14px;

@@ -8,8 +8,8 @@ import { createAffiliateAction } from "../actions";
 export const dynamic = "force-dynamic";
 
 const GETS: { icon: IconName; title: string; sub: string }[] = [
-  { icon: "dollar", title: "₹10,000 live + ₹10,000 demo", sub: "Float for showing real trades on stream" },
-  { icon: "clock", title: "Resets daily at 00:00 IST", sub: "Both balances go back to ₹10,000" },
+  { icon: "dollar", title: "₹10,000 live + ₹10,000 demo", sub: "One-time starting balances" },
+  { icon: "clock", title: "Admin-controlled balances", sub: "Change either balance from the affiliate list" },
   { icon: "shield", title: "No real money moves", sub: "Their deposits and withdrawals display but never settle" },
 ];
 
