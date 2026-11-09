@@ -3,7 +3,7 @@
 import { DEPOSIT_METHODS, UPI_METHODS } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { GatewayIcon } from "./GatewayIcon";
-import { formatInr, inrToUsdt, methodAmountProblem } from "./limits";
+import { formatInr, inrToUsdt, methodAmountProblem } from "@asm/client-core";
 
 const UPI_SET = new Set<string>(UPI_METHODS);
 

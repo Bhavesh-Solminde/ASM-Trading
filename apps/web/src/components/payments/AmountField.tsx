@@ -2,7 +2,7 @@
 
 import { useImperativeHandle, useRef, useState, type Ref } from "react";
 import { KeypadSheet } from "./KeypadSheet";
-import { groupAmount, sanitizeAmount, type AmountOpts } from "./amount-input";
+import { groupAmountInput, sanitizeAmount, type AmountOpts } from "@asm/client-core";
 
 export interface AmountFieldHandle {
   /** Focuses whichever control is on screen (the field on desktop, the display button on a phone). */
@@ -80,9 +80,9 @@ export function AmountField({
           aria-invalid={invalid}
           aria-describedby={describedBy}
           // Shown grouped ("1,000") like the chips; sanitizeAmount strips the commas back out.
-          value={value === "" ? "" : groupAmount(value)}
+          value={value === "" ? "" : groupAmountInput(value)}
           onChange={(e) => onChange(sanitizeAmount(e.target.value, opts))}
-          style={{ width: `${Math.max(value === "" ? 1 : groupAmount(value).length, 1) + 0.3}ch` }}
+          style={{ width: `${Math.max(value === "" ? 1 : groupAmountInput(value).length, 1) + 0.3}ch` }}
           className="min-w-[1ch] max-w-full bg-transparent text-center text-6xl font-extrabold tabular-nums tracking-[-0.035em] outline-none placeholder:text-ink-3"
         />
       </div>
@@ -93,7 +93,7 @@ export function AmountField({
         type="button"
         id={`${id}-trigger`}
         aria-haspopup="dialog"
-        aria-label={`${label} ${symbol}${groupAmount(value)}. Edit amount`}
+        aria-label={`${label} ${symbol}${groupAmountInput(value)}. Edit amount`}
         aria-invalid={invalid}
         aria-describedby={describedBy}
         onClick={() => setOpen(true)}
@@ -103,7 +103,7 @@ export function AmountField({
           {symbol}
         </span>
         <span aria-hidden className="text-6xl font-extrabold leading-none tabular-nums tracking-[-0.035em]">
-          {groupAmount(value)}
+          {groupAmountInput(value)}
         </span>
       </button>
 

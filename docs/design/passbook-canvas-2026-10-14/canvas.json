@@ -1,0 +1,350 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "A-Bonus.dc.html": {
+      "h": 844,
+      "title": "After · Deposit bonus",
+      "w": 390,
+      "x": 2510,
+      "y": 2488
+    },
+    "A-Expiry.dc.html": {
+      "h": 844,
+      "title": "After · Trade length",
+      "w": 390,
+      "x": 2510,
+      "y": 1244
+    },
+    "A-Keypad.dc.html": {
+      "h": 844,
+      "title": "After · Amount keypad",
+      "w": 390,
+      "x": 2040,
+      "y": 1244
+    },
+    "A-Lock.dc.html": {
+      "h": 844,
+      "title": "After · Lock",
+      "w": 390,
+      "x": 2510,
+      "y": 0
+    },
+    "A-LockSetup.dc.html": {
+      "h": 844,
+      "title": "After · Lock setup",
+      "w": 390,
+      "x": 2040,
+      "y": 0
+    },
+    "A-Login.dc.html": {
+      "h": 844,
+      "title": "After · Login",
+      "w": 390,
+      "x": 1570,
+      "y": 0
+    },
+    "A-Markets.dc.html": {
+      "h": 844,
+      "title": "After · Markets",
+      "w": 390,
+      "x": 2040,
+      "y": 2488
+    },
+    "A-Trades.dc.html": {
+      "h": 844,
+      "title": "After · Your trades",
+      "w": 390,
+      "x": 1570,
+      "y": 2488
+    },
+    "B-Bonus.dc.html": {
+      "h": 844,
+      "title": "Before · Deposit bonus",
+      "w": 390,
+      "x": 940,
+      "y": 2488
+    },
+    "B-Expiry.dc.html": {
+      "h": 844,
+      "title": "Before · Expiry",
+      "w": 390,
+      "x": 940,
+      "y": 1244
+    },
+    "B-Keypad.dc.html": {
+      "h": 844,
+      "title": "Before · Amount keypad",
+      "w": 390,
+      "x": 470,
+      "y": 1244
+    },
+    "B-Lock.dc.html": {
+      "h": 844,
+      "title": "Before · Lock",
+      "w": 390,
+      "x": 940,
+      "y": 0
+    },
+    "B-LockSetup.dc.html": {
+      "h": 844,
+      "title": "Before · Lock setup",
+      "w": 390,
+      "x": 470,
+      "y": 0
+    },
+    "B-Login.dc.html": {
+      "h": 844,
+      "title": "Before · Login",
+      "w": 390,
+      "x": 0,
+      "y": 0
+    },
+    "B-Markets.dc.html": {
+      "h": 844,
+      "title": "Before · Markets",
+      "w": 390,
+      "x": 470,
+      "y": 2488
+    },
+    "B-Trade.dc.html": {
+      "h": 844,
+      "title": "Before · Trade",
+      "w": 390,
+      "x": 0,
+      "y": 1244
+    },
+    "B-Trades.dc.html": {
+      "h": 844,
+      "title": "Before · Trades sheet",
+      "w": 390,
+      "x": 0,
+      "y": 2488
+    },
+    "Main.dc.html": {
+      "h": 844,
+      "title": "After · Trade",
+      "w": 390,
+      "x": 1570,
+      "y": 1244
+    },
+    "N-Account.dc.html": {
+      "h": 844,
+      "title": "New · Account",
+      "w": 390,
+      "x": 940,
+      "y": 4976
+    },
+    "N-Deposit.dc.html": {
+      "h": 844,
+      "title": "New · Deposit",
+      "w": 390,
+      "x": 470,
+      "y": 3732
+    },
+    "N-History.dc.html": {
+      "h": 844,
+      "title": "New · History ledger",
+      "w": 390,
+      "x": 0,
+      "y": 4976
+    },
+    "N-Kyc.dc.html": {
+      "h": 844,
+      "title": "New · Verify identity",
+      "w": 390,
+      "x": 1410,
+      "y": 4976
+    },
+    "N-KycCamera.dc.html": {
+      "h": 844,
+      "title": "New · Document photo",
+      "w": 390,
+      "x": 1880,
+      "y": 4976
+    },
+    "N-Notify.dc.html": {
+      "h": 844,
+      "title": "New · Notification permission",
+      "w": 390,
+      "x": 0,
+      "y": 6220
+    },
+    "N-PaymentDetail.dc.html": {
+      "h": 844,
+      "title": "New · Payment detail",
+      "w": 390,
+      "x": 470,
+      "y": 4976
+    },
+    "N-Payments.dc.html": {
+      "h": 844,
+      "title": "New · Payments",
+      "w": 390,
+      "x": 0,
+      "y": 3732
+    },
+    "N-Receipt.dc.html": {
+      "h": 844,
+      "title": "New · Deposit receipt",
+      "w": 390,
+      "x": 1410,
+      "y": 3732
+    },
+    "N-Update.dc.html": {
+      "h": 844,
+      "title": "New · Update required",
+      "w": 390,
+      "x": 470,
+      "y": 6220
+    },
+    "N-UpiPay.dc.html": {
+      "h": 844,
+      "title": "New · UPI pay",
+      "w": 390,
+      "x": 940,
+      "y": 3732
+    },
+    "N-Withdraw.dc.html": {
+      "h": 844,
+      "title": "New · Withdraw",
+      "w": 390,
+      "x": 1880,
+      "y": 3732
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-14T13:30:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "s1": {
+      "fill": "orange",
+      "text": "WHAT CHANGES\n\n• Login: the empty top half becomes the brand (logo, tricolour rule, live market line). Labels sit above fields. Language switch on the first screen.\n• Lock setup: explains what the lock does; fingerprint first; \"Not now\" is a quiet text button.\n• Lock: greets you by name; one bank-form box per PIN digit; the error line has a fixed slot so the keypad never jumps; fingerprint on the keypad.",
+      "w": 340,
+      "x": 2980,
+      "y": 0
+    },
+    "s2": {
+      "fill": "orange",
+      "text": "WHAT CHANGES\n\n• Same layout, same two taps. Chart keeps most of the screen.\n• Balance in Indian grouping (₹9,99,600.00), labelled \"Demo balance\".\n• Amount written in words under the figure, like a cheque (stops a stray zero).\n• Buy/Sell become Up/Down with arrows and show what you get back if you win.\n• Open trade reads like a pending passbook entry.\n• Trade length sheet shows the exact time the trade ends.",
+      "w": 340,
+      "x": 2980,
+      "y": 1244
+    },
+    "s3": {
+      "fill": "orange",
+      "text": "WHAT CHANGES\n\n• Your trades: a small ledger (time, trade, result) with Won/Lost rubber stamps and a day total.\n• Markets: category chips (Crypto, India, Forex, starred), price + change per row, closed markets say so with their opening time.\n• Deposit bonus: a plain table, gold only on the next tier; the withdrawal rule stays in words above the button.",
+      "w": 340,
+      "x": 2980,
+      "y": 2488
+    },
+    "s4": {
+      "fill": "blue",
+      "text": "MONEY FLOWS\n\n• Payments: the account as a passbook cover; withdrawable vs bonus split.\n• Deposit: amount + words, bonus earned, then the UPI app.\n• UPI pay: QR, installed-app buttons, auto status.\n• Receipt: perforated, stamped CREDITED, UTR, new balance.\n• Withdraw: limits up front, prefilled UPI ID, amount repeated on the button.\nNames, amounts, IDs and the VPA are examples.",
+      "w": 340,
+      "x": 2350,
+      "y": 3732
+    },
+    "s5": {
+      "fill": "blue",
+      "text": "HISTORY + ACCOUNT\n\n• History is a real passbook page: Particulars, Debit, Credit, running Balance, grouped by day.\n• Payment detail: tracking timeline; held withdrawal can be cancelled.\n• Account: identity + KYC stamp, settings in three short groups.\n• Verify identity: the four steps listed up front.\n• Document photo: card-shaped saffron guide, torch, gallery fallback.",
+      "w": 340,
+      "x": 2350,
+      "y": 4976
+    },
+    "s6": {
+      "fill": "blue",
+      "text": "PROMPTS\n\n• Notifications: asked after the first Live trade ends, never at launch, with a preview of the notification.\n• Update required: what happened, that the balance is safe, one action. Maintenance and VPN blocked reuse this pattern.",
+      "w": 340,
+      "x": 940,
+      "y": 6220
+    },
+    "t1": {
+      "kind": "title1",
+      "maxW": 3320,
+      "text": "Sign-in and lock · Before (left) → After (right)",
+      "w": 240,
+      "x": 0,
+      "y": -260
+    },
+    "t2": {
+      "kind": "title1",
+      "maxW": 3320,
+      "text": "Trade screen · Before → After",
+      "w": 240,
+      "x": 0,
+      "y": 984
+    },
+    "t3": {
+      "kind": "title1",
+      "maxW": 3320,
+      "text": "Trade sheets · Before → After",
+      "w": 240,
+      "x": 0,
+      "y": 2228
+    },
+    "t4": {
+      "kind": "title1",
+      "maxW": 2690,
+      "text": "New screens (P3) · Money",
+      "w": 240,
+      "x": 0,
+      "y": 3472
+    },
+    "t5": {
+      "kind": "title1",
+      "maxW": 2690,
+      "text": "New screens (P3) · History, account, identity",
+      "w": 240,
+      "x": 0,
+      "y": 4716
+    },
+    "t6": {
+      "kind": "title1",
+      "maxW": 1280,
+      "text": "New screens (P4) · Prompts",
+      "w": 240,
+      "x": 0,
+      "y": 5960
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "B-Login.dc.html",
+    "B-LockSetup.dc.html",
+    "B-Lock.dc.html",
+    "A-Login.dc.html",
+    "A-LockSetup.dc.html",
+    "A-Lock.dc.html",
+    "B-Trade.dc.html",
+    "B-Keypad.dc.html",
+    "B-Expiry.dc.html",
+    "A-Keypad.dc.html",
+    "A-Expiry.dc.html",
+    "B-Trades.dc.html",
+    "B-Markets.dc.html",
+    "B-Bonus.dc.html",
+    "A-Trades.dc.html",
+    "A-Markets.dc.html",
+    "A-Bonus.dc.html",
+    "N-Payments.dc.html",
+    "N-Deposit.dc.html",
+    "N-UpiPay.dc.html",
+    "N-Receipt.dc.html",
+    "N-Withdraw.dc.html",
+    "N-History.dc.html",
+    "N-PaymentDetail.dc.html",
+    "N-Account.dc.html",
+    "N-Kyc.dc.html",
+    "N-KycCamera.dc.html",
+    "N-Notify.dc.html",
+    "N-Update.dc.html"
+  ],
+  "pages": [],
+  "title": "IndianxTrade Passbook Canvas"
+}

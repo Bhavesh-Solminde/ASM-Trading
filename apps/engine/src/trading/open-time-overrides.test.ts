@@ -75,9 +75,12 @@ describe("expiryTickBucket", () => {
   it("floors to the TICK_DT_SEC grid", () => {
     expect(expiryTickBucket(60)).toBe(60);
     expect(expiryTickBucket(61)).toBe(60);
-    expect(expiryTickBucket(64)).toBe(60);
-    expect(expiryTickBucket(65)).toBe(65);
-    expect(expiryTickBucket(67)).toBe(65);
+    expect(expiryTickBucket(62)).toBe(60);
+    expect(expiryTickBucket(63)).toBe(63);
+    expect(expiryTickBucket(64)).toBe(63);
+    expect(expiryTickBucket(65)).toBe(63);
+    expect(expiryTickBucket(66)).toBe(66);
+    expect(expiryTickBucket(67)).toBe(66);
   });
 });
 

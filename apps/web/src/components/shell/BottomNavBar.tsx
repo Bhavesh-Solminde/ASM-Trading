@@ -11,7 +11,7 @@ export function BottomNavBar() {
   return (
     <nav
       aria-label="Mobile navigation"
-      className="col-start-1 row-start-4 hidden phone:flex land:hidden z-30 h-[var(--phone-nav-h,38px)] w-full items-stretch justify-around border-t border-rule bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.5)] select-none"
+      className="col-start-1 row-start-5 hidden phone:flex land:hidden z-30 h-[var(--phone-nav-h,38px)] w-full items-stretch justify-around border-t border-rule bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.5)] select-none"
     >
       {BOTTOM_NAV_ITEMS.map((item) => {
         const active = isBottomNavItemActive(item, pathname);

@@ -8,14 +8,14 @@ import { assertOtcFence,type OtcFence } from "./otc-fence";
 export interface OtcTradeRequest {
   actorId:string;accountId:string;idempotencyKey:string;symbol:string;
   direction:"UP"|"DOWN";stake:number;durationSec:number;stopLoss?:number|null;takeProfit?:number|null;
-  quoteToken?:string;
+  quoteToken?:string;currency?:string|undefined;
 }
 export interface OtcOpenIntent {
   version:1;kind:"open";time:number;assetId:string;fromReal:number;fromBonus:number;fingerprint:string;currency?:string;
   contract:OpenContractCommand;
 }
 export class OtcRejected extends Error {}
-const fingerprint=(r:OtcTradeRequest)=>JSON.stringify({symbol:r.symbol,direction:r.direction,stake:r.stake,durationSec:r.durationSec,stopLoss:r.stopLoss??null,takeProfit:r.takeProfit??null,...(r.quoteToken?{quoteToken:r.quoteToken}:{})});
+const fingerprint=(r:OtcTradeRequest)=>JSON.stringify({symbol:r.symbol,direction:r.direction,stake:r.stake,durationSec:r.durationSec,stopLoss:r.stopLoss??null,takeProfit:r.takeProfit??null,...(r.quoteToken?{quoteToken:r.quoteToken}:{}),...(r.currency?{currency:r.currency}:{})});
 const json=<T>(v:T)=>JSON.parse(JSON.stringify(v));
 async function serial<T>(client:DbClient,work:(tx:DbTransaction)=>Promise<T>):Promise<T>{
   for(let attempt=0;attempt<5;attempt++){
@@ -39,6 +39,7 @@ export async function reserveOtcTrade(request:OtcTradeRequest,client:DbClient=pr
     if(!account)throw new OtcRejected("account_not_found");
     const existing=await tx.marketCommand.findUnique({where:{accountId_idempotencyKey:{accountId:account.id,idempotencyKey:request.idempotencyKey}}});
     if(existing){const intent=existing.input as unknown as OtcOpenIntent;if(intent.fingerprint!==fingerprint(request))throw new OtcRejected("idempotency_conflict");return existing;}
+    if(request.currency && request.currency !== account.currency)throw new OtcRejected("currency_changed");
     const displayedPrice=resolveEntryPrice?.();
     if(["FROZEN","BANNED"].includes(account.user.status))throw new OtcRejected("account_not_active");
     if(!["INR","USD"].includes(account.currency)||request.stake<(account.currency==="INR"?10000:100))throw new OtcRejected("stake_below_minimum");

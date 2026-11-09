@@ -26,7 +26,8 @@ describe.skipIf(!enabled)("authenticated OTC transports",()=>{
     const runtime=await new OtcRuntime(prisma,process.env.OTC_TEST_DATABASE_URL!).start();
     const secret="test-transport-secret-at-least-16",http=createOtcHttp(runtime,secret,0),port=await http.listen();
     const observerId=randomUUID();
-    const sockets=new OtcWebSocketServer(runtime,0,async ticket=>ticket==="valid-once"?user.id:ticket==="observer"?observerId:null);await sockets.ready;
+    const settlements: string[]=[];
+    const sockets=new OtcWebSocketServer(runtime,0,async ticket=>ticket==="valid-once"?user.id:ticket==="observer"?observerId:null,(actor,trade)=>{settlements.push(`${actor}:${trade.id}`);});await sockets.ready;
     const ws=new WebSocket(`ws://127.0.0.1:${sockets.port()}`),messages:ServerMessage[]=[];ws.on("message",raw=>messages.push(JSON.parse(String(raw))));
     const observer=new WebSocket(`ws://127.0.0.1:${sockets.port()}`),observed:ServerMessage[]=[];
     observer.on("message",raw=>observed.push(JSON.parse(String(raw))));
@@ -59,6 +60,7 @@ describe.skipIf(!enabled)("authenticated OTC transports",()=>{
       expect(opened.trade.entryPrice).toBe(displayed.price);
       await until(()=>messages.some(m=>m.type==="trade:opened"));
       await runtime.advance(Date.now()+120000);await until(()=>messages.some(m=>m.type==="trade:settled"));
+      expect(settlements).toContain(`${user.id}:${opened.trade.id}`);
       await until(()=>messages.some(m=>m.type==="otc:bots"));
       const publicMessages=messages.filter((m):m is OtcMarketMessage=>m.type==="otc:market");
       expect(JSON.stringify(publicMessages)).not.toContain(user.id);expect(JSON.stringify(publicMessages)).not.toContain("makerId");

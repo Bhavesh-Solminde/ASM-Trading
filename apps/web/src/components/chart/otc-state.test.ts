@@ -1,6 +1,6 @@
 import { expect,it } from "vitest";
 import type { OtcMarketMessage } from "@asm/contracts";
-import { applyChartMessage,initialChartState } from "./engine-state";
+import { applyChartMessage,initialChartState } from "@asm/client-core";
 const base=1800000000;
 const bar=(openTs:number,c=100)=>({openTs,o:100,h:110,l:90,c,volume:20});
 function packet(overrides:Partial<OtcMarketMessage>={}):OtcMarketMessage{return {type:"otc:market",generation:"a",symbol:"BTCUSDT",timeframe:"1m",time:(base+120)*1000,sequence:1,reset:true,retainedFrom:base,candles:[bar(base),bar(base+60),bar(base+120)],reference:null,depth:{bids:[],asks:[]},tape:[],phase:"Bots only",activeTobs:0,...overrides};}

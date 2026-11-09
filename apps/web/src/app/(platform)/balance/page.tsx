@@ -18,7 +18,7 @@ export default async function BalancePage() {
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
 
-  const payments = await loadPaymentRows(session.userId);
+  const payments = await loadPaymentRows(session.userId, 100);
 
   return (
     <PageFrame width="narrow" nav={<PlatformTabs />} title="History">

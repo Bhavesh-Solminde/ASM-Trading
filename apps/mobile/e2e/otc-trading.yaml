@@ -1,0 +1,50 @@
+# Continue after login-trade with local dummy funds; never run against a funded production account.
+appId: com.indianxtrade.app
+---
+- tapOn: { id: "expiry-tile" }
+- tapOn: { id: "expiry-300" }
+- extendedWaitUntil:
+    visible: { id: "buy", enabled: true }
+    timeout: 30000
+- tapOn: { id: "buy" }
+- extendedWaitUntil:
+    visible: "History · 1"
+    timeout: 15000
+- tapOn: { id: "buy" }
+- extendedWaitUntil:
+    visible: "History · 2"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: { id: "sell", enabled: true }
+    timeout: 15000
+- tapOn: { id: "sell" }
+- extendedWaitUntil:
+    visible: "History · 3"
+    timeout: 15000
+- takeScreenshot: simultaneous-trades
+- tapOn: { id: "protection-toggle" }
+- assertVisible: { id: "chart-sl" }
+- assertVisible: { id: "chart-tp" }
+- takeScreenshot: protection-before
+- swipe:
+    from: { id: "chart-sl" }
+    direction: DOWN
+    duration: 500
+- swipe:
+    from: { id: "chart-tp" }
+    direction: UP
+    duration: 500
+- takeScreenshot: protection-after
+- tapOn: { id: "buy" }
+- assertNotVisible: { id: "chart-sl" }
+- assertNotVisible: { id: "chart-tp" }
+- assertVisible: "History · 4"
+- tapOn: "5m"
+- assertVisible: { id: "displayed-price", text: "[0-9].*" }
+- takeScreenshot: five-minute-chart
+- tapOn: "1m"
+- tapOn: { id: "chart-fullscreen" }
+- assertNotVisible: { id: "stake-tile" }
+- takeScreenshot: fullscreen
+- tapOn: { id: "chart-fullscreen" }
+- assertVisible: { id: "stake-tile" }

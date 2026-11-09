@@ -1,6 +1,6 @@
 import { Icon } from "@/components/shell/Icon";
 import { shortDate, timeOfDay } from "./history-model";
-import { timelineSteps, type StepState, type TimelineKind, type TimelineStep } from "./timeline-model";
+import { timelineSteps, type StepState, type TimelineKind, type TimelineStep } from "@asm/client-core";
 
 /**
  * Vertical progress tracker for a deposit or withdrawal. Presentational and

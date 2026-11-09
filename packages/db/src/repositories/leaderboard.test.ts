@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../client";
+import { USD_INR_RATE } from "./account";
 import { dailyLeaderboard } from "./leaderboard";
 
 const tag = `lb-${Date.now()}`;
@@ -99,7 +100,7 @@ describe("dailyLeaderboard", () => {
   it("compares currencies at the fixed rate and reports in the display currency", async () => {
     const inr = await dailyLeaderboard({ ...BASE, sinceMs: SINCE, viewerUserId: "nobody", includeBots: false });
     const dollar = inr.entries.find((e) => e.nickname === "dollar")!;
-    expect(dollar).toMatchObject({ currency: "INR", pnlMinor: 110_800 * 100, country: "IN" });
+    expect(dollar).toMatchObject({ currency: "INR", pnlMinor: 110_800 * USD_INR_RATE, country: "IN" });
 
     const usd = await dailyLeaderboard({
       ...BASE,
@@ -109,7 +110,7 @@ describe("dailyLeaderboard", () => {
       includeBots: false,
     });
     const rupee = usd.entries.find((e) => e.nickname === "rupee")!;
-    expect(rupee).toMatchObject({ currency: "USD", pnlMinor: 2_040 });
+    expect(rupee).toMatchObject({ currency: "USD", pnlMinor: Math.round(203_952 / USD_INR_RATE) });
     expect(ours(usd.entries)).toEqual(["dollar", "rupee", "winner", "loser"]);
   });
 

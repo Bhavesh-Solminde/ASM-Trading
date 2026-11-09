@@ -6,12 +6,12 @@ import type { OpenTradeResult,OtcOpenTradeInput } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { durationForTargetTime, offeredExpirySlots } from "@/lib/expiry-times";
-import { minStakeMinor } from "@/lib/currency";
-import { currencySymbol, formatMinor } from "@/lib/format-money";
-import { clockTime, countdown, hms } from "@/lib/format-time";
+import { minStakeMinor } from "@asm/client-core";
+import { currencySymbol, formatMinor } from "@asm/client-core";
+import { clockTime, countdown, hms } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useMarketClosed, useNowSec } from "@/lib/use-now";
-import { grossReturnMinor } from "./pnl-display";
+import { grossReturnMinor } from "@asm/client-core";
 import type { MarketStore } from "@/components/shell/market-store";
 import { EMPTY_OTC_PROTECTION,protectionError,type OtcProtectionDraft } from "@/components/chart/otc-protection";
 import {
@@ -32,7 +32,7 @@ import {
   stakeStorageKey,
   type StakeUnit,
   type TimeMode,
-} from "./stake";
+} from "@asm/client-core";
 
 /** The next wall-clock occurrence of an HH:MM, today or (if already past) tomorrow. */
 function nextOccurrenceMs(hhmm: string, nowMs: number): number | null {

@@ -1,5 +1,5 @@
 import type { TradeView } from "@asm/contracts";
-import { cfdOpenPnl } from "@/components/trade/pnl-display";
+import { cfdOpenPnl } from "@asm/client-core";
 
 export type BracketKind = "stopLoss" | "takeProfit";
 export type BracketLevels = Record<BracketKind, number | null>;

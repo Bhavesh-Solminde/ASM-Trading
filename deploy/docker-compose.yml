@@ -78,6 +78,9 @@ services:
 
   web:
     image: asmtrader-app:latest
+    volumes:
+      - /srv/app/releases:/app/releases:ro
+      - /srv/app/updates:/app/updates:ro
     restart: unless-stopped
     env_file: ../.env.production
     environment:

@@ -17,7 +17,7 @@ export default async function HistoryPage() {
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
 
-  const payments = await loadPaymentRows(session.userId);
+  const payments = await loadPaymentRows(session.userId, 100);
 
   return (
     <PageFrame width="narrow" title="History">

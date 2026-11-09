@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/Icon";
-import { currencySymbol, formatMinor } from "@/lib/format-money";
-import { useScrollLock } from "@/lib/use-scroll-lock";
-import { grossReturnMinor } from "./pnl-display";
 import {
   MAX_STAKE_MAJOR,
   PERCENT_PRESETS,
+  currencySymbol,
+  formatMinor,
+  grossReturnMinor,
   groupAmount,
   percentValue,
   profitForStake,
@@ -15,7 +15,8 @@ import {
   stakePresets,
   stakeToMinor,
   type StakeUnit,
-} from "./stake";
+} from "@asm/client-core";
+import { useScrollLock } from "@/lib/use-scroll-lock";
 
 const MAX_LEN = 7;
 const PCT_MAX_LEN = 3;

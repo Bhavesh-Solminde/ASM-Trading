@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Withdraw</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400..700&amp;family=Anek+Latin:wdth,wght@75..125,300..700&amp;family=Martian+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#06080b}</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; padding-top: 32px; display: flex; flex-direction: column; background: #06080b; color: #edf1f6; font-family: 'Anek Latin', 'Anek Devanagari', system-ui, sans-serif; font-size: 15px; line-height: 1.35; overflow: hidden">
+  <div style="display: flex; align-items: center; gap: 6px; padding: 0 10px 10px">
+    <a href="N-Payments.dc.html" aria-label="Back" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #edf1f6"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg></a>
+    <h1 style="margin: 0; font-size: 21px; font-weight: 620">Withdraw</h1>
+  </div>
+
+  <div style="padding: 0 20px; display: flex; flex-direction: column; gap: 4px">
+    <div style="display: flex; justify-content: space-between; align-items: baseline">
+      <span style="font-size: 14px; color: #737d8c">Amount</span>
+      <button type="button" style="border: 0; background: transparent; padding: 0; color: #86a6ff; font: 500 14px 'Anek Latin', sans-serif">Max ₹8,200</button>
+    </div>
+    <span style="font: 600 42px 'Martian Mono', monospace; letter-spacing: -0.05em">₹ 5,000</span>
+    <span style="border-top: 1px dashed #252d39; padding-top: 6px; font-size: 16px; color: #a6b0be">Five thousand rupees only</span>
+    <span style="padding-top: 4px; font-size: 13px; color: #737d8c">₹700 to ₹50,000 per withdrawal</span>
+  </div>
+
+  <h2 style="margin: 0; padding: 20px 20px 8px; font-size: 14px; font-weight: 500; color: #737d8c">Send to</h2>
+  <div style="display: flex; gap: 8px; padding: 0 20px">
+    <button type="button" style="height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">Bank</button>
+    <button type="button" style="height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid #edf1f6; background: #edf1f6; color: #06080b; font: 600 15px 'Anek Latin', sans-serif">UPI ID</button>
+    <button type="button" style="height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid #252d39; background: transparent; color: #a6b0be; font: 500 15px 'Anek Latin', sans-serif">USDT</button>
+  </div>
+  <div style="padding: 14px 20px 0; display: flex; flex-direction: column; gap: 6px">
+    <label for="upiId" style="font-size: 14px; color: #a6b0be; font-weight: 500">UPI ID</label>
+    <div style="position: relative">
+      <input id="upiId" type="text" value="asha.rao@okhdfcbank" style="width: 100%; height: 52px; box-sizing: border-box; border-radius: 12px; border: 1px solid #252d39; background: #0f141b; color: #edf1f6; padding: 0 44px 0 14px; font: 400 16px 'Anek Latin', sans-serif">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2ecf7a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; right: 14px; top: 16px"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+    </div>
+    <span style="font-size: 13px; color: #737d8c">Filled in from your last withdrawal</span>
+  </div>
+
+  <div style="margin: auto 16px 12px; padding: 14px 16px; border-radius: 14px; border: 1px solid #1a212b; background: #0f141b; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; font-size: 15px">
+    <span style="color: #737d8c">You receive</span><span style="text-align: right; font: 600 15px 'Martian Mono', monospace; letter-spacing: -0.02em">₹5,000.00</span>
+    <span style="color: #737d8c">Usually arrives</span><span style="text-align: right">[YOUR PAYOUT TIME]</span>
+  </div>
+  <div style="padding: 0 20px 28px">
+    <button type="button" style="width: 100%; height: 54px; border-radius: 12px; border: 0; background: {{accent}}; color: #ffffff; font: 600 17px 'Anek Latin', sans-serif">Withdraw ₹5,000</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3f6ff2","options":["#3f6ff2","#2f81f7","#ff9933","#1f9a12"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return { accent: this.props.accent ?? '#3f6ff2' }; }
+}
+</script>
+</body>
+</html>

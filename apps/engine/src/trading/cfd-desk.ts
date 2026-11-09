@@ -138,8 +138,12 @@ export class CfdDesk {
     const result = await prisma.$transaction(async (tx) => {
       const account = await tx.account.findUniqueOrThrow({
         where: { id: input.accountId },
+        include: { user: { select: { status: true } } },
       });
 
+      if (account.userId !== input.actorId) throw new Error("ACCOUNT_NOT_FOUND");
+      if (account.user.status === "FROZEN" || account.user.status === "BANNED") throw new Error("ACCOUNT_NOT_ACTIVE");
+      if (input.currency && input.currency !== account.currency) throw new Error("CURRENCY_CHANGED");
       const totalBalance = account.realBalance + account.bonusBalance;
       if (totalBalance < totalDebit) {
         throw new Error("INSUFFICIENT_BALANCE");
@@ -173,7 +177,10 @@ export class CfdDesk {
       });
 
       const debit = await tx.account.updateMany({
-        where: { id: input.accountId, realBalance: account.realBalance, bonusBalance: account.bonusBalance },
+        // `currency` pins the units `stake` was expressed in: a switch that lands
+        // after the read above also changes the balances, but a zero or
+        // coincidental balance must not let a stale-unit debit through.
+        where: { id: input.accountId, currency: account.currency, realBalance: account.realBalance, bonusBalance: account.bonusBalance },
         data: {
           realBalance: { decrement: fromReal },
           bonusBalance: { decrement: fromBonus + feeFromBonus },
@@ -245,7 +252,9 @@ export class CfdDesk {
             });
           }
         }
-      } catch {
+      } catch (err) {
+        // Someone else (a manual close) closed it first: nothing to retry.
+        if (err instanceof Error && err.message === "TRADE_NOT_OPEN") continue;
         logger.error({ evt: "cfd.settlement_failed", tradeId: trade.id },
           "position processing failed; retrying next tick");
       }
@@ -349,8 +358,13 @@ export class CfdDesk {
     const pnl = cfdProfitMinor(trade.direction, trade.entryPrice, exitPrice, trade.stake, trade.leverage ?? 1);
 
     await prisma.$transaction(async (tx) => {
-      await tx.trade.update({
-        where: { id: trade.id },
+      // Claim the position: OPEN -> CLOSED is the only transition that pays. The
+      // callers' own `status === "OPEN"` checks read outside this transaction,
+      // so two parallel closes (a double-click, or a manual close landing on the
+      // scanner's tick) both pass them. The conditional update lets exactly one
+      // through; the loser matches zero rows and rolls back before any credit.
+      const claimed = await tx.trade.updateMany({
+        where: { id: trade.id, status: "OPEN" },
         data: {
           exitPrice,
           pnl,
@@ -359,6 +373,7 @@ export class CfdDesk {
           closedAt: now,
         },
       });
+      if (claimed.count !== 1) throw new Error("TRADE_NOT_OPEN");
 
       const netReturn = trade.stake + pnl;
       if (netReturn > 0) {

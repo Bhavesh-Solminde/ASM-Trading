@@ -1,5 +1,5 @@
 import { WebSocketServer,type WebSocket } from "ws";
-import { ClientMessageSchema,tradeViewFrom,type Timeframe,type ServerMessage } from "@asm/contracts";
+import { ClientMessageSchema,tradeViewFrom,type Timeframe,type ServerMessage,type TradeView } from "@asm/contracts";
 import { prisma } from "@asm/db";
 import { MULTI_MARKETS } from "@asm/market-sim";
 import type { OtcRuntime } from "./runtime";
@@ -18,7 +18,7 @@ export class OtcWebSocketServer {
   private counts:{at:number;value:Promise<Record<string,number>>}|null=null;
   metrics(){return {connected:this.clients.size,authenticated:[...this.clients].filter(c=>c.userId).length,bytesSent:this.bytes,messagesSent:this.messages,slowClientCloses:this.slowCloses,snapshotCacheEntries:this.cache.size};}
   readonly ready:Promise<void>;
-  constructor(private runtime:OtcRuntime,port:number,private authenticate:(ticket:string)=>Promise<string|null>){
+  constructor(private runtime:OtcRuntime,port:number,private authenticate:(ticket:string)=>Promise<string|null>,private onSettlement?:(userId:string,trade:TradeView)=>void){
     this.server=new WebSocketServer({port,maxPayload:16384});
     this.ready=new Promise((resolve,reject)=>{this.server.once("listening",resolve);this.server.once("error",reject);});
     this.server.on("connection",socket=>this.connect(socket));
@@ -26,6 +26,7 @@ export class OtcWebSocketServer {
     this.budget=setInterval(()=>{for(const c of this.clients)c.budget=60;},10000);
     runtime.setNotifier((tradeId,actorId)=>this.notify(tradeId,actorId));
   }
+  isUserOnline(userId:string){return [...this.clients].some(c=>c.userId===userId&&c.socket.readyState===c.socket.OPEN);}
   port(){return (this.server.address() as {port:number}).port;}
   private send(c:Client,message:ServerMessage){
     if(c.socket.readyState!==c.socket.OPEN)return;
@@ -92,6 +93,7 @@ export class OtcWebSocketServer {
   private async notify(tradeId:string,actorId:string){
     const row=await prisma.trade.findUniqueOrThrow({where:{id:tradeId},include:{asset:{select:{symbol:true}},account:true}});
     const trade=tradeViewFrom(row,row.asset.symbol);
+    if(trade.status!=="OPEN")this.onSettlement?.(actorId,trade);
     for(const c of this.clients)if(c.userId===actorId){this.send(c,{type:trade.status==="OPEN"?"trade:opened":"trade:settled",trade});
       this.send(c,{type:"balance:update",accountId:row.accountId,realBalance:row.account.realBalance,bonusBalance:row.account.bonusBalance});}
   }

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { noStoreJson, rateLimited } from "@/lib/request-session";
 import { LoginSchema } from "@asm/contracts";
 import { findUserByEmail, updateUserLastSeen } from "@asm/db";
 import { childLogger } from "@asm/logger";
@@ -9,6 +10,7 @@ import {
   SESSION_COOKIE_OPTIONS,
   createSession,
 } from "@/lib/session";
+import { deviceNameFrom, isAppRequest } from "@/lib/app-client";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
 
@@ -33,10 +35,7 @@ export async function POST(req: NextRequest) {
   const okAccount = await checkRateLimit(`rl:login:acct:${email}`, 5, 300);
   if (!okIp || !okAccount) {
     log.warn({ evt: "security.rate_limited", route: "login" }, "login throttled");
-    return NextResponse.json(
-      { error: "Too many attempts. Wait five minutes and try again." },
-      { status: 429 },
-    );
+    return rateLimited("Too many attempts. Wait five minutes and try again.");
   }
 
   const user = await findUserByEmail(email);
@@ -69,9 +68,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: GENERIC }, { status: 401 });
   }
 
+  const app = isAppRequest(req.headers);
   const token = await createSession(user.id, {
     ip: ctx.ip,
     userAgent: ctx.userAgent,
+    client: app ? "APP" : "WEB",
+    deviceName: app ? deviceNameFrom(req.headers) : null,
   });
   // Refresh the forensic trail. Best-effort: a failure here must not block
   // the sign-in — the session cookie is what actually gates access.
@@ -83,6 +85,8 @@ export async function POST(req: NextRequest) {
     /* logged elsewhere via the db client's own error path */
   });
   log.info({ evt: "auth.login", userId: user.id }, "login succeeded");
+
+  if (app) return noStoreJson({ token, userId: user.id }, { status: 200 });
 
   const response = NextResponse.json({ userId: user.id }, { status: 200 });
   response.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);

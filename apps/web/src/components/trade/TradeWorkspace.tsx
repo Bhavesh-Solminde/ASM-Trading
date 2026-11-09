@@ -19,8 +19,7 @@ import {
 } from "@/components/shell/PlatformProvider";
 import { changePct, tickDirection } from "@/components/shell/quotes";
 import { splitAssetName } from "@/lib/asset-name";
-import { formatMinor } from "@/lib/format-money";
-import { clockTime } from "@/lib/format-time";
+import { formatMinor, clockTime } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useCfdMarketStatus } from "@/lib/use-cfd-market-status";
 import { useMarketClosed } from "@/lib/use-now";
