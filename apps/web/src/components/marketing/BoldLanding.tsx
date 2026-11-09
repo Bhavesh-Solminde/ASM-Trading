@@ -71,6 +71,51 @@ export function BoldLanding() {
               </Link>
             </div>
 
+            <div className="mt-8 max-w-lg border-t border-rule pt-5">
+              <h2 className="text-base font-bold">You can also download our app now</h2>
+              <p className="mt-1 text-sm text-ink-2">Android app, or save the website on your iPhone.</p>
+              <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] items-start gap-3">
+                <div>
+                  <a
+                    href="/download/app"
+                    className="flex min-h-16 items-center gap-3 rounded-xl border border-brand/50 bg-brand/10 px-4 py-3 transition-colors hover:border-brand hover:bg-brand/20"
+                  >
+                    <svg aria-hidden="true" className="size-6 shrink-0 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
+                    </svg>
+                    <span>
+                      <span className="block text-xs text-ink-2">Android</span>
+                      <span className="block text-sm font-bold">Download app · APK</span>
+                    </span>
+                  </a>
+                  <a href="/download/app?help=1" className="mt-2 inline-block text-xs text-ink-2 underline underline-offset-4 hover:text-ink">
+                    How to install on Android
+                  </a>
+                </div>
+                <details className="group rounded-xl border border-rule bg-panel/70 open:border-brand/50">
+                  <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 rounded-xl px-4 py-3 hover:bg-tile [&::-webkit-details-marker]:hidden">
+                    <svg aria-hidden="true" className="size-6 shrink-0 text-ink-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="5" y="2" width="14" height="20" rx="3" />
+                      <path d="M10 18h4" />
+                    </svg>
+                    <span className="flex-1">
+                      <span className="block text-xs text-ink-2">iPhone · iOS</span>
+                      <span className="block text-sm font-bold">Save to Home Screen</span>
+                    </span>
+                    <span aria-hidden="true" className="text-lg text-ink-2 group-open:rotate-45">+</span>
+                  </summary>
+                  <div className="border-t border-rule px-4 pb-4 pt-3 text-sm leading-relaxed text-ink-2">
+                    <ol className="ml-4 list-decimal space-y-2">
+                      <li>Open indianxtrade.com in <strong className="text-ink">Safari</strong> on your iPhone.</li>
+                      <li>Tap <strong className="text-ink">Share</strong> (you may need to tap the menu first).</li>
+                      <li>Choose <strong className="text-ink">Add to Home Screen</strong>. If you see <strong className="text-ink">Open as Web App</strong>, turn it on, then tap <strong className="text-ink">Add</strong>.</li>
+                    </ol>
+                    <p className="mt-3 text-xs">This saves the website to your Home Screen. No App Store download needed.</p>
+                  </div>
+                </details>
+              </div>
+            </div>
+
             <div className="mt-8 flex flex-wrap items-center gap-2">
               {[
                 ["100x", "leverage"],
