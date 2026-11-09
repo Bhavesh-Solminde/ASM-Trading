@@ -6,8 +6,6 @@
 .entry:hover { background:#e9bd720d; }
 .entry svg { height:24px; width:24px; flex:none; }
 .entry:focus-visible { outline:2px solid var(--color-brand); outline-offset:3px; }
-.hero { position:relative; width:fit-content; margin:0 0 12px -10px; }
-.hero::before { content:""; position:absolute; pointer-events:none; width:240px; height:160px; top:-70px; left:-90px; background:radial-gradient(ellipse,#e9bd7210,transparent 68%); }
 .wish { display:flex; align-items:center; gap:10px; color:#d4b47f; margin:0 0 28px; font-size:13px; }
 .wish svg { width:24px; height:24px; }
 .fireworks { position:absolute; inset:0; pointer-events:none; }

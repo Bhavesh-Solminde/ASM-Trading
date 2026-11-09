@@ -98,10 +98,6 @@ export function DiwaliEntry({ compact = false, iconOnly = false }: { compact?: b
   const { active, open } = useContext(Festival);
   return active ? <button type="button" onClick={open} className={styles.entry} aria-label="Play Diwali greeting" aria-haspopup="dialog"><DiyaIcon />{iconOnly ? null : <span>{compact ? "Happy Diwali" : "Diwali greeting"}</span>}</button> : null;
 }
-export function DiwaliHero() {
-  const { active } = useContext(Festival);
-  return active ? <div className={styles.hero}><DiwaliEntry compact /></div> : null;
-}
 export function DiwaliWish() {
   const { active } = useContext(Festival);
   return active ? <p className={styles.wish}><DiyaIcon />Wishing you a joyful festival of lights.</p> : null;
