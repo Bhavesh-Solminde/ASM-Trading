@@ -10,6 +10,7 @@ import { tradeLabel } from "./trade-label";
 import { useProtection, protectionFor } from "./protection-store";
 import { EMPTY_PROTECTION } from "./otc-protection";
 import { View } from "react-native";
+import { PriceReadout } from "./PriceReadout";
 import { useNow } from "./useNow";
 
 /** One shared empty list: a fresh `[]` per render would defeat the history commit's change check. */
@@ -76,6 +77,7 @@ export function TradeChart({
   return (
     <View style={{ flex: 1 }}><Chart
       key={`${symbol}:${timeframe}`}
+      priceReadout={<PriceReadout symbol={symbol} precision={precision} />}
       timeframe={timeframe}
       type={type}
       protection={protection}

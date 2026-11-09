@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { ExpoConfig } from "expo/config";
 
 const variant = process.env.APP_VARIANT === "direct" ? "direct" : "play";
-const version = "0.1.2";
+const version = "0.1.3";
 /**
  * A production build must talk https/wss only (cleartext traffic is off in the Android manifest, so a plain
  * http/ws URL would fail silently on every request). Development builds (Metro, the dev client) may point at a
@@ -43,7 +43,7 @@ const config: ExpoConfig = {
   icon: "./assets/icon.png",
   android: {
     package: variant === "direct" ? "com.indianxtrade.app.direct" : "com.indianxtrade.app",
-    versionCode: 3,
+    versionCode: 4,
     ...(process.env.GOOGLE_SERVICES_JSON ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON } : {}),
     // The MMKV caches (resume snapshot with balances and trades, prefs) must not be copied into a cloud backup.
     allowBackup: false,

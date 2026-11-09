@@ -9,7 +9,7 @@ import {
   Skia,
   vec,
 } from "@shopify/react-native-skia";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, View, type LayoutChangeEvent } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
@@ -41,6 +41,7 @@ export type ChartTrade = TradeView;
 const DEFAULT_LABEL = (tr: ChartTrade, nowSec: number) => shortCountdown(Math.max(0, tr.expiryTs - nowSec));
 
 export interface ChartProps {
+  priceReadout?: ReactNode;
   timeframe?: Timeframe;
   protection?: Protection;
   onProtectionPrice?: (side: "stopLoss" | "takeProfit", price: number) => void;
@@ -234,7 +235,7 @@ export function Chart(props: ChartProps) {
   return (
     <View style={{ flex: 1 }}>
       <View style={{ minHeight: 44, flexDirection: "row", alignItems: "center", paddingHorizontal: 12, gap: 8 }}>
-        <View style={{ flex: 1 }}><FigText testID="displayed-price" text={priceText || "—"} size={18} weight={600} />
+        <View style={{ flex: 1 }}>{props.priceReadout ?? <FigText testID="displayed-price" text={priceText || "—"} size={18} weight={600} />}
           {soonest ? <Txt size={11} color={color.ink2}>{labelFor(soonest, nowSec)}</Txt> : null}
         </View>
       <View style={{ flexDirection: "row", gap: 4 }}>
