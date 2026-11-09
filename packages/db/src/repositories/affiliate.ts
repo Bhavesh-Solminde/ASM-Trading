@@ -1,5 +1,6 @@
-import { prisma } from "../client";
+import { prisma, type DbClient } from "../client";
 import type { Account, User } from "../models";
+import { convertMinorBetween } from "./account";
 
 /**
  * Daily play float for an affiliate account, in paise. ₹10,000 — set via
@@ -246,29 +247,33 @@ export async function deleteAffiliateById(userId: string): Promise<void> {
 export async function resetAffiliateAccountFloat(input: {
   accountId: string;
   nowIstDate: string;
-}): Promise<boolean> {
-  return prisma.$transaction(async (tx) => {
+}, client: DbClient = prisma): Promise<boolean> {
+  return client.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Account" WHERE "id" = ${input.accountId} FOR NO KEY UPDATE`;
     const account = await tx.account.findUnique({
       where: { id: input.accountId },
       select: {
         id: true,
         realBalance: true,
         bonusBalance: true,
+        currency: true,
+        user: { select: { role: true } },
         lastAffiliateResetAt: true,
       },
     });
-    if (!account) return false;
+    if (!account || account.user.role !== "AFFILIATE") return false;
     if (
       account.lastAffiliateResetAt !== null &&
       istDateOf(account.lastAffiliateResetAt) === input.nowIstDate
     ) {
       return false;
     }
-    const delta = AFFILIATE_DAILY_FLOAT_MINOR - account.realBalance;
+    const target = convertMinorBetween(AFFILIATE_DAILY_FLOAT_MINOR, AFFILIATE_CURRENCY, account.currency);
+    const delta = target - account.realBalance - account.bonusBalance;
     await tx.account.update({
       where: { id: account.id },
       data: {
-        realBalance: AFFILIATE_DAILY_FLOAT_MINOR,
+        realBalance: target,
         bonusBalance: 0,
         lastAffiliateResetAt: new Date(),
         version: { increment: 1 },
@@ -279,7 +284,7 @@ export async function resetAffiliateAccountFloat(input: {
         accountId: account.id,
         kind: "AFFILIATE_RESET",
         amount: delta,
-        balanceAfter: AFFILIATE_DAILY_FLOAT_MINOR,
+        balanceAfter: target,
         refType: "DailyReset",
         refId: account.id,
       },
@@ -294,8 +299,8 @@ export async function resetAffiliateAccountFloat(input: {
  *  check inside that function closes the race with a concurrent restart. */
 export async function listAffiliateAccountsNeedingReset(input: {
   nowIstDate: string;
-}): Promise<string[]> {
-  const rows = await prisma.account.findMany({
+}, client: DbClient = prisma): Promise<string[]> {
+  const rows = await client.account.findMany({
     where: {
       user: { role: "AFFILIATE" },
     },

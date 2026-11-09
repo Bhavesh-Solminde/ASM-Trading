@@ -1,6 +1,7 @@
 import { marketReferenceRepository,prisma,type DbClient } from "@asm/db";
 import { ReferencePoller,fetchReferenceJson,type ReferenceTransport } from "@asm/market-sim";
 import { OtcRuntime } from "./runtime";
+import { startAffiliateResetRunner } from "../affiliate-reset";
 
 /** Long-lived market process: clock and provider requests continue with no viewers. */
 export async function startOtcService(options:{client?:DbClient;databaseUrl?:string;transport?:ReferenceTransport;onFatal:(error:unknown)=>void;timers?:boolean}){
@@ -41,6 +42,7 @@ export async function startOtcService(options:{client?:DbClient;databaseUrl?:str
     }}catch(error){fatal(error);}})();
     try{await pollTask;}finally{pollTask=null;}
   }
+  const affiliateReset=options.timers!==false?startAffiliateResetRunner(client):null;
   if(options.timers!==false){
     timers.push(setInterval(()=>{if(stopping||advancing)return;advancing=true;void runtime.advance().catch(fatal).finally(()=>{advancing=false;});},1000));
     timers.push(setInterval(()=>{void poll();},15000));
@@ -48,6 +50,6 @@ export async function startOtcService(options:{client?:DbClient;databaseUrl?:str
     for(const timer of timers)timer.unref();void poll();
   }
   return {runtime,poller,poll,
-    async stop(){stopping=true;for(const timer of timers)clearInterval(timer);await pollTask;await runtime.stop();},
+    async stop(){stopping=true;for(const timer of timers)clearInterval(timer);await pollTask;await affiliateReset?.stop();await runtime.stop();},
   };
 }

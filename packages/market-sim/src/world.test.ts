@@ -22,6 +22,31 @@ it("opening DEMO positions does not alter any market path",()=>{
   expect(world.checkpoint().markets).toEqual(baseline.checkpoint().markets);
   expect(world.contracts.pendingSettlements()).toHaveLength(10);
 });
+it.each(["LIVE", "DEMO"] as const)("AFFILIATE %s contracts preserve every book and future bot path", accountType => {
+  const world = new MarketWorld(start);
+  const baseline = MarketWorld.restore(world.checkpoint());
+  for (let i = 0; i < 20; i++) {
+    const symbol = i % 2 ? "EURUSD" : "BTCUSDT";
+    const displayedPrice = world.snapshot(symbol).market.lastPrice!;
+    const opened = world.open({
+      ...trade, id: `affiliate-${i}`, role: "AFFILIATE", accountType, symbol,
+      direction: i % 3 ? "UP" : "DOWN", displayedPrice,
+    });
+    expect(opened.flowLots).toBe(0);
+    expect(opened.filledLots).toBe(0);
+    expect(opened.contract.entryPrice).toBe(displayedPrice);
+  }
+  const resumed = MarketWorld.restore(JSON.parse(JSON.stringify(world.checkpoint())));
+  for (const time of [start + 30_000, start + 60_000, start + 600_000]) {
+    world.advance(time);
+    resumed.advance(time);
+    baseline.advance(time);
+    expect(world.checkpoint().markets).toEqual(baseline.checkpoint().markets);
+    expect(resumed.checkpoint()).toEqual(world.checkpoint());
+    expect(world.leaderboard()).toEqual(baseline.leaderboard());
+  }
+  expect(world.contracts.pendingSettlements()).toHaveLength(20);
+});
 it("rejects duplicate trade identity before executing another order",()=>{
   const world=new MarketWorld(start);world.open(trade);const before=world.checkpoint();
   expect(()=>world.open(trade)).toThrow("Duplicate");expect(world.checkpoint()).toEqual(before);
