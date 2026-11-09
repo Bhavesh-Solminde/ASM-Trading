@@ -12,8 +12,8 @@ export const metadata = buildMetadata({
 
 const steps = [
   {
-    title: "Download the APK",
-    body: "On your Android phone, tap Download for Android. Open the APK from your browser’s downloads when it’s ready.",
+    title: "Download the app",
+    body: "On your Android phone, tap Download for Android. Open the downloaded file from your browser when it’s ready.",
   },
   {
     title: "Allow the install if prompted",
@@ -52,7 +52,7 @@ export default async function AndroidInstallPage() {
             Install IndianxTrade on Android
           </h1>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink-2 sm:text-base">
-            Get the APK from IndianxTrade and follow the three steps to install it on your phone.
+            Download the app from IndianxTrade and follow the three steps to install it on your phone.
           </p>
           {download ? (
             <div className="mt-6 flex flex-col items-start gap-3">
