@@ -1,20 +1,13 @@
+import { randomUUID } from "node:crypto";
 import Link from "next/link";
-import { listAffiliates } from "@asm/db";
+import { formatMoney, listAffiliates } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { Avatar, EmptyRow, Notice, PageHead } from "../../_components/ui";
 import { Icon } from "../../_lib/icons";
-import { fmtDate, inrFromMinor } from "../../_lib/format";
-import { deleteAffiliateAction, resetAffiliatePasswordAction } from "./actions";
+import { fmtDate } from "../../_lib/format";
+import { deleteAffiliateAction, resetAffiliatePasswordAction, setAffiliateBalanceAction } from "./actions";
 
 export const dynamic = "force-dynamic";
-
-function lastReset(d: Date | null): string {
-  if (!d) return "—";
-  const sameDay = new Date().toDateString() === d.toDateString();
-  return sameDay
-    ? `Today, ${d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false })}`
-    : fmtDate(d);
-}
 
 export default async function AffiliatesPage({
   searchParams,
@@ -29,7 +22,7 @@ export default async function AffiliatesPage({
     <>
       <PageHead
         title="Affiliates"
-        desc="Streamer accounts. Each starts the day with ₹10,000 live and ₹10,000 demo, reset at 00:00 IST. Their deposits and withdrawals never move real money."
+        desc="Streamer accounts. Each starts once with ₹10,000 live and ₹10,000 demo. Set either balance here; there are no daily resets. Their deposits and withdrawals never move real money."
         actions={
           <Link href="/admin/affiliates/new" className="admin-btn admin-btn--primary">
             <Icon name="plus" size={16} />
@@ -40,6 +33,7 @@ export default async function AffiliatesPage({
 
       {sp.reset === "1" ? <Notice tone="pos">Password updated. The affiliate can sign in with it now.</Notice> : null}
       {sp.created === "1" ? <Notice tone="pos">Affiliate created. Share the email and password with them.</Notice> : null}
+      {sp.balance === "1" ? <Notice tone="pos">Balance updated.</Notice> : null}
       {sp.error ? <Notice tone="neg">{sp.error}</Notice> : null}
 
       <section className="admin-card">
@@ -50,7 +44,6 @@ export default async function AffiliatesPage({
                 <th>Account</th>
                 <th className="admin-num-right">Live</th>
                 <th className="admin-num-right">Demo</th>
-                <th>Last reset</th>
                 <th>Created</th>
                 <th className="admin-num-right">
                   <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>Actions</span>
@@ -59,10 +52,14 @@ export default async function AffiliatesPage({
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <EmptyRow cols={6} message="No affiliates yet. Use New affiliate to add one." />
+                <EmptyRow cols={5} message="No affiliates yet. Use New affiliate to add one." />
               ) : (
                 rows.map((row) => {
                   const name = row.nickname || row.email.split("@")[0] || row.email;
+                  const balance = (type: "LIVE" | "DEMO") => {
+                    const account = row.accounts.find(a => a.type === type);
+                    return account ? formatMoney(account.realBalance + account.bonusBalance, account.currency) : "—";
+                  };
                   return (
                     <tr key={row.id}>
                       <td>
@@ -74,14 +71,33 @@ export default async function AffiliatesPage({
                           </div>
                         </div>
                       </td>
-                      <td className="admin-num-right admin-amount">{inrFromMinor(row.liveBalance)}</td>
+                      <td className="admin-num-right admin-amount">{balance("LIVE")}</td>
                       <td className="admin-num-right" style={{ color: "var(--admin-muted)" }}>
-                        {inrFromMinor(row.demoBalance)}
+                        {balance("DEMO")}
                       </td>
-                      <td className="admin-age">{lastReset(row.lastResetAt)}</td>
                       <td className="admin-age">{fmtDate(row.createdAt)}</td>
                       <td>
                         <div className="admin-row-actions">
+                          <details className="admin-reject admin-affiliate-balance">
+                            <summary className="admin-btn admin-btn--sm admin-btn--ghost">Set balance</summary>
+                            <div className="admin-reject__panel">
+                              <span className="admin-cell-sub">Available funds for {name}. Open trades continue to settle normally.</span>
+                              {row.accounts.map(account => (
+                                <form key={account.id} action={setAffiliateBalanceAction} style={{ display: "grid", gap: 8 }}>
+                                  <input type="hidden" name="accountId" value={account.id} />
+                                  <input type="hidden" name="currency" value={account.currency} />
+                                  <input type="hidden" name="requestId" value={randomUUID()} />
+                                  <label className="admin-label" htmlFor={`balance-${account.id}`}>
+                                    {account.type} balance ({account.currency})
+                                  </label>
+                                  <input id={`balance-${account.id}`} type="number" name="amount" inputMode="decimal"
+                                    min="0" step="0.01" required className="admin-input mono"
+                                    defaultValue={((account.realBalance + account.bonusBalance) / 100).toFixed(2)} />
+                                  <button type="submit" className="admin-btn admin-btn--sm admin-btn--primary">Save {account.type.toLowerCase()} balance</button>
+                                </form>
+                              ))}
+                            </div>
+                          </details>
                           <details className="admin-reject">
                             <summary className="admin-btn admin-btn--sm admin-btn--ghost">Reset password</summary>
                             <form action={resetAffiliatePasswordAction} className="admin-reject__panel">

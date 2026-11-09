@@ -2,8 +2,6 @@ import { afterEach, expect, it, vi } from "vitest";
 vi.mock("@asm/db", () => ({
   prisma: { candle: { upsert: vi.fn(async () => {}) } },
   autoPromoteHeldWithdrawals: async () => 0,
-  istDateOf: () => "2026-10-24", listAffiliateAccountsNeedingReset: async () => [],
-  resetAffiliateAccountFloat: vi.fn(),
 }));
 vi.mock("@asm/logger", () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.resetModules(); });

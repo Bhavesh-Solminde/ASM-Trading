@@ -635,8 +635,8 @@ export async function creditDepositToAccount(input: {
   });
   if (!deposit) throw new DepositNotFound();
 
-  // Defense in depth: an affiliate account's LIVE balance is a daily float
-  // governed by the engine's reset tick — never credited by deposits. The
+  // Defense in depth: an affiliate account's LIVE balance is admin-controlled paper funds
+  // and is never credited by deposits. The
   // matchers (findLiveDepositByAmount, findLiveDepositByClaimedUtr) already
   // exclude affiliate rows, and the admin deposits page hides them from the
   // review queues; this guard turns any residual path into a loud failure

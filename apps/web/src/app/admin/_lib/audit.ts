@@ -37,6 +37,7 @@ const WORDS: Record<string, string> = {
   "fraudFlag.dismissed": "Dismissed a fraud flag",
   "affiliate.created": "Created an affiliate",
   "affiliate.deleted": "Deleted an affiliate",
+  "affiliate.balance_set": "Set an affiliate account balance",
   "affiliate.password_reset": "Reset an affiliate's password",
   "auth.password_reset": "Reset a user's password",
 };

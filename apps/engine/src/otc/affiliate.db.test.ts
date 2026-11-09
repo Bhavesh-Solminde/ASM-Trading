@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
-  AFFILIATE_DAILY_FLOAT_MINOR, createAffiliate, istDateOf, prisma,
-  resetAffiliateAccountFloat,
+  AFFILIATE_START_BALANCE_MINOR, createAffiliate, prisma,
+  setAffiliateAccountBalance,
 } from "@asm/db";
 import { MarketWorld } from "@asm/market-sim";
 import { OtcRuntime } from "./runtime";
 import { seedTestReferences } from "./fixtures";
-import { resetAffiliateFloats } from "../affiliate-reset";
 
 const enabled = Boolean(process.env.OTC_TEST_DATABASE_URL);
 const users: string[] = [];
@@ -22,8 +21,10 @@ describe.skipIf(!enabled)("affiliate accounts on the OTC engine", () => {
     }
   });
   afterEach(async () => {
+    vi.restoreAllMocks();
     await runtime?.stop(false);
     runtime = null;
+    await prisma.marketReference.deleteMany({ where: { source: "Isolated test fixture (not a fetched market quote)" } });
     await prisma.marketCommand.deleteMany({ where: { worldId: "otc-main" } });
     await prisma.marketExecution.deleteMany({ where: { worldId: "otc-main" } });
     await prisma.otcCandle.deleteMany({ where: { worldId: "otc-main" } });
@@ -32,6 +33,8 @@ describe.skipIf(!enabled)("affiliate accounts on the OTC engine", () => {
   });
 
   it("opens, replays and settles both affiliate accounts without changing any of the 30 markets", async () => {
+    // Cross IST midnight while contracts are open; there must be no daily reseeding.
+    vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-10T18:29:59Z"));
     await seedTestReferences(prisma);
     await prisma.asset.upsert({
       where: { symbol: "BTCUSDT" },
@@ -47,9 +50,9 @@ describe.skipIf(!enabled)("affiliate accounts on the OTC engine", () => {
     const baseline = MarketWorld.restore(before);
     const requests = [];
     const trades = [];
-    const today = istDateOf(new Date());
+    const changes = new Map<string, { accountId: string; currency: string; balanceMinor: number; requestId: string }>();
     for (const account of affiliate.accounts) {
-      expect(account.realBalance).toBe(AFFILIATE_DAILY_FLOAT_MINOR);
+      expect(account.realBalance).toBe(AFFILIATE_START_BALANCE_MINOR);
       for (const direction of ["UP", "DOWN"] as const) {
         const quote = (await runtime.snapshot("BTCUSDT")).displayQuote!;
         const request = {
@@ -63,9 +66,11 @@ describe.skipIf(!enabled)("affiliate accounts on the OTC engine", () => {
         expect(trade).toMatchObject({ mode: "OTC_FIXED", entryPrice: quote.price, flowLots: 0, filledLots: 0, payoutPct: 92 });
         expect((await runtime.open(request)).id).toBe(trade.id);
       }
-      await prisma.account.update({ where: { id: account.id }, data: { lastAffiliateResetAt: new Date(Date.now() - 86_400_000) } });
-      const resets = await Promise.all([1, 2].map(() => resetAffiliateAccountFloat({ accountId: account.id, nowIstDate: today })));
-      expect(resets.filter(Boolean)).toHaveLength(1);
+      const change = { accountId: account.id, currency: "INR", balanceMinor: 2_500_000, requestId: randomUUID() };
+      changes.set(account.id, change);
+      await Promise.all([1, 2].map(() => setAffiliateAccountBalance(change)));
+      expect(await prisma.transaction.count({ where: { accountId: account.id, refType: "AffiliateBalanceSet" } })).toBe(1);
+      expect(await prisma.auditLog.count({ where: { targetId: account.id, action: "affiliate.balance_set" } })).toBe(1);
     }
     expect(await runtime.openTobs()).toEqual({});
     const opened = await runtime.checkpoint();
@@ -89,27 +94,40 @@ describe.skipIf(!enabled)("affiliate accounts on the OTC engine", () => {
       const own = settled.filter(trade => trade.accountId === account.id);
       const credit = own.reduce((sum, trade) => sum + trade.stake + trade.pnl, 0);
       expect((await prisma.account.findUniqueOrThrow({ where: { id: account.id } })).realBalance)
-        .toBe(AFFILIATE_DAILY_FLOAT_MINOR + credit);
+        .toBe(2_500_000 + credit);
+      await setAffiliateAccountBalance(changes.get(account.id)!);
+      expect((await prisma.account.findUniqueOrThrow({ where: { id: account.id } })).realBalance)
+        .toBe(2_500_000 + credit);
       expect(await prisma.transaction.count({ where: { accountId: account.id, kind: "TRADE_STAKE" } })).toBe(2);
     }
   }, 30_000);
 
-  it("resets the currency-equivalent float once and refuses non-affiliate accounts", async () => {
-    const affiliate = await createAffiliate({ email: `reset-${randomUUID()}@test.invalid`, passwordHash: "test-only" });
+  it("sets exact currency-aware balances including zero, records the delta and refuses invalid or stale updates", async () => {
+    const affiliate = await createAffiliate({ email: `balance-${randomUUID()}@test.invalid`, passwordHash: "test-only" });
     users.push(affiliate.user.id);
     const account = affiliate.accounts[0]!;
     await prisma.account.update({ where: { id: account.id }, data: {
-      currency: "USD", realBalance: 500, bonusBalance: 200, lastAffiliateResetAt: new Date(Date.now() - 86_400_000),
+      currency: "USD", realBalance: 500, bonusBalance: 200,
     } });
-    await resetAffiliateFloats(prisma);
+    const change = { accountId: account.id, currency: "USD", balanceMinor: 12345, requestId: randomUUID() };
+    await setAffiliateAccountBalance(change);
     const balance = await prisma.account.findUniqueOrThrow({ where: { id: account.id } });
-    expect(balance).toMatchObject({ realBalance: 10_000, bonusBalance: 0, currency: "USD" });
-    const ledger = await prisma.transaction.findMany({ where: { accountId: account.id, refType: "DailyReset" } });
+    expect(balance).toMatchObject({ realBalance: 12345, bonusBalance: 0, currency: "USD" });
+    const ledger = await prisma.transaction.findMany({ where: { accountId: account.id, refType: "AffiliateBalanceSet" } });
     expect(ledger).toHaveLength(1);
-    expect(ledger[0]).toMatchObject({ amount: 9300, balanceAfter: 10_000 });
-    expect(await resetAffiliateAccountFloat({ accountId: account.id, nowIstDate: istDateOf(new Date()) })).toBe(false);
+    expect(ledger[0]).toMatchObject({ amount: 11645, balanceAfter: 12345 });
+    await setAffiliateAccountBalance(change);
+    await expect(setAffiliateAccountBalance({ ...change, balanceMinor: 1 })).rejects.toThrow("already been used");
+    await expect(setAffiliateAccountBalance({ ...change, requestId: randomUUID(), currency: "INR" })).rejects.toThrow("currency changed");
+    for (const balanceMinor of [-1, 1.1, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+      await expect(setAffiliateAccountBalance({ ...change, requestId: randomUUID(), balanceMinor })).rejects.toThrow("valid balance");
+    }
+    await setAffiliateAccountBalance({ ...change, requestId: randomUUID(), balanceMinor: 0 });
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: account.id } })).realBalance).toBe(0);
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: affiliate.accounts[1]!.id } })).realBalance)
+      .toBe(AFFILIATE_START_BALANCE_MINOR);
     await prisma.user.update({ where: { id: affiliate.user.id }, data: { role: "USER" } });
-    expect(await resetAffiliateAccountFloat({ accountId: account.id, nowIstDate: "2000-01-01" })).toBe(false);
-    expect((await prisma.account.findUniqueOrThrow({ where: { id: account.id } })).realBalance).toBe(10_000);
+    await expect(setAffiliateAccountBalance({ ...change, requestId: randomUUID() })).rejects.toThrow("not found");
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: account.id } })).realBalance).toBe(0);
   });
 });
