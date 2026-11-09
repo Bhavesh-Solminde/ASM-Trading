@@ -72,7 +72,8 @@ export const nearLeftEdge = (vp: Viewport, _total: number, threshold = 20) =>
   vp.rightIndex - vp.visibleCount <= threshold;
 
 export type DragAxis = "pan" | "zoom";
-export function dragAxis(dx: number, dy: number): DragAxis {
+export function dragAxis(dx: number, dy: number): DragAxis | null {
+  if (Math.hypot(dx, dy) < 8) return null;
   return Math.abs(dy) > Math.abs(dx) * 1.2 ? "zoom" : "pan";
 }
 /** Vertical swipes zoom around the gesture's start. */

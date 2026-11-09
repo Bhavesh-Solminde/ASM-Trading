@@ -51,6 +51,7 @@ export function useChartGestures(opts: ChartGestureOpts) {
       .onUpdate((e) => {
         const { total, setViewport } = latest.current;
         drag.current.axis ??= dragAxis(e.translationX, e.translationY);
+        if (!drag.current.axis) return;
         setViewport(dragViewport(startNow(), e.translationX, e.translationY, drag.current.focusX, total, drag.current.axis));
       });
 

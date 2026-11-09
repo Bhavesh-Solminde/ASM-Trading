@@ -112,6 +112,8 @@ describe("scale", () => {
 });
 
 it("zooms on vertical swipes and pans on horizontal drags", () => {
+  expect(dragAxis(0, 0)).toBeNull();
+  expect(dragAxis(1, -2)).toBeNull();
   expect(dragAxis(100, 5)).toBe("pan");
   expect(dragAxis(2, -100)).toBe("zoom");
   expect(dragViewport(vp, 60, 5, 150, 100, "pan").rightIndex).toBe(90);
