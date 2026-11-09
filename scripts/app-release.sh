@@ -52,10 +52,10 @@ for variant in "${variants[@]}"; do
     pnpm exec expo prebuild --platform android --clean
     ./scripts/apply-signing.sh
     if [[ "$variant" == play ]]; then
-      (cd android && ./gradlew bundleRelease --no-daemon)
+      (cd android && ./gradlew bundleRelease --no-daemon --max-workers=2 '-Dorg.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8')
       cp android/app/build/outputs/bundle/release/app-release.aab "$out/indianxtrade-$version-play.aab"
     else
-      (cd android && ./gradlew assembleRelease --no-daemon)
+      (cd android && ./gradlew assembleRelease --no-daemon --max-workers=2 '-Dorg.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8')
       cp android/app/build/outputs/apk/release/app-release.apk "$out/indianxtrade-$version.apk"
       "${ANDROID_HOME:?}/build-tools/36.0.0/apksigner" verify --print-certs "$out/indianxtrade-$version.apk"
       (cd "$out" && shasum -a 256 "indianxtrade-$version.apk" > "indianxtrade-$version.apk.sha256")

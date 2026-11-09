@@ -44,7 +44,9 @@ Secrets. Back up the keys folder and its password before publishing. The setup
 does not publish an APK or start a release.
 
 Commit the public certificate through a PR. The `publish website Android app`
-workflow can then be dispatched on `main` with version `0.1.1`. It uses
+workflow can then be dispatched on `main` with version `0.1.1` and mode `build`.
+Install and test that signed candidate, then dispatch mode `publish` to activate
+the exact existing bytes without rebuilding them. The workflow uses
 `APP_RELEASE_VARIANT=direct` and requires no Play upload key. If no direct Firebase
 configuration is provided, the website APK supports email login and disables
 Google login; Firebase push delivery is unavailable until configured. Existing
