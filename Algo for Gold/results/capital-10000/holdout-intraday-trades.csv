@@ -1,2 +1,0 @@
-side,quantity,entry_price,entry_timestamp,entry_date,stop,best_close,financing,last_carry_date,exit_timestamp,exit_date,exit_price,reason,net_pnl
--1,1,4171.30009765625,1791914400,2026-10-13,4194.784970207778,4171.60009765625,0.0,2026-10-13,1791921600,2026-10-13,4186.40009765625,session_exit,-15.170000000000364
