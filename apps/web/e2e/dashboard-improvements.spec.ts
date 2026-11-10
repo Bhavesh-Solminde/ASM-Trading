@@ -17,7 +17,11 @@ async function dismissOffer(page:Page){
 }
 test.beforeEach(async({page},info)=>{
  page.on("pageerror",e=>{throw new Error(e.stack);});
- await page.addInitScript(()=>localStorage.setItem("indianxtrade:diwali:2026:seen","1"));
+ await page.addInitScript(()=>{
+  localStorage.setItem("indianxtrade:diwali:2026:seen","1");
+  // This suite tests chart interactions after the iOS install guide has been seen.
+  localStorage.setItem("ixt.pwa.sheetShownAt",String(Date.now()));
+ });
  // These tests exercise an already-dismissed offer except for the dedicated promotion case.
  const accounts=await prisma.account.findMany({where:{user:{email:"dashboard-verify@test.local"}},select:{id:true}});
  if(!info.title.startsWith("deposit offer")) await page.addInitScript(key=>{sessionStorage.setItem(key,"shown");},`asm_deposit_offer:${accounts.map(a=>a.id).sort().join(":")}:1`);
