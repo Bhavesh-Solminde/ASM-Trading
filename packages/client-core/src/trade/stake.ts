@@ -20,11 +20,10 @@ export function nextStakeInput(raw: string, prev: string): string {
   return text;
 }
 
-/** Stake in minor units from the ticket's text field; 0 when empty or not a positive number. */
+/** Convert a positive stake to minor units. Input and order limits are checked by callers. */
 export function stakeToMinor(stakeInput: string): number {
-  if (!/^\d+(\.\d{0,2})?$/.test(stakeInput)) return 0;
   const major = Number(stakeInput);
-  return Number.isFinite(major) && major > 0 && major <= MAX_STAKE_MAJOR ? Math.round(major * 100) : 0;
+  return Number.isFinite(major) && major > 0 ? Math.round(major * 100) : 0;
 }
 
 /** Profit (not including the returned stake) a winning trade pays at `payoutPct`; null when unknown or no stake. */
