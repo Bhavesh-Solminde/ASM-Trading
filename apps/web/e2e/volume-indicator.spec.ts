@@ -17,6 +17,26 @@ async function volumePixels(page: Page) {
   });
 }
 
+async function visibleCandles(page: Page) {
+  return page.locator(".analysis-plot .tv-lightweight-charts canvas").first().evaluate((canvas: HTMLCanvasElement) => {
+    const height = Math.floor(canvas.height * .85);
+    const { data } = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, height);
+    let candles = 0, previous = false;
+    for (let x = 0; x < canvas.width; x++) {
+      let pixels = 0;
+      for (let y = 0; y < height; y++) {
+        const i = (y * canvas.width + x) * 4;
+        if ((data[i] === 8 && data[i + 1] === 153 && data[i + 2] === 129) ||
+            (data[i] === 242 && data[i + 1] === 54 && data[i + 2] === 69)) pixels++;
+      }
+      const present = pixels >= 10;
+      if (present && !previous) candles++;
+      previous = present;
+    }
+    return candles;
+  });
+}
+
 test("Volume can be enabled, restored, and removed without affecting other indicators", async ({ page }, info) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -36,13 +56,21 @@ test("Volume can be enabled, restored, and removed without affecting other indic
         const o = 100 + Math.sin(i / 6), c = o + (i % 2 ? .2 : -.2);
         return { openTs: end - (120 - i) * duration, o, c, h: Math.max(o, c) + .1, l: Math.min(o, c) - .1, volume: 50 + i % 11 * 10 };
       });
-      socket.send(JSON.stringify({ type: "candles:history", symbol: message.symbol, timeframe: message.timeframe, candles }));
+      socket.send(JSON.stringify({ type: "candles:history", symbol: message.symbol, timeframe: message.timeframe, candles, forming: { ...candles.at(-1)!, openTs: end } }));
+      socket.send(JSON.stringify({ type: "tick", symbol: message.symbol, price: candles.at(-1)!.c, ts: end }));
     });
   });
   await page.goto("/trade");
   const offer = page.getByRole("dialog", { name: "Deposit bonus" });
   if (await offer.isVisible()) await offer.getByRole("button", { name: "Close", exact: true }).click();
   const fullscreen = page.getByRole("button", { name: "Fullscreen chart", exact: true });
+  await expect.poll(() => visibleCandles(page)).toBe(8);
+  await page.screenshot({ path: info.outputPath("initial-eight-candles.png") });
+  if (info.project.name.includes("phone")) await fullscreen.click();
+  await page.getByRole("button", { name: "Zoom out chart", exact: true }).click();
+  await expect.poll(() => visibleCandles(page)).toBeGreaterThan(8);
+  await page.reload();
+  await expect.poll(() => visibleCandles(page)).toBe(8);
   if (info.project.name.includes("phone")) await fullscreen.click();
   const menu = page.getByRole("button", { name: /ƒx/ });
   await menu.click();

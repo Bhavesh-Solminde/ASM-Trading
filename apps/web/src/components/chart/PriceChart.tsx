@@ -102,10 +102,8 @@ function toSingleValue(c: CandleDto): LineData {
 }
 
 /**
- * The candle width the chart opens at: a close-in view (~12 candles on a phone)
- * that stays the same apparent size on every screen, so bigger displays show
- * more history rather than fatter candles. This is only the DEFAULT: zoom stays
- * enabled, so the user can pinch/scroll to any spacing from here.
+ * Fallback spacing until history arrives and the latest eight candles are framed.
+ * Users can then pinch or scroll to change the zoom.
  */
 function defaultBarSpacing(): number {
   const w = typeof window === "undefined" ? 1280 : window.innerWidth;
@@ -991,8 +989,11 @@ export function PriceChart({
       const formingValid =
         state.forming && (!last || state.forming.openTs > last.openTs) ? state.forming : null;
       formingBar = formingValid ? toBar(formingValid) : null;
-      // Match the market demo's initial framing without resetting a live pan or zoom.
-      if(appearance==="market"&&state.candles.length&&(!prev?.candles.length||prev.symbol!==state.symbol||prev.timeframe!==state.timeframe))chart.timeScale().fitContent();
+      // Frame the latest eight candles only on initial history or a market/timeframe switch.
+      if(state.candles.length&&(!prev?.candles.length||prev.symbol!==state.symbol||prev.timeframe!==state.timeframe)) {
+        const lastIndex = state.candles.length - 1 + (formingValid ? 1 : 0);
+        chart.timeScale().setVisibleLogicalRange({ from: lastIndex - MIN_VISIBLE_BARS + 1, to: lastIndex + 1 });
+      }
 
       if (state.lastPrice === null) {
         target = null;
