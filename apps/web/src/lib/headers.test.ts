@@ -15,10 +15,10 @@ describe("security headers", () => {
     );
   });
 
-  it("allows Meta Pixel's script and beacon hosts, and no other third party", () => {
+  it("allows Meta Pixel and the Cloudflare analytics script", () => {
     const csp = res.headers.get("Content-Security-Policy") ?? "";
     expect(csp).toContain(
-      "script-src 'self' 'unsafe-inline' https://connect.facebook.net;",
+      "script-src 'self' 'unsafe-inline' https://connect.facebook.net https://static.cloudflareinsights.com;",
     );
     expect(csp).toMatch(/img-src [^;]*https:\/\/www\.facebook\.com/);
     expect(csp).toMatch(/connect-src [^;]*https:\/\/www\.facebook\.com/);

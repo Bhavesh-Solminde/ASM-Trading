@@ -1,10 +1,30 @@
 import { describe, expect, it } from "vitest";
 import type { TradeView } from "@asm/contracts";
-import { bracketChanges, bracketError, bracketFromPnl, bracketPnl, defaultBracketPrice, savedBrackets, snapBracketPrice } from "./bracket-model";
+import { bracketChanges, bracketError, bracketFromPnl, bracketPnl, bracketReturnPercent, defaultBracketPrice, savedBrackets, snapBracketPrice } from "./bracket-model";
 
 const trade: TradeView = { id: "position", accountId: "demo", symbol: "BTCUSDT", direction: "UP", stake: 100000, spreadFee: 50, entryPrice: 80000, entryTs: 0, expiryTs: 300, exitPrice: null, payoutPct: 0, durationSec: 300, status: "OPEN", pnl: 0, stopLoss: 79000, takeProfit: 82000 };
 
 describe("chart bracket drafts", () => {
+  it("uses the leveraged profit calculation and stays consistent across investment amounts", () => {
+    for (const stake of [10000, 20000, 100000]) {
+      const t = { ...trade, stake, entryPrice: 100, leverage: 100 };
+      expect(bracketReturnPercent(t, 100.0555)).toBe("+5.55%");
+      expect(bracketReturnPercent(t, 99.9504)).toBe("−4.96%");
+      expect(bracketReturnPercent(t, 100)).toBe("0.00%");
+    }
+  });
+  it("keeps the existing payout caps and handles missing or tiny results safely", () => {
+    const t = { ...trade, entryPrice: 100, leverage: 100 };
+    expect(bracketReturnPercent(t, 200)).toBe("+200.00%");
+    expect(bracketReturnPercent(t, 1)).toBe("−100.00%");
+    expect(bracketReturnPercent({ ...t, stake: 100000000 }, 99.99999999)).toBe("0.00%");
+    expect(bracketReturnPercent({ ...t, stake: 0 }, 100)).toBe("—");
+  });
+  it("rounds positive and negative half-percent hundredths consistently", () => {
+    const t = { ...trade, entryPrice: 100, stake: 20000, leverage: 1 };
+    expect(bracketReturnPercent(t, 102.775)).toBe("+2.78%");
+    expect(bracketReturnPercent(t, 97.225)).toBe("−2.78%");
+  });
   it("patches only the edited protection, retaining an untouched server bracket", () => {
     const base = savedBrackets(trade);
     expect(bracketChanges(base, { ...base, stopLoss: 79500 })).toEqual({ stopLoss: 79500 });

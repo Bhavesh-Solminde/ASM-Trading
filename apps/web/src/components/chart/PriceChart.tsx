@@ -29,6 +29,7 @@ import {
 import type { CandleDto, TradeView } from "@asm/contracts";
 import type { MarketStore } from "@/components/shell/market-store";
 import { formatMinor, countdown, TIMEFRAME_SEC, type ChartState } from "@asm/client-core";
+import { ChartAnalysis } from "./ChartAnalysis";
 import { ChartBrackets } from "./ChartBrackets";
 import type { ChartType } from "./chart-types";
 import { HlcAreaSeriesView } from "./plugins/hlc-area-series";
@@ -453,7 +454,9 @@ export function PriceChart({
   bracketActionsContainer,
   focusedTradeId, onSelectTrade, onShowAllTrades,
   tickSize,
+  analysisScope,
 }: {
+  analysisScope?: string;
   marketOpen?: boolean;
   market: MarketStore;
   precision: number;
@@ -509,7 +512,7 @@ export function PriceChart({
         // next/font renames the family, so read it from the token rather than by name.
         fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-ui").trim() || "sans-serif",
         fontSize: axisFontSize(),
-        attributionLogo: marketStyle,
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: marketStyle?"#16232c":"rgba(47, 129, 247, 0.07)" },
@@ -927,6 +930,10 @@ export function PriceChart({
       // Closed history is written straight through; the forming bar and the
       // last-price line are handed to the eased paint loop below.
       if (!prev || state.candles !== prev.candles) {
+        // Bulk replacements can move logical indexes beneath an existing hover.
+        if (prev && (state.candles[0]?.openTs !== prev.candles[0]?.openTs || state.candles.length < prev.candles.length)) {
+          chart.clearCrosshairPosition();
+        }
         const sameScope=prev&&prev.symbol===state.symbol&&prev.timeframe===state.timeframe;
         const incremental=prev!==null&&sameScope&&prev.candles.length>0&&state.candles[0]?.openTs===prev.candles[0]?.openTs;
         const viewport=sameScope&&!incremental?chartRef.current?.timeScale().getVisibleLogicalRange():null;
@@ -1081,7 +1088,7 @@ export function PriceChart({
   }, [openTrades, currency, chartVersion, enableBrackets,chartType]);
 
   return (
-    <>
+    <div className="analysis-plot absolute inset-0">
       {/* z-0 gives the chart its own stacking context so lightweight-charts'
           internal z-index:50 canvases stay trapped below the overlay controls
           (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
@@ -1094,6 +1101,9 @@ export function PriceChart({
 
 
 
+      {analysisScope && <ChartAnalysis key={analysisScope} scope={analysisScope} symbol={market.getSnapshot().chart.symbol} market={market} chartRef={chartRef} seriesRef={seriesRef} containerRef={containerRef} chartVersion={chartVersion} precision={precision} />}
+
+      <a className="chart-attribution" href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer" aria-label="Charts by TradingView" title="Charts by TradingView"><img src="/brand/tradingview-chart.svg" width="27" height="15" alt="" /></a>
       {/* Style Switch HUD Pill */}
       {hudLabel && (
         <div
@@ -1115,6 +1125,6 @@ export function PriceChart({
         ref={ohlcRef}
         className={`pointer-events-none absolute bottom-[34px] ${appearance==="market"?"left-14 phone:left-12":"left-2 phone:left-1"} whitespace-pre text-[11px] tracking-[0.02em] text-ink-2 phone:bottom-[24px] phone:text-[9px]`}
       />
-    </>
+    </div>
   );
 }

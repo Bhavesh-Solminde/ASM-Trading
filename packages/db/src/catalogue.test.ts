@@ -4,12 +4,16 @@ import {
   MIN_DISPLAY_STEPS_PER_UPDATE,
   displayStepsPerUpdate,
 } from "@asm/pricing";
+import { TRADABLE_MARKETS } from "../../contracts/src/markets";
 import { MARKETS } from "./catalogue";
 
 const calibrationFor = (symbol: string) =>
   MARKET_CALIBRATIONS.find((c) => c.symbol === symbol);
 
 describe("market catalogue", () => {
+  it("matches the shared 30-market presentation catalogue", () => {
+    expect(MARKETS.map(m=>m.symbol).sort()).toEqual(TRADABLE_MARKETS.map(m=>m.symbol).sort());
+  });
   it("has a volatility calibration for every market", () => {
     // seed.ts throws on a missing calibration, but only once someone runs it
     // against a database. Catch it here instead.

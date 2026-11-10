@@ -1,3 +1,4 @@
+import { MARKET_COUNT } from "@asm/contracts";
 /* ---------------------------------------------------------------------------
  * Canonical site & entity facts — the single source of truth (NAP) for
  * metadata, JSON-LD, the sitemap, and the off-site profile checklist.
@@ -19,7 +20,7 @@ export const SITE_NAME = "IndianxTrade";
 
 /** One-line entity description reused across metadata and Organization JSON-LD. */
 export const SITE_DESCRIPTION =
-  "IndianxTrade is a SEBI-regulated CFD trading platform — trade forex, crypto and India indices with real-time market prices, stop-loss/take-profit controls and up to 100x leverage. Free ₹10,00,000 demo account.";
+  `IndianxTrade — trade ${MARKET_COUNT} forex, crypto, commodity and India index markets with stop-loss/take-profit controls and up to 100x leverage. Free ₹10,00,000 demo account.`;
 
 /** Short tagline for OG images and hero-style metadata. */
 export const SITE_TAGLINE = "CFD trading with real prices. Set your SL/TP.";

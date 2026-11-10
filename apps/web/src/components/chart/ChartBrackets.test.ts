@@ -48,6 +48,14 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("position protection interaction edge cases", () => {
+  it.each(["UP", "DOWN"] as const)("shows TP/SL as a percentage of the investment for %s positions", direction => {
+    const takeProfit = direction === "UP" ? 105.55 : 94.45;
+    const stopLoss = direction === "UP" ? 95.04 : 104.96;
+    render(h(Fixture, { trades: [{ ...trade, direction, stake: 20000, takeProfit, stopLoss }] })); flush();
+    expect(screen.getByRole("button", { name: `TP at ${takeProfit.toFixed(2)}` }).textContent).toBe("+5.55%");
+    expect(screen.getByRole("button", { name: `SL at ${stopLoss.toFixed(2)}` }).textContent).toBe("−4.96%");
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("1. opening and dismissing an untouched editor never creates default SL/TP", () => {
     render(h(Fixture)); flush();
     for (const action of ["Cancel", "Close protection editor", "Escape"]) {
@@ -272,7 +280,7 @@ describe("drag-first protection regression checks", () => {
     fireEvent.pointerMove(handle,{clientY:16,pointerId:1}); flush();
     expect(screen.getByRole("button",{name:"TP at 902.00 outside chart"})).toBeTruthy();
     expect(scale.setVisibleRange).toHaveBeenCalledWith(expect.objectContaining({to:expect.any(Number)}));
-    expect(screen.getByRole("button",{name:"TP at 902.00 outside chart"}).textContent).toContain("₹");
+    expect(screen.getByRole("button",{name:"TP at 902.00 outside chart"}).textContent).toBe("+200.00%");
     fireEvent.pointerCancel(handle,{pointerId:1});
   });
   it("sends only the dragged exit and retains the other trade's saved stops", async () => {
@@ -317,8 +325,8 @@ describe("saved protection across zoom transitions", () => {
     render(h(Fixture,{trades:[saved]})); flush();
     const check = (outside:boolean) => {
       const suffix = outside ? " outside chart" : "";
-      expect(screen.getByRole("button",{name:`TP at ${takeProfit.toFixed(2)}${suffix}`}).textContent).toBe("+₹102.90");
-      expect(screen.getByRole("button",{name:`SL at ${stopLoss.toFixed(2)}${suffix}`}).textContent).toBe("−₹28.28");
+      expect(screen.getByRole("button",{name:`TP at ${takeProfit.toFixed(2)}${suffix}`}).textContent).toBe("+102.90%");
+      expect(screen.getByRole("button",{name:`SL at ${stopLoss.toFixed(2)}${suffix}`}).textContent).toBe("−28.28%");
       expect(lines.some(line => line.options.price === takeProfit)).toBe(true);
       expect(lines.some(line => line.options.price === stopLoss)).toBe(true);
       expect(saved.takeProfit).toBe(takeProfit); expect(saved.stopLoss).toBe(stopLoss);

@@ -1,0 +1,31 @@
+{
+  "provider": "Higgsfield developer API",
+  "model": "kling-video/v4.0/reference-to-video",
+  "request_id": "01a1b92c-59a9-7417-b9af-1a41c1a44aa1",
+  "status": "completed",
+  "estimated_usd_before_discounts": 0.705,
+  "submitted_request": {
+    "prompt": "One continuous 3-second photorealistic 1080p cinematic shot of a real Indian Diwali GROUND CHAKRI, using @image_1 as the shape and material reference. Recreate the pictured low, flat, round paper-wrapped ground spinner: thick coiled/rolled paper sidewall striped red, white and blue; lightweight printed cardboard top with a glossy plastic-laminated finish, vivid pink disk and yellow star. Include realistic paper seams and gentle scuffs. Keep the package unbranded with no readable printing. It must unmistakably look like a consumer paper-wrapped ground chakkar, NOT a brass/steel disc, diya, gear, metal wheel or plastic toy.\nScene: a matte blue-charcoal #080E16 floor and matching quiet dark background, very subtle #2F81F7 ambient light. Fixed camera from a slightly elevated front three-quarter view. The whole flat wheel and its surrounding sparks must stay in frame at lower centre. Wheel diameter about 18 percent of frame width. Upper half is clean dark negative space for a website greeting added separately afterwards. No hands, people or other objects.\n0.0-0.4 seconds: one small fuse on the edge catches with a tiny orange ember and natural hiss; the printed star is clearly visible on the flat casing.\n0.4-2.5 seconds: tangential side jets accelerate the entire wheel into a FAST horizontal ground spin around its centre vertical axis. The top star becomes believable circular rotational motion blur. Throw beautiful fine warm-gold sparks in long low curved radial trails close to the ground; sparks bounce and decay naturally on the floor. The wheel remains flat, stable and approximately in place. It never tips upright, rises into the air, transforms, launches a rocket or becomes a vertical fountain. Natural golden light reflects softly off the charcoal ground.\n2.5-3.0 seconds: the sparks begin to shorten and settle into glowing embers. End with the recognisable paper spinner still flat on the ground, leaving a calm frame for the greeting hold we will add afterwards. Coherent geometry and physically convincing motion throughout. Real camera, real paper texture, real pyrotechnic light, tasteful exposure, no stylised digital rings.\nSOUND DESIGN: synchronized gentle fuse hiss, rising airy spinning whirr, bright fine granular crackles from the sparks, soft natural decay. Comfortable balanced volume. No music, narration, speech, cheering, huge boom or bass drop.\nABSOLUTELY NO typography, text, letters, captions, logo, watermark, packaging brand, metallic chakri casing, brass, steel, neon portal, purple/magenta background, excessive smoke, aerial explosion, strobing, camera shake, zoom or cut. We will add our exact official logo and typography separately.",
+    "image_urls": [
+      "https://d3snorpfx4xhv8.cloudfront.net/5a8a7990-a4ca-4255-b901-73bb66468228/1250de49-4e1e-4e20-8d2a-1718386a60f4.png"
+    ],
+    "duration": 3,
+    "resolution": "1080p",
+    "aspect_ratio": "16:9"
+  },
+  "budget_cap_usd": 4,
+  "budget_note": "User explicitly corrected duration: do not shorten; deliver the full six-second 1080p version. Earlier three-second 1080p request was already processing and API rejected cancellation. Do not submit further paid jobs.",
+  "cancellation_response": {
+    "http_status": 400,
+    "detail": "Request is in progress"
+  },
+  "source_video_url": "https://d3u0tzju9qaucj.cloudfront.net/5a8a7990-a4ca-4255-b901-73bb66468228/01a1b92c-59a9-7417-b9af-1a41c1a44aa1/ae443824-30e7-4139-8ca2-04b1b718b916.mp4",
+  "local_output": "artifacts/diwali/kling4-1080p-material-test-3s.mp4",
+  "source_dimensions": [
+    1920,
+    1080
+  ],
+  "source_duration_seconds": 3.041995,
+  "audio_codec": "aac",
+  "final_use": "Material test only. Do not use as final greeting: user explicitly requires the full six-second 1080p sequence."
+}

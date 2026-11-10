@@ -101,3 +101,12 @@ describe("nextStakeInput", () => {
     expect(nextStakeInput("1000000.5", "1000000")).toBe("1000000");
   });
 });
+
+
+describe("investment regression", () => {
+  it("preserves a lakh and rejects malformed or excessive amounts", () => {
+    expect(nextStakeInput("₹1,00,000", "100")).toBe("100000");
+    for (const raw of ["1.2.3", "-10", "1e3", "1.234", "1000001"]) expect(nextStakeInput(raw, "100")).toBe("100");
+    expect(parseSavedStake("1000001")).toBeNull();
+  });
+});

@@ -15,6 +15,7 @@ import {
   settledAmountText,
 } from "@asm/client-core";
 import { useNowSec } from "@/lib/use-now";
+import { TransactionDetailSheet } from "@/components/history/TransactionDetailSheet";
 import { AssetIcon } from "./AssetIcon";
 
 type Tab = "open" | "closed";
@@ -77,7 +78,7 @@ function RowShell({
       </span>
       {trade.durationSec != null && trade.mode!=="OTC_FIXED" && <span className="col-span-3 text-[11px] text-ink-3">Spread fee: {formatMinor(trade.spreadFee ?? 0, currency)}</span>}
       {children}
-      {onSelectTrade && trade.durationSec != null && <button type="button" aria-label={`Show ${trade.direction === "UP" ? "Buy" : "Sell"} trade ${trade.id} SL/TP`} aria-pressed={selectedTradeId === trade.id} onClick={() => onSelectTrade(trade)} className="absolute inset-0 rounded focus-visible:outline-2 focus-visible:outline-brand hover:bg-brand/5" />}
+      {onSelectTrade && (trade.status !== "OPEN" || trade.durationSec != null) && <button type="button" aria-label={trade.status !== "OPEN" ? `Trade details ${trade.id}` : `Show ${trade.direction === "UP" ? "Buy" : "Sell"} trade ${trade.id} SL/TP`} aria-pressed={selectedTradeId === trade.id} onClick={() => onSelectTrade(trade)} className="absolute inset-0 rounded focus-visible:outline-2 focus-visible:outline-brand hover:bg-brand/5" />}
     </li>
   );
 }
@@ -154,7 +155,7 @@ const ClosedTradeRow = memo(function ClosedTradeRow({
       trade={trade}
       asset={asset}
       currency={currency}
-      time={<span className="led justify-self-end text-[13px] text-ink-2">{clockTime(trade.expiryTs)}</span>}
+      time={<span className="led justify-self-end text-[13px] text-ink-2">{clockTime(trade.closedTs ?? trade.expiryTs)}</span>}
       pnl={settledAmountText(trade, currency)}
       pnlClass={display.className}
     />
@@ -173,6 +174,7 @@ export function TradesPanel({
   onSelectTrade?: ((trade: TradeView) => void) | undefined; selectedTradeId?: string | undefined;
 }) {
   const [tab, setTab] = useState<Tab>("open");
+  const [detail, setDetail] = useState<TradeView | null>(null);
   const open = trades.filter((t) => t.status === "OPEN");
   const closed = trades.filter((t) => t.status !== "OPEN");
   const shown = tab === "open" ? open : closed;
@@ -210,14 +212,15 @@ export function TradesPanel({
           shown.map((trade) => (
             <Row
               key={trade.id}
-              onSelectTrade={onSelectTrade} selectedTradeId={selectedTradeId}
-              trade={trade}
+              onSelectTrade={tab === "closed" ? setDetail : onSelectTrade} selectedTradeId={selectedTradeId}
+      trade={trade}
               currency={trade.currency ?? currency}
               asset={assets.find((a) => a.symbol === trade.symbol)}
             />
           ))
         )}
       </ul>
+      {detail && <TransactionDetailSheet item={{ kind: "trade", key: `t:${detail.id}`, atMs: detail.entryTs * 1000, trade: detail, currency, pair: assets.find(a => a.symbol === detail.symbol)?.displayName ?? detail.symbol }} onClose={() => setDetail(null)} />}
     </div>
   );
 }

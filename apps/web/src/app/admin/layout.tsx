@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./admin.css";
 
 // The console uses the trader app's face (Hanken Grotesk, loaded by the root
 // layout as --font-hanken). Mono is only for identifiers: UTRs, UPI IDs,
-// wallet addresses, record IDs. Self-hosted by next/font (the CSP blocks
-// external font stylesheets).
-const mono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+// wallet addresses, record IDs. Bundled locally so builds do not depend on changing Google font URLs.
+const mono = localFont({
+  src: "./fonts/JetBrainsMono.ttf",
+  weight: "100 800",
+  display: "swap",
   variable: "--font-admin-mono",
 });
 

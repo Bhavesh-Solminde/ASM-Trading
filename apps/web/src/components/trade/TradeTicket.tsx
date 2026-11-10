@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DURATIONS_SEC } from "@asm/trading";
 import type { OpenTradeResult,OtcOpenTradeInput } from "@asm/contracts";
@@ -16,6 +17,9 @@ import type { MarketStore } from "@/components/shell/market-store";
 import { EMPTY_OTC_PROTECTION,protectionError,type OtcProtectionDraft } from "@/components/chart/otc-protection";
 import {
   DEFAULT_STAKE_PCT,
+  MAX_STAKE_MAJOR,
+  nextStakeInput,
+  stakeToMinor,
   EXPIRY_STORAGE_KEY,
   PERCENT_PRESETS,
   STAKE_PCT_STORAGE_KEY,
@@ -198,7 +202,7 @@ export function TradeTicket({
   const accountBalance = balances[accountId];
   const balanceMinor = accountBalance ? accountBalance.realBalance + accountBalance.bonusBalance : null;
   const stakeMajor = Number(stakeInput);
-  const amountMinor = Number.isFinite(stakeMajor) && stakeMajor > 0 ? Math.round(stakeMajor * 100) : 0;
+  const amountMinor = stakeToMinor(stakeInput);
   const pct = percentValue(pctInput);
   const inPercent = stakeUnit === "percent";
   // In percent mode the stake follows the balance, floored at the minimum.
@@ -252,7 +256,7 @@ export function TradeTicket({
     const step = currency === "INR" ? 10 : 1;
     const minMajor = minStake / 100;
     const current = Number.isFinite(stakeMajor) ? Math.floor(stakeMajor) : minMajor;
-    setStakeInput(String(Math.max(minMajor, current + delta * step)));
+    setStakeInput(String(Math.min(MAX_STAKE_MAJOR, Math.max(minMajor, current + delta * step))));
   }
 
   function toggleUnit(): void {
@@ -330,8 +334,45 @@ export function TradeTicket({
   const phoneNote = (side: "higher" | "lower") =>
     closed ? "Market closed" : winText === null ? `Price ends ${side}` : `${winText} if ${side}`;
 
+  const actions = (
+      <div className="ticket-actions grid gap-2 phone:grid-cols-2 phone:gap-2.5 land:grid-cols-1 land:gap-1.5">
+        <button
+          type="button"
+          disabled={busy || closed}
+          onClick={() => void place("UP")}
+          onAnimationEnd={() => setFired(null)}
+          className={`${slab} ${closed ? slabClosed : `${slabLive} bg-up text-up-ink`} ${fired === "UP" ? "slab-fired" : ""}`}
+        >
+          <span className="phone:hidden">
+            Buy<small className={slabNote}>{closed ? "Market closed" : "Price ends higher"}</small>
+          </span>
+          <span className="hidden min-w-0 gap-1 text-left phone:grid">
+            <span className="tracking-[0.04em]">Buy</span>
+            <span className="truncate text-[11px] font-semibold normal-case tracking-normal">{phoneNote("higher")}</span>
+          </span>
+          <Icon name="up" className="size-[26px] phone:size-[22px]" strokeWidth={2.6} />
+        </button>
+        <button
+          type="button"
+          disabled={busy || closed}
+          onClick={() => void place("DOWN")}
+          onAnimationEnd={() => setFired(null)}
+          className={`${slab} ${closed ? slabClosed : `${slabLive} bg-down text-down-ink`} ${fired === "DOWN" ? "slab-fired" : ""}`}
+        >
+          <span className="phone:hidden">
+            Sell<small className={slabNote}>{closed ? "Market closed" : "Price ends lower"}</small>
+          </span>
+          <span className="hidden min-w-0 gap-1 text-left phone:grid">
+            <span className="tracking-[0.04em]">Sell</span>
+            <span className="truncate text-[11px] font-semibold normal-case tracking-normal">{phoneNote("lower")}</span>
+          </span>
+          <Icon name="down" className="size-[26px] phone:size-[22px]" strokeWidth={2.6} />
+        </button>
+      </div>
+  );
+
   return (
-    <div className="trade-ticket relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:mx-auto phone:w-full phone:max-w-[560px] phone:gap-2.5 phone:border-b-0 phone:pb-3 phone:pt-3 land:max-w-none land:gap-1.5 land:px-2 land:pb-[max(4px,env(safe-area-inset-bottom))] land:pt-2">
+    <div data-trade-busy={busy || undefined} className="trade-ticket relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:mx-auto phone:w-full phone:max-w-[560px] phone:gap-2.5 phone:border-b-0 phone:pb-3 phone:pt-3 land:max-w-none land:gap-1.5 land:px-2 land:pb-[max(4px,env(safe-area-inset-bottom))] land:pt-2">
       <div className="flex items-baseline justify-between phone:hidden">
         <span className="text-[17px] font-bold tracking-[0.03em]">{pair}</span>
         <span className="text-[17px] font-extrabold text-brand">{payoutPct === null ? "—" : `${payoutPct}%`}</span>
@@ -512,7 +553,7 @@ export function TradeTicket({
               <Icon name="minus" className={STEP_ICON} />
             </button>
             <div className={`${DISPLAY} ticket-field relative min-w-0 focus-within:border-brand`}>
-              <span className="flex items-center justify-center gap-0.5 text-[22px] font-bold phone:text-[13px]">
+              <span className="flex w-full min-w-0 items-center justify-center gap-0.5 px-1 text-[22px] font-bold phone:text-[13px]">
                 {inPercent ? null : currencySymbol(currency)}
                 {inPercent ? (
                   <input
@@ -532,8 +573,13 @@ export function TradeTicket({
                     inputMode="decimal"
                     autoComplete="off"
                     value={stakeInput}
-                    onChange={(e) => setStakeInput(e.target.value.replace(/[^0-9.]/g, ""))}
-                    className="w-[5ch] bg-transparent font-bold outline-none!"
+                    onChange={(e) => {
+                      const raw = e.target.value, next = nextStakeInput(raw, stakeInput);
+                      setStakeInput(next);
+                      setError(next === raw.replace(/[₹$,\s]/g, "") ? null : `Use an amount up to ${formatMinor(MAX_STAKE_MAJOR * 100, currency)} with at most two decimal places.`);
+                    }}
+                    style={{ width: `${Math.max(3, stakeInput.length + 0.5)}ch`, maxWidth: "calc(100% - 1ch)" }}
+                    className="min-w-0 bg-transparent font-bold"
                   />
                 )}
                 {inPercent ? "%" : null}
@@ -628,40 +674,7 @@ export function TradeTicket({
         </div>
       ) : null}
 
-      <div className="ticket-actions grid gap-2 phone:grid-cols-2 phone:gap-2.5 land:grid-cols-1 land:gap-1.5">
-        <button
-          type="button"
-          disabled={busy || closed}
-          onClick={() => void place("UP")}
-          onAnimationEnd={() => setFired(null)}
-          className={`${slab} ${closed ? slabClosed : `${slabLive} bg-up text-up-ink`} ${fired === "UP" ? "slab-fired" : ""}`}
-        >
-          <span className="phone:hidden">
-            Buy<small className={slabNote}>{closed ? "Market closed" : "Price ends higher"}</small>
-          </span>
-          <span className="hidden min-w-0 gap-1 text-left phone:grid">
-            <span className="tracking-[0.04em]">Buy</span>
-            <span className="truncate text-[11px] font-semibold normal-case tracking-normal">{phoneNote("higher")}</span>
-          </span>
-          <Icon name="up" className="size-[26px] phone:size-[22px]" strokeWidth={2.6} />
-        </button>
-        <button
-          type="button"
-          disabled={busy || closed}
-          onClick={() => void place("DOWN")}
-          onAnimationEnd={() => setFired(null)}
-          className={`${slab} ${closed ? slabClosed : `${slabLive} bg-down text-down-ink`} ${fired === "DOWN" ? "slab-fired" : ""}`}
-        >
-          <span className="phone:hidden">
-            Sell<small className={slabNote}>{closed ? "Market closed" : "Price ends lower"}</small>
-          </span>
-          <span className="hidden min-w-0 gap-1 text-left phone:grid">
-            <span className="tracking-[0.04em]">Sell</span>
-            <span className="truncate text-[11px] font-semibold normal-case tracking-normal">{phoneNote("lower")}</span>
-          </span>
-          <Icon name="down" className="size-[26px] phone:size-[22px]" strokeWidth={2.6} />
-        </button>
-      </div>
+      {actions}
 
 
     </div>

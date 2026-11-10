@@ -12,7 +12,7 @@ type Run = { id: string; serial: number } | null;
 const Festival = createContext({ active: false, open: () => {}, win: null as Run, cancel: () => {} });
 
 /** Seasonal state never subscribes to market prices or alters server results. */
-export function SeasonalDiwali({ children }: { children: ReactNode }) {
+export function SeasonalDiwali({ children, preview = false }: { children: ReactNode; preview?: boolean }) {
   const pathname = usePathname();
   const [active, setActive] = useState(false);
   const [open, setOpen] = useState(false);
@@ -31,20 +31,20 @@ export function SeasonalDiwali({ children }: { children: ReactNode }) {
     let expiry: ReturnType<typeof setTimeout>;
     const update = () => {
       const now = Date.now();
-      const eligible = process.env.NEXT_PUBLIC_DIWALI_ENABLED !== "false" && diwaliRouteAllowed(pathname) && isDiwali(now);
+      const eligible = preview || (process.env.NEXT_PUBLIC_DIWALI_ENABLED !== "false" && diwaliRouteAllowed(pathname) && isDiwali(now));
       setActive(eligible);
       if (!eligible || document.hidden) { setOpen(false); cancel(); }
       clearTimeout(expiry);
       const next = now < DIWALI_START ? DIWALI_START : DIWALI_END;
-      if (next > now) expiry = setTimeout(update, Math.min(next - now, 2_147_000_000));
+      if (!preview && next > now) expiry = setTimeout(update, Math.min(next - now, 2_147_000_000));
     };
     update();
     document.addEventListener("visibilitychange", update);
     return () => { clearTimeout(expiry); cancel(); setOpen(false); document.removeEventListener("visibilitychange", update); };
-  }, [pathname, cancel]);
+  }, [pathname, cancel, preview]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || preview) return;
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
     const preferences = () => {
       if (motion.matches) cancel();
@@ -73,7 +73,7 @@ export function SeasonalDiwali({ children }: { children: ReactNode }) {
       return !!stop; // Only replace the ordinary win chime when festive audio starts.
     });
     return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); unregister(); unmute(); motion.removeEventListener("change", preferences); cancel(); };
-  }, [active, pathname, cancel]);
+  }, [active, pathname, cancel, preview]);
 
   const show = () => {
     if (!active || document.querySelector("dialog[open]")) return;

@@ -1,3 +1,4 @@
+import { tradeNetPnl } from "./pnl-display";
 import { describe, expect, it } from "vitest";
 import { cfdOpenPnl, closedRowDisplay, grossReturnMinor, settledAmountText } from "./pnl-display";
 
@@ -68,4 +69,11 @@ describe("settledAmountText", () => {
     expect(settledAmountText({ status: "REFUNDED", stake: 10_000, pnl: 0 }, "INR")).toBe("₹0.00");
     expect(settledAmountText({ status: "CLOSED", stake: 10_000, pnl: 0 }, "INR")).toBe("₹0.00");
   });
+});
+
+it("reconciles detailed CFD net P&L with the separately charged opening fee", () => {
+  expect(tradeNetPnl({pnl:1000,durationSec:300,spreadFee:100})).toBe(900);
+  expect(tradeNetPnl({pnl:-500,durationSec:300,spreadFee:100})).toBe(-600);
+  expect(tradeNetPnl({pnl:0,durationSec:300,spreadFee:100})).toBe(-100);
+  expect(tradeNetPnl({pnl:9200})).toBe(9200);
 });

@@ -6,7 +6,7 @@ import { CfdTradeTicket } from "./CfdTradeTicket";
 
 vi.mock("@/components/shell/PlatformProvider", () => ({ usePlatform: () => ({ balances: { demo: { realBalance: 10000000, bonusBalance: 0 } }, accounts: [{ id: "demo", type: "DEMO" }], assets: [{ symbol: "BTCUSDT",currency:"INR", spreadBps: 5 }] }) }));
 vi.mock("./StakeSheet", () => ({ StakeSheet: () => null }));
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); });
 it.each([[/Buy\s*Price goes up/i, "LONG"], [/Sell\s*Price goes down/i, "SHORT"]] as const)("opens %s without automatic SL/TP or a ticket toggle", async (name, direction) => {
   const onOpened = vi.fn();
   const post = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ trade: { id: "demo-trade" }, balances: {} }) });
@@ -36,4 +36,17 @@ it("adjusts the investment and timer with steppers and submits those values", as
   fireEvent.click(screen.getByRole("button", { name: "Longer" }));
   await act(async () => fireEvent.click(screen.getByRole("button", { name: /Buy\s*Price goes up/i })));
   expect(JSON.parse(post.mock.calls[0]![1].body)).toMatchObject({ stake: 20000, durationSec: 600 });
+});
+
+it("submits a lakh exactly and restores it after remount", async () => {
+  const post = vi.fn().mockResolvedValue({ok:true,json:async()=>({trade:{id:"lakh"},balances:{}})});
+  vi.stubGlobal("fetch", post);
+  const props={symbol:"BTCUSDT",pair:"BTC/USDT",accountId:"demo",currency:"INR",marketStatus:"open" as const,onOpened:vi.fn()};
+  const first=render(h(CfdTradeTicket,props));
+  fireEvent.change(screen.getByRole("textbox",{name:"Investment"}),{target:{value:"₹1,00,000"}});
+  expect((screen.getByRole("textbox",{name:"Investment"}) as HTMLInputElement).value).toBe("100000");
+  await act(async()=>fireEvent.click(screen.getByRole("button",{name:/Buy\s*Price goes up/i})));
+  expect(JSON.parse(post.mock.calls[0]![1].body).stake).toBe(10000000);
+  first.unmount();render(h(CfdTradeTicket,props));
+  expect((screen.getByRole("textbox",{name:"Investment"}) as HTMLInputElement).value).toBe("100000");
 });

@@ -14,6 +14,7 @@
 
 import argon2 from "argon2";
 import { prisma } from "../src/client";
+import { DEMO_VPA } from "../src/repositories/deposit";
 import { convertMinorBetween, createAccountsForUser } from "../src/repositories/account";
 
 const PASSWORD = "asm-approvals-demo-2026";
@@ -110,7 +111,7 @@ async function main(): Promise<void> {
         method: d.method,
         amountInr: d.amountInrMinor,
         amountUsd: convertMinorBetween(d.amountInrMinor, "INR", "USD"),
-        vpa: "ulkasolminde@okhdfcbank",
+        vpa: DEMO_VPA,
         checkoutToken: `${CORRELATION_TAG}-token-${i}-${now}`,
         claimedUtr: d.claimedUtr,
         status: "PENDING_CONFIRMATION",

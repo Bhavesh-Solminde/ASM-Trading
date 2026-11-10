@@ -79,6 +79,7 @@ export interface TradeView {
   entryTs: number;
   /** Epoch seconds. */
   expiryTs: number;
+  closedTs?: number | null | undefined;
   exitPrice: number | null;
   status: TradeStatusDto;
   pnl: number;
@@ -119,6 +120,7 @@ export interface TradeRowLike {
   entryPrice: number;
   entryTs: Date;
   expiryTs: Date;
+  closedAt?: Date | null;
   exitPrice: number | null;
   status: TradeStatusDto;
   pnl: number;
@@ -134,7 +136,6 @@ export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
     ...(row.currency?{currency:row.currency}:{}),
     ...(row.mode==="OTC_FIXED"?{flowLots:row.flowLots??0,filledLots:row.filledLots??0,entrySequence:row.entrySequence?.toString()??null,settlementSequence:row.settlementSequence?.toString()??null}:{}),
     ...(row.mode?{mode:row.mode}:{}),
-    ...(row.closeReason!==undefined?{closeReason:row.closeReason}:{}),
     id: row.id,
     accountId: row.accountId,
     symbol,
@@ -149,6 +150,8 @@ export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
     entryPrice: row.entryPrice,
     entryTs: Math.floor(row.entryTs.getTime() / 1000),
     expiryTs: Math.floor(row.expiryTs.getTime() / 1000),
+    closedTs: row.closedAt ? Math.floor(row.closedAt.getTime() / 1000) : null,
+    closeReason: row.closeReason ?? null,
     exitPrice: row.exitPrice,
     status: row.status,
     pnl: row.pnl,

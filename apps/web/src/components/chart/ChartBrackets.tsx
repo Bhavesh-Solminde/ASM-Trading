@@ -8,7 +8,7 @@ import { usePlatform, useQuote } from "@/components/shell/PlatformProvider";
 import type { MarketStore } from "@/components/shell/market-store";
 import { useNowSec } from "@/lib/use-now";
 import { cfdOpenPnl, formatMinor } from "@asm/client-core";
-import { BRACKET_KINDS, BRACKET_LABEL, bracketChanges, bracketError, bracketFromPnl, bracketPnl, defaultBracketPrice, savedBrackets, snapBracketPrice, type BracketKind, type BracketLevels } from "./bracket-model";
+import { BRACKET_KINDS, BRACKET_LABEL, bracketChanges, bracketError, bracketFromPnl, bracketPnl, bracketReturnPercent, defaultBracketPrice, savedBrackets, snapBracketPrice, type BracketKind, type BracketLevels } from "./bracket-model";
 import { draggedBracketPrice, expandedBracketRange, type BracketDragRange } from "./bracket-drag";
 import styles from "./ChartBrackets.module.css";
 
@@ -169,7 +169,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     if (!series) return;
     if (linesRef.current.series !== series) {
       const old = linesRef.current;
-      for (const line of old.lines.values()) { try { old.series?.removePriceLine(line); } catch {} }
+      for (const line of old.lines.values()) { try { old.series?.removePriceLine(line); } catch { /* Series may already be removed. */ } }
       linesRef.current = { series, lines: new Map() };
     }
     const used = new Set<string>();
@@ -195,7 +195,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
   }, [positions, draft, chartVersion, seriesRef, selected?.id]);
   useEffect(() => () => {
     const old = linesRef.current;
-    for (const line of old.lines.values()) { try { old.series?.removePriceLine(line); } catch {} }
+    for (const line of old.lines.values()) { try { old.series?.removePriceLine(line); } catch { /* Series may already be removed. */ } }
     old.lines.clear();
   }, []);
 
@@ -303,7 +303,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     const range = scale.getVisibleRange();
     if (!range || !Number.isFinite(range.from + range.to) || range.from >= range.to) return;
     const initialRange = { ...range }, auto = scale.options().autoScale;
-    const restore = () => { try { if (auto) scale.applyOptions({ autoScale: true }); else scale.setVisibleRange(initialRange); } catch {} };
+    const restore = () => { try { if (auto) scale.applyOptions({ autoScale: true }); else scale.setVisibleRange(initialRange); } catch { /* Chart may be removed during a drag. */ } };
     if (!restoreDraftScale.current) restoreDraftScale.current = restore;
     const before = draftRef.current, next = getDraft(trade), anchor = next.levels[kind] ?? trade.entryPrice;
     setDraggingKind(trade.id + kind); setEditorId(null); setNotice(null); setSelectedId(trade.id);
@@ -320,7 +320,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
           // automatic scaling, with exits included until the next chart gesture.
           fitTradeLevels(trade.id);
         }
-        try { if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId); } catch {}
+        try { if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId); } catch { /* A removed target has no pointer capture. */ }
       } };
     dragRef.current = drag;
     scale.applyOptions({ autoScale: false });
@@ -365,7 +365,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     } });
     chartRef.current?.priceScale("right").applyOptions({ autoScale: true });
     // Return to normal chart fitting after the user leaves this position.
-    fitCleanup.current = () => { try { series.applyOptions({ autoscaleInfoProvider: original }); } catch {} };
+    fitCleanup.current = () => { try { series.applyOptions({ autoscaleInfoProvider: original }); } catch { /* Series may already be removed. */ } };
     scheduleRef.current();
   }
   const fitCleanup = useRef<(() => void) | null>(null);
@@ -486,7 +486,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
             <div className={styles.group} style={{ right: axisRight, opacity: active ? 1 : .6 }}>
               <div className={`${styles.bracket} ${pending ? styles.pending : ""} ${invalid ? styles.invalid : ""} ${busy ? styles.saving : ""} ${offscreen ? styles.edgeBracket : ""}`}>
                 <button type="button" className={styles.label} aria-label={`Drag ${BRACKET_LABEL[kind]} level`} title={`${pending ? "Unconfirmed " : ""}${BRACKET_LABEL[kind]} ${level.toFixed(precision)} · drag to modify, double-click to edit`} disabled={busy || t.status !== "OPEN" || !!draft && draft.tradeId !== t.id} {...dragEvents(t, kind)} onDoubleClick={() => editPosition(t)}>{BRACKET_LABEL[kind]}{offscreen ? above ? " ↑" : " ↓" : ""}</button>
-                <button type="button" className={styles.outcome} aria-label={`${BRACKET_LABEL[kind]} at ${level.toFixed(precision)}${offscreen ? " outside chart" : ""}`} title={`Price ${level.toFixed(precision)} · ${pending ? "not confirmed" : "active"}`} disabled={busy || t.status !== "OPEN" || !!draft && draft.tradeId !== t.id} {...dragEvents(t, kind)} onDoubleClick={() => editPosition(t)}>{money(bracketPnl(t, level), currency)}</button>
+                <button type="button" className={styles.outcome} aria-label={`${BRACKET_LABEL[kind]} at ${level.toFixed(precision)}${offscreen ? " outside chart" : ""}`} title={`Profit/loss as % of investment · Price ${level.toFixed(precision)} · ${pending ? "not confirmed" : "active"}`} disabled={busy || t.status !== "OPEN" || !!draft && draft.tradeId !== t.id} {...dragEvents(t, kind)} onDoubleClick={() => editPosition(t)}>{bracketReturnPercent(t, level)}</button>
                 {offscreen && <button type="button" className={styles.edgeEdit} aria-label={`Fit ${BRACKET_LABEL[kind]} in chart`} title="Fit this level in chart" disabled={busy} onClick={fitLevels}>↕</button>}
                 <button type="button" className={styles.remove} aria-label={`Remove ${BRACKET_LABEL[kind]}`} title={`Remove ${BRACKET_LABEL[kind]}`} disabled={busy || t.status !== "OPEN" || !!draft && draft.tradeId !== t.id} onClick={() => changeLevel(t, kind, null)}><Cross /></button>
               </div>

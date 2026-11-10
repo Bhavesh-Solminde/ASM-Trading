@@ -56,6 +56,7 @@ function toView(
     trailingPct: number | null;
     liqPrice: number | null;
     closeReason: string | null;
+    closedAt?: Date | null;
     status: string;
     pnl: number;
   },
@@ -72,6 +73,7 @@ function toView(
     entryPrice: trade.entryPrice,
     entryTs: Math.floor(trade.entryTs.getTime() / 1000),
     expiryTs: Math.floor(trade.expiryTs.getTime() / 1000),
+    closedTs: trade.closedAt ? Math.floor(trade.closedAt.getTime() / 1000) : null,
     exitPrice: trade.exitPrice,
     stopLoss: trade.stopLoss,
     takeProfit: trade.takeProfit,

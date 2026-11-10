@@ -226,14 +226,7 @@ export function HistoryList({
       else p.set("filter", next);
     });
   }, []);
-  const open = useCallback((key: string) => {
-    const item = items.find(i => i.key === key);
-    if (item?.kind === "trade" && item.trade.durationSec != null) {
-      setSelectedTradeId(item.trade.id);
-      selectChartSymbol(item.trade.symbol);
-      router.push("/trade");
-    } else replaceQuery(p => p.set("tx", key));
-  }, [items, router, setSelectedTradeId, selectChartSymbol]);
+  const open = useCallback((key: string) => replaceQuery(p => p.set("tx", key)), []);
   const close = useCallback(() => replaceQuery((p) => p.delete("tx")), []);
 
   const empty =

@@ -10,6 +10,7 @@ import { bonusPercentForDeposit, clockTime } from "@asm/client-core";
 import { useNowSec } from "@/lib/use-now";
 import { usePlatform } from "./PlatformProvider";
 import { IconRail } from "./IconRail";
+import { DepositPromotion } from "./DepositPromotion";
 import { PromoBanner } from "./PromoBanner";
 import { Ticker } from "./Ticker";
 import { TopBar } from "./TopBar";
@@ -67,14 +68,11 @@ export function PlatformShell({ children, userId }: { children: React.ReactNode;
   // Trading collapses the promo row to reserve room for the chart and compact dock.
   const onTrade = pathname === "/trade" || pathname.startsWith("/trade/");
 
-  if (focusMode) {
-    return <div className="grid h-dvh min-h-0 grid-rows-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto"><ServiceWorkerRegistrar sessionKey={userId} />{children}</div>;
-  }
-
   return (
     <SeasonalDiwali><div
+      data-focus-mode={focusMode}
       style={{ "--phone-promo-h": onTrade ? "0px" : promo ? "56px" : "0px" } as CSSProperties}
-      className="grid h-dvh min-h-[640px] grid-cols-[76px_minmax(0,1fr)] grid-rows-[60px_32px_minmax(0,1fr)] phone:min-h-0 phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[50px_var(--phone-promo-h)_minmax(0,1fr)_auto_var(--phone-nav-h,38px)] [@media(height<30rem)_and_(orientation:landscape)]:grid-rows-[48px_0px_minmax(0,1fr)]"
+      className="platform-shell grid h-dvh min-h-[640px] grid-cols-[76px_minmax(0,1fr)] grid-rows-[60px_32px_minmax(0,1fr)] phone:min-h-0 phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[50px_var(--phone-promo-h)_minmax(0,1fr)_auto_var(--phone-nav-h,38px)] [@media(height<30rem)_and_(orientation:landscape)]:grid-rows-[48px_0px_minmax(0,1fr)]"
     >
       <ServiceWorkerRegistrar sessionKey={userId} />
       <IosInstallSheet />
@@ -89,6 +87,7 @@ export function PlatformShell({ children, userId }: { children: React.ReactNode;
         {children}
       </div>
       <BottomNavBar />
+      <DepositPromotion />
     </div></SeasonalDiwali>
   );
 }

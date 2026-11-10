@@ -6,6 +6,7 @@ import { useQuote, type AssetClass, type PlatformAsset } from "@/components/shel
 import { splitAssetName } from "@/lib/asset-name";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useFavouriteMarkets } from "@/lib/use-favourite-markets";
+import { isPopular } from "./market-groups";
 import { AssetIcon } from "./AssetIcon";
 
 /** Tab order for the class filter; "FAV" and "ALL" are filters, not classes. */
@@ -16,7 +17,7 @@ const CLASS_TABS: readonly { key: AssetClass; label: string }[] = [
   { key: "INDEX", label: "Indices" },
 ];
 
-type Filter = "ALL" | "FAV" | AssetClass;
+type Filter = "ALL" | "POPULAR" | "FAV" | AssetClass;
 
 function LivePayout({ asset }: { asset: PlatformAsset }) {
   const quote = useQuote(asset.symbol);
@@ -56,7 +57,7 @@ export function MarketSelector({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("ALL");
+  const [filter, setFilter] = useState<Filter>("POPULAR");
   const rootRef = useRef<HTMLDivElement | null>(null);
   const { favourites, toggle: toggleFavourite } = useFavouriteMarkets();
 
@@ -70,7 +71,7 @@ export function MarketSelector({
     setOpen(false);
     onOpenChange?.(false);
     setQuery("");
-    setFilter("ALL");
+    setFilter("POPULAR");
   }, [onOpenChange]);
   useDismiss(rootRef, open, close);
 
@@ -103,8 +104,9 @@ export function MarketSelector({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return assets.filter((a) => {
+      if (filter === "POPULAR" && !isPopular(a.symbol)) return false;
       if (filter === "FAV" && !favourites.has(a.symbol)) return false;
-      if (filter !== "ALL" && filter !== "FAV" && a.assetClass !== filter) return false;
+      if (filter !== "ALL" && filter !== "FAV" && filter !== "POPULAR" && a.assetClass !== filter) return false;
       if (!q) return true;
       return a.displayName.toLowerCase().includes(q) || a.symbol.toLowerCase().includes(q);
     });
@@ -234,7 +236,8 @@ export function MarketSelector({
                   Favourites
                   <span className="tabular-nums opacity-80">{favourites.size}</span>
                 </button>
-                <button type="button" onClick={() => setFilter("ALL")} className={pillClass(filter === "ALL")}>
+                <button type="button" aria-pressed={filter === "POPULAR"} onClick={() => setFilter("POPULAR")} className={pillClass(filter === "POPULAR")}>Popular</button>
+                <button type="button" aria-pressed={filter === "ALL"} onClick={() => setFilter("ALL")} className={pillClass(filter === "ALL")}>
                   All
                 </button>
                 {tabs.map((t) => (

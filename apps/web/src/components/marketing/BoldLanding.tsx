@@ -1,3 +1,4 @@
+import { MARKET_COUNT } from "@asm/contracts";
 import { SeasonalDiwali, FestiveLights, DiwaliEntry, DiwaliWish } from "@/components/festive/SeasonalDiwali";
 import Image from "next/image";
 import Link from "next/link";
@@ -36,6 +37,7 @@ export function BoldLanding() {
 
         <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 px-5 pb-10 pt-5 sm:px-6 sm:pt-8 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12 lg:pb-14">
           <div className="max-w-2xl">
+            <DiwaliEntry />
             <span className="inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-brand md:text-[11px]">
               <span aria-hidden className="dir-mark" data-dir="up" style={{ color: "var(--color-brand)", width: 8, height: 8 }} />
               SEBI regulated · 100% deposit bonus
@@ -48,7 +50,7 @@ export function BoldLanding() {
               </span>
             </h1>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-2 sm:text-base">
-              Go long or short on forex, crypto and India indices with real-time market prices.
+              Go long or short on forex, crypto, commodities and India indices with real-time market prices.
               Set your stop-loss and take-profit on every position. Up to 100x leverage.
               Start with a free demo — no card, no wait.
             </p>
@@ -116,7 +118,7 @@ export function BoldLanding() {
               {[
                 ["100x", "leverage"],
                 ["SL/TP", "on every trade"],
-                ["18", "instruments"],
+                [String(MARKET_COUNT), "instruments"],
                 ["24/7", "trading"],
               ].map(([n, l]) => (
                 <span

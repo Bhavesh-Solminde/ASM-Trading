@@ -1,5 +1,5 @@
 /**
- * Per-market MSM calibration for our 19 tradeable symbols.
+ * Per-market MSM calibration for our 30 tradeable symbols.
  *
  * `sigma` is the long-run volatility of log price per √second, measured on a
  * comparable real instrument in Oct 2026. `m0` is the MSM layer strength
@@ -54,6 +54,18 @@ export const MARKET_CALIBRATIONS: readonly MarketMsmCalibration[] = [
   { symbol: "NIFTYIT", sigma: 4.41e-5, m0: 1.45, profile: "INDEX" },
   { symbol: "NIFTYMIDCAP100", sigma: 2.37e-5, m0: 1.45, profile: "INDEX" },
   { symbol: "SENSEX", sigma: 1.93e-5, m0: 1.45, profile: "INDEX" },
+  // Bot catalogue volatility is specified in bps per sqrt(minute).
+  { symbol: "ADAUSDT", sigma: 0.000167829278, m0: 1.55, profile: "CRYPTO" },
+  { symbol: "LTCUSDT", sigma: 0.000142009389, m0: 1.55, profile: "CRYPTO" },
+  { symbol: "LINKUSDT", sigma: 0.000154919334, m0: 1.55, profile: "CRYPTO" },
+  { symbol: "DOTUSDT", sigma: 0.000180739223, m0: 1.55, profile: "CRYPTO" },
+  { symbol: "NZDUSD", sigma: 2.06559112e-05, m0: 1.5, profile: "FX_MAJOR" },
+  { symbol: "EURGBP", sigma: 1.161895e-05, m0: 1.5, profile: "FX_MAJOR" },
+  { symbol: "EURJPY", sigma: 2.19469056e-05, m0: 1.5, profile: "FX_MAJOR" },
+  { symbol: "GBPJPY", sigma: 2.5819889e-05, m0: 1.5, profile: "FX_MAJOR" },
+  { symbol: "XAGUSD", sigma: 7.74596669e-05, m0: 1.5, profile: "METAL" },
+  { symbol: "WTI", sigma: 6.45497224e-05, m0: 1.5, profile: "METAL" },
+  { symbol: "BRENT", sigma: 6.19677335e-05, m0: 1.5, profile: "METAL" },
 ];
 
 export function findMarketCalibration(symbol: string): MarketMsmCalibration | undefined {

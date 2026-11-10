@@ -42,7 +42,7 @@ export const MAX_DEPOSIT_INR_MINOR = 100_000_000; // ₹10,00,000.00
  * collection identity for a caller that doesn't pass its own — the live one
  * is the web layer's environment config, same as the USDT receiving address.
  */
-export const DEMO_VPA = "ulkasolminde@okhdfcbank";
+export const DEMO_VPA = "Q396350240@ybl";
 
 export class AmountSpaceExhausted extends Error {
   constructor() {

@@ -1,7 +1,7 @@
 export type MarketStatus = "open" | "closed" | "unavailable";
-const crypto = new Set(["BTCUSD","BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT"]);
+const crypto = new Set(["BTCUSD","BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","LTCUSDT","LINKUSDT","DOTUSDT"]);
 const indices = new Set(["NIFTY50","BANKNIFTY","FINNIFTY","NIFTYIT","SENSEX","NIFTYMIDCAP100"]);
-const forex = new Set(["EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD"]);
+const forex = new Set(["EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","EURGBP","EURJPY","GBPJPY"]);
 function clock(now: Date, timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-US", {timeZone,weekday:"short",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(now);
   const get = (type:string) => parts.find(p=>p.type===type)!.value;
@@ -14,11 +14,12 @@ export function marketSessionOpen(symbol:string, now=new Date()): boolean {
     const {day,minute}=clock(now,"Asia/Kolkata");
     return day!=="Sat" && day!=="Sun" && minute>=555 && minute<930;
   }
-  if(forex.has(symbol)||symbol==="XAUUSD") {
+  const commodity = ["XAUUSD", "XAGUSD", "WTI", "BRENT"].includes(symbol);
+  if(forex.has(symbol)||commodity) {
     const {day,minute}=clock(now,"America/New_York");
-    const opening=symbol==="XAUUSD"?1080:1020;
+    const opening=commodity?1080:1020;
     if(day==="Sat" || (day==="Fri"&&minute>=1020) || (day==="Sun"&&minute<opening)) return false;
-    return symbol!=="XAUUSD" || minute<1020 || minute>=1080;
+    return !commodity || minute<1020 || minute>=1080;
   }
   return false;
 }

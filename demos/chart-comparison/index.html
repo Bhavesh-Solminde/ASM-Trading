@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>ASM · Chart comparison</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body>
+  <header class="header">
+    <a class="wordmark" href="#">ASM<span>Trading</span></a>
+    <div class="header-divider"></div><span class="header-title">Chart comparison</span>
+    <span class="demo-label">Visual demo</span>
+    <button class="icon-button theme-button" id="theme" aria-label="Switch to light theme" title="Switch theme">◐</button>
+  </header>
+  <main>
+    <div id="file-preview-notice" class="file-preview-notice" role="status"><div><strong>Open the live browser preview to load all three charts.</strong><p>File previews can block market-data requests and the TradingView embed.</p></div><a href="http://127.0.0.1:4177/chart-comparison.html" target="_blank" rel="noopener noreferrer">Open live comparison ↗</a></div>
+    <div class="intro">
+      <div><h1>Find the right feel.</h1><p>Zoom in. Move around. Try the tools. Choose the chart you want to trade on.</p></div>
+      <div class="view-switch" role="group" aria-label="Chart layout">
+        <button data-view="all" aria-pressed="true">Compare all</button>
+        <button data-view="lightweight" aria-pressed="false">Lightweight</button>
+        <button data-view="kline" aria-pressed="false">KLineChart</button>
+        <button data-view="tradingview" aria-pressed="false">TradingView</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <label class="market-select"><span class="coin" id="coin">₿</span><select id="market" aria-label="Market"><option value="btc">Bitcoin / USD</option><option value="eth">Ethereum / USD</option><option value="xrp">XRP / USD</option></select></label>
+      <div class="timeframes" role="group" aria-label="Timeframe"><button data-interval="1" aria-pressed="true">1m</button><button data-interval="5" aria-pressed="false">5m</button><button data-interval="15" aria-pressed="false">15m</button><button data-interval="60" aria-pressed="false">1h</button></div>
+      <div class="toolbar-divider"></div>
+      <label class="select-label">Style <select id="style" aria-label="Chart style"><option value="candles">Candles</option><option value="hollow">Hollow candles</option><option value="bars">OHLC bars</option><option value="line">Line / area</option></select></label>
+      <span class="toolbar-spacer"></span>
+      <button id="reset" class="text-button" title="Return both custom charts to their latest candle">Reset view</button>
+      <button id="pause" class="stream-button" title="Refresh exchange candles and TradingView"><span class="status-dot"></span><span id="stream-label">Live Bitstamp feed</span><span class="pause-symbol">↻</span></button>
+    </div>
+
+    <div class="comparison-note"><span class="info-icon">i</span><p><strong>Same exchange. Same market. Same timeframe.</strong> All three show Bitstamp candles. Use the controls above to change all three together. The latest candle can differ slightly while each feed refreshes.</p></div>
+    <p id="feed-status" class="feed-status" role="status">Loading matching exchange candles…</p>
+
+    <section class="charts" data-view="all" aria-label="Three chart libraries">
+      <article class="chart-card" data-chart="lightweight">
+        <div class="card-heading"><div class="library-mark lw-mark">L</div><div><h2>Lightweight Charts</h2><p>TradingView’s open-source library</p></div><button class="expand" data-focus="lightweight" aria-label="Focus Lightweight Charts" title="Focus chart">⤢</button></div>
+        <div class="card-meta"><span class="feed-badge"><i></i>Bitstamp · Live market</span><span>v5.2.1 · TradingView colors</span></div>
+        <div class="chart-tools"><button data-ma="lightweight" aria-pressed="true">MA 20</button><button data-levels="lightweight" aria-pressed="true">SL / TP</button><span class="tools-space"></span><span class="small-price" data-price></span></div>
+        <div class="plot-wrap"><div id="lightweight-chart" class="plot" aria-label="Interactive Lightweight chart"></div><div class="watermark" aria-hidden="true">ASM<span>Chart comparison</span></div></div>
+        <div class="ohlc" id="lw-ohlc" aria-live="off"></div>
+        <div class="card-footer"><span>Scroll to zoom · Drag to pan</span><a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Charts by TradingView ↗</a></div>
+      </article>
+
+      <article class="chart-card" data-chart="kline">
+        <div class="card-heading"><div class="library-mark kl-mark">K</div><div><h2>KLineChart</h2><p>Open-source financial chart library</p></div><button class="expand" data-focus="kline" aria-label="Focus KLineChart" title="Focus chart">⤢</button></div>
+        <div class="card-meta"><span class="feed-badge"><i></i>Bitstamp · Same live market</span><span>v9.8.12 · Custom interface</span></div>
+        <div class="chart-tools"><button data-ma="kline" aria-pressed="true">MA 20</button><button data-levels="kline" aria-pressed="true">SL / TP</button><button id="draw" title="Click two points on the KLineChart to draw a trend line">Draw</button><button id="clear-drawings" title="Remove your KLineChart drawings">Clear</button><span class="tools-space"></span><span class="small-price" data-price></span></div>
+        <div class="plot-wrap"><div id="kline-chart" class="plot" aria-label="Interactive KLineChart"></div><div class="watermark" aria-hidden="true">ASM<span>Chart comparison</span></div></div>
+        <div class="ohlc" id="kl-ohlc" aria-live="off"></div>
+        <div class="card-footer"><span>Scroll to zoom · Drag to pan</span><a href="https://klinecharts.com/" target="_blank" rel="noopener noreferrer">KLineChart ↗</a></div>
+      </article>
+
+      <article class="chart-card" data-chart="tradingview">
+        <div class="card-heading"><div class="library-mark tv-mark">Tᵛ</div><div><h2>TradingView</h2><p>Advanced Chart widget preview</p></div><button class="expand" data-focus="tradingview" aria-label="Focus TradingView" title="Focus chart">⤢</button></div>
+        <div class="card-meta"><span class="feed-badge"><i></i>Bitstamp · Same live market</span><span>Hosted preview</span></div>
+        <div class="chart-tools tv-tools"><span>Indicators and drawings inside the chart</span><a href="https://www.tradingview.com/chart/" target="_blank" rel="noopener noreferrer">Open full chart ↗</a></div>
+        <div class="tv-wrap"><div id="tv-loading" class="tv-loading"><span class="loader"></span><strong>Loading TradingView</strong><span>Internet access is required for this preview.</span></div><div id="tradingview-chart"></div><div id="tv-error" class="tv-error" hidden><strong>TradingView couldn’t load here.</strong><span>Your browser or network may be blocking the embedded chart.</span><button id="tv-retry">Try again</button><a href="https://www.tradingview.com/chart/" target="_blank" rel="noopener noreferrer">Open TradingView in a browser ↗</a></div></div>
+        <div class="tv-attribution"><a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Track all markets on TradingView</a></div>
+        <div class="card-footer"><span>Same Bitstamp symbol and timeframe</span><a href="https://www.tradingview.com/charting-library-docs/latest/" target="_blank" rel="noopener noreferrer">Advanced Charts ↗</a></div>
+      </article>
+    </section>
+
+    <section class="trade-preview" aria-label="Fixed payout trade preview">
+      <div class="preview-description"><h2>Your OTC trade</h2><p>Fixed expiry + optional SL/TP.<br>No manual close.</p></div>
+      <label class="field">Investment<div class="input-wrap"><span>₹</span><input id="stake" type="number" min="1" max="1000000" step="1" value="100" inputmode="decimal"></div></label>
+      <label class="field">Expiry<select id="expiry"><option value="30">30 seconds</option><option value="60" selected>1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select></label>
+      <div class="return-metric"><span>Payout</span><strong>92<span>%</span></strong></div>
+      <div class="return-metric"><span>Profit on a win</span><strong class="positive" id="profit">+₹92.00</strong></div>
+      <div class="return-metric"><span>Total returned on a win</span><strong id="total">₹192.00</strong></div>
+      <div class="preview-badge">Preview only<span>No orders are placed</span></div>
+    </section>
+
+    <div class="level-legend"><span><i class="entry-line"></i>Sample buy entry</span><span><i class="tp-line"></i>Take profit</span><span><i class="sl-line"></i>Stop loss</span><p>SL/TP lines on the two custom interfaces are visual examples. This page does not execute or settle trades.</p></div>
+
+    <div class="comparison-note"><span class="info-icon">i</span><p>This visual comparison uses public exchange data in all three charts. Our planned synthetic OTC order book is separate; displaying that same private feed in TradingView requires approved library access.</p></div>
+
+    <details class="comparison-details"><summary>What this comparison does and doesn’t show <span>+</span></summary><div class="details-content"><p>All three show the same Bitstamp market and selected timeframe. Lightweight Charts and KLineChart receive the same OHLCV response from Bitstamp’s public API, refreshed every five seconds. TradingView shows the corresponding BITSTAMP symbol using its own connection, so the forming candle can update at a slightly different time.</p><p>The TradingView panel is the public <strong>Advanced Chart widget</strong>. This is a visual comparison using real exchange candles, not our synthetic OTC engine. The licensed Advanced Charts library is still required to connect our own order-driven feed. Native indicators and drawings remain available in the TradingView panel.</p><p>Both open-source libraries are bundled locally, but all three charts now require internet access for matching market data. The 92% payout and SL/TP levels are previews only. No trading application settings, orders, or balances are changed.</p></div></details>
+    <footer class="page-footer"><span>ASM Trading · Chart study</span><span>Demo only · 92% fixed profit payout</span><a href="vendor/LICENSE-Apache-2.0.txt" target="_blank">Open-source licenses</a></footer>
+    <div id="toast" role="status" class="toast" hidden></div>
+  </main>
+  <script src="vendor/lightweight-charts-5.2.1.js"></script>
+  <script src="vendor/klinecharts-9.8.12.js"></script>
+  <script src="live-feed.js"></script>
+  <script src="demo.js"></script>
+</body>
+</html>

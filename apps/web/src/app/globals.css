@@ -86,6 +86,16 @@ body {
   outline-offset: 0;
 }
 
+/* Inputs own one inset focus edge; composite ticket fields own it for their children. */
+input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+textarea:focus-visible, select:focus-visible {
+  outline-offset: -2px;
+  border-color: var(--color-brand);
+  box-shadow: none;
+}
+.ticket-field:focus-within { border-color: var(--color-brand); box-shadow: inset 0 0 0 1px var(--color-brand); }
+.ticket-field input:focus, .ticket-field input:focus-visible { outline: none; box-shadow: none; }
+
 /* Stops double-tap zoom on rapid taps (e.g. repeated Up presses). */
 a,
 button,
@@ -347,4 +357,35 @@ button,
 }
 @media (height < 30rem) and (orientation: landscape) {
   .ticket-controls { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A single mounted workspace keeps ticket, chart range and drafts through focus mode. */
+.platform-shell[data-focus-mode="true"] { grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-height:0; }
+.platform-shell[data-focus-mode="true"] > :not([data-scroll-root]) { display:none; }
+.platform-shell[data-focus-mode="true"] > [data-scroll-root] { grid-column:1;grid-row:1; }
+.market-sidebar { display:none;min-height:0;flex-direction:column;border-right:1px solid var(--color-rule);background:var(--color-panel); }
+.analysis-plot { left:44px; }
+.desktop-chart-readout { left:50px; }
+.analysis-plot a#tv-attr-logo { border-radius:50%;background:var(--color-panel);border:1px solid var(--color-rule);padding:4px; }
+@media (min-width:1600px) and (min-height:480px) {
+  .trade-workspace:not([data-focus="true"]) { grid-template-columns:220px minmax(0,1fr) 340px; }
+  .trade-workspace:not([data-focus="true"]) .market-sidebar { display:flex; }
+}
+@media (width<64rem),(height<30rem) {
+  .analysis-plot { left:0; }
+  .trade-workspace[data-focus="true"] { grid-template-rows:minmax(0,1fr) auto; }
+  .trade-workspace[data-focus="true"] .analysis-plot { left:44px; }
+  .trade-workspace[data-focus="true"] .phone-chart-readout { left:54px;right:8px; }
+  .trade-workspace[data-focus="true"] .trade-ticket { padding-top:6px;padding-bottom:max(6px,env(safe-area-inset-bottom)); }
+  .trade-workspace[data-focus="true"] .ticket-fees { font-size:10px; }
+}
+.chart-attribution { position:absolute;bottom:28px;left:-40px;z-index:30;display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--color-rule);border-radius:50%;background:#0c1425; }
+@media(width<64rem),(height<30rem) {
+  .analysis-plot .chart-attribution { left:6px; }
+  .phone-chart-tools { left:54px; }
+  .trade-workspace[data-focus="true"] .analysis-plot .chart-attribution { left:-40px; }
+  .trade-workspace[data-focus="true"] .phone-chart-tools { left:auto;right:45px; }
+}
+@media (max-width:359px) {
+  .ticket-controls { grid-template-columns:minmax(0,1fr); }
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useScrollLock } from "@/lib/use-scroll-lock";
 import { BONUS_TIERS, bonusPercentForDeposit, ordinal } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
 import { Icon } from "./Icon";
@@ -113,6 +114,20 @@ export function BonusOfferSheet({
   const panelRef = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => onClose(), [onClose]);
   useDismiss(panelRef, true, close);
+  useScrollLock();
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    panelRef.current?.querySelector<HTMLButtonElement>('button[aria-label="Close"]')?.focus();
+    const keyboard = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const nodes = panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]');
+      const first = nodes?.[0], last = nodes?.[nodes.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+    };
+    window.addEventListener("keydown", keyboard);
+    return () => { window.removeEventListener("keydown", keyboard); if (previous?.isConnected) previous.focus(); };
+  }, []);
   const next = completedDeposits + 1;
   const offerLeft = bonusPercentForDeposit(next) > 0;
 
@@ -181,7 +196,7 @@ export function BonusOfferSheet({
 
         <p className="mt-3 text-[11px] leading-relaxed text-ink-3">
           The bonus is added automatically when your deposit is credited. It is for trading only and
-          can&apos;t be withdrawn — only your real balance can.
+          can&apos;t be withdrawn — only your real balance can. A 3× bonus turnover requirement applies.
         </p>
 
         {offerLeft ? (

@@ -88,3 +88,8 @@ export function cfdOpenPnl(trade: Pick<TradeView, "direction" | "stake" | "entry
   if (price === null || trade.entryPrice <= 0) return null;
   return cfdProfitMinor(trade.direction, trade.entryPrice, price, trade.stake, trade.leverage ?? 1);
 }
+
+/** CFD opening fees are debited separately from the stored market-move result. */
+export function tradeNetPnl(trade: Pick<TradeView, "pnl" | "durationSec" | "spreadFee" | "mode">): number {
+  return trade.pnl - (trade.mode !== "OTC_FIXED" && trade.durationSec != null ? trade.spreadFee ?? 0 : 0);
+}

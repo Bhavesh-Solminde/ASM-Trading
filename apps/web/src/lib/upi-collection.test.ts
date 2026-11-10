@@ -11,6 +11,7 @@ describe("upiCollection", () => {
     vi.stubEnv("UPI_COLLECTION_VPAS", "");
     vi.stubEnv("UPI_PAYEE_NAME", "");
     vi.stubEnv("UPI_MERCHANT_CODE", "");
+    expect(DEMO_VPA).toBe("Q396350240@ybl");
     expect(upiCollection()).toEqual({ vpas: [DEMO_VPA], payeeName: "IndianxTrade", merchantCode: null });
   });
 
