@@ -44,3 +44,20 @@ price-grid-proof.html
 **/gs-play.json
 **/gs-direct.json
 **/*private*.pem
+
+# Generated verification evidence and local design references
+/artifacts/dashboard-improvements-*/*
+!/artifacts/dashboard-improvements-*/verification.md
+/artifacts/mobile-readiness-*/*
+!/artifacts/mobile-readiness-*/review.md
+/artifacts/diwali/**/*.jpg
+/artifacts/diwali/**/*.png
+/artifacts/diwali/**/*.mp4
+/artifacts/diwali/**/*.m4a
+/artifacts/diwali/**/*.zip
+/artifacts/diwali/**/*.json
+/artifacts/diwali/**/__pycache__/
+/apps/relay/current-design.png
+
+# Standalone chart comparison output
+/demos/chart-comparison.html

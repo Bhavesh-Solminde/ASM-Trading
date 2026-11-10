@@ -1,8 +1,9 @@
 # Chart comparison demo
 
-Start the browser preview from the repository root:
+Build the standalone HTML and start the browser preview from the repository root:
 
 ```sh
+node demos/chart-comparison/build-demo.mjs
 node demos/chart-comparison/serve-demo.mjs
 ```
 

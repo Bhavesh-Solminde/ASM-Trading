@@ -9,7 +9,7 @@ Implemented strategy #1: a 55-bar high/low breakout, Wilder ATR(20), a 2×ATR in
 - `strategy.py`: reusable signal calculation, ATR, risk sizing and stop logic.
 - `backtest.py`: chronological simulation, intraday/daily comparison, fixed development/holdout split, doubled-cost stress test, and 45/65-bar sensitivity checks.
 - `test_strategy.py`: correctness checks for timing, costs, long/short stops, risk sizing, financing, missing session bars and daylight saving.
-- `data/`: frozen public price snapshots and source metadata.
+- `data/`: local, ignored price snapshots and source metadata. Supply `gc-hourly.json` and `gc-daily.json` here, or pass both `--hourly-csv` and `--daily-csv`.
 - `results/REPORT.md`: the main comparison using $100,000 reference capital.
 - `results/capital-10000/REPORT.md`: separate $10,000 sizing check.
 - `results/metrics.json`: complete metrics, source hashes and sensitivity results.
@@ -35,7 +35,7 @@ The two versions deliberately use different elapsed lookback durations: 55 hourl
 
 ## Data and cost limitations
 
-**The bundled prices are Yahoo `GC=F` futures history, not XAU/USD broker history.** Attempts to obtain public Dukascopy spot history returned HTTP 429. The futures feed was retained only as a preliminary research proxy. Continuous-contract transitions, price basis and different sessions can distort spot-gold results. Individual contracts and rollover adjustments were not available. These results cannot establish your broker's trading profitability.
+**The original local snapshots use Yahoo `GC=F` futures history, not XAU/USD broker history.** Attempts to obtain public Dukascopy spot history returned HTTP 429. The futures feed was retained only as a preliminary research proxy. Continuous-contract transitions, price basis and different sessions can distort spot-gold results. Individual contracts and rollover adjustments were not available. These results cannot establish your broker's trading profitability.
 
 The frozen snapshots span approximately October 2024–October 2026. Common evaluation dates begin January 30, 2025 after warmup. The first 70% of common dates select the candidate by net profit. April 17–October 23, 2026 is the untouched holdout. The winner is not switched based on holdout results. Each evaluation starts flat with fresh reference capital; the full sample is descriptive and not additive to separate-period results.
 

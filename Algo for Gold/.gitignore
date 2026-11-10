@@ -1,5 +1,7 @@
 __pycache__/
 *.pyc
 
-# Generated backtest results
+# Local price snapshots and generated backtest results
+/data/
 /results/**/*.csv
+/results/**/*.json

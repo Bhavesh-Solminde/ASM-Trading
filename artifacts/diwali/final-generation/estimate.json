@@ -1,4 +1,0 @@
-{
-  "type": "description",
-  "pricing_description": "Without input video: 720p $0.157/s, 1080p $0.235/s, charged on output duration. With input video: 720p $0.094/s, 1080p $0.141/s, charged on output duration + max(total input video duration, output duration). Input duration includes video elements and explicit videos after the 30-second trim."
-}
