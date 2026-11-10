@@ -486,6 +486,22 @@ export function PriceChart({
   const priceLineRef = useRef<IPriceLine | null>(null);
   const watermarkRef = useRef<ITextWatermarkPluginApi<Time> | null>(null);
   const [chartVersion, setChartVersion] = useState(0);
+  const [volumePreference, setVolumePreference] = useState<{ scope: string | undefined; enabled: boolean } | null>(null);
+  const volumeVisible = showVolume && volumePreference?.scope === analysisScope && volumePreference?.enabled === true;
+  useEffect(() => {
+    let enabled = false;
+    try {
+      enabled = localStorage.getItem(`asm_chart_volume:${analysisScope}`) === "true";
+    } catch { /* Optional storage. */ }
+    setVolumePreference({ scope: analysisScope, enabled });
+  }, [analysisScope]);
+  function toggleVolume() {
+    const enabled = !volumeVisible;
+    setVolumePreference({ scope: analysisScope, enabled });
+    try {
+      localStorage.setItem(`asm_chart_volume:${analysisScope}`, String(enabled));
+    } catch { /* Keep the selection for this visit. */ }
+  }
 
   // Seamless in-engine wave transformation state (from latest point to the end)
   const prevChartTypeRef = useRef<ChartType>(chartType);
@@ -1040,7 +1056,7 @@ export function PriceChart({
   }, [market, precision, chartVersion, chartType,appearance,marketOpen]);
 
   useEffect(()=>{
-    const chart=chartRef.current;if(!chart||!showVolume)return;
+    const chart=chartRef.current;if(!chart||!volumeVisible)return;
     const series=chart.addSeries(HistogramSeries,{priceScaleId:"volume",priceFormat:{type:"volume"},lastValueVisible:false,priceLineVisible:false});
     chart.priceScale("volume").applyOptions({scaleMargins:{top:appearance==="market"?.86:.82,bottom:0},visible:false});
     let previous:ChartState|null=null;
@@ -1052,9 +1068,20 @@ export function PriceChart({
       else{const last=previous.forming?.openTs??previous.candles.at(-1)?.openTs??0;for(const b of bars)if(b.openTs>=last)series.update(point(b));}
       previous=state;
     };
-    draw();const unsubscribe=market.subscribe(draw);
-    return()=>{unsubscribe();if(chartRef.current===chart)chart.removeSeries(series);};
-  },[market,showVolume,chartVersion,appearance]);
+    let frame = 0;
+    const schedule = () => {
+      if (!frame && !document.hidden) frame = requestAnimationFrame(() => { frame = 0; draw(); });
+    };
+    schedule();
+    const unsubscribe = market.subscribe(schedule);
+    document.addEventListener("visibilitychange", schedule);
+    return () => {
+      unsubscribe();
+      document.removeEventListener("visibilitychange", schedule);
+      cancelAnimationFrame(frame);
+      if (chartRef.current === chart) chart.removeSeries(series);
+    };
+  },[market,volumeVisible,chartVersion,appearance]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -1101,7 +1128,7 @@ export function PriceChart({
 
 
 
-      {analysisScope && <ChartAnalysis key={analysisScope} scope={analysisScope} symbol={market.getSnapshot().chart.symbol} market={market} chartRef={chartRef} seriesRef={seriesRef} containerRef={containerRef} chartVersion={chartVersion} precision={precision} />}
+      {analysisScope && <ChartAnalysis key={analysisScope} scope={analysisScope} symbol={market.getSnapshot().chart.symbol} market={market} chartRef={chartRef} seriesRef={seriesRef} containerRef={containerRef} chartVersion={chartVersion} precision={precision} volumeAvailable={showVolume} volumeEnabled={volumeVisible} onVolumeChange={toggleVolume} />}
 
       <a className="chart-attribution" href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer" aria-label="Charts by TradingView" title="Charts by TradingView"><img src="/brand/tradingview-chart.svg" width="27" height="15" alt="" /></a>
       {/* Style Switch HUD Pill */}

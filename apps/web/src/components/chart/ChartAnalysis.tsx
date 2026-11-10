@@ -11,9 +11,10 @@ type XY = { x: number; y: number };
 const NAMES: Record<DrawingTool, string> = { select: "Select drawings", horizontal: "Horizontal line", trend: "Trend line", channel: "Parallel channel", fib: "Fibonacci retracement", brush: "Freehand drawing", text: "Text annotation", measure: "Measure" };
 const COLORS = { SMA: "#f5bd4f", EMA: "#ae91ff", RSI: "#5dc8ff" };
 
-export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chartVersion, scope, symbol, precision }: {
+export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chartVersion, scope, symbol, precision, volumeAvailable, volumeEnabled, onVolumeChange }: {
   chartRef: RefObject<IChartApi | null>; seriesRef: RefObject<ISeriesApi<SeriesType> | null>; containerRef: RefObject<HTMLDivElement | null>;
   market: MarketStore; chartVersion: number; scope: string; symbol: string; precision: number;
+  volumeAvailable: boolean; volumeEnabled: boolean; onVolumeChange: () => void;
 }) {
   const storageKey = `asm_chart_drawings:v1:${scope}`;
   const [drawings, setDrawings] = useState<Drawing[]>([]);
@@ -170,6 +171,7 @@ export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chart
   function zoom(factor:number){const scale=chartRef.current?.timeScale(),range=scale?.getVisibleLogicalRange();if(!range||!scale)return;const middle=(range.from+range.to)/2,half=(range.to-range.from)*factor/2;scale.setVisibleLogicalRange({from:middle-half,to:middle+half});}
   function toggleIndicator(kind:Indicator){const next=indicators.includes(kind)?indicators.filter(i=>i!==kind):[...indicators,kind];setIndicators(next);try{localStorage.setItem(`asm_chart_indicators:${scope}`,JSON.stringify(next));}catch{/* Optional storage. */}}
   const current=drawings.find(d=>d.id===selected);
+  const indicatorCount = indicators.length + Number(volumeEnabled);
   return <>
     <nav aria-label="Chart drawing tools" className={styles.rail}>
       {DRAWING_TOOLS.map(t=><button key={t} type="button" title={NAMES[t]} aria-label={NAMES[t]} aria-pressed={tool===t} onClick={()=>{setTool(t);setNotice(t==="select"?"":`${NAMES[t]}: ${t==="text"||t==="horizontal"?"tap":"drag"} on the chart`);}}><ChartToolIcon name={t} /></button>)}
@@ -181,8 +183,8 @@ export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chart
       <button type="button" aria-label="Delete selected drawing" title="Delete selected drawing" disabled={!selected} onClick={()=>{save(drawings.filter(d=>d.id!==selected));setSelected(null);}}><ChartToolIcon name="delete" /></button>
     </nav>
     <div className={styles.indicators}>
-      <button type="button" aria-expanded={menu} onClick={()=>setMenu(v=>!v)}>ƒx <span>Indicators</span>{indicators.length>0?` · ${indicators.length}`:""}</button>
-      {menu&&<div className={styles.menu}>{INDICATORS.map(i=><label key={i}><input type="checkbox" checked={indicators.includes(i)} onChange={()=>toggleIndicator(i)}/><span style={{color:COLORS[i]}}>{i} 14</span></label>)}<output data-testid="indicator-values" className="text-[10px] text-ink-2">{indicatorReadout}</output><button type="button" onClick={()=>setMenu(false)}>Done</button></div>}
+      <button type="button" aria-expanded={menu} onClick={()=>setMenu(v=>!v)}>ƒx <span>Indicators</span>{indicatorCount>0?` · ${indicatorCount}`:""}</button>
+      {menu&&<div className={styles.menu}>{INDICATORS.map(i=><label key={i}><input type="checkbox" checked={indicators.includes(i)} onChange={()=>toggleIndicator(i)}/><span style={{color:COLORS[i]}}>{i} 14</span></label>)}{volumeAvailable && <label><input type="checkbox" checked={volumeEnabled} onChange={onVolumeChange} /><span>Volume</span></label>}<output data-testid="indicator-values" className="text-[10px] text-ink-2">{indicatorReadout}</output><button type="button" onClick={()=>setMenu(false)}>Done</button></div>}
     </div>
     {(tool==="text"||current?.tool==="text")&&<div className={styles.annotation}><input aria-label="Annotation text" maxLength={120} value={current?.tool==="text"?current.text??"":text} onChange={e=>current?.tool==="text"?save(drawings.map(d=>d.id===current.id?{...d,text:e.target.value}:d)):setText(e.target.value)}/></div>}
     {notice&&<button type="button" className={styles.notice} onClick={()=>setNotice("")} aria-label="Dismiss chart hint">{notice} ×</button>}
