@@ -17,11 +17,12 @@ async function volumePixels(page: Page) {
   });
 }
 
-async function visibleCandles(page: Page) {
+async function candleFraming(page: Page) {
   return page.locator(".analysis-plot .tv-lightweight-charts canvas").first().evaluate((canvas: HTMLCanvasElement) => {
     const height = Math.floor(canvas.height * .85);
     const { data } = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, height);
-    let candles = 0, previous = false;
+    const centers: number[] = [];
+    let start: number | null = null;
     for (let x = 0; x < canvas.width; x++) {
       let pixels = 0;
       for (let y = 0; y < height; y++) {
@@ -30,10 +31,11 @@ async function visibleCandles(page: Page) {
             (data[i] === 242 && data[i + 1] === 54 && data[i + 2] === 69)) pixels++;
       }
       const present = pixels >= 10;
-      if (present && !previous) candles++;
-      previous = present;
+      if (present && start === null) start = x;
+      if (!present && start !== null) { centers.push((start + x - 1) / 2); start = null; }
     }
-    return candles;
+    if (start !== null) centers.push((start + canvas.width - 1) / 2);
+    return { count: centers.length, latest: (centers.at(-1) ?? 0) / canvas.width };
   });
 }
 
@@ -64,13 +66,19 @@ test("Volume can be enabled, restored, and removed without affecting other indic
   const offer = page.getByRole("dialog", { name: "Deposit bonus" });
   if (await offer.isVisible()) await offer.getByRole("button", { name: "Close", exact: true }).click();
   const fullscreen = page.getByRole("button", { name: "Fullscreen chart", exact: true });
-  await expect.poll(() => visibleCandles(page)).toBe(8);
-  await page.screenshot({ path: info.outputPath("initial-eight-candles.png") });
+  await expect.poll(async () => (await candleFraming(page)).latest).toBeGreaterThan(.52);
+  await expect.poll(async () => (await candleFraming(page)).latest).toBeLessThan(.66);
+  const initialCount = (await candleFraming(page)).count;
+  expect(initialCount).toBeGreaterThan(info.project.name.includes("phone") ? 5 : 15);
+  await page.screenshot({ path: info.outputPath("responsive-candles.png") });
   if (info.project.name.includes("phone")) await fullscreen.click();
   await page.getByRole("button", { name: "Zoom out chart", exact: true }).click();
-  await expect.poll(() => visibleCandles(page)).toBeGreaterThan(8);
+  await page.getByRole("button", { name: "Zoom out chart", exact: true }).click();
+  await expect.poll(async () => (await candleFraming(page)).count).toBeGreaterThan(initialCount);
   await page.reload();
-  await expect.poll(() => visibleCandles(page)).toBe(8);
+  await expect.poll(async () => (await candleFraming(page)).latest).toBeGreaterThan(.52);
+  await expect.poll(async () => (await candleFraming(page)).latest).toBeLessThan(.66);
+  await expect.poll(async () => Math.abs((await candleFraming(page)).count - initialCount)).toBeLessThanOrEqual(1);
   if (info.project.name.includes("phone")) await fullscreen.click();
   const menu = page.getByRole("button", { name: /ƒx/ });
   await menu.click();

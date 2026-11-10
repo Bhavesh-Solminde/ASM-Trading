@@ -52,11 +52,8 @@ const marketTime = (time:Time) => typeof time==="number" ? marketClock.format(ti
 const LOAD_OLDER_TRIGGER_BARS = 12;
 
 /**
- * How many real candles must stay on screen. Without this the user can drag the
- * history off to the left until one or two bars are left hugging the price
- * scale, which reads as a broken chart. Enforced two ways: the time scale is
- * capped so eight bars always fit across the plot (zoom), and the visible range
- * is pushed back whenever a drag would leave fewer than eight (pan).
+ * Keep at least eight time slots across the plot when zooming. The pan guard
+ * retains up to eight real candles, adjusted for narrow plots and space ahead.
  */
 const MIN_VISIBLE_BARS = 8;
 /**
@@ -102,7 +99,7 @@ function toSingleValue(c: CandleDto): LineData {
 }
 
 /**
- * Fallback spacing until history arrives and the latest eight candles are framed.
+ * Readable candle spacing, independent of how many bars fit on the screen.
  * Users can then pinch or scroll to change the zoom.
  */
 function defaultBarSpacing(): number {
@@ -115,12 +112,10 @@ function defaultBarSpacing(): number {
 }
 
 /**
- * Empty space kept to the right of the newest candle, in bars. Derived from the
- * candle width so the gap stays a roughly constant ~130px at every zoom default
- * instead of growing with the candles.
+ * Keep the newest candle at roughly 60% of the plot, leaving room ahead.
  */
-function defaultRightOffset(barSpacing: number): number {
-  return Math.max(3, Math.round(130 / barSpacing));
+function defaultRightOffset(width: number, barSpacing: number): number {
+  return Math.max(0, width * .4 / barSpacing - .5);
 }
 
 /**
@@ -517,7 +512,7 @@ export function PriceChart({
     const compactMq = window.matchMedia("(width < 64rem) or (height < 30rem)");
     const axisFontSize = () => (compactMq.matches ? 9 : 11);
     const marketStyle=appearance==="market";
-    const spacing=marketStyle?6:defaultBarSpacing();
+    const spacing=defaultBarSpacing();
 
     const chart: IChartApi = createChart(containerRef.current, {
       layout: {
@@ -538,7 +533,7 @@ export function PriceChart({
         borderColor:"#293a47",
         timeVisible: true,
         secondsVisible: !marketStyle,
-        rightOffset: marketStyle?5:defaultRightOffset(spacing),
+        rightOffset: defaultRightOffset(Math.max(0, containerRef.current.clientWidth - 56), spacing),
         barSpacing: spacing,
         ...(marketStyle?{tickMarkFormatter:marketTime}:{}),
         maxBarSpacing: maxBarSpacingFor(containerRef.current.clientWidth),
@@ -989,10 +984,12 @@ export function PriceChart({
       const formingValid =
         state.forming && (!last || state.forming.openTs > last.openTs) ? state.forming : null;
       formingBar = formingValid ? toBar(formingValid) : null;
-      // Frame the latest eight candles only on initial history or a market/timeframe switch.
+      // Size the initial view to the plot, keeping readable candles and space ahead.
       if(state.candles.length&&(!prev?.candles.length||prev.symbol!==state.symbol||prev.timeframe!==state.timeframe)) {
         const lastIndex = state.candles.length - 1 + (formingValid ? 1 : 0);
-        chart.timeScale().setVisibleLogicalRange({ from: lastIndex - MIN_VISIBLE_BARS + 1, to: lastIndex + 1 });
+        const slots = Math.max(MIN_VISIBLE_BARS, chart.timeScale().width() / defaultBarSpacing());
+        const to = lastIndex + slots * .4 - .5;
+        chart.timeScale().setVisibleLogicalRange({ from: to - slots + 1, to });
       }
 
       if (state.lastPrice === null) {
@@ -1022,8 +1019,8 @@ export function PriceChart({
     };
 
     // Pan clamp: dragging the chart to the right walks the history off screen.
-    // Once fewer than MIN_VISIBLE_BARS real bars remain, shift the range back
-    // by the overshoot so the drag stops dead at eight candles. Re-entrant by
+    // Keep some real candles visible even on narrow screens with space ahead.
+    // Shift the range back by the overshoot. Re-entrant by
     // design — the range change this fires already satisfies the guard.
     const clampRightEdge = (range: { from: number; to: number } | null) => {
       if (!range) return;
@@ -1031,7 +1028,8 @@ export function PriceChart({
       const hasForming = state.forming !== null && latestCandle(state) === state.forming;
       const barCount = state.candles.length + (hasForming ? 1 : 0);
       if (barCount < MIN_VISIBLE_BARS) return;
-      const maxFrom = barCount - MIN_VISIBLE_BARS;
+      const minimum = Math.min(MIN_VISIBLE_BARS, Math.max(1, Math.floor((range.to - range.from + 1) * .6)));
+      const maxFrom = barCount - minimum;
       const overshoot = range.from - maxFrom;
       if (overshoot <= 0) return;
       chart
