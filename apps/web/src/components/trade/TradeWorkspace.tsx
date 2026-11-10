@@ -511,16 +511,13 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
         className={
           focusMode
             ? "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-1 p-1.5 phone:p-0"
-            : "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[minmax(0,1fr)_auto] phone:gap-0 phone:p-0"
+            : "trade-workspace-main grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[minmax(0,1fr)_auto] phone:gap-0 phone:p-0"
         }
       >
-        {/* Desktop keeps the roomy market selector above the chart; on compact
-            widths and in focus mode the market switch moves inside the chart.
-            It deliberately doesn't report open/closed: marketPickerOpen lifts the
-            in-chart overlay to z-50 for the in-chart pickers, and lifting it for
-            this one would put the clock and price readout on top of its list. */}
+        {/* Keep the selector above the chart where the market sidebar is hidden.
+            The in-chart picker handles compact widths and focus mode. */}
         {focusMode ? null : (
-          <div className="relative z-30 phone:hidden">
+          <div className="market-selector-above relative z-30 phone:hidden">
             <MarketSelector assets={assets} active={asset.symbol} onSelect={selectChartSymbol} />
           </div>
         )}

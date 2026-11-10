@@ -103,19 +103,14 @@ function toSingleValue(c: CandleDto): LineData {
  * Users can then pinch or scroll to change the zoom.
  */
 function defaultBarSpacing(): number {
-  const w = typeof window === "undefined" ? 1280 : window.innerWidth;
-  if (w < 640) return 26; // phone
-  if (w < 1024) return 26; // tablet
-  if (w < 1920) return 26; // standard desktop
-  if (w < 2560) return 30; // wide / 2K+
-  return 34; // ultrawide / 4K
+  return 20;
 }
 
 /**
- * Keep the newest candle at roughly 60% of the plot, leaving room ahead.
+ * Keep the newest candle at roughly 55% of the plot, leaving room ahead.
  */
 function defaultRightOffset(width: number, barSpacing: number): number {
-  return Math.max(0, width * .4 / barSpacing - .5);
+  return Math.max(0, width * .45 / barSpacing - .5);
 }
 
 /**
@@ -988,7 +983,7 @@ export function PriceChart({
       if(state.candles.length&&(!prev?.candles.length||prev.symbol!==state.symbol||prev.timeframe!==state.timeframe)) {
         const lastIndex = state.candles.length - 1 + (formingValid ? 1 : 0);
         const slots = Math.max(MIN_VISIBLE_BARS, chart.timeScale().width() / defaultBarSpacing());
-        const to = lastIndex + slots * .4 - .5;
+        const to = lastIndex + slots * .45 - .5;
         chart.timeScale().setVisibleLogicalRange({ from: to - slots + 1, to });
       }
 

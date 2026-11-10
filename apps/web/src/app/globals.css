@@ -370,6 +370,8 @@ button,
 @media (min-width:1280px) and (min-height:480px) and (hover:hover) and (pointer:fine) {
   .trade-workspace:not([data-focus="true"]) { grid-template-columns:clamp(266px,16.15vw,304px) minmax(0,1fr) 340px; }
   .trade-workspace:not([data-focus="true"]) .market-sidebar { display:flex; }
+  .trade-workspace:not([data-focus="true"]) .market-selector-above { display:none; }
+  .trade-workspace:not([data-focus="true"]) .trade-workspace-main { grid-template-rows:minmax(0,1fr) auto; }
 }
 @media (width<64rem),(height<30rem) {
   .analysis-plot { left:0; }
