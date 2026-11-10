@@ -225,7 +225,7 @@ export function HistoryList({
       else p.set("filter", next);
     });
   }, []);
-  const open = useCallback((key: string) => replaceQuery((p) => p.set("tx", key)), []);
+  const open = useCallback((key: string) => replaceQuery(p => p.set("tx", key)), []);
   const close = useCallback(() => replaceQuery((p) => p.delete("tx")), []);
 
   const empty =

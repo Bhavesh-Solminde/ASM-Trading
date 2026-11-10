@@ -1,0 +1,27 @@
+{
+  "provider": "Higgsfield developer API",
+  "model": "minimax/hailuo-2.3/standard/text-to-video",
+  "quoted_usd": "0.280",
+  "request_id": "01a1b91b-e9c1-7a5e-a0e8-821cd3163091",
+  "submitted_request": {
+    "prompt": "Six-second landscape cinematic Diwali greeting background. Premium photorealistic Diwali welcome for a dark trading website. Fixed frontal camera over a matte deep blue-charcoal #080E16 floor and background with subtle blue #2F81F7 ambient light. One small detailed brass chakri spins at lower centre in the first two seconds, emits fine natural warm-gold sparks with realistic delicate trails. As sparks settle, reveal three elegant brass diyas close together along the lower edge by second three, centre lamp larger. Hold the warm flames and soft reflections for the last three seconds. Keep middle and upper centre empty and dark for website logo and greeting added later. Calm luxurious realistic materials, coherent single scene, stable camera. No text, logo, watermark, purple, magenta, confetti, neon portals, dense smoke, huge explosions, rapid flashing or camera movement. Silent.",
+    "duration": 6,
+    "prompt_optimizer": false
+  },
+  "status": "completed",
+  "budget_note": "One draft only; no additional paid variants or retries without review. Desktop/mobile derivatives are local edits of this same generation.",
+  "source_video_url": "https://d3u0tzju9qaucj.cloudfront.net/5a8a7990-a4ca-4255-b901-73bb66468228/01a1b91b-e9c1-7a5e-a0e8-821cd3163091/eeb751b1-4b9d-403f-a5fb-18a373e910f8.mp4",
+  "outputs": {
+    "desktop": "apps/web/public/festive/diwali-2026-desktop.mp4",
+    "mobile": "apps/web/public/festive/diwali-2026-mobile.mp4",
+    "preview": "http://localhost:3012/diwali-preview"
+  },
+  "source_dimensions": [
+    1366,
+    768
+  ],
+  "source_duration_seconds": 5.875,
+  "edited_duration_seconds": 8,
+  "paid_generations": 1,
+  "review_notes": "Reviewed the full clip at half-second intervals. Model added unwanted lettering; masked it in local compositing and added official wordmark plus Hanken Grotesk type. Mobile is locally reframed, not another paid generation. Silent greeting, separate win-fireworks sound in preview."
+}

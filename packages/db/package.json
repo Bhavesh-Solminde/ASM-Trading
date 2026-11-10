@@ -10,6 +10,7 @@
     "generate": "prisma generate",
     "migrate": "dotenv -e ../../.env -- prisma migrate dev",
     "seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "seed:markets": "dotenv -e ../../.env -- tsx prisma/sync-market-catalogue.ts",
     "seed:fraud": "dotenv -e ../../.env -- tsx prisma/seed-fraud.ts",
     "seed:algo": "dotenv -e ../../.env -- tsx prisma/seed-algo.ts",
     "seed:approvals": "dotenv -e ../../.env -- tsx prisma/seed-approvals-demo.ts",

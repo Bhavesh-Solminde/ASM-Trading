@@ -1,7 +1,7 @@
 import type { TradeView } from "@asm/contracts";
 import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor } from "@/lib/format-money";
-import { closedRowDisplay } from "@/components/trade/pnl-display";
+import { closedRowDisplay, settledAmountText } from "@/components/trade/pnl-display";
 
 /**
  * Pure model behind the History list and its detail sheet: the row shapes the
@@ -143,11 +143,11 @@ export interface TradeAmount {
   tone: Tone;
 }
 
-/** Same figures as the trade screen's Closed tab: a win shows stake + profit. */
+/** Same figures as the chart's result card: a win reads stake + profit = total. */
 export function tradeAmount(trade: TradeView, currency: string): TradeAmount {
-  const d = closedRowDisplay(trade);
-  const tone: Tone = trade.status === "WON" ? "up" : trade.status === "LOST" ? "down" : "neutral";
-  return { text: `${d.sign}${formatMinor(d.amountMinor, currency)}`, tone };
+  const { sign } = closedRowDisplay(trade);
+  const tone: Tone = sign === "+" ? "up" : sign === "−" ? "down" : "neutral";
+  return { text: settledAmountText(trade, currency), tone };
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");

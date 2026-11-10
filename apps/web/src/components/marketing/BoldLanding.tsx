@@ -1,3 +1,5 @@
+import { MARKET_COUNT } from "@asm/contracts";
+import { SeasonalDiwali, FestiveLights, DiwaliEntry, DiwaliWish } from "@/components/festive/SeasonalDiwali";
 import Image from "next/image";
 import Link from "next/link";
 import { LogoEmblem, LogoWordmark } from "@/components/brand/Logo";
@@ -13,7 +15,7 @@ const editorialSizes = "(min-width: 1280px) 40vw, (min-width: 768px) 45vw, 1px";
 /** Bolder Pocket-Option-style: gradients, glow, motion, heavier scale. */
 export function BoldLanding() {
   return (
-    <div className="min-h-screen bg-ground text-ink">
+    <SeasonalDiwali><div className="min-h-screen bg-ground text-ink">
       <BoldNav />
 
       {/* HERO */}
@@ -35,6 +37,7 @@ export function BoldLanding() {
 
         <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-5 pb-14 pt-16 sm:px-6 md:grid-cols-[minmax(0,1fr)_360px] md:gap-16 md:pb-28 md:pt-32 lg:grid-cols-[minmax(0,1fr)_420px]">
           <div className="max-w-2xl">
+            <DiwaliEntry />
             <span className="inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-brand md:text-[11px]">
               <span aria-hidden className="dir-mark" data-dir="up" style={{ color: "var(--color-brand)", width: 8, height: 8 }} />
               SEBI regulated · 100% deposit bonus
@@ -47,7 +50,7 @@ export function BoldLanding() {
               </span>
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-ink-2 md:mt-6 md:text-lg">
-              Go long or short on forex, crypto and India indices with real-time market prices.
+              Go long or short on forex, crypto, commodities and India indices with real-time market prices.
               Set your stop-loss and take-profit on every position. Up to 100x leverage.
               Start with a free demo — no card, no wait.
             </p>
@@ -73,7 +76,7 @@ export function BoldLanding() {
               {[
                 ["100x", "leverage"],
                 ["SL/TP", "on every trade"],
-                ["18", "instruments"],
+                [String(MARKET_COUNT), "instruments"],
                 ["24/7", "trading"],
               ].map(([n, l]) => (
                 <span
@@ -372,7 +375,7 @@ export function BoldLanding() {
       </section>
 
       <BoldFooter />
-    </div>
+    </div></SeasonalDiwali>
 );
 }
 
@@ -388,6 +391,7 @@ function Stat({ value, label }: { value: React.ReactNode; label: string }) {
 function BoldNav() {
   return (
     <header className="sticky top-0 z-30 border-b border-rule bg-ground/70 backdrop-blur-xl">
+      <FestiveLights />
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href="/" aria-label="IndianxTrade — home" className="flex items-center">
           <LogoWordmark className="h-7" />
@@ -399,6 +403,7 @@ function BoldNav() {
           <a href="#faq" className="hover:text-ink">FAQ</a>
         </div>
         <div className="flex items-center gap-2">
+          <span className="hidden xl:block"><DiwaliEntry compact /></span>
           <Link
             href="/login"
             className="hidden text-sm font-semibold text-ink-2 hover:text-ink sm:inline-flex"
@@ -421,6 +426,7 @@ function BoldFooter() {
   return (
     <footer className="bg-ground">
       <div className="mx-auto max-w-6xl px-6 py-16">
+        <DiwaliWish />
         <div className="grid grid-cols-2 gap-10 sm:grid-cols-4">
           <div className="col-span-2 sm:col-span-1">
             <LogoEmblem detail className="h-20 w-20" />

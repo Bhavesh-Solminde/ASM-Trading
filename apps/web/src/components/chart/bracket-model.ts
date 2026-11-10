@@ -46,3 +46,10 @@ export function bracketFromPnl(trade: TradeView, netMinor: number, tick: number,
   return snapBracketPrice(trade.entryPrice * (1 + (trade.direction === "UP" ? move : -move)), tick, precision);
 }
 export function bracketPnl(trade: TradeView, price: number): number { return cfdOpenPnl(trade, price) ?? 0; }
+
+export function bracketReturnPercent(trade: TradeView, price: number): string {
+  const pnl = bracketPnl(trade, price);
+  if (!Number.isFinite(pnl) || !Number.isFinite(trade.stake) || trade.stake <= 0) return "—";
+  const percent = Math.sign(pnl) * Math.round(Math.abs(pnl) * 10000 / trade.stake) / 100;
+  return `${percent > 0 ? "+" : percent < 0 ? "−" : ""}${Math.abs(percent).toFixed(2)}%`;
+}

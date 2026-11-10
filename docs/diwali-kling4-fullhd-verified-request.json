@@ -1,0 +1,38 @@
+{
+  "provider": "Higgsfield developer API",
+  "model": "kling-video/v4.0/reference-to-video",
+  "request_id": "01a1b93b-fd30-7858-99c3-2a60eac66462",
+  "status": "completed",
+  "estimated_usd_before_discounts": 1.41,
+  "pricing_response": {
+    "type": "description",
+    "pricing_description": "Without input video: 720p $0.157/s, 1080p $0.235/s, charged on output duration. With input video: 720p $0.094/s, 1080p $0.141/s, charged on output duration + max(total input video duration, output duration). Input duration includes video elements and explicit videos after the 30-second trim."
+  },
+  "submitted_request": {
+    "prompt": "Create one polished six-second Diwali greeting BACKGROUND video, 16:9 landscape, fixed camera from a slightly elevated three-quarter angle. Use @image_1 ONLY as the material and shape reference for the ground-spinning chakri. Recreate ONE low, flat, circular Indian ground chakkar like the reference: lightweight cardboard and tightly wrapped/coiled paper, a glossy laminated colourful printed-paper top with a simple yellow star on vivid pink, and a thick red-white-blue striped paper sidewall. The casing should look like the paper/plastic-laminated consumer firework in the photograph, with tiny realistic paper seams and folds. Leave all packaging unbranded and without readable writing. This is NOT brass, steel, a metal disc, a lamp, a gear or a shiny mechanical wheel.\nSet it on a matte dark blue-charcoal #080E16 surface with a matching empty background, very subtle #2F81F7 ambient edge light. Keep all action centrally framed in the lower half with a quiet dark upper half for our exact typography and official logo, which we will add ourselves later. No typography or brand graphics in this generation.\n0.0-0.8 seconds: the paper-wrapped wheel lies FLAT on the floor, a small fuse at its edge catches with a subtle glowing ember and light smoke. No hand or person.\n0.8-3.8 seconds: the ground wheel accelerates into a convincing FAST continuous horizontal spin about its vertical centre axis. The printed star progressively blurs with rotational motion. Tangential jets drive the rotation and throw long fine golden sparks in low outward-curving radial trails around the ground plane. Sparks bounce and decay on the floor, realistically lighting the paper rim and ground. Keep the wheel flat and in roughly the same place. Do not turn it into an aerial rocket or a vertical fountain; no explosion in the sky. Use natural shutter blur, tactile paper and real pyrotechnic light, never a neon ring or digital spinning graphic.\n3.8-5.0 seconds: the spinning wheel slows, golden trails become shorter and dwindle into a few glowing embers. A gentle warm pool of light reveals three small clay diyas in the distant lower corners, leaving the central wheel clearly identifiable. The lamps are separate props, never replacements or morphs of the chakri.\n5.0-6.0 seconds: hold the calm charcoal composition with tiny remaining embers, subtle natural diya flames and uncluttered room for the greeting added later. Stable geometry and coherent physical motion throughout.\nSOUND: synchronized fuse hiss, growing airy spinning firework whirr and bright delicate granular crackles, then a natural soft decay. Realistic, balanced, comfortable listening level. No music, narration, speech, cheering, bass drop or sudden loud bang.\nAVOID: all text, captions, logos, invented letters, watermarks, metallic chakri casing, brass or steel spinner, plastic toy look, floating objects, magenta/purple backgrounds, excessive smoke, huge explosions, flashing/strobing frames, people, hands, camera shake, zooms or cuts.",
+    "duration": 6,
+    "resolution": "1080p",
+    "aspect_ratio": "16:9",
+    "image_urls": [
+      "https://d3snorpfx4xhv8.cloudfront.net/5a8a7990-a4ca-4255-b901-73bb66468228/1250de49-4e1e-4e20-8d2a-1718386a60f4.png"
+    ]
+  },
+  "source_video_url": "https://d3u0tzju9qaucj.cloudfront.net/05f4e1d2-9c39-4336-aff7-900e78a0ac9d/01a1b93b-fd30-7858-99c3-2a60eac66462/c7930aa9-5909-4899-9804-c400aeaf9ea8.mp4",
+  "source_dimensions": [
+    1920,
+    1080
+  ],
+  "source_duration_seconds": 6.041667,
+  "audio": {
+    "codec": "aac",
+    "sample_rate": 44100,
+    "channels": 2
+  },
+  "budget_cap_usd": 4,
+  "credential_verified": "Configured root key matches an active key prefix shown in user API account screenshot. Root .env and .env.local are authoritative; no app-copy override.",
+  "outputs": {
+    "desktop": "apps/web/public/festive/diwali-kling4-1080p-desktop.mp4",
+    "mobile": "apps/web/public/festive/diwali-kling4-1080p-mobile.mp4"
+  },
+  "review_notes": "Reviewed complete six-second timeline at quarter-second intervals. Colourful paper-wrapped casing preserved; model retained some reference packaging printing. No AI greeting/title or website logo. Portrait is a local derivative of the same full-length video, not another paid generation. Native stereo audio preserved. Final bill not returned by API; $1.41 is an estimate before discounts."
+}

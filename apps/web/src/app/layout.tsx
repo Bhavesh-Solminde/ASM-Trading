@@ -3,6 +3,7 @@ import { Doto, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { buildMetadata } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
+import { FirstVisitDiwali } from "@/components/festive/FirstVisitDiwali";
 import {
   JsonLd,
   organizationSchema,
@@ -62,6 +63,7 @@ export default function RootLayout({
         {/* Site-wide entity graph — Organization + WebSite. */}
         <JsonLd data={[organizationSchema(), websiteSchema()]} />
         {children}
+        <FirstVisitDiwali />
       </body>
     </html>
 );

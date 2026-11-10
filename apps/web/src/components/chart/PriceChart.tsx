@@ -28,6 +28,7 @@ import {
 import type { CandleDto, TradeView } from "@asm/contracts";
 import type { MarketStore } from "@/components/shell/market-store";
 import { formatMinor } from "@/lib/format-money";
+import { ChartAnalysis } from "./ChartAnalysis";
 import { ChartBrackets } from "./ChartBrackets";
 import { countdown } from "@/lib/format-time";
 import { TIMEFRAME_SEC, type ChartState } from "./engine-state";
@@ -430,6 +431,7 @@ function applySeriesAlpha(series: ISeriesApi<any>, type: ChartType, alpha: numbe
  * history is replaced), so a tick costs a canvas draw and no render.
  */
 export function PriceChart({
+  marketOpen = true,
   market,
   precision,
   watermark,
@@ -439,8 +441,13 @@ export function PriceChart({
   enableBrackets = false,
   bracketScope,
   bracketControls = true,
+  bracketActionsContainer,
+  focusedTradeId, onSelectTrade, onShowAllTrades,
   tickSize,
+  analysisScope,
 }: {
+  analysisScope?: string;
+  marketOpen?: boolean;
   market: MarketStore;
   precision: number;
   watermark: string;
@@ -450,6 +457,10 @@ export function PriceChart({
   enableBrackets?: boolean;
   bracketScope?: string;
   bracketControls?: boolean;
+  bracketActionsContainer?: HTMLElement | null | undefined;
+  focusedTradeId?: string | undefined;
+  onSelectTrade?: ((id: string) => void) | undefined;
+  onShowAllTrades?: (() => void) | undefined;
   tickSize?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -506,7 +517,7 @@ export function PriceChart({
         pinch: true,
         axisPressedMouseMove: { time: true, price: false },
       },
-      rightPriceScale: { borderVisible: false, scaleMargins: { top: enableBrackets ? 0.24 : 0.18, bottom: 0.1 } },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.18, bottom: 0.1 } },
       timeScale: {
         borderVisible: false,
         timeVisible: true,
@@ -724,6 +735,11 @@ export function PriceChart({
     const series = seriesRef.current;
     const priceLine = priceLineRef.current;
     if (!chart || !series || !priceLine) return;
+    // A stale last quote is still useful history, but has no live price marker.
+    if (!marketOpen) {
+      priceLine.applyOptions({ lineVisible: false, axisLabelVisible: false });
+      if (countdownRef.current) countdownRef.current.hidden = true;
+    }
 
     let prev: ChartState | null = null;
 
@@ -853,7 +869,7 @@ export function PriceChart({
         }
       }
       if (displayed !== paintedPrice) {
-        priceLine.applyOptions({ price: displayed, lineVisible: true, axisLabelVisible: true });
+        priceLine.applyOptions({ price: displayed, lineVisible: marketOpen, axisLabelVisible: marketOpen });
         paintedPrice = displayed;
       }
     };
@@ -861,6 +877,7 @@ export function PriceChart({
     const placeCountdown = () => {
       const label = countdownRef.current;
       if (!label) return;
+      if (!marketOpen) { label.hidden = true; return; }
       const state = market.getSnapshot().chart;
       const lastTs = latestCandle(state)?.openTs;
       const y = state.lastPrice === null ? null : series.priceToCoordinate(state.lastPrice);
@@ -901,6 +918,10 @@ export function PriceChart({
       // Closed history is written straight through; the forming bar and the
       // last-price line are handed to the eased paint loop below.
       if (!prev || state.candles !== prev.candles) {
+        // Bulk replacements can move logical indexes beneath an existing hover.
+        if (prev && (state.candles[0]?.openTs !== prev.candles[0]?.openTs || state.candles.length < prev.candles.length)) {
+          chart.clearCrosshairPosition();
+        }
         if (chartType === "hollow_candles") {
           (series as ISeriesApi<"Candlestick">).setData(
             state.candles.map((c, i) => {
@@ -982,7 +1003,7 @@ export function PriceChart({
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(placeCountdown);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(maybeLoadOlder);
     };
-  }, [market, precision, chartVersion, chartType]);
+  }, [market, precision, chartVersion, chartType, marketOpen]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -1011,16 +1032,19 @@ export function PriceChart({
   }, [openTrades, currency, chartVersion, enableBrackets]);
 
   return (
-    <>
+    <div className="analysis-plot absolute inset-0">
       {/* z-0 gives the chart its own stacking context so lightweight-charts'
           internal z-index:50 canvases stay trapped below the overlay controls
           (timeframe tabs, fullscreen) instead of leaking up and eating clicks. */}
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
-      {enableBrackets && <ChartBrackets key={bracketScope} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
+      {enableBrackets && <ChartBrackets key={`${bracketScope}:${focusedTradeId ?? "all"}`} focusedTradeId={focusedTradeId} onSelectTrade={onSelectTrade} onShowAllTrades={onShowAllTrades} actionsContainer={bracketActionsContainer} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
         precision={precision} tickSize={tickSize ?? 10 ** -precision} currency={currency} chartVersion={chartVersion} market={market} />}
 
 
 
+      {analysisScope && <ChartAnalysis key={analysisScope} scope={analysisScope} symbol={market.getSnapshot().chart.symbol} market={market} chartRef={chartRef} seriesRef={seriesRef} containerRef={containerRef} chartVersion={chartVersion} precision={precision} />}
+
+      <a className="chart-attribution" href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer" aria-label="Charts by TradingView" title="Charts by TradingView"><img src="/brand/tradingview-chart.svg" width="27" height="15" alt="" /></a>
       {/* Style Switch HUD Pill */}
       {hudLabel && (
         <div
@@ -1033,6 +1057,7 @@ export function PriceChart({
       )}
 
       <div
+        data-testid="chart-countdown"
         ref={countdownRef}
         hidden
         className="pointer-events-none absolute left-0 top-0 h-[18px] rounded-[1px] bg-brand px-[5px] text-[10px] font-semibold leading-[18px] text-brand-ink"
@@ -1041,6 +1066,6 @@ export function PriceChart({
         ref={ohlcRef}
         className="pointer-events-none absolute bottom-[34px] left-2 whitespace-pre text-[11px] tracking-[0.02em] text-ink-2 phone:bottom-[24px] phone:left-1 phone:text-[9px]"
       />
-    </>
+    </div>
   );
 }

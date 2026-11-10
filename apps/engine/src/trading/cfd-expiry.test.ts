@@ -120,7 +120,7 @@ it("charges the full spread separately, logs it and credits LIVE treasury", asyn
     trade: { create: async ({ data }: any) => ({ ...data, id: "fee-trade", exitPrice: null, closeReason: null, pnl: 0 }) },
     account: { updateMany: debit, findUniqueOrThrow: vi.fn()
       .mockResolvedValueOnce({ type: "LIVE", realBalance: 200000, bonusBalance: 0 })
-      .mockResolvedValueOnce({ realBalance: 99950, bonusBalance: 0 }) },
+      .mockResolvedValueOnce({ realBalance: 95000, bonusBalance: 0 }) },
     transaction: { createMany: ledger }, houseTreasury: { upsert: treasury },
   }));
   const result = await new CfdDesk().open({ actorId: "u", accountId: "a", symbol: "BTCUSDT",
@@ -128,18 +128,18 @@ it("charges the full spread separately, logs it and credits LIVE treasury", asyn
     { id: "asset", symbol: "BTCUSDT", spreadBps: 5 },
     { treasuryMinor: 30000000, netExposure: 0, exposureCap: 50000000,
       userDailyPnl: 0, dailyWinCap: 60000, dynamicMaxStake: 150000, isCircuitBroken: false });
-  expect(result.trade.spreadFee).toBe(50);
+  expect(result.trade.spreadFee).toBe(5000);
   expect(result.trade.entryPrice).toBe(81646.98);
   expect(result.trade.leverage).toBe(100);
   expect(result.trade.liqPrice).toBeCloseTo(81646.98 * .99);
   expect(debit).toHaveBeenCalledWith(expect.objectContaining({ data: {
-    realBalance: { decrement: 100050 }, bonusBalance: { decrement: 0 },
+    realBalance: { decrement: 105000 }, bonusBalance: { decrement: 0 },
   } }));
   expect(ledger).toHaveBeenCalledWith({ data: [
     expect.objectContaining({ kind: "TRADE_STAKE", amount: -100000, balanceAfter: 100000 }),
-    expect.objectContaining({ kind: "TRADE_FEE", amount: -50, balanceAfter: 99950 }),
+    expect.objectContaining({ kind: "TRADE_FEE", amount: -5000, balanceAfter: 95000 }),
   ] });
-  expect(treasury).toHaveBeenCalledWith(expect.objectContaining({ update: { treasuryMinor: { increment: 50 } } }));
+  expect(treasury).toHaveBeenCalledWith(expect.objectContaining({ update: { treasuryMinor: { increment: 5000 } } }));
 });
 
 it("returns pure gross PnL on a flat close — the opening fee is not re-subtracted at close", async () => {

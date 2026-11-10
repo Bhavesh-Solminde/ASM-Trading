@@ -1,0 +1,11 @@
+{
+  "source": "/Users/solminde/Desktop/Screen Recording 2026-11-08 at 9.52.54 AM.mov",
+  "original_audio": "extracted-original.m4a",
+  "replacement_audio": "synced-reference-sound-13s.m4a",
+  "source_segments_seconds": [[3.1, 6.1], [7.0, 16.5]],
+  "destination_segments_seconds": [[0, 3], [3, 12.5]],
+  "treatment": "Remove recording lead-in and pause; align spin and celebration sections; brief edge fades; peak limit; fade from 8 to 12.5 seconds; pad to 13 seconds. Entire selected recording audio is used, without source separation.",
+  "output": "../final-generation/diwali-final-1080p-reference-sound.mp4",
+  "video": "Original 13-second trimmed video stream copied without re-encoding",
+  "validated": "13.000 seconds, 1920x1080, stereo AAC at 48000 Hz; full decode completed without errors"
+}

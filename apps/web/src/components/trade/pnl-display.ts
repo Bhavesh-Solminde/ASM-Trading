@@ -1,5 +1,6 @@
 import { cfdProfitMinor } from "@asm/contracts";
 import type { TradeView } from "@asm/contracts";
+import { formatMinor } from "@/lib/format-money";
 
 /**
  * The gross amount a winning position returns: the stake plus its profit. A
@@ -43,6 +44,20 @@ export function closedRowDisplay(trade: Pick<TradeView, "status" | "stake" | "pn
 }
 
 /**
+ * A settled trade's result as the chart card and History show it. A win (a
+ * classic WON, or a CFD closed in profit) shows the total that came back,
+ * stake + profit (₹100 stake, ₹10 profit → "+₹110.00"). A loss shows only
+ * what was lost ("−₹10.00"); a refund or flat close reads "₹0.00".
+ */
+export function settledAmountText(trade: Pick<TradeView, "status" | "stake" | "pnl">, currency: string): string {
+  if (trade.status === "WON" || (trade.status === "CLOSED" && trade.pnl > 0)) {
+    return `+${formatMinor(grossReturnMinor(trade.stake, trade.pnl), currency)}`;
+  }
+  const d = closedRowDisplay(trade);
+  return `${d.sign}${formatMinor(d.amountMinor, currency)}`;
+}
+
+/**
  * Where an open trade stands against the live price: "winning" when the price
  * is on the trade's side of the entry, "losing" when it is against it, "flat"
  * when equal, null while there is no price yet. The trades list and the phone
@@ -72,4 +87,9 @@ export function openSide(
 export function cfdOpenPnl(trade: Pick<TradeView, "direction" | "stake" | "entryPrice" | "leverage">, price: number | null): number | null {
   if (price === null || trade.entryPrice <= 0) return null;
   return cfdProfitMinor(trade.direction, trade.entryPrice, price, trade.stake, trade.leverage ?? 1);
+}
+
+/** CFD opening fees are debited separately from the stored market-move result. */
+export function tradeNetPnl(trade: Pick<TradeView, "pnl" | "durationSec" | "spreadFee">): number {
+  return trade.pnl - (trade.durationSec != null ? trade.spreadFee ?? 0 : 0);
 }

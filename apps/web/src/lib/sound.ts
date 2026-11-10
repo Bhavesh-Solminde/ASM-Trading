@@ -1,6 +1,15 @@
+import { FIREWORK_BURSTS } from "./diwali";
+
 export type SettledSound = "win" | "lose";
 
 const MUTE_KEY = "asm.sound";
+const muteListeners = new Set<() => void>();
+export function subscribeSound(listener: () => void) {
+  muteListeners.add(listener);
+  const storage = () => listener();
+  if (typeof window !== "undefined") window.addEventListener("storage", storage);
+  return () => { muteListeners.delete(listener); if (typeof window !== "undefined") window.removeEventListener("storage", storage); };
+}
 
 /** Maps a settled trade's status to the sound it should play, if any. */
 export function soundForSettled(status: string): SettledSound | null {
@@ -27,12 +36,15 @@ export function setMuted(muted: boolean): void {
     else localStorage.removeItem(MUTE_KEY);
   } catch {
     // Storage unavailable — nothing to do.
+  } finally {
+    muteListeners.forEach(listener => listener());
   }
 }
 
 type AudioContextCtor = typeof AudioContext;
 
 let ctx: AudioContext | null = null;
+let fireworkNoise: AudioBuffer | null = null;
 
 /** Lazily creates (and resumes) the one shared AudioContext. Null when unsupported. */
 function getContext(): AudioContext | null {
@@ -43,8 +55,81 @@ function getContext(): AudioContext | null {
   if (!ctx) ctx = new Ctor();
   // Autoplay policies suspend a freshly created context until a user gesture;
   // settlement always follows one (opening the trade), so resume is safe here.
-  void ctx.resume();
+  void ctx.resume().catch(() => { /* The browser may require another user gesture. */ });
   return ctx;
+}
+
+/** Call from a user gesture so a later celebration can play on mobile too. */
+export function unlockSound(): void {
+  if (isMuted()) return;
+  try { getContext(); } catch { /* Audio is optional when unavailable. */ }
+}
+
+/** Resume during the explicit celebration gesture; false means visual-only fallback. */
+export async function prepareFestivalSound(): Promise<boolean> {
+  if (isMuted()) return false;
+  try { const audio = getContext(); if (!audio) return false; await audio.resume(); return audio.state === "running"; } catch { return false; }
+}
+
+/** Three soft firework pops with a trailing crackle, timed to the visual bursts. */
+export function playFireworks(synchronized = false): () => void {
+  const silent = () => {};
+  if (isMuted() || (typeof document !== "undefined" && document.hidden)) return silent;
+  try {
+    const audio = getContext();
+    if (!audio || audio.state === "closed") return silent;
+    const nodes: AudioNode[] = [];
+    const sources: (AudioBufferSourceNode | OscillatorNode)[] = [];
+    const duration = 0.7;
+    const buffer = fireworkNoise ?? audio.createBuffer(1, Math.ceil(audio.sampleRate * duration), audio.sampleRate);
+    const samples = buffer.getChannelData(0);
+    // Deterministic noise for the crackle; no downloads or per-frame work.
+    let seed = 0x1d1a11;
+    for (let i = 0; !fireworkNoise && i < samples.length; i++) {
+      seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+      samples[i] = ((seed >>> 0) / 0xffffffff) * 2 - 1;
+    }
+    fireworkNoise = buffer;
+    if (synchronized) {
+      const hiss = audio.createBufferSource(); hiss.buffer = buffer;
+      const gain = audio.createGain(); const t = audio.currentTime;
+      gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.025, t + 0.1);
+      gain.gain.linearRampToValueAtTime(0, t + 0.35);
+      hiss.connect(gain); gain.connect(audio.destination); hiss.start(t); hiss.stop(t + 0.36);
+      sources.push(hiss); nodes.push(hiss, gain);
+    }
+    for (let burst = 0; burst < 3; burst++) {
+      const t = audio.currentTime + (synchronized ? FIREWORK_BURSTS[burst]!.delay : 0.025 + burst * 0.22);
+      const noise = audio.createBufferSource();
+      noise.buffer = buffer;
+      const filter = audio.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(3200, t);
+      filter.frequency.exponentialRampToValueAtTime(450, t + duration);
+      const envelope = audio.createGain();
+      envelope.gain.setValueAtTime(0, t);
+      envelope.gain.linearRampToValueAtTime(0.16, t + 0.008);
+      envelope.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+      noise.connect(filter); filter.connect(envelope); envelope.connect(audio.destination);
+      noise.start(t); noise.stop(t + duration);
+      const boom = audio.createOscillator();
+      const bass = audio.createGain();
+      boom.frequency.setValueAtTime(130, t);
+      boom.frequency.exponentialRampToValueAtTime(40, t + 0.18);
+      bass.gain.setValueAtTime(0, t);
+      bass.gain.linearRampToValueAtTime(0.1, t + 0.006);
+      bass.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      boom.connect(bass); bass.connect(audio.destination);
+      boom.start(t); boom.stop(t + 0.23);
+      nodes.push(noise, filter, envelope, boom, bass);
+      sources.push(noise, boom);
+    }
+    const stop = () => {
+      for (const source of sources) { try { source.stop(); } catch { /* Already finished. */ } }
+      for (const node of nodes) node.disconnect();
+    };
+    return stop;
+  } catch { return silent; }
 }
 
 /** Plays one short tone with a quick attack + exponential decay envelope. */

@@ -15,6 +15,7 @@
 import argon2 from "argon2";
 import { prisma } from "../src/client";
 import { createAccountsForUser } from "../src/repositories/account";
+import { DEMO_VPA } from "../src/repositories/deposit";
 
 const PASSWORD = "asm-approvals-demo-2026";
 const EMAIL = "approvals-demo@asm.local";
@@ -110,7 +111,7 @@ async function main(): Promise<void> {
         method: d.method,
         amountInr: d.amountInrMinor,
         amountUsd: Math.round(d.amountInrMinor / 107.64),
-        vpa: "ulkasolminde@okhdfcbank",
+        vpa: DEMO_VPA,
         checkoutToken: `${CORRELATION_TAG}-token-${i}-${now}`,
         claimedUtr: d.claimedUtr,
         status: "PENDING_CONFIRMATION",

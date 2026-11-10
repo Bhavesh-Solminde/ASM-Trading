@@ -65,6 +65,7 @@ export interface CfdTradeView {
   entryPrice: number;
   entryTs: number;
   expiryTs: number;
+  closedTs?: number | null;
   exitPrice: number | null;
   stopLoss: number | null;
   takeProfit: number | null;

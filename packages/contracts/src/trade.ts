@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { CfdCloseReasonDto } from "./cfd-trade";
 import { SymbolSchema } from "./ws";
 
 /** Mirrors DURATIONS_SEC in @asm/trading. Kept literal so contracts stays dependency-free. */
@@ -63,6 +64,8 @@ export interface TradeView {
   entryTs: number;
   /** Epoch seconds. */
   expiryTs: number;
+  closedTs?: number | null;
+  closeReason?: CfdCloseReasonDto | null;
   exitPrice: number | null;
   status: TradeStatusDto;
   pnl: number;
@@ -96,6 +99,8 @@ export interface TradeRowLike {
   entryPrice: number;
   entryTs: Date;
   expiryTs: Date;
+  closedAt?: Date | null;
+  closeReason?: CfdCloseReasonDto | null;
   exitPrice: number | null;
   status: TradeStatusDto;
   pnl: number;
@@ -122,6 +127,8 @@ export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
     entryPrice: row.entryPrice,
     entryTs: Math.floor(row.entryTs.getTime() / 1000),
     expiryTs: Math.floor(row.expiryTs.getTime() / 1000),
+    closedTs: row.closedAt ? Math.floor(row.closedAt.getTime() / 1000) : null,
+    closeReason: row.closeReason ?? null,
     exitPrice: row.exitPrice,
     status: row.status,
     pnl: row.pnl,

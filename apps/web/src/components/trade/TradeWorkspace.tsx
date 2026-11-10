@@ -20,8 +20,11 @@ import { splitAssetName } from "@/lib/asset-name";
 import { formatMinor } from "@/lib/format-money";
 import { clockTime } from "@/lib/format-time";
 import { useDismiss } from "@/lib/use-dismiss";
+import { useCfdMarketStatus } from "@/lib/use-cfd-market-status";
+import { useMarketClosed } from "@/lib/use-now";
 import { useNowSec } from "@/lib/use-now";
 import { useScrollLock } from "@/lib/use-scroll-lock";
+import { MarketSidebar } from "./MarketSidebar";
 import { MarketSelector } from "./MarketSelector";
 import type { CfdOpenTradeResult } from "@asm/contracts";
 import { CfdTradeTicket } from "./CfdTradeTicket";
@@ -37,8 +40,8 @@ const NO_TRADES: TradeView[] = [];
 /** Best-effort native fullscreen; the layout's focus mode is the real source of truth. */
 function toggleNativeFullscreen(on: boolean): void {
   try {
-    if (on) void document.documentElement.requestFullscreen?.();
-    else if (document.fullscreenElement) void document.exitFullscreen?.();
+    if (on) void document.documentElement.requestFullscreen?.().catch(() => {});
+    else if (document.fullscreenElement) void document.exitFullscreen?.().catch(() => {});
   } catch {
     // Fullscreen API blocked or unsupported — focus mode still applies.
   }
@@ -256,17 +259,17 @@ function PhoneReadout({ symbol, precision }: { symbol: string; precision: number
   const change = quote ? changePct(quote) : null;
 
   return (
-    <div className="pointer-events-none flex items-baseline gap-2 pl-0.5">
+    <div className="pointer-events-none flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 pl-0.5">
       <span
         key={lastPrice ?? "none"}
-        className={`led led-lit text-[26px] font-extrabold leading-none tracking-[-0.02em] text-brand land:text-[20px] ${
+        className={`led led-lit text-[18px] font-extrabold leading-none tracking-[-0.02em] text-brand land:text-[20px] ${
           direction ? `tick-${direction}` : ""
         }`}
       >
         {lastPrice === null ? "—" : lastPrice.toFixed(precision)}
       </span>
       {change !== null ? (
-        <span className={`text-xs font-bold tabular-nums ${change >= 0 ? "text-up" : "text-down"}`}>
+        <span className={`text-[10px] font-bold tabular-nums ${change >= 0 ? "text-up" : "text-down"}`}>
           {change >= 0 ? "+" : "−"}
           {Math.abs(change).toFixed(2)}%
         </span>
@@ -290,7 +293,7 @@ function PhoneTimeframeTabs() {
           type="button"
           aria-pressed={tf === timeframe}
           onClick={() => selectTimeframe(tf)}
-          className={`relative h-7 rounded-lg px-2 text-xs font-bold transition-colors after:absolute after:inset-x-0 after:-inset-y-2 min-[380px]:px-[9px] ${
+          className={`relative h-6 rounded-md px-2 text-[11px] font-bold transition-colors after:absolute after:inset-x-0 after:-inset-y-2 min-[380px]:px-[9px] ${
             tf === timeframe ? "bg-tile-hi text-ink" : "text-ink-2 hover:text-ink"
           }`}
         >
@@ -386,6 +389,8 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     market,
     chartSymbol,
     selectChartSymbol,
+    selectedTradeId,
+    setSelectedTradeId,
     status,
     activeAccount,
     tradesByAccount,
@@ -404,11 +409,26 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     [recordOpened],
   );
 
+  const cfdMarketStatus = useCfdMarketStatus(chartSymbol, tradingModel === "CFD");
+  const nightlyClosed = useMarketClosed(chartSymbol);
+  const marketOpen = tradingModel === "CFD" ? cfdMarketStatus === "open" : !nightlyClosed;
   const chartProtection = useChartProtection();
   const chartTimeframe = useMarket(market, s => s.chart.timeframe);
+  const [chartActionsContainer, setChartActionsContainer] = useState<HTMLDivElement | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candles");
   const [marketPickerOpen, setMarketPickerOpen] = useState(false);
+  useEffect(() => {
+    const fullscreen = () => { if (!document.fullscreenElement) setFocusMode(false); };
+    document.addEventListener("fullscreenchange", fullscreen);
+    return () => document.removeEventListener("fullscreenchange", fullscreen);
+  }, [setFocusMode]);
+  useEffect(() => {
+    if (!focusMode) return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape" && !document.querySelector('[role="dialog"]')) { setFocusMode(false); toggleNativeFullscreen(false); } };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [focusMode, setFocusMode]);
 
   useEffect(() => {
     try {
@@ -431,14 +451,14 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
       ) {
         setChartType(saved);
       }
-    } catch {}
+    } catch { /* Optional chart preference. */ }
   }, []);
 
   const handleChartTypeChange = (type: ChartType) => {
     setChartType(type);
     try {
       localStorage.setItem("asm_chart_type", type);
-    } catch {}
+    } catch { /* Optional chart preference. */ }
   };
 
   function enterFocus(): void {
@@ -459,6 +479,13 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     () => trades.filter((t) => t.status === "OPEN" && t.symbol === chartSymbol),
     [trades, chartSymbol],
   );
+  const focusedTrade = trades.find(t => t.id === selectedTradeId && t.symbol === chartSymbol);
+  const focusTrade = (trade: TradeView) => {
+    setSelectedTradeId(trade.id);
+    selectChartSymbol(trade.symbol);
+    setHistoryOpen(false);
+  };
+  const chartTrades = focusedTrade ? [focusedTrade] : openOnChart;
   const openCount = useMemo(() => trades.filter((t) => t.status === "OPEN").length, [trades]);
 
   const asset = assets.find((a) => a.symbol === chartSymbol);
@@ -477,13 +504,15 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
   return (
     <section
       aria-label="Trade"
-      className={`${focusMode ? "h-dvh" : "h-full"} grid w-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[minmax(0,1fr)_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)] wide:grid-cols-[minmax(0,1fr)_360px]`}
+      data-focus={focusMode}
+      className={`trade-workspace ${focusMode ? "h-dvh" : "h-full"} grid w-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[65dvh_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)] wide:grid-cols-[minmax(0,1fr)_360px]`}
     >
+      <MarketSidebar />
       <div
         className={
           focusMode
-            ? "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] gap-1 p-1.5 phone:p-0"
-            : "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[minmax(0,1fr)] phone:gap-0 phone:p-0"
+            ? "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-1 p-1.5 phone:p-0"
+            : "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-2.5 py-3 pl-4 pr-3 phone:grid-rows-[minmax(0,1fr)_auto] phone:gap-0 phone:p-0"
         }
       >
         {/* Desktop keeps the roomy market selector above the chart; on compact
@@ -500,24 +529,30 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
         <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[minmax(0,1fr)] phone:gap-0 phone:rounded-none phone:border-0 phone:p-0">
           <LiveSentiment />
 
-          <div className="relative min-h-0">
+          <div className="relative min-h-0 min-w-0">
             <PriceChart
               market={market}
+              analysisScope={`${activeAccount.id}:${asset.symbol}`}
+              marketOpen={marketOpen}
               precision={asset.precision}
               watermark={activeAccount.type === "DEMO" ? "DEMO" : ""}
-              openTrades={openOnChart}
+              openTrades={chartTrades}
               currency={activeAccount.currency}
               chartType={chartType}
               enableBrackets={tradingModel === "CFD"}
               bracketScope={`${activeAccount.id}:${asset.symbol}:${chartTimeframe}:${chartType}:${chartProtection}`}
-              bracketControls={chartProtection}
+              bracketActionsContainer={chartActionsContainer}
+              bracketControls={chartProtection || !!focusedTrade}
+              focusedTradeId={focusedTrade?.id}
+              onSelectTrade={id => { const trade = trades.find(t => t.id === id); if (trade) focusTrade(trade); }}
+              onShowAllTrades={() => setSelectedTradeId(null)}
               tickSize={asset.tickSize ?? 10 ** -asset.precision}
             />
 
             {/* Desktop top-left overlay (clock, focus-mode switcher + market/history
                 buttons, chart style, price readout). Phones use the pill row and
                 bottom tools below instead. */}
-            <div className={`pointer-events-none absolute left-2 top-2 ${marketPickerOpen ? "z-50" : "z-10"} grid max-w-[calc(100%-16px)] gap-1.5 phone:hidden`}>
+            <div className={`desktop-chart-readout pointer-events-none absolute left-2 top-2 ${marketPickerOpen ? "z-50" : "z-10"} grid max-w-[calc(100%-16px)] gap-1.5 phone:hidden`}>
               {focusMode ? <FocusAccountSwitcher /> : null}
               <div className="flex items-start gap-2">
               <div className="grid min-w-0 gap-1.5">
@@ -558,13 +593,12 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
                 the price under it, timeframes on the right. In fullscreen the
                 account switcher and clock sit above the pill. */}
             <div
-              className={`pointer-events-none absolute inset-x-3.5 top-3 ${marketPickerOpen ? "z-50" : "z-10"} hidden items-start justify-between gap-2 phone:flex land:inset-x-2 land:top-2`}
+              className={`phone-chart-readout pointer-events-none absolute inset-x-3.5 top-3 ${marketPickerOpen ? "z-50" : "z-10"} hidden grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1.5 phone:grid land:inset-x-2 land:top-2`}
             >
-              <div className="grid min-w-0 gap-2 land:gap-1">
+              <div className="col-span-2 grid min-w-0 gap-2 land:gap-1">
                 {focusMode ? (
                   <>
                     <FocusAccountSwitcher />
-                    <ChartClock />
                   </>
                 ) : null}
                 <div className="pointer-events-auto flex min-w-0">
@@ -576,6 +610,8 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
                     onOpenChange={setMarketPickerOpen}
                   />
                 </div>
+              </div>
+              <div className="min-w-0 self-center">
                 <PhoneReadout symbol={asset.symbol} precision={asset.precision} />
               </div>
               <PhoneTimeframeTabs />
@@ -583,7 +619,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
 
             {/* Phone bottom row: chart tools bottom-left, the live position strip
                 beside them (above the time axis, clear of the fullscreen button). */}
-            <div className="pointer-events-none absolute inset-x-3.5 bottom-8 z-10 hidden items-end gap-2 phone:flex land:inset-x-2 land:bottom-7">
+            <div className="phone-chart-tools pointer-events-none absolute inset-x-3.5 bottom-8 z-10 hidden items-end gap-2 phone:flex land:inset-x-2 land:bottom-7">
               <ChartTools
                 className="pointer-events-auto flex-none"
                 chartType={chartType}
@@ -619,14 +655,16 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
             <ResultPopup />
           </div>
         </div>
+        <div ref={setChartActionsContainer} data-testid="chart-protection-actions" className="flex flex-wrap items-center gap-1 empty:hidden" />
       </div>
 
       <aside
         aria-label="Trade ticket and trades"
-        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:rounded-t-[20px] phone:border-l-0 phone:bg-panel land:grid-rows-[auto_minmax(0,1fr)] land:rounded-none land:border-l land:bg-transparent"
+        className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border-l border-rule phone:grid-rows-[auto] phone:rounded-t-xl phone:border-l-0 phone:bg-panel land:grid-rows-[auto_minmax(0,1fr)] land:rounded-none land:border-l land:bg-transparent"
       >
         {tradingModel === "CFD" ? (
           <CfdTradeTicket
+            marketStatus={cfdMarketStatus}
             symbol={asset.symbol}
             pair={splitAssetName(asset.displayName).pair}
             accountId={activeAccount.id}
@@ -645,7 +683,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
         )}
         {focusMode ? null : (
           <div className="min-h-0 phone:hidden land:block">
-            <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} />
+            <TradesPanel trades={trades} currency={activeAccount.currency} assets={assets} onSelectTrade={focusTrade} selectedTradeId={focusedTrade?.id} />
           </div>
         )}
       </aside>
@@ -655,6 +693,8 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
           trades={trades}
           currency={activeAccount.currency}
           assets={assets}
+          onSelectTrade={focusTrade}
+          selectedTradeId={focusedTrade?.id}
           onClose={() => setHistoryOpen(false)}
         />
       ) : null}

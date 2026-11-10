@@ -1,5 +1,6 @@
 "use client";
 
+import { FestiveLights, DiwaliEntry } from "@/components/festive/SeasonalDiwali";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import type { BalancesDto } from "@asm/contracts";
@@ -115,10 +116,11 @@ export function TopBar() {
 
   return (
     <header
-      className={`col-span-full row-start-1 flex min-w-0 items-center gap-5 border-b border-rule bg-ground pl-3.5 pr-4 phone:gap-1.5 phone:px-2 ${
+      className={`relative col-span-full row-start-1 flex min-w-0 items-center gap-5 border-b border-rule bg-ground pl-3.5 pr-4 phone:gap-1.5 phone:px-2 ${
         live ? "shadow-[inset_0_-2px_0_0_var(--color-up)]" : ""
       }`}
     >
+      <FestiveLights />
       <MobileNav />
       <Link href="/trade" aria-label="IndianxTrade" className="flex h-11 flex-none items-center phone:mx-auto phone:h-10">
         <LogoWordmark compact className="h-8 flex-none phone:h-[clamp(18px,6vw,24px)]" />
@@ -138,6 +140,7 @@ export function TopBar() {
         </button>
       </div>
 
+      <span className="phone:hidden"><DiwaliEntry iconOnly /></span>
       <div className="mx-auto hidden xl:block">
         <PromoBanner variant="bar" />
       </div>

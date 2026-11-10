@@ -1,0 +1,10 @@
+{
+  "output_duration_seconds": 17,
+  "resolution": "1920x1080",
+  "fps": 30,
+  "native_audio_present": true,
+  "source_duration_used": 12,
+  "local_outro_seconds": 5.5,
+  "crossfade_seconds": 0.5,
+  "method": "Original Kling motion and native sound retained at original speed. Generated greeting lettering retained after visual review; exact official website logo and Hanken Grotesk Warm wishes from text composited in a locally animated blue-and-gold ember outro. Source peak limited, ending audio softly faded. No additional paid generation."
+}

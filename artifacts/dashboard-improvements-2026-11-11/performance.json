@@ -1,0 +1,54 @@
+{
+  "measuredAt": "2026-11-10T19:41:53.198Z",
+  "environment": "Production build, headless Chromium, 1920\u00d71080, fixed local candle/quote fixtures. No physical-device or live-simulation FPS claim. Historical sample before the user-requested removal of the bot-summary display.",
+  "browserFrameIntervals": {
+    "frames": 180,
+    "p50Ms": 16.699999999999818,
+    "p95Ms": 16.800000000000182,
+    "maxMs": 16.800000000000182,
+    "longTasksOver50ms": 0
+  },
+  "websocketBootstrap": {
+    "frames": 64,
+    "bytes": 628837,
+    "byType": {
+      "ready": 41,
+      "authed": 17,
+      "candles:history": 626989,
+      "payout:update": 1790
+    },
+    "symbols": [
+      "XAUUSD",
+      "ADAUSDT",
+      "AUDUSD",
+      "BANKNIFTY",
+      "BNBUSDT",
+      "BRENT",
+      "BTCUSDT",
+      "DOGEUSDT",
+      "DOTUSDT",
+      "ETHUSDT",
+      "EURGBP",
+      "EURJPY",
+      "EURUSD",
+      "FINNIFTY",
+      "GBPJPY",
+      "GBPUSD",
+      "LINKUSDT",
+      "LTCUSDT",
+      "NIFTY50",
+      "NIFTYIT",
+      "NIFTYMIDCAP100",
+      "NZDUSD",
+      "SENSEX",
+      "SOLUSDT",
+      "USDCAD",
+      "USDCHF",
+      "USDJPY",
+      "WTI",
+      "XAGUSD",
+      "XRPUSDT"
+    ]
+  },
+  "limits": "Frame intervals measure this browser under recorded fixture workload. Redraw CPU time, real-device FPS, 300\u00d7 simulation, one-hour jumps, and live 30-market simulation load were not measured."
+}

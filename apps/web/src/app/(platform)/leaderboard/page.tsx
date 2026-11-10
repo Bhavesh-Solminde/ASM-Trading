@@ -8,8 +8,6 @@ import { LeaderboardView } from "@/components/leaderboard/LeaderboardView";
 
 export const dynamic = "force-dynamic";
 
-const INCLUDE_BOTS = process.env.LEADERBOARD_INCLUDE_BOTS !== "false";
-
 export default async function LeaderboardPage() {
   const store = await cookies();
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
@@ -20,7 +18,7 @@ export default async function LeaderboardPage() {
     sinceMs: startOfDayMs(Date.now()),
     viewerUserId: session.userId,
     limit: 10,
-    includeBots: INCLUDE_BOTS,
+    includeBots: false,
     displayCurrency: currency,
   });
 

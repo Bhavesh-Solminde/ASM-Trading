@@ -1,3 +1,4 @@
+import { MARKET_COUNT } from "@asm/contracts";
 export type MarketingAsset = {
   symbol: string;
   name: string;
@@ -5,10 +6,10 @@ export type MarketingAsset = {
   precision: number;
   changePct: number;
   leverage: number;
-  kind: "forex" | "crypto" | "index";
+  kind: "forex" | "crypto" | "index" | "commodity";
 };
 
-// Illustrative marketing ticker — mirrors the actual 18-asset catalogue so
+// Illustrative marketing ticker — previews the supported catalogue so
 // the landing page reflects what a visitor can trade.
 export const marketingAssets: MarketingAsset[] = [
   { symbol: "EURUSD", name: "EUR/USD", price: 1.08421, precision: 5, changePct: 0.24, leverage: 100, kind: "forex" },
@@ -22,6 +23,10 @@ export const marketingAssets: MarketingAsset[] = [
   { symbol: "NIFTY50", name: "NIFTY 50", price: 24_012.6, precision: 2, changePct: 0.18, leverage: 100, kind: "index" },
   { symbol: "BANKNIFTY", name: "BANK NIFTY", price: 51_984.05, precision: 2, changePct: -0.29, leverage: 100, kind: "index" },
   { symbol: "SENSEX", name: "SENSEX", price: 79_001.44, precision: 2, changePct: 0.42, leverage: 100, kind: "index" },
+  { symbol: "XAUUSD", name: "Gold", price: 4000, precision: 2, changePct: 0.12, leverage: 100, kind: "commodity" },
+  { symbol: "XAGUSD", name: "Silver", price: 50, precision: 3, changePct: -0.21, leverage: 100, kind: "commodity" },
+  { symbol: "WTI", name: "WTI crude futures", price: 65, precision: 3, changePct: 0.15, leverage: 100, kind: "commodity" },
+  { symbol: "BRENT", name: "Brent crude futures", price: 70, precision: 3, changePct: 0.18, leverage: 100, kind: "commodity" },
   { symbol: "FINNIFTY", name: "FINNIFTY", price: 24_505.02, precision: 2, changePct: 0.48, leverage: 100, kind: "index" },
 ];
 
@@ -32,15 +37,15 @@ export const featureBullets = [
   },
   {
     title: "Stop-loss & take-profit",
-    body: "Set your SL/TP on every CFD position. Control your risk before you enter, close anytime.",
+    body: "Set your SL/TP on every CFD position. Add or adjust your protection after opening a trade.",
   },
   {
     title: "Up to 100x leverage",
     body: "Trade forex, crypto and India indices with leverage — amplify your positions responsibly.",
   },
   {
-    title: "18 instruments",
-    body: "Six forex pairs, six crypto pairs, and six major India indices — NIFTY 50, SENSEX, BANK NIFTY and more.",
+    title: `${MARKET_COUNT} instruments`,
+    body: "Ten forex pairs, ten crypto pairs, six India indices, and Gold, Silver, WTI and Brent.",
   },
   {
     title: "Instant deposits",
@@ -55,7 +60,7 @@ export const featureBullets = [
 export const howSteps = [
   { n: "01", title: "Open an account", body: "30 seconds. Email and a password. Demo starts pre-funded with ₹10,00,000 virtual balance." },
   { n: "02", title: "Fund when ready", body: "From ₹1,000. UPI, bank transfer or crypto. Nothing locked — withdraw anytime." },
-  { n: "03", title: "Open a position", body: "Pick an instrument, set your stop-loss and take-profit, choose your leverage and go long or short." },
+  { n: "03", title: "Open a position", body: "Pick an instrument and investment, go long or short, then add stop-loss and take-profit." },
 ] as const;
 
 export const testimonials = [
@@ -99,7 +104,7 @@ export const faqs = [
   },
   {
     q: "Which markets can I trade?",
-    a: "Six major forex pairs (EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD), six top crypto pairs (BTC, ETH, SOL, BNB, XRP, DOGE against USDT), and six India indices (NIFTY 50, BANK NIFTY, FINNIFTY, SENSEX, NIFTY IT, NIFTY MIDCAP 100). All CFD instruments use real-time prices from multiple liquidity providers.",
+    a: "30 instruments: ten forex pairs, ten crypto pairs, six India indices, plus Gold, Silver, WTI crude futures and Brent crude futures. All CFD instruments use real-time prices from multiple liquidity providers.",
   },
   {
     q: "Is IndianxTrade regulated?",

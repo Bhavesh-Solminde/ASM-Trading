@@ -10,10 +10,21 @@ export function defaultStake(currency: string): string {
   return currency === "INR" ? "100" : "10";
 }
 
+/** The largest investment the ticket accepts, in major units (₹10,00,000). */
+export const MAX_STAKE_MAJOR = 1_000_000;
+
+/** The investment field's next text: digits and "." only; `prev` when the typed amount would pass MAX_STAKE_MAJOR. */
+export function nextStakeInput(raw: string, prev: string): string {
+  const text = raw.replace(/[₹$,\s]/g, "");
+  if (!/^\d*(\.\d{0,2})?$/.test(text) || Number(text) > MAX_STAKE_MAJOR) return prev;
+  return text;
+}
+
 /** Stake in minor units from the ticket's text field; 0 when empty or not a positive number. */
 export function stakeToMinor(stakeInput: string): number {
+  if (!/^\d+(\.\d{0,2})?$/.test(stakeInput)) return 0;
   const major = Number(stakeInput);
-  return Number.isFinite(major) && major > 0 ? Math.round(major * 100) : 0;
+  return Number.isFinite(major) && major > 0 && major <= MAX_STAKE_MAJOR ? Math.round(major * 100) : 0;
 }
 
 /** Profit (not including the returned stake) a winning trade pays at `payoutPct`; null when unknown or no stake. */
@@ -70,7 +81,7 @@ export interface SavedExpiry {
 /** A stored stake text, or null when missing, malformed or not positive. */
 export function parseSavedStake(raw: string | null): string | null {
   if (raw === null || !/^\d+(\.\d{0,2})?$/.test(raw)) return null;
-  return Number(raw) > 0 ? raw : null;
+  return Number(raw) > 0 && Number(raw) <= MAX_STAKE_MAJOR ? raw : null;
 }
 
 /**

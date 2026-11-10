@@ -2,6 +2,7 @@ import { logger } from "@asm/logger";
 import type { PriceFeed, Quote } from "./types";
 import { createBinanceFeed } from "./binance";
 import { createLiveRatesFeed } from "./live-rates";
+import { createOilReferenceFeed } from "./oil-reference";
 import { createFyersFeed } from "./fyers";
 
 export type { PriceFeed, Quote } from "./types";
@@ -20,12 +21,14 @@ const BINANCE: Record<string, string> = {
   BNBUSDT: "bnbusdt",
   XRPUSDT: "xrpusdt",
   DOGEUSDT: "dogeusdt",
+  ADAUSDT: "adausdt", LTCUSDT: "ltcusdt", LINKUSDT: "linkusdt", DOTUSDT: "dotusdt",
 };
 // Live-Rates names forex and metals as a bare 6-letter pair identical to our
 // internal symbol, so this mapping is intentionally one-to-one (kept as a
 // table so the composite can still pick per asset).
 const LIVE_RATES: Record<string, string> = {
-  XAUUSD: "XAUUSD",
+  XAUUSD: "XAUUSD", XAGUSD: "XAGUSD",
+  NZDUSD: "NZDUSD", EURGBP: "EURGBP", EURJPY: "EURJPY", GBPJPY: "GBPJPY",
   EURUSD: "EURUSD",
   GBPUSD: "GBPUSD",
   USDJPY: "USDJPY",
@@ -108,6 +111,9 @@ export function createPriceFeed(symbols: string[]): PriceFeed {
       );
     }
   }
+
+  const oil = pick(symbols, { WTI: "CL=F", BRENT: "BZ=F" });
+  if (Object.keys(oil).length) feeds.push(createOilReferenceFeed(oil));
 
   if (feeds.length === 0) {
     logger.info(

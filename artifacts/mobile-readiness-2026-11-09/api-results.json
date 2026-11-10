@@ -1,0 +1,26 @@
+[
+  {
+    "check": "Unauthenticated bootstrap rejected",
+    "passed": true,
+    "detail": 401
+  },
+  {
+    "check": "Wrong password rejected",
+    "passed": true,
+    "detail": 401
+  },
+  {
+    "check": "Native app login",
+    "passed": true,
+    "detail": 200
+  },
+  {
+    "check": "Authenticated bootstrap",
+    "passed": true,
+    "detail": {
+      "status": 200,
+      "model": "CFD",
+      "markets": 19
+    }
+  }
+]

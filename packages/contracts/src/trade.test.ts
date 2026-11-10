@@ -93,6 +93,8 @@ describe("tradeViewFrom", () => {
     expect(Object.keys(tradeViewFrom(row, "AUDNZD_OTC")).sort()).toEqual(
       [
         "accountId",
+        "closedTs",
+        "closeReason",
         "direction",
         "durationSec",
         "entryPrice",
@@ -125,4 +127,11 @@ it("retains the CFD duration when serializing a persisted trade", () => {
     payoutPct: 0, durationSec: 30, entryPrice: 100, entryTs: new Date(),
     expiryTs: new Date(), exitPrice: null, status: "OPEN" as const, pnl: 0 };
   expect(tradeViewFrom(row, "BTCUSDT").durationSec).toBe(30);
+});
+
+it("preserves actual close time and reason instead of substituting expiry", () => {
+  const row = { id:"t",accountId:"a",direction:"UP" as const,stake:10000,payoutPct:0,durationSec:300,entryPrice:100,entryTs:new Date("2026-11-10T10:00:00Z"),expiryTs:new Date("2026-11-10T10:05:00Z"),closedAt:new Date("2026-11-10T10:01:00Z"),closeReason:"TAKE_PROFIT" as const,exitPrice:101,status:"CLOSED" as const,pnl:1000 };
+  const view=tradeViewFrom(row,"XAUUSD");
+  expect(view.closedTs).toBe(Date.parse("2026-11-10T10:01:00Z")/1000);
+  expect(view.closedTs).not.toBe(view.expiryTs);expect(view.closeReason).toBe("TAKE_PROFIT");
 });

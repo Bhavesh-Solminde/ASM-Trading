@@ -60,7 +60,8 @@ export function proxy(request: NextRequest) {
       "default-src 'self'",
       // connect.facebook.net / www.facebook.com: Meta Pixel, mounted only on
       // the landing, login and register pages (components/seo/MetaPixel).
-      "script-src 'self' 'unsafe-inline' https://connect.facebook.net",
+      // Cloudflare injects its versioned Web Analytics beacon at the edge.
+      "script-src 'self' 'unsafe-inline' https://connect.facebook.net https://static.cloudflareinsights.com",
       "style-src 'self' 'unsafe-inline'",
       // res.cloudinary.com hosts payment-screenshot uploads shown on the admin
       // approvals queue and the checkout preview thumbnail.

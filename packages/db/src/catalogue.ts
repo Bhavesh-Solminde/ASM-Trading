@@ -30,7 +30,7 @@ export interface SeedAsset {
   tickSize: number;
 }
 
-// The tradeable catalogue — exactly 18 assets, all house-first.
+// The tradeable catalogue — 30 assets, all house-first.
 // displayName is what the trade UI shows; a trailing "(…)" is rendered as a
 // small market qualifier next to the pair.
 export const MARKETS: SeedAsset[] = [
@@ -60,4 +60,16 @@ export const MARKETS: SeedAsset[] = [
   { symbol: "SENSEX", displayName: "SENSEX (India)", kind: "OTC", assetClass: "INDEX", basePrice: 79_000, precision: 2, tickSize: 1.0 },
   { symbol: "NIFTYIT", displayName: "NIFTY IT (India)", kind: "OTC", assetClass: "INDEX", basePrice: 42_000, precision: 2, tickSize: 1.0 },
   { symbol: "NIFTYMIDCAP100", displayName: "NIFTY MIDCAP 100 (India)", kind: "OTC", assetClass: "INDEX", basePrice: 57_000, precision: 2, tickSize: 1.0 },
+  // Additional markets from the verified bot catalogue.
+  {"symbol": "ADAUSDT", "displayName": "ADA/USDT", "kind": "OTC", "assetClass": "CRYPTO", "basePrice": 0.5, "precision": 6, "tickSize": 1e-05},
+  {"symbol": "LTCUSDT", "displayName": "LTC/USDT", "kind": "OTC", "assetClass": "CRYPTO", "basePrice": 80.0, "precision": 4, "tickSize": 0.0001},
+  {"symbol": "LINKUSDT", "displayName": "LINK/USDT", "kind": "OTC", "assetClass": "CRYPTO", "basePrice": 15.0, "precision": 4, "tickSize": 0.0001},
+  {"symbol": "DOTUSDT", "displayName": "DOT/USDT", "kind": "OTC", "assetClass": "CRYPTO", "basePrice": 3.0, "precision": 5, "tickSize": 1e-05},
+  {"symbol": "NZDUSD", "displayName": "NZD/USD", "kind": "OTC", "assetClass": "FOREX", "basePrice": 0.56, "precision": 6, "tickSize": 1e-05},
+  {"symbol": "EURGBP", "displayName": "EUR/GBP", "kind": "OTC", "assetClass": "FOREX", "basePrice": 0.83, "precision": 6, "tickSize": 1e-05},
+  {"symbol": "EURJPY", "displayName": "EUR/JPY", "kind": "OTC", "assetClass": "FOREX", "basePrice": 177.0, "precision": 4, "tickSize": 0.0001},
+  {"symbol": "GBPJPY", "displayName": "GBP/JPY", "kind": "OTC", "assetClass": "FOREX", "basePrice": 213.0, "precision": 4, "tickSize": 0.0001},
+  {"symbol": "XAGUSD", "displayName": "Silver XAG/USD", "kind": "OTC", "assetClass": "COMMODITY", "basePrice": 50.0, "precision": 4, "tickSize": 0.0001},
+  {"symbol": "WTI", "displayName": "WTI crude futures", "kind": "OTC", "assetClass": "COMMODITY", "basePrice": 65.0, "precision": 3, "tickSize": 0.001},
+  {"symbol": "BRENT", "displayName": "Brent crude futures", "kind": "OTC", "assetClass": "COMMODITY", "basePrice": 70.0, "precision": 3, "tickSize": 0.001},
 ];

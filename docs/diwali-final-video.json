@@ -1,0 +1,22 @@
+{
+  "provider": "Higgsfield developer API",
+  "model": "kling-video/v4.0/reference-to-video",
+  "status": "completed",
+  "request_id": "01a1b95a-4f9e-728f-acd5-4193174d1e8e",
+  "user_budget_usd": 3,
+  "estimated_generation_usd_before_discounts": 2.82,
+  "billed_amount_verified": false,
+  "source_seconds": 12.041667,
+  "final_seconds": 17,
+  "final_resolution": "1920x1080",
+  "audio": "Native stereo AAC retained; peak limiting and ending fade applied",
+  "final_file": "artifacts/diwali/final-generation/diwali-final-1080p-17s.mp4",
+  "chakri_only_file": "artifacts/diwali/final-generation/chakri-animation-1080p.mp4",
+  "reference_pack": "artifacts/diwali/approved-video-references.zip",
+  "validation": "Reviewed source at 0.25-second intervals across the whole 12-second timeline; reviewed final greeting/brand transitions; ffprobe confirms final 17.000 seconds, 1920x1080, 30 fps and AAC; full ffmpeg decode completed without errors.",
+  "limitations": [
+    "Kling approximates coil consumption; the disc becomes smaller near burnout rather than clearly consuming every wrapped segment.",
+    "Generated greeting text remained despite the no-text prompt; it was visually checked and retained. Official brand outro was composed locally."
+  ],
+  "live_site_changed": false
+}

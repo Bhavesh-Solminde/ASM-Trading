@@ -1,0 +1,1376 @@
+{
+  "generatedAt": "2026-11-10T20:29:38.413Z",
+  "screenshots": [
+    {
+      "id": "F05",
+      "filename": "F05-before-landing.png",
+      "caption": "Original landing copy advertises 18 instruments.",
+      "browser": "desktop-chromium \u00b7 saved original source",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T19:45:14.696145+00:00",
+      "data": "Original application UI source saved before implementation; local demo fixtures",
+      "baseline": true,
+      "status": "baseline",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "trackedSourceDiffSha256": "9beced74ba3bfd4c40f3b858b72458563067d836a109185c3be000655f0dd84e",
+        "uncommittedChanges": true
+      }
+    },
+    {
+      "id": "F07",
+      "filename": "F07-before-lakh-desktop.png",
+      "caption": "Before: entering 100000 into the original fixed-expiry field hides the leading 1 because the box is only five characters wide.",
+      "browser": "desktop-chromium \u00b7 saved original source",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T19:41:50.681834+00:00",
+      "data": "Original application UI source saved before implementation; local demo fixtures",
+      "baseline": true,
+      "status": "baseline",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "trackedSourceDiffSha256": "9beced74ba3bfd4c40f3b858b72458563067d836a109185c3be000655f0dd84e",
+        "uncommittedChanges": true
+      }
+    },
+    {
+      "id": "F07",
+      "filename": "F07-before-lakh-phone.png",
+      "caption": "Before: the same original investment field at phone width.",
+      "browser": "desktop-chromium \u00b7 saved original source",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T19:41:50.720043+00:00",
+      "data": "Original application UI source saved before implementation; local demo fixtures",
+      "baseline": true,
+      "status": "baseline",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "trackedSourceDiffSha256": "9beced74ba3bfd4c40f3b858b72458563067d836a109185c3be000655f0dd84e",
+        "uncommittedChanges": true
+      }
+    },
+    {
+      "id": "F09",
+      "filename": "F09-before-history-click.png",
+      "caption": "Before: clicking a completed CFD trade redirects to its chart instead of opening trade details.",
+      "browser": "desktop-chromium \u00b7 saved original source",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T19:45:15.433487+00:00",
+      "data": "Original application UI source saved before implementation; local demo fixtures",
+      "baseline": true,
+      "status": "baseline",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "trackedSourceDiffSha256": "9beced74ba3bfd4c40f3b858b72458563067d836a109185c3be000655f0dd84e",
+        "uncommittedChanges": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-before-email-focus.png",
+      "caption": "Before: the original global focus outline is added outside the input border.",
+      "browser": "desktop-chromium \u00b7 saved original source",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T19:41:51.019099+00:00",
+      "data": "Original application UI source saved before implementation; local demo fixtures",
+      "baseline": true,
+      "status": "baseline",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "trackedSourceDiffSha256": "9beced74ba3bfd4c40f3b858b72458563067d836a109185c3be000655f0dd84e",
+        "uncommittedChanges": true
+      }
+    },
+    {
+      "id": "F04",
+      "filename": "F04-desktop-chromium-wide-sidebar.png",
+      "caption": "Wide dashboard with a persistent market sidebar and five Popular instruments.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "capturedAt": "2026-11-10T20:28:30.970Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F06",
+      "filename": "F06-desktop-chromium-all-30.png",
+      "caption": "The All list is sourced from 30 catalogue entries; Popular remains a separate group.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "capturedAt": "2026-11-10T20:28:31.150Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F06",
+      "filename": "F06-desktop-chromium-silver-selected.png",
+      "caption": "Selecting a Popular instrument switches the actual chart.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "capturedAt": "2026-11-10T20:28:31.302Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F07",
+      "filename": "F07-desktop-chromium-lakh-focused.png",
+      "caption": "\u20b91,00,000 retains all six digits and the composite field has one focus edge.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:31.775Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F07",
+      "filename": "F07-desktop-chromium-invalid-limit.png",
+      "caption": "An over-limit amount is rejected with an explicit message and the valid amount remains intact.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:31.875Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-fullscreen.png",
+      "caption": "Fullscreen keeps the investment, shows chart tools, and keeps phone Buy/Sell below the chart.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:32.037Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F07",
+      "filename": "F07-desktop-chromium-after-refresh.png",
+      "caption": "The same investment survives leaving fullscreen and refreshing.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:32.254Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F07",
+      "filename": "F07-desktop-chromium-submitted-lakh.png",
+      "caption": "The actual Buy button submitted \u20b91,00,000 and the local engine stored exactly 10,000,000 minor units.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:32.422Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-desktop-chromium-small-width-focus.png",
+      "caption": "Investment remains readable with a single focus treatment at 320px width.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 320,
+        "height": 740
+      },
+      "capturedAt": "2026-11-10T20:28:32.541Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-desktop-chromium-tablet-focus.png",
+      "caption": "Tablet layout preserves the full amount and focus treatment.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 700,
+        "height": 800
+      },
+      "capturedAt": "2026-11-10T20:28:32.627Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F02",
+      "filename": "F02-desktop-chromium-normal-phone-logo.png",
+      "caption": "Normal phone chart has the official chart mark inside a circular linked badge.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:28:32.964Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-phone-fullscreen.png",
+      "caption": "Phone fullscreen: tools on the left, indicators above, Buy/Sell below the chart, and the original ticket controls below.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:28:33.129Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F02",
+      "filename": "F02-desktop-chromium-fullscreen-logo.png",
+      "caption": "The circular linked chart mark remains visible in phone fullscreen.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:28:33.213Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-landscape.png",
+      "caption": "Short landscape layout keeps the tool rail scrollable and exit control reachable.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "capturedAt": "2026-11-10T20:28:33.379Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-horizontal.png",
+      "caption": "Horizontal line created on the running chart; anchors follow chart time and price.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:33.964Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-trend.png",
+      "caption": "Trend line created on the running chart; anchors follow chart time and price.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:34.264Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-channel.png",
+      "caption": "Parallel channel created on the running chart; anchors follow chart time and price.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:34.781Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-fib.png",
+      "caption": "Fibonacci retracement created on the running chart; anchors follow chart time and price.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:35.081Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-brush.png",
+      "caption": "Freehand drawing created on the running chart; anchors follow chart time and price.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:35.381Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-text.png",
+      "caption": "Text annotation created on the running chart; anchors follow chart time and price.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:35.680Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-measure.png",
+      "caption": "Measure created on the running chart; anchors follow chart time and price.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:35.980Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-sma.png",
+      "caption": "SMA 14 is calculated from chart candles and rendered as a native chart series.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:36.165Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-ema.png",
+      "caption": "EMA 14 is calculated from chart candles and rendered as a native chart series.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:36.316Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-rsi.png",
+      "caption": "RSI 14 is calculated from chart candles and rendered as a native chart series.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:36.466Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-restored-analysis.png",
+      "caption": "Drawings and indicator selection survive refresh.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:36.756Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-zoom-fit.png",
+      "caption": "Zoom controls and fit remain usable with saved analysis.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:37.075Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F09",
+      "filename": "F09-desktop-chromium-dashboard-details.png",
+      "caption": "Dashboard Closed rows open a details panel instead of only selecting chart protection.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:37.521Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F09",
+      "filename": "F09-desktop-chromium-history-details.png",
+      "caption": "Full History uses the same details panel, with an explicit View on chart action.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:37.725Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F09",
+      "filename": "F09-desktop-chromium-phone-details.png",
+      "caption": "Trade details fit a scrollable phone sheet and show actual close metadata when recorded.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:28:37.802Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-without-bot-pnl.png",
+      "caption": "Selected-market bot P&L has been removed; the chart, custom tools and trading controls remain available.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:28:38.183Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F03",
+      "filename": "F03-desktop-chromium-desktop-offer.png",
+      "caption": "The eligible first-deposit promotion opens automatically and includes a close button, deposit action and terms.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:02.393Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F03",
+      "filename": "F03-desktop-chromium-phone-offer.png",
+      "caption": "The same offer adapts to a phone dialogue.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:02.478Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F03",
+      "filename": "F03-desktop-chromium-dismissed.png",
+      "caption": "Escape dismisses the offer and returns the dashboard to use.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:02.559Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F10",
+      "filename": "F10-desktop-chromium-opened-no-exits.png",
+      "caption": "A real local demo trade opens with no TP/SL; protection handles become available afterward.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:24.345Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F10",
+      "filename": "F10-desktop-chromium-tp-draft.png",
+      "caption": "TP line is draggable; draft changes require confirmation and do not replace saved protection prematurely.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:24.662Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F10",
+      "filename": "F10-desktop-chromium-sl-draft.png",
+      "caption": "SL line is draggable; draft changes require confirmation and do not replace saved protection prematurely.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:25.029Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F10",
+      "filename": "F10-desktop-chromium-saved-reloaded.png",
+      "caption": "Both exits are persisted through the authenticated API and remain visible after refresh.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:25.256Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-desktop-chromium-protection-focus.png",
+      "caption": "The precise protection editor remains available alongside dragging, with scoped focus styling.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:25.374Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F10",
+      "filename": "F10-desktop-chromium-exit-executed.png",
+      "caption": "The real local CFD desk triggers Take Profit and the history panel displays the recorded close reason and time.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:25.662Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F05",
+      "filename": "F05-desktop-chromium-landing-30.png",
+      "caption": "Public landing copy and metadata use the shared 30-market catalogue, including commodities.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:26.023Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-desktop-chromium-login-email-focus.png",
+      "caption": "Standalone login input uses an inset focus edge, preserving keyboard visibility without a separated second border.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:26.205Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-desktop-chromium-phone-login-focus.png",
+      "caption": "The shared standalone input focus correction also applies at phone width.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:26.267Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F10",
+      "filename": "F10-desktop-chromium-sell-saved-exits.png",
+      "caption": "A Sell position has persisted TP below entry and SL above entry.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:27.355Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-desktop-chromium-protection-price-focused.png",
+      "caption": "The protection price input has a single inset keyboard-focus edge.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:27.524Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F10",
+      "filename": "F10-desktop-chromium-failed-save.png",
+      "caption": "An intentionally interrupted PATCH shows an error while the previously saved protection remains unchanged.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:27.673Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F10",
+      "filename": "F10-desktop-chromium-sell-stop-executed.png",
+      "caption": "The real local CFD desk executes the Sell Stop Loss and stores its closing metadata.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T20:29:27.966Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-desktop-chromium-market-search-focused.png",
+      "caption": "The standalone market-search field has one inset focus edge.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "capturedAt": "2026-11-10T20:29:28.351Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-desktop-chromium-deposit-amount-focused.png",
+      "caption": "The same focus policy works for the larger deposit input without submitting any deposit.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "capturedAt": "2026-11-10T20:29:28.526Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F02",
+      "filename": "F02-phone-webkit-logo-detail.png",
+      "caption": "Close-up of the exact circular chart badge: TradingView mark centered in a 36\u00d736 CSS-pixel circle at the lower-left of the chart. It links to TradingView.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "capturedAt": "2026-11-10T20:29:32.909Z",
+      "data": "Local demo fixtures; real running UI; badge-only screenshot at native 3\u00d7 device scale",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F07",
+      "filename": "F07-phone-webkit-lakh-focused.png",
+      "caption": "\u20b91,00,000 retains all six digits and the composite field has one focus edge.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:30.467Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F07",
+      "filename": "F07-phone-webkit-invalid-limit.png",
+      "caption": "An over-limit amount is rejected with an explicit message and the valid amount remains intact.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:30.580Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-phone-webkit-fullscreen.png",
+      "caption": "Fullscreen keeps the investment, shows chart tools, and keeps phone Buy/Sell below the chart.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:30.843Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F07",
+      "filename": "F07-phone-webkit-after-refresh.png",
+      "caption": "The same investment survives leaving fullscreen and refreshing.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:31.089Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F07",
+      "filename": "F07-phone-webkit-submitted-lakh.png",
+      "caption": "The actual Buy button submitted \u20b91,00,000 and the local engine stored exactly 10,000,000 minor units.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:31.246Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-phone-webkit-small-width-focus.png",
+      "caption": "Investment remains readable with a single focus treatment at 320px width.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 320,
+        "height": 740
+      },
+      "capturedAt": "2026-11-10T20:29:31.386Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F11",
+      "filename": "F11-phone-webkit-tablet-focus.png",
+      "caption": "Tablet layout preserves the full amount and focus treatment.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 700,
+        "height": 800
+      },
+      "capturedAt": "2026-11-10T20:29:31.503Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F02",
+      "filename": "F02-phone-webkit-normal-phone-logo.png",
+      "caption": "Normal phone chart has the official chart mark inside a circular linked badge.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:32.135Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-phone-webkit-phone-fullscreen.png",
+      "caption": "Phone fullscreen: tools on the left, indicators above, Buy/Sell below the chart, and the original ticket controls below.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:32.332Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F02",
+      "filename": "F02-phone-webkit-fullscreen-logo.png",
+      "caption": "The circular linked chart mark remains visible in phone fullscreen.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:32.424Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-phone-webkit-landscape.png",
+      "caption": "Short landscape layout keeps the tool rail scrollable and exit control reachable.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "capturedAt": "2026-11-10T20:29:32.644Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-phone-webkit-without-bot-pnl.png",
+      "caption": "Selected-market bot P&L has been removed; the chart, custom tools and trading controls remain available.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "capturedAt": "2026-11-10T20:29:33.775Z",
+      "data": "Synthetic local fixtures; fixed reference quotes; real application UI and CFD persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "6270c65318adf0dcc723e6ffd6a6ec33bfe9e772b6a1391aa89fc731f60a0242",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-svg-tools.png",
+      "caption": "Crisp outline SVG toolbar with endpoint handles, ruler and magnifier icons; SMA/EMA overlay prices and RSI keeps its separate momentum scale.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T21:00:15.293Z",
+      "data": "Separate isolated local demo account; recorded quotes; real chart UI and API persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "3bdd7ef3a8dd8e5b3414e5b6d6e8a6f6e90d1cc1b59a9a929e1fec7d0d04aa50",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-desktop-chromium-svg-tool-rail.png",
+      "caption": "Close-up of the new vector tool icons, drawn with a consistent 1.5px stroke.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T21:00:15.397Z",
+      "data": "Separate isolated local demo account; recorded quotes; real chart UI and API persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "3bdd7ef3a8dd8e5b3414e5b6d6e8a6f6e90d1cc1b59a9a929e1fec7d0d04aa50",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F10",
+      "filename": "F10-desktop-chromium-percent-exits.png",
+      "caption": "TP/SL badges show projected market profit/loss as a percentage of the invested \u20b9100; the actual persisted exit prices are unchanged.",
+      "browser": "desktop-chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "capturedAt": "2026-11-10T21:00:16.509Z",
+      "data": "Separate isolated local demo account; recorded quotes; real chart UI and API persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "3bdd7ef3a8dd8e5b3414e5b6d6e8a6f6e90d1cc1b59a9a929e1fec7d0d04aa50",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F10",
+      "filename": "F10-phone-webkit-percent-exits.png",
+      "caption": "The same saved TP/SL percentages are readable on a phone.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "capturedAt": "2026-11-10T21:00:17.876Z",
+      "data": "Separate isolated local demo account; recorded quotes; real chart UI and API persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "3bdd7ef3a8dd8e5b3414e5b6d6e8a6f6e90d1cc1b59a9a929e1fec7d0d04aa50",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    },
+    {
+      "id": "F01",
+      "filename": "F01-phone-webkit-svg-fullscreen.png",
+      "caption": "Mobile fullscreen shows the sharper vector toolbar and retains Buy/Sell below the chart.",
+      "browser": "phone-webkit",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "capturedAt": "2026-11-10T21:00:18.056Z",
+      "data": "Separate isolated local demo account; recorded quotes; real chart UI and API persistence",
+      "status": "passed",
+      "code": {
+        "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+        "workingSourceSha256": "3bdd7ef3a8dd8e5b3414e5b6d6e8a6f6e90d1cc1b59a9a929e1fec7d0d04aa50",
+        "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+        "uncommitted": true
+      }
+    }
+  ],
+  "status": "Verified locally; not deployed",
+  "screenshotCount": 71,
+  "activeRequirements": 10,
+  "removedRequirements": [
+    "F08: Selected-market bot P&L, including display/polling and dedicated API code"
+  ],
+  "code": {
+    "baseCommit": "00916da578305cec7a3a57617428cc127ce89b37",
+    "workingSourceSha256": "3bdd7ef3a8dd8e5b3414e5b6d6e8a6f6e90d1cc1b59a9a929e1fec7d0d04aa50",
+    "scope": "web/src, engine/src, contracts/src, db/src, pricing/markets and dashboard verification/catalogue scripts; includes new untracked source",
+    "uncommitted": true
+  },
+  "latestUserDecisions": [
+    "Remove selected-market bot P&L",
+    "Keep custom drawing tools and SMA/EMA/RSI",
+    "Mobile Buy/Sell below chart in normal and fullscreen modes",
+    "Replace text-symbol toolbar icons with sharper reference-inspired SVGs",
+    "Show TP/SL projected market profit/loss as a percentage of invested stake"
+  ],
+  "verifiedAt": "2026-11-10T21:00:51.535655+00:00",
+  "latestChartReview": "58 targeted chart tests and 10 browser checks; separate local demo account; user preview data preserved",
+  "pushStatus": "User approved pushing all changes to fix/seo-cfd-rebrand."
+}

@@ -1,0 +1,51 @@
+{
+  "opened": {
+    "trade": {
+      "id": "158df946-d175-4ad6-aaf4-2689cbd1889a",
+      "accountId": "5486c2b1-9e48-4467-bcc4-9709f26fe0f5",
+      "symbol": "BNBUSDT",
+      "direction": "LONG",
+      "stake": 10000,
+      "spreadFee": 500,
+      "leverage": 100,
+      "entryPrice": 681.55,
+      "entryTs": 1794206417,
+      "expiryTs": 1794206422,
+      "exitPrice": null,
+      "stopLoss": null,
+      "takeProfit": null,
+      "trailingPct": null,
+      "liqPrice": 674.7344999999999,
+      "closeReason": null,
+      "status": "OPEN",
+      "pnl": 0
+    },
+    "balances": {
+      "realBalance": 9989500,
+      "bonusBalance": 0
+    }
+  },
+  "settled": {
+    "id": "158df946-d175-4ad6-aaf4-2689cbd1889a",
+    "accountId": "5486c2b1-9e48-4467-bcc4-9709f26fe0f5",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "stake": 10000,
+    "spreadFee": 500,
+    "leverage": 100,
+    "entryPrice": 681.55,
+    "entryTs": 1794206417,
+    "expiryTs": 1794206422,
+    "closedTs": 1794206425,
+    "exitPrice": 681.44,
+    "stopLoss": null,
+    "takeProfit": null,
+    "trailingPct": null,
+    "liqPrice": 674.7344999999999,
+    "closeReason": "DURATION",
+    "status": "CLOSED",
+    "pnl": -161
+  },
+  "balanceBefore": 10000000,
+  "balanceAfter": 9999339
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { DiwaliEntry } from "@/components/festive/SeasonalDiwali";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -61,6 +62,7 @@ export function MobileNav() {
               </button>
             </div>
 
+            <DiwaliEntry />
             {items
               .filter((item) => item.available)
               .map((item) => {

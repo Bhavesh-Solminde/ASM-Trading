@@ -1,0 +1,18 @@
+{
+  "histories": [
+    {
+      "symbol": "BNBUSDT",
+      "bars": 3,
+      "bytes": 348,
+      "elapsedMs": 10
+    },
+    {
+      "symbol": "BTCUSDT",
+      "bars": 3,
+      "bytes": 377,
+      "elapsedMs": 11
+    }
+  ],
+  "ticks": 2,
+  "authenticated": true
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { SeasonalDiwali } from "@/components/festive/SeasonalDiwali";
 import type { CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { bonusPercentForDeposit } from "@/lib/bonus";
@@ -7,6 +8,7 @@ import { clockTime } from "@/lib/format-time";
 import { useNowSec } from "@/lib/use-now";
 import { usePlatform } from "./PlatformProvider";
 import { IconRail } from "./IconRail";
+import { DepositPromotion } from "./DepositPromotion";
 import { PromoBanner } from "./PromoBanner";
 import { Ticker } from "./Ticker";
 import { TopBar } from "./TopBar";
@@ -61,28 +63,26 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
   const { focusMode, completedDeposits } = usePlatform();
   const promo = bonusPercentForDeposit(completedDeposits + 1) > 0;
   const pathname = usePathname();
-  // The trade screen swaps the bonus banner for a slim status row (always shown, even once every bonus tier is used).
+  // Trading collapses the promo row to reserve room for the chart and compact dock.
   const onTrade = pathname === "/trade" || pathname.startsWith("/trade/");
 
-  if (focusMode) {
-    return <div className="grid h-dvh min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden">{children}</div>;
-  }
-
   return (
-    <div
-      style={{ "--phone-promo-h": onTrade ? "32px" : promo ? "56px" : "0px" } as CSSProperties}
-      className="grid h-dvh min-h-[640px] grid-cols-[76px_minmax(0,1fr)] grid-rows-[60px_32px_minmax(0,1fr)] phone:min-h-0 phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[50px_var(--phone-promo-h)_minmax(0,1fr)_var(--phone-nav-h,38px)] [@media(height<30rem)]:grid-rows-[48px_0px_minmax(0,1fr)]"
+    <SeasonalDiwali><div
+      data-focus-mode={focusMode}
+      style={{ "--phone-promo-h": onTrade ? "0px" : promo ? "56px" : "0px" } as CSSProperties}
+      className="platform-shell grid h-dvh min-h-[640px] grid-cols-[76px_minmax(0,1fr)] grid-rows-[60px_32px_minmax(0,1fr)] phone:min-h-0 phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[50px_var(--phone-promo-h)_minmax(0,1fr)_var(--phone-nav-h,38px)] [@media(height<30rem)_and_(orientation:landscape)]:grid-rows-[48px_0px_minmax(0,1fr)]"
     >
       <TopBar />
       <Ticker />
-      <div className="col-start-1 row-start-2 hidden min-h-0 overflow-hidden phone:block [@media(height<30rem)]:hidden">
+      <div className="col-start-1 row-start-2 hidden min-h-0 overflow-hidden phone:block [@media(height<30rem)_and_(orientation:landscape)]:hidden">
         {onTrade ? <TradeStatusRow /> : <PromoBanner variant="card" />}
       </div>
       <IconRail />
-      <div data-scroll-root className="col-start-2 row-start-3 min-h-0 min-w-0 overflow-auto overscroll-contain phone:col-start-1 phone:row-start-3">
+      <div data-scroll-root className="col-start-2 row-start-3 min-h-0 min-w-0 overflow-auto overscroll-contain phone:col-start-1 phone:row-start-3 phone:overflow-x-hidden">
         {children}
       </div>
       <BottomNavBar />
-    </div>
+      <DepositPromotion />
+    </div></SeasonalDiwali>
   );
 }

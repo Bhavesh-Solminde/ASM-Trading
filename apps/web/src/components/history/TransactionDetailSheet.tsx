@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { formatMinor } from "@/lib/format-money";
 import { useScrollLock } from "@/lib/use-scroll-lock";
 import { Icon } from "@/components/shell/Icon";
+import { tradeNetPnl } from "@/components/trade/pnl-display";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import {
   TONE_PILL,
-  durationLabel,
   paymentAmountText,
   paymentMovedNoMoney,
   paymentTitle,
@@ -16,21 +16,11 @@ import {
   statusLabel,
   statusTone,
   timeOfDay,
-  tradeAmount,
-  tradeTitle,
   type HistoryItem,
   type PaymentRow,
-  type Tone,
 } from "./history-model";
 import { referenceFor } from "./payment-rows";
 import { StatusTimeline } from "./StatusTimeline";
-
-const AMOUNT_TONE: Record<Tone, string> = {
-  up: "text-up",
-  down: "text-down",
-  caution: "text-caution",
-  neutral: "text-ink",
-};
 
 function when(d: Date, now: Date): string {
   return `${shortDate(d, now)} · ${timeOfDay(d)}`;
@@ -241,53 +231,45 @@ function PaymentBody({ row, now }: { row: PaymentRow; now: Date }) {
   );
 }
 
-function TradeBody({ item, now }: { item: Extract<HistoryItem, { kind: "trade" }>; now: Date }) {
-  const { assets } = usePlatform();
+function TradeBody({ item, now, onClose }: { item: Extract<HistoryItem, { kind: "trade" }>; now: Date; onClose: () => void }) {
+  const { assets, setSelectedTradeId, selectChartSymbol } = usePlatform();
+  const router = useRouter();
   const { trade, currency, pair } = item;
-  const precision = assets.find((a) => a.symbol === trade.symbol)?.precision ?? 5;
-  const amount = tradeAmount(trade, currency);
-  const tone = statusTone(trade.status);
-  const up = trade.direction === "UP";
-  const opened = new Date(trade.entryTs * 1000);
-  const closed = new Date(trade.expiryTs * 1000);
+  const precision = assets.find(a => a.symbol === trade.symbol)?.precision ?? 5;
+  const cfd = trade.durationSec != null;
   const open = trade.status === "OPEN";
-  const profit = Math.floor((trade.stake * trade.payoutPct) / 100);
-
-  return (
-    <>
-      <div className="grid justify-items-center gap-1.5 pt-1 text-center">
-        <span className={`inline-flex h-[26px] items-center rounded-full px-2.5 text-xs font-extrabold ${TONE_PILL[tone]}`}>
-          {statusLabel(trade.status)}
-        </span>
-        <span className={`text-[40px] font-extrabold leading-tight tracking-[-0.03em] tabular-nums ${AMOUNT_TONE[amount.tone]}`}>
-          {amount.text}
-        </span>
-        <span className="text-sm text-ink-2">{tradeTitle(trade, pair)}</span>
-      </div>
-
-      <dl className="divide-y divide-rule rounded-2xl bg-tile px-4">
-        <Row label="Direction">
-          <span className={up ? "text-up" : "text-down"}>{up ? "Buy (higher)" : "Sell (lower)"}</span>
-        </Row>
-        <Row label="Asset">{pair}</Row>
-        <Row label="Stake">{formatMinor(trade.stake, currency)}</Row>
-        <Row label={trade.status === "LOST" ? "Payout if right" : "Payout"}>
-          {trade.payoutPct}% · {formatMinor(trade.stake + profit, currency)}
-        </Row>
-        <Row label="Entry price">{trade.entryPrice.toFixed(precision)}</Row>
-        <Row label="Close price">{trade.exitPrice !== null ? trade.exitPrice.toFixed(precision) : "—"}</Row>
-        <Row label="Duration">{durationLabel(trade.entryTs, trade.expiryTs)}</Row>
-        <Row label="Opened">
-          <span suppressHydrationWarning>{when(opened, now)}</span>
-        </Row>
-        <Row label={open ? "Closes" : "Closed"}>
-          <span suppressHydrationWarning>{when(closed, now)}</span>
-        </Row>
-      </dl>
-
-      <ReferenceRow reference={`TR-${trade.id.slice(0, 8).toUpperCase()}`} />
-    </>
-  );
+  const reason = trade.closeReason?.toLowerCase().replace(/_/g, " ");
+  const netPnl = tradeNetPnl(trade);
+  const signedPnl = `${netPnl > 0 ? "+" : netPnl < 0 ? "−" : ""}${formatMinor(Math.abs(netPnl), currency)}`;
+  return <>
+    <div className="grid justify-items-center gap-1.5 pt-1 text-center">
+      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TONE_PILL[statusTone(trade.status)]}`}>{statusLabel(trade.status)}</span>
+      <span className={`text-[36px] font-extrabold tabular-nums ${netPnl > 0 ? "text-up" : netPnl < 0 ? "text-down" : "text-ink-2"}`}>{signedPnl}</span>
+      <span className="text-sm text-ink-2">{trade.direction === "UP" ? "Buy" : "Sell"} · {pair} · Net profit/loss</span>
+    </div>
+    <dl className="divide-y divide-rule rounded-2xl bg-tile px-4">
+      <Row label="Instrument">{pair}</Row>
+      <Row label="Direction">{trade.direction === "UP" ? "BUY" : "SELL"}</Row>
+      <Row label="Investment">{formatMinor(trade.stake, currency)}</Row>
+      <Row label="Type">{cfd ? "CFD · Market" : "Fixed expiry"}</Row>
+      <Row label="Entry price">{trade.entryPrice.toFixed(precision)}</Row>
+      <Row label="Close price">{trade.exitPrice == null ? "—" : trade.exitPrice.toFixed(precision)}</Row>
+      <Row label="Net profit/loss">{signedPnl}</Row>
+      {cfd ? <>
+        <Row label="Market profit/loss">{`${trade.pnl > 0 ? "+" : trade.pnl < 0 ? "−" : ""}${formatMinor(Math.abs(trade.pnl), currency)}`}</Row>
+        <Row label="Spread fee">{formatMinor(trade.spreadFee ?? 0, currency)}</Row>
+        <Row label="Take profit">{trade.takeProfit == null ? "Not set" : trade.takeProfit.toFixed(precision)}</Row>
+        <Row label="Stop loss">{trade.stopLoss == null ? "Not set" : trade.stopLoss.toFixed(precision)}</Row>
+      </> : <Row label="Payout rate">{trade.payoutPct}%</Row>}
+      <Row label="Opened">{when(new Date(trade.entryTs * 1000), now)}</Row>
+      <Row label={trade.closedTs != null ? "Closed" : "Scheduled expiry"}>{when(new Date((trade.closedTs ?? trade.expiryTs) * 1000), now)}</Row>
+      {!open && <Row label="Close reason"><span className="capitalize">{reason ?? (cfd ? "Not recorded" : "Expiry")}</span></Row>}
+    </dl>
+    <ReferenceRow reference={trade.id} />
+    <button type="button" className="h-11 rounded-xl bg-brand-fill font-bold text-white" onClick={() => {
+      setSelectedTradeId(trade.id); selectChartSymbol(trade.symbol); onClose(); router.push("/trade");
+    }}>View on chart</button>
+  </>;
 }
 
 /**
@@ -331,7 +313,7 @@ export function TransactionDetailSheet({ item, onClose }: { item: HistoryItem; o
     }
   }
 
-  const title = item.kind === "trade" ? "Trade" : paymentTitle(item.payment);
+  const title = item.kind === "trade" ? "Trade details" : paymentTitle(item.payment);
 
   return (
     <div
@@ -363,7 +345,7 @@ export function TransactionDetailSheet({ item, onClose }: { item: HistoryItem; o
         </div>
         <div className="grid gap-3.5 overflow-y-auto overscroll-contain px-4 pb-5 pt-2">
           {item.kind === "trade" ? (
-            <TradeBody item={item} now={now} />
+            <TradeBody item={item} now={now} onClose={onClose} />
           ) : (
             <PaymentBody row={item.payment} now={now} />
           )}
