@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { CfdCloseReasonDto } from "./cfd-trade";
 import { SymbolSchema } from "./ws";
 
 /** Mirrors DURATIONS_SEC in @asm/trading. Kept literal so contracts stays dependency-free. */
@@ -29,7 +28,15 @@ const tradeRequestShape = {
  * expiryTs or payoutPct is rejected outright — those are server-determined,
  * and an attempt to supply them is worth logging, not silently discarding.
  */
-export const OpenTradeSchema = z.strictObject(tradeRequestShape);
+export const OpenTradeSchema = z.strictObject({
+  ...tradeRequestShape,
+  /**
+   * The currency the client believes the account is in (stale-currency guard). Optional so older app builds and
+   * cached web clients, which send nothing, keep working. The web app compares it with the account's real currency
+   * and refuses on a mismatch, then strips it: it is not part of the engine request.
+   */
+  currency: z.enum(["INR", "USD"]).optional(),
+});
 export type OpenTradeInput = z.infer<typeof OpenTradeSchema>;
 
 /**
@@ -45,6 +52,14 @@ export type EngineOpenTradeInput = z.infer<typeof EngineOpenTradeSchema>;
 export type TradeStatusDto = "OPEN" | "WON" | "LOST" | "REFUNDED" | "CLOSED";
 
 export interface TradeView {
+  /** Fixed OTC contracts retain their opening currency. Legacy rows follow account currency. */
+  currency?:string;
+  flowLots?:number;
+  filledLots?:number;
+  entrySequence?:string|null;
+  settlementSequence?:string|null;
+  mode?:"LEGACY_BINARY"|"CFD"|"OTC_FIXED";
+  closeReason?:string|null;
   id: string;
   accountId: string;
   symbol: string;
@@ -53,19 +68,18 @@ export interface TradeView {
   /** Opening fee in minor units, already deducted from balance. */
   spreadFee?: number;
   leverage?: number;
-  /** Absolute prices for CFD protection orders. */
+  /** Absolute prices for CFD protection or fixed OTC SL/TP. */
   stopLoss?: number | null;
   takeProfit?: number | null;
   payoutPct: number;
-  /** Present for CFD positions; null or absent for binary trades. */
+  /** Present for CFD and fixed OTC positions; use mode to distinguish them. */
   durationSec?: number | null;
   entryPrice: number;
   /** Epoch seconds. */
   entryTs: number;
   /** Epoch seconds. */
   expiryTs: number;
-  closedTs?: number | null;
-  closeReason?: CfdCloseReasonDto | null;
+  closedTs?: number | null | undefined;
   exitPrice: number | null;
   status: TradeStatusDto;
   pnl: number;
@@ -83,6 +97,13 @@ export interface OpenTradeResult {
 
 /** The columns a trade row needs to be shown. Structural, so contracts never imports Prisma. */
 export interface TradeRowLike {
+  currency?:string|null;
+  flowLots?:number;
+  filledLots?:number;
+  entrySequence?:bigint|null;
+  settlementSequence?:bigint|null;
+  mode?:"LEGACY_BINARY"|"CFD"|"OTC_FIXED";
+  closeReason?:string|null;
   id: string;
   accountId: string;
   direction: DirectionDto;
@@ -100,7 +121,6 @@ export interface TradeRowLike {
   entryTs: Date;
   expiryTs: Date;
   closedAt?: Date | null;
-  closeReason?: CfdCloseReasonDto | null;
   exitPrice: number | null;
   status: TradeStatusDto;
   pnl: number;
@@ -113,6 +133,9 @@ export interface TradeRowLike {
  */
 export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
   return {
+    ...(row.currency?{currency:row.currency}:{}),
+    ...(row.mode==="OTC_FIXED"?{flowLots:row.flowLots??0,filledLots:row.filledLots??0,entrySequence:row.entrySequence?.toString()??null,settlementSequence:row.settlementSequence?.toString()??null}:{}),
+    ...(row.mode?{mode:row.mode}:{}),
     id: row.id,
     accountId: row.accountId,
     symbol,

@@ -711,7 +711,7 @@ export class TradeDesk {
 
         // Governor ledgers. Live only — demo trades never move them, and
         // affiliate trades are play money that must not distort house
-        // economics (daily float resets at 00:00 IST, nothing is really
+        // economics (admin-controlled paper funds, nothing is really
         // owed). Both writes are best-effort; a failed upsert must not
         // roll the settlement back. We dual-write during the GLG rollout
         // so admin reporting keeps its daily breakdown AND the treasury

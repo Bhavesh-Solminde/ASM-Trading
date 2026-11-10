@@ -14,17 +14,21 @@
     "@asm/contracts": "workspace:*",
     "@asm/db": "workspace:*",
     "@asm/logger": "workspace:*",
+    "@asm/market-sim": "workspace:*",
     "@asm/pricing": "workspace:*",
     "@asm/tatum": "workspace:*",
     "@asm/trading": "workspace:*",
     "fyers-api-v3": "2.4.0",
     "ioredis": "5.9.0",
+    "pg": "8.23.0",
     "socket.io-client": "4.8.1",
     "tronweb": "6.5.1",
-    "ws": "8.21.3"
+    "ws": "8.21.3",
+    "@asm/notify": "workspace:*"
   },
   "devDependencies": {
     "@types/ws": "8.18.1",
+    "@types/pg": "8.23.1",
     "dotenv-cli": "10.0.0",
     "tsx": "4.20.6"
   }

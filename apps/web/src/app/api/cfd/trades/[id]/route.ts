@@ -18,11 +18,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const trade = await prisma.trade.findUnique({
     where: { id: tradeId },
-    select: { accountId: true, account: { select: { userId: true } } },
+    select: { mode: true, accountId: true, account: { select: { userId: true } } },
   });
   if (!trade || trade.account.userId !== session.userId) {
     return NextResponse.json({ error: "Trade not found." }, { status: 404 });
   }
+  if (trade.mode === "OTC_FIXED") return NextResponse.json({error:"OTC protection is fixed when the trade opens."},{status:409});
 
   const body = await req.json().catch(() => null);
   const parsed = CfdModifyTradeSchema.safeParse({ ...(body as object), tradeId });

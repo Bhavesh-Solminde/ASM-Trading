@@ -4,10 +4,17 @@ import { memo, useState, type ReactNode } from "react";
 import type { TradeView } from "@asm/contracts";
 import { useQuote, type PlatformAsset } from "@/components/shell/PlatformProvider";
 import { splitAssetName } from "@/lib/asset-name";
-import { formatMinor } from "@/lib/format-money";
-import { clockTime, countdown } from "@/lib/format-time";
+import {
+  cfdOpenPnl,
+  clockTime,
+  closedRowDisplay,
+  countdown,
+  formatMinor,
+  grossReturnMinor,
+  openSide,
+  settledAmountText,
+} from "@asm/client-core";
 import { useNowSec } from "@/lib/use-now";
-import { cfdOpenPnl, closedRowDisplay, grossReturnMinor, openSide, settledAmountText } from "./pnl-display";
 import { TransactionDetailSheet } from "@/components/history/TransactionDetailSheet";
 import { AssetIcon } from "./AssetIcon";
 
@@ -69,7 +76,7 @@ function RowShell({
       >
         {chip.label}
       </span>
-      {trade.durationSec != null && <span className="col-span-3 text-[11px] text-ink-3">Spread fee: {formatMinor(trade.spreadFee ?? 0, currency)}</span>}
+      {trade.durationSec != null && trade.mode!=="OTC_FIXED" && <span className="col-span-3 text-[11px] text-ink-3">Spread fee: {formatMinor(trade.spreadFee ?? 0, currency)}</span>}
       {children}
       {onSelectTrade && (trade.status !== "OPEN" || trade.durationSec != null) && <button type="button" aria-label={trade.status !== "OPEN" ? `Trade details ${trade.id}` : `Show ${trade.direction === "UP" ? "Buy" : "Sell"} trade ${trade.id} SL/TP`} aria-pressed={selectedTradeId === trade.id} onClick={() => onSelectTrade(trade)} className="absolute inset-0 rounded focus-visible:outline-2 focus-visible:outline-brand hover:bg-brand/5" />}
     </li>
@@ -90,7 +97,8 @@ const OpenTradeRow = memo(function OpenTradeRow({
 }) {
   const now = useNowSec();
   const price = useQuote(trade.symbol)?.price ?? null;
-  const cfdPnl = trade.durationSec != null ? cfdOpenPnl(trade, price) : null;
+  const isCfd=trade.durationSec!=null&&trade.mode!=="OTC_FIXED";
+  const cfdPnl = isCfd ? cfdOpenPnl(trade, price) : null;
   const cfdText = cfdPnl === null ? "—" : `${cfdPnl > 0 ? "+" : cfdPnl < 0 ? "−" : ""}${formatMinor(Math.abs(cfdPnl), currency)}`;
   const side = openSide(trade.direction, trade.entryPrice, price);
   const winning = side === "winning";
@@ -101,10 +109,10 @@ const OpenTradeRow = memo(function OpenTradeRow({
   const expired = now !== null && now >= trade.expiryTs;
 
   // Only the engine can confirm a settlement and its actual outcome.
-  const pnlDisplay = expired ? "—" : trade.durationSec != null ? cfdText : winning
+  const pnlDisplay = expired ? "—" : isCfd ? cfdText : winning
     ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
     : `−${formatMinor(trade.stake, currency)}`;
-  const pnlClass = expired ? "text-ink-2" : trade.durationSec != null ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
+  const pnlClass = expired ? "text-ink-2" : isCfd ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
   const chipOverride = expired
     ? { label: "Settling", className: "bg-tile text-ink-2" }
     : undefined;
@@ -206,7 +214,7 @@ export function TradesPanel({
               key={trade.id}
               onSelectTrade={tab === "closed" ? setDetail : onSelectTrade} selectedTradeId={selectedTradeId}
       trade={trade}
-              currency={currency}
+              currency={trade.currency ?? currency}
               asset={assets.find((a) => a.symbol === trade.symbol)}
             />
           ))

@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/shell/Icon";
-import { formatMinor } from "@/lib/format-money";
-import { convertMinorBetween } from "@/lib/currency";
+import { formatMinor, USD_INR_RATE, convertMinorBetween } from "@asm/client-core";
 
 type Currency = "INR" | "USD";
 
@@ -70,7 +69,7 @@ export function CurrencyConvertCard({ accounts }: { accounts: AccountBalance[] }
             <Icon name="alert" className="size-4" />
           </span>
           <span className="min-w-0">
-            Convert your whole balance between rupees and dollars at a fixed <strong className="text-ink">₹100 = $1</strong>.
+            Convert your whole balance between rupees and dollars at a fixed <strong className="text-ink">₹{USD_INR_RATE} = $1</strong>.
           </span>
         </p>
 

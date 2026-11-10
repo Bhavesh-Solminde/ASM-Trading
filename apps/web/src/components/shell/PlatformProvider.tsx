@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { BalancesDto, OpenTradeResult, ServerMessage, Timeframe, TradeView } from "@asm/contracts";
 import { useEngineSocket, type SocketStatus } from "@/components/chart/useEngineSocket";
+import { celebrateFestivalSettlement } from "@/lib/festive-settlement";
 import { playSettled } from "@/lib/sound";
 import {
   applyTradeMessage,
@@ -10,8 +11,8 @@ import {
   withFetchedTrades,
   withOpenResult,
   type TradeState,
-} from "@/components/trade/trade-state";
-import { shouldReconcile } from "@/components/trade/reconcile";
+  shouldReconcile,
+} from "@asm/client-core";
 import { MarketStore, useMarket } from "./market-store";
 import type { Quote } from "./quotes";
 
@@ -171,18 +172,24 @@ export function PlatformProvider({
   }, [activeAccountId]);
 
   const watch = useMemo(() => assets.map((a) => a.symbol), [assets]);
+  const [initialSettledIds] = useState(() => new Set(initialTrades.filter(trade => trade.status !== "OPEN").map(trade => trade.id)));
   const onMessage = useCallback(
     (message: ServerMessage) => {
       market.apply(message);
       if (TRADE_MESSAGES.has(message.type)) dispatch({ kind: "message", message });
       if (message.type === "trade:settled" && message.trade.accountId === activeAccountIdRef.current) {
-        playSettled(message.trade.status);
+        const alreadyKnown = initialSettledIds.has(message.trade.id);
+        initialSettledIds.add(message.trade.id);
+        if (initialSettledIds.size > 500) initialSettledIds.delete(initialSettledIds.values().next().value!);
+        const festiveSound = !alreadyKnown && celebrateFestivalSettlement(message.trade);
+        if (!festiveSound) playSettled(message.trade.status);
         setSettlement({ trade: message.trade, at: Date.now() });
       }
     },
-    [market],
+    [market, initialSettledIds],
   );
-  const { status, send } = useEngineSocket({ symbol: chartSymbol, timeframe, watch, onMessage });
+  const resume=useCallback(()=>{const c=market.getSnapshot().chart,last=c.forming??c.candles.at(-1);return c.generation&&last?{generation:c.generation,since:last.openTs}:null;},[market]);
+  const { status, send } = useEngineSocket({ symbol: chartSymbol, timeframe, watch, onMessage,resume });
 
   // Let the market store reach the socket for scroll-left history backfill.
   useEffect(() => {

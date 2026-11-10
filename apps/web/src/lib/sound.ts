@@ -6,9 +6,8 @@ const MUTE_KEY = "asm.sound";
 const muteListeners = new Set<() => void>();
 export function subscribeSound(listener: () => void) {
   muteListeners.add(listener);
-  const storage = () => listener();
-  if (typeof window !== "undefined") window.addEventListener("storage", storage);
-  return () => { muteListeners.delete(listener); if (typeof window !== "undefined") window.removeEventListener("storage", storage); };
+  if (typeof window !== "undefined") window.addEventListener("storage", listener);
+  return () => { muteListeners.delete(listener); if (typeof window !== "undefined") window.removeEventListener("storage", listener); };
 }
 
 /** Maps a settled trade's status to the sound it should play, if any. */
@@ -47,7 +46,7 @@ let ctx: AudioContext | null = null;
 let fireworkNoise: AudioBuffer | null = null;
 
 /** Lazily creates (and resumes) the one shared AudioContext. Null when unsupported. */
-function getContext(): AudioContext | null {
+export function getSoundContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   const Ctor: AudioContextCtor | undefined =
     window.AudioContext ?? (window as unknown as { webkitAudioContext?: AudioContextCtor }).webkitAudioContext;
@@ -55,20 +54,20 @@ function getContext(): AudioContext | null {
   if (!ctx) ctx = new Ctor();
   // Autoplay policies suspend a freshly created context until a user gesture;
   // settlement always follows one (opening the trade), so resume is safe here.
-  void ctx.resume().catch(() => { /* The browser may require another user gesture. */ });
+  void ctx.resume().catch(() => { /* A user gesture may be required. */ });
   return ctx;
 }
 
 /** Call from a user gesture so a later celebration can play on mobile too. */
 export function unlockSound(): void {
   if (isMuted()) return;
-  try { getContext(); } catch { /* Audio is optional when unavailable. */ }
+  try { getSoundContext(); } catch { /* Audio is optional when unavailable. */ }
 }
 
 /** Resume during the explicit celebration gesture; false means visual-only fallback. */
 export async function prepareFestivalSound(): Promise<boolean> {
   if (isMuted()) return false;
-  try { const audio = getContext(); if (!audio) return false; await audio.resume(); return audio.state === "running"; } catch { return false; }
+  try { const audio = getSoundContext(); if (!audio) return false; await audio.resume(); return audio.state === "running"; } catch { return false; }
 }
 
 /** Three soft firework pops with a trailing crackle, timed to the visual bursts. */
@@ -76,7 +75,7 @@ export function playFireworks(synchronized = false): () => void {
   const silent = () => {};
   if (isMuted() || (typeof document !== "undefined" && document.hidden)) return silent;
   try {
-    const audio = getContext();
+    const audio = getSoundContext();
     if (!audio || audio.state === "closed") return silent;
     const nodes: AudioNode[] = [];
     const sources: (AudioBufferSourceNode | OscillatorNode)[] = [];
@@ -153,7 +152,7 @@ function blip(audio: AudioContext, freq: number, startAt: number, durationSec: n
 /** Ascending C5-E5-G5 major triad, staggered — the "win" chime. */
 export function playWin(): void {
   if (isMuted()) return;
-  const audio = getContext();
+  const audio = getSoundContext();
   if (!audio) return;
   const notes = [523.25, 659.25, 783.99];
   notes.forEach((freq, i) => blip(audio, freq, i * 0.07, 0.09, 0.15));
@@ -162,7 +161,7 @@ export function playWin(): void {
 /** Descending G4-C4 tone — the soft "lose" sound. */
 export function playLose(): void {
   if (isMuted()) return;
-  const audio = getContext();
+  const audio = getSoundContext();
   if (!audio) return;
   blip(audio, 392, 0, 0.14, 0.12);
   blip(audio, 261.63, 0.13, 0.14, 0.12);

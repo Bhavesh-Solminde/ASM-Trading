@@ -205,6 +205,7 @@ export class EngineServer {
       return;
     }
 
+    if(message.type==="watchlist:subscribe")return;
     const asset = this.registry.get(message.symbol);
     if (!asset) {
       this.send(client, { type: "error", message: "Unknown asset." });
@@ -322,6 +323,10 @@ export class EngineServer {
     for (const client of this.clients) {
       if (client.userId === userId) this.send(client, message);
     }
+  }
+
+  isUserOnline(userId: string): boolean {
+    return [...this.clients].some((c) => c.userId === userId && c.socket.readyState === c.socket.OPEN);
   }
 
   async stop(): Promise<void> {

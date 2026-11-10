@@ -7,8 +7,7 @@ import type { TradeView } from "@asm/contracts";
 import { usePlatform, useQuote } from "@/components/shell/PlatformProvider";
 import type { MarketStore } from "@/components/shell/market-store";
 import { useNowSec } from "@/lib/use-now";
-import { formatMinor } from "@/lib/format-money";
-import { cfdOpenPnl } from "@/components/trade/pnl-display";
+import { cfdOpenPnl, formatMinor } from "@asm/client-core";
 import { BRACKET_KINDS, BRACKET_LABEL, bracketChanges, bracketError, bracketFromPnl, bracketPnl, bracketReturnPercent, defaultBracketPrice, savedBrackets, snapBracketPrice, type BracketKind, type BracketLevels } from "./bracket-model";
 import { draggedBracketPrice, expandedBracketRange, type BracketDragRange } from "./bracket-drag";
 import styles from "./ChartBrackets.module.css";
@@ -61,7 +60,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
   containerRef: RefObject<HTMLDivElement | null>; precision: number; tickSize: number; currency: string; chartVersion: number; market: MarketStore; controlsEnabled?: boolean; focusedTradeId?: string | undefined; onSelectTrade?: ((id: string) => void) | undefined; onShowAllTrades?: (() => void) | undefined;
 }) {
   const now = useNowSec();
-  const positions = useMemo(() => trades.filter(t => t.durationSec != null && (t.id === focusedTradeId || t.status === "OPEN" && (now == null || t.expiryTs > now))), [trades, now, focusedTradeId]);
+  const positions = useMemo(() => trades.filter(t => t.mode !== "OTC_FIXED" && t.durationSec != null && (t.id === focusedTradeId || t.status === "OPEN" && (now == null || t.expiryTs > now))), [trades, now, focusedTradeId]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [editorId, setEditorId] = useState<string | null>(null);

@@ -1,3 +1,4 @@
+import { enqueueOutbox } from "./notifications";
 import { prisma } from "../client";
 import type { KycDocumentKind, Prisma } from "../../generated/prisma/client";
 
@@ -19,6 +20,8 @@ export interface ProfileView {
   kycDocuments: KycDocumentKind[];
   twoFaForLogin: boolean;
   twoFaForWithdrawal: boolean;
+  /** UI + push language ("en" | "hi"). */
+  locale: string;
 }
 
 /** Every document a KYC submission needs, in the order the flow asks for them. */
@@ -29,7 +32,8 @@ export const KYC_DOCUMENT_KINDS: readonly KycDocumentKind[] = [
   "SELFIE",
 ];
 
-const IDENTITY_FIELDS = ["firstName", "lastName", "dateOfBirth", "aadhaar", "pan", "address", "country"] as const;
+/** The profile fields a KYC submission needs. `KYC_IDENTITY_FIELDS` in @asm/contracts must match (see the drift test). */
+export const IDENTITY_FIELDS = ["firstName", "lastName", "dateOfBirth", "aadhaar", "pan", "address", "country"] as const;
 type IdentityField = (typeof IDENTITY_FIELDS)[number];
 
 /** Identity data is frozen while it is in review or once it is verified. */
@@ -48,6 +52,7 @@ export async function loadProfile(actorId: string): Promise<ProfileView> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: actorId },
     select: {
+      locale: true,
       email: true,
       emailVerified: true,
       nickname: true,
@@ -213,6 +218,7 @@ export async function reviewKyc(input: {
       data: { kycStatus: input.decision, kycReviewNote: note },
     });
     if (moved.count !== 1) throw new KycNotPending();
+    await enqueueOutbox(tx, input.userId, input.decision === "VERIFIED" ? "kyc_verified" : "kyc_rejected", note ? { note } : {});
     await tx.auditLog.create({
       data: {
         actorId: input.adminId,
@@ -258,5 +264,13 @@ export async function setTwoFactorPreferences(
       twoFaForWithdrawal: prefs.forWithdrawal,
       twoFaEnabled: prefs.forLogin || prefs.forWithdrawal,
     },
+  });
+}
+
+/** UI/push language. Not KYC-locked: it is a preference, not identity data. */
+export async function setLocale(userId: string, locale: "en" | "hi"): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: userId }, data: { locale } });
+    await tx.pushDevice.updateMany({ where: { userId }, data: { locale } });
   });
 }

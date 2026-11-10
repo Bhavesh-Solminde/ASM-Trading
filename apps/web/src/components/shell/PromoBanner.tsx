@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useScrollLock } from "@/lib/use-scroll-lock";
-import { BONUS_TIERS, bonusPercentForDeposit, ordinal } from "@/lib/bonus";
+import { BONUS_TIERS, bonusPercentForDeposit, ordinal } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
 import { Icon } from "./Icon";
 import { usePlatform } from "./PlatformProvider";

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { rateLimited } from "@/lib/request-session";
 import { PasswordResetRequestSchema } from "@asm/contracts";
 import { PASSWORD_RESET_TTL_MS, findUserByEmail, issuePasswordResetToken } from "@asm/db";
 import { childLogger } from "@asm/logger";
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
   const okEmail = await checkRateLimit(`rl:pwreset:email:${email}`, 3, 3600);
   if (!okIp || !okEmail) {
     log.warn({ evt: "security.rate_limited", route: "password_reset" }, "password reset throttled");
-    return NextResponse.json({ error: "Too many reset requests. Wait a while and try again." }, { status: 429 });
+    return rateLimited("Too many reset requests. Wait a while and try again.");
   }
 
   const user = await findUserByEmail(email);

@@ -1,5 +1,5 @@
 import { certificateHtml, type CertificateData } from "./certificate";
-import { details, emailLayout, greeting, p, siteUrl, type RenderedEmail } from "./layout";
+import { EMAIL_PALETTE, details, emailLayout, escapeHtml, greeting, p, siteUrl, type RenderedEmail } from "./layout";
 
 export function withdrawalRequestedEmail(input: {
   name: string | null;
@@ -40,8 +40,16 @@ export function withdrawalPaidEmail(input: {
   name: string | null;
   certificate: CertificateData;
   payToLabel: string;
+  /** Content id of the rendered certificate image. Without one, the HTML certificate is used. */
+  certificateImageCid?: string | undefined;
 }): RenderedEmail {
   const c = input.certificate;
+  if (input.certificateImageCid) {
+    return {
+      subject: "Your withdrawal is paid. Here's your certificate",
+      html: certificateImageEmail(c, input.payToLabel, input.certificateImageCid),
+    };
+  }
   return {
     subject: "Your withdrawal is paid. Here's your certificate",
     html: emailLayout({
@@ -54,6 +62,27 @@ export function withdrawalPaidEmail(input: {
       ].join(""),
     }),
   };
+}
+
+/**
+ * The paid email as the certificate alone: one rendered image (the artwork
+ * can't be built in email HTML), no text and no header card, by design. The
+ * alt text carries the amount and date for readers with images off.
+ */
+function certificateImageEmail(c: CertificateData, payToLabel: string, cid: string): string {
+  const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  const amount = escapeHtml(c.amountLabel);
+  const alt = escapeHtml(`IndianxTrade reward certificate for ${c.name}: withdrawal of ${c.amountLabel} on ${c.dateLabel}`);
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reward certificate</title></head>
+<body style="margin:0;padding:0;background:${EMAIL_PALETTE.light.page};">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${amount} is on its way to ${escapeHtml(payToLabel)}.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${EMAIL_PALETTE.light.page};font-family:${font};"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;">
+<tr><td><img src="cid:${cid}" width="600" alt="${alt}" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:6px;"></td></tr></table>
+</td></tr></table>
+</body></html>`;
 }
 
 export function withdrawalRejectedEmail(input: {

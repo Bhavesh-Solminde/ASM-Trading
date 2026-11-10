@@ -1,3 +1,4 @@
+export { USD_INR_RATE, convertMinorBetween } from "./currency";
 export {
   RegisterSchema,
   LoginSchema,
@@ -6,6 +7,7 @@ export {
   type RegisterInput,
   type LoginInput,
 } from "./auth";
+export {OtcOpenTradeSchema,EngineOtcOpenTradeSchema,type OtcOpenTradeInput,type EngineOtcOpenTradeInput,type OtcMarketMessage,type OtcWatchlistMessage,type OtcBotsMessage,type OtcDisplayQuote} from "./otc";
 export {
   SymbolSchema,
   TimeframeSchema,
@@ -54,6 +56,8 @@ export {
 } from "./trade";
 export {
   CfdDirectionSchema,
+  CfdTradeViewSchema,
+  cfdTradeViewFrom,
   CfdOpenTradeSchema,
   EngineCfdOpenTradeSchema,
   CfdCloseTradeSchema,
@@ -106,17 +110,32 @@ export {
   UpdateProfileSchema,
   TwoFaToggleSchema,
   TwoFaVerifySchema,
+  ProfileViewSchema,
+  KYC_DOCUMENT_KIND_VALUES,
+  KYC_IDENTITY_FIELDS,
+  type KycDocumentKindValue,
+  type KycIdentityField,
+  type ProfileViewDto,
   type UpdateProfileInput,
   type TwoFaToggleInput,
   type TwoFaVerifyInput,
 } from "./account";
-export { CreateTicketSchema, FAQ, type CreateTicketInput } from "./support";
+export {
+  CreateTicketSchema,
+  FAQ,
+  TicketSchema,
+  TicketsResponseSchema,
+  type CreateTicketInput,
+  type TicketDto,
+  type TicketsResponseDto,
+} from "./support";
 export {
   LeaderboardEntrySchema,
   LeaderboardResultSchema,
   type LeaderboardEntryDto,
   type LeaderboardResultDto,
 } from "./leaderboard";
+export * from "./app";
 
 export { CFD_LEVERAGE, CFD_MAX_PROFIT_MULTIPLIER, cfdProfitMinor, cfdMaxProfitPrice, cfdLiquidationPrice } from "./cfd-math";
 

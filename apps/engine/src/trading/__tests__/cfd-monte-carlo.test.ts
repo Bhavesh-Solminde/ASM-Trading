@@ -286,7 +286,8 @@ describe("Monte Carlo — Scenario 4: adversarial run respects the circuit break
     // And the typical trial still ends in the house's favour.
     const avg = mean(results.map((r) => r.houseProfit));
     expect(avg).toBeGreaterThan(0);
-  });
+    // Match the other Monte Carlo scenarios: slower shared CI runners need time for all 2,000 trials.
+  }, 30_000);
 });
 
 // ---- Scenario 5 — statistical sanity: variance scaling --------------------

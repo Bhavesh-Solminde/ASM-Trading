@@ -11,6 +11,7 @@
     "migrate": "dotenv -e ../../.env -- prisma migrate dev",
     "seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
     "seed:markets": "dotenv -e ../../.env -- tsx prisma/sync-market-catalogue.ts",
+    "seed:otc-markets": "dotenv -e ../../.env -- tsx prisma/seed-otc-markets.ts",
     "seed:fraud": "dotenv -e ../../.env -- tsx prisma/seed-fraud.ts",
     "seed:algo": "dotenv -e ../../.env -- tsx prisma/seed-algo.ts",
     "seed:approvals": "dotenv -e ../../.env -- tsx prisma/seed-approvals-demo.ts",
@@ -19,8 +20,10 @@
   "dependencies": {
     "@asm/algo": "workspace:*",
     "@asm/config": "workspace:*",
+    "@asm/contracts": "workspace:*",
     "@asm/logger": "workspace:*",
     "@asm/mail": "workspace:*",
+    "@asm/market-sim": "workspace:*",
     "@asm/pricing": "workspace:*",
     "@asm/trading": "workspace:*",
     "@prisma/adapter-pg": "7.10.0",
@@ -28,6 +31,7 @@
     "argon2": "0.45.1"
   },
   "devDependencies": {
+    "@asm/contracts": "workspace:*",
     "dotenv": "17.4.2",
     "dotenv-cli": "10.0.0",
     "prisma": "7.10.0",

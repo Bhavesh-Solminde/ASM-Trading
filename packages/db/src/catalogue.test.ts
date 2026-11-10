@@ -56,7 +56,7 @@ describe("market catalogue", () => {
     // This is the invariant that stops someone "fixing" a cramped market by
     // shrinking tickSize instead of raising precision — shrinking it below
     // the grid buys no extra candle detail and costs settlement clarity.
-    // DOGEUSDT, USDJPY and XAUUSD sit exactly at parity today, hence the
+    // XAUUSD sits exactly at parity today, hence the
     // float tolerance rather than a strict >=.
     const invisible = MARKETS.filter(
       (m) => m.tickSize < 10 ** -m.precision * (1 - 1e-9),

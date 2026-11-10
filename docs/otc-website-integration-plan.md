@@ -1,7 +1,17 @@
 # OTC order-book integration plan
 
-Status: implementation plan only. No production behavior changes are included
-in this document.
+Status: implemented in the isolated integration checkout, with local tests
+and isolated KVM acceptance passed. Fresh browser acceptance is pending.
+Production is unchanged. See
+`docs/otc-integration-progress.md`, `docs/otc-staging-runbook.md` and saved
+`docs/verification/` reports for evidence and remaining browser/KVM gates.
+
+Latest owner corrections: hide reference lines/labels on the chart; remove the
+Order book/Market flow and Chart performance sections from the trade page; set
+SL/TP using draggable chart lines instead of numeric inputs. These supersede
+the earlier visible-panel/recorder proposals. A placeholder-first startup
+defect was subsequently found and fixed: new durable books require verified
+references for all30 markets before history creation. See `otc-startup-fix.md`.
 
 ## Intended result
 
@@ -14,7 +24,7 @@ on the server, and publish candles made only by matched orders.
 The owner will create ordinary accounts through the website's normal signup
 flow and use them as **Tobs**. They are not seeded, specially marked or given a
 different login path. A controlled crowd of 1, 10, 20, 40 or 100 of those
-accounts can then place simultaneous DEMO trades. Tobs are separate from the
+accounts can then place simultaneous LIVE trades as role USER. Tobs are separate from the
 6,000 internal market bots.
 
 The OTC contract remains:
@@ -58,8 +68,9 @@ fan-out. The browser never calls a public price provider.
 1. Create `packages/market-sim` in the main repository from the verified
    prototype implementation. Move the order book, anchored market, deterministic
    random state, bot profiles and conservation tests with it.
-2. Expand `packages/db/src/catalogue.ts` from the current 19 markets to the same
-   30 markets used by the prototype:
+2. Introduce a separate 30-market OTC catalogue, shared by the simulator and
+   `packages/db/src/otc-catalogue.ts`. Preserve the legacy 19-market catalogue
+   for historical/disabled-feature paths. The OTC markets are:
    - Crypto: BTC, ETH, BNB, SOL, XRP, DOGE, ADA, LTC, LINK and DOT against USDT.
    - Forex: EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD, NZD/USD,
      EUR/GBP, EUR/JPY and GBP/JPY.
@@ -86,7 +97,7 @@ relevant market worker.
 | Market group | Server-side source | Normal interval |
 | --- | --- | ---: |
 | 10 crypto pairs | Binance public batch ticker | 60 seconds |
-| 10 FX pairs and gold/silver | Live-Rates public snapshot | 5 minutes |
+| 10 FX pairs and gold/silver | Live-Rates public snapshot, Yahoo fallback (metals are labelled futures proxies) | 20 minutes |
 | Five NSE indices | NSE `allIndices` snapshot | 15 minutes |
 | SENSEX and missing index fallback | Yahoo chart snapshot | 15 minutes |
 | WTI and Brent futures | Yahoo chart snapshot | 5 minutes |
@@ -98,7 +109,8 @@ For every response:
 3. save price, provider, provider timestamp, receipt timestamp, quote type and
    session status;
 4. retain the last good quote across timeouts, rate limits and restarts;
-5. mark its age as fresh, delayed, stale, closed-last-quote or unavailable;
+5. derive its age as fresh, delayed, stale, closed-last-quote or unavailable for
+   diagnostics; no reference line or label is drawn on the trade chart;
 6. double the next interval after provider failure and add jitter so restarts do
    not cause bursts;
 7. send the accepted reference to the order-book worker as an input. A reference
@@ -106,12 +118,18 @@ For every response:
 
 Add a `MarketReference` database table for the last accepted value and a bounded
 `MarketReferenceAudit` table for troubleshooting. Keep the public-provider URLs
-and credentials server-side. The UI receives only source name, source time, age
-and status.
+and credentials server-side. Transport metadata carries only source name, source
+time, age and status. Reference information stays off the main trade chart.
 
 The public no-key sources are suitable for this low-frequency model but have no
 availability guarantee. Keep the existing FYERS and authenticated Live-Rates
 adapters as later replacements without changing the order-book interface.
+
+Live-Rates documents a keyless limit of three requests/hour/IP, so the
+integrated keyless poller uses 20 minutes plus jitter rather than the original
+five-minute proposal. Missing or unavailable public FX/metals quotes fall back
+to Yahoo snapshots with their actual source/proxy metadata.
+Source: https://github.com/Live-Rates/live-rates.com#keyless--free-tier
 
 ## Phase 3: persistent 30-market worker
 
@@ -170,25 +188,35 @@ readable.
 
 Opening a trade:
 
-1. The browser sends symbol, Up/Down, stake, expiry duration, optional SL/TP and
-   a client-generated idempotency key.
+1. The browser captures the server-issued quote ID committed with the visible
+   price when Buy or Sell is clicked. It sends that ID with symbol, Up/Down,
+   stake, expiry duration, optional SL/TP and a client-generated idempotency key.
 2. The web route verifies the session and account ownership, then forwards the
    authenticated actor ID to the engine exactly as it does today.
-3. In one database transaction the engine locks the DEMO account, checks status
-   and balance, debits the stake, and creates a `PENDING` trade intent.
-4. The worker converts stake to a bounded flow-lot size using the market's
+3. In one database transaction the engine locks the selected account, checks status
+   and balance, verifies the quote's market and five-second validity, debits the
+   stake, and saves the exact displayed price in the durable trade intent.
+   An expired or unknown quote asks the trader to refresh the price.
+4. Only a USER-role LIVE trade is Tob flow. The worker converts its stake to a bounded flow-lot size using the market's
    catalogue scale and submits an immediate-or-cancel Up/Down flow order to the
    same finite book used by the bots.
 5. If nothing fills, the engine refunds the reserved stake and reports that
    liquidity was unavailable. It does not invent an entry price.
-6. If it fills, volume-weighted fill price becomes `entryPrice`. Store fill
-   quantity, execution sequence and market command ID, then mark the trade open.
+6. Use the verified displayed price as the contract `entryPrice`. Store matched
+   fill quantity, execution sequence and market command ID, then mark the trade open.
 7. Notify only after both the market result and database finalization are
-   durable. Repeating the same idempotency key returns the original result.
+   durable. Repeating the same idempotency key returns the original result,
+   including after quote expiry or an engine restart.
 
 The INR stake is the fixed-payout contract balance; the flow lots are a
 calibrated representation of its order-flow pressure. They must be stored
 separately so order-book inventory is never confused with rupee accounting.
+
+DEMO trades observe the same published price and settle as paper contracts;
+they never submit an order, consume liquidity, contribute Tob volume, change
+bot decisions or count as active Tobs. ADMIN and AFFILIATE roles are not Tobs.
+The engine derives eligibility from database role/account ownership and type,
+never from a browser-supplied role, flag or origin.
 
 Settlement runs after each market execution, in execution-sequence order:
 
@@ -217,10 +245,10 @@ columns can be reused once the trade mode makes their meaning unambiguous.
 
 ## Phase 5: normal signup accounts used as Tobs
 
-Tob is a simulation label for an ordinary authenticated website user. The owner
+Tob means an authenticated USER-role account trading from its LIVE balance. The owner
 signs up each account using the existing registration page, logs in normally and
-uses its DEMO account. No `isTob` column, seeded credential or special role is
-needed. When any authenticated user submits a trade, the worker tags the
+uses its LIVE account. No `isTob` column, seeded credential or special role is
+needed. When a USER submits a LIVE trade, the worker tags the
 corresponding flow order as `Tob` and keeps the database actor ID for the trade
 audit without exposing that identity in public market tape.
 
@@ -232,8 +260,8 @@ The manual verification flow is:
 
 1. sign up through the normal page;
 2. log in through the normal page;
-3. select the DEMO account and reset its play balance using the existing DEMO
-   flow when needed;
+3. select the LIVE account to test market-moving Tob trades; separately use a
+   DEMO account to verify that paper trades do not affect the market;
 4. select any market, place several trades and verify entries, SL/TP/expiry,
    history and balance changes;
 5. repeat with the owner's other normally-created accounts.
@@ -251,8 +279,9 @@ normal production rate limit, or raise the existing `LOGIN_IP_RL` only in an
 isolated staging environment; never relax the public production limit.
 
 All normal account features continue to work because these are normal accounts.
-For this rollout, use their DEMO accounts only; LIVE funds, deposits and
-withdrawals are not part of the Tob test.
+An isolated staging environment can test LIVE account-type behavior with test
+balances. LIVE and DEMO are accounting types; changing them is not a test-user
+role or an identity flag. Do not fabricate deposits to fund a production test.
 
 ## Phase 6: website integration
 
@@ -264,15 +293,17 @@ The website should show:
 
 - all 30 markets grouped by Crypto, Forex, India and Commodities;
 - 92% payout and OTC labels;
-- reference source, source time and fresh/delayed/stale/closed status;
 - TradingView-style candle colours;
-- actual execution volume, selected-market order-book depth and recent tape;
+- actual execution volume;
 - entry, SL, TP, current price and expiry lines for open trades;
+- draggable SL/TP draft lines for the next Buy/Sell trade, without price fields;
 - multiple simultaneous positions and their independent remaining times;
-- an order-flow phase label: bots only, arriving, balanced, buy/sell pressure,
-  absorption, liquidity stress or recovery;
 - a top-10 bot P&L leaderboard fed from engine wallets, without bot user rows;
-- the existing DEMO banner whenever a Tob is using a DEMO account.
+- clear LIVE/DEMO account labels: only USER + LIVE is Tob flow.
+
+Order-book depth, tape, flow phases, reference metadata and bounded performance
+diagnostics remain available in engine/test evidence. The owner explicitly
+removed these sections from the main chart screen.
 
 WebSocket protocol additions:
 
@@ -294,8 +325,9 @@ Apply the chart-performance checklist:
    suspend hidden-tab rendering/subscriptions;
 4. cache six recent markets and reject stale switch responses;
 5. keep the simulation in the worker and preserve every tick;
-6. expose downloadable render diagnostics and measure actual browser frame
-   timing separately from DOM tests.
+6. retain bounded diagnostics and measure actual browser frame timing separately
+   from DOM tests. The owner removed the recorder from the main trading UI;
+   use permitted developer profiling for final browser acceptance.
 
 ## Phase 7: tests and acceptance gates
 
@@ -352,20 +384,19 @@ must be reported separately from server CPU.
    `OTC_ORDER_BOOK_ENABLED=false` by default.
 3. Run database migrations and seed all 30 assets without opening the feature to
    ordinary accounts.
-4. Deploy a staging engine or DEMO-only mode on the KVM 4. Keep the new path
-   unavailable to LIVE account trading during verification.
+4. Deploy an isolated staging engine on the KVM 4. Test USER + LIVE book flow and
+   DEMO paper settlement side by side, with staging balances.
 5. Run provider-outage, restart, 100-user crowd, long-session and browser
    performance tests. Keep the saved reports with the release.
 6. Let the owner sign up and log into ordinary accounts, use them as Tobs, and
    approve the UX and trade lifecycle.
-7. Enable the new OTC path for DEMO accounts first. Monitor reference age,
+7. Enable the new OTC path after staging acceptance. Monitor reference age,
    worker restarts, pending intents, settlement delay, CPU, memory, DB latency
    and WebSocket backpressure.
 8. After a stable observation window, remove CFD controls and routes from the
    user interface. Keep legacy trade rows readable in history.
-9. Live accounts, deposits and withdrawals remain outside this rollout until a
-   separate business, legal, risk and production-data review explicitly enables
-   them.
+9. Keep existing deposit/withdrawal accounting intact. Production activation is
+   a separate deployment step after the implementation and test reports are reviewable.
 
 ## Recommended implementation order
 
@@ -377,17 +408,17 @@ must be reported separately from server CPU.
 6. Website market selector, chart, depth/tape and OTC ticket.
 7. Normal-signup Tob verification and the private credential-based crowd runner.
 8. Full correctness, restart, provider and performance verification.
-9. DEMO-only VPS deployment and manual acceptance.
+9. Staging VPS deployment, LIVE/DEMO separation checks and manual acceptance.
 
 ## Definition of done
 
 The integration is complete when the owner can sign up and log in through the
-normal flow, use that account as a Tob, see all 30 markets and truthful
-reference status, place several fixed-
+normal flow, use that account as a Tob, see all 30 markets initialized from
+verified references (kept internal), place several fixed-
 expiry trades with optional SL/TP, and observe entries and settlements against
 the same order-driven chart. The top-10 internal bot P&L leaderboard must come
 directly from engine wallets without registered bot users. The 100-Tob runner
 must use accounts created through normal signup and the same external trade
 path. All accounting and matching invariants must pass, provider failures and
 engine restarts must preserve continuity, and KVM/browser measurements must be
-saved before the feature is opened beyond DEMO testing.
+saved before production activation.

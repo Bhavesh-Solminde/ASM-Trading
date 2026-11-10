@@ -11,11 +11,14 @@ export interface LeaderboardEntry {
   country: string | null;
   /** The board's display currency (every entry shares it). */
   currency: string;
-  /** Today's realized P/L in minor units of `currency`. */
+  /** Today's P/L in minor units of `currency`; illustrative when source is demo. */
   pnlMinor: number;
+  market?: string;
+  returnPct?: number | null;
 }
 
 export interface LeaderboardResult {
+  source?: "demo" | "live";
   entries: LeaderboardEntry[];
   /** The viewer's own standing; rank is 1-based, null when they have no ranked P/L today. */
   you: { rank: number | null; entry: LeaderboardEntry | null };
@@ -99,7 +102,34 @@ export async function dailyLeaderboard(input: {
       ? { rank: yourIndex + 1, entry: ranked[yourIndex]! }
       : { rank: null, entry: all.find((r) => r.entry.userId === input.viewerUserId)?.entry ?? null };
 
-  return { entries: ranked.slice(0, input.limit), you };
+  const entries = ranked.slice(0, input.limit);
+  const visible: LeaderboardEntry[] = [...entries, ...(you.entry ? [you.entry] : [])];
+  const accountIds = [...new Set(visible.map((entry) => entry.accountId))];
+  if (accountIds.length > 0) {
+    const markets = await prisma.trade.groupBy({
+      by: ["accountId", "assetId"],
+      where: {
+        accountId: { in: accountIds },
+        status: { in: ["WON", "LOST", "REFUNDED"] },
+        expiryTs: { gte: since },
+      },
+      _sum: { stake: true },
+    });
+    const assets = await prisma.asset.findMany({
+      where: { id: { in: [...new Set(markets.map((market) => market.assetId))] } },
+      select: { id: true, symbol: true },
+    });
+    const symbols = new Map(assets.map((asset) => [asset.id, asset.symbol]));
+    for (const entry of visible) {
+      const traded = markets.filter((market) => market.accountId === entry.accountId);
+      entry.market = traded.map((market) => symbols.get(market.assetId) ?? "—").sort().join(", ");
+      const stake = traded.reduce((sum, market) => sum + Number(market._sum.stake ?? 0), 0);
+      const account = byId.get(entry.accountId);
+      const quoteStake = convertMinorBetween(stake, account?.currency ?? "INR", input.displayCurrency);
+      entry.returnPct = quoteStake > 0 ? entry.pnlMinor / quoteStake * 100 : null;
+    }
+  }
+  return { entries, you };
 }
 
 /** The board is shown in the viewer's LIVE account currency, INR when they have none. */

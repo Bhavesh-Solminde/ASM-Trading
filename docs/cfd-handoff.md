@@ -15,7 +15,7 @@
    - **Task 4**: Spread module — bid/ask, per-user punishment (3× at win cap, 50% fill skew), early close penalty, hard block at 2× cap
    - **Task 5**: CFD contracts — CfdOpenTradeSchema, CfdTradeView, direction mapping
    - **Task 6-7**: CfdDesk — full position lifecycle: open (risk checks + fill quality), scanPositions (SL/TP/liq/expiry/trailing per tick), closePosition (PnL + balance), manualClose (lockout + spread penalty), modify (SL/TP)
-   - **Task 8**: Three-layer magnet — anti-crowd bias, SL gravity, profit drag, vol-aware gating, adaptive aggression 3.5×→2.5×
+   - **Task 8**: Three-layer magnet — anti-crowd bias, SL gravity, profit drag, vol-aware gating, adaptive aggression 5.5×→4.5×
    - **Task 9**: Risk management — dynamicMaxStake, exposureCap, dailyWinCap, daily circuit breaker, vol circuit breaker, demo fills
    - **TICK_DT_SEC**: Changed from 5 to 3
    - **Task 10**: Tick loop wiring — TRADING_MODEL=CFD feature flag, QuoteBuffer/GapTracker/CfdDesk instantiated in main.ts, CFD branch in tick loop (honest tick → real price → magnet → gap → shown price → scan triggers → broadcast), crypto maintenance window, binary path preserved in else branch

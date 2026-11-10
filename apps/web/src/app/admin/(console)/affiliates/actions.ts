@@ -8,6 +8,7 @@ import {
   createAffiliate,
   deleteAffiliateById,
   resetAffiliatePasswordById,
+  setAffiliateAccountBalance,
 } from "@asm/db";
 import { logger } from "@asm/logger";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
@@ -119,4 +120,33 @@ export async function deleteAffiliateAction(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/admin/affiliates");
+}
+
+/** Sets available paper funds; accepted trades keep their locked stakes. */
+export async function setAffiliateBalanceAction(formData: FormData): Promise<void> {
+  await requirePanel();
+  const amount = String(formData.get("amount") ?? "").trim();
+  if (amount.length > 32 || !/^\d+(?:\.\d{1,2})?$/.test(amount)) {
+    redirect("/admin/affiliates?error=" + encodeURIComponent("Enter a valid balance with up to two decimal places."));
+  }
+  const [whole, fraction = ""] = amount.split(".");
+  const balanceMinor = Number(BigInt(whole!) * 100n + BigInt(fraction.padEnd(2, "0")));
+  if (!Number.isSafeInteger(balanceMinor)) {
+    redirect("/admin/affiliates?error=" + encodeURIComponent("That balance is too large. Enter a smaller amount."));
+  }
+  try {
+    await setAffiliateAccountBalance({
+      accountId: String(formData.get("accountId") ?? ""),
+      currency: String(formData.get("currency") ?? ""),
+      requestId: String(formData.get("requestId") ?? ""),
+      balanceMinor,
+    });
+  } catch (err) {
+    if (err instanceof AffiliateCreationRefused) {
+      redirect("/admin/affiliates?error=" + encodeURIComponent(err.message));
+    }
+    throw err;
+  }
+  revalidatePath("/admin/affiliates");
+  redirect("/admin/affiliates?balance=1");
 }

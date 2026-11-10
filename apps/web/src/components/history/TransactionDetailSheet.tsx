@@ -2,10 +2,10 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor } from "@asm/client-core";
 import { useScrollLock } from "@/lib/use-scroll-lock";
 import { Icon } from "@/components/shell/Icon";
-import { tradeNetPnl } from "@/components/trade/pnl-display";
+import { tradeNetPnl } from "@asm/client-core";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import {
   TONE_PILL,
@@ -234,9 +234,10 @@ function PaymentBody({ row, now }: { row: PaymentRow; now: Date }) {
 function TradeBody({ item, now, onClose }: { item: Extract<HistoryItem, { kind: "trade" }>; now: Date; onClose: () => void }) {
   const { assets, setSelectedTradeId, selectChartSymbol } = usePlatform();
   const router = useRouter();
-  const { trade, currency, pair } = item;
+  const { trade, pair } = item;
+  const currency = trade.currency ?? item.currency;
   const precision = assets.find(a => a.symbol === trade.symbol)?.precision ?? 5;
-  const cfd = trade.durationSec != null;
+  const cfd = trade.mode !== "OTC_FIXED" && trade.durationSec != null;
   const open = trade.status === "OPEN";
   const reason = trade.closeReason?.toLowerCase().replace(/_/g, " ");
   const netPnl = tradeNetPnl(trade);

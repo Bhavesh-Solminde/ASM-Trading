@@ -48,4 +48,10 @@ describe("POST /api/auth/ws-ticket", () => {
     expect(ttl).toBeGreaterThan(0);
     expect(ttl).toBeLessThanOrEqual(30);
   });
+
+  it("accepts the app's bearer token instead of the cookie", async () => {
+    const headers = { "x-forwarded-for": randomUUID(), authorization: `Bearer ${sessionToken}` };
+    const res = await POST(new NextRequest("http://localhost/api/auth/ws-ticket", { method: "POST", headers }));
+    expect(res.status).toBe(200);
+  });
 });

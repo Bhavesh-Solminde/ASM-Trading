@@ -24,11 +24,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const trade = await prisma.trade.findUnique({
     where: { id: tradeId },
-    select: { accountId: true, account: { select: { userId: true } } },
+    select: { mode: true, accountId: true, account: { select: { userId: true } } },
   });
   if (!trade || trade.account.userId !== session.userId) {
     return NextResponse.json({ error: "Trade not found." }, { status: 404 });
   }
+  if (trade.mode === "OTC_FIXED") return NextResponse.json({error:"OTC trades settle at SL/TP or expiry. Manual close is unavailable."},{status:409});
 
   try {
     const result = await engineCfdClose(tradeId);

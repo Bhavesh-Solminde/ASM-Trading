@@ -1,5 +1,7 @@
+import { startPushRuntime } from "./push/runtime";
+import { withTradeResultPush } from "./push/trade-results";
 import { marketStatus } from "@asm/contracts";
-import { tradeViewFrom } from "@asm/contracts";
+import { cfdTradeViewFrom, tradeViewFrom } from "@asm/contracts";
 import Redis from "ioredis";
 import { config } from "@asm/config";
 import { logger } from "@asm/logger";
@@ -23,11 +25,13 @@ import { startTatumRunner } from "./tatum-runner";
 import { usdtProviderFor } from "@asm/tatum";
 import { ControllerBridge } from "./algo/controller-bridge";
 import { BotCrowd } from "./algo/crowd";
+import { startOtcEngine } from "./otc/boot";
 
 const WS_PORT = Number(process.env.ENGINE_WS_PORT ?? 4001);
 const HTTP_PORT = Number(process.env.ENGINE_HTTP_PORT ?? 4002);
 
 async function main(): Promise<void> {
+  if(process.env.OTC_ORDER_BOOK_ENABLED==="true"){await startOtcEngine();return;}
   // Built first: a missing ENGINE_INTERNAL_SECRET must fail before hydrate
   // voids trades or the tick loop starts settling them.
   let desk: TradeDesk | null = null;
@@ -70,9 +74,12 @@ async function main(): Promise<void> {
   const server = new EngineServer(registry, WS_PORT, createTicketAuthenticator(redis));
   await server.ready();
 
+  const { batcher, outbox } = startPushRuntime(userId => server.isUserOnline(userId));
+  const notifier = withTradeResultPush(server, batcher);
+
   const controller = new ControllerBridge(Date.now() & 0x7fffffff);
 
-  desk = new TradeDesk(registry, server, controller);
+  desk = new TradeDesk(registry, notifier, controller);
   const IS_CFD = process.env.TRADING_MODEL === "CFD";
   if (!IS_CFD) await desk.hydrate(Math.floor(Date.now() / 1000));
   let cfdDeps: CfdDeps | undefined;
@@ -87,7 +94,9 @@ async function main(): Promise<void> {
       const trade = await prisma.trade.findUniqueOrThrow({
         where: { id: tradeId }, include: { asset: true, account: true },
       });
-      server.sendToUser(trade.account.userId, {
+      const cfdView = cfdTradeViewFrom(trade, trade.asset.symbol);
+      server.sendToUser(trade.account.userId, { type: "cfd:trade:settled", trade: cfdView, closeReason: cfdView.closeReason ?? "DURATION", pnl: cfdView.pnl });
+      notifier.sendToUser(trade.account.userId, {
         type: "trade:settled", trade: tradeViewFrom(trade, trade.asset.symbol),
       });
       server.sendToUser(trade.account.userId, {
@@ -95,6 +104,7 @@ async function main(): Promise<void> {
         realBalance: trade.account.realBalance, bonusBalance: trade.account.bonusBalance,
       });
     }, (result, actorId) => {
+      server.sendToUser(actorId, { type: "cfd:trade:opened", trade: result.trade });
       server.sendToUser(actorId, { type: "balance:update", accountId: result.trade.accountId, ...result.balances });
     });
 
@@ -165,6 +175,8 @@ async function main(): Promise<void> {
     await desk?.stop(); // let captured settlements persist (bounded)
     if (feed) await feed.stop();
     if (gapSnapshotLoop) await gapSnapshotLoop.stop(); // one last gap persist before exit
+    await batcher.flushAll();
+    await outbox.stop();
     await server.stop();
     await redis.quit();
     await prisma.$disconnect();

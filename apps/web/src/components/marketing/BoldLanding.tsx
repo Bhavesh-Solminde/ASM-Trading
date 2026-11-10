@@ -35,27 +35,27 @@ export function BoldLanding() {
           />
         </div>
 
-        <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-5 pb-14 pt-16 sm:px-6 md:grid-cols-[minmax(0,1fr)_360px] md:gap-16 md:pb-28 md:pt-32 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 px-5 pb-10 pt-5 sm:px-6 sm:pt-8 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12 lg:pb-14">
           <div className="max-w-2xl">
             <DiwaliEntry />
             <span className="inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-brand md:text-[11px]">
               <span aria-hidden className="dir-mark" data-dir="up" style={{ color: "var(--color-brand)", width: 8, height: 8 }} />
               SEBI regulated · 100% deposit bonus
             </span>
-            <h1 className="mt-5 text-[clamp(40px,10vw,104px)] font-black leading-[0.92] tracking-[-0.03em] md:mt-6">
+            <h1 className="mt-4 text-balance text-[clamp(34px,8.8vw,58px)] font-black leading-[0.96] tracking-[-0.03em] md:text-[clamp(44px,5.6vw,76px)]">
               Trade CFDs.
               <br />
               <span className="bg-[linear-gradient(90deg,var(--color-brand),color-mix(in_srgb,var(--color-brand)_40%,var(--color-up)))] bg-clip-text text-transparent">
-                Real prices. Real control.
+                Real prices. <span className="whitespace-nowrap">Real control.</span>
               </span>
             </h1>
-            <p className="mt-5 max-w-lg text-base leading-relaxed text-ink-2 md:mt-6 md:text-lg">
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-2 sm:text-base">
               Go long or short on forex, crypto, commodities and India indices with real-time market prices.
               Set your stop-loss and take-profit on every position. Up to 100x leverage.
               Start with a free demo — no card, no wait.
             </p>
 
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:mt-8">
+            <div className="mt-5 flex flex-wrap items-center gap-3 md:mt-6">
               <Link
                 href="/register"
                 className="group relative inline-flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full bg-brand px-6 text-sm font-black text-brand-ink shadow-[0_20px_60px_-15px_color-mix(in_srgb,var(--color-brand)_60%,transparent)] transition hover:scale-[1.02] hover:brightness-110 md:h-14 md:px-8 md:text-base"
@@ -72,7 +72,49 @@ export function BoldLanding() {
               </Link>
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-2">
+            <div id="get-the-app" className="mt-5 max-w-lg scroll-mt-24 border-t border-rule pt-4 md:mt-6">
+              <h2 className="text-base font-bold">You can also download our app now</h2>
+              <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] items-start gap-2.5">
+                <a
+                  href="/download/app"
+                  className="flex min-h-[68px] items-center gap-2 rounded-xl border border-brand/50 bg-brand/10 px-3 py-2 transition-colors hover:border-brand hover:bg-brand/20 sm:min-h-16 sm:gap-3 sm:px-4"
+                >
+                  <svg aria-hidden="true" className="size-5 shrink-0 text-brand max-[359px]:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
+                  </svg>
+                  <span>
+                    <span className="block text-xs text-ink-2">Android</span>
+                    <span className="block text-sm font-bold">Download app</span>
+                  </span>
+                </a>
+                <details className="group rounded-xl border border-rule bg-panel/70 open:border-brand/50">
+                  <summary className="flex min-h-[66px] cursor-pointer list-none items-center gap-2 rounded-xl px-3 py-2 hover:bg-tile sm:min-h-[62px] sm:gap-3 sm:px-4 [&::-webkit-details-marker]:hidden">
+                    <svg aria-hidden="true" className="size-5 shrink-0 text-ink-2 max-[359px]:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="5" y="2" width="14" height="20" rx="3" />
+                      <path d="M10 18h4" />
+                    </svg>
+                    <span className="flex-1">
+                      <span className="block text-xs text-ink-2">iPhone</span>
+                      <span className="block text-sm font-bold leading-tight">Save to Home Screen</span>
+                    </span>
+                    <span aria-hidden="true" className="text-lg text-ink-2 group-open:rotate-45">+</span>
+                  </summary>
+                  <div className="border-t border-rule px-4 pb-4 pt-3 text-sm leading-relaxed text-ink-2">
+                    <ol className="ml-4 list-decimal space-y-2">
+                      <li>Open indianxtrade.com in <strong className="text-ink">Safari</strong> on your iPhone.</li>
+                      <li>Tap <strong className="text-ink">Share</strong> (you may need to tap the menu first).</li>
+                      <li>Choose <strong className="text-ink">Add to Home Screen</strong>. If you see <strong className="text-ink">Open as Web App</strong>, turn it on, then tap <strong className="text-ink">Add</strong>.</li>
+                    </ol>
+                    <p className="mt-3 text-xs">This saves the website to your Home Screen. No App Store download needed.</p>
+                  </div>
+                </details>
+              </div>
+              <Link href="/download/app/install" className="mt-2 inline-block text-xs text-ink-2 underline underline-offset-4 hover:text-ink">
+                How to install on Android
+              </Link>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-2">
               {[
                 ["100x", "leverage"],
                 ["SL/TP", "on every trade"],
@@ -92,7 +134,7 @@ export function BoldLanding() {
 
           {/* Editorial hero image: desktop only. Hidden on phones so the hero stays light. */}
           <div className="relative hidden justify-self-center md:block md:justify-self-end">
-            <div className="relative aspect-square w-[300px] overflow-hidden rounded-3xl border border-rule shadow-[0_40px_100px_-30px_color-mix(in_srgb,var(--color-brand)_30%,transparent),0_0_0_1px_color-mix(in_srgb,var(--color-brand)_18%,transparent)_inset] lg:w-[360px]">
+            <div className="relative aspect-square w-[260px] overflow-hidden rounded-3xl border border-rule shadow-[0_40px_100px_-30px_color-mix(in_srgb,var(--color-brand)_30%,transparent),0_0_0_1px_color-mix(in_srgb,var(--color-brand)_18%,transparent)_inset] lg:w-[360px]">
               <Image
                 src="/marketing/hero-editorial.jpg"
                 alt="Trader in profile studying a live candlestick chart"
@@ -392,7 +434,7 @@ function BoldNav() {
   return (
     <header className="sticky top-0 z-30 border-b border-rule bg-ground/70 backdrop-blur-xl">
       <FestiveLights />
-      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-6">
         <Link href="/" aria-label="IndianxTrade — home" className="flex items-center">
           <LogoWordmark className="h-7" />
         </Link>
@@ -403,6 +445,7 @@ function BoldNav() {
           <a href="#faq" className="hover:text-ink">FAQ</a>
         </div>
         <div className="flex items-center gap-2">
+          <span className="inline-flex xl:hidden"><DiwaliEntry iconOnly /></span>
           <span className="hidden xl:block"><DiwaliEntry compact /></span>
           <Link
             href="/login"

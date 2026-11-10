@@ -1,4 +1,7 @@
 export { prisma } from "./client";
+export { marketReferenceRepository } from "./repositories/market-reference";
+export { reserveOtcTrade,finalizeOtcOpen,settleOtcTrade,OtcRejected,type OtcTradeRequest,type OtcOpenIntent } from "./repositories/otc-trade";
+export { assertOtcFence,type OtcFence } from "./repositories/otc-fence";
 export { toMinor, toMajor, formatMoney } from "./money";
 export { LEADERBOARD_COUNTRIES, normalizeCountry, isLeaderboardCountry } from "./country";
 export {
@@ -26,16 +29,14 @@ export {
   GoogleAccountConflict,
 } from "./repositories/user";
 export {
-  AFFILIATE_DAILY_FLOAT_MINOR,
+  AFFILIATE_START_BALANCE_MINOR,
   AFFILIATE_CURRENCY,
   AffiliateCreationRefused,
   createAffiliate,
   listAffiliates,
   deleteAffiliateById,
   resetAffiliatePasswordById,
-  resetAffiliateAccountFloat,
-  listAffiliateAccountsNeedingReset,
-  istDateOf,
+  setAffiliateAccountBalance,
   type AffiliateListItem,
 } from "./repositories/affiliate";
 export {
@@ -74,7 +75,6 @@ export {
   DepositAlreadyResolved,
   DepositReversalRefused,
   UtrAlreadyClaimed,
-  USD_TO_INR_RATE,
   OFFSET_LOW,
   OFFSET_SPACE,
   DEPOSIT_TTL_MINUTES,
@@ -94,6 +94,7 @@ export {
   MAX_DEPOSIT_USDT_MINOR,
   USDT_RESERVATION_QUARANTINE_MS,
   depositCreditMinor,
+  creditedMinorByDeposit,
   expireStaleUsdtDeposits,
   createDepositIntent,
   createUsdtDepositIntent,
@@ -104,6 +105,7 @@ export {
   findLiveDepositByClaimedUtr,
   creditDepositToAccount,
   getDepositByToken,
+  getDepositForActor,
   listDepositsForActor,
   listPendingDeposits,
   rejectDeposit,
@@ -112,6 +114,7 @@ export {
   claimUtr,
   claimUsdtPayment,
 } from "./repositories/deposit";
+export { buildDepositReceipt, getDepositReceipt, type DepositReceipt, type ReceiptTx } from "./repositories/deposit-receipt";
 export {
   matchCreditToDeposit,
   type MatchOutcome,
@@ -131,11 +134,13 @@ export {
   markWithdrawalPaid,
   getWithdrawalNotice,
   listWithdrawalsForActor,
+  getWithdrawalForActor,
   withdrawalLimitsMinor,
   type WithdrawalPayout,
 } from "./repositories/withdrawal";
 export {
   loadProfile,
+  setLocale,
   updateProfile,
   saveKycDocument,
   submitKyc,
@@ -288,3 +293,9 @@ export type {
   BonusGrant,
 } from "./models";
 export type { DbClient, DbTransaction } from "./client";
+
+export { demoLeaderboard } from "./repositories/demo-leaderboard";
+export * from "./repositories/notifications";
+export type { PushDevice, NotificationOutbox } from "../generated/prisma/client";
+
+export { USD_TO_INR_RATE } from "./repositories/deposit";

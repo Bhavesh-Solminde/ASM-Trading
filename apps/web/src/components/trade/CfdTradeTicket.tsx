@@ -7,10 +7,7 @@ import { DURATIONS_SEC } from "@asm/trading";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import type { CfdMarketStatus } from "@/lib/use-cfd-market-status";
-import { minStakeMinor } from "@/lib/currency";
-import { currencySymbol, formatMinor } from "@/lib/format-money";
-import { hms } from "@/lib/format-time";
-import { defaultStake, nextStakeInput, MAX_STAKE_MAJOR, parseSavedStake, stakeToMinor } from "./stake";
+import { currencySymbol, defaultStake, formatMinor, hms, minStakeMinor, nextStakeInput, MAX_STAKE_MAJOR, parseSavedStake, stakeToMinor } from "@asm/client-core";
 
 type CfdDirection = "LONG" | "SHORT";
 
@@ -101,6 +98,7 @@ export function CfdTradeTicket({
         stake: stakeMinor,
         durationSec,
         accountId,
+        currency,
       };
 
       const res = await fetch("/api/cfd/trades", {

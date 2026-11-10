@@ -1,0 +1,33 @@
+{
+  "recordedAt": "2026-11-05T10:46:53.421Z",
+  "scope": "Actual comparison of screenshot demo and website bot engines with identical seed 503, illustrative frozen prices and no Tob orders. Tests bot behavior parity, not identical running market prices or browser appearance.",
+  "results": [
+    {
+      "symbol": "BTCUSDT",
+      "bots": 200,
+      "simulationMinutes": 60,
+      "matches": 8401,
+      "identicalExecutions": true,
+      "identicalBotWallets": true,
+      "identicalSummary": true
+    },
+    {
+      "symbol": "EURUSD",
+      "bots": 200,
+      "simulationMinutes": 60,
+      "matches": 8468,
+      "identicalExecutions": true,
+      "identicalBotWallets": true,
+      "identicalSummary": true
+    },
+    {
+      "symbol": "NIFTY50",
+      "bots": 200,
+      "simulationMinutes": 60,
+      "matches": 7162,
+      "identicalExecutions": true,
+      "identicalBotWallets": true,
+      "identicalSummary": true
+    }
+  ]
+}

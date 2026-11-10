@@ -4,6 +4,7 @@ node_modules
 **/.next
 apps/harness
 apps/relay
+apps/mobile
 .git
 .github
 .vscode
@@ -12,6 +13,9 @@ apps/relay
 .env.local
 .env.development
 .env.production
+.env.otc-staging
+.secrets
+**/*.otc-credentials.json
 **/*.log
 **/dist
 **/coverage

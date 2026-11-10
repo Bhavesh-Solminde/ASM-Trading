@@ -38,7 +38,7 @@ function makeWithdrawal(status: "PAID" | "REJECTED" | "APPROVED", reason: string
 }
 
 describe("withdrawal emails", () => {
-  it("sends the paid certificate with the payout destination", async () => {
+  it("sends the rendered certificate image with the payout destination", async () => {
     const w = await makeWithdrawal("PAID");
     await emailWithdrawalPaid(w.id);
     expect(mail.sendWithdrawalPaidEmail).toHaveBeenCalledWith(
@@ -46,7 +46,14 @@ describe("withdrawal emails", () => {
         to: `wmail-${RUN}@test.local`,
         withdrawalId: w.id,
         payToLabel: "UPI · asha@okhdfc",
-        certificate: expect.objectContaining({ name: "Asha Rao", amountLabel: "₹2,500.00", refId: w.id.slice(0, 8).toUpperCase() }),
+        certificate: expect.objectContaining({
+          name: "Asha Rao",
+          amountLabel: "₹2,500.00",
+          dateLabel: expect.stringMatching(/^\d{2}\/\d{2}\/\d{4}$/),
+          refId: w.id.slice(0, 8).toUpperCase(),
+        }),
+        // base64 of a JPEG starts with the FF D8 FF magic bytes
+        certificateJpegBase64: expect.stringMatching(/^\/9j\//),
       }),
     );
   });

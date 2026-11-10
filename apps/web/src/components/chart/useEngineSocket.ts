@@ -1,4 +1,5 @@
 "use client";
+import { recordChartPayload } from "./diagnostics";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ClientMessage, ServerMessage, Timeframe } from "@asm/contracts";
@@ -49,8 +50,13 @@ export function useEngineSocket(opts: {
   /** Symbols kept subscribed for as long as the socket is open (the ticker tape). */
   watch?: readonly string[];
   onMessage?: (message: ServerMessage) => void;
+  resume?:()=>{generation:string;since:number}|null;
 }): { status: SocketStatus; send: (message: ClientMessage) => void } {
   const [status, setStatus] = useState<SocketStatus>("connecting");
+  const [otc,setOtc]=useState(false);
+  const [visible,setVisible]=useState(true);
+  const resumeRef=useRef(opts.resume);
+  useEffect(()=>{const change=()=>setVisible(!document.hidden);document.addEventListener("visibilitychange",change);change();return()=>document.removeEventListener("visibilitychange",change);},[]);
 
   const socketRef = useRef<WebSocket | null>(null);
   const onMessageRef = useRef(opts.onMessage);
@@ -63,9 +69,11 @@ export function useEngineSocket(opts: {
     onMessageRef.current = opts.onMessage;
     symbolRef.current = opts.symbol;
     watchRef.current = opts.watch ?? [];
+    resumeRef.current=opts.resume;
   });
 
   useEffect(() => {
+    if(!visible){setStatus("closed");return;}
     let closedByUs = false;
     let attempt = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -98,12 +106,15 @@ export function useEngineSocket(opts: {
       socket.onopen = () => socket.send(JSON.stringify({ type: "auth", token: ticket }));
 
       socket.onmessage = (event: MessageEvent<string>) => {
+        if(socketRef.current!==socket||closedByUs)return;
+        recordChartPayload(event.data);
         let message: ServerMessage;
         try {
           message = JSON.parse(event.data) as ServerMessage;
         } catch {
           return;
         }
+        if(message.type==="ready")setOtc(message.model==="OTC_FIXED");
         if (message.type === "authed") {
           attempt = 0;
           setStatus("open");
@@ -112,6 +123,7 @@ export function useEngineSocket(opts: {
       };
 
       socket.onclose = () => {
+        if(socketRef.current!==socket)return;
         socketRef.current = null;
         if (closedByUs) return;
         // A 1008 "Unauthorised" close also covers a ticket that merely expired
@@ -130,7 +142,7 @@ export function useEngineSocket(opts: {
       socketRef.current?.close();
       socketRef.current = null;
     };
-  }, []);
+  }, [visible]);
 
   // Subscription follows the symbol. Re-runs on every (re)authentication, so a
   // reconnect resubscribes and receives fresh history.
@@ -138,20 +150,22 @@ export function useEngineSocket(opts: {
     const socket = socketRef.current;
     if (status !== "open" || !socket || socket.readyState !== WebSocket.OPEN) return;
 
-    socket.send(JSON.stringify({ type: "subscribe", symbol: opts.symbol, timeframe: opts.timeframe }));
+    const cursor=otc?resumeRef.current?.():undefined;
+    socket.send(JSON.stringify({ type: "subscribe", symbol: opts.symbol, timeframe: opts.timeframe,...cursor }));
     return () => {
       // A watched symbol stays subscribed after the chart moves off it.
-      if (socket.readyState === WebSocket.OPEN && !watchRef.current.includes(opts.symbol)) {
+      if (socket.readyState === WebSocket.OPEN && (otc||!watchRef.current.includes(opts.symbol))) {
         socket.send(JSON.stringify({ type: "unsubscribe", symbol: opts.symbol }));
       }
     };
-  }, [opts.symbol, opts.timeframe, status]);
+  }, [opts.symbol, opts.timeframe, status,otc]);
 
   useEffect(() => {
     const socket = socketRef.current;
     if (!watchKey || status !== "open" || !socket || socket.readyState !== WebSocket.OPEN) return;
 
     const symbols = watchKey.split(",");
+    if(otc){socket.send(JSON.stringify({type:"watchlist:subscribe",symbols}));return;}
     for (const symbol of symbols) {
       socket.send(JSON.stringify({ type: "subscribe", symbol, timeframe: opts.timeframe }));
     }
@@ -162,7 +176,7 @@ export function useEngineSocket(opts: {
         socket.send(JSON.stringify({ type: "unsubscribe", symbol }));
       }
     };
-  }, [watchKey, opts.timeframe, status]);
+  }, [watchKey, opts.timeframe, status,otc]);
 
   // Stable across renders so effects that depend on it (e.g. wiring the market
   // store) don't re-run. Silently drops messages while the socket is not open;

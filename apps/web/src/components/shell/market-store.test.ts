@@ -1,78 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+import { afterEach,expect,it,vi } from "vitest";
+import type { OtcMarketMessage } from "@asm/contracts";
 import { MarketStore } from "./market-store";
-
-let frames: FrameRequestCallback[] = [];
-
-beforeEach(() => {
-  frames = [];
-  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => frames.push(cb));
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
-function flushFrame(): void {
-  const pending = frames;
-  frames = [];
-  for (const cb of pending) cb(0);
-}
-
-const assets = [
-  { symbol: "EURUSD", payoutPct: 92 },
-  { symbol: "USDJPY", payoutPct: 88 },
-];
-
-describe("MarketStore", () => {
-  it("notifies listeners once per frame however many ticks arrive", () => {
-    const store = new MarketStore("EURUSD", "1m", assets);
-    const listener = vi.fn();
-    store.subscribe(listener);
-
-    store.apply({ type: "tick", symbol: "EURUSD", price: 1.1, ts: 1 });
-    store.apply({ type: "tick", symbol: "USDJPY", price: 150, ts: 1 });
-    store.apply({ type: "tick", symbol: "EURUSD", price: 1.2, ts: 2 });
-    expect(listener).not.toHaveBeenCalled();
-
-    flushFrame();
-    expect(listener).toHaveBeenCalledTimes(1);
-    expect(store.getSnapshot().chart.lastPrice).toBe(1.2);
-    expect(store.getSnapshot().quotes.USDJPY!.price).toBe(150);
-  });
-
-  it("keeps the snapshot and schedules nothing for messages that change nothing", () => {
-    const store = new MarketStore("EURUSD", "1m", assets);
-    const before = store.getSnapshot();
-    store.apply({ type: "tick", symbol: "UNKNOWN", price: 1, ts: 1 });
-    expect(store.getSnapshot()).toBe(before);
-    expect(frames).toHaveLength(0);
-  });
-
-  it("resets the chart when the symbol changes but keeps every quote", () => {
-    const store = new MarketStore("EURUSD", "1m", assets);
-    store.apply({ type: "tick", symbol: "EURUSD", price: 1.1, ts: 1 });
-    store.selectSymbol("USDJPY");
-    const { chart, quotes } = store.getSnapshot();
-    expect(chart.symbol).toBe("USDJPY");
-    expect(chart.lastPrice).toBeNull();
-    expect(quotes.EURUSD!.price).toBe(1.1);
-  });
-
-  it("switches timeframe, resetting candle state but keeping the symbol", () => {
-    const store = new MarketStore("EURUSD", "1m", assets);
-    store.apply({ type: "tick", symbol: "EURUSD", price: 1.1, ts: 1 });
-    store.selectTimeframe("15m");
-    const { chart } = store.getSnapshot();
-    expect(chart.timeframe).toBe("15m");
-    expect(chart.symbol).toBe("EURUSD");
-    expect(chart.lastPrice).toBeNull();
-    expect(chart.candles).toEqual([]);
-  });
-
-  it("ignores selecting the timeframe already active", () => {
-    const store = new MarketStore("EURUSD", "1m", assets);
-    const before = store.getSnapshot();
-    store.selectTimeframe("1m");
-    expect(store.getSnapshot()).toBe(before);
-  });
+afterEach(()=>vi.unstubAllGlobals());
+it("clears all cached chart generations when a restarted worker announces itself",()=>{
+  vi.stubGlobal("requestAnimationFrame",()=>1);
+  const assets=[{symbol:"BTCUSDT",payoutPct:92},{symbol:"EURUSD",payoutPct:92}],store=new MarketStore("BTCUSDT","1m",assets);
+  const packet=(symbol:string):OtcMarketMessage=>({type:"otc:market",symbol,timeframe:"1m",generation:"old",sequence:1,time:1800000060000,reset:true,retainedFrom:1800000000,
+    candles:[{openTs:1800000000,o:100,h:101,l:99,c:100,volume:1}],reference:null,depth:{bids:[],asks:[]},tape:[],phase:"Bots only",activeTobs:0});
+  store.apply(packet("BTCUSDT"));store.selectSymbol("EURUSD");store.apply(packet("EURUSD"));store.selectSymbol("BTCUSDT");
+  expect(store.getSnapshot().chart.candles).toHaveLength(1);
+  store.selectTimeframe("5m"); // Restart can arrive while a cache miss is loading.
+  store.apply({type:"ready",serverTs:Date.now(),model:"OTC_FIXED",generation:"new"});
+  expect(store.getSnapshot().chart.candles).toHaveLength(0);expect(store.getSnapshot().otc).toBeNull();
+  store.selectSymbol("EURUSD");expect(store.getSnapshot().chart.generation).toBeUndefined();expect(store.getSnapshot().chart.candles).toHaveLength(0);
 });

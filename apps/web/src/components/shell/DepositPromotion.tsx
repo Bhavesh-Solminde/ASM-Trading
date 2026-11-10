@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { bonusPercentForDeposit } from "@/lib/bonus";
+import { bonusPercentForDeposit } from "@asm/client-core";
 import { usePlatform } from "./PlatformProvider";
 import { BonusOfferSheet } from "./PromoBanner";
 

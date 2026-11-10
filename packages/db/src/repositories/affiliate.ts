@@ -1,20 +1,8 @@
-import { prisma } from "../client";
+import { prisma, type DbClient } from "../client";
 import type { Account, User } from "../models";
 
-/**
- * Daily play float for an affiliate account, in paise. ₹10,000 — set via
- * the admin "Create affiliate" flow and reset to this value at 00:00 IST
- * every day. Applied identically to the LIVE and the DEMO account so a
- * streamer flipping the account switcher never shows a tell about which
- * side is which.
- *
- * See docs/superpowers/specs/2026-10-08-affiliate-accounts-design.md.
- */
-export const AFFILIATE_DAILY_FLOAT_MINOR = 10_000_00;
-
-/** Default currency for an affiliate account. Fixed — the admin flow does not
- *  expose a currency picker, and the daily float constant is denominated in
- *  paise. */
+/** One-time starting balance for each new affiliate account, in paise. */
+export const AFFILIATE_START_BALANCE_MINOR = 10_000_00;
 export const AFFILIATE_CURRENCY = "INR";
 
 const ADMIN_AUDIT_ACTOR = "admin-panel";
@@ -28,14 +16,14 @@ export class AffiliateCreationRefused extends Error {
 
 /**
  * Creates an affiliate user and both of their accounts (LIVE + DEMO) at the
- * ₹10,000 float in one transaction. The user is created with:
+ * one-time ₹10,000 starting balance in one transaction. The user is created with:
  *   - role         = AFFILIATE
  *   - emailVerified = true  (no email challenge for a staff-created account)
  *   - liveAccess   = true   (the LIVE account must work without the global gate)
  *   - kycStatus    = NOT_STARTED (and never prompted — withdrawals never fire)
  *
  * Also writes two `AFFILIATE_RESET` ledger rows (one per account) so the
- * starting float is visible in transaction history, and an AuditLog entry
+ * starting balance is visible in transaction history, and an AuditLog entry
  * attributing the creation to the admin.
  *
  * `passwordHash` is supplied by the caller (the admin action, which already
@@ -75,14 +63,12 @@ export async function createAffiliate(input: {
       },
     });
 
-    const now = new Date();
     const live = await tx.account.create({
       data: {
         userId: user.id,
         type: "LIVE",
         currency: AFFILIATE_CURRENCY,
-        realBalance: AFFILIATE_DAILY_FLOAT_MINOR,
-        lastAffiliateResetAt: now,
+        realBalance: AFFILIATE_START_BALANCE_MINOR,
       },
     });
     const demo = await tx.account.create({
@@ -90,8 +76,7 @@ export async function createAffiliate(input: {
         userId: user.id,
         type: "DEMO",
         currency: AFFILIATE_CURRENCY,
-        realBalance: AFFILIATE_DAILY_FLOAT_MINOR,
-        lastAffiliateResetAt: now,
+        realBalance: AFFILIATE_START_BALANCE_MINOR,
       },
     });
 
@@ -100,8 +85,8 @@ export async function createAffiliate(input: {
         data: {
           accountId: account.id,
           kind: "AFFILIATE_RESET",
-          amount: AFFILIATE_DAILY_FLOAT_MINOR,
-          balanceAfter: AFFILIATE_DAILY_FLOAT_MINOR,
+          amount: AFFILIATE_START_BALANCE_MINOR,
+          balanceAfter: AFFILIATE_START_BALANCE_MINOR,
           refType: "AffiliateCreated",
           refId: user.id,
         },
@@ -127,9 +112,7 @@ export interface AffiliateListItem {
   email: string;
   nickname: string | null;
   createdAt: Date;
-  liveBalance: number;
-  demoBalance: number;
-  lastResetAt: Date | null;
+  accounts: { id: string; type: "LIVE" | "DEMO"; currency: string; realBalance: number; bonusBalance: number }[];
 }
 
 /** Every affiliate, newest first, with their LIVE and DEMO balances. */
@@ -146,24 +129,20 @@ export async function listAffiliates(): Promise<AffiliateListItem[]> {
         select: {
           type: true,
           realBalance: true,
-          lastAffiliateResetAt: true,
+          id: true,
+          currency: true,
+          bonusBalance: true,
         },
       },
     },
   });
   return rows.map((row) => {
-    const live = row.accounts.find((a) => a.type === "LIVE");
-    const demo = row.accounts.find((a) => a.type === "DEMO");
-    const lastResetAt =
-      live?.lastAffiliateResetAt ?? demo?.lastAffiliateResetAt ?? null;
     return {
       id: row.id,
       email: row.email,
       nickname: row.nickname,
       createdAt: row.createdAt,
-      liveBalance: live?.realBalance ?? 0,
-      demoBalance: demo?.realBalance ?? 0,
-      lastResetAt,
+      accounts: row.accounts,
     };
   });
 }
@@ -233,90 +212,51 @@ export async function deleteAffiliateById(userId: string): Promise<void> {
   });
 }
 
-/**
- * Resets one affiliate account's balance to the daily float. Idempotent on
- * the IST calendar day: a second call within the same IST day is a no-op.
- * Returns true when the row was actually reset, false when the guard skipped
- * it.
- *
- * The daily-reset engine job calls this once per affiliate account per IST
- * day; `createAffiliate` seeds `lastAffiliateResetAt = now()` so an
- * account created mid-day is NOT reset again that same day.
- */
-export async function resetAffiliateAccountFloat(input: {
+/** Admin-only caller sets the available balance. Open contract stakes stay locked. */
+export async function setAffiliateAccountBalance(input: {
   accountId: string;
-  nowIstDate: string;
-}): Promise<boolean> {
-  return prisma.$transaction(async (tx) => {
+  currency: string;
+  balanceMinor: number;
+  requestId: string;
+}, client: DbClient = prisma): Promise<void> {
+  if (!Number.isSafeInteger(input.balanceMinor) || input.balanceMinor < 0
+    || !["INR", "USD"].includes(input.currency)
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.requestId)) {
+    throw new AffiliateCreationRefused("Enter a valid balance with up to two decimal places.");
+  }
+  await client.$transaction(async tx => {
+    await tx.$queryRaw`SELECT "id" FROM "Account" WHERE "id" = ${input.accountId} FOR NO KEY UPDATE`;
     const account = await tx.account.findUnique({
       where: { id: input.accountId },
-      select: {
-        id: true,
-        realBalance: true,
-        bonusBalance: true,
-        lastAffiliateResetAt: true,
-      },
+      include: { user: { select: { role: true } } },
     });
-    if (!account) return false;
-    if (
-      account.lastAffiliateResetAt !== null &&
-      istDateOf(account.lastAffiliateResetAt) === input.nowIstDate
-    ) {
-      return false;
+    if (!account || account.user.role !== "AFFILIATE") {
+      throw new AffiliateCreationRefused("Affiliate account not found.");
     }
-    const delta = AFFILIATE_DAILY_FLOAT_MINOR - account.realBalance;
+    const prior = await tx.transaction.findUnique({ where: { id: input.requestId } });
+    if (prior) {
+      if (prior.accountId !== account.id || prior.refType !== "AffiliateBalanceSet"
+        || prior.refId !== input.currency || prior.balanceAfter !== input.balanceMinor) {
+        throw new AffiliateCreationRefused("This balance update has already been used. Refresh and try again.");
+      }
+      return;
+    }
+    if (account.currency !== input.currency) {
+      throw new AffiliateCreationRefused("The account currency changed. Refresh and enter the balance again.");
+    }
+    const delta = input.balanceMinor - account.realBalance - account.bonusBalance;
     await tx.account.update({
       where: { id: account.id },
-      data: {
-        realBalance: AFFILIATE_DAILY_FLOAT_MINOR,
-        bonusBalance: 0,
-        lastAffiliateResetAt: new Date(),
-        version: { increment: 1 },
-      },
+      data: { realBalance: input.balanceMinor, bonusBalance: 0, version: { increment: 1 } },
     });
-    await tx.transaction.create({
-      data: {
-        accountId: account.id,
-        kind: "AFFILIATE_RESET",
-        amount: delta,
-        balanceAfter: AFFILIATE_DAILY_FLOAT_MINOR,
-        refType: "DailyReset",
-        refId: account.id,
-      },
-    });
-    return true;
+    await tx.transaction.create({ data: {
+      id: input.requestId, accountId: account.id, kind: "AFFILIATE_RESET",
+      amount: delta, balanceAfter: input.balanceMinor, refType: "AffiliateBalanceSet", refId: input.currency,
+    } });
+    await tx.auditLog.create({ data: {
+      actorId: ADMIN_AUDIT_ACTOR, action: "affiliate.balance_set", targetType: "Account", targetId: account.id,
+      before: { currency: account.currency, realBalance: account.realBalance, bonusBalance: account.bonusBalance },
+      after: { currency: account.currency, realBalance: input.balanceMinor, bonusBalance: 0, requestId: input.requestId },
+    } });
   });
-}
-
-/** IDs of every affiliate account whose last reset is on a different IST
- *  calendar date from `nowIstDate`, or has never been reset. The job iterates
- *  this list and calls `resetAffiliateAccountFloat` for each — the per-row
- *  check inside that function closes the race with a concurrent restart. */
-export async function listAffiliateAccountsNeedingReset(input: {
-  nowIstDate: string;
-}): Promise<string[]> {
-  const rows = await prisma.account.findMany({
-    where: {
-      user: { role: "AFFILIATE" },
-    },
-    select: { id: true, lastAffiliateResetAt: true },
-  });
-  return rows
-    .filter(
-      (row) =>
-        row.lastAffiliateResetAt === null ||
-        istDateOf(row.lastAffiliateResetAt) !== input.nowIstDate,
-    )
-    .map((row) => row.id);
-}
-
-/** YYYY-MM-DD in Asia/Kolkata (IST = UTC+5:30). No DST; a fixed offset is
- *  exact. Shared by the reset guard above and the engine job that calls it. */
-export function istDateOf(instant: Date): string {
-  const istMs = instant.getTime() + 5.5 * 3_600_000;
-  const d = new Date(istMs);
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }

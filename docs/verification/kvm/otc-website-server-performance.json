@@ -1,0 +1,4 @@
+{
+  "scope": "Isolated KVM staging engine including worker; excludes separate web/database/Redis/browser processes",
+  "measurements": []
+}

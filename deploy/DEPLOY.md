@@ -209,3 +209,7 @@ docker compose down -v                      # DESTROYS postgres/redis data
 - Commit the filled `.env.production`
 - Put a USDT private key anywhere near this box. The app only ever needs the
   two public receiving addresses — never a key for either.
+
+## Mobile app files
+
+Create `/srv/app/releases` and `/srv/app/updates` once, owned by the deployment user and readable by container UID 1001. The web service mounts them read-only at `/app/releases` and `/app/updates`. Recreate web after changing mounts or env: `docker compose --env-file ../.env.production up -d --force-recreate web` from this folder. Keep all published OTA assets immutable. See `docs/mobile-release.md` for signing, secrets, full release, OTA publication and rollback.

@@ -70,11 +70,34 @@ export function sendWithdrawalRequestedEmail(
   return deliver(input, email, `withdrawal-requested/${input.withdrawalId}`, "withdrawal_requested");
 }
 
+const CERTIFICATE_CID = "ixt-certificate";
+
 export function sendWithdrawalPaidEmail(
-  input: Recipient & { withdrawalId: string; name: string | null; certificate: CertificateData; payToLabel: string },
+  input: Recipient & {
+    withdrawalId: string;
+    name: string | null;
+    certificate: CertificateData;
+    payToLabel: string;
+    /** The rendered certificate (base64 JPEG). Without it the email falls back to the HTML certificate. */
+    certificateJpegBase64?: string | null | undefined;
+  },
 ) {
-  const email = withdrawalPaidEmail({ name: input.name, certificate: input.certificate, payToLabel: input.payToLabel });
-  return deliver(input, email, `withdrawal-paid/${input.withdrawalId}`, "withdrawal_paid");
+  const image = input.certificateJpegBase64;
+  const email = withdrawalPaidEmail({
+    name: input.name,
+    certificate: input.certificate,
+    payToLabel: input.payToLabel,
+    certificateImageCid: image ? CERTIFICATE_CID : undefined,
+  });
+  return sendEmail({
+    to: input.to,
+    subject: email.subject,
+    html: email.html,
+    idempotencyKey: `withdrawal-paid/${input.withdrawalId}`,
+    tag: "withdrawal_paid",
+    cid: input.cid,
+    attachments: image ? [{ filename: "IndianxTrade-certificate.jpg", content: image, contentId: CERTIFICATE_CID }] : undefined,
+  });
 }
 
 export function sendWithdrawalRejectedEmail(

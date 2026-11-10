@@ -2,8 +2,6 @@ import { afterEach, expect, it, vi } from "vitest";
 vi.mock("@asm/db", () => ({
   prisma: { candle: { upsert: vi.fn(async () => {}) } },
   autoPromoteHeldWithdrawals: async () => 0,
-  istDateOf: () => "2026-10-24", listAffiliateAccountsNeedingReset: async () => [],
-  resetAffiliateAccountFloat: vi.fn(),
 }));
 vi.mock("@asm/logger", () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.resetModules(); });
@@ -17,7 +15,8 @@ it.each([
   const scanPositions = vi.fn(async () => []);
   const recoverExpiredLegacy = vi.fn(async () => {});
   const registry = {
-    all: () => [{ id: "asset", symbol, precision: 2 }],
+    all: () => [{ id: "asset", symbol, precision: 2, state: { price: 100 } }],
+    lastPublishedPrice: () => 100,
     sigmaNow: () => 0.001, tick: () => ({ price: 100 }), record: () => [],
   };
   const loop = startTickLoop(registry as never, { broadcast: vi.fn() } as never,

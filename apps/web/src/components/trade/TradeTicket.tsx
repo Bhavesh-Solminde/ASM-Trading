@@ -3,16 +3,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DURATIONS_SEC } from "@asm/trading";
-import type { OpenTradeResult } from "@asm/contracts";
+import type { OpenTradeResult,OtcOpenTradeInput } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { durationForTargetTime, offeredExpirySlots } from "@/lib/expiry-times";
-import { minStakeMinor } from "@/lib/currency";
-import { currencySymbol, formatMinor } from "@/lib/format-money";
-import { clockTime, countdown, hms } from "@/lib/format-time";
+import { minStakeMinor } from "@asm/client-core";
+import { currencySymbol, formatMinor } from "@asm/client-core";
+import { clockTime, countdown, hms } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useMarketClosed, useNowSec } from "@/lib/use-now";
-import { grossReturnMinor } from "./pnl-display";
+import { grossReturnMinor } from "@asm/client-core";
+import type { MarketStore } from "@/components/shell/market-store";
+import { EMPTY_OTC_PROTECTION,protectionError,type OtcProtectionDraft } from "@/components/chart/otc-protection";
 import {
   DEFAULT_STAKE_PCT,
   MAX_STAKE_MAJOR,
@@ -34,7 +36,7 @@ import {
   stakeStorageKey,
   type StakeUnit,
   type TimeMode,
-} from "./stake";
+} from "@asm/client-core";
 
 /** The next wall-clock occurrence of an HH:MM, today or (if already past) tomorrow. */
 function nextOccurrenceMs(hhmm: string, nowMs: number): number | null {
@@ -79,19 +81,27 @@ function ExpiresAt({ durationSec }: { durationSec: number }) {
 }
 
 export function TradeTicket({
+  otc=false,
   symbol,
   pair,
   accountId,
   currency,
   payoutPct,
   onOpened,
+  protectionDraft=EMPTY_OTC_PROTECTION,
+  onProtectionChange,
+  market,
 }: {
+  otc?:boolean;
   symbol: string;
   pair: string;
   accountId: string;
   currency: string;
   payoutPct: number | null;
   onOpened: (result: OpenTradeResult) => void;
+  protectionDraft?:OtcProtectionDraft;
+  onProtectionChange?:(draft:OtcProtectionDraft)=>void;
+  market?:MarketStore;
 }) {
   const [durationSec, setDurationSec] = useState<number>(30);
   const [mode, setMode] = useState<TimeMode>("timer");
@@ -112,10 +122,15 @@ export function TradeTicket({
   const [pctInput, setPctInput] = useState(DEFAULT_STAKE_PCT);
   const { balances } = usePlatform();
   const [busy, setBusy] = useState(false);
-  const submitting = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [fired, setFired] = useState<"UP" | "DOWN" | null>(null);
-  const closed = useMarketClosed(symbol);
+  const sessionClosed = useMarketClosed(symbol);
+  const closed=otc?false:sessionClosed;
+  const {enabled:protection,stopLoss,takeProfit}=protectionDraft;
+  const pending=useRef<{fingerprint:string;key:string;body:Omit<OtcOpenTradeInput,"idempotencyKey">}|null>(null);
+  const placing=useRef(false);
+  const mounted=useRef(true);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   const minStake = minStakeMinor(currency);
 
   // The currency whose saved stake has been restored into the ticket. Saving is
@@ -252,7 +267,7 @@ export function TradeTicket({
   }
 
   async function place(direction: "UP" | "DOWN"): Promise<void> {
-    if (submitting.current) return;
+    if(placing.current)return;
     if (stakeMinor === 0) {
       setError(
         !inPercent
@@ -267,7 +282,21 @@ export function TradeTicket({
       setError(`Minimum investment is ${formatMinor(minStake, currency)}.`);
       return;
     }
-    submitting.current = true;
+    const stops=protection?{stopLoss,takeProfit}:{stopLoss:null,takeProfit:null};
+    const body={symbol,direction,stake:stakeMinor,durationSec:effectiveDurationSec,accountId,...(otc?stops:{})};
+    // Fingerprint the chosen controls, not a changing clock/percentage balance.
+    // A network retry must retain the exact original stake and duration.
+    const fingerprint=JSON.stringify({symbol,direction,accountId,stakeUnit,stakeInput,pctInput,mode,durationSec,targetMs,protection,stopLoss,takeProfit});
+    if(otc&&pending.current?.fingerprint!==fingerprint){
+      const displayedQuote=market?.getDisplayedQuote(symbol);
+      if(!displayedQuote){setError("Waiting for the displayed price. Try again in a moment.");return;}
+      if(protection){
+        const validation=protectionError(protectionDraft,direction,displayedQuote.price);
+        if(validation){setError(validation);return;}
+      }
+      pending.current={fingerprint,key:crypto.randomUUID(),body:{...body,quoteToken:displayedQuote.token}};
+    }
+    placing.current=true;
     setFired(direction);
     setBusy(true);
     setError(null);
@@ -275,18 +304,21 @@ export function TradeTicket({
       const res = await fetch("/api/trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, direction, stake: stakeMinor, durationSec: effectiveDurationSec, accountId }),
+        body: JSON.stringify(otc?{...pending.current!.body,idempotencyKey:pending.current!.key}:body),
       });
       const data = (await res.json().catch(() => ({}))) as Partial<OpenTradeResult> & { error?: string };
       if (res.ok && data.trade && data.balances) {
+        pending.current=null;
         onOpened({ trade: data.trade, balances: data.balances });
+        if(otc&&mounted.current)onProtectionChange?.({...protectionDraft,enabled:false,stopLoss:null,takeProfit:null});
       } else {
+        if(res.status<500)pending.current=null;
         setError(data.error ?? "Could not place that trade.");
       }
     } catch {
       setError("Could not reach the server.");
     } finally {
-      submitting.current = false;
+      placing.current=false;
       setBusy(false);
     }
   }
@@ -615,6 +647,15 @@ export function TradeTicket({
         </span>
       </div>
 
+      {otc?<fieldset className="grid gap-2 rounded border border-rule bg-panel p-3 text-xs">
+        <label className="flex items-center justify-between font-semibold">SL / TP<input aria-label="Set SL / TP on chart" type="checkbox" checked={protection} disabled={busy} onChange={e=>onProtectionChange?.({...protectionDraft,enabled:e.target.checked,stopLoss:null,takeProfit:null})}/></label>
+        {protection?<>
+          <div className="grid grid-cols-2 gap-2">{(["UP","DOWN"] as const).map(direction=><button key={direction} type="button" disabled={busy} aria-pressed={protectionDraft.direction===direction} onClick={()=>onProtectionChange?.({...protectionDraft,direction,stopLoss:null,takeProfit:null})} className={`rounded border px-3 py-2 font-semibold ${protectionDraft.direction===direction?"border-brand text-brand":"border-rule text-ink-2"}`}>{direction==="UP"?"Buy levels":"Sell levels"}</button>)}</div>
+          <span className="text-ink-2">Drag the SL and TP lines on the chart. Levels apply to your next trade.</span>
+          <button type="button" disabled={busy} onClick={()=>onProtectionChange?.({...protectionDraft,stopLoss:null,takeProfit:null})} className="text-left text-brand underline">Reset chart levels</button>
+        </>:null}
+        <span className="text-ink-3">Fixed expiry · 92% profit on a win · SL loses stake · No manual close</span>
+      </fieldset>:null}
       {closed ? (
         <div
           role="status"

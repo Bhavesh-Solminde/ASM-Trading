@@ -32,9 +32,11 @@ jobs:
           cache: pnpm
 
       - name: Install workspace deps (skip mobile app)
-        # `--filter !@asm/relay` avoids installing Expo/React Native
-        # toolchain that this workflow does not deploy.
-        run: pnpm install --frozen-lockfile --filter '!@asm/relay...'
+        # `--filter !@asm/relay...` avoids installing Expo/React Native
+        # toolchain that this workflow does not deploy. `!@asm/mobile` has no
+        # trailing `...` on purpose: that would also exclude @asm/client-core
+        # and @asm/contracts, which web and the typecheck step need.
+        run: pnpm install --frozen-lockfile --filter '!@asm/relay...' --filter '!@asm/mobile'
 
       - name: Generate Prisma client
         # pnpm v10 silently skips the @asm/db postinstall `prisma generate` hook
@@ -49,9 +51,15 @@ jobs:
           pnpm --filter @asm/web --filter @asm/engine \
                --filter @asm/db --filter @asm/config \
                --filter @asm/contracts --filter @asm/logger \
+               --filter @asm/market-sim \
                --filter @asm/algo --filter @asm/pricing \
-               --filter @asm/trading \
+               --filter @asm/trading --filter @asm/client-core --filter @asm/notify \
                exec tsc --noEmit
+
+      - name: Check leaderboard preview and live modes
+        run: |
+          pnpm --filter @asm/db exec vitest run src/repositories/demo-leaderboard.test.ts src/repositories/leaderboard-columns.test.ts
+          pnpm --filter @asm/web exec vitest run src/lib/leaderboard.test.ts
 
   deploy:
     needs: validate
@@ -85,8 +93,9 @@ jobs:
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes" \
             --exclude .git --exclude node_modules --exclude .next \
-            --exclude apps/harness --exclude apps/relay \
+            --exclude apps/harness --exclude apps/relay --exclude apps/mobile \
             --exclude '.env' --exclude '.env.local' --exclude '.env.production' \
+            --exclude '.env.otc-staging' --exclude '.secrets' --exclude '*.otc-credentials.json' \
             --exclude reference --exclude skill-observations --exclude 'demo.html' \
             --exclude 'docs' --exclude '.claude' --exclude 'graphify-out' \
             --exclude '*.log' --exclude '.DS_Store' \
@@ -96,7 +105,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            'cd /opt/asmtrader/deploy && docker compose --env-file ../.env.production up -d --build 2>&1 | tail -40'
+            'bash -o pipefail -c "cd /opt/asmtrader/deploy && docker compose --env-file ../.env.production up -d --build 2>&1 | tail -40"'
 
       # Nginx changes are rare and involve the host config, which the deploy
       # user is not sudoered to `cp` into — those go through the manual

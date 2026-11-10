@@ -120,7 +120,7 @@ export default async function MarketsPage({
                       </div>
                     </td>
                     <td>
-                      <PayoutStepper assetId={a.id} symbol={a.symbol} initial={a.payoutPct} action={setAssetPayoutAction} />
+                      {process.env.OTC_ORDER_BOOK_ENABLED==="true"?<span className="admin-cell-strong">92% · fixed OTC</span>:<PayoutStepper assetId={a.id} symbol={a.symbol} initial={a.payoutPct} action={setAssetPayoutAction} />}
                     </td>
                     <td className="admin-num-right">
                       {a.basePrice.toLocaleString("en-US", {

@@ -81,7 +81,7 @@ async function readTreasury(): Promise<number> {
 }
 
 describe("Full tick-loop simulation — Step 5", () => {
-  it("scanPositions fires SL, TP, DURATION and TRAILING_STOP across a scripted price path", async () => {
+  it("scanPositions fires SL, TP, DURATION, TRAILING_STOP and LIQUIDATION at 100× leverage", async () => {
     const desk = new CfdDesk();
     const t0 = Date.now();
 
@@ -101,10 +101,10 @@ describe("Full tick-loop simulation — Step 5", () => {
       RISK,
     );
 
-    // 3) SHORT with trailing stop (2% initial SL, 1% trail) — profit ratchets
-    // the trailed SL down with the price, then a retrace triggers it.
+    // 3) SHORT with a trailing-labelled stop inside the 1% liquidation boundary.
+    // This checks trigger selection; persistent trailing ratchets are a separate invariant.
     const trailTrade = await desk.open(
-      { symbol: SYMBOL, direction: "SHORT", stake: 100_000, durationSec: 300, stopLossPct: 2, trailingPct: 1, accountId: LIVE_ACCOUNT_ID, actorId: USER_ID },
+      { symbol: SYMBOL, direction: "SHORT", stake: 100_000, durationSec: 300, stopLossPct: 0.5, trailingPct: 0.2, accountId: LIVE_ACCOUNT_ID, actorId: USER_ID },
       ENTRY,
       asset,
       RISK,
@@ -118,17 +118,19 @@ describe("Full tick-loop simulation — Step 5", () => {
       RISK,
     );
 
+    // 5) SHORT without protection — the 1.1% rally crosses its 1% liquidation boundary.
+    const liqTrade = await desk.open(
+      { symbol: SYMBOL, direction: "SHORT", stake: 100_000, durationSec: 300, accountId: LIVE_ACCOUNT_ID, actorId: USER_ID },
+      ENTRY, asset, RISK,
+    );
     const allClosed: Array<{ tradeId: string; reason: string; exitPrice: number }> = [];
-    // Tick 1 — dip to 0.99× entry. SL fires for slTrade (LONG, SL=94525).
-    allClosed.push(...(await desk.scanPositions(ASSET_ID, SYMBOL, ENTRY * 0.99, new Date(t0 + 1_000))));
-    // Tick 2 — rally to 1.011× entry. TP fires for tpTrade (LONG, TP=95950).
-    // trailTrade (SHORT, SL=96900, trail=1): shown 96045 < SL 96900 — no.
-    allClosed.push(...(await desk.scanPositions(ASSET_ID, SYMBOL, ENTRY * 1.011, new Date(t0 + 2_000))));
-    // Tick 3 — rally past 1.02× entry. trailTrade triggers at SL=96900 with
-    // reason=TRAILING_STOP (checkTriggers labels any SL on a trailingPct trade
-    // as TRAILING_STOP; see cfd-desk.ts:297).
-    allClosed.push(...(await desk.scanPositions(ASSET_ID, SYMBOL, ENTRY * 1.03, new Date(t0 + 3_000))));
-    // Tick 4 — well past the duration-only trade's expiry (5s).
+    // The first dip crosses the LONG 0.5% SL, but stays inside its 1% liquidation price.
+    allClosed.push(...(await desk.scanPositions(ASSET_ID, SYMBOL, ENTRY * 0.994, new Date(t0 + 1_000))));
+    // A 0.6% rally crosses the SHORT stop (0.5%), before its 1% liquidation price.
+    allClosed.push(...(await desk.scanPositions(ASSET_ID, SYMBOL, ENTRY * 1.006, new Date(t0 + 2_000))));
+    // A 1.1% rally reaches the LONG TP and the unprotected SHORT liquidation price.
+    allClosed.push(...(await desk.scanPositions(ASSET_ID, SYMBOL, ENTRY * 1.011, new Date(t0 + 3_000))));
+    // Return to entry after expiry so the duration-only trade closes flat.
     allClosed.push(...(await desk.scanPositions(ASSET_ID, SYMBOL, ENTRY, new Date(t0 + 7_000))));
 
     const reasons = new Set(allClosed.map((c) => c.reason));
@@ -136,6 +138,7 @@ describe("Full tick-loop simulation — Step 5", () => {
     expect(reasons.has("TAKE_PROFIT")).toBe(true);
     expect(reasons.has("TRAILING_STOP")).toBe(true);
     expect(allClosed.some((c) => c.reason === "DURATION" && c.tradeId === durTrade.trade.id)).toBe(true);
+    expect(allClosed.some((c) => c.reason === "LIQUIDATION" && c.tradeId === liqTrade.trade.id)).toBe(true);
 
     const stillOpen = await prisma.trade.count({ where: { accountId: LIVE_ACCOUNT_ID, status: "OPEN" } });
     expect(stillOpen).toBe(0);
@@ -144,10 +147,13 @@ describe("Full tick-loop simulation — Step 5", () => {
     const slRow = await prisma.trade.findUniqueOrThrow({ where: { id: slTrade.trade.id } });
     expect(slRow.exitPrice).toBeCloseTo(ENTRY * 0.995, 5);
     expect(slRow.closeReason).toBe("STOP_LOSS");
+    expect(slRow.pnl).toBe(-50_000);
+    expect(slRow.leverage).toBe(100);
 
     const tpRow = await prisma.trade.findUniqueOrThrow({ where: { id: tpTrade.trade.id } });
     expect(tpRow.exitPrice).toBeCloseTo(ENTRY * 1.01, 5);
     expect(tpRow.closeReason).toBe("TAKE_PROFIT");
+    expect(tpRow.pnl).toBe(100_000);
 
     const trailRow = await prisma.trade.findUniqueOrThrow({ where: { id: trailTrade.trade.id } });
     expect(trailRow.closeReason).toBe("TRAILING_STOP");
@@ -158,11 +164,14 @@ describe("Full tick-loop simulation — Step 5", () => {
     const sumFees = trades.reduce((s, t) => s + (t.spreadFee ?? 0), 0);
     const sumHouseGross = trades.reduce((s, t) => {
       const dir = t.direction === "UP" ? 1 : -1;
-      const grossPnl = Math.max(
-        Math.round(((dir * ((t.exitPrice ?? t.entryPrice) - t.entryPrice)) / t.entryPrice) * Number(t.stake)),
+      // Independent oracle: stored leverage amplifies the move; liquidation limits loss to stake,
+      // and the product's mandatory 2× gross-profit ceiling still applies.
+      const grossPnl = Math.min(2 * Number(t.stake), Math.max(
+        Math.round(((dir * ((t.exitPrice ?? t.entryPrice) - t.entryPrice)) / t.entryPrice) * Number(t.stake) * t.leverage),
         -Number(t.stake),
-      );
-      return s + -grossPnl;
+      ));
+      expect(t.pnl).toBe(grossPnl);
+      return s - grossPnl;
     }, 0);
     expect(await readTreasury()).toBe(sumFees + sumHouseGross);
   });

@@ -6,7 +6,8 @@ must reduce display/transport cost without changing the market behavior.
 
 1. **Incremental candles and volume.** Load full history initially or on market /
    timeframe changes; then update only revised and appended bars. Keep the
-   reference line in place. Use bounded visual buffering so history retention
+   reference calculation internal; the owner requested no visible reference line.
+   Use bounded visual buffering so history retention
    does not force a full chart reload every minute. Preserve pan and zoom.
 2. **Stable interface elements.** Create watchlist, depth and tape rows once;
    patch changed values. Coalesce renders with requestAnimationFrame, cache
@@ -33,6 +34,8 @@ Targets to check on the actual device: redraw p95 below 16 ms, no repeated
 >50 ms UI tasks, cached switches within one frame, and responsive HTTP while
 fast-forward runs. Targets are not guaranteed measurements.
 
-The current implementation is in the `codex/otc-market-prototype` worktree at
-`demos/otc-market/multi-market/`. The complete implementation-specific checklist
-is also saved at `docs/chart-performance-checklist.md` in that worktree.
+The website integration uses `apps/web/src/components/chart/`, the external
+market store in `apps/web/src/components/shell/market-store.ts`, and the worker /
+transport in `apps/engine/src/otc/`. The prototype remains available in the
+`codex/otc-market-prototype` worktree at `demos/otc-market/multi-market/`.
+Apply the six checks above to both implementations and future chart changes.

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { formatMinor } from "@/lib/format-money";
+import { useRouter, useSearchParams } from "next/navigation";
+import { formatMinor } from "@asm/client-core";
 import { Icon, type IconName } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import {
@@ -174,7 +174,8 @@ export function HistoryList({
     () => (includeTrades ? ["all", "trades", "deposits", "withdrawals"] : ["all", "deposits", "withdrawals"]),
     [includeTrades],
   );
-  const { activeAccount, tradesByAccount, assets, status } = usePlatform();
+  const router = useRouter();
+  const { activeAccount, tradesByAccount, assets, status, setSelectedTradeId, selectChartSymbol } = usePlatform();
   const searchParams = useSearchParams();
   const filter = parseFilter(searchParams.get("filter"), allowed);
   const txKey = searchParams.get("tx");
@@ -200,7 +201,7 @@ export function HistoryList({
           key: `t:${trade.id}`,
           atMs: trade.entryTs * 1000,
           trade,
-          currency,
+          currency:trade.currency??currency,
           pair: tradePairName(trade, asset?.displayName),
         });
       }

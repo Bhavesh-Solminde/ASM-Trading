@@ -31,6 +31,12 @@ enum KycStatus {
   REJECTED
 }
 
+/// Which kind of client a session was issued to; picks its lifetime.
+enum SessionClient {
+  WEB
+  APP
+}
+
 /// Account lifecycle from a compliance/anti-fraud standpoint. Kept separate
 /// from KycStatus so a KYC-verified user can still be frozen for abuse, and
 /// a fresh user can be flagged before KYC even starts. Order matters: any
@@ -84,6 +90,18 @@ enum IntradayProfile {
 enum Direction {
   UP
   DOWN
+}
+
+enum TradeMode {
+  LEGACY_BINARY
+  CFD
+  OTC_FIXED
+}
+
+enum MarketCommandStatus {
+  ACCEPTED
+  APPLIED
+  REJECTED
 }
 
 enum TradeStatus {
@@ -190,6 +208,13 @@ enum PathStyle {
 }
 
 model User {
+  notifyTrades       Boolean    @default(true)
+  notifyPayments     Boolean    @default(true)
+  notifyAccount      Boolean    @default(true)
+
+  pushDevices PushDevice[]
+  notificationOutboxRows NotificationOutbox[]
+
   id                 String     @id @default(uuid())
   email              String     @unique
   passwordHash       String
@@ -221,6 +246,8 @@ model User {
   kycReviewNote      String?
   // Google account id ("sub") once the user has signed in with Google.
   googleSub          String?    @unique
+  // UI + push language: "en" | "hi" (validated by zod, not a DB enum).
+  locale             String     @default("en")
   cumulativeDeposits BigInt     @default(0)
   isBot              Boolean    @default(false)
   // Compliance/anti-fraud status. A non-ACTIVE status blocks new trades,
@@ -268,6 +295,8 @@ model Session {
   lastUsedAt DateTime @default(now())
   ipAddress  String?
   userAgent  String?
+  client     SessionClient @default(WEB)
+  deviceName String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -292,10 +321,8 @@ model Account {
   lifecycleOverride LifecycleStage?
   dailyLimit        BigInt?
   version           Int             @default(0)
-  // Set only on affiliate accounts: the IST timestamp of the last daily reset
-  // to the ₹10,000 play float. Daily-reset job uses this as an idempotency
-  // key — a reset is skipped if the stored value's IST calendar date equals
-  // today's IST date. Null on every regular user account.
+  // Historical affiliate daily-reset timestamp, retained for compatibility.
+  // No longer written or used to schedule balance changes.
   lastAffiliateResetAt DateTime?
   createdAt         DateTime        @default(now())
 
@@ -348,6 +375,7 @@ model Candle {
   h         Float
   l         Float
   c         Float
+  volume    Float @default(0)
   shadowO   Float?
   shadowH   Float?
   shadowL   Float?
@@ -360,6 +388,15 @@ model Candle {
 }
 
 model Trade {
+  /// OTC stake and result stay in their opening currency even if the account changes rail.
+  currency       String?
+  mode           TradeMode @default(LEGACY_BINARY)
+  idempotencyKey String?
+  marketCommandId String? @unique
+  entrySequence BigInt?
+  settlementSequence BigInt?
+  flowLots Int @default(0)
+  filledLots Int @default(0)
   leverage Int @default(1)
   id             String      @id @default(uuid())
   accountId      String
@@ -403,6 +440,96 @@ model Trade {
   @@index([accountId, createdAt])
   @@index([expiryTs, status])
   @@index([assetId, status])
+  @@unique([accountId, idempotencyKey])
+  @@index([mode, status, expiryTs])
+}
+
+/// One durable last-good external quote per market. A reference is not a fill.
+model MarketReference {
+  symbol String @id
+  price Float
+  quoteTime DateTime
+  receivedAt DateTime
+  source String
+  sourceUrl String
+  kind String
+  minuteBps Float
+  calibration String
+  sampleBars Int
+  session String
+}
+
+model MarketReferenceAudit {
+  id BigInt @id @default(autoincrement())
+  symbol String
+  quoteTime DateTime
+  receivedAt DateTime
+  payload Json
+  @@index([symbol, receivedAt])
+}
+
+/// Provider cooldown survives restarts, including failed or interrupted pulls.
+model MarketReferencePoll {
+  group String @id
+  attemptedAt DateTime
+  nextDueAt DateTime
+  failures Int @default(0)
+}
+
+/// State includes books, wallets, RNGs and outstanding fixed contracts.
+model MarketWorldCheckpoint {
+  id String @id
+  version Int
+  generation String
+  sequence BigInt
+  state Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Ordered write-ahead input stream: append before executing in the worker.
+model MarketCommand {
+  id String @id @default(uuid())
+  sequence BigInt @unique @default(autoincrement())
+  worldId String
+  accountId String?
+  actorId String?
+  idempotencyKey String?
+  acceptedAt DateTime @default(now())
+  status MarketCommandStatus @default(ACCEPTED)
+  input Json
+  result Json?
+  @@unique([accountId, idempotencyKey])
+  @@index([worldId, sequence])
+  @@index([status, acceptedAt])
+}
+
+/// Closed synthetic candles are separate from historical legacy feed candles.
+model OtcCandle {
+  worldId String
+  symbol String
+  openTs DateTime
+  o Float
+  h Float
+  l Float
+  c Float
+  volume Float
+  @@id([worldId, symbol, openTs])
+  @@index([worldId, openTs])
+}
+
+/// Bounded internal execution audit. Participant IDs never enter public tape.
+model MarketExecution {
+  worldId String
+  symbol String
+  sequence BigInt
+  time DateTime
+  price Float
+  quantity Int
+  side String
+  makerId String
+  takerId String
+  @@id([worldId, symbol, sequence])
+  @@index([worldId, time])
 }
 
 /// Per-IST-day house ledger. Written by the settlement path on every non-DEMO
@@ -428,6 +555,12 @@ model HouseTreasury {
   treasuryMinor       BigInt   @default(0)
   treasuryTargetMinor BigInt   @default(30000000)
   updatedAt           DateTime @updatedAt
+}
+
+/// Admin reporting benchmark for the OTC vault.
+model OtcVaultSettings {
+  id               Int    @id @default(1)
+  dailyTargetMinor BigInt
 }
 
 /// Per-asset engine state that must survive a container restart to keep the
@@ -1012,4 +1145,43 @@ model ReconciliationIssue {
   @@unique([checkName, subjectType, subjectId])
   @@index([status, severity])
   @@index([checkName])
+}
+
+enum PushPlatform {
+  ANDROID
+  WEBPUSH
+}
+
+model PushDevice {
+  id         String       @id @default(uuid())
+  userId     String
+  platform   PushPlatform
+  /// FCM registration token, or the Web Push endpoint URL.
+  token      String       @unique
+  p256dh     String?
+  auth       String?
+  locale     String       @default("en")
+  createdAt  DateTime     @default(now())
+  lastSeenAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Written next to a payment/KYC status change; drained by the engine's sender.
+model NotificationOutbox {
+  id        String    @id @default(uuid())
+  userId    String
+  kind      String
+  payload   Json
+  createdAt DateTime  @default(now())
+  claimedAt DateTime?
+  claimToken String?
+  sentAt    DateTime?
+  attempts  Int       @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([sentAt, createdAt])
 }

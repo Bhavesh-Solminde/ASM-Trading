@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps 
 import { TIMEFRAMES, type TradeView } from "@asm/contracts";
 import { useChartProtection } from "@/lib/chart-protection-preference";
 import { PriceChart } from "@/components/chart/PriceChart";
+import { useDisplayedPrice } from "@/components/chart/use-displayed-price";
 import { SentimentBar } from "@/components/chart/SentimentBar";
 import { TimeframeTabs } from "@/components/chart/TimeframeTabs";
 import { ChartTypeSelector } from "@/components/chart/ChartTypeSelector";
 import type { ChartType } from "@/components/chart/chart-types";
+import { EMPTY_OTC_PROTECTION,type OtcProtectionDraft } from "@/components/chart/otc-protection";
 import { Icon } from "@/components/shell/Icon";
 import { useMarket } from "@/components/shell/market-store";
 import {
@@ -17,8 +19,7 @@ import {
 } from "@/components/shell/PlatformProvider";
 import { changePct, tickDirection } from "@/components/shell/quotes";
 import { splitAssetName } from "@/lib/asset-name";
-import { formatMinor } from "@/lib/format-money";
-import { clockTime } from "@/lib/format-time";
+import { formatMinor, clockTime } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useCfdMarketStatus } from "@/lib/use-cfd-market-status";
 import { useMarketClosed } from "@/lib/use-now";
@@ -50,10 +51,7 @@ function toggleNativeFullscreen(on: boolean): void {
 /** The big price readout; the only part of the stage that renders on a tick. */
 function ChartReadout({ symbol, displayName, precision }: { symbol: string; displayName: string; precision: number }) {
   const { market } = usePlatform();
-  const lastPrice = useMarket(
-    market,
-    (s) => (s.chart.symbol === symbol ? s.chart.lastPrice : null) ?? s.quotes[symbol]?.price ?? null,
-  );
+  const lastPrice = useDisplayedPrice(market,symbol,precision);
   const quote = useQuote(symbol);
   const direction = quote ? tickDirection(quote) : null;
   const { pair, market: qualifier } = splitAssetName(displayName);
@@ -250,10 +248,7 @@ function LiveSentiment() {
 /** Phone price readout under the market pill: last price (blue, ticks green/red) and the move since the history started. */
 function PhoneReadout({ symbol, precision }: { symbol: string; precision: number }) {
   const { market } = usePlatform();
-  const lastPrice = useMarket(
-    market,
-    (s) => (s.chart.symbol === symbol ? s.chart.lastPrice : null) ?? s.quotes[symbol]?.price ?? null,
-  );
+  const lastPrice = useDisplayedPrice(market,symbol,precision);
   const quote = useQuote(symbol);
   const direction = quote ? tickDirection(quote) : null;
   const change = quote ? changePct(quote) : null;
@@ -383,7 +378,7 @@ function TradesSheet({ onClose, ...panel }: ComponentProps<typeof TradesPanel> &
   );
 }
 
-export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD" }) {
+export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD" | "OTC" }) {
   const {
     assets,
     market,
@@ -411,7 +406,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
 
   const cfdMarketStatus = useCfdMarketStatus(chartSymbol, tradingModel === "CFD");
   const nightlyClosed = useMarketClosed(chartSymbol);
-  const marketOpen = tradingModel === "CFD" ? cfdMarketStatus === "open" : !nightlyClosed;
+  const marketOpen = tradingModel === "OTC" || (tradingModel === "CFD" ? cfdMarketStatus === "open" : !nightlyClosed);
   const chartProtection = useChartProtection();
   const chartTimeframe = useMarket(market, s => s.chart.timeframe);
   const [chartActionsContainer, setChartActionsContainer] = useState<HTMLDivElement | null>(null);
@@ -429,6 +424,10 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [focusMode, setFocusMode]);
+  const protectionScope=`${activeAccount?.id??""}:${chartSymbol}`;
+  const [otcProtection,setOtcProtection]=useState<{scope:string;draft:OtcProtectionDraft}|null>(null);
+  const protectionDraft=otcProtection?.scope===protectionScope?otcProtection.draft:EMPTY_OTC_PROTECTION;
+  const changeOtcProtection=useCallback((draft:OtcProtectionDraft)=>setOtcProtection({scope:protectionScope,draft}),[protectionScope]);
 
   useEffect(() => {
     try {
@@ -526,7 +525,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
           </div>
         )}
 
-        <div className="chartbox-bg relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[minmax(0,1fr)] phone:gap-0 phone:rounded-none phone:border-0 phone:p-0">
+        <div className={`${tradingModel==="OTC"?"bg-[#0c141c]":"chartbox-bg"} relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[minmax(0,1fr)] phone:gap-0 phone:rounded-none phone:border-0 phone:p-0`}>
           <LiveSentiment />
 
           <div className="relative min-h-0 min-w-0">
@@ -540,6 +539,10 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
               currency={activeAccount.currency}
               chartType={chartType}
               enableBrackets={tradingModel === "CFD"}
+              showVolume={tradingModel==="OTC"}
+              appearance={tradingModel==="OTC"?"market":"classic"}
+              protectionDraft={tradingModel==="OTC"?protectionDraft:undefined}
+              onProtectionChange={changeOtcProtection}
               bracketScope={`${activeAccount.id}:${asset.symbol}:${chartTimeframe}:${chartType}:${chartProtection}`}
               bracketActionsContainer={chartActionsContainer}
               bracketControls={chartProtection || !!focusedTrade}
@@ -673,12 +676,17 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
           />
         ) : (
           <TradeTicket
+            key={protectionScope}
+            otc={tradingModel==="OTC"}
             symbol={asset.symbol}
             pair={splitAssetName(asset.displayName).pair}
             payoutPct={payoutPct}
             accountId={activeAccount.id}
             currency={activeAccount.currency}
             onOpened={recordOpened}
+            protectionDraft={protectionDraft}
+            onProtectionChange={changeOtcProtection}
+            market={market}
           />
         )}
         {focusMode ? null : (

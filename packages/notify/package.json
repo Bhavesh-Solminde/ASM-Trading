@@ -1,0 +1,17 @@
+{
+  "name": "@asm/notify",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": { "test": "vitest run" },
+  "dependencies": {
+    "@asm/client-core": "workspace:*",
+    "@asm/db": "workspace:*",
+    "@asm/logger": "workspace:*",
+    "google-auth-library": "10.5.0",
+    "web-push": "3.6.7"
+  },
+  "devDependencies": { "@types/web-push": "3.6.4" }
+}

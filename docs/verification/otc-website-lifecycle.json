@@ -1,0 +1,44 @@
+{
+  "run": "09f4fb66-6e72-4143-a39e-d997d71fbf53",
+  "normalSignups": 100,
+  "registeredThisRun": 0,
+  "role": "USER",
+  "paper": {
+    "id": "c660acba-b0da-4858-8a88-13be571b48b9",
+    "flowLots": 0,
+    "filledLots": 0,
+    "status": "LOST"
+  },
+  "protection": [
+    {
+      "id": "7c371457-f4dc-4916-aeca-45435abd1d37",
+      "direction": "UP",
+      "entryPrice": 80340.55,
+      "exitPrice": 80343.81,
+      "closeReason": "TAKE_PROFIT",
+      "status": "WON",
+      "pnl": 9200
+    },
+    {
+      "id": "e8ae45c9-0c05-41e0-9f63-64cfab4e51d0",
+      "direction": "DOWN",
+      "entryPrice": 80340.55,
+      "exitPrice": 80343.81,
+      "closeReason": "STOP_LOSS",
+      "status": "LOST",
+      "pnl": -10000
+    }
+  ],
+  "currencyChange": {
+    "tradeCurrency": "INR",
+    "stake": 10000,
+    "status": "WON",
+    "pnl": 9200,
+    "creditedCurrency": "USD",
+    "creditedMinor": 192,
+    "accountBalance": 999960
+  },
+  "foreignAccountStatus": 404,
+  "forgedRoleStatus": 400,
+  "manualCloseStatus": 409
+}

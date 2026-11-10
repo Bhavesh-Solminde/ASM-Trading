@@ -78,8 +78,14 @@ services:
 
   web:
     image: asmtrader-app:latest
+    volumes:
+      - /srv/app/releases:/app/releases:ro
+      - /srv/app/updates:/app/updates:ro
     restart: unless-stopped
     env_file: ../.env.production
+    environment:
+      # Development preview: switch to live before accepting real users.
+      LEADERBOARD_MODE: ${LEADERBOARD_MODE:-demo}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
@@ -87,12 +93,16 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-    command: ["pnpm", "--filter", "@asm/web", "start"]
+    command: ["sh", "-c", "pnpm --filter @asm/db exec tsx src/seed-demo-leaderboard.ts && exec pnpm --filter @asm/web start"]
 
   engine:
     image: asmtrader-app:latest
     restart: unless-stopped
     env_file: ../.env.production
+    environment:
+      # Internal HTTP must be reachable by web on the private compose network.
+      # Port 4002 remains unpublished on the host.
+      ENGINE_HTTP_HOST: 0.0.0.0
     ports:
       # Only WS is proxied publicly (as /ws). Internal HTTP (4002) is
       # not exposed — web reaches it as http://engine:4002 on the compose net.
