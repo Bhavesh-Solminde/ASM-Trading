@@ -368,7 +368,7 @@ button,
 .desktop-chart-readout { left:50px; }
 .analysis-plot a#tv-attr-logo { border-radius:50%;background:var(--color-panel);border:1px solid var(--color-rule);padding:4px; }
 @media (min-width:1600px) and (min-height:480px) {
-  .trade-workspace:not([data-focus="true"]) { grid-template-columns:220px minmax(0,1fr) 340px; }
+  .trade-workspace:not([data-focus="true"]) { grid-template-columns:clamp(280px,17vw,320px) minmax(0,1fr) 340px; }
   .trade-workspace:not([data-focus="true"]) .market-sidebar { display:flex; }
 }
 @media (width<64rem),(height<30rem) {
