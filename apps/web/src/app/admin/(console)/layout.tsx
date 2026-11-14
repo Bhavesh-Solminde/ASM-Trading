@@ -7,24 +7,25 @@ export const dynamic = "force-dynamic";
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();
 
-  // Affiliate deposits and withdrawals never need admin action — exclude
+  // Retired simulated affiliates never need admin action — exclude
   // them from the sidebar-badge counts so the badge reflects real work.
-  const [pendingDeposits, requestedWithdrawals, openFlags, reconciliation, pendingKyc] = await Promise.all([
+  const [pendingDeposits, requestedWithdrawals, openFlags, reconciliation, pendingKyc, programWithdrawals] = await Promise.all([
     prisma.deposit.count({
       where: {
         status: "PENDING_CONFIRMATION",
-        user: { role: { not: "AFFILIATE" } },
+        user: { legacySimulated: false },
       },
     }),
     prisma.withdrawal.count({
       where: {
         status: "REQUESTED",
-        user: { role: { not: "AFFILIATE" } },
+        user: { legacySimulated: false },
       },
     }),
     prisma.fraudFlag.count({ where: { status: "OPEN" } }),
     countOpenReconciliationIssues(),
     prisma.user.count({ where: { kycStatus: "PENDING" } }),
+    prisma.programWithdrawal.count({ where: { status: "REQUESTED" } }),
   ]);
 
   return (
@@ -34,6 +35,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
         withdrawals: requestedWithdrawals,
         fraud: openFlags,
         kyc: pendingKyc,
+        program: programWithdrawals,
         // P1 only: a warning shouldn't carry the same nav urgency as an open
         // fraud flag or a pending deposit — it surfaces on the page itself.
         reconciliation: reconciliation.p1,

@@ -40,6 +40,16 @@ const WORDS: Record<string, string> = {
   "affiliate.balance_set": "Set an affiliate account balance",
   "affiliate.password_reset": "Reset an affiliate's password",
   "auth.password_reset": "Reset a user's password",
+  "affiliate.status_changed": "Changed an affiliate's status",
+  "affiliate.rate_assigned": "Assigned an affiliate rate",
+  "program.setting_changed": "Scheduled an affiliate program setting",
+  "program.withdrawal.approve": "Approved a program withdrawal",
+  "program.withdrawal.reject": "Rejected a program withdrawal",
+  "program.withdrawal.paid": "Marked a program withdrawal paid",
+  "program.earning_released": "Released a held program earning",
+  "program.earning_voided": "Voided a held program earning",
+  "program.earning_review_cleared": "Cleared a program earning review flag",
+  "program.adjustment": "Made a program balance adjustment",
 };
 
 export function auditSentence(action: string, after?: unknown): string {

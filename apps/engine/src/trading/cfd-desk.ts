@@ -14,6 +14,7 @@ import {
   type CfdCloseReasonDto,
 } from "@asm/contracts";
 import { isHardBlocked, earlyCloseMultiplier } from "./spread";
+import { evaluateReferralAfterSettlement } from "../affiliate/referral-qualification";
 
 export interface AssetConfig {
   id: string;
@@ -359,7 +360,7 @@ export class CfdDesk {
     // Opening fee is charged separately; settlement credits stake plus gross PnL.
     const pnl = cfdProfitMinor(trade.direction, trade.entryPrice, exitPrice, trade.stake, trade.leverage ?? 1);
 
-    await prisma.$transaction(async (tx) => {
+    const account = await prisma.$transaction(async (tx) => {
       // Claim the position: OPEN -> CLOSED is the only transition that pays. The
       // callers' own `status === "OPEN"` checks read outside this transaction,
       // so two parallel closes (a double-click, or a manual close landing on the
@@ -395,7 +396,7 @@ export class CfdDesk {
       // Fetch account type to determine if house treasury should update
       const account = await tx.account.findUnique({
         where: { id: trade.accountId },
-        select: { type: true },
+        select: { type: true, userId: true },
       });
 
       if (account?.type === "LIVE") {
@@ -406,7 +407,11 @@ export class CfdDesk {
           create: { id: 1, treasuryMinor: housePnl, treasuryTargetMinor: 30_000_000 },
         });
       }
+      return account;
     });
+
+    // Affiliate Phase 4 trigger: after commit, fire-and-forget, LIVE only.
+    if (account?.type === "LIVE") evaluateReferralAfterSettlement(account.userId, trade.id);
 
     logger.info(
       { evt: "cfd.close", tradeId: trade.id, reason, exitPrice, pnl },

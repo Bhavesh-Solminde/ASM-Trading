@@ -3,21 +3,23 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { usePathname } from "next/navigation";
-import { RAIL_ITEMS, isRailItemActive } from "@/lib/nav";
+import { RAIL_ITEMS, isRailItemActive, navItemsFor } from "@/lib/nav";
 import { Icon } from "./Icon";
+import { usePlatform } from "./PlatformProvider";
 
 const ITEM =
   "relative grid w-[60px] justify-items-center gap-1.5 rounded pb-2 pt-2.5 text-[9px] font-semibold uppercase tracking-[0.08em]";
 
 export function IconRail() {
   const pathname = usePathname();
+  const { affiliate } = usePlatform();
 
   return (
     <nav
       aria-label="Platform sections"
       className="col-start-1 row-start-3 flex flex-col items-center gap-1 border-r border-rule py-3 phone:hidden"
     >
-      {RAIL_ITEMS.map((item) => {
+      {navItemsFor(RAIL_ITEMS, { affiliate }).map((item) => {
         const gap = item.pinBottom ? <span className="flex-1 phone:hidden" /> : null;
         const inner = (
           <>

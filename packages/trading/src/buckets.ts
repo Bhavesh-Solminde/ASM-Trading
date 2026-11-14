@@ -24,14 +24,11 @@ export interface Position {
   readonly entrySec?: number;
   readonly isDemo: boolean;
   /**
-   * True when the account's owner has role=AFFILIATE. Checked at trade-open
-   * to bypass the GLG governor (affiliate LIVE trades roll an 80% WIN
-   * verdict directly) and at settlement to skip the HouseDay/HouseTreasury
-   * ledger writes (affiliate P/L is play money, never counted in the house
-   * ledger). Undefined on pre-existing trades hydrated before this field
-   * existed — treat as `false`.
+   * True when the account belongs to a retired simulated affiliate
+   * (User.legacySimulated). Settlement skips the HouseDay/HouseTreasury
+   * writes so play-money P/L never reaches the house ledger. Undefined = false.
    */
-  readonly isAffiliate?: boolean;
+  readonly isSimulated?: boolean;
   /**
    * House-governor stamps. Present only for trades opened while
    * USE_HOUSE_GOVERNOR was on. Undefined = pre-existing trade / flag off /

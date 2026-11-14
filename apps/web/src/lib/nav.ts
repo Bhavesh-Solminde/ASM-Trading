@@ -12,6 +12,10 @@ export interface RailItem {
   readonly matches?: readonly string[];
   /** Pins the item to the bottom of the rail. */
   readonly pinBottom?: boolean;
+  /** Shown only to affiliate accounts (role AFFILIATE). */
+  readonly affiliateOnly?: boolean;
+  /** Shown only to regular accounts (their Refer & Earn; affiliates use their dashboard). */
+  readonly userOnly?: boolean;
 }
 
 /**
@@ -32,6 +36,15 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   },
   { id: "leaderboard", label: "Top", href: "/leaderboard", icon: "cup", available: true },
   { id: "support", label: "Support", href: "/support", icon: "help", available: true },
+  {
+    id: "affiliate",
+    label: "Affiliate",
+    href: "/affiliate/dashboard",
+    icon: "referral",
+    available: true,
+    affiliateOnly: true,
+  },
+  { id: "refer", label: "Refer", href: "/referral", icon: "referral", available: true, userOnly: true },
   { id: "account", label: "Account", href: "/account", icon: "user", available: true },
   { id: "tournaments", label: "Tourney", href: "/tournaments", icon: "cup", available: false },
   { id: "market", label: "Market", href: "/market", icon: "globe", available: false },
@@ -55,6 +68,11 @@ const HISTORY_ITEM: RailItem = {
 export const DRAWER_ITEMS: readonly RailItem[] = RAIL_ITEMS.flatMap((item) =>
   item.id === "payments" ? [item, HISTORY_ITEM] : [item],
 );
+
+/** Affiliate accounts see their dashboard item; regular accounts see Refer & Earn. */
+export function navItemsFor(items: readonly RailItem[], { affiliate }: { affiliate: boolean }): RailItem[] {
+  return items.filter((item) => (affiliate ? !item.userOnly : !item.affiliateOnly));
+}
 
 export function availableRailItems(): RailItem[] {
   return RAIL_ITEMS.filter((item) => item.available);

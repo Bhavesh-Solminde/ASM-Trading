@@ -9,6 +9,8 @@ import { OtcWriterLock } from "./writer-lock";
 import { persistOtcArchive,readOtcCandles,retainOtcHistory } from "./archive";
 import type { Timeframe } from "@asm/contracts";
 import { DisplayQuotes } from "./display-quotes";
+import { logger } from "@asm/logger";
+import { evaluateReferralAfterSettlement } from "../affiliate/referral-qualification";
 
 type SystemIntent={version:1;kind:"advance";time:number}|{version:1;kind:"reference";time:number;quote:ReferenceQuote};
 type Command=Awaited<ReturnType<DbClient["marketCommand"]["findUniqueOrThrow"]>>;
@@ -114,11 +116,18 @@ export class OtcRuntime {
     for(const settlement of await this.worker!.settlements()){
       await settleOtcTrade(settlement,this.client,this.fence);
       await this.notify?.(settlement.id,settlement.actorId).catch(()=>{});
+      if(settlement.status!=="REFUNDED")this.evaluateReferral(settlement);
       await this.hook?.("settled",settlement.id);
       await this.worker!.acknowledge(settlement.id);
     }
     await persistOtcArchive(this.client,this.fence,await this.worker!.archive());
     this.watermark=row.sequence;
+  }
+  /** Affiliate Phase 4 trigger: after the settlement committed, fire-and-forget, LIVE accounts only. */
+  private evaluateReferral(settlement:{id:string;accountId:string;actorId:string}){
+    void this.client.account.findUnique({where:{id:settlement.accountId},select:{type:true}})
+      .then(account=>{if(account?.type==="LIVE")evaluateReferralAfterSettlement(settlement.actorId,settlement.id);})
+      .catch((error:unknown)=>logger.error({evt:"referral.evaluate_failed",tradeId:settlement.id,reason:error instanceof Error?error.message:String(error)},"referral qualification check failed after OTC settlement"));
   }
   private async drain(){
     while(true){
@@ -159,7 +168,8 @@ export class OtcRuntime {
       SELECT a.symbol, count(DISTINCT c."userId") AS count FROM "Trade" t
       JOIN "Account" c ON c.id=t."accountId" JOIN "User" u ON u.id=c."userId"
       JOIN "Asset" a ON a.id=t."assetId"
-      WHERE t.mode='OTC_FIXED' AND t.status='OPEN' AND t."flowLots">0 AND c.type='LIVE' AND u.role='USER'
+      WHERE t.mode='OTC_FIXED' AND t.status='OPEN' AND t."flowLots">0 AND c.type='LIVE'
+        AND (u.role='USER' OR (u.role='AFFILIATE' AND u."legacySimulated"=false)) -- mirrors isRealTrader()
       GROUP BY a.symbol`;
     return Object.fromEntries(rows.map(r=>[r.symbol,Number(r.count)]));
   }

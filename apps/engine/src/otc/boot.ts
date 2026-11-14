@@ -11,6 +11,8 @@ import { startChainWatcher } from "../chain-watcher/runner";
 import { startBscWatcher } from "../chain-watcher/bsc-runner";
 import { startReconciliationRunner } from "../chain-watcher/reconciliation-runner";
 import { startTatumRunner } from "../tatum-runner";
+import { startReferralQualificationSweep } from "../affiliate/referral-qualification";
+import { startProgramDayClose } from "../affiliate/program-day-close";
 import { usdtProviderFor } from "@asm/tatum";
 import { startPushRuntime } from "../push/runtime";
 import { assertLegacyDrained } from "./preflight";
@@ -40,6 +42,10 @@ export async function startOtcEngine(){
   cleanups.push(()=>bsc.stop());
   const tatum=startTatumRunner(),reconciliation=startReconciliationRunner();
   cleanups.push(()=>tatum.stop(),()=>reconciliation.stop());
+  const referralSweep=startReferralQualificationSweep();
+  cleanups.push(()=>referralSweep.stop());
+  const programDayClose=startProgramDayClose();
+  cleanups.push(()=>programDayClose.stop());
   async function shutdown(code:number){
     if(shuttingDown)return;shuttingDown=true;
     for(const close of cleanups.reverse())await close().catch(error=>logger.error({evt:"otc.shutdown_error",reason:String(error)},"OTC shutdown step failed"));

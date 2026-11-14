@@ -45,6 +45,11 @@ export async function updateUserAction(formData: FormData): Promise<void> {
     select: { role: true, kycStatus: true, liveAccess: true, vpnExempt: true, email: true },
   });
   if (!before) return;
+  // User and affiliate accounts stay separate: no conversion either way.
+  if (before.role !== role && (before.role === "AFFILIATE" || role === "AFFILIATE")) {
+    logger.warn({ evt: "admin.action_refused", action: "user.updated", userId, reason: "affiliate_role_change" }, "role change refused");
+    return;
+  }
 
   if (
     before.role !== role ||

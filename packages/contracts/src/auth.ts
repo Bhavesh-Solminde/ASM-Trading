@@ -22,9 +22,15 @@ const name = z
   .min(2, "Enter your full name")
   .max(80, "Name is too long");
 
-export const RegisterSchema = z.strictObject({ name, email, password });
-export const LoginSchema = z.strictObject({ email, password });
-export const PasswordResetRequestSchema = z.strictObject({ email });
+/** Which sign-in portal the request came from. Omitted = the regular site. */
+const portal = z.enum(["user", "affiliate"]).default("user");
+
+/** Typed invitation code; shape is checked server-side against real codes. */
+const referralCode = z.string().trim().max(32).optional();
+
+export const RegisterSchema = z.strictObject({ name, email, password, portal, referralCode });
+export const LoginSchema = z.strictObject({ email, password, portal });
+export const PasswordResetRequestSchema = z.strictObject({ email, portal });
 // A base64url 32-byte token is 43 characters; the bounds only reject junk.
 export const PasswordResetConfirmSchema = z.strictObject({
   token: z.string().min(32).max(128),
@@ -33,3 +39,4 @@ export const PasswordResetConfirmSchema = z.strictObject({
 
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
+export type AuthPortal = z.infer<typeof portal>;

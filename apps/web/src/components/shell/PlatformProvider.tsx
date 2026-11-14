@@ -91,6 +91,8 @@ interface PlatformContextValue {
   liveAccess: boolean;
   /** Deposits credited so far — drives which bonus tier the next one gets. */
   completedDeposits: number;
+  /** Affiliate account (role AFFILIATE): unlocks the Affiliate nav item. */
+  affiliate: boolean;
   selectedTradeId: string | null;
   setSelectedTradeId: (id: string | null) => void;
   chartSymbol: string;
@@ -133,6 +135,7 @@ export function PlatformProvider({
   defaultSymbol,
   liveAccess,
   completedDeposits,
+  affiliate = false,
   children,
 }: {
   assets: PlatformAsset[];
@@ -142,6 +145,7 @@ export function PlatformProvider({
   defaultSymbol: string;
   liveAccess: boolean;
   completedDeposits: number;
+  affiliate?: boolean;
   children: React.ReactNode;
 }) {
   // Initial values must match the server render (no window reads here) so
@@ -331,6 +335,7 @@ export function PlatformProvider({
       status,
       liveAccess,
       completedDeposits,
+      affiliate,
       selectedTradeId,
       setSelectedTradeId,
       chartSymbol,
@@ -355,6 +360,7 @@ export function PlatformProvider({
       status,
       liveAccess,
       completedDeposits,
+      affiliate,
       chartSymbol,
       selectChartSymbol,
       timeframe,

@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "../client";
+import type { Role } from "../../generated/prisma/client";
 
 /** How long an emailed reset link works. The email copy states it in minutes. */
 export const PASSWORD_RESET_TTL_MS = 30 * 60_000;
@@ -45,7 +46,7 @@ export async function resetPasswordWithToken(input: {
   token: string;
   passwordHash: string;
   ipAddress?: string | null;
-}): Promise<{ userId: string; email: string; firstName: string | null; lastName: string | null; nickname: string | null } | null> {
+}): Promise<{ userId: string; email: string; role: Role; firstName: string | null; lastName: string | null; nickname: string | null } | null> {
   const tokenHash = hashToken(input.token);
   const now = new Date();
   return prisma.$transaction(async (tx) => {
@@ -61,7 +62,7 @@ export async function resetPasswordWithToken(input: {
     const user = await tx.user.update({
       where: { id: row.userId },
       data: { passwordHash: input.passwordHash, emailVerified: true },
-      select: { id: true, email: true, firstName: true, lastName: true, nickname: true },
+      select: { id: true, email: true, role: true, firstName: true, lastName: true, nickname: true },
     });
     await tx.session.deleteMany({ where: { userId: row.userId } });
     await tx.auditLog.create({
@@ -73,6 +74,6 @@ export async function resetPasswordWithToken(input: {
         after: { via: "email_link", ip: input.ipAddress ?? null },
       },
     });
-    return { userId: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, nickname: user.nickname };
+    return { userId: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName, nickname: user.nickname };
   });
 }

@@ -40,6 +40,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       defaultSymbol={boot.defaultSymbol}
       liveAccess={boot.liveAccess}
       completedDeposits={boot.completedDeposits}
+      affiliate={session.role === "AFFILIATE"}
     >
       <PlatformShell userId={session.userId}>{children}</PlatformShell>
     </PlatformProvider>

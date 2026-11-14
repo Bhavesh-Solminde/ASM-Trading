@@ -8,6 +8,8 @@ import { prisma, type DbTransaction } from "../client";
 import { formatMoney } from "../money";
 import { flagLinkageForUser } from "./fraud";
 import { convertMinorBetween } from "./account";
+import { evaluateReferralQualification, inviteExtraBonusPct, reverseQualificationForDeposit } from "./referral-qualification";
+import { logger } from "@asm/logger";
 import type { Deposit } from "../models";
 
 type Tx = DbTransaction;
@@ -135,6 +137,9 @@ export async function createDepositIntent(input: {
           method: input.method,
           amountUsd,
           amountInr,
+          // What the user asked for, before the matching offset: the referral
+          // programme's qualifying amount. Never credited or matched on.
+          requestedInrMinor: baseInr,
           vpa: input.vpa ?? DEMO_VPA,
           checkoutToken: randomBytes(24).toString("base64url"),
           status: "AWAITING_PAYMENT",
@@ -383,15 +388,14 @@ export async function createUsdtSlotDepositIntent(input: {
  * one — but the caller (the matcher) treats more than one as a bug to flag,
  * not something to silently pick between.
  *
- * Affiliate deposits are excluded: an affiliate's deposit UI renders through
- * the whole flow but is never credited, so the matcher must behave as if the
- * row doesn't exist. See the affiliate design doc. */
+ * Retired simulated affiliates (User.legacySimulated) are excluded: their
+ * deposits are never credited, so the matcher behaves as if they don't exist. */
 export async function findLiveDepositByAmount(amountInr: number): Promise<Deposit[]> {
   return prisma.deposit.findMany({
     where: {
       amountInr,
       status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
-      user: { role: { not: "AFFILIATE" } },
+      user: { legacySimulated: false },
     },
   });
 }
@@ -401,7 +405,7 @@ export async function findLiveDepositByClaimedUtr(utr: string): Promise<Deposit 
     where: {
       claimedUtr: utr,
       status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
-      user: { role: { not: "AFFILIATE" } },
+      user: { legacySimulated: false },
     },
   });
 }
@@ -631,19 +635,16 @@ export async function creditDepositToAccount(input: {
 }): Promise<void> {
   const deposit = await prisma.deposit.findUnique({
     where: { id: input.depositId },
-    include: { user: { select: { role: true, email: true, firstName: true, lastName: true, nickname: true } } },
+    include: { user: { select: { legacySimulated: true, email: true, firstName: true, lastName: true, nickname: true, referredById: true } } },
   });
   if (!deposit) throw new DepositNotFound();
 
-  // Defense in depth: an affiliate account's LIVE balance is admin-controlled paper funds
-  // and is never credited by deposits. The
-  // matchers (findLiveDepositByAmount, findLiveDepositByClaimedUtr) already
-  // exclude affiliate rows, and the admin deposits page hides them from the
-  // review queues; this guard turns any residual path into a loud failure
-  // instead of silently inflating the float.
-  if (deposit.user.role === "AFFILIATE") {
+  // Defense in depth: a retired simulated affiliate holds play money and must
+  // never be credited real funds. The matchers and admin queues already
+  // exclude these rows; this turns any residual path into a loud failure.
+  if (deposit.user.legacySimulated) {
     throw new Error(
-      `Refusing to credit deposit ${deposit.id}: owner is an affiliate account.`,
+      `Refusing to credit deposit ${deposit.id}: owner is a retired simulated account.`,
     );
   }
 
@@ -753,7 +754,14 @@ export async function creditDepositToAccount(input: {
       where: { userId: deposit.userId, status: "COMPLETED" },
     });
     const bonusPercent = bonusPercentForDeposit(depositNumber);
-    const bonus = Math.floor((credit * bonusPercent) / 100);
+    // Affiliate Program §8: an invited user's first deposit that earns the
+    // ordinary bonus gets an extra percentage in the same grant. 0 for anyone else.
+    const invite =
+      deposit.user.referredById && depositNumber === 1 && bonusPercent > 0
+        ? await inviteExtraBonusPct(tx, { userId: deposit.userId, accountId: account.id, at: new Date() })
+        : { pct: 0, settingId: null };
+    const bonus = Math.floor((credit * (bonusPercent + invite.pct)) / 100);
+    const inviteAudit = invite.pct > 0 ? { inviteExtraBonusPct: invite.pct, inviteSettingId: invite.settingId } : {};
     grantedBonus = bonus;
 
     const updated = await tx.account.update({
@@ -819,6 +827,7 @@ export async function creditDepositToAccount(input: {
               resolvedByAdmin: true,
               usdtMinorOverride: admin.usdtMinorOverride,
               reservedUsdtMinor: deposit.amountUsdtMinor,
+              ...inviteAudit,
             }
           : received !== null
             ? {
@@ -830,8 +839,9 @@ export async function creditDepositToAccount(input: {
                 gateway: deposit.gateway,
                 receivedUsdtMinor: received,
                 requestedUsdtMinor: deposit.amountUsdtMinor,
+                ...inviteAudit,
               }
-            : { status: "COMPLETED", creditId: input.creditId, bonus, bonusPercent, depositNumber },
+            : { status: "COMPLETED", creditId: input.creditId, bonus, bonusPercent, depositNumber, ...inviteAudit },
       },
     });
   });
@@ -844,6 +854,17 @@ export async function creditDepositToAccount(input: {
   flagLinkageForUser({ userId: deposit.userId }).catch(() => {
     /* the detector logs its own failures via the prisma client */
   });
+
+  // Affiliate Program: the deposit may complete a referral qualification. After
+  // commit and best-effort: a failure here never touches the credit (the engine
+  // sweep retries).
+  if (deposit.user.referredById) {
+    try {
+      await evaluateReferralQualification(deposit.userId);
+    } catch (err) {
+      logger.error({ evt: "referral.qualification_failed", userId: deposit.userId, depositId: deposit.id, err }, "referral qualification after deposit failed");
+    }
+  }
 
   // Tell the user once the money is really there. Outside the transaction and
   // not awaited: Resend being slow or down must never delay or undo a credit.
@@ -1073,6 +1094,9 @@ async function performDepositReversal(
         },
       },
     });
+
+    // Affiliate Program §15: a reversed qualifying deposit voids the unpaid reward.
+    await reverseQualificationForDeposit(tx, { depositId: deposit.id, reason: input.reason, actorId: input.adminId });
 
     if (onReversed) await onReversed(tx, deposit);
   });

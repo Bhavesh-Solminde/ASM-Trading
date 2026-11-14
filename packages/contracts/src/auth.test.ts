@@ -5,7 +5,7 @@ describe("RegisterSchema", () => {
   const valid = { name: "Asha Rao", email: "a@b.com", password: "correct-horse-battery" };
 
   it("accepts a valid registration", () => {
-    expect(RegisterSchema.parse(valid)).toEqual(valid);
+    expect(RegisterSchema.parse(valid)).toEqual({ ...valid, portal: "user" });
   });
 
   it("rejects an injected role field rather than stripping it", () => {
@@ -34,6 +34,12 @@ describe("RegisterSchema", () => {
     expect(RegisterSchema.safeParse({ email: valid.email, password: valid.password }).success).toBe(false);
     expect(RegisterSchema.safeParse({ ...valid, name: "  A " }).success).toBe(false);
     expect(RegisterSchema.parse({ ...valid, name: "  Asha Rao  " }).name).toBe("Asha Rao");
+  });
+
+  it("accepts an optional trimmed referral code up to 32 characters", () => {
+    expect(RegisterSchema.parse({ ...valid, referralCode: "  abcd-2345 " }).referralCode).toBe("abcd-2345");
+    expect(RegisterSchema.safeParse({ ...valid, referralCode: "A".repeat(33) }).success).toBe(false);
+    expect(RegisterSchema.safeParse({ ...valid, referralCode: 12345678 }).success).toBe(false);
   });
 
   it("lowercases and trims the email", () => {
@@ -65,5 +71,30 @@ describe("password reset schemas", () => {
   });
   it("rejects extra keys", () => {
     expect(PasswordResetRequestSchema.safeParse({ email: "a@b.com", role: "ADMIN" }).success).toBe(false);
+  });
+});
+
+describe("portal field", () => {
+  const reg = { name: "Asha Rao", email: "a@b.com", password: "correct-horse-battery" };
+  const login = { email: "a@b.com", password: "correct-horse-battery" };
+
+  it("defaults to the regular site when omitted", () => {
+    expect(RegisterSchema.parse(reg).portal).toBe("user");
+    expect(LoginSchema.parse(login).portal).toBe("user");
+    expect(PasswordResetRequestSchema.parse({ email: "a@b.com" }).portal).toBe("user");
+  });
+
+  it("accepts the affiliate portal on register, login and reset request", () => {
+    expect(RegisterSchema.parse({ ...reg, portal: "affiliate" }).portal).toBe("affiliate");
+    expect(LoginSchema.parse({ ...login, portal: "affiliate" }).portal).toBe("affiliate");
+    expect(PasswordResetRequestSchema.parse({ email: "a@b.com", portal: "affiliate" }).portal).toBe("affiliate");
+  });
+
+  it("rejects any other portal value", () => {
+    for (const portal of ["admin", "main", "", null, 1]) {
+      expect(RegisterSchema.safeParse({ ...reg, portal }).success).toBe(false);
+      expect(LoginSchema.safeParse({ ...login, portal }).success).toBe(false);
+      expect(PasswordResetRequestSchema.safeParse({ email: "a@b.com", portal }).success).toBe(false);
+    }
   });
 });

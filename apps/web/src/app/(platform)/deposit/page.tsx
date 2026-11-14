@@ -63,6 +63,7 @@ export default async function DepositPage({
         gatewayNetworks={config.gatewayNetworks}
         upiEnabled={config.upiEnabled}
         completedDeposits={config.completedDeposits}
+        inviteExtraBonusPct={config.inviteExtraBonusPct ?? 0}
       />
     </PageFrame>
   );

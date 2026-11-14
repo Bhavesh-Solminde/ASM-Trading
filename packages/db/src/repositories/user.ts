@@ -1,5 +1,6 @@
+import { logger } from "@asm/logger";
 import { prisma } from "../client";
-import type { UserStatus } from "../../generated/prisma/client";
+import type { Prisma, UserStatus } from "../../generated/prisma/client";
 import type { User } from "../models";
 
 /**
@@ -8,23 +9,28 @@ import type { User } from "../models";
  * function ever accepts or writes `role`.
  */
 
-export async function findUserByEmail(email: string): Promise<User | null> {
-  return prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+/** "main" = the regular site (USER + ADMIN); "affiliate" = live affiliate accounts. */
+export type Portal = "main" | "affiliate";
+
+/** Rows a portal can reach. Legacy simulated affiliates are reachable from neither. */
+export function portalWhere(portal: Portal): Prisma.UserWhereInput {
+  return portal === "main"
+    ? { role: { in: ["USER", "ADMIN"] }, legacySimulated: false }
+    : { role: "AFFILIATE", legacySimulated: false };
+}
+
+export async function findUserByEmail(email: string, portal: Portal = "main"): Promise<User | null> {
+  const rows = await prisma.user.findMany({ where: { email: email.toLowerCase(), ...portalWhere(portal) }, take: 2 });
+  if (rows.length > 1) {
+    // A USER and an ADMIN row share this email; refuse rather than guess which one.
+    logger.error({ evt: "auth.ambiguous_email", portal, userIds: rows.map((r) => r.id) }, "email matches several accounts");
+    return null;
+  }
+  return rows[0] ?? null;
 }
 
 export async function findUserById(id: string): Promise<User | null> {
   return prisma.user.findUnique({ where: { id } });
-}
-
-/** True when the user exists and has role=AFFILIATE. False for USER / ADMIN
- *  and for any missing-user case. Used by the trading engine to branch the
- *  verdict pipeline and skip house-ledger writes for affiliate trades. */
-export async function isAffiliateUser(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-  return user?.role === "AFFILIATE";
 }
 
 /**
@@ -115,6 +121,11 @@ export async function setUserStatus(input: {
   });
 }
 
+const portalSelect = { role: true, legacySimulated: true } as const;
+function inMainPortal(u: { role: string; legacySimulated: boolean }): boolean {
+  return (u.role === "USER" || u.role === "ADMIN") && !u.legacySimulated;
+}
+
 export class GoogleAccountConflict extends Error {
   constructor() {
     super("That email is already linked to a different Google account.");
@@ -125,7 +136,8 @@ export class GoogleAccountConflict extends Error {
 /**
  * Resolves a verified Google identity to a user: first by Google id, then by
  * email (linking the Google id to the existing account and marking its email
- * verified — Google vouched for it), else creates a new user. `passwordHash`
+ * verified — Google vouched for it), else creates a new user. Main portal only:
+ * an affiliate row with the same email is neither linked nor a blocker. `passwordHash`
  * is only used on create; callers pass a hash of random bytes so a Google-only
  * account can't be signed into with a password. Never writes `role`.
  */
@@ -136,11 +148,21 @@ export async function findOrCreateGoogleUser(input: {
   lastName: string | null;
   passwordHash: string;
 }): Promise<{ userId: string; created: boolean }> {
-  const bySub = await prisma.user.findUnique({ where: { googleSub: input.sub }, select: { id: true } });
-  if (bySub) return { userId: bySub.id, created: false };
+  const bySub = await prisma.user.findUnique({ where: { googleSub: input.sub }, select: { id: true, ...portalSelect } });
+  if (bySub) {
+    // Google sign-in is main-portal only; a sub somehow on another row never opens it.
+    if (!inMainPortal(bySub)) throw new GoogleAccountConflict();
+    return { userId: bySub.id, created: false };
+  }
 
   const email = input.email.toLowerCase();
-  const byEmail = await prisma.user.findUnique({ where: { email }, select: { id: true, googleSub: true } });
+  const matches = await prisma.user.findMany({
+    where: { email, ...portalWhere("main") },
+    select: { id: true, googleSub: true },
+    take: 2,
+  });
+  if (matches.length > 1) throw new GoogleAccountConflict();
+  const byEmail = matches[0];
   if (byEmail) {
     if (byEmail.googleSub && byEmail.googleSub !== input.sub) throw new GoogleAccountConflict();
     await prisma.user.update({

@@ -74,7 +74,7 @@ describe("VPN guard on auth routes", () => {
     const res = await register(post("/api/auth/register", VPN_IP, { name: "Test User", email: newEmail, password: PASSWORD }));
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code: string }).code).toBe("vpn_blocked");
-    expect(await prisma.user.findUnique({ where: { email: newEmail } })).toBeNull();
+    expect(await prisma.user.findUnique({ where: { email_role_legacySimulated: { email: newEmail, role: "USER", legacySimulated: false } } })).toBeNull();
   });
 
   it("still registers from a clean network", async () => {

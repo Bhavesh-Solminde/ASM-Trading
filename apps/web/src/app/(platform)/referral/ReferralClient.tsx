@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Icon } from "@/components/shell/Icon";
+import Link from "next/link";
 
 interface ReferralClientProps {
   referralCode: string;
   referralUrl: string;
+  /** Real program numbers for the existing stat cards; the Total earned label is preformatted. */
+  stats: { totalReferrals: number; activeTraders: number; totalEarned: string };
 }
 
-export function ReferralClient({ referralCode, referralUrl }: ReferralClientProps) {
+export function ReferralClient({ referralCode, referralUrl, stats }: ReferralClientProps) {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = async () => {
@@ -84,19 +86,19 @@ export function ReferralClient({ referralCode, referralUrl }: ReferralClientProp
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="flex flex-col gap-1 rounded-xl border border-rule bg-panel p-4">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Total Referrals</span>
-          <span className="text-xl font-bold tracking-tight text-ink">0</span>
+          <span className="text-xl font-bold tracking-tight text-ink">{stats.totalReferrals}</span>
           <span className="text-[10px] text-ink-3">Registered users</span>
         </div>
         <div className="flex flex-col gap-1 rounded-xl border border-rule bg-panel p-4">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Active Traders</span>
-          <span className="text-xl font-bold tracking-tight text-ink">0</span>
+          <span className="text-xl font-bold tracking-tight text-ink">{stats.activeTraders}</span>
           <span className="text-[10px] text-ink-3">Funded accounts</span>
         </div>
-        <div className="flex flex-col gap-1 rounded-xl border border-rule bg-panel p-4">
+        <Link href="/referral/earnings" className="flex flex-col gap-1 rounded-xl border border-rule bg-panel p-4">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Total Earned</span>
-          <span className="text-xl font-bold tracking-tight text-up">$0.00</span>
-          <span className="text-[10px] text-ink-3">All-time earnings</span>
-        </div>
+          <span className="text-xl font-bold tracking-tight text-up">{stats.totalEarned}</span>
+          <span className="text-[10px] text-ink-3">View earnings &amp; withdraw →</span>
+        </Link>
         <div className="flex flex-col gap-1 rounded-xl border border-rule bg-panel p-4">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Current Tier</span>
           <span className="text-xl font-bold tracking-tight text-brand">50%</span>

@@ -56,6 +56,13 @@ enum FraudFlagKind {
   HEDGING
   SHARED_WITHDRAWAL_METHOD
   RAPID_MULTI_ACCOUNT
+  // Inviter and invitee share strong signals; Phase 4 rewards wait on review.
+  SELF_REFERRAL
+}
+
+enum ReferralVia {
+  LINK
+  CODE
 }
 
 enum FraudFlagStatus {
@@ -188,6 +195,7 @@ enum TxKind {
   DEMO_RESET
   CURRENCY_CONVERT
   AFFILIATE_RESET
+  PROGRAM_TRANSFER
 }
 
 /// House-governor verdict stamped on Trade at open time. WIN/LOSS drive the
@@ -216,7 +224,9 @@ model User {
   notificationOutboxRows NotificationOutbox[]
 
   id                 String     @id @default(uuid())
-  email              String     @unique
+  // Unique per (role, legacySimulated): one person may hold a regular and an
+  // affiliate account. USER+ADMIN uniqueness is enforced in application code.
+  email              String
   passwordHash       String
   role               Role       @default(USER)
   emailVerified      Boolean    @default(false)
@@ -250,6 +260,9 @@ model User {
   locale             String     @default("en")
   cumulativeDeposits BigInt     @default(0)
   isBot              Boolean    @default(false)
+  // Old simulated affiliate (play money, rigged outcomes). Locked by migration
+  // 20261113120000; kept for review only and excluded from every real total.
+  legacySimulated    Boolean      @default(false)
   // Compliance/anti-fraud status. A non-ACTIVE status blocks new trades,
   // bonus grants and withdrawals; the status is set by the linked-accounts
   // detector or an admin action, never by the user's own flow.
@@ -265,6 +278,12 @@ model User {
   lastIp             String?
   lastUserAgent      String?
   lastSeenAt         DateTime?
+  // Own invitation code, assigned lazily (ensureReferralCode).
+  referralCode       String?      @unique
+  // Who invited this user: written once at signup (guarded by IS NULL), never replaced.
+  referredById       String?
+  referredAt         DateTime?
+  referralVia        ReferralVia?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
@@ -277,13 +296,28 @@ model User {
   fraudFlags     FraudFlag[]
   kycDocuments   KycDocument[]
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  referredBy              User?                    @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals               User[]                   @relation("Referrals")
+  referralQualification   ReferralQualification?   @relation("QualificationReferred")
+  invitedQualifications   ReferralQualification[]  @relation("QualificationInviter")
+  programEarnings         ProgramEarning[]
+  affiliateProfile        AffiliateProfile?
+  affiliateRates          AffiliateRate[]
+  programWallet           ProgramWallet?
+  programLedgerEntries    ProgramLedgerEntry[]
+  programTransfers        ProgramTransfer[]
+  programWithdrawals      ProgramWithdrawal[]
+  revenueShareDays        RevenueShareDay[]
 
+  @@unique([email, role, legacySimulated])
   @@index([email])
   // The detector queries these hot; a plain btree on a nullable String is
   // still cheap and NULL rows never enter the index scan.
   @@index([signupIp])
   @@index([lastIp])
   @@index([status])
+  @@index([referredById])
 }
 
 model Session {
@@ -437,10 +471,10 @@ model Trade {
   asset   Asset        @relation(fields: [assetId], references: [id])
   shadow  TradeShadow?
 
+  @@unique([accountId, idempotencyKey])
   @@index([accountId, createdAt])
   @@index([expiryTs, status])
   @@index([assetId, status])
-  @@unique([accountId, idempotencyKey])
   @@index([mode, status, expiryTs])
 }
 
@@ -465,6 +499,7 @@ model MarketReferenceAudit {
   quoteTime DateTime
   receivedAt DateTime
   payload Json
+
   @@index([symbol, receivedAt])
 }
 
@@ -498,6 +533,7 @@ model MarketCommand {
   status MarketCommandStatus @default(ACCEPTED)
   input Json
   result Json?
+
   @@unique([accountId, idempotencyKey])
   @@index([worldId, sequence])
   @@index([status, acceptedAt])
@@ -513,6 +549,7 @@ model OtcCandle {
   l Float
   c Float
   volume Float
+
   @@id([worldId, symbol, openTs])
   @@index([worldId, openTs])
 }
@@ -528,6 +565,7 @@ model MarketExecution {
   side String
   makerId String
   takerId String
+
   @@id([worldId, symbol, sequence])
   @@index([worldId, time])
 }
@@ -625,6 +663,9 @@ model Deposit {
   method          String
   amountUsd       BigInt
   amountInr       BigInt
+  // UPI only: the amount requested before the matching offset (null on older
+  // rows and USDT). Referral qualification and rewards use this; never credited.
+  requestedInrMinor     BigInt?
   vpa             String
   checkoutToken   String        @unique
   claimedUtr      String?
@@ -695,7 +736,14 @@ model Deposit {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   sweeps GatewaySweep[]
+  // USDT gets its OWN partial unique index on amountUsdtMinor, hand-written in
+  // the same migration as the column additions (Prisma can't express a
+  // partial index declaratively) — see
+  // <migration>_add_usdt_chain_credit/migration.sql. A separate index from
+  // Deposit_live_amount_unique: paise and USDT-cents are different unit
+  // spaces and must never collide with each other.
 
+  @@unique([gateway, network, gatewayAddressIndex])
   // NOTE: the amount-reservation guarantee is enforced by a PARTIAL unique
   // index — unique on (amountInr) ALONE, WHERE status IN ('AWAITING_PAYMENT',
   // 'PENDING_CONFIRMATION'). Prisma cannot express that declaratively, so a
@@ -716,14 +764,7 @@ model Deposit {
   @@index([userId, createdAt])
   @@index([status])
   @@index([claimedTxHash])
-  @@unique([gateway, network, gatewayAddressIndex])
   @@index([gateway, network, receivingAddress])
-  // USDT gets its OWN partial unique index on amountUsdtMinor, hand-written in
-  // the same migration as the column additions (Prisma can't express a
-  // partial index declaratively) — see
-  // <migration>_add_usdt_chain_credit/migration.sql. A separate index from
-  // Deposit_live_amount_unique: paise and USDT-cents are different unit
-  // spaces and must never collide with each other.
 }
 
 /// Next HD derivation index per network for gateway (Tatum) deposit
@@ -1081,6 +1122,288 @@ model FraudFlag {
   @@index([kind, status])
 }
 
+enum ProgramSettingKey {
+  MIN_QUALIFYING_DEPOSIT_INR_MINOR
+  MIN_QUALIFYING_TRADE_INR_MINOR
+  USER_REFERRAL_REWARD_INR_MINOR
+  AFFILIATE_DEPOSIT_REWARD_BPS
+  INVITE_EXTRA_BONUS_PCT
+  PROGRAM_MIN_WITHDRAWAL_INR_MINOR
+  PROGRAM_WITHDRAWALS_PER_DAY
+  PROGRAM_WITHDRAWALS_PER_WEEK
+  PROGRAM_WITHDRAWALS_PER_MONTH
+  AFFILIATE_REQUIRES_APPROVAL
+}
+
+enum ReferralQualificationStatus {
+  QUALIFIED
+  REVERSED
+}
+
+enum ProgramEarningKind {
+  REFERRAL_REWARD
+  AFFILIATE_DEPOSIT_REWARD
+  REVENUE_SHARE
+  ADJUSTMENT
+}
+
+/// PENDING until its IST earning day closes, then AVAILABLE (moved into ProgramWallet).
+enum ProgramEarningStatus {
+  PENDING
+  HELD
+  VOID
+  AVAILABLE
+}
+
+/// Affiliate access state (Affiliate Program spec).
+enum AffiliateStatus {
+  PENDING_VERIFICATION
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+}
+
+/// Movements of a ProgramWallet. `amountMinor` is the signed effect on availableMinor.
+enum ProgramLedgerKind {
+  EARNING_AVAILABLE
+  TRANSFER_TO_TRADING
+  WITHDRAWAL_RESERVE
+  WITHDRAWAL_RELEASE
+  WITHDRAWAL_PAID
+  ADJUSTMENT
+}
+
+enum ProgramWithdrawalStatus {
+  REQUESTED
+  APPROVED
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+/// Affiliate program settings as append-only versions: the value in force at T
+/// is the row with the latest effectiveFrom <= T. UPDATE and DELETE are revoked
+/// from the runtime role (Affiliate Program spec).
+model ProgramSetting {
+  id            String            @id @default(uuid())
+  key           ProgramSettingKey
+  value         BigInt
+  effectiveFrom DateTime
+  createdAt     DateTime          @default(now())
+  createdBy     String
+  reason        String
+
+  @@index([key, effectiveFrom])
+}
+
+/// A referred user met both conditions (qualifying deposit + settled trade).
+/// One row per referred user, never deleted; a reversed deposit marks it REVERSED.
+model ReferralQualification {
+  id                     String                      @id @default(uuid())
+  referredUserId         String                      @unique
+  inviterId              String
+  firstDepositId         String
+  qualifyingTradeId      String
+  // Evidence and the thresholds in force when the second condition was met.
+  depositInrMinor        BigInt
+  tradeRealStakeInrMinor BigInt
+  minDepositInrMinor     BigInt
+  minTradeInrMinor       BigInt
+  settingIds             String[]
+  status                 ReferralQualificationStatus @default(QUALIFIED)
+  qualifiedAt            DateTime
+  reversedAt             DateTime?
+  reversedReason         String?
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+
+  referredUser User             @relation("QualificationReferred", fields: [referredUserId], references: [id], onDelete: Cascade)
+  inviter      User             @relation("QualificationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  earnings     ProgramEarning[]
+
+  @@index([inviterId])
+  @@index([firstDepositId])
+}
+
+/// Program money owed to a beneficiary; amount snapshotted at earning time.
+/// One-time rewards carry qualificationId; REVENUE_SHARE carries revenueShareDayId;
+/// ADJUSTMENT is an admin correction (createdBy + note).
+model ProgramEarning {
+  id                String               @id @default(uuid())
+  beneficiaryUserId String
+  qualificationId   String?
+  revenueShareDayId String?              @unique
+  kind              ProgramEarningKind
+  amountMinor       BigInt
+  currency          String               @default("INR")
+  status            ProgramEarningStatus
+  holdReason        String?
+  voidReason        String?
+  needsReview       Boolean              @default(false)
+  earnedAt          DateTime
+  availableAt       DateTime?
+  // Set when an admin released this earning from HELD: the daily close then skips its hold re-check.
+  adminReleasedAt   DateTime?
+  settingIds        String[]
+  createdBy         String?
+  note              String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  beneficiary     User                   @relation(fields: [beneficiaryUserId], references: [id], onDelete: Cascade)
+  qualification   ReferralQualification? @relation(fields: [qualificationId], references: [id], onDelete: Cascade)
+  revenueShareDay RevenueShareDay?       @relation(fields: [revenueShareDayId], references: [id], onDelete: Cascade)
+
+  @@unique([qualificationId, kind])
+  @@index([beneficiaryUserId, status])
+  @@index([status, earnedAt])
+}
+
+/// One row per affiliate account (role AFFILIATE, not legacy simulated).
+model AffiliateProfile {
+  userId          String          @id
+  status          AffiliateStatus @default(PENDING_VERIFICATION)
+  statusReason    String?
+  statusChangedAt DateTime?
+  statusChangedBy String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+/// Per-affiliate assigned terms as append-only versions (latest effectiveFrom <= T wins).
+/// depositRewardBps null = use the global AFFILIATE_DEPOSIT_REWARD_BPS setting.
+model AffiliateRate {
+  id               String   @id @default(uuid())
+  affiliateId      String
+  revenueShareBps  Int
+  depositRewardBps Int?
+  effectiveFrom    DateTime
+  createdAt        DateTime @default(now())
+  createdBy        String
+  reason           String
+
+  affiliate User @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  @@index([affiliateId, effectiveFrom])
+}
+
+/// Cached program balances; every change goes through a ProgramLedgerEntry in the same transaction.
+model ProgramWallet {
+  userId           String   @id
+  availableMinor   BigInt   @default(0)
+  reservedMinor    BigInt   @default(0)
+  transferredMinor BigInt   @default(0)
+  paidMinor        BigInt   @default(0)
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Append-only. (kind, refType, refId) is the idempotency key of every movement.
+model ProgramLedgerEntry {
+  id             String            @id @default(uuid())
+  userId         String
+  kind           ProgramLedgerKind
+  amountMinor    BigInt
+  availableAfter BigInt
+  reservedAfter  BigInt
+  refType        String
+  refId          String
+  createdBy      String?
+  note           String?
+  createdAt      DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([kind, refType, refId])
+  @@index([userId, createdAt])
+}
+
+/// Program earnings moved into the owner's own LIVE trading account (not a deposit).
+model ProgramTransfer {
+  id               String   @id @default(uuid())
+  userId           String
+  accountId        String
+  amountMinor      BigInt
+  creditedMinor    BigInt
+  creditedCurrency String
+  idempotencyKey   String   @unique
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// Withdrawal of program earnings; separate queue and limits from trading withdrawals.
+model ProgramWithdrawal {
+  id               String                  @id @default(uuid())
+  userId           String
+  amountMinor      BigInt
+  currency         String                  @default("INR")
+  method           String
+  accountHolder    String?
+  accountNumber    String?
+  ifsc             String?
+  upiId            String?
+  usdtNetwork      String?
+  usdtAddress      String?
+  destinationKey   String?
+  status           ProgramWithdrawalStatus @default(REQUESTED)
+  reason           String?
+  paymentReference String?
+  reviewedBy       String?
+  approvedAt       DateTime?
+  paidAt           DateTime?
+  rejectedAt       DateTime?
+  cancelledAt      DateTime?
+  idempotencyKey   String                  @unique
+  ipAddress        String?
+  userAgent        String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([destinationKey])
+}
+
+/// Revenue Share result of one affiliate for one IST earning day. Append-only.
+model RevenueShareDay {
+  id            String   @id @default(uuid())
+  affiliateId   String
+  day           DateTime @db.Date
+  netGainMinor  BigInt
+  carryInMinor  BigInt
+  rateBps       Int
+  rateId        String?
+  eligibleMinor BigInt
+  shareMinor    BigInt
+  carryOutMinor BigInt
+  tradeCount    Int
+  createdAt     DateTime @default(now())
+
+  affiliate User            @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  earning   ProgramEarning?
+
+  @@unique([affiliateId, day])
+  @@index([day])
+}
+
+/// Marks an IST earning day as closed (revenue share computed, earnings released).
+model ProgramDayClose {
+  day              DateTime @id @db.Date
+  closedAt         DateTime @default(now())
+  revenueShareRows Int
+  releasedEarnings Int
+}
+
 /// Short-lived one-time codes for two-factor login and withdrawal. The code is
 /// delivered to the log (no SMTP/provider in this build); only its hash is
 /// stored, and `usedAt` makes redemption single-use.
@@ -1107,6 +1430,19 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   ipAddress String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
   createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1182,6 +1518,7 @@ model NotificationOutbox {
   attempts  Int       @default(0)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([sentAt, createdAt])
 }

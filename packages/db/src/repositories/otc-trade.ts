@@ -35,7 +35,7 @@ export async function reserveOtcTrade(request:OtcTradeRequest,client:DbClient=pr
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(4281165,2)::text`;
     await assertOtcFence(tx,fence);
     await tx.$queryRaw`SELECT "id" FROM "Account" WHERE "id"=${request.accountId} AND "userId"=${request.actorId} FOR UPDATE`;
-    const account=await tx.account.findFirst({where:{id:request.accountId,userId:request.actorId},include:{user:{select:{role:true,status:true}}}});
+    const account=await tx.account.findFirst({where:{id:request.accountId,userId:request.actorId},include:{user:{select:{role:true,status:true,legacySimulated:true}}}});
     if(!account)throw new OtcRejected("account_not_found");
     const existing=await tx.marketCommand.findUnique({where:{accountId_idempotencyKey:{accountId:account.id,idempotencyKey:request.idempotencyKey}}});
     if(existing){const intent=existing.input as unknown as OtcOpenIntent;if(intent.fingerprint!==fingerprint(request))throw new OtcRejected("idempotency_conflict");return existing;}
@@ -50,7 +50,7 @@ export async function reserveOtcTrade(request:OtcTradeRequest,client:DbClient=pr
     if(claimed.count!==1)throw new OtcRejected("account_changed");
     const contract:OpenContractCommand={id,accountId:account.id,actorId:request.actorId,symbol:asset.symbol,direction:request.direction,
       stake:request.stake,stakeInrMinor:convertMinorBetween(request.stake,account.currency,"INR"),durationSec:request.durationSec,
-      role:account.user.role,accountType:account.type,stopLoss:request.stopLoss??null,takeProfit:request.takeProfit??null,
+      role:account.user.role,legacySimulated:account.user.legacySimulated,accountType:account.type,stopLoss:request.stopLoss??null,takeProfit:request.takeProfit??null,
       ...(displayedPrice!==undefined?{displayedPrice}:{})};
     const intent:OtcOpenIntent={version:1,kind:"open",time:now,assetId:asset.id,fromReal,fromBonus,fingerprint:fingerprint(request),currency:account.currency,contract};
     const command=await tx.marketCommand.create({data:{id,worldId:"otc-main",accountId:account.id,actorId:request.actorId,idempotencyKey:request.idempotencyKey,input:json(intent)}});

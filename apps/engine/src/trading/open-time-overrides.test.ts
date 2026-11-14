@@ -24,7 +24,7 @@ function pos(partial: Partial<Position> & Pick<Position, "tradeId">): Position {
     expirySec: partial.expirySec ?? 60,
     entrySec: partial.entrySec ?? 0,
     isDemo: partial.isDemo ?? false,
-    isAffiliate: partial.isAffiliate ?? false,
+    isSimulated: partial.isSimulated ?? false,
     ...(partial.verdict !== undefined ? { verdict: partial.verdict } : {}),
     ...(partial.pathStyle !== undefined ? { pathStyle: partial.pathStyle } : {}),
     ...(partial.targetPrice !== undefined

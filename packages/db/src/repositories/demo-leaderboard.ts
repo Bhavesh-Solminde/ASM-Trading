@@ -15,7 +15,7 @@ export async function seedDemoLeaderboardProfiles(): Promise<void> {
       const [firstName = "", ...lastName] = nickname.split(" ");
       const identity = { nickname, firstName, lastName: lastName.join(" "), isBot: true, liveAccess: false, country: "IN" };
       const user = await tx.user.upsert({
-        where: { email },
+        where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } },
         update: identity,
         create: { email, passwordHash: "disabled:demo-leaderboard", ...identity },
         select: { id: true },

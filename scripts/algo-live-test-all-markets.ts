@@ -67,7 +67,7 @@ async function ensureUsers(): Promise<UserContext[]> {
   let hash: string | null = null;
   for (const candidate of SEED_USER_CANDIDATES) {
     const seed = await prisma.user.findUnique({
-      where: { email: candidate.email },
+      where: { email_role_legacySimulated: { email: candidate.email, role: "USER", legacySimulated: false } },
       select: { passwordHash: true },
     });
     if (seed) {
@@ -86,7 +86,7 @@ async function ensureUsers(): Promise<UserContext[]> {
   for (let i = 1; i <= N_USERS; i++) {
     const email = `trader${String(i).padStart(2, "0")}@live.asmtrade.local`;
     const user = await prisma.user.upsert({
-      where: { email },
+      where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } },
       update: {
         emailVerified: true,
         liveAccess: true,

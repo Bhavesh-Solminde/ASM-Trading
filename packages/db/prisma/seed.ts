@@ -67,7 +67,7 @@ async function main() {
   }
 
   const existingAdmin = await prisma.user.findUnique({
-    where: { email: "admin@asmtrade.local" },
+    where: { email_role_legacySimulated: { email: "admin@asmtrade.local", role: "ADMIN", legacySimulated: false } },
   });
 
   if (!existingAdmin) {
@@ -107,7 +107,7 @@ async function main() {
   for (const i of [10]) {
     const email = `test${i}@asmtrade.local`;
     const user = await prisma.user.upsert({
-      where: { email },
+      where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } },
       // Re-grant live access on every seed, but otherwise keep profile changes
       // made during testing. Live access is per-user, so only these test
       // accounts (and anyone granted in the admin panel) can use the LIVE

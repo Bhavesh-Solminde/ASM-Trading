@@ -4,6 +4,7 @@ import {
   depositCreditedEmail,
   passwordChangedEmail,
   passwordResetEmail,
+  verifyEmailEmail,
   welcomeEmail,
   withdrawalPaidEmail,
   withdrawalRejectedEmail,
@@ -119,6 +120,18 @@ describe("welcomeEmail", () => {
   });
   it("leaves the bonus line out when there is no first-deposit bonus", () => {
     expect(welcomeEmail({ name: "Asha", firstDepositBonusPercent: 0 }).html).not.toContain("bonus");
+  });
+});
+
+describe("verifyEmailEmail", () => {
+  it("puts the verify link in the button and as plain text, with no bonus copy", () => {
+    const url = "https://indianxtrade.com/api/auth/verify-email?token=abc123";
+    const { subject, html } = verifyEmailEmail({ name: "Asha", verifyUrl: url, ttlHours: 24 });
+    expect(subject).toBe("Verify your IndianxTrade affiliate email");
+    expect(html).toContain("Hi Asha");
+    expect(html.split(url).length - 1).toBe(3); // button href, plain-link href, plain-link text
+    expect(html).toContain("24 hours");
+    expect(html).not.toMatch(/bonus|deposit/i);
   });
 });
 

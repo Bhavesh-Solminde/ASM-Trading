@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { Spinner } from "@/components/auth/Spinner";
+import { PORTAL_PATHS } from "@/components/auth/portal";
 
 const PRIMARY =
   "mt-1 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-brand text-sm font-black text-brand-ink shadow-[0_20px_50px_-20px_color-mix(in_srgb,var(--color-brand)_60%,transparent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100";
@@ -34,11 +35,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, password }),
     });
+    const data = (await res.json().catch(() => ({}))) as { error?: string; loginPath?: unknown };
     if (res.ok) {
-      router.push("/login?reset=1");
+      router.push(`${safeLoginPath(data.loginPath)}?reset=1`);
       return;
     }
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
     setError(data.error ?? "Something went wrong. Try again.");
     setBusy(false);
   }
@@ -115,4 +116,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
       </form>
     </AuthShell>
   );
+}
+
+/** Only the two known login pages — never an arbitrary redirect taken from a response. */
+export function safeLoginPath(loginPath: unknown): string {
+  const path = typeof loginPath === "string" ? loginPath.split("?")[0] : null;
+  return path === PORTAL_PATHS.affiliate.login ? PORTAL_PATHS.affiliate.login : PORTAL_PATHS.user.login;
 }

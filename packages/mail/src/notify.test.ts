@@ -18,6 +18,7 @@ import {
   sendDepositCreditedEmail,
   sendPasswordChangedEmail,
   sendPasswordResetEmail,
+  sendVerifyEmail,
   sendWelcomeEmail,
   sendWithdrawalPaidEmail,
   sendWithdrawalRejectedEmail,
@@ -37,6 +38,9 @@ describe("notify senders", () => {
 
     await sendPasswordChangedEmail({ to: "a@gmail.com", userId: "u1", name: "Asha", changedAt: new Date(1_000) });
     expect(last()).toMatchObject({ idempotencyKey: "password-changed/u1/1000", tag: "password_changed" });
+
+    await sendVerifyEmail({ to: "a@gmail.com", tokenId: "v1", name: "Asha", verifyUrl: "https://indianxtrade.com/api/auth/verify-email?token=x", ttlHours: 24 });
+    expect(last()).toMatchObject({ idempotencyKey: "verify-email/v1", tag: "verify_email" });
 
     await sendDepositCreditedEmail({ to: "a@gmail.com", depositId: "d1", name: "Asha", creditLabel: "₹1.00", bonusLabel: null, totalLabel: "₹1.00" });
     expect(last()).toMatchObject({ idempotencyKey: "deposit-credited/d1", tag: "deposit_credited" });
@@ -67,5 +71,14 @@ describe("notify senders", () => {
   it("uses the deposit id's short form as the reference", async () => {
     await sendDepositCreditedEmail({ to: "a@gmail.com", depositId: "d41c09aa-0000", name: "Asha", creditLabel: "₹1.00", bonusLabel: null, totalLabel: "₹1.00" });
     expect(last().html).toContain("D41C09AA");
+  });
+});
+
+describe("password changed email", () => {
+  it("links the affiliate forgot-password page when asked", async () => {
+    await sendPasswordChangedEmail({ to: "a@gmail.com", userId: "u1", name: "Asha", changedAt: new Date(2_000), resetPath: "/affiliate/forgot-password" });
+    expect(last().html).toContain("/affiliate/forgot-password");
+    await sendPasswordChangedEmail({ to: "a@gmail.com", userId: "u1", name: "Asha", changedAt: new Date(3_000) });
+    expect(last().html).not.toContain("/affiliate/");
   });
 });

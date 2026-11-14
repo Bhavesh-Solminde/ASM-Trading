@@ -201,7 +201,7 @@ async function matchSlotDeposit(credit: ChainCredit, amount: number): Promise<Ch
       status: { in: ["AWAITING_PAYMENT", "PENDING_CONFIRMATION"] },
       createdAt: { lte: credit.blockTimestamp },
       expiresAt: { gt: credit.blockTimestamp },
-      user: { role: { not: "AFFILIATE" } },
+      user: { legacySimulated: false },
     },
   });
   if (slots.length === 0) return null;

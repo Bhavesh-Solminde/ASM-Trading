@@ -21,24 +21,88 @@ export {
 export {
   findUserByEmail,
   findUserById,
-  isAffiliateUser,
   writeSignupCapture,
   updateUserLastSeen,
   setUserStatus,
   findOrCreateGoogleUser,
   GoogleAccountConflict,
+  portalWhere,
+  type Portal,
 } from "./repositories/user";
 export {
-  AFFILIATE_START_BALANCE_MINOR,
-  AFFILIATE_CURRENCY,
-  AffiliateCreationRefused,
-  createAffiliate,
-  listAffiliates,
-  deleteAffiliateById,
-  resetAffiliatePasswordById,
-  setAffiliateAccountBalance,
-  type AffiliateListItem,
-} from "./repositories/affiliate";
+  normaliseReferralCode,
+  ensureReferralCode,
+  resolveInvitationCode,
+  attachReferralAtSignup,
+  getReferralSummaryForAdmin,
+  type ReferralOutcome,
+  type ReferralSummary,
+} from "./repositories/referral";
+export {
+  evaluateReferralQualification,
+  inviteExtraBonusPreviewPct,
+  listUnqualifiedReferredUserIds,
+  reverseQualificationForDeposit,
+  realStakeInrMinor,
+  type QualificationOutcome,
+} from "./repositories/referral-qualification";
+export {
+  getProgramSettings,
+  settingsAt,
+  PROGRAM_SETTING_KEYS,
+  type ProgramSettings,
+} from "./repositories/program-settings";
+export { getAffiliateRateAt, type AffiliateRateAt } from "./repositories/affiliate-rate";
+// Affiliate program — affiliate status / admin (Affiliate Program spec).
+export { ProgramActionRefused } from "./repositories/program-errors";
+export {
+  ensureAffiliateProfile,
+  onAffiliateEmailVerified,
+  programSettingValueAt,
+} from "./repositories/affiliate-profile";
+export {
+  ADMIN_PAGE_SIZE,
+  setAffiliateStatus,
+  appendAffiliateRate,
+  appendProgramSetting,
+  listProgramSettingHistory,
+  listAffiliatesForAdmin,
+  getAffiliateAdminDetail,
+  listEarningsForReview,
+  releaseHeldEarning,
+  voidHeldEarning,
+  clearNeedsReview,
+  type ProgramSettingVersion,
+  type AffiliateAggregates,
+  type AffiliateAdminRow,
+  type AffiliateAdminDetail,
+  type EarningForReview,
+} from "./repositories/program-admin";
+// Affiliate program — money core: wallet, transfers, withdrawals, Revenue Share, daily close.
+export {
+  getProgramSummary,
+  listProgramActivity,
+  createProgramAdjustment,
+  countProgramWithdrawalsUsed,
+  istLimitWindows,
+  istDay,
+  type ProgramRefusalCode,
+  type ProgramSummary,
+  type ProgramActivityItem,
+} from "./repositories/program-wallet";
+export { transferProgramEarningsToTrading, type ProgramTransferResult } from "./repositories/program-transfer";
+export {
+  requestProgramWithdrawal,
+  cancelProgramWithdrawal,
+  listProgramWithdrawals,
+  listProgramWithdrawalsForAdmin,
+  approveProgramWithdrawal,
+  rejectProgramWithdrawal,
+  markProgramWithdrawalPaid,
+  PROGRAM_WITHDRAWALS_PAGE_SIZE,
+} from "./repositories/program-withdrawal";
+export { revenueShareOf } from "./repositories/revenue-share";
+export { closeProgramDay, closeDueProgramDays, type ProgramDayCloseResult } from "./repositories/program-day-close";
 export {
   detectLinkage,
   loadUserFacts,
@@ -160,6 +224,11 @@ export {
   issuePasswordResetToken,
   resetPasswordWithToken,
 } from "./repositories/password-reset";
+export {
+  EMAIL_VERIFICATION_TTL_MS,
+  issueEmailVerificationToken,
+  consumeEmailVerificationToken,
+} from "./repositories/email-verification";
 export { createTicket, listTicketsForActor } from "./repositories/support";
 export {
   createRelayMessage,
@@ -291,6 +360,14 @@ export type {
   Withdrawal,
   Transaction,
   BonusGrant,
+  ProgramSetting,
+  ReferralQualification,
+  ProgramEarning,
+  ProgramWallet,
+  ProgramLedgerEntry,
+  ProgramTransfer,
+  ProgramWithdrawal,
+  RevenueShareDay,
 } from "./models";
 export type { DbClient, DbTransaction } from "./client";
 

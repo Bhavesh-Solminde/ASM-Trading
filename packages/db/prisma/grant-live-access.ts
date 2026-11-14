@@ -12,7 +12,7 @@ if (!email) {
   process.exit(1);
 }
 
-const user = await prisma.user.findUnique({ where: { email } });
+const user = await prisma.user.findUnique({ where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } } });
 if (!user) {
   console.error(`No user with email ${email}. Nothing changed.`);
   process.exit(1);

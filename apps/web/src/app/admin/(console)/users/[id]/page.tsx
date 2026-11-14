@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { KYC_DOCUMENT_KINDS, KycStatus, Role, listKycDocuments, prisma } from "@asm/db";
+import { KYC_DOCUMENT_KINDS, KycStatus, Role, getReferralSummaryForAdmin, listKycDocuments, prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { ChangeAwareForm } from "../../../_components/ChangeAwareForm";
 import { Avatar, Card, Pill, Tag } from "../../../_components/ui";
 import { Icon } from "../../../_lib/icons";
-import { fmtDate, inrFromMinor, num } from "../../../_lib/format";
+import { fmtDate, fmtDateTime, inrFromMinor, num } from "../../../_lib/format";
 import { CopyText } from "../../deposits/_components/CopyText";
 import { updateUserAction } from "../actions";
 import { USER_STATUS_LABEL } from "../../../_lib/user-status";
@@ -54,7 +54,8 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   });
   if (!user) notFound();
 
-  const kycDocs = await listKycDocuments(user.id);
+  const [kycDocs, referral] = await Promise.all([listKycDocuments(user.id), getReferralSummaryForAdmin(user.id)]);
+  if (!referral) notFound();
   const statusHistory = await prisma.auditLog.findMany({
     where: {
       targetType: "User",
@@ -146,13 +147,21 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 </label>
                 <div className="desc">What this account can do</div>
               </div>
-              <select id="role" name="role" className="admin-filter-select" defaultValue={user.role}>
-                {Object.values(Role).map((r) => (
-                  <option key={r} value={r}>
-                    {ROLE_LABEL[r] ?? r}
-                  </option>
-                ))}
-              </select>
+              {/* Affiliate is a separate account type, never a role to switch to or from. */}
+              {user.role === "AFFILIATE" ? (
+                <>
+                  <input type="hidden" name="role" value="AFFILIATE" />
+                  <span id="role">{ROLE_LABEL.AFFILIATE}</span>
+                </>
+              ) : (
+                <select id="role" name="role" className="admin-filter-select" defaultValue={user.role}>
+                  {[Role.USER, Role.ADMIN].map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABEL[r] ?? r}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="admin-set-row">
               <div>
@@ -227,6 +236,53 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
           </dl>
         </Card>
       </div>
+
+      <Card
+        title="Referral"
+        action={
+          referral.selfReferralFlags > 0 ? (
+            <Link href="/admin/fraud" className="admin-link">
+              <Pill tone="warn">
+                {referral.selfReferralFlags} open self-referral flag{referral.selfReferralFlags === 1 ? "" : "s"}
+              </Pill>
+            </Link>
+          ) : null
+        }
+      >
+        <dl className="admin-dl">
+          <dt>Invited by</dt>
+          <dd>
+            {referral.referredBy ? (
+              <span style={{ display: "inline-flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                <Link className="admin-link" href={`/admin/users/${referral.referredBy.id}`}>
+                  {referral.referredBy.email}
+                </Link>
+                <Tag accent={referral.referredBy.role !== "USER"}>
+                  {ROLE_LABEL[referral.referredBy.role] ?? referral.referredBy.role}
+                </Tag>
+              </span>
+            ) : (
+              <span style={{ color: "var(--admin-muted)" }}>No one</span>
+            )}
+          </dd>
+          {referral.referredBy ? (
+            <>
+              <dt>Invited on</dt>
+              <dd>{referral.referredAt ? fmtDateTime(referral.referredAt) : "—"}</dd>
+              <dt>Via</dt>
+              <dd>{referral.via === "LINK" ? "Invitation link" : referral.via === "CODE" ? "Typed code" : "—"}</dd>
+            </>
+          ) : null}
+          <dt>Own invitation code</dt>
+          <dd>
+            {referral.code ? (
+              <CopyText value={referral.code} label="invitation code" />
+            ) : (
+              <span style={{ color: "var(--admin-muted)" }}>Not issued yet</span>
+            )}
+          </dd>
+        </dl>
+      </Card>
 
       <Card
         title="Account status"

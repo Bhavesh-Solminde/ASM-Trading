@@ -49,4 +49,22 @@ describe("findOrCreateGoogleUser", () => {
     created.push(first.userId);
     await expect(findOrCreateGoogleUser({ ...id, sub: "someone-else" })).rejects.toBeInstanceOf(GoogleAccountConflict);
   });
+  it("ignores an affiliate account with the same email: neither links it nor lets it block sign-up", async () => {
+    const id = identity();
+    const affiliate = await prisma.user.create({ data: { email: id.email, passwordHash: "aff-hash", role: "AFFILIATE" } });
+    created.push(affiliate.id);
+    const result = await findOrCreateGoogleUser(id);
+    created.push(result.userId);
+    expect(result.created).toBe(true);
+    expect(result.userId).not.toBe(affiliate.id);
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: affiliate.id } })).toMatchObject({ googleSub: null, emailVerified: false });
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: result.userId } })).toMatchObject({ role: "USER", googleSub: id.sub });
+  });
+
+  it("never opens an affiliate account through a Google id stored on it", async () => {
+    const id = identity();
+    const affiliate = await prisma.user.create({ data: { email: id.email, passwordHash: "x", role: "AFFILIATE", googleSub: id.sub } });
+    created.push(affiliate.id);
+    await expect(findOrCreateGoogleUser(id)).rejects.toBeInstanceOf(GoogleAccountConflict);
+  });
 });

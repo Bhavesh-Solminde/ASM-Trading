@@ -124,6 +124,8 @@ export const DepositConfigSchema = z.object({
   gatewayNetworks: z.array(z.enum(USDT_NETWORKS)),
   completedDeposits: z.number().int(),
   bonusTiers: z.array(z.number()),
+  /** Extra first-deposit bonus % for an invited friend (Affiliate Program §8); 0 for everyone else. */
+  inviteExtraBonusPct: z.number().int().min(0).optional(),
 });
 export type DepositConfig = z.infer<typeof DepositConfigSchema>;
 

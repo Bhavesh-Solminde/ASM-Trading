@@ -6,6 +6,7 @@ import {
   availableRailItems,
   isBottomNavItemActive,
   isRailItemActive,
+  navItemsFor,
 } from "./nav";
 
 describe("rail registry", () => {
@@ -90,5 +91,42 @@ describe("phone side menu", () => {
 
   it("leaves the desktop rail without History", () => {
     expect(RAIL_ITEMS.some((i) => i.id === "history")).toBe(false);
+  });
+});
+
+describe("affiliate destination", () => {
+  it("is hidden from regular accounts in the rail and the side menu", () => {
+    for (const items of [RAIL_ITEMS, DRAWER_ITEMS]) {
+      expect(navItemsFor(items, { affiliate: false }).some((i) => i.id === "affiliate")).toBe(false);
+    }
+  });
+
+  it("is shown to affiliate accounts in place of Refer, without dropping anything else", () => {
+    for (const items of [RAIL_ITEMS, DRAWER_ITEMS]) {
+      const shown = navItemsFor(items, { affiliate: true });
+      expect(shown).toHaveLength(items.length - 1);
+      expect(shown.find((i) => i.id === "affiliate")?.href).toBe("/affiliate/dashboard");
+      expect(shown.some((i) => i.id === "refer")).toBe(false);
+    }
+  });
+
+  it("gives regular accounts Refer & Earn instead", () => {
+    for (const items of [RAIL_ITEMS, DRAWER_ITEMS]) {
+      const shown = navItemsFor(items, { affiliate: false });
+      expect(shown).toHaveLength(items.length - 1);
+      expect(shown.find((i) => i.id === "refer")?.href).toBe("/referral");
+    }
+    const refer = RAIL_ITEMS.find((i) => i.id === "refer")!;
+    expect(isRailItemActive(refer, "/referral/earnings")).toBe(true);
+  });
+
+  it("is the only affiliate-only item", () => {
+    expect(RAIL_ITEMS.filter((i) => i.affiliateOnly).map((i) => i.id)).toEqual(["affiliate"]);
+  });
+
+  it("lights up on the affiliate dashboard only", () => {
+    const item = RAIL_ITEMS.find((i) => i.id === "affiliate")!;
+    expect(isRailItemActive(item, "/affiliate/dashboard")).toBe(true);
+    expect(isRailItemActive(item, "/referral")).toBe(false);
   });
 });

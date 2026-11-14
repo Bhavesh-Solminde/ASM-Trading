@@ -90,7 +90,7 @@ interface UserContext {
 
 async function ensureUsers(): Promise<UserContext[]> {
   const seed = await prisma.user.findUniqueOrThrow({
-    where: { email: SEED_USER_EMAIL_FOR_HASH },
+    where: { email_role_legacySimulated: { email: SEED_USER_EMAIL_FOR_HASH, role: "USER", legacySimulated: false } },
     select: { passwordHash: true },
   });
   const hash = seed.passwordHash;
@@ -102,7 +102,7 @@ async function ensureUsers(): Promise<UserContext[]> {
     // this test (we only touch our own padded emails).
     const email = `trader${String(i).padStart(3, "0")}@live.asmtrade.local`;
     const user = await prisma.user.upsert({
-      where: { email },
+      where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } },
       update: {
         emailVerified: true,
         liveAccess: true,

@@ -15,7 +15,7 @@ export async function provisionBots(
     const email = `${prefix}-${String(i).padStart(4, "0")}@bots.internal`;
 
     const user = await prisma.user.upsert({
-      where: { email },
+      where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } },
       create: { email, passwordHash: "__BOT__", isBot: true },
       update: {},
     });

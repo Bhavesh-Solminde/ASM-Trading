@@ -2,22 +2,36 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { EmailInput } from "@/components/auth/EmailInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
 import { trackPixelEvent } from "@/components/seo/MetaPixel";
+import { PORTAL_PATHS, withPortal, type AuthPortal } from "@/components/auth/portal";
 
 const MIN_PASSWORD_LEN = 12;
+/** Server error codes shown on the invitation-code field rather than the form banner. */
+const REFERRAL_ERRORS = new Set(["invalid_referral", "self_referral"]);
 
-export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
+export function RegisterForm({
+  googleEnabled,
+  portal = "user",
+}: {
+  googleEnabled: boolean;
+  portal?: AuthPortal;
+}) {
+  const paths = PORTAL_PATHS[portal];
+  const affiliate = portal === "affiliate";
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [terms, setTerms] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralError, setReferralError] = useState<string | null>(null);
+  const referralRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -37,42 +51,57 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
     if (!canSubmit) return;
     setBusy(true);
     setError(null);
+    setReferralError(null);
 
-    // API uses strictObject — pass ONLY name, email and password: no ToS
-    // field, and the confirmation is checked here, never sent.
+    // API uses strictObject — pass ONLY name, email and password (plus the
+    // affiliate portal flag, or a typed invitation code): no ToS field, and the
+    // confirmation is checked here, never sent. Without a typed code, referral
+    // credit comes from the /invite link cookie.
+    const code = affiliate ? "" : referralCode.trim();
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), email, password }),
+      body: JSON.stringify(
+        withPortal(portal, { name: name.trim(), email, password, ...(code ? { referralCode: code } : {}) }),
+      ),
     });
 
     if (res.ok) {
       trackPixelEvent("CompleteRegistration");
-      router.push("/trade");
+      router.push(paths.home);
       return;
     }
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    setError(data.error ?? "Something went wrong. Try again.");
+    const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
     setBusy(false);
+    if (data.code && REFERRAL_ERRORS.has(data.code)) {
+      setReferralError(data.error ?? "That invitation code isn't valid.");
+      referralRef.current?.focus();
+      return;
+    }
+    setError(data.error ?? "Something went wrong. Try again.");
   }
 
   return (
     <AuthShell
-      eyebrow="Get started"
-      title="Open your IndianxTrade account."
-      subtitle="30 seconds. $10,000 in demo funds. No card required."
+      eyebrow={affiliate ? "Affiliate program" : "Get started"}
+      title={affiliate ? "Open your affiliate account." : "Open your IndianxTrade account."}
+      subtitle={
+        affiliate
+          ? "A separate account from any regular one. You can use the same email. We'll send a link to verify it."
+          : "30 seconds. $10,000 in demo funds. No card required."
+      }
       imageCaption="Fixed risk. Real prices. From $1."
       footer={
         <>
-          Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-brand hover:underline">
+          {affiliate ? "Already an affiliate?" : "Already have an account?"}{" "}
+          <Link href={paths.login} className="font-semibold text-brand hover:underline">
             Log in
           </Link>
         </>
       }
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
-        {googleEnabled ? (
+        {googleEnabled && !affiliate ? (
           <>
             <GoogleButton label="Sign up with Google" />
             <OrDivider />
@@ -87,7 +116,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
             type="text"
             required
             autoComplete="name"
-            autoFocus={!googleEnabled}
+            autoFocus={!googleEnabled || affiliate}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Your name"
@@ -120,6 +149,37 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
             </p>
           ) : null}
         </div>
+
+        {affiliate ? null : (
+          <div>
+            <label htmlFor="referral-code" className="text-[11px] font-semibold uppercase tracking-widest text-ink-2">
+              Invitation code (optional)
+            </label>
+            <input
+              ref={referralRef}
+              id="referral-code"
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              maxLength={32}
+              value={referralCode}
+              onChange={(e) => {
+                setReferralCode(e.target.value);
+                setReferralError(null);
+              }}
+              placeholder="If a friend gave you a code"
+              aria-invalid={referralError ? true : undefined}
+              aria-describedby={referralError ? "referral-code-error" : undefined}
+              className={`mt-2 h-12 w-full rounded-lg border bg-panel/70 px-4 text-sm text-ink outline-none transition placeholder:text-ink-3 focus:bg-panel ${referralError ? "border-down focus:border-down" : "border-rule focus:border-brand"}`}
+            />
+            {referralError ? (
+              <p id="referral-code-error" role="alert" className="mt-2 text-[11px] text-down">
+                {referralError}
+              </p>
+            ) : null}
+          </div>
+        )}
 
         <label className="flex cursor-pointer items-start gap-3 text-sm text-ink-2">
           <input
@@ -168,7 +228,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
 
         <div className="mt-2 flex items-center gap-3 text-[11px] uppercase tracking-widest text-ink-3">
           <span aria-hidden className="h-px flex-1 bg-rule" />
-          $10,000 demo · switch to live any time
+          {affiliate ? "Verify your email to activate" : "$10,000 demo · switch to live any time"}
           <span aria-hidden className="h-px flex-1 bg-rule" />
         </div>
       </form>

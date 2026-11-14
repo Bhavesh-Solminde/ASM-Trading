@@ -5,6 +5,7 @@ import {
   formatDateTimeLabel,
   passwordChangedEmail,
   passwordResetEmail,
+  verifyEmailEmail,
   shortRef,
   siteUrl,
   welcomeEmail,
@@ -40,11 +41,18 @@ export function sendPasswordResetEmail(
   return deliver(input, passwordResetEmail(input), `password-reset/${input.tokenId}`, "password_reset");
 }
 
-export function sendPasswordChangedEmail(input: Recipient & { userId: string; name: string | null; changedAt: Date }) {
+export function sendVerifyEmail(input: Recipient & { tokenId: string; name: string | null; verifyUrl: string; ttlHours: number }) {
+  return deliver(input, verifyEmailEmail(input), `verify-email/${input.tokenId}`, "verify_email");
+}
+
+/** `resetPath` defaults to the regular site; affiliates pass their own forgot-password page. */
+export function sendPasswordChangedEmail(
+  input: Recipient & { userId: string; name: string | null; changedAt: Date; resetPath?: string | undefined },
+) {
   const email = passwordChangedEmail({
     name: input.name,
     changedAtLabel: formatDateTimeLabel(input.changedAt),
-    resetUrl: siteUrl("/forgot-password"),
+    resetUrl: siteUrl(input.resetPath ?? "/forgot-password"),
   });
   return deliver(input, email, `password-changed/${input.userId}/${input.changedAt.getTime()}`, "password_changed");
 }

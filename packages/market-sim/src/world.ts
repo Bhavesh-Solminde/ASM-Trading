@@ -72,7 +72,7 @@ export class MarketWorld {
       ...(input.stopLoss!==undefined?{stopLoss:input.stopLoss}:{}),...(input.takeProfit!==undefined?{takeProfit:input.takeProfit}:{})};
     // Validate accepted contract levels before changing the book.
     new FixedContracts().open(request);
-    const flow=submitAccountFlow(m,{actorId:input.actorId,role:input.role,accountType:input.accountType,side,stakeInrMinor:input.stakeInrMinor});
+    const flow=submitAccountFlow(m,{...input,side});
     if(flow.entryPrice!==quote.entryPrice||flow.filledLots!==quote.filledLots)throw new Error("Order preview diverged from execution");
     for(const f of flow.fills){
       this.contracts.observe({symbol:input.symbol,price:f.price*m.profile.tickSize,time:f.time,sequence:f.sequence});

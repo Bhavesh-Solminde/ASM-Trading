@@ -19,11 +19,18 @@ const SINCE = new Date("2100-06-01T00:00:00Z").getTime(); // far future so only 
 async function makeTrader(
   key: string,
   isBot: boolean,
-  opts: { country?: string | null; currency?: string } = {},
+  opts: { country?: string | null; currency?: string; affiliate?: "live" | "legacy" } = {},
 ): Promise<string> {
   const country = opts.country === undefined ? "IN" : opts.country;
   const user = await prisma.user.create({
-    data: { email: `${tag}-${key}@test.local`, passwordHash: "x", isBot, nickname: key, country },
+    data: {
+      email: `${tag}-${key}@test.local`,
+      passwordHash: "x",
+      isBot,
+      nickname: key,
+      country,
+      ...(opts.affiliate && { role: "AFFILIATE", legacySimulated: opts.affiliate === "legacy" }),
+    },
   });
   userIds.push(user.id);
   const account = await prisma.account.create({
@@ -61,6 +68,8 @@ beforeAll(async () => {
   const rupee = await makeTrader("rupee", false, { country: "BD" });
   const abroad = await makeTrader("abroad", false, { country: "PH" });
   const unknown = await makeTrader("unknown", false, { country: null });
+  const affiliate = await makeTrader("affiliate", false, { affiliate: "live" });
+  const legacy = await makeTrader("legacy", false, { affiliate: "legacy" });
 
   const today = new Date(SINCE + 3_600_000); // one hour into the window
   const yesterday = new Date(SINCE - 3_600_000); // before the window
@@ -73,6 +82,8 @@ beforeAll(async () => {
   await settledTrade(rupee, 203_952, today, "WON");
   await settledTrade(abroad, 900_000, today, "WON"); // biggest, but outside the region
   await settledTrade(unknown, 800_000, today, "WON"); // no country: not ranked
+  await settledTrade(affiliate, 15_000, today, "WON"); // a live affiliate ranks like anyone
+  await settledTrade(legacy, 700_000, today, "WON"); // retired simulated affiliate: never ranked
 });
 
 afterAll(async () => {
@@ -90,7 +101,7 @@ describe("dailyLeaderboard", () => {
       viewerUserId: userIds[0]!, // winner
       includeBots: false,
     });
-    expect(ours(result.entries)).toEqual(["dollar", "rupee", "winner", "loser"]);
+    expect(ours(result.entries)).toEqual(["dollar", "rupee", "winner", "affiliate", "loser"]);
     const winner = result.entries.find((e) => e.nickname === "winner")!;
     expect(winner.pnlMinor).toBe(20_000); // yesterday's 99k not counted
     expect(result.you.entry?.nickname).toBe("winner");
@@ -111,14 +122,14 @@ describe("dailyLeaderboard", () => {
     });
     const rupee = usd.entries.find((e) => e.nickname === "rupee")!;
     expect(rupee).toMatchObject({ currency: "USD", pnlMinor: Math.round(203_952 / USD_INR_RATE) });
-    expect(ours(usd.entries)).toEqual(["dollar", "rupee", "winner", "loser"]);
+    expect(ours(usd.entries)).toEqual(["dollar", "rupee", "winner", "affiliate", "loser"]);
   });
 
   it("keeps traders outside the region, or with no country, off the board", async () => {
     const result = await dailyLeaderboard({
       ...BASE,
       sinceMs: SINCE,
-      viewerUserId: userIds.at(-2)!, // abroad
+      viewerUserId: userIds[5]!, // abroad
       includeBots: false,
     });
     expect(ours(result.entries)).not.toContain("abroad");
@@ -129,7 +140,8 @@ describe("dailyLeaderboard", () => {
 
   it("includes bots when asked", async () => {
     const result = await dailyLeaderboard({ ...BASE, sinceMs: SINCE, viewerUserId: "nobody", includeBots: true });
-    expect(ours(result.entries)).toEqual(["dollar", "rupee", "bot", "winner", "loser"]);
+    expect(ours(result.entries)).toEqual(["dollar", "rupee", "bot", "winner", "affiliate", "loser"]);
     expect(result.you.rank).toBeNull(); // viewer not present
+    expect(ours(result.entries)).not.toContain("legacy");
   });
 });

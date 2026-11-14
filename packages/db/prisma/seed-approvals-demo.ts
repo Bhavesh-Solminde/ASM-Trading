@@ -66,7 +66,7 @@ const WITHDRAWALS: SeedWithdrawal[] = [
 async function ensureDemoUser(): Promise<string> {
   const hash = await argon2.hash(PASSWORD, { type: argon2.argon2id });
   const user = await prisma.user.upsert({
-    where: { email: EMAIL },
+    where: { email_role_legacySimulated: { email: EMAIL, role: "USER", legacySimulated: false } },
     update: { emailVerified: true, status: "ACTIVE" },
     create: {
       email: EMAIL,

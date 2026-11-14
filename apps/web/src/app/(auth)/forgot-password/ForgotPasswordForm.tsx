@@ -5,11 +5,13 @@ import { useState } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { EmailInput } from "@/components/auth/EmailInput";
 import { Spinner } from "@/components/auth/Spinner";
+import { PORTAL_PATHS, withPortal, type AuthPortal } from "@/components/auth/portal";
 
 const PRIMARY =
   "mt-1 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-brand text-sm font-black text-brand-ink shadow-[0_20px_50px_-20px_color-mix(in_srgb,var(--color-brand)_60%,transparent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100";
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ portal = "user" }: { portal?: AuthPortal }) {
+  const affiliate = portal === "affiliate";
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
@@ -23,7 +25,7 @@ export function ForgotPasswordForm() {
     const res = await fetch("/api/auth/password-reset/request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(withPortal(portal, { email })),
     });
     const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
     if (res.ok) setSent(data.message ?? "If that email has an account, we've sent a reset link.");
@@ -35,12 +37,16 @@ export function ForgotPasswordForm() {
     <AuthShell
       eyebrow="Forgot password"
       title="Reset your password."
-      subtitle="Enter the email you signed up with and we'll send you a link to set a new password."
+      subtitle={
+        affiliate
+          ? "Enter the email on your affiliate account and we'll send you a link to set a new affiliate password."
+          : "Enter the email you signed up with and we'll send you a link to set a new password."
+      }
       imageCaption="Every tick settles on a real ledger."
       footer={
         <>
           Remembered it?{" "}
-          <Link href="/login" className="font-semibold text-brand hover:underline">
+          <Link href={PORTAL_PATHS[portal].login} className="font-semibold text-brand hover:underline">
             Log in
           </Link>
         </>

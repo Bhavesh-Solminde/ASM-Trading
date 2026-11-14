@@ -60,17 +60,15 @@ export default async function DepositsPage({
   const q = sp.q?.trim() ?? "";
   const page = Math.max(1, Number(sp.page) || 1);
 
-  // Affiliate accounts can submit a deposit form (SMS webhook will never match
-  // it, matchers skip them), but operators should never see those rows: they
-  // are not real money. Exclude role=AFFILIATE from every count, aggregate and
-  // listing on this page.
-  const notAffiliate: Prisma.DepositWhereInput = {
-    user: { role: { not: "AFFILIATE" } },
+  // Retired simulated affiliates (User.legacySimulated) are play money: keep
+  // them out of every count, aggregate and listing on this page.
+  const notSimulated: Prisma.DepositWhereInput = {
+    user: { legacySimulated: false },
   };
 
   const [pendingAgg, usdtReviewCount, orphanCount] = await Promise.all([
     prisma.deposit.aggregate({
-      where: { AND: [{ status: "PENDING_CONFIRMATION" }, notAffiliate] },
+      where: { AND: [{ status: "PENDING_CONFIRMATION" }, notSimulated] },
       _count: { _all: true },
       _sum: { amountInr: true },
     }),
@@ -225,7 +223,7 @@ export default async function DepositsPage({
     ? {
         AND: [
           statusFilter,
-          notAffiliate,
+          notSimulated,
           {
             OR: [
               { claimedUtr: { contains: q, mode: "insensitive" } },
@@ -236,7 +234,7 @@ export default async function DepositsPage({
           },
         ],
       }
-    : { AND: [statusFilter, notAffiliate] };
+    : { AND: [statusFilter, notSimulated] };
 
   const [total, rows] = await Promise.all([
     prisma.deposit.count({ where }),

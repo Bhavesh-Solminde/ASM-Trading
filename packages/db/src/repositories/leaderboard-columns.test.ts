@@ -16,7 +16,7 @@ describe("human leaderboard columns", () => {
     mocks.accounts.mockResolvedValue([{ id: "a", currency: "INR", userId: "human", user: { nickname: "Trader", country: "IN" } }]);
     mocks.assets.mockResolvedValue([{ id: "gold", symbol: "GOLD" }, { id: "silver", symbol: "SILVER" }]);
     const result = await dailyLeaderboard({ sinceMs: 0, viewerUserId: "human", limit: 10, includeBots: false, displayCurrency: "INR" });
-    expect(mocks.groupBy.mock.calls[0]?.[0].where.account).toEqual({ type: "LIVE", user: { isBot: false } });
+    expect(mocks.groupBy.mock.calls[0]?.[0].where.account).toEqual({ type: "LIVE", user: { isBot: false, legacySimulated: false } });
     expect(result.entries[0]).toMatchObject({ market: "GOLD, SILVER", pnlMinor: 2500, returnPct: 10 });
     expect(result.you.entry?.returnPct).toBe(10);
   });

@@ -14,3 +14,9 @@ ALTER DEFAULT PRIVILEGES FOR ROLE asm_owner IN SCHEMA public
 
 -- AuditLog is append-only even for the runtime role.
 REVOKE UPDATE, DELETE ON "AuditLog" FROM asm_app;
+
+-- ProgramSetting holds append-only setting versions (Affiliate Program phase 4).
+REVOKE UPDATE, DELETE ON "ProgramSetting" FROM asm_app;
+
+-- Program money history is append-only (Affiliate Program phases 5-7).
+REVOKE UPDATE, DELETE ON "ProgramLedgerEntry", "AffiliateRate", "RevenueShareDay", "ProgramDayClose" FROM asm_app;

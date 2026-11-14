@@ -38,15 +38,18 @@ export async function POST(req: NextRequest) {
   }
 
   log.info({ evt: "auth.password_reset", userId: user.userId }, "password reset via email link");
+  const affiliate = user.role === "AFFILIATE";
   void sendPasswordChangedEmail({
     to: user.email,
     cid: ctx.cid,
     userId: user.userId,
     name: personName(user),
     changedAt: new Date(),
+    resetPath: affiliate ? "/affiliate/forgot-password" : "/forgot-password",
   });
 
-  const response = NextResponse.json({ ok: true });
+  // Tells the client which sign-in page this account belongs to.
+  const response = NextResponse.json({ ok: true, loginPath: affiliate ? "/affiliate/login" : "/login" });
   // Every session was just deleted; drop this browser's stale cookie too.
   response.cookies.set(SESSION_COOKIE, "", { path: "/", maxAge: 0 });
   return response;
