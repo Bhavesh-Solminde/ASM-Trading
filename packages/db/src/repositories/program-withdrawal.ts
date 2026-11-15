@@ -10,10 +10,10 @@ import {
   lockProgramWallet,
   moveProgramWallet,
   programActionBlockers,
-  programSettingValuesAt,
   withdrawalRules,
 } from "./program-wallet";
 import { cleanReason } from "./program-errors";
+import { programSettingValuesAt } from "./program-settings";
 
 // §12 program withdrawals: own queue and limits, separate from trading withdrawals.
 

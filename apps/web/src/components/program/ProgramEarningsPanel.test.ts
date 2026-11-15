@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProgramActivityItem, ProgramSummary } from "@asm/db";
-import { ProgramEarningsPanel, rupeesToPaise } from "./ProgramEarningsPanel";
+import { ProgramEarningsPanel } from "./ProgramEarningsPanel";
 
 const { refresh, applyBalanceUpdate } = vi.hoisted(() => ({ refresh: vi.fn(), applyBalanceUpdate: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
@@ -68,17 +68,6 @@ function stubFetch(...responses: ({ ok: boolean; body: unknown } | Error)[]) {
 }
 const sent = (fetch: ReturnType<typeof vi.fn>, i = 0) => JSON.parse(fetch.mock.calls[i]![1].body as string) as Record<string, unknown>;
 const forms = () => document.querySelectorAll("form");
-
-describe("rupeesToPaise", () => {
-  it("converts rupee strings to integer paise without float drift", () => {
-    expect(rupeesToPaise("1999")).toBe(1_999_00);
-    expect(rupeesToPaise("0.1")).toBe(10);
-    expect(rupeesToPaise("19.99")).toBe(1999);
-    expect(rupeesToPaise("1.234")).toBeNull();
-    expect(rupeesToPaise("")).toBeNull();
-    expect(rupeesToPaise("1e3")).toBeNull();
-  });
-});
 
 describe("transfer form", () => {
   it("sends paise and a UUID idempotency key, then updates the trading balance", async () => {

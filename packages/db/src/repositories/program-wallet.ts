@@ -3,7 +3,8 @@ import type { AffiliateStatus, KycStatus, ProgramLedgerKind, ProgramSettingKey }
 import { getAffiliateRateAt } from "./affiliate-rate";
 import { ProgramActionRefused } from "./program-errors";
 import { houseDateForInstant } from "./house-day";
-import { qualifyingDepositInrMinor } from "./referral-qualification";
+import { programSettingValuesAt } from "./program-settings";
+import { hasSelfReferralFlag, qualifiedDepositTotalsByInviter } from "./referral-qualification";
 
 // Affiliate Program phases 5–6 money core — Affiliate Program spec.
 
@@ -66,23 +67,6 @@ export function istLimitWindows(now: Date): {
 }
 
 // ---------- settings ----------
-
-type SettingsClient = Pick<DbTransaction, "programSetting">;
-
-/** Every program setting in force at `at` (latest effectiveFrom <= at; a later-created row wins a tie). */
-export async function programSettingValuesAt(
-  at: Date,
-  client: SettingsClient = prisma,
-): Promise<Partial<Record<ProgramSettingKey, number>>> {
-  const rows = await client.programSetting.findMany({
-    where: { effectiveFrom: { lte: at } },
-    orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }],
-    select: { key: true, value: true },
-  });
-  const out: Partial<Record<ProgramSettingKey, number>> = {};
-  for (const r of rows) out[r.key] = r.value;
-  return out;
-}
 
 function required(values: Partial<Record<ProgramSettingKey, number>>, key: ProgramSettingKey): number {
   const v = values[key];
@@ -198,14 +182,7 @@ export async function earningHoldReasons(
   else if (u.role === "AFFILIATE" && u.affiliateProfile?.status !== "ACTIVE") reasons.push("affiliate not active");
   if (!checkSelfReferral) return reasons;
   const ids = [...new Set([beneficiaryUserId, ...(referredUserId ? [referredUserId] : []), ...relatedUserIds])];
-  const flags = await tx.fraudFlag.count({
-    where: {
-      kind: "SELF_REFERRAL",
-      status: { in: ["OPEN", "CONFIRMED"] },
-      OR: [{ userId: { in: ids } }, { linkedUserIds: { hasSome: ids } }],
-    },
-  });
-  if (flags > 0) reasons.push("self-referral flag open or confirmed");
+  if (await hasSelfReferralFlag(tx, ids)) reasons.push("self-referral flag open or confirmed");
   return reasons;
 }
 
@@ -345,7 +322,7 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
   if (!user) throw new ProgramActionRefused("not_found");
   const affiliate = isProgramAffiliate(user);
 
-  const [sums, wallet, carry, totalReferrals, qualified, values, rate, used] = await Promise.all([
+  const [sums, wallet, carry, totalReferrals, qualifiedUsers, deposited, values, rate, used] = await Promise.all([
     prisma.programEarning.groupBy({
       by: ["status"],
       where: {
@@ -361,37 +338,12 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
       select: { carryOutMinor: true },
     }),
     prisma.user.count({ where: { referredById: userId } }),
-    prisma.referralQualification.findMany({
-      where: { inviterId: userId, status: "QUALIFIED" },
-      select: { referredUserId: true },
-    }),
+    prisma.referralQualification.count({ where: { inviterId: userId, status: "QUALIFIED" } }),
+    qualifiedDepositTotalsByInviter([userId]),
     programSettingValuesAt(now),
     affiliate ? getAffiliateRateAt(userId, now) : Promise.resolve(null),
     countProgramWithdrawalsUsed(userId, now),
   ]);
-  const deposits = qualified.length
-    ? await prisma.deposit.findMany({
-        where: {
-          userId: { in: qualified.map((q) => q.referredUserId) },
-          status: "COMPLETED",
-        },
-        select: {
-          method: true,
-          amountInr: true,
-          amountUsd: true,
-          amountUsdtMinor: true,
-          requestedInrMinor: true,
-        },
-      })
-    : [];
-  let totalDepositedMinor = 0;
-  for (const d of deposits) {
-    try {
-      totalDepositedMinor += qualifyingDepositInrMinor(d);
-    } catch {
-      // a row whose value can't be determined counts as 0 (never overstate)
-    }
-  }
 
   const sumOf = (s: "PENDING" | "HELD") => sums.find((r) => r.status === s)?._sum.amountMinor ?? 0;
   const availableMinor = wallet?.availableMinor ?? 0;
@@ -419,8 +371,8 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
     paidMinor: wallet?.paidMinor ?? 0,
     carryForwardMinor: carry?.carryOutMinor ?? 0,
     totalReferrals,
-    qualifiedUsers: qualified.length,
-    totalDepositedMinor,
+    qualifiedUsers,
+    totalDepositedMinor: deposited.get(userId) ?? 0,
     terms: {
       userRewardMinor: required(values, "USER_REFERRAL_REWARD_INR_MINOR"),
       affiliateDepositRewardBps: rate?.depositRewardBps ?? required(values, "AFFILIATE_DEPOSIT_REWARD_BPS"),

@@ -1,4 +1,3 @@
-import { USD_INR_RATE } from "@asm/contracts";
 import { prisma, type DbTransaction } from "../client";
 import type {
   AffiliateProfile,
@@ -12,9 +11,10 @@ import type {
 } from "../../generated/prisma/client";
 import { ProgramSettingKey as SettingKeys } from "../../generated/prisma/client";
 import type { ProgramEarning, ProgramSetting } from "../models";
-import { programSettingValueAt } from "./affiliate-profile";
+import { programSettingValueAt } from "./program-settings";
 import { defaultRate, defaultRevenueShareAt, type AffiliateRateAt } from "./affiliate-rate";
 import { ProgramActionRefused, cleanReason } from "./program-errors";
+import { qualifiedDepositTotalsByInviter } from "./referral-qualification";
 
 // Affiliate program admin (Affiliate Program spec "Affiliate/admin module").
 // Every write: one transaction, a mandatory reason, one AuditLog row.
@@ -278,16 +278,7 @@ async function aggregatesFor(ids: string[], now: Date): Promise<Map<string, Affi
   const [refs, quals, deposited, earnings, wallets, rates, flags] = await Promise.all([
     prisma.user.groupBy({ by: ["referredById"], where: { referredById: { in: ids } }, _count: { _all: true } }),
     prisma.referralQualification.groupBy({ by: ["inviterId"], where: { inviterId: { in: ids }, status: "QUALIFIED" }, _count: { _all: true } }),
-    // Same rule as qualifyingDepositInrMinor: requested INR for UPI rows that have it, USDT-cents × rate, else amountInr.
-    prisma.$queryRaw<{ id: string; total: bigint }[]>`
-      SELECT q."inviterId" AS id,
-             COALESCE(SUM(CASE
-               WHEN d.method <> 'USDT' AND d."requestedInrMinor" IS NOT NULL THEN d."requestedInrMinor"
-               WHEN d.method = 'USDT' THEN COALESCE(d."amountUsdtMinor", 0) * ${USD_INR_RATE}::bigint
-               ELSE d."amountInr" END), 0)::bigint AS total
-      FROM "ReferralQualification" q JOIN "Deposit" d ON d."userId" = q."referredUserId"
-      WHERE q."inviterId" = ANY(${ids}) AND q.status::text = 'QUALIFIED' AND d.status::text = 'COMPLETED'
-      GROUP BY q."inviterId"`,
+    qualifiedDepositTotalsByInviter(ids),
     prisma.programEarning.groupBy({ by: ["beneficiaryUserId", "status"], where: { beneficiaryUserId: { in: ids } }, _sum: { amountMinor: true } }),
     prisma.programWallet.findMany({ where: { userId: { in: ids } } }),
     prisma.affiliateRate.findMany({
@@ -303,7 +294,7 @@ async function aggregatesFor(ids: string[], now: Date): Promise<Map<string, Affi
   ]);
   for (const r of refs) if (r.referredById) out.get(r.referredById)!.totalReferrals = r._count._all;
   for (const r of quals) out.get(r.inviterId)!.qualifiedReferrals = r._count._all;
-  for (const r of deposited) out.get(r.id)!.totalDepositedMinor = Number(r.total);
+  for (const [id, total] of deposited) out.get(id)!.totalDepositedMinor = total;
   for (const r of earnings) out.get(r.beneficiaryUserId)!.earnings[r.status] = Number(r._sum.amountMinor ?? 0);
   for (const w of wallets) {
     out.get(w.userId)!.wallet = { availableMinor: w.availableMinor, reservedMinor: w.reservedMinor, transferredMinor: w.transferredMinor, paidMinor: w.paidMinor };

@@ -17,6 +17,7 @@ import { formatMinor } from "@asm/client-core";
 import { IconTether } from "@/components/trade/AssetIcon";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
+import { rupeesToPaise } from "@/lib/rupees";
 
 // Classes mirror the withdrawal form (app/(platform)/withdrawal/WithdrawForm.tsx) and the
 // affiliate dashboard cards, so this panel adds no new visual language.
@@ -29,14 +30,6 @@ const PRIMARY =
 
 const inr = (minor: number) => formatMinor(minor, "INR");
 const whole = (minor: number) => inr(minor).replace(/\.00$/, "");
-
-/** "1999" / "1999.5" / "1999.50" rupees → paise; null for anything else. */
-export function rupeesToPaise(value: string): number | null {
-  const v = value.trim();
-  if (!/^\d{1,12}(\.\d{1,2})?$/.test(v)) return null;
-  const [r, p = ""] = v.split(".");
-  return Number(r) * 100 + Number(p.padEnd(2, "0"));
-}
 
 /** POST JSON; resolves to { ok, data } or throws on network failure. */
 async function postJson(url: string, body?: unknown): Promise<{ ok: boolean; data: Record<string, unknown> }> {

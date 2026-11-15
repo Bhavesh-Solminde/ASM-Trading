@@ -1,4 +1,5 @@
 import { prisma, type DbClient, type DbTransaction } from "../client";
+import { programSettingRowAt } from "./program-settings";
 
 type Db = DbClient | DbTransaction;
 
@@ -15,13 +16,9 @@ export interface AffiliateRateAt {
   effectiveFrom: Date | null;
 }
 
-/** The DEFAULT_REVENUE_SHARE_BPS version in force at `at` (latest effectiveFrom <= at; ties → newest row). */
-export async function defaultRevenueShareAt(at: Date, client: Db = prisma) {
-  return client.programSetting.findFirst({
-    where: { key: "DEFAULT_REVENUE_SHARE_BPS", effectiveFrom: { lte: at } },
-    orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
-    select: { id: true, value: true, effectiveFrom: true },
-  });
+/** The DEFAULT_REVENUE_SHARE_BPS version in force at `at` (the shared rule in program-settings.ts). */
+export function defaultRevenueShareAt(at: Date, client: Db = prisma) {
+  return programSettingRowAt("DEFAULT_REVENUE_SHARE_BPS", at, client);
 }
 
 /** The default terms for an affiliate with no AffiliateRate in force (0 bps if the setting is missing). */

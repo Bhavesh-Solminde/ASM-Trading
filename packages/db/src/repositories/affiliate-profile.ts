@@ -1,20 +1,11 @@
 import { prisma, type DbClient, type DbTransaction } from "../client";
-import type { AffiliateProfile, AffiliateStatus, ProgramSettingKey } from "../../generated/prisma/client";
+import type { AffiliateProfile, AffiliateStatus } from "../../generated/prisma/client";
 import { ProgramActionRefused } from "./program-errors";
+import { programSettingValueAt } from "./program-settings";
 
 // Affiliate status (Affiliate Program spec "Affiliate status").
 
 type Db = DbClient | DbTransaction;
-
-/** The value of one program setting in force at `at` (latest effectiveFrom <= at; ties → newest row). */
-export async function programSettingValueAt(key: ProgramSettingKey, at: Date, client: Db = prisma): Promise<number | null> {
-  const row = await client.programSetting.findFirst({
-    where: { key, effectiveFrom: { lte: at } },
-    orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
-    select: { value: true },
-  });
-  return row ? row.value : null;
-}
 
 /** Status an affiliate whose email is verified gets: ACTIVE, or PENDING_APPROVAL while AFFILIATE_REQUIRES_APPROVAL is 1. */
 async function verifiedStatus(at: Date, client: Db): Promise<AffiliateStatus> {

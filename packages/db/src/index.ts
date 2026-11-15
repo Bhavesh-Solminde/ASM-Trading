@@ -48,6 +48,7 @@ export {
 } from "./repositories/referral-qualification";
 export {
   getProgramSettings,
+  programSettingValueAt,
   settingsAt,
   PROGRAM_SETTING_KEYS,
   type ProgramSettings,
@@ -58,7 +59,6 @@ export { ProgramActionRefused } from "./repositories/program-errors";
 export {
   ensureAffiliateProfile,
   onAffiliateEmailVerified,
-  programSettingValueAt,
 } from "./repositories/affiliate-profile";
 export {
   ADMIN_PAGE_SIZE,

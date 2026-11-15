@@ -96,6 +96,7 @@ describe("affiliate-program admin actions", () => {
     expect(await run(A.scheduleSettingAction, { key: "BOGUS", value: "1", reason: "r" })).toContain("Pick a setting");
     expect(await run(A.setAffiliateStatusAction, { userId: "u1", status: "ACTIVE" })).toContain("reason is required");
     expect(await run(A.setAffiliateStatusAction, { userId: "u1", status: "PENDING_APPROVAL", reason: "r" })).toContain("Pick a status");
+    expect(await run(A.approveProgramWithdrawalAction, { withdrawalId: "w1" })).toContain("reason is required");
     expect(await run(A.rejectProgramWithdrawalAction, { withdrawalId: "w1" })).toContain("reason is required");
     expect(await run(A.approveProgramWithdrawalAction, { withdrawalId: "w1" })).toContain("reason is required");
     expect(await run(A.approveProgramWithdrawalAction, { withdrawalId: "w1", reason: "   " })).toContain("reason is required");

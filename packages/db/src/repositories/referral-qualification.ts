@@ -33,8 +33,27 @@ export function qualifyingDepositInrMinor(
   return depositCreditMinor(d, "INR");
 }
 
+/**
+ * Per inviter, the sum of qualifyingDepositInrMinor over every COMPLETED
+ * deposit of their QUALIFIED referrals, in one query. Same rule in SQL; a row
+ * with no positive value counts as 0 (never overstate). Inviters with none are absent.
+ */
+export async function qualifiedDepositTotalsByInviter(inviterIds: string[]): Promise<Map<string, number>> {
+  if (inviterIds.length === 0) return new Map();
+  const rows = await prisma.$queryRaw<{ id: string; total: bigint }[]>`
+    SELECT q."inviterId" AS id,
+           COALESCE(SUM(GREATEST(CASE
+             WHEN d.method <> 'USDT' AND d."requestedInrMinor" IS NOT NULL THEN d."requestedInrMinor"
+             WHEN d.method = 'USDT' THEN COALESCE(d."amountUsdtMinor", 0) * ${USD_INR_RATE}::bigint
+             ELSE d."amountInr" END, 0)), 0)::bigint AS total
+    FROM "ReferralQualification" q JOIN "Deposit" d ON d."userId" = q."referredUserId"
+    WHERE q."inviterId" = ANY(${inviterIds}) AND q.status::text = 'QUALIFIED' AND d.status::text = 'COMPLETED'
+    GROUP BY q."inviterId"`;
+  return new Map(rows.map((r) => [r.id, Number(r.total)]));
+}
+
 /** OPEN or CONFIRMED SELF_REFERRAL flag owned by, or naming, any of these users. */
-async function hasSelfReferralFlag(db: Db, userIds: string[]): Promise<boolean> {
+export async function hasSelfReferralFlag(db: Db, userIds: string[]): Promise<boolean> {
   const n = await db.fraudFlag.count({
     where: {
       kind: "SELF_REFERRAL",
@@ -195,6 +214,13 @@ export async function evaluateReferralQualification(
         .map((r) => r.effectiveFrom.getTime()),
     ),
   ].sort((a, b) => a - b);
+  // The all-time earliest trade depends only on M, which rarely changes between windows.
+  const earliestByMin = new Map<number, Promise<Evidence | null>>();
+  const earliestEver = (min: number) => {
+    let p = earliestByMin.get(min);
+    if (!p) earliestByMin.set(min, (p = earliestTrade(live.id, min, new Date(0), now)));
+    return p;
+  };
   let found: { T: Date; dep: Evidence; trade: Evidence; settings: ReturnType<typeof settingsAt> } | null = null;
   for (let i = 0; i < starts.length && !found; i++) {
     const start = starts[i]!;
@@ -209,7 +235,7 @@ export async function evaluateReferralQualification(
     const M = window.values.MIN_QUALIFYING_TRADE_INR_MINOR;
     const dep = depEv.find((e) => e.inr >= D);
     if (!dep) continue;
-    const trade = await earliestTrade(live.id, M, new Date(0), now);
+    const trade = await earliestEver(M);
     if (!trade) continue;
     const later = Math.max(dep.at.getTime(), trade.at.getTime());
     let T: number | null = null;

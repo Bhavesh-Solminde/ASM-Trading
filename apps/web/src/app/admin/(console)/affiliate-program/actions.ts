@@ -20,7 +20,8 @@ import {
 } from "@asm/db";
 import { logger } from "@asm/logger";
 import { ADMIN_SESSION_COOKIE, readAdminSession } from "@/lib/admin-session";
-import { parseIstDateTime, percentToBps, rupeesToPaise, settingValueFromInput } from "./parse";
+import { rupeesToPaise } from "@/lib/rupees";
+import { parseIstDateTime, percentToBps, settingValueFromInput } from "./parse";
 
 const ADMIN_ACTOR = "admin-panel";
 const PATH = "/admin/affiliate-program";

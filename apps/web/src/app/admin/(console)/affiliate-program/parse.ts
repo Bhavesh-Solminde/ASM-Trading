@@ -1,6 +1,8 @@
 // Form-input parsing for the affiliate-program admin actions. Money is integer
 // paise and rates are integer basis points; nothing here goes through floats.
 
+import { rupeesToPaise } from "@/lib/rupees";
+
 export type SettingUnit = "inr" | "bps" | "pct" | "count" | "bool";
 
 /** Plain labels and units for every ProgramSettingKey (value is stored as paise / bps / whole number). */
@@ -49,14 +51,6 @@ export const SETTING_META: Record<string, { label: string; unit: SettingUnit; he
     help: "When on, a verified affiliate waits for admin approval before becoming active.",
   },
 };
-
-/** "₹1,999.50", "-50" → paise. Up to 12 rupee digits and 2 decimals; commas ignored. */
-export function rupeesToPaise(input: string, { signed = false } = {}): number | null {
-  const m = /^([+-])?(\d{1,12})(?:\.(\d{1,2}))?$/.exec(input.replace(/[₹,\s]/g, ""));
-  if (!m || (m[1] && !signed)) return null;
-  const paise = Number(m[2]) * 100 + Number((m[3] ?? "").padEnd(2, "0"));
-  return m[1] === "-" ? -paise : paise;
-}
 
 /** "12.5" (%) → 1250 bps. 0–100% with up to two decimals. */
 export function percentToBps(input: string): number | null {

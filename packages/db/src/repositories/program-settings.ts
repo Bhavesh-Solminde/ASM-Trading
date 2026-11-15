@@ -20,11 +20,11 @@ export interface ProgramSettings {
 type SettingRow = Pick<ProgramSetting, "id" | "key" | "value" | "effectiveFrom" | "createdAt">;
 
 /**
- * The values in force at `at`: per key, the row with the latest effectiveFrom <= at
- * (a later-created row wins a tie). Throws if a key has no version yet — the
- * migration seeds every key from the epoch, so that means a broken database.
+ * The one rule for "which version is in force at `at`": per key, the row with
+ * the latest effectiveFrom <= at (a later-created row wins a tie). Keys with no
+ * version yet are absent.
  */
-export function settingsAt(rows: readonly SettingRow[], at: Date): ProgramSettings {
+function rowsInForce(rows: readonly SettingRow[], at: Date): Map<ProgramSettingKey, SettingRow> {
   const best = new Map<ProgramSettingKey, SettingRow>();
   for (const row of rows) {
     if (row.effectiveFrom.getTime() > at.getTime()) continue;
@@ -37,6 +37,16 @@ export function settingsAt(rows: readonly SettingRow[], at: Date): ProgramSettin
       best.set(row.key, row);
     }
   }
+  return best;
+}
+
+/**
+ * The earning settings in force at `at` (see rowsInForce). Throws if a key has
+ * no version yet — the migration seeds every key from the epoch, so that means
+ * a broken database.
+ */
+export function settingsAt(rows: readonly SettingRow[], at: Date): ProgramSettings {
+  const best = rowsInForce(rows, at);
   const values = {} as Record<ProgramSettingKey, number>;
   const ids = {} as Record<ProgramSettingKey, string>;
   for (const key of PROGRAM_SETTING_KEYS) {
@@ -62,4 +72,32 @@ export async function getProgramSettings(
   client: Pick<DbTransaction, "programSetting"> = prisma,
 ): Promise<ProgramSettings> {
   return settingsAt(await listProgramSettingRows(client), at);
+}
+
+/** Every setting in force at `at`, including the withdrawal and approval keys; keys with no version yet are absent. */
+export async function programSettingValuesAt(
+  at: Date,
+  client: Pick<DbTransaction, "programSetting"> = prisma,
+): Promise<Partial<Record<ProgramSettingKey, number>>> {
+  const out: Partial<Record<ProgramSettingKey, number>> = {};
+  for (const [key, row] of rowsInForce(await listProgramSettingRows(client), at)) out[key] = row.value;
+  return out;
+}
+
+/** The version of one setting in force at `at` (its id, value and effectiveFrom), or null when it has none yet. */
+export async function programSettingRowAt(
+  key: ProgramSettingKey,
+  at: Date,
+  client: Pick<DbTransaction, "programSetting"> = prisma,
+): Promise<SettingRow | null> {
+  return rowsInForce(await listProgramSettingRows(client), at).get(key) ?? null;
+}
+
+/** One setting in force at `at`, or null when it has no version yet. */
+export async function programSettingValueAt(
+  key: ProgramSettingKey,
+  at: Date,
+  client: Pick<DbTransaction, "programSetting"> = prisma,
+): Promise<number | null> {
+  return (await programSettingValuesAt(at, client))[key] ?? null;
 }

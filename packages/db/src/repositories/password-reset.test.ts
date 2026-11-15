@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../client";
-import { programSettingValueAt } from "./affiliate-profile";
+import { programSettingValueAt } from "./program-settings";
 import { issuePasswordResetToken, resetPasswordWithToken } from "./password-reset";
 
 let userId = "";

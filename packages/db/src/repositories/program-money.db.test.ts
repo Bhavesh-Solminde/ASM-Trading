@@ -770,6 +770,7 @@ describe("program withdrawals", () => {
     await approveProgramWithdrawal({ id: w.id, actor: ADMIN, reason: "  KYC name matches UPI  " });
     const [audit] = await prisma.auditLog.findMany({ where: { targetId: w.id, action: "program.withdrawal.approve" } });
     expect(audit).toMatchObject({ actorId: ADMIN, after: { status: "APPROVED", reason: "KYC name matches UPI" } });
+    expect((await listProgramActivity(u.id, { limit: 10 })).find((a) => a.id === w.id)?.reason).toBeNull(); // approval reason stays admin-only
   });
 
   it("paid requires approved; paid moves reserved to paid once", async () => {
