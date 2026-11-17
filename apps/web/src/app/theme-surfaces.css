@@ -16,6 +16,7 @@
   --color-result-hover: rgb(0 0 0 / .1);
   --color-warning-rule: rgb(229 65 59 / .5);
   --color-bonus-surface: #0d1a12;
+  --color-bonus-accent: #3be584;
   --color-switch-thumb: #ffffff;
   --color-clock-ink: #ffffff;
   --color-asset-ring: #20242a;
@@ -70,8 +71,8 @@
   --color-festive-backdrop: color-mix(in srgb, var(--color-ground) 88%, transparent);
 }
 
-/* Admin retains the dark defaults even when the saved public theme is light. */
-:root[data-theme="light"]:not(:has(.admin-root)) {
+/* Admin routes force the root theme to dark before public overrides apply. */
+:root[data-theme="light"] {
   --color-mini-candle-up: #078358;
   --color-mini-candle-down: #c8261c;
   --color-surface-highlight: #0b1220;
@@ -88,6 +89,7 @@
   --color-result-hover: rgb(0 0 0 / .1);
   --color-warning-rule: rgb(200 38 28 / .4);
   --color-bonus-surface: #e8f5ec;
+  --color-bonus-accent: #06652f;
   --color-switch-thumb: #ffffff;
   --color-clock-ink: #0b1220;
   --color-asset-ring: #cfd8e3;

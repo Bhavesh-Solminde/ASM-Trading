@@ -123,7 +123,6 @@ export function TopBar() {
     >
       <FestiveLights />
       <MobileNav />
-      <span className="phone:hidden"><ThemeToggle /></span>
       <Link href="/trade" aria-label="IndianxTrade" className="flex h-11 flex-none items-center phone:mx-auto phone:h-10">
         <LogoWordmark compact className="h-8 flex-none phone:h-[clamp(18px,6vw,24px)]" />
       </Link>
@@ -148,6 +147,7 @@ export function TopBar() {
       </div>
 
       <div ref={menuRef} className="relative ml-auto flex min-w-0 items-center gap-2.5 phone:ml-0 phone:gap-1.5">
+        <span className="absolute right-full top-1/2 mr-3 -translate-y-1/2 phone:hidden"><ThemeToggle /></span>
         <button
           type="button"
           aria-haspopup="menu"

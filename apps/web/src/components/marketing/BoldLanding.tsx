@@ -314,7 +314,7 @@ export function BoldLanding() {
                   ["Audited trade ledger", "Every entry, exit and settlement tick recorded and verifiable."],
                 ].map(([t, b]) => (
                   <li key={t} className="flex items-start gap-3 rounded-xl border border-rule bg-panel/60 p-4">
-                    <span className="mt-1 grid h-6 w-6 flex-none place-items-center rounded-full bg-brand/20 text-brand">
+                    <span aria-hidden="true" className="mt-1 grid h-6 w-6 flex-none place-items-center rounded-full bg-brand/20 text-brand">
                       ✓
                     </span>
                     <span>
@@ -445,8 +445,8 @@ function BoldNav() {
           <a href="#platform" className="hover:text-ink">Platform</a>
           <a href="#faq" className="hover:text-ink">FAQ</a>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
+        <div className="relative flex items-center gap-2">
+          <span className="inline-flex lg:absolute lg:right-full lg:top-1/2 lg:mr-2 lg:-translate-y-1/2"><ThemeToggle /></span>
           <span className="inline-flex xl:hidden"><DiwaliEntry iconOnly /></span>
           <span className="hidden xl:block"><DiwaliEntry compact /></span>
           <Link

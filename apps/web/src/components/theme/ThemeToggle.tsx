@@ -14,7 +14,7 @@ export function ThemeToggle({ row = false, presentation, className = "" }: { row
       </button>
     </div>
   );
-  return <button type="button" aria-pressed={theme === "light"}
+  return <button type="button"
     aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
     onClick={() => setTheme(readTheme() === "light" ? "dark" : "light")}
     className={row ? "flex min-h-14 w-full items-center gap-3 rounded-xl px-4 text-left text-ink hover:bg-tile" : "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-tile hover:text-ink"}>

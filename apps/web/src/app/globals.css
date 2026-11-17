@@ -421,7 +421,33 @@ button,
 }
 
 /* Admin is an isolated dark application, including document overscroll. */
-:root:has(.admin-root), .admin-root {
+.admin-root {
+  --color-chart-attribution: #0c1425;
+  --color-ground: #080e16;
+  --color-panel: #0e1820;
+  --color-tile: #131f28;
+  --color-tile-hi: #1c2b36;
+  --color-chart: #0c141c;
+  --color-rule: #293a47;
+  --color-ink: #f4f7fb;
+  --color-ink-2: #98a2b3;
+  --color-ink-3: #7d8797;
+  --color-brand: #2f81f7;
+  --color-brand-ink: #ffffff;
+  --color-brand-fill: #1f6feb;
+  --color-brand-fill-hi: #1a66d9;
+  --color-brand-dim: #10233f;
+  --color-up: #3be584;
+  --color-up-ink: #03170b;
+  --color-down: #e5413b;
+  --color-down-ink: #fff4f3;
+  --color-caution: #f5c518;
+  --color-warn-bg: #2a1210;
+  color-scheme: dark;
+}
+
+/* Enhance document overscroll where :has() is supported. */
+:root:has(.admin-root) {
   --color-chart-attribution: #0c1425;
   --color-ground: #080e16;
   --color-panel: #0e1820;

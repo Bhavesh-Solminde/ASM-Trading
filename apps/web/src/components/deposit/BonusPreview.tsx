@@ -33,7 +33,7 @@ export function BonusPreview({
         <h2 id="bonus-preview-title" className="text-[13px] font-bold text-up">
           {ordinal(next)} deposit &middot; +{pct}% bonus
         </h2>
-        <span className="rounded-full bg-up/15 px-2 py-[3px] text-[11px] font-extrabold leading-4 text-up">NEXT</span>
+        <span className="rounded-full bg-up/15 px-2 py-[3px] text-[11px] font-extrabold leading-4 text-bonus-accent">NEXT</span>
       </div>
 
       <p className="mt-3 text-[13px] text-ink-2">You will trade with</p>
@@ -57,7 +57,7 @@ export function BonusPreview({
                 isNext ? "bg-up/[0.18]" : "bg-surface-highlight/[0.04]"
               } ${claimed ? "opacity-55" : ""}`}
             >
-              <b className={`text-sm ${isNext ? "text-up" : "text-ink"}`}>{tier}%</b>
+              <b className={`text-sm ${isNext ? "text-bonus-accent" : "text-ink"}`}>{tier}%</b>
               <span className="text-[10px] text-ink-2">
                 {ordinal(n)}
                 {claimed ? <span className="sr-only"> (used)</span> : null}

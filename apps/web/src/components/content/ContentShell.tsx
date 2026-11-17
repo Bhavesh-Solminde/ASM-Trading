@@ -14,8 +14,8 @@ export function ContentShell({ children }: { children: React.ReactNode }) {
           <Link href="/" aria-label="IndianxTrade — home" className="flex items-center">
             <LogoWordmark className="h-7" />
           </Link>
-          <nav className="flex items-center gap-2 text-sm">
-            <ThemeToggle />
+          <nav className="flex items-center gap-4 text-sm">
+            <span className="-my-1.5 inline-flex"><ThemeToggle /></span>
             <Link href="/guides" className="text-ink-2 hover:text-ink">
               Guides
             </Link>
