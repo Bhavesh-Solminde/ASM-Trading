@@ -75,7 +75,11 @@ export default function RootLayout({
 }) {
   return (
     <html suppressHydrationWarning lang="en" className={`${hanken.variable} ${doto.variable}`}>
-      <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
+      <head>
+        {/* Constant audited bootstrap; it must run before paint, contains no user input. */}
+        {/* eslint-disable-next-line no-restricted-syntax */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
       <body className="min-h-screen antialiased">
         {/* Site-wide entity graph — Organization + WebSite. */}
         <JsonLd data={[organizationSchema(), websiteSchema()]} />

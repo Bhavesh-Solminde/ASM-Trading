@@ -467,11 +467,11 @@ touch production):
 ## Progress
 
 - [x] 0. Read the docs listed in §2
-- [ ] 1. Foundation: tokens, inline script, store/hook, meta theme-color, admin isolation (§3)
+- [x] 1. Foundation: tokens, inline script, store/hook, meta theme-color, admin isolation (§3)
 - [x] 2. Switch component placed in every location (§3.4)
-- [ ] 3. Hard-coded colour sweep, every file (§4)
-- [ ] 4. Chart + mini charts (§5)
-- [ ] 5. Logos, images, /start, special pages (§6)
-- [ ] 6. Guard test + theme store tests (§7)
+- [x] 3. Hard-coded colour sweep, every file (§4)
+- [x] 4. Chart + mini charts (§5)
+- [x] 5. Logos, images, /start, special pages (§6)
+- [x] 6. Guard test + theme store tests (§7)
 - [ ] 7. Commands green + full browser pass in both themes (§8)
 - [ ] 8. Final report (§9)
