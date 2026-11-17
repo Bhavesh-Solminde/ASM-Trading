@@ -391,3 +391,57 @@ button,
 @media (max-width:359px) {
   .ticket-controls { grid-template-columns:minmax(0,1fr); }
 }
+
+:root[data-theme="light"] {
+  --color-ground: #f4f6f9;
+  --color-panel: #ffffff;
+  --color-tile: #eef2f6;
+  --color-tile-hi: #e2e8ef;
+  --color-chart: #ffffff;
+  --color-rule: #cfd8e3;
+  --color-ink: #0b1220;
+  --color-ink-2: #3b4757;
+  --color-ink-3: #56616f;
+  --color-brand: #175fcc;
+  --color-brand-ink: #ffffff;
+  --color-brand-fill: #1f6feb;
+  --color-brand-fill-hi: #1859c4;
+  --color-brand-dim: #e1ecff;
+  --color-up: #077436;
+  --color-up-ink: #ffffff;
+  --color-down: #c8261c;
+  --color-down-ink: #ffffff;
+  --color-caution: #8f5400;
+  --color-warn-bg: #fdeceb;
+  color-scheme: light;
+}
+
+/* Admin is an isolated dark application, including document overscroll. */
+:root:has(.admin-root), .admin-root {
+  --color-ground: #080e16;
+  --color-panel: #0e1820;
+  --color-tile: #131f28;
+  --color-tile-hi: #1c2b36;
+  --color-chart: #0c141c;
+  --color-rule: #293a47;
+  --color-ink: #f4f7fb;
+  --color-ink-2: #98a2b3;
+  --color-ink-3: #7d8797;
+  --color-brand: #2f81f7;
+  --color-brand-ink: #ffffff;
+  --color-brand-fill: #1f6feb;
+  --color-brand-fill-hi: #1a66d9;
+  --color-brand-dim: #10233f;
+  --color-up: #3be584;
+  --color-up-ink: #03170b;
+  --color-down: #e5413b;
+  --color-down-ink: #fff4f3;
+  --color-caution: #f5c518;
+  --color-warn-bg: #2a1210;
+  color-scheme: dark;
+}
+
+.theme-changing *, .theme-changing *::before, .theme-changing *::after { transition: none !important; }
+.theme-light-icon { display: none; }
+:root[data-theme="light"] .theme-light-icon { display: inline-flex; }
+:root[data-theme="light"] .theme-dark-icon { display: none; }

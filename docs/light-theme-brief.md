@@ -466,7 +466,7 @@ touch production):
 
 ## Progress
 
-- [ ] 0. Read the docs listed in §2
+- [x] 0. Read the docs listed in §2
 - [ ] 1. Foundation: tokens, inline script, store/hook, meta theme-color, admin isolation (§3)
 - [ ] 2. Switch component placed in every location (§3.4)
 - [ ] 3. Hard-coded colour sweep, every file (§4)

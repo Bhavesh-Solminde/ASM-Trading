@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Doto, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
+import { themeBootstrap } from "@/lib/theme-bootstrap";
 import { buildMetadata } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 import { FirstVisitDiwali } from "@/components/festive/FirstVisitDiwali";
@@ -71,7 +72,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${hanken.variable} ${doto.variable}`}>
+    <html suppressHydrationWarning lang="en" className={`${hanken.variable} ${doto.variable}`}>
+      <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
       <body className="min-h-screen antialiased">
         {/* Site-wide entity graph — Organization + WebSite. */}
         <JsonLd data={[organizationSchema(), websiteSchema()]} />
