@@ -66,6 +66,7 @@ export function LogoWordmark({ className, compact = false }: { className?: strin
         width={compact ? 1170 : 1179}
         height={compact ? 229 : 298}
         sizes="(max-width: 640px) 190px, 280px"
+        fetchPriority="low"
         loading="eager"
         className={`brand-wordmark-light w-auto ${className ?? ""}`}
       />
