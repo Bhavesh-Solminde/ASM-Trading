@@ -473,5 +473,8 @@ touch production):
 - [x] 4. Chart + mini charts (§5)
 - [x] 5. Logos, images, /start, special pages (§6)
 - [x] 6. Guard test + theme store tests (§7)
-- [ ] 7. Commands green + full browser pass in both themes (§8)
-- [ ] 8. Final report (§9)
+- [x] 7. Command gates run with proven baseline exceptions + full browser pass in both themes (§8)
+- [x] 8. Final report (§9)
+
+
+Verification note: §8's baseline-exception path applies to repository lint and the existing missing-`BTCUSD` test fixture. Build/typecheck, theme guards and browser checks pass. See [light-theme-report.md](light-theme-report.md) for exact results, retained colours, all route screenshots and fixture limitations.
