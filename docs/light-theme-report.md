@@ -1,4 +1,7 @@
 # Light theme delivery report
+
+> **Note (later commit `2333ad4`):** the light colour values in the tables below were replaced by a palette measured from leading trading platforms (TradingView, Coinbase, Groww, Upstox, Robinhood, Zerodha). The current values live in `apps/web/src/app/globals.css`, `theme-surfaces.css` and `theme-chart.css`. Screenshot links in this report point to `/tmp` on the machine that produced them.
+
 Branch: `feat/adding-light-theme`. Local commits only; nothing pushed or published.
 ## Changes
 - Shared cookie-backed theme store, blocking bootstrap, accessible shared toggle, cross-tab sync and browser chrome. Dark remains default; admin is isolated.

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getProgramSettings } from "@asm/db";
 import { LogoWordmark } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { AffiliateMotion, AnimatedNumber } from "@/components/affiliate/AffiliateMotion";
 import { EarningsCalculator } from "@/components/affiliate/EarningsCalculator";
 import { SampleDashboard } from "@/components/affiliate/SampleDashboard";
@@ -44,7 +45,7 @@ export default async function AffiliateLandingPage() {
   ];
   return (
     <div className={styles.page}>
-      <header className={styles.header}><div className={`${styles.wrap} ${styles.headerInner}`}><Link href="/" aria-label={`${SITE_NAME} — home`}><LogoWordmark className="h-7" /></Link><nav aria-label="Affiliate navigation" className={styles.nav}><a href="#journey">How it works</a><a href="#dashboard">Your dashboard</a><a href="#calculator">Explore your potential</a><Link href="/affiliate/login" className="font-bold text-ink">Affiliate log in <span aria-hidden="true" className="ml-2">↗</span></Link></nav></div></header>
+      <header className={styles.header}><div className={`${styles.wrap} ${styles.headerInner}`}><Link href="/" aria-label={`${SITE_NAME} — home`}><LogoWordmark className="h-7" /></Link><nav aria-label="Affiliate navigation" className={styles.nav}><a href="#journey">How it works</a><a href="#dashboard">Your dashboard</a><a href="#calculator">Explore your potential</a><ThemeToggle /><Link href="/affiliate/login" className="font-bold text-ink">Affiliate log in <span aria-hidden="true" className="ml-2">↗</span></Link></nav></div></header>
       <AffiliateMotion>
         <main>
           <section className={styles.hero} aria-labelledby="affiliate-title" data-hero>
