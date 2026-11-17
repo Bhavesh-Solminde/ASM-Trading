@@ -7,15 +7,20 @@ import { DRAWING_TOOLS, INDICATORS, IndicatorAccumulator, readDrawings, type Anc
 import styles from "./ChartAnalysis.module.css";
 import { ChartToolIcon } from "./ChartToolIcon";
 
+import { useTheme } from "@/lib/theme";
+import { getChartPalette } from "./chart-palette";
+
 type XY = { x: number; y: number };
 const NAMES: Record<DrawingTool, string> = { select: "Select drawings", horizontal: "Horizontal line", trend: "Trend line", channel: "Parallel channel", fib: "Fibonacci retracement", brush: "Freehand drawing", text: "Text annotation", measure: "Measure" };
-const COLORS = { SMA: "#f5bd4f", EMA: "#ae91ff", RSI: "#5dc8ff" };
+
 
 export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chartVersion, scope, symbol, precision, volumeAvailable, volumeEnabled, onVolumeChange }: {
   chartRef: RefObject<IChartApi | null>; seriesRef: RefObject<ISeriesApi<SeriesType> | null>; containerRef: RefObject<HTMLDivElement | null>;
   market: MarketStore; chartVersion: number; scope: string; symbol: string; precision: number;
   volumeAvailable: boolean; volumeEnabled: boolean; onVolumeChange: () => void;
 }) {
+  const theme = useTheme();
+  const indicatorSeries = useRef<{kind: Indicator; series: ISeriesApi<"Line">}[]>([]);
   const storageKey = `asm_chart_drawings:v1:${scope}`;
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [draft, setDraft] = useState<Drawing | null>(null);
@@ -98,7 +103,9 @@ export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chart
     if (!chart) return;
     // Discard hover indexes before replacing indicator series and their shared timeline.
     chart.clearCrosshairPosition();
-    const rows=indicators.map(kind=>({kind,series:chart.addSeries(LineSeries,{color:COLORS[kind],lineWidth:1,title:`${kind} 14`,priceLineVisible:false,lastValueVisible:true, ...(kind === "RSI" ? {priceScaleId:"right"} : {})},kind === "RSI" ? 1 : 0),acc:new IndicatorAccumulator(kind),first:0,closed:0,seeded:false,latest:null as number | null}));
+    const palette = getChartPalette();
+    const rows=indicators.map(kind=>({kind,series:chart.addSeries(LineSeries,{color:palette[kind],lineWidth:1,title:`${kind} 14`,priceLineVisible:false,lastValueVisible:true, ...(kind === "RSI" ? {priceScaleId:"right"} : {})},kind === "RSI" ? 1 : 0),acc:new IndicatorAccumulator(kind),first:0,closed:0,seeded:false,latest:null as number | null}));
+    indicatorSeries.current = rows;
     let raf=0;
     const update=()=>{
       raf=0;const state=market.getSnapshot().chart;
@@ -124,8 +131,10 @@ export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chart
     };
     const schedule=()=>{if(!raf && !document.hidden)raf=requestAnimationFrame(update);};
     const unsub=market.subscribe(schedule);schedule();
-    return()=>{unsub();cancelAnimationFrame(raf);try{chart.clearCrosshairPosition();}catch{/* Chart may already be removed. */}for(const row of rows){try{chart.removeSeries(row.series);}catch{/* Chart may already be removed. */}}};
+    return()=>{indicatorSeries.current=[];unsub();cancelAnimationFrame(raf);try{chart.clearCrosshairPosition();}catch{/* Chart may already be removed. */}for(const row of rows){try{chart.removeSeries(row.series);}catch{/* Chart may already be removed. */}}};
   }, [chartVersion, market, symbol, indicators.join(",")]);
+
+  useEffect(()=>{const palette=getChartPalette();for(const row of indicatorSeries.current)row.series.applyOptions({color:palette[row.kind]});},[theme]);
 
   function anchor(e: PointerEvent<SVGSVGElement>): Anchor | null {
     const el=containerRef.current,chart=chartRef.current,series=seriesRef.current;
@@ -184,7 +193,7 @@ export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chart
     </nav>
     <div className={styles.indicators}>
       <button type="button" aria-expanded={menu} onClick={()=>setMenu(v=>!v)}>ƒx <span>Indicators</span>{indicatorCount>0?` · ${indicatorCount}`:""}</button>
-      {menu&&<div className={styles.menu}>{INDICATORS.map(i=><label key={i}><input type="checkbox" checked={indicators.includes(i)} onChange={()=>toggleIndicator(i)}/><span style={{color:COLORS[i]}}>{i} 14</span></label>)}{volumeAvailable && <label><input type="checkbox" checked={volumeEnabled} onChange={onVolumeChange} /><span>Volume</span></label>}<output data-testid="indicator-values" className="text-[10px] text-ink-2">{indicatorReadout}</output><button type="button" onClick={()=>setMenu(false)}>Done</button></div>}
+      {menu&&<div className={styles.menu}>{INDICATORS.map(i=><label key={i}><input type="checkbox" checked={indicators.includes(i)} onChange={()=>toggleIndicator(i)}/><span style={{color:`var(--color-chart-${i.toLowerCase()})`}}>{i} 14</span></label>)}{volumeAvailable && <label><input type="checkbox" checked={volumeEnabled} onChange={onVolumeChange} /><span>Volume</span></label>}<output data-testid="indicator-values" className="text-[10px] text-ink-2">{indicatorReadout}</output><button type="button" onClick={()=>setMenu(false)}>Done</button></div>}
     </div>
     {(tool==="text"||current?.tool==="text")&&<div className={styles.annotation}><input aria-label="Annotation text" maxLength={120} value={current?.tool==="text"?current.text??"":text} onChange={e=>current?.tool==="text"?save(drawings.map(d=>d.id===current.id?{...d,text:e.target.value}:d)):setText(e.target.value)}/></div>}
     {notice&&<button type="button" className={styles.notice} onClick={()=>setNotice("")} aria-label="Dismiss chart hint">{notice} ×</button>}
@@ -192,16 +201,16 @@ export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chart
       {tool!=="select"&&<rect className={styles.capture} x="48" y="185" width={Math.max(0,view.width-48)} height={Math.max(0,view.height-185)} fill="transparent"/>}
       {view.rows.map(({drawing:d,points:p})=>{
         const a=p[0],b=p[1];if(!a)return null;
-        const active=d.id===selected,color=active?"#8cc2ff":"#5e9fff";
+        const active=d.id===selected,color=active?"var(--color-chart-drawing-active)":"var(--color-chart-drawing)";
         const props={stroke:color,strokeWidth:active?2:1.5,fill:"none","data-drawing":d.id,className:styles.shape};
         let content;
         if(d.tool==="horizontal")content=<><line {...props} x1="0" x2={view.width} y1={a.y} y2={a.y}/><text x={view.width-6} y={a.y-5} textAnchor="end" fill={color} fontSize="11">{d.points[0]!.price.toFixed(precision)}</text></>;
         else if(d.tool==="text")content=<text {...props} stroke="none" fill={color} x={a.x} y={a.y} fontSize="14">{d.text??"Note"}</text>;
         else if(d.tool==="brush")content=<polyline {...props} points={p.map(v=>`${v.x},${v.y}`).join(" ")}/>;
         else if(b && d.tool==="fib")content=<>{[0,.236,.382,.5,.618,.786,1].map(level=>{const y=a.y+(b.y-a.y)*level;return <g key={level}><line {...props} x1={Math.min(a.x,b.x)} x2={Math.max(a.x,b.x)} y1={y} y2={y}/><text x={Math.max(a.x,b.x)+4} y={y+3} fill={color} fontSize="10">{level} · {(d.points[0]!.price+(d.points[1]!.price-d.points[0]!.price)*level).toFixed(precision)}</text></g>;})}</>;
-        else if(b && d.tool==="channel"){const offset=(p[2]?.y??a.y-35)-a.y;content=<><polygon points={`${a.x},${a.y} ${b.x},${b.y} ${b.x},${b.y+offset} ${a.x},${a.y+offset}`} fill="#5e9fff18"/><line {...props} x1={a.x} y1={a.y} x2={b.x} y2={b.y}/><line {...props} x1={a.x} y1={a.y+offset} x2={b.x} y2={b.y+offset}/></>;}
-        else if(b){content=<><line {...props} x1={a.x} y1={a.y} x2={b.x} y2={b.y}/>{d.tool==="measure"&&<><rect x={Math.min(a.x,b.x)} y={Math.min(a.y,b.y)} width={Math.abs(b.x-a.x)} height={Math.abs(b.y-a.y)} fill="#5e9fff18"/><text x={b.x+5} y={b.y-8} fill={color} fontSize="11">{((d.points[1]!.price/d.points[0]!.price-1)*100).toFixed(2)}% · {Math.round(Math.abs(d.points[1]!.time-d.points[0]!.time)/60)}m</text></>}</>;}
-        return <g key={d.id}>{content}{active&&d.tool!=="brush"&&p.map((v,i)=><circle key={i} data-drawing={d.id} data-anchor={i} className={styles.handle} cx={v.x} cy={v.y} r="6" fill="#0c1425" stroke={color} strokeWidth="2"/>)}</g>;
+        else if(b && d.tool==="channel"){const offset=(p[2]?.y??a.y-35)-a.y;content=<><polygon points={`${a.x},${a.y} ${b.x},${b.y} ${b.x},${b.y+offset} ${a.x},${a.y+offset}`} fill="var(--color-chart-drawing-fill)"/><line {...props} x1={a.x} y1={a.y} x2={b.x} y2={b.y}/><line {...props} x1={a.x} y1={a.y+offset} x2={b.x} y2={b.y+offset}/></>;}
+        else if(b){content=<><line {...props} x1={a.x} y1={a.y} x2={b.x} y2={b.y}/>{d.tool==="measure"&&<><rect x={Math.min(a.x,b.x)} y={Math.min(a.y,b.y)} width={Math.abs(b.x-a.x)} height={Math.abs(b.y-a.y)} fill="var(--color-chart-drawing-fill)"/><text x={b.x+5} y={b.y-8} fill={color} fontSize="11">{((d.points[1]!.price/d.points[0]!.price-1)*100).toFixed(2)}% · {Math.round(Math.abs(d.points[1]!.time-d.points[0]!.time)/60)}m</text></>}</>;}
+        return <g key={d.id}>{content}{active&&d.tool!=="brush"&&p.map((v,i)=><circle key={i} data-drawing={d.id} data-anchor={i} className={styles.handle} cx={v.x} cy={v.y} r="6" fill="var(--color-chart-handle)" stroke={color} strokeWidth="2"/>)}</g>;
       })}
     </svg>
   </>;

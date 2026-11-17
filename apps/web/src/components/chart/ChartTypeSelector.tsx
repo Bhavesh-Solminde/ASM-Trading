@@ -47,7 +47,7 @@ export function ChartTypeSelector({
               }`
             : `relative grid size-[34px] phone:size-10 place-items-center rounded-[4px] border backdrop-blur transition-colors ${
                 open
-                  ? "border-brand bg-brand/25 text-brand shadow-[0_0_8px_rgba(47,129,247,0.3)]"
+                  ? "border-brand bg-brand/25 text-brand shadow-(--chart-selected-shadow)"
                   : "border-brand/50 bg-brand/15 text-brand hover:border-brand hover:bg-brand/25"
               }`
         }
@@ -61,7 +61,7 @@ export function ChartTypeSelector({
           aria-label="Select chart display"
           className={`absolute left-0 z-40 w-[215px] ${
             tool ? "bottom-[calc(100%+8px)] max-h-[min(380px,55dvh)]" : "top-[calc(100%+6px)] max-h-[380px]"
-          } overflow-y-auto overscroll-contain rounded-md border border-rule bg-panel/95 p-1.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.85)] backdrop-blur-md`}
+          } overflow-y-auto overscroll-contain rounded-md border border-rule bg-panel/95 p-1.5 shadow-(--chart-selector-shadow) backdrop-blur-md`}
         >
           <div className="sticky top-0 z-10 bg-panel/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3 backdrop-blur-md">
             Chart Display
@@ -86,7 +86,7 @@ export function ChartTypeSelector({
                     className={`grid w-full grid-cols-[20px_1fr_auto] items-center gap-2.5 rounded-[4px] px-2.5 py-2 text-left transition-colors phone:py-2.5 ${
                       active
                         ? "bg-brand/15 text-brand border border-brand/40 font-semibold"
-                        : "text-ink hover:bg-tile hover:text-white border border-transparent"
+                        : "text-ink hover:bg-tile hover:text-ink border border-transparent"
                     }`}
                   >
                     <Icon
@@ -102,7 +102,7 @@ export function ChartTypeSelector({
                     {active ? (
                       <span
                         aria-hidden
-                        className="size-1.5 rounded-full bg-brand shadow-[0_0_6px_var(--color-brand,#2f81f7)]"
+                        className="size-1.5 rounded-full bg-brand shadow-[0_0_6px_var(--color-brand)]"
                       />
                     ) : null}
                   </button>

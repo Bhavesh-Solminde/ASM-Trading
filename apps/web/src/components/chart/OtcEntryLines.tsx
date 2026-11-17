@@ -78,7 +78,7 @@ export function OtcEntryLines({
           hidden
           aria-label={`${trade.direction === "UP" ? "Buy" : "Sell"} entry`}
           className="absolute left-0 top-0 border-t-2"
-          style={{ color: trade.direction === "UP" ? "#089981" : "#f23645", borderColor: "currentColor" }}
+          style={{ color: trade.direction === "UP" ? "var(--color-candle-up)" : "var(--color-candle-down)", borderColor: "currentColor" }}
         >
           <span className="absolute -left-1 -top-[5px] size-2 rounded-full bg-current" />
         </div>

@@ -4,6 +4,9 @@ import { LineStyle,type IChartApi,type ISeriesApi } from "lightweight-charts";
 import type { MarketStore } from "@/components/shell/market-store";
 import { snapProtection,type OtcProtectionDraft } from "./otc-protection";
 
+import { useTheme } from "@/lib/theme";
+import { getChartPalette } from "./chart-palette";
+
 type Kind="stopLoss"|"takeProfit";
 type Geometry={height:number;axis:number;stopLoss:number|null;takeProfit:number|null};
 /** Draft levels only. Accepted OTC terms remain immutable and settle on executions. */
@@ -11,6 +14,7 @@ export function OtcProtection({draft,onChange,seriesRef,chartRef,containerRef,ma
   draft:OtcProtectionDraft;onChange:(draft:OtcProtectionDraft)=>void;seriesRef:RefObject<ISeriesApi<any>|null>;chartRef:RefObject<IChartApi|null>;
   containerRef:RefObject<HTMLDivElement|null>;market:MarketStore;chartVersion:number;precision:number;tickSize:number;
 }){
+  const theme = useTheme();
   const model=useRef({draft,onChange});model.current={draft,onChange};
   const drag=useRef<{kind:Kind;before:OtcProtectionDraft;pointer:number;target:HTMLButtonElement;auto:boolean}|null>(null);
   const [geometry,setGeometry]=useState<Geometry>({height:0,axis:65,stopLoss:null,takeProfit:null});
@@ -48,10 +52,12 @@ export function OtcProtection({draft,onChange,seriesRef,chartRef,containerRef,ma
   const levelsRef=useRef<ReturnType<ISeriesApi<any>["createPriceLine"]>[]>([]);
   useLayoutEffect(()=>{
     const series=seriesRef.current;if(!series||!draft.enabled)return;
-    const entries=(["stopLoss","takeProfit"] as const).map(kind=>series.createPriceLine({price:draft[kind]??0,color:kind==="stopLoss"?"#f23645":"#089981",lineWidth:1,lineStyle:LineStyle.Dashed,axisLabelVisible:draft[kind]!==null,lineVisible:draft[kind]!==null,title:kind==="stopLoss"?"SL draft":"TP draft"}));
+    const palette=getChartPalette();
+    const entries=(["stopLoss","takeProfit"] as const).map(kind=>series.createPriceLine({price:draft[kind]??0,color:kind==="stopLoss"?palette.down:palette.up,lineWidth:1,lineStyle:LineStyle.Dashed,axisLabelVisible:draft[kind]!==null,lineVisible:draft[kind]!==null,title:kind==="stopLoss"?"SL draft":"TP draft"}));
     levelsRef.current=entries;return()=>{levelsRef.current=[];for(const line of entries)try{series.removePriceLine(line);}catch{}};
   },[draft.enabled,chartVersion]);
   useLayoutEffect(()=>{[draft.stopLoss,draft.takeProfit].forEach((price,i)=>levelsRef.current[i]?.applyOptions({price:price??0,lineVisible:price!==null,axisLabelVisible:price!==null}));schedule.current();},[draft]);
+  useLayoutEffect(()=>{const palette=getChartPalette();levelsRef.current.forEach((line,i)=>line.applyOptions({color:i===0?palette.down:palette.up,axisLabelTextColor:palette.labelInk}));},[theme,chartVersion,draft.enabled]);
   function begin(e:ReactPointerEvent<HTMLButtonElement>,kind:Kind){
     if(e.button!==0)return;e.preventDefault();e.stopPropagation();release();
     const scale=chartRef.current?.priceScale("right");drag.current={kind,before:model.current.draft,pointer:e.pointerId,target:e.currentTarget,auto:scale?.options().autoScale??true};
@@ -70,9 +76,9 @@ export function OtcProtection({draft,onChange,seriesRef,chartRef,containerRef,ma
       return y!==null&&y>=20&&y<=geometry.height-20?<button key={kind} type="button" role="slider" aria-orientation="vertical" aria-label={`Drag ${kind==="stopLoss"?"stop loss":"take profit"}`} aria-valuenow={draft[kind]??undefined} aria-valuetext={draft[kind]?.toFixed(precision)}
         onPointerDown={e=>begin(e,kind)} onPointerMove={move} onPointerUp={()=>release()} onPointerCancel={()=>release(true)} onLostPointerCapture={()=>release()}
         onKeyDown={e=>{if(e.key==="Escape"){release(true);return;}if(!["ArrowUp","ArrowDown"].includes(e.key))return;e.preventDefault();const current=model.current.draft,value=current[kind];if(value!==null)model.current.onChange({...current,[kind]:snapProtection(Math.max(tickSize,value+(e.key==="ArrowUp"?1:-1)*tickSize*(e.shiftKey?10:1)),tickSize,precision)});}}
-        className="pointer-events-auto absolute flex h-9 touch-none items-center gap-2 rounded border bg-[#0c141c] px-3 text-xs font-bold shadow-md focus-visible:outline-2 focus-visible:outline-white"
-        style={{top:y-18,right:geometry.axis+14,color:kind==="stopLoss"?"#f23645":"#089981",borderColor:"currentColor",cursor:"ns-resize"}}>{label} <span aria-hidden>↕</span> Drag</button>:null;
+        className="pointer-events-auto absolute flex h-9 touch-none items-center gap-2 rounded border bg-chart-market px-3 text-xs font-bold shadow-md focus-visible:outline-2 focus-visible:outline-chart-focus"
+        style={{top:y-18,right:geometry.axis+14,color:kind==="stopLoss"?"var(--color-candle-down)":"var(--color-candle-up)",borderColor:"currentColor",cursor:"ns-resize"}}>{label} <span aria-hidden>↕</span> Drag</button>:null;
     })}
-    <span className="absolute bottom-14 left-3 rounded bg-[#0c141c]/90 px-2 py-1 text-xs text-ink-2">Drag SL / TP before placing your {draft.direction==="UP"?"Buy":"Sell"} trade</span>
+    <span className="absolute bottom-14 left-3 rounded bg-chart-market/90 px-2 py-1 text-xs text-ink-2">Drag SL / TP before placing your {draft.direction==="UP"?"Buy":"Sell"} trade</span>
   </div>;
 }
