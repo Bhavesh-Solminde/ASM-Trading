@@ -2,8 +2,18 @@
 import { Icon } from "@/components/shell/Icon";
 import { readTheme, setTheme, useTheme } from "@/lib/theme";
 
-export function ThemeToggle({ row = false }: { row?: boolean }) {
+export function ThemeToggle({ row = false, presentation, className = "" }: { row?: boolean; presentation?: "segmented"; className?: string }) {
   const theme = useTheme();
+  if (presentation === "segmented") return (
+    <div className={`${className} theme-segmented`} role="group" aria-label="Page appearance">
+      <button type="button" aria-label="Use light theme" aria-pressed={theme === "light"} data-theme-choice="light" onClick={() => setTheme("light")}>
+        <Icon name="sun" /><span>Light</span>
+      </button>
+      <button type="button" aria-label="Use dark theme" aria-pressed={theme === "dark"} data-theme-choice="dark" onClick={() => setTheme("dark")}>
+        <Icon name="moon" /><span>Dark</span>
+      </button>
+    </div>
+  );
   return <button type="button" aria-pressed={theme === "light"}
     aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
     onClick={() => setTheme(readTheme() === "light" ? "dark" : "light")}

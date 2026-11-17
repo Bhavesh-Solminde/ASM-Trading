@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { StartTheme, StartThemeToggle } from "@/components/acquisition/StartTheme";
 import { LogoWordmark } from "@/components/brand/Logo";
 import { MarketPreview } from "@/components/acquisition/MarketPreview";
@@ -21,12 +20,10 @@ export const metadata = buildMetadata({
 export default async function StartPage({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [params, cookieStore] = await Promise.all([searchParams, cookies()]);
+  const params = await searchParams;
   const href = registrationHref(params);
-  const savedTheme = cookieStore.get("ixt_start_theme")?.value;
-  const initialTheme = savedTheme === "dark" || savedTheme === "light" ? savedTheme : null;
   return (
-    <StartTheme initialTheme={initialTheme}>
+    <StartTheme>
       <a className={styles.skip} href="#introduction">Skip to content</a>
       <header className={styles.header}>
         <LogoWordmark compact className={styles.wordmark ?? ""} />

@@ -30,19 +30,19 @@ export function MarketPreview() {
         <div className={styles.chartWrap}>
           <div className={styles.chartTools} aria-hidden="true"><span>⌖</span><span>╱</span><span>≋</span><span>＋</span></div>
           <svg key={selected} viewBox="0 0 510 260" className={styles.chart} role="img" aria-label={`Illustrative ${market.symbol} candlestick chart. Not live market data.`}>
-            {[40,90,140,190,240].map(y => <line key={y} x1="0" x2="510" y1={y} y2={y} stroke="#263247" strokeWidth=".7" />)}
-            {[60,160,260,360,460].map(x => <line key={x} x1={x} x2={x} y1="10" y2="250" stroke="#263247" strokeWidth=".7" />)}
+            {[40,90,140,190,240].map(y => <line key={y} x1="0" x2="510" y1={y} y2={y} stroke="var(--preview-grid)" strokeWidth=".7" />)}
+            {[60,160,260,360,460].map(x => <line key={x} x1={x} x2={x} y1="10" y2="250" stroke="var(--preview-grid)" strokeWidth=".7" />)}
             {market.points.map((close, index) => {
               const open = market.points[Math.max(index - 1, 0)]! + (index === 0 ? 12 : 0);
               const x = 16 + index * 20;
-              const color = close < open ? "#61c7b0" : "#dd8b91";
+              const color = close < open ? "var(--preview-up)" : "var(--preview-down)";
               return <g key={index} fill={color} stroke={color}>
                 <line x1={x} x2={x} y1={Math.min(open, close) - 8 - index % 5} y2={Math.max(open, close) + 9} />
                 <rect x={x - 4} y={Math.min(open, close)} width="8" height={Math.max(Math.abs(open - close), 3)} rx="1" stroke="none" />
                 <rect x={x - 5} y={240 - (index * 7 % 28)} width="10" height={20 + index * 7 % 28} opacity=".16" stroke="none" />
               </g>;
             })}
-            <path d="M0 202 C60 209 70 160 130 169 S210 118 270 139 S390 90 505 84" fill="none" stroke="#629afa" strokeWidth="1.5" opacity=".7" />
+            <path d="M0 202 C60 209 70 160 130 169 S210 118 270 139 S390 90 505 84" fill="none" stroke="var(--preview-line)" strokeWidth="1.5" opacity=".7" />
           </svg>
         </div>
         <div className={styles.chartLabels}><span>09:00</span><span>09:15</span><span>09:30</span><span>09:45</span></div>

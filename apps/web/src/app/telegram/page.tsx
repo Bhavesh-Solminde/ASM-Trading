@@ -69,7 +69,7 @@ function BrandLink() {
 
 export default function TelegramPage() {
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-telegram-page>
       <a className={styles.skip} href="#main">Skip to content</a>
       <header className={styles.header}>
         <div className={`${styles.shell} ${styles.headerInner}`}>

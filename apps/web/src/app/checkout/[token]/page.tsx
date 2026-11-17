@@ -50,6 +50,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
 
   return (
     <main
+      data-checkout-page={deposit.method}
       className="flex min-h-screen justify-center px-4 py-10"
       style={
         {
