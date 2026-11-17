@@ -20,7 +20,7 @@ describe("theme token contracts", () => {
   }
   it("keeps all primary text readable on light page and card surfaces", () => {
     for (const text of ["ink", "ink-2", "ink-3", "brand", "up", "down", "caution"])
-      for (const surface of ["ground", "panel", "tile"])
+      for (const surface of ["ground", "panel", "tile", "tile-hi"])
         expect(contrast(light[`--color-${text}`]!, light[`--color-${surface}`]!), `${text} on ${surface}`).toBeGreaterThanOrEqual(4.5);
   });
   it("keeps button labels readable on solid light fills", () => {
