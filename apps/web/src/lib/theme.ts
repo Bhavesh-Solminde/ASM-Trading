@@ -27,7 +27,7 @@ function syncChrome() {
   const meta = metas.at(-1);
   for (const duplicate of metas.slice(0, -1)) duplicate.remove();
   const color = meta && getComputedStyle(document.documentElement).getPropertyValue("--color-ground").trim();
-  if (meta && color) meta.content = color;
+  if (meta && color && meta.content !== color) meta.content = color;
 }
 function updateDocument(next: Theme) {
   const changed = readTheme() !== next;
@@ -93,8 +93,12 @@ export function syncRouteTheme() {
 export function watchThemeChrome() {
   if (typeof MutationObserver === "undefined") return () => {};
   const observer = new MutationObserver(records => {
-    if (records.some(record => Array.from(record.addedNodes).some(node => node instanceof Element && node.matches('meta[name="theme-color"]')))) syncChrome();
+    if (records.some(record =>
+      record.type === "attributes"
+        ? record.target instanceof HTMLMetaElement && record.target.name === "theme-color"
+        : Array.from(record.addedNodes).some(node => node instanceof Element && node.matches('meta[name="theme-color"]')),
+    )) syncChrome();
   });
-  observer.observe(document.head, { childList: true });
+  observer.observe(document.head, { childList: true, subtree: true, attributes: true, attributeFilter: ["content", "name"] });
   return () => observer.disconnect();
 }

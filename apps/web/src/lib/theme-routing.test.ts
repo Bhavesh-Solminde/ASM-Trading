@@ -136,3 +136,17 @@ it.each([
   boot(fake, { pathname }, () => ({ matches: false }), () => ({ getPropertyValue: () => "" }));
   expect(root.dataset.theme ?? "dark").toBe(expected);
 });
+
+it("restores chrome when React changes the existing meta content after navigation", async () => {
+  theme.syncRouteTheme();
+  const stop = theme.watchThemeChrome();
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!;
+  meta.content = "react-server-dark";
+  await Promise.resolve();
+  expect(meta.content).toBe("theme-ground");
+  // The observer's own correction must settle without repeated writes.
+  await Promise.resolve();
+  expect(document.querySelectorAll('meta[name="theme-color"]')).toHaveLength(1);
+  expect(meta.content).toBe("theme-ground");
+  stop();
+});
