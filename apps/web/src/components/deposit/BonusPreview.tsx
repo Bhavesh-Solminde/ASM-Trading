@@ -13,14 +13,18 @@ import { BonusOfferSheet } from "@/components/shell/PromoBanner";
 export function BonusPreview({
   amountInr,
   completedDeposits,
+  extraPercent = 0,
 }: {
   amountInr: number;
   completedDeposits: number;
+  /** Invited friend's extra first-deposit bonus, added to this deposit's tier. */
+  extraPercent?: number;
 }) {
   const [open, setOpen] = useState(false);
   const next = completedDeposits + 1;
-  const pct = bonusPercentForDeposit(next);
-  if (pct === 0) return null;
+  const base = bonusPercentForDeposit(next);
+  if (base === 0) return null;
+  const pct = base + extraPercent;
 
   // Minor units, floored exactly as the server credits it.
   const amountMinor = Math.round(amountInr * 100);
@@ -43,6 +47,11 @@ export function BonusPreview({
       <p className="mt-1 text-[13px] text-ink-2 tabular-nums">
         {money(amountMinor)} your money + {money(bonus)} bonus
       </p>
+      {extraPercent > 0 ? (
+        <p className="mt-1 text-xs text-up">
+          Includes an extra {extraPercent}% because a friend invited you.
+        </p>
+      ) : null}
 
       <ol className="mt-4 grid grid-cols-4 gap-1.5" aria-label="Bonus tiers">
         {BONUS_TIERS.map((tier, i) => {
@@ -57,7 +66,7 @@ export function BonusPreview({
                 isNext ? "bg-up/[0.18]" : "bg-white/[0.04]"
               } ${claimed ? "opacity-55" : ""}`}
             >
-              <b className={`text-sm ${isNext ? "text-up" : "text-ink"}`}>{tier}%</b>
+              <b className={`text-sm ${isNext ? "text-up" : "text-ink"}`}>{isNext ? tier + extraPercent : tier}%</b>
               <span className="text-[10px] text-ink-2">
                 {ordinal(n)}
                 {claimed ? <span className="sr-only"> (used)</span> : null}

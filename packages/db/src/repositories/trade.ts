@@ -387,7 +387,7 @@ export async function loadOpenPositions(): Promise<Position[]> {
     where: { status: "OPEN", durationSec: null },
     include: {
       account: {
-        select: { type: true, user: { select: { role: true } } },
+        select: { type: true, user: { select: { legacySimulated: true } } },
       },
     },
   });
@@ -403,7 +403,7 @@ export async function loadOpenPositions(): Promise<Position[]> {
       entrySec: Math.floor(row.entryTs.getTime() / 1000),
       expirySec: expirySecFor(row.expiryTs.getTime()),
       isDemo: row.account.type === "DEMO",
-      isAffiliate: row.account.user.role === "AFFILIATE",
+      isSimulated: row.account.user.legacySimulated,
     };
     // exactOptionalPropertyTypes: omit keys rather than assign undefined.
     return {

@@ -47,8 +47,8 @@ export default async function OverviewPage() {
   await requireAdmin();
 
   const since30 = new Date(Date.now() - 30 * DAY);
-  // Affiliate accounts never move real money — leave them out of every queue.
-  const notAffiliate = { user: { role: { not: "AFFILIATE" as const } } };
+  // Retired simulated affiliates never move real money — leave them out of every queue.
+  const notSimulated = { user: { legacySimulated: false } };
 
   const [
     pendingDeposits,
@@ -70,26 +70,26 @@ export default async function OverviewPage() {
     recentAudit,
   ] = await Promise.all([
     prisma.deposit.aggregate({
-      where: { status: "PENDING_CONFIRMATION", ...notAffiliate },
+      where: { status: "PENDING_CONFIRMATION", ...notSimulated },
       _count: { _all: true },
       _sum: { amountInr: true },
     }),
     prisma.deposit.findFirst({
-      where: { status: "PENDING_CONFIRMATION", ...notAffiliate },
+      where: { status: "PENDING_CONFIRMATION", ...notSimulated },
       orderBy: { createdAt: "asc" },
       select: { createdAt: true },
     }),
     prisma.withdrawal.aggregate({
-      where: { status: "REQUESTED", ...notAffiliate },
+      where: { status: "REQUESTED", ...notSimulated },
       _count: { _all: true },
       _sum: { amount: true },
     }),
     prisma.withdrawal.findFirst({
-      where: { status: "REQUESTED", ...notAffiliate },
+      where: { status: "REQUESTED", ...notSimulated },
       orderBy: { createdAt: "asc" },
       select: { createdAt: true },
     }),
-    prisma.withdrawal.count({ where: { status: "APPROVED", ...notAffiliate } }),
+    prisma.withdrawal.count({ where: { status: "APPROVED", ...notSimulated } }),
     prisma.user.count({ where: { kycStatus: "PENDING" } }),
     prisma.user.findFirst({
       where: { kycStatus: "PENDING", kycSubmittedAt: { not: null } },
@@ -107,9 +107,9 @@ export default async function OverviewPage() {
       orderBy: { firstDetectedAt: "asc" },
       select: { firstDetectedAt: true },
     }),
-    prisma.user.count({ where: { role: { not: "AFFILIATE" } } }),
+    prisma.user.count({ where: { legacySimulated: false } }),
     prisma.deposit.aggregate({
-      where: { status: "COMPLETED", ...notAffiliate },
+      where: { status: "COMPLETED", ...notSimulated },
       _sum: { amountInr: true },
     }),
     prisma.asset.count({ where: { isOpen: true } }),
@@ -303,7 +303,7 @@ export default async function OverviewPage() {
         <div className="admin-strip__cell">
           <span className="admin-label">Registered users</span>
           <span className="admin-strip__val">{num(userCount)}</span>
-          <span className="admin-cell-sub">Affiliates excluded</span>
+          <span className="admin-cell-sub">Simulated accounts excluded</span>
         </div>
         <div className="admin-strip__cell">
           <span className="admin-label">Settled deposits</span>

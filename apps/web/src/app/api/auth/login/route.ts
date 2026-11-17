@@ -25,20 +25,21 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: GENERIC }, { status: 400 });
   }
-  const { email, password } = parsed.data;
+  const { email, password, portal } = parsed.data;
 
   // Limit by IP and by account — one alone leaves a gap.
   // Dev-only override for the algo-live-test's 100-user burst: when
   // LOGIN_IP_RL env var is set, use that instead of the default 20.
   const ipLimit = Number.parseInt(process.env.LOGIN_IP_RL ?? "20", 10) || 20;
   const okIp = await checkRateLimit(`rl:login:ip:${ctx.ip}`, ipLimit, 300);
-  const okAccount = await checkRateLimit(`rl:login:acct:${email}`, 5, 300);
+  const okAccount = await checkRateLimit(`rl:login:acct:${portal}:${email}`, 5, 300);
   if (!okIp || !okAccount) {
     log.warn({ evt: "security.rate_limited", route: "login" }, "login throttled");
     return rateLimited("Too many attempts. Wait five minutes and try again.");
   }
 
-  const user = await findUserByEmail(email);
+  // Each portal reaches only its own rows; the other portal's account reads as "no user".
+  const user = await findUserByEmail(email, portal === "affiliate" ? "affiliate" : "main");
 
   // Network check runs BEFORE any credential verdict, so a VPN client gets the
   // same 403 whether the email is unknown, the password is wrong or both are
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
   }).catch(() => {
     /* logged elsewhere via the db client's own error path */
   });
-  log.info({ evt: "auth.login", userId: user.id }, "login succeeded");
+  log.info({ evt: "auth.login", userId: user.id, portal }, "login succeeded");
 
   if (app) return noStoreJson({ token, userId: user.id }, { status: 200 });
 

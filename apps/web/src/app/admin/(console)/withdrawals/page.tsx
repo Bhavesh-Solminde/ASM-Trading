@@ -67,29 +67,27 @@ export default async function WithdrawalsPage({
   const q = sp.q?.trim() ?? "";
   const page = Math.max(1, Number(sp.page) || 1);
 
-  // Hide affiliate-owned withdrawals from every admin counter and listing —
-  // affiliate withdrawals render in the user's own history but are never
-  // debited, approved, or paid. Applied uniformly across pending / held /
-  // history so no screen leaks a non-actionable row. See affiliate design doc.
-  const EXCLUDE_AFFILIATE: Prisma.WithdrawalWhereInput = {
-    user: { role: { not: "AFFILIATE" } },
+  // Retired simulated affiliates (User.legacySimulated) are play money: hide
+  // their rows from every admin counter and listing.
+  const EXCLUDE_SIMULATED: Prisma.WithdrawalWhereInput = {
+    user: { legacySimulated: false },
   };
 
   const [pendingCount, approvedCount, owedByCurrency, heldCount] = await Promise.all([
     prisma.withdrawal.count({
-      where: { status: "REQUESTED", ...EXCLUDE_AFFILIATE },
+      where: { status: "REQUESTED", ...EXCLUDE_SIMULATED },
     }),
     prisma.withdrawal.count({
-      where: { status: "APPROVED", ...EXCLUDE_AFFILIATE },
+      where: { status: "APPROVED", ...EXCLUDE_SIMULATED },
     }),
     // Amounts are in each row's own currency, so the total is per currency.
     prisma.withdrawal.groupBy({
       by: ["currency"],
-      where: { status: "REQUESTED", ...EXCLUDE_AFFILIATE },
+      where: { status: "REQUESTED", ...EXCLUDE_SIMULATED },
       _sum: { amount: true },
     }),
     prisma.withdrawal.count({
-      where: { status: "HELD", ...EXCLUDE_AFFILIATE },
+      where: { status: "HELD", ...EXCLUDE_SIMULATED },
     }),
   ]);
   const owedLabel =
@@ -101,14 +99,14 @@ export default async function WithdrawalsPage({
 
   const statusFilter: Prisma.WithdrawalWhereInput =
     tab === "pending"
-      ? { status: "REQUESTED", ...EXCLUDE_AFFILIATE }
+      ? { status: "REQUESTED", ...EXCLUDE_SIMULATED }
       : tab === "approved"
-        ? { status: "APPROVED", ...EXCLUDE_AFFILIATE }
+        ? { status: "APPROVED", ...EXCLUDE_SIMULATED }
       : tab === "held"
-        ? { status: "HELD", ...EXCLUDE_AFFILIATE }
+        ? { status: "HELD", ...EXCLUDE_SIMULATED }
         : {
             status: { in: ["REJECTED", "PAID", "CANCELLED_BY_USER"] },
-            ...EXCLUDE_AFFILIATE,
+            ...EXCLUDE_SIMULATED,
           };
 
   const where: Prisma.WithdrawalWhereInput = q

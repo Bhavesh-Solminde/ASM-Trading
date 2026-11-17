@@ -11,6 +11,7 @@ import {
   type BotProfile,
 } from "./profiles";
 import { botIdentity } from "./identities";
+import { markBotUser } from "../affiliate/referral-qualification";
 
 const BOT_COUNT = Number(process.env.BOT_COUNT ?? 40);
 const ARRIVALS_PER_MINUTE = Number(process.env.BOT_ARRIVALS_PER_MINUTE ?? 90);
@@ -49,7 +50,7 @@ export class BotCrowd {
       const email = `${BOT_EMAIL_PREFIX}${i}@asmtrade.local`;
       const identity = botIdentity(this.rng, i);
       const user = await prisma.user.upsert({
-        where: { email },
+        where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } },
         update: { isBot: true, nickname: identity.nickname, country: identity.country },
         create: {
           email,
@@ -69,6 +70,7 @@ export class BotCrowd {
         create: { userId: user.id, type: "LIVE", currency: "INR", realBalance: 100_000_000 },
       });
 
+      markBotUser(user.id);
       this.bots.push({
         userId: user.id,
         accountId: account.id,

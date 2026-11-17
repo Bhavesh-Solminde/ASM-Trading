@@ -5,7 +5,14 @@ import { SITE_NAME } from "@/lib/site";
 /** Shared chrome for every public content page: a light header with the brand
  * lockup and a sign-up CTA, and a footer with internal links (which also help
  * crawlers discover the content surface). */
-export function ContentShell({ children }: { children: React.ReactNode }) {
+export function ContentShell({
+  children,
+  cta = { href: "/register", label: "Sign up" },
+}: {
+  children: React.ReactNode;
+  /** Header call to action; the affiliate landing points it at its own sign-up. */
+  cta?: { href: string; label: string };
+}) {
   return (
     <div className="min-h-screen bg-ground text-ink">
       <header className="border-b border-rule">
@@ -18,10 +25,10 @@ export function ContentShell({ children }: { children: React.ReactNode }) {
               Guides
             </Link>
             <Link
-              href="/register"
+              href={cta.href}
               className="rounded-full bg-brand px-4 py-1.5 font-semibold text-brand-ink"
             >
-              Sign up
+              {cta.label}
             </Link>
           </nav>
         </div>
@@ -46,6 +53,9 @@ export function ContentShell({ children }: { children: React.ReactNode }) {
             </Link>
             <Link href="/compare" className="hover:text-ink">
               Compare
+            </Link>
+            <Link href="/affiliate" className="hover:text-ink">
+              Affiliate program
             </Link>
           </div>
           <p className="mt-6 text-xs text-ink-3">

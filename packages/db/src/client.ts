@@ -77,6 +77,7 @@ const money = {
     amountUsd: asNumber("amountUsd"),
     amountInr: asNumber("amountInr"),
     amountUsdtMinor: asNullableNumber("amountUsdtMinor"),
+    requestedInrMinor: asNullableNumber("requestedInrMinor"),
   },
   bankCredit: {
     amountInr: asNumber("amountInr"),
@@ -98,6 +99,43 @@ const money = {
     amount: asNumber("amount"),
     turnoverRequired: asNumber("turnoverRequired"),
     turnoverDone: asNumber("turnoverDone"),
+  },
+  programSetting: {
+    value: asNumber("value"),
+  },
+  referralQualification: {
+    depositInrMinor: asNumber("depositInrMinor"),
+    tradeRealStakeInrMinor: asNumber("tradeRealStakeInrMinor"),
+    minDepositInrMinor: asNumber("minDepositInrMinor"),
+    minTradeInrMinor: asNumber("minTradeInrMinor"),
+  },
+  programEarning: {
+    amountMinor: asNumber("amountMinor"),
+  },
+  programWallet: {
+    availableMinor: asNumber("availableMinor"),
+    reservedMinor: asNumber("reservedMinor"),
+    transferredMinor: asNumber("transferredMinor"),
+    paidMinor: asNumber("paidMinor"),
+  },
+  programLedgerEntry: {
+    amountMinor: asNumber("amountMinor"),
+    availableAfter: asNumber("availableAfter"),
+    reservedAfter: asNumber("reservedAfter"),
+  },
+  programTransfer: {
+    amountMinor: asNumber("amountMinor"),
+    creditedMinor: asNumber("creditedMinor"),
+  },
+  programWithdrawal: {
+    amountMinor: asNumber("amountMinor"),
+  },
+  revenueShareDay: {
+    netGainMinor: asNumber("netGainMinor"),
+    carryInMinor: asNumber("carryInMinor"),
+    eligibleMinor: asNumber("eligibleMinor"),
+    shareMinor: asNumber("shareMinor"),
+    carryOutMinor: asNumber("carryOutMinor"),
   },
 } as const;
 

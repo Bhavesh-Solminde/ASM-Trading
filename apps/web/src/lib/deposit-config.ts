@@ -1,5 +1,5 @@
 import type { DepositConfig } from "@asm/contracts";
-import { BONUS_TIERS, countCompletedDeposits } from "@asm/db";
+import { BONUS_TIERS, countCompletedDeposits, inviteExtraBonusPreviewPct } from "@asm/db";
 import { upiDepositsEnabled } from "./upi-collection";
 import { listEnabledUsdtNetworks, usdtGatewayActive } from "./usdt-networks";
 
@@ -12,5 +12,6 @@ export async function loadDepositConfig(userId: string): Promise<DepositConfig> 
     gatewayNetworks: usdtNetworks.filter((n) => usdtGatewayActive(n)),
     completedDeposits: await countCompletedDeposits(userId),
     bonusTiers: [...BONUS_TIERS],
+    inviteExtraBonusPct: await inviteExtraBonusPreviewPct(userId),
   };
 }

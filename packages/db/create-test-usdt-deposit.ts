@@ -3,7 +3,7 @@ import { createUsdtDepositIntent, prisma } from "./src/index";
 async function main() {
   // Uses one of the seeded test users from `pnpm --filter @asm/db seed`.
   const user = await prisma.user.findUniqueOrThrow({
-    where: { email: "test1@asmtrade.local" },
+    where: { email_role_legacySimulated: { email: "test1@asmtrade.local", role: "USER", legacySimulated: false } },
   });
 
   const network = process.env["USDT_NETWORK"];

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../client";
+import { programSettingValueAt } from "./program-settings";
 import { issuePasswordResetToken, resetPasswordWithToken } from "./password-reset";
 
 let userId = "";
@@ -61,6 +62,29 @@ describe("password reset tokens", () => {
     const second = await issuePasswordResetToken({ userId });
     expect(await resetPasswordWithToken({ token: first.token, passwordHash: "never" })).toBeNull();
     expect(await resetPasswordWithToken({ token: second.token, passwordHash: "ok" })).not.toBeNull();
+  });
+
+  it("activates an affiliate awaiting email verification, like the verify link", async () => {
+    const aff = await prisma.user.create({
+      data: { email: `pw-reset-aff-${randomUUID()}@test.local`, passwordHash: "old", role: "AFFILIATE", affiliateProfile: { create: {} } },
+    });
+    try {
+      const { token } = await issuePasswordResetToken({ userId: aff.id });
+      expect(await resetPasswordWithToken({ token, passwordHash: "new" })).not.toBeNull();
+      const expected = (await programSettingValueAt("AFFILIATE_REQUIRES_APPROVAL", new Date())) === 1 ? "PENDING_APPROVAL" : "ACTIVE";
+      expect(await prisma.affiliateProfile.findUniqueOrThrow({ where: { userId: aff.id } })).toMatchObject({
+        status: expected,
+        statusReason: "email verified",
+        statusChangedBy: "system",
+      });
+      // A suspended affiliate is never reactivated by a reset.
+      await prisma.affiliateProfile.update({ where: { userId: aff.id }, data: { status: "SUSPENDED" } });
+      const again = await issuePasswordResetToken({ userId: aff.id });
+      await resetPasswordWithToken({ token: again.token, passwordHash: "newer" });
+      expect((await prisma.affiliateProfile.findUniqueOrThrow({ where: { userId: aff.id } })).status).toBe("SUSPENDED");
+    } finally {
+      await prisma.user.delete({ where: { id: aff.id } });
+    }
   });
 
   it("refuses an unknown token", async () => {

@@ -1,3 +1,5 @@
+> **Superseded (2026-11-13):** the simulated affiliate feature described here was retired in Affiliate Program phase 1. Existing accounts are locked and flagged `User.legacySimulated`; see migration `20261113120000_lock_legacy_simulated_affiliates`.
+
 # Affiliate accounts
 
 **Status:** draft design

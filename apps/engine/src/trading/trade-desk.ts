@@ -10,7 +10,6 @@ import {
   getHouseDay,
   getTreasury,
   houseDateForInstant,
-  isAffiliateUser,
   loadOpenPositions,
   openTrade,
   recentLossStreakStatsForAccount,
@@ -21,8 +20,8 @@ import {
   type SettledTrade,
   type ShadowInput,
 } from "@asm/db";
+import { evaluateReferralAfterSettlement } from "../affiliate/referral-qualification";
 import {
-  AFFILIATE_WIN_RATE,
   FALLBACK_DAILY_TARGET_MINOR,
   HOUSE_ALWAYS_WINS_MODE,
   MAX_CORRECTIVE_TICKS,
@@ -154,12 +153,6 @@ export class TradeDesk {
     const account = await getAccountForActor(input.actorId, input.accountId);
     if (!account) throw new DeskRejection("account_not_found");
 
-    // Affiliate flag — drives the governor bypass below and the HouseDay /
-    // HouseTreasury skip at settlement. One extra read on the open path;
-    // the result is also stamped on the Position so settlement doesn't
-    // re-check. See docs/superpowers/specs/2026-10-08-affiliate-accounts-design.md.
-    const isAffiliate = await isAffiliateUser(account.userId);
-
     // Price, entry time and expiry are captured together, here.
     const entryTs = new Date(this.now());
     const expiryTs = new Date(entryTs.getTime() + input.durationSec * 1000);
@@ -176,23 +169,11 @@ export class TradeDesk {
       pathStyle: "DIRECT" | "OSCILLATE" | "FEINT";
       targetPrice: number;
     } | null = null;
-    if (USE_HOUSE_GOVERNOR || USE_GLG_TREASURY || isAffiliate) {
+    if (USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) {
       try {
         const isDemo = account.type === "DEMO";
         let verdict: "WIN" | "LOSS" | "HONEST";
-        if (isAffiliate) {
-          // Affiliate path: skip the GLG governor and the treasury read.
-          // LIVE trades roll AFFILIATE_WIN_RATE (80%) WIN; DEMO trades
-          // stay HONEST (same as any user's demo). The value-imbalance
-          // override below still runs so an affiliate's WIN stamp doesn't
-          // ruin another user's heavier-side bucket. HouseDay/HouseTreasury
-          // writes are skipped at settlement (see drain()).
-          verdict = isDemo
-            ? "HONEST"
-            : Math.random() < AFFILIATE_WIN_RATE
-              ? "WIN"
-              : "LOSS";
-        } else {
+        {
           // GLG RETIRE 2026-10-05 — the v2 (daily-ladder) governor branch that
           // ran when USE_GLG_TREASURY was off is commented out below. GLG is
           // now the sole open-time verdict path; the USE_HOUSE_GOVERNOR flag
@@ -409,7 +390,6 @@ export class TradeDesk {
       entrySec: Math.floor(entryTs.getTime() / 1000),
       expirySec,
       isDemo: account.type === "DEMO",
-      isAffiliate,
       ...(governorStamp
         ? {
             verdict: governorStamp.verdict,
@@ -710,16 +690,15 @@ export class TradeDesk {
         });
 
         // Governor ledgers. Live only — demo trades never move them, and
-        // affiliate trades are play money that must not distort house
-        // economics (admin-controlled paper funds, nothing is really
-        // owed). Both writes are best-effort; a failed upsert must not
+        // retired simulated-affiliate trades are play money that must not
+        // distort house economics. Both writes are best-effort; a failed upsert must not
         // roll the settlement back. We dual-write during the GLG rollout
         // so admin reporting keeps its daily breakdown AND the treasury
         // keeps accumulating even when USE_GLG_TREASURY is toggled off.
         if (
           (USE_HOUSE_GOVERNOR || USE_GLG_TREASURY) &&
           !item.position.isDemo &&
-          !item.position.isAffiliate
+          !item.position.isSimulated
         ) {
           const settledAt = settled.trade.expiryTs ?? new Date(this.now());
           await applySettlementToHouseDay({
@@ -754,6 +733,11 @@ export class TradeDesk {
               "HouseTreasury ledger update failed after settlement",
             );
           });
+        }
+
+        // Affiliate Phase 4 trigger: fire-and-forget, LIVE real-money trades only.
+        if (!item.position.isDemo && !item.position.isSimulated && settled.trade.status !== "REFUNDED") {
+          evaluateReferralAfterSettlement(settled.userId, item.position.tradeId);
         }
       }
       this.controller.invalidate(item.position.accountId);
