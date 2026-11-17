@@ -20,7 +20,7 @@ const { width, height } = info;
 const pixels = Buffer.alloc(width * height * 4);
 
 // Outline follows the X's black edge; its anti-aliased mask excludes the shadow.
-const xMask = await sharp(Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><path fill="white" d="M496 31 L579 31 L625 89 L673 31 L753 31 L665 143 L753 260 L673 260 L625 201 L578 260 L496 260 L586 143 Z"/></svg>`)).ensureAlpha().raw().toBuffer();
+const xMask = await sharp(Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><path fill="white" d="M496 30 L579 30 L625 88 L673 30 L755 30 L665 143 L754 261 L674 261 L625 202 L577 261 L496 261 L586 143 Z"/></svg>`)).ensureAlpha().raw().toBuffer();
 for (let y = 0; y < height; y++) {
   for (let x = 0; x < width; x++) {
     const i = (y * width + x) * 3;
