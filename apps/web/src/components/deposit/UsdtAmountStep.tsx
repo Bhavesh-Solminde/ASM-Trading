@@ -210,7 +210,7 @@ export function UsdtAmountStep({
         type="button"
         disabled={busy}
         onClick={() => void proceed()}
-        className="h-14 rounded-2xl bg-brand-fill px-4 text-base font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-14 rounded-2xl bg-brand-fill px-4 text-base font-bold text-brand-ink hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? "Starting…" : "Proceed to Pay"}
       </button>

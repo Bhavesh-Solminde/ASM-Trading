@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { MARKET_COUNT } from "@asm/contracts";
 import { SeasonalDiwali, FestiveLights, DiwaliEntry, DiwaliWish } from "@/components/festive/SeasonalDiwali";
 import Image from "next/image";
@@ -30,7 +31,7 @@ export function BoldLanding() {
               backgroundImage:
                 "linear-gradient(var(--color-rule) 1px,transparent 1px),linear-gradient(90deg,var(--color-rule) 1px,transparent 1px)",
               backgroundSize: "48px 48px",
-              maskImage: "radial-gradient(60% 50% at 50% 30%, black, transparent)",
+              maskImage: "radial-gradient(60% 50% at 50% 30%, var(--color-mask), transparent)",
             }}
           />
         </div>
@@ -60,7 +61,7 @@ export function BoldLanding() {
                 href="/register"
                 className="group relative inline-flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full bg-brand px-6 text-sm font-black text-brand-ink shadow-[0_20px_60px_-15px_color-mix(in_srgb,var(--color-brand)_60%,transparent)] transition hover:scale-[1.02] hover:brightness-110 md:h-14 md:px-8 md:text-base"
               >
-                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-white/25 [mask-image:linear-gradient(90deg,transparent,black_50%,transparent)] transition-transform duration-700 group-hover:translate-x-full" />
+                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-button-sheen [mask-image:linear-gradient(90deg,transparent,var(--color-mask)_50%,transparent)] transition-transform duration-700 group-hover:translate-x-full" />
                 Start free demo
                 <span aria-hidden className="text-lg">→</span>
               </Link>
@@ -284,7 +285,7 @@ export function BoldLanding() {
           <div className="grid gap-10 md:grid-cols-2 md:items-center md:gap-16">
             <div className="relative hidden md:block">
               <div className="pointer-events-none absolute -inset-10 rounded-full opacity-40 blur-3xl [background:radial-gradient(circle,color-mix(in_srgb,var(--color-brand)_25%,transparent),transparent_70%)]" />
-              <div className="relative aspect-square w-full overflow-hidden rounded-3xl border border-rule shadow-[0_40px_100px_-30px_rgba(0,0,0,0.9)]">
+              <div className="relative aspect-square w-full overflow-hidden rounded-3xl border border-rule shadow-[0_40px_100px_-30px_var(--color-shadow-floating)]">
                 <Image
                   src="/marketing/platform-editorial.jpg"
                   alt="Long-exposure of a live trading floor at night"
@@ -313,7 +314,7 @@ export function BoldLanding() {
                   ["Audited trade ledger", "Every entry, exit and settlement tick recorded and verifiable."],
                 ].map(([t, b]) => (
                   <li key={t} className="flex items-start gap-3 rounded-xl border border-rule bg-panel/60 p-4">
-                    <span className="mt-1 grid h-6 w-6 flex-none place-items-center rounded-full bg-brand/20 text-brand">
+                    <span aria-hidden="true" className="mt-1 grid h-6 w-6 flex-none place-items-center rounded-full bg-brand/20 text-brand">
                       ✓
                     </span>
                     <span>
@@ -444,7 +445,8 @@ function BoldNav() {
           <a href="#platform" className="hover:text-ink">Platform</a>
           <a href="#faq" className="hover:text-ink">FAQ</a>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="relative flex items-center gap-2">
+          <span className="inline-flex lg:absolute lg:right-full lg:top-1/2 lg:mr-2 lg:-translate-y-1/2"><ThemeToggle /></span>
           <span className="inline-flex xl:hidden"><DiwaliEntry iconOnly /></span>
           <span className="hidden xl:block"><DiwaliEntry compact /></span>
           <Link

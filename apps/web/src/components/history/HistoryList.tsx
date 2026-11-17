@@ -285,7 +285,7 @@ export function HistoryList({
           <p className="max-w-[40ch] text-balance text-sm text-ink-2">{empty.body}</p>
           <Link
             href={cta.href}
-            className="mt-1 grid h-11 place-items-center rounded-xl bg-brand-fill px-5 text-sm font-bold text-white hover:bg-brand-fill-hi"
+            className="mt-1 grid h-11 place-items-center rounded-xl bg-brand-fill px-5 text-sm font-bold text-brand-ink hover:bg-brand-fill-hi"
           >
             {cta.label}
           </Link>

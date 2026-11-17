@@ -26,6 +26,7 @@ const SLUG: Record<string, string> = {
 
 const BRAND_EXTS = ["svg", "png", "jpg", "webp"] as const;
 
+// Gateway artwork and its white tiles preserve the payment provider identity in both themes.
 export function GatewayIcon({ method, className }: Props) {
   const cls = className ?? "h-10 w-10 flex-none rounded-xl";
   const slug = SLUG[method];

@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/shell/Icon";
@@ -7,6 +8,8 @@ import { Icon, type IconName } from "@/components/shell/Icon";
  * a leading icon, label, optional right-hand value and a chevron. Dividers are
  * inset to the label so the icon column reads as a gutter.
  */
+
+export function AppearanceRow() { return <li><ThemeToggle row /></li>; }
 
 export function ListGroup({ title, children }: { title?: string; children: ReactNode }) {
   return (
@@ -85,7 +88,7 @@ export function ToggleRow({
         <span
           aria-hidden
           className="relative ml-auto h-7 w-12 shrink-0 rounded-full bg-tile-hi transition-colors peer-checked:bg-brand-fill peer-focus-visible:ring-2 peer-focus-visible:ring-brand motion-reduce:transition-none
-            after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-white after:shadow after:transition-transform after:content-[''] peer-checked:after:translate-x-5 motion-reduce:after:transition-none"
+            after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-switch-thumb after:shadow after:transition-transform after:content-[''] peer-checked:after:translate-x-5 motion-reduce:after:transition-none"
         />
       </label>
     </li>

@@ -68,7 +68,7 @@ function Node({ state }: { state: StepState }) {
   }
   if (state === "ended") {
     return (
-      <span className="grid size-6 place-items-center rounded-full bg-down text-white">
+      <span className="grid size-6 place-items-center rounded-full bg-down text-brand-ink">
         <Icon name="close" className="size-3.5" strokeWidth={3} />
       </span>
     );

@@ -47,10 +47,10 @@ export function HeroDevice({ tone = "quiet" }: { tone?: "quiet" | "bold" }) {
   const bezelGlow =
     tone === "bold"
       ? "shadow-[0_40px_80px_-30px_color-mix(in_srgb,var(--color-brand)_30%,transparent),0_0_0_1px_color-mix(in_srgb,var(--color-brand)_18%,transparent)_inset]"
-      : "shadow-[0_30px_60px_-30px_rgba(0,0,0,0.9)]";
+      : "shadow-[0_30px_60px_-30px_var(--color-shadow-floating)]";
 
   return (
-    <div className={`relative mx-auto aspect-[9/19] w-[280px] rounded-[38px] border ${bezelBorder} bg-black p-2 ${bezelGlow}`}>
+    <div className={`relative mx-auto aspect-[9/19] w-[280px] rounded-[38px] border ${bezelBorder} bg-device-frame p-2 ${bezelGlow}`}>
       {/* screen */}
       <div className="relative h-full w-full overflow-hidden rounded-[30px] bg-ground">
         {/* status bar */}
@@ -126,7 +126,7 @@ export function HeroDevice({ tone = "quiet" }: { tone?: "quiet" | "bold" }) {
       </div>
 
       {/* notch */}
-      <div className="pointer-events-none absolute left-1/2 top-2 h-5 w-24 -translate-x-1/2 rounded-full bg-black" />
+      <div className="pointer-events-none absolute left-1/2 top-2 h-5 w-24 -translate-x-1/2 rounded-full bg-device-frame" />
     </div>
   );
 }
@@ -182,7 +182,7 @@ function MiniChart({ candles, tone }: { candles: Candle[]; tone: "quiet" | "bold
       {candles.map((c, i) => {
         const cx = paddingX + colW * (i + 0.5);
         const isUp = c.close >= c.open;
-        const color = isUp ? "var(--color-up)" : "var(--color-down)";
+        const color = isUp ? "var(--color-mini-candle-up)" : "var(--color-mini-candle-down)";
         const bodyTop = yFor(Math.max(c.open, c.close));
         const bodyBot = yFor(Math.min(c.open, c.close));
         const wickTop = yFor(c.high);

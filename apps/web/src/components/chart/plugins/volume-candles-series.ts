@@ -1,3 +1,4 @@
+import { getChartPalette } from "../chart-palette";
 import {
   customSeriesDefaultOptions,
   type CustomData,
@@ -134,12 +135,13 @@ export class VolumeCandlesSeriesView
   }
 
   defaultOptions(): VolumeCandlesSeriesOptions {
+    const palette = getChartPalette();
     return {
       ...customSeriesDefaultOptions,
-      upColor: "#3be584",
-      downColor: "#e5413b",
-      wickUpColor: "#3be584",
-      wickDownColor: "#e5413b",
+      upColor: palette.volumeDefaultUp,
+      downColor: palette.volumeDefaultDown,
+      wickUpColor: palette.volumeDefaultUp,
+      wickDownColor: palette.volumeDefaultDown,
     };
   }
 }

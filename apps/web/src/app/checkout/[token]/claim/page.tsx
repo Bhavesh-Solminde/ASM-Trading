@@ -44,6 +44,7 @@ export default async function UsdtClaimPage({ params }: { params: Promise<{ toke
 
   return (
     <main
+      data-checkout-page="claim"
       className="flex min-h-screen justify-center px-4 py-10"
       style={{ background: "#f6f4fb", color: "#241436" }}
     >

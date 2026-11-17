@@ -24,11 +24,11 @@
 .heroGridPattern { position: absolute; inset: 0; opacity: .18; background-image: linear-gradient(var(--color-rule) 1px,transparent 1px),linear-gradient(90deg,var(--color-rule) 1px,transparent 1px); background-size: 40px 40px; mask-image: radial-gradient(ellipse,black,transparent 70%); }
 .orbit { position: absolute; width: 400px; height: 400px; top: 45px; left: 50%; transform: translateX(-50%) rotate(-25deg); border: 1px solid color-mix(in srgb,var(--color-brand) 22%,transparent); border-radius: 50%; }
 .orbit::after { content: ''; position: absolute; inset: 30px -35px; border: 1px solid color-mix(in srgb,var(--color-brand) 15%,transparent); border-radius: 50%; }
-.heroTicket { position: absolute; inset: 44px 42px 45px; padding: 28px; border: 1px solid color-mix(in srgb,var(--color-brand) 40%,var(--color-rule)); border-radius: 28px; background: linear-gradient(145deg,var(--color-tile-hi),var(--color-panel) 55%,var(--color-brand-dim)); box-shadow: 0 35px 90px -40px #000; transform: rotate(-5deg); }
+.heroTicket { position: absolute; inset: 44px 42px 45px; padding: 28px; border: 1px solid color-mix(in srgb,var(--color-brand) 40%,var(--color-rule)); border-radius: 28px; background: linear-gradient(145deg,var(--color-tile-hi),var(--color-panel) 55%,var(--color-brand-dim)); box-shadow: 0 35px 90px -40px var(--color-shadow-deep); transform: rotate(-5deg); }
 .ticketBrand { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding-bottom: 20px; border-bottom: 1px solid var(--color-rule); }
 .ticketBonus { margin-top: 25px; font-size: 70px; font-weight: 900; letter-spacing: -.06em; line-height: 1; }
 .ticketRule { border-top: 1px dashed var(--color-rule); margin-top: 24px; padding-top: 18px; }
-.floatCard { position: absolute; z-index: 2; display: flex; align-items: center; gap: 12px; border: 1px solid var(--color-rule); border-radius: 16px; background: var(--color-panel); padding: 16px 20px; box-shadow: 0 20px 50px -25px #000; }
+.floatCard { position: absolute; z-index: 2; display: flex; align-items: center; gap: 12px; border: 1px solid var(--color-rule); border-radius: 16px; background: var(--color-panel); padding: 16px 20px; box-shadow: 0 20px 50px -25px var(--color-shadow-deep); }
 .floatTop { top: 15px; right: -6px; transform: rotate(5deg); }
 .floatBottom { bottom: 12px; left: -12px; transform: rotate(4deg); }
 .iconTile { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--color-brand-dim); color: var(--color-brand); font-size: 24px; }
@@ -138,7 +138,7 @@
 }
 
 /* The phone is a compact product scene, with separate invitation and action states. */
-.friendPhone { width: 280px; padding: 16px; border-color: var(--color-rule); box-shadow: 0 0 0 1px #000, 0 28px 75px -40px var(--color-brand); }
+.friendPhone { width: 280px; padding: 16px; border-color: var(--color-rule); box-shadow: 0 0 0 1px var(--color-device-frame), 0 28px 75px -40px var(--color-brand); }
 .journeyScene { grid-template-columns: 1fr 36px 280px 36px 1fr; padding: 24px 28px; }
 .phoneBrand { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; }
 .phoneBrand > span { font-size: 7px; font-weight: 700; letter-spacing: .1em; color: var(--color-ink-2); }

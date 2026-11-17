@@ -98,7 +98,7 @@ export function HeldWithdrawalCard({
             type="button"
             onClick={submit}
             disabled={working}
-            className="rounded-lg bg-brand-fill px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50 phone:h-11 phone:w-full phone:py-0"
+            className="rounded-lg bg-brand-fill px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50 phone:h-11 phone:w-full phone:py-0"
           >
             {working ? "Cancelling…" : "Cancel withdrawal"}
           </button>

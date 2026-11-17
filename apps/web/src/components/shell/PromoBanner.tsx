@@ -132,13 +132,13 @@ export function BonusOfferSheet({
   const offerLeft = bonusPercentForDeposit(next) > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 phone:items-end">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay-strong phone:items-end">
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="bonus-offer-title"
-        className="sheet-phone w-[420px] max-w-[calc(100vw-24px)] rounded-xl border border-rule bg-ground p-5 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)] phone:w-full phone:max-w-[560px] phone:border-x-0 phone:border-b-0 phone:px-4 phone:pt-0"
+        className="sheet-phone w-[420px] max-w-[calc(100vw-24px)] rounded-xl border border-rule bg-ground p-5 shadow-[0_24px_60px_-12px_var(--color-shadow-menu)] phone:w-full phone:max-w-[560px] phone:border-x-0 phone:border-b-0 phone:px-4 phone:pt-0"
       >
         <div aria-hidden className="sheet-handle hidden phone:block" />
         <div className="flex items-start gap-3 phone:mt-3">
@@ -218,12 +218,12 @@ function GiftIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 48 48" className={className} aria-hidden>
       <defs>
         <linearGradient id="gift-box" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#ffcf5a" />
-          <stop offset="1" stopColor="#d98a12" />
+          <stop offset="0" stopColor="var(--color-gift-wrap)" />
+          <stop offset="1" stopColor="var(--color-gift-shade)" />
         </linearGradient>
       </defs>
       <rect x="7" y="20" width="34" height="23" rx="3" fill="url(#gift-box)" />
-      <rect x="5" y="14" width="38" height="9" rx="2.5" fill="#ffd970" />
+      <rect x="5" y="14" width="38" height="9" rx="2.5" fill="var(--color-gift-ribbon)" />
       <rect x="21" y="14" width="6" height="29" fill="var(--color-up)" />
       <path d="M24 14c-3-6-11-8-12-3-1 4 6 4 12 3zm0 0c3-6 11-8 12-3 1 4-6 4-12 3z" fill="var(--color-up)" />
     </svg>

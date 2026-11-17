@@ -1,3 +1,4 @@
+import { getChartPalette, chartAlpha } from "../chart-palette";
 import {
   customSeriesDefaultOptions,
   type CustomData,
@@ -199,15 +200,16 @@ export class HlcAreaSeriesView
   }
 
   defaultOptions(): HlcAreaSeriesOptions {
+    const palette = getChartPalette();
     return {
       ...customSeriesDefaultOptions,
-      highLineColor: "#089981",
+      highLineColor: palette.up,
       highLineWidth: 1.5,
-      highFillColor: "rgba(8, 153, 129, 0.20)",
-      lowLineColor: "#f23645",
+      highFillColor: chartAlpha(palette.up, .2),
+      lowLineColor: palette.down,
       lowLineWidth: 1.5,
-      lowFillColor: "rgba(242, 54, 69, 0.20)",
-      closeLineColor: "#cbd5e1",
+      lowFillColor: chartAlpha(palette.down, .2),
+      closeLineColor: palette.close,
       closeLineWidth: 2,
     };
   }

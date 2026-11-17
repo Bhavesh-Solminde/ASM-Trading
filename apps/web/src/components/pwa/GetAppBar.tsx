@@ -49,7 +49,7 @@ export function GetAppBar() {
       </span>
       <a
         href={href}
-        className="rounded-lg bg-brand-fill px-3 py-2 font-bold text-white"
+        className="rounded-lg bg-brand-fill px-3 py-2 font-bold text-brand-ink"
       >
         Get app
       </a>

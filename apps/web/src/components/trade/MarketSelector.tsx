@@ -117,7 +117,7 @@ export function MarketSelector({
 
   const pillClass = (selected: boolean): string =>
     `inline-flex h-9 flex-none items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
-      selected ? "bg-brand-fill text-white" : "bg-tile-hi text-ink-2 hover:text-ink"
+      selected ? "bg-brand-fill text-brand-ink" : "bg-tile-hi text-ink-2 hover:text-ink"
     }`;
 
   return (
@@ -129,7 +129,7 @@ export function MarketSelector({
           aria-expanded={open}
           aria-label={`Change market, ${pair}`}
           onClick={toggleOpen}
-          className="flex h-10 min-w-0 items-center gap-1.5 rounded-xl bg-tile/94 pl-2 pr-2.5 text-left shadow-[0_8px_20px_-8px_rgba(0,0,0,.8)] transition-colors hover:bg-tile-hi active:bg-tile-hi min-[380px]:gap-2 min-[380px]:pr-3"
+          className="flex h-10 min-w-0 items-center gap-1.5 rounded-xl bg-tile/94 pl-2 pr-2.5 text-left shadow-[0_8px_20px_-8px_var(--color-shadow-popover)] transition-colors hover:bg-tile-hi active:bg-tile-hi min-[380px]:gap-2 min-[380px]:pr-3"
         >
           <AssetIcon symbol={activeAsset.symbol} size="md" />
           <span className="min-w-0 truncate text-[15px] font-bold leading-none">{pair}</span>
@@ -186,12 +186,12 @@ export function MarketSelector({
 
       {open ? (
         <>
-          <div aria-hidden onClick={close} className="fixed inset-0 z-50 hidden bg-black/60 phone:block" />
+          <div aria-hidden onClick={close} className="fixed inset-0 z-50 hidden bg-overlay phone:block" />
           <div
             role="dialog"
             aria-modal="true"
             aria-label="Select trade pair"
-            className="absolute left-0 top-[calc(100%+6px)] z-50 flex w-[320px] max-w-[calc(100vw-20px)] flex-col overflow-hidden rounded border border-tile-hi bg-tile shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-0 phone:left-0 phone:top-0 phone:z-[60] phone:mx-auto phone:w-auto phone:max-w-[560px] phone:rounded-none phone:border-0"
+            className="absolute left-0 top-[calc(100%+6px)] z-50 flex w-[320px] max-w-[calc(100vw-20px)] flex-col overflow-hidden rounded border border-tile-hi bg-tile shadow-[0_24px_48px_-12px_var(--color-shadow-popover)] phone:fixed phone:inset-0 phone:left-0 phone:top-0 phone:z-[60] phone:mx-auto phone:w-auto phone:max-w-[560px] phone:rounded-none phone:border-0"
           >
             {/* Title bar — phone only; on desktop the trigger button is the title. */}
             <div className="hidden items-center justify-between gap-3 border-b border-rule px-3.5 pb-2.5 pt-[max(12px,env(safe-area-inset-top))] phone:flex">

@@ -1,0 +1,27 @@
+/* CSS swaps reserve the same intrinsic ratio and do not preload either image. */
+.brand-wordmark-light { display: none; }
+:root[data-theme="light"] .brand-wordmark-dark { display: none; }
+:root[data-theme="light"] .brand-wordmark-light { display: block; }
+:root:has(.admin-root) .brand-wordmark-dark { display: block; }
+:root:has(.admin-root) .brand-wordmark-light { display: none; }
+
+/* These destinations retain their own approved palettes, including overscroll.
+   color-scheme must override the inline document value set by the shared store. */
+:root:has([data-start-page]) { --color-ground: #0a101b; --color-rule: #25334a; }
+:root[data-theme="light"]:has([data-start-page]) { --color-ground: #f5f7fb; --color-rule: #d5deeb; }
+:root:has([data-telegram-page]) {
+  --color-ground: #f8fbff;
+  --color-rule: #d9e5ef;
+  color-scheme: light !important;
+}
+:root:has([data-checkout-page]) {
+  --color-ground: #f0f8f5;
+  --color-rule: #b9dcce;
+  color-scheme: light !important;
+}
+:root:has([data-checkout-page="PhonePe"]) { --color-ground: #f3eef9; --color-rule: #d8c7ea; }
+:root:has([data-checkout-page="Gpay"]) { --color-ground: #f1f6fe; --color-rule: #c8dcf9; }
+:root:has([data-checkout-page="PayTM"]) { --color-ground: #eef5fb; --color-rule: #b9ddf0; }
+:root:has([data-checkout-page="UPI"]) { --color-ground: #fff6ec; --color-rule: #f7cfa1; }
+:root:has([data-checkout-page="claim"]) { --color-ground: #f6f4fb; --color-rule: #ddd3ee; }
+[data-checkout-page] { color-scheme: light; }

@@ -192,7 +192,7 @@ function VerifyFirst({ kycStatus }: { kycStatus: string }) {
       {copy.cta ? (
         <Link
           href="/account/verify"
-          className="self-start rounded-lg bg-brand-fill px-4 py-2 text-sm font-semibold text-white hover:bg-brand-fill-hi phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0"
+          className="self-start rounded-lg bg-brand-fill px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-brand-fill-hi phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0"
         >
           {copy.cta}
         </Link>

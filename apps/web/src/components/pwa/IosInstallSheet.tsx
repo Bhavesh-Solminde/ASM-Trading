@@ -27,7 +27,7 @@ function Guide({ close }: { close: () => void }) {
     <dialog
       ref={dialog}
       onCancel={close}
-      className="fixed inset-x-0 bottom-0 top-auto m-0 w-full max-w-none rounded-t-2xl border border-rule bg-panel p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] text-ink backdrop:bg-black/60"
+      className="fixed inset-x-0 bottom-0 top-auto m-0 w-full max-w-none rounded-t-2xl border border-rule bg-panel p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] text-ink backdrop:bg-overlay"
       aria-labelledby="ios-install-title"
     >
       <h2 id="ios-install-title" className="text-lg font-bold">
@@ -64,7 +64,7 @@ function Guide({ close }: { close: () => void }) {
         <button
           autoFocus
           type="button"
-          className="h-12 rounded-xl bg-brand-fill font-bold text-white"
+          className="h-12 rounded-xl bg-brand-fill font-bold text-brand-ink"
           onClick={close}
         >
           Got it

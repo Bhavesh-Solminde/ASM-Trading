@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import Link from "next/link";
 import { LogoWordmark } from "@/components/brand/Logo";
 import { SITE_NAME } from "@/lib/site";
@@ -21,6 +22,7 @@ export function ContentShell({
             <LogoWordmark className="h-7" />
           </Link>
           <nav className="flex items-center gap-4 text-sm">
+            <span className="-my-1.5 inline-flex"><ThemeToggle /></span>
             <Link href="/guides" className="text-ink-2 hover:text-ink">
               Guides
             </Link>

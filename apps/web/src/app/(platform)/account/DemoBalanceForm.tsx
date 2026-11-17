@@ -100,7 +100,7 @@ export function DemoBalanceForm({
           <button
             type="submit"
             disabled={busy}
-            className="h-9 rounded-lg bg-brand-fill px-3 text-[13px] font-bold text-white hover:bg-brand-fill-hi disabled:opacity-60 phone:h-11"
+            className="h-9 rounded-lg bg-brand-fill px-3 text-[13px] font-bold text-brand-ink hover:bg-brand-fill-hi disabled:opacity-60 phone:h-11"
           >
             {busy ? "Updating…" : "Set balance"}
           </button>

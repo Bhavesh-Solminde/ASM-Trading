@@ -1,5 +1,6 @@
 "use client";
 
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { DiwaliEntry } from "@/components/festive/SeasonalDiwali";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
@@ -45,10 +46,10 @@ export function MobileNav() {
 
       {open ? (
         <div ref={drawerRef} className="fixed inset-0 z-50">
-          <div aria-hidden onClick={close} className="absolute inset-0 bg-black/60" />
+          <div aria-hidden onClick={close} className="absolute inset-0 bg-overlay" />
           <nav
             aria-label="Platform sections"
-            className="absolute inset-y-0 left-0 flex w-[280px] max-w-[84vw] flex-col gap-1 overflow-y-auto overscroll-contain border-r border-rule bg-ground px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))] shadow-[24px_0_48px_-12px_rgba(0,0,0,.8)]"
+            className="absolute inset-y-0 left-0 flex w-[280px] max-w-[84vw] flex-col gap-1 overflow-y-auto overscroll-contain border-r border-rule bg-ground px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))] shadow-[24px_0_48px_-12px_var(--color-shadow-popover)]"
           >
             <div className="mb-2 flex items-center justify-between pl-1">
               <LogoWordmark compact className="h-6 flex-none" />
@@ -119,12 +120,13 @@ export function MobileNav() {
               <Link
                 href="/deposit"
                 onClick={close}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-up text-sm font-bold text-up-ink transition-colors hover:bg-up/90"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cta text-sm font-bold text-cta-ink transition-colors hover:bg-cta/90"
               >
                 <Icon name="plus" className="size-5" />
                 Deposit
               </Link>
             </div>
+          <ThemeToggle row />
           </nav>
         </div>
       ) : null}

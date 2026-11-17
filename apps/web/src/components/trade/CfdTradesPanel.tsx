@@ -94,7 +94,7 @@ const OpenRow = memo(function OpenRow({
           type="button"
           disabled={closing}
           onClick={handleClose}
-          className="ml-auto h-6 rounded bg-white/10 px-2.5 text-[10px] font-bold text-ink-2 hover:bg-down hover:text-white disabled:cursor-wait"
+          className="ml-auto h-6 rounded bg-surface-highlight/10 px-2.5 text-[10px] font-bold text-ink-2 hover:bg-down hover:text-brand-ink disabled:cursor-wait"
         >
           {closing ? "Closing…" : "Close"}
         </button>

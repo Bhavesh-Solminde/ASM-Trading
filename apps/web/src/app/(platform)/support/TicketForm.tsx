@@ -86,7 +86,7 @@ export function TicketForm() {
       <button
         type="submit"
         disabled={busy}
-        className="self-start rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-60 phone:h-11 phone:self-stretch phone:py-0"
+        className="self-start rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-semibold text-brand-ink hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-60 phone:h-11 phone:self-stretch phone:py-0"
       >
         {busy ? "Sending…" : "Create request"}
       </button>

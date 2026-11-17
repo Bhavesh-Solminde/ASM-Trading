@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./theme-surfaces.css";
+@import "./theme-chart.css";
 
 /* Compact layout: phones AND portrait tablets ("vertical tab view"), plus short
    landscape. Below 64rem (1024px) the trade screen stacks the ticket under the
@@ -20,6 +22,7 @@
 @theme {
   /* Blue-charcoal surfaces sampled from the approved OTC mockup. Panels and
      controls step up from the ground; the chart has a quiet, solid surface. */
+  --color-chart-attribution: #0c1425;
   --color-ground: #080e16;
   --color-panel: #0e1820;
   --color-tile: #131f28;
@@ -50,6 +53,11 @@
      face is kept for the wordmark only. */
   --font-led: var(--font-ui);
   --font-brand: var(--font-doto), var(--font-ui);
+  /* Primary money action (Deposit) and the Live balance card. Dark keeps the
+     original green treatment; light re-roles them (see the light block). */
+  --color-cta: var(--color-up);
+  --color-cta-ink: var(--color-up-ink);
+  --color-live-card: color-mix(in srgb, var(--color-up) 7%, var(--color-ground));
 }
 
 :root {
@@ -192,7 +200,7 @@ button,
   content: "";
   position: absolute;
   inset: 0;
-  background: #fff;
+  background: var(--color-surface-highlight);
   animation: slab-fire 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 @keyframes slab-fire {
@@ -204,7 +212,7 @@ button,
   animation: settle 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes settle {
-  from { background: rgba(47, 129, 247, 0.14); }
+  from { background: color-mix(in srgb, var(--color-brand) 14%, transparent); }
   to { background: transparent; }
 }
 
@@ -224,11 +232,11 @@ button,
 @keyframes live-pulse {
   0%, 100% {
     transform: scale(1);
-    box-shadow: 0 0 4px 1px rgba(229, 65, 59, 0.9), 0 0 0 0 rgba(229, 65, 59, 0.55);
+    box-shadow: 0 0 4px 1px color-mix(in srgb, var(--color-down) 90%, transparent), 0 0 0 0 color-mix(in srgb, var(--color-down) 55%, transparent);
   }
   50% {
     transform: scale(1.3);
-    box-shadow: 0 0 11px 3px rgba(229, 65, 59, 1), 0 0 0 6px rgba(229, 65, 59, 0);
+    box-shadow: 0 0 11px 3px color-mix(in srgb, var(--color-down) 100%, transparent), 0 0 0 6px color-mix(in srgb, var(--color-down) 0%, transparent);
   }
 }
 
@@ -272,7 +280,7 @@ button,
   background: var(--color-panel);
   border-top: 1px solid var(--color-rule);
   border-radius: 16px 16px 0 0;
-  box-shadow: 0 -24px 48px -12px rgb(0 0 0 / 0.7);
+  box-shadow: 0 -24px 48px -12px var(--color-shadow-elevated);
   padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 .sheet-phone {
@@ -280,7 +288,7 @@ button,
     background: var(--color-panel);
     border-top: 1px solid var(--color-rule);
     border-radius: 16px 16px 0 0;
-    box-shadow: 0 -24px 48px -12px rgb(0 0 0 / 0.7);
+    box-shadow: 0 -24px 48px -12px var(--color-shadow-elevated);
     padding-bottom: max(12px, env(safe-area-inset-bottom));
     animation: sheet-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
@@ -381,7 +389,7 @@ button,
   .trade-workspace[data-focus="true"] .trade-ticket { padding-top:6px;padding-bottom:max(6px,env(safe-area-inset-bottom)); }
   .trade-workspace[data-focus="true"] .ticket-fees { font-size:10px; }
 }
-.chart-attribution { position:absolute;bottom:28px;left:-40px;z-index:30;display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--color-rule);border-radius:50%;background:#0c1425; }
+.chart-attribution { position:absolute;bottom:28px;left:-40px;z-index:30;display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--color-rule);border-radius:50%;background:var(--color-chart-attribution); }
 @media(width<64rem),(height<30rem) {
   .analysis-plot .chart-attribution { left:6px; }
   .phone-chart-tools { left:54px; }
@@ -391,3 +399,90 @@ button,
 @media (max-width:359px) {
   .ticket-controls { grid-template-columns:minmax(0,1fr); }
 }
+
+:root[data-theme="light"] {
+  --color-chart-attribution: #ffffff;
+  --color-ground: #eef0f3;
+  --color-panel: #ffffff;
+  --color-tile: #f3f4f6;
+  --color-tile-hi: #e8eaee;
+  --color-chart: #ffffff;
+  --color-rule: #e3e6eb;
+  --color-ink: #131722;
+  --color-ink-2: #525866;
+  --color-ink-3: #616875;
+  --color-brand: #194bcc;
+  --color-brand-ink: #ffffff;
+  --color-brand-fill: #2962ff;
+  --color-brand-fill-hi: #1e4fd6;
+  --color-brand-dim: #e9efff;
+  --color-up: #036453;
+  --color-up-ink: #ffffff;
+  --color-down: #c42b37;
+  --color-down-ink: #ffffff;
+  --color-caution: #8a4f00;
+  --color-warn-bg: #fdeeee;
+  color-scheme: light;
+  /* Light: blue is the single action colour (TradingView/Coinbase pattern);
+     green/red stay reserved for market direction and money results. */
+  --color-cta: var(--color-brand-fill);
+  --color-cta-ink: var(--color-brand-ink);
+  --color-live-card: var(--color-panel);
+}
+
+/* Admin is an isolated dark application, including document overscroll. */
+.admin-root {
+  --color-chart-attribution: #0c1425;
+  --color-ground: #080e16;
+  --color-panel: #0e1820;
+  --color-tile: #131f28;
+  --color-tile-hi: #1c2b36;
+  --color-chart: #0c141c;
+  --color-rule: #293a47;
+  --color-ink: #f4f7fb;
+  --color-ink-2: #98a2b3;
+  --color-ink-3: #7d8797;
+  --color-brand: #2f81f7;
+  --color-brand-ink: #ffffff;
+  --color-brand-fill: #1f6feb;
+  --color-brand-fill-hi: #1a66d9;
+  --color-brand-dim: #10233f;
+  --color-up: #3be584;
+  --color-up-ink: #03170b;
+  --color-down: #e5413b;
+  --color-down-ink: #fff4f3;
+  --color-caution: #f5c518;
+  --color-warn-bg: #2a1210;
+  color-scheme: dark;
+}
+
+/* Enhance document overscroll where :has() is supported. */
+:root:has(.admin-root) {
+  --color-chart-attribution: #0c1425;
+  --color-ground: #080e16;
+  --color-panel: #0e1820;
+  --color-tile: #131f28;
+  --color-tile-hi: #1c2b36;
+  --color-chart: #0c141c;
+  --color-rule: #293a47;
+  --color-ink: #f4f7fb;
+  --color-ink-2: #98a2b3;
+  --color-ink-3: #7d8797;
+  --color-brand: #2f81f7;
+  --color-brand-ink: #ffffff;
+  --color-brand-fill: #1f6feb;
+  --color-brand-fill-hi: #1a66d9;
+  --color-brand-dim: #10233f;
+  --color-up: #3be584;
+  --color-up-ink: #03170b;
+  --color-down: #e5413b;
+  --color-down-ink: #fff4f3;
+  --color-caution: #f5c518;
+  --color-warn-bg: #2a1210;
+  color-scheme: dark;
+}
+
+.theme-changing *, .theme-changing *::before, .theme-changing *::after { transition: none !important; }
+.theme-light-icon { display: none; }
+:root[data-theme="light"] .theme-light-icon { display: inline-flex; }
+:root[data-theme="light"] .theme-dark-icon { display: none; }

@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Doto, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
+import "./theme-special.css";
+import { ThemeRuntime } from "@/components/theme/ThemeRuntime";
+import { themeBootstrap } from "@/lib/theme-bootstrap";
 import { buildMetadata } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 import { FirstVisitDiwali } from "@/components/festive/FirstVisitDiwali";
@@ -71,12 +74,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${hanken.variable} ${doto.variable}`}>
+    <html suppressHydrationWarning lang="en" className={`${hanken.variable} ${doto.variable}`}>
+      <head>
+        {/* Constant audited bootstrap; it must run before paint, contains no user input. */}
+        {/* eslint-disable-next-line no-restricted-syntax */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
       <body className="min-h-screen antialiased">
         {/* Site-wide entity graph — Organization + WebSite. */}
         <JsonLd data={[organizationSchema(), websiteSchema()]} />
         {children}
         <FirstVisitDiwali />
+        <ThemeRuntime />
       </body>
     </html>
 );

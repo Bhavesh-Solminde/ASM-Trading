@@ -9,7 +9,6 @@ import {
   LineSeries,
   HistogramSeries,
   LineType,
-  ColorType,
   CrosshairMode,
   LineStyle,
   createChart,
@@ -39,13 +38,9 @@ import { OtcExpiry } from "./OtcExpiry";
 import { OtcEntryLines } from "./OtcEntryLines";
 import { OtcProtection } from "./OtcProtection";
 import type { OtcProtectionDraft } from "./otc-protection";
+import { useTheme } from "@/lib/theme";
+import { applyChartTheme, chartAlpha, chartThemeOptions, getChartPalette, type ChartPalette } from "./chart-palette";
 
-const BRAND = "#2f81f7";
-const BRAND_INK = "#ffffff";
-const UP = "#089981";
-const DOWN = "#f23645";
-const CROSSHAIR = "rgba(47, 129, 247, 0.32)";
-const WATERMARK = "rgba(47, 129, 247, 0.045)";
 const marketClock = new Intl.DateTimeFormat("en-GB", { timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",hour12:false });
 const marketTime = (time:Time) => typeof time==="number" ? marketClock.format(time*1000) : "";
 /** Fetch older history once the left edge is within this many bars of the start. */
@@ -77,9 +72,9 @@ function toBar(c: CandleDto): CandlestickData {
   return { time: c.openTs as UTCTimestamp, open: c.o, high: c.h, low: c.l, close: c.c };
 }
 
-function toHollowBar(c: CandleDto, prevClose: number): CandlestickData {
+function toHollowBar(c: CandleDto, prevClose: number, palette: ChartPalette): CandlestickData {
   const isUpTrend = c.c >= prevClose;
-  const themeColor = isUpTrend ? UP : DOWN;
+  const themeColor = isUpTrend ? palette.up : palette.down;
   const isIntraBarUp = c.c >= c.o;
   const bodyColor = isIntraBarUp ? "transparent" : themeColor;
   return {
@@ -157,8 +152,9 @@ function createSeriesForType(
   precision: number,
   basePrice = 0,
   naturalScale = false,
+  palette: ChartPalette,
 ): ISeriesApi<any> {
-  const series = addSeriesForType(chart, type, precision, basePrice);
+  const series = addSeriesForType(chart, type, precision, basePrice, palette);
   if(!naturalScale)series.applyOptions({ autoscaleInfoProvider: shrinkAutoscale });
   return series;
 }
@@ -168,14 +164,15 @@ function addSeriesForType(
   type: ChartType,
   precision: number,
   basePrice: number,
+  palette: ChartPalette,
 ): ISeriesApi<any> {
   const priceFormat = { type: "price" as const, precision, minMove: 10 ** -precision };
 
   switch (type) {
     case "bars":
       return chart.addSeries(BarSeries, {
-        upColor: UP,
-        downColor: DOWN,
+        upColor: palette.up,
+        downColor: palette.down,
         openVisible: true,
         thinBars: false,
         priceLineVisible: false,
@@ -184,8 +181,8 @@ function addSeriesForType(
       });
     case "hlc_bars":
       return chart.addSeries(BarSeries, {
-        upColor: UP,
-        downColor: DOWN,
+        upColor: palette.up,
+        downColor: palette.down,
         openVisible: false,
         thinBars: false,
         priceLineVisible: false,
@@ -195,37 +192,37 @@ function addSeriesForType(
     case "hollow_candles":
       return chart.addSeries(CandlestickSeries, {
         upColor: "transparent",
-        downColor: DOWN,
+        downColor: palette.down,
         borderVisible: true,
         wickVisible: true,
-        borderColor: UP,
-        borderUpColor: UP,
-        borderDownColor: DOWN,
-        wickUpColor: UP,
-        wickDownColor: DOWN,
+        borderColor: palette.up,
+        borderUpColor: palette.up,
+        borderDownColor: palette.down,
+        wickUpColor: palette.up,
+        wickDownColor: palette.down,
         priceLineVisible: false,
         lastValueVisible: false,
         priceFormat,
       });
     case "volume_candles":
       return chart.addCustomSeries(new VolumeCandlesSeriesView(), {
-        upColor: UP,
-        downColor: DOWN,
-        wickUpColor: UP,
-        wickDownColor: DOWN,
+        upColor: palette.up,
+        downColor: palette.down,
+        wickUpColor: palette.up,
+        wickDownColor: palette.down,
         priceLineVisible: false,
         lastValueVisible: false,
         priceFormat,
       });
     case "hlc_area":
       return chart.addCustomSeries(new HlcAreaSeriesView(), {
-        highLineColor: "#089981",
+        highLineColor: palette.up,
         highLineWidth: 1.5,
-        highFillColor: "rgba(8, 153, 129, 0.20)",
-        lowLineColor: "#f23645",
+        highFillColor: chartAlpha(palette.up, .2),
+        lowLineColor: palette.down,
         lowLineWidth: 1.5,
-        lowFillColor: "rgba(242, 54, 69, 0.20)",
-        closeLineColor: "#cbd5e1",
+        lowFillColor: chartAlpha(palette.down, .2),
+        closeLineColor: palette.close,
         closeLineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -233,9 +230,9 @@ function addSeriesForType(
       });
     case "area":
       return chart.addSeries(AreaSeries, {
-        topColor: "rgba(47, 129, 247, 0.38)",
-        bottomColor: "rgba(47, 129, 247, 0.0)",
-        lineColor: BRAND,
+        topColor: chartAlpha(palette.accent, .38),
+        bottomColor: chartAlpha(palette.accent, 0),
+        lineColor: palette.accent,
         lineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -243,7 +240,7 @@ function addSeriesForType(
       });
     case "line":
       return chart.addSeries(LineSeries, {
-        color: BRAND,
+        color: palette.accent,
         lineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -251,7 +248,7 @@ function addSeriesForType(
       });
     case "line_markers":
       return chart.addSeries(LineSeries, {
-        color: BRAND,
+        color: palette.accent,
         lineWidth: 2,
         pointMarkersVisible: true,
         crosshairMarkerVisible: true,
@@ -261,7 +258,7 @@ function addSeriesForType(
       });
     case "step_line":
       return chart.addSeries(LineSeries, {
-        color: BRAND,
+        color: palette.accent,
         lineWidth: 2,
         lineType: LineType.WithSteps,
         priceLineVisible: false,
@@ -271,12 +268,12 @@ function addSeriesForType(
     case "baseline":
       return chart.addSeries(BaselineSeries, {
         baseValue: { type: "price", price: basePrice },
-        topLineColor: UP,
-        bottomLineColor: DOWN,
-        topFillColor1: "rgba(59, 229, 132, 0.3)",
-        topFillColor2: "rgba(59, 229, 132, 0.0)",
-        bottomFillColor1: "rgba(229, 65, 59, 0.0)",
-        bottomFillColor2: "rgba(229, 65, 59, 0.3)",
+        topLineColor: palette.up,
+        bottomLineColor: palette.down,
+        topFillColor1: chartAlpha(palette.baselineUp, .3),
+        topFillColor2: chartAlpha(palette.baselineUp, 0),
+        bottomFillColor1: chartAlpha(palette.baselineDown, 0),
+        bottomFillColor2: chartAlpha(palette.baselineDown, .3),
         lineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -285,10 +282,10 @@ function addSeriesForType(
     case "candles":
     default:
       return chart.addSeries(CandlestickSeries, {
-        upColor: UP,
-        downColor: DOWN,
-        wickUpColor: UP,
-        wickDownColor: DOWN,
+        upColor: palette.up,
+        downColor: palette.down,
+        wickUpColor: palette.up,
+        wickDownColor: palette.down,
         borderVisible: false,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -301,6 +298,7 @@ function populateSeriesData(
   series: ISeriesApi<any>,
   chartType: ChartType,
   state: ChartState,
+  palette: ChartPalette,
 ) {
   if (state.candles.length === 0) return;
   const isOhlc =
@@ -315,7 +313,7 @@ function populateSeriesData(
     (series as ISeriesApi<"Candlestick">).setData(
       state.candles.map((c, i) => {
         const prevClose = i > 0 ? state.candles[i - 1]!.c : c.o;
-        return toHollowBar(c, prevClose);
+        return toHollowBar(c, prevClose, palette);
       }),
     );
   } else if (isOhlc) {
@@ -327,94 +325,6 @@ function populateSeriesData(
         baseValue: { type: "price", price: state.candles[0]!.c },
       });
     }
-  }
-}
-
-function applySeriesAlpha(series: ISeriesApi<any>, type: ChartType, alpha: number) {
-  const a = Math.max(0, Math.min(1, alpha));
-  const aFixed = a.toFixed(3);
-
-  switch (type) {
-    case "candles":
-      series.applyOptions({
-        upColor: `rgba(59, 229, 132, ${aFixed})`,
-        downColor: `rgba(229, 65, 59, ${aFixed})`,
-        wickUpColor: `rgba(59, 229, 132, ${aFixed})`,
-        wickDownColor: `rgba(229, 65, 59, ${aFixed})`,
-      });
-      break;
-
-    case "bars":
-      series.applyOptions({
-        upColor: `rgba(59, 229, 132, ${aFixed})`,
-        downColor: `rgba(229, 65, 59, ${aFixed})`,
-      });
-      break;
-
-    case "hlc_bars":
-      series.applyOptions({
-        upColor: `rgba(59, 229, 132, ${aFixed})`,
-        downColor: `rgba(229, 65, 59, ${aFixed})`,
-      });
-      break;
-
-    case "hollow_candles":
-      series.applyOptions({
-        upColor: "transparent",
-        downColor: `rgba(229, 65, 59, ${aFixed})`,
-        borderColor: `rgba(59, 229, 132, ${aFixed})`,
-        borderUpColor: `rgba(59, 229, 132, ${aFixed})`,
-        borderDownColor: `rgba(229, 65, 59, ${aFixed})`,
-        wickUpColor: `rgba(59, 229, 132, ${aFixed})`,
-        wickDownColor: `rgba(229, 65, 59, ${aFixed})`,
-      });
-      break;
-
-    case "volume_candles":
-      series.applyOptions({
-        upColor: `rgba(59, 229, 132, ${aFixed})`,
-        downColor: `rgba(229, 65, 59, ${aFixed})`,
-        wickUpColor: `rgba(59, 229, 132, ${aFixed})`,
-        wickDownColor: `rgba(229, 65, 59, ${aFixed})`,
-      });
-      break;
-
-    case "hlc_area":
-      series.applyOptions({
-        highLineColor: `rgba(8, 153, 129, ${aFixed})`,
-        highFillColor: `rgba(8, 153, 129, ${(0.2 * a).toFixed(3)})`,
-        lowLineColor: `rgba(242, 54, 69, ${aFixed})`,
-        lowFillColor: `rgba(242, 54, 69, ${(0.2 * a).toFixed(3)})`,
-        closeLineColor: `rgba(203, 213, 225, ${aFixed})`,
-      });
-      break;
-
-    case "area":
-      series.applyOptions({
-        lineColor: `rgba(47, 129, 247, ${aFixed})`,
-        topColor: `rgba(47, 129, 247, ${(0.38 * a).toFixed(3)})`,
-        bottomColor: `rgba(47, 129, 247, 0)`,
-      });
-      break;
-
-    case "line":
-    case "line_markers":
-    case "step_line":
-      series.applyOptions({
-        color: `rgba(47, 129, 247, ${aFixed})`,
-      });
-      break;
-
-    case "baseline":
-      series.applyOptions({
-        topLineColor: `rgba(59, 229, 132, ${aFixed})`,
-        bottomLineColor: `rgba(229, 65, 59, ${aFixed})`,
-        topFillColor1: `rgba(59, 229, 132, ${(0.3 * a).toFixed(3)})`,
-        topFillColor2: `rgba(59, 229, 132, 0)`,
-        bottomFillColor1: `rgba(229, 65, 59, 0)`,
-        bottomFillColor2: `rgba(229, 65, 59, ${(0.3 * a).toFixed(3)})`,
-      });
-      break;
   }
 }
 
@@ -465,6 +375,11 @@ export function PriceChart({
   onShowAllTrades?: (() => void) | undefined;
   tickSize?: number;
 }) {
+  const theme = useTheme();
+  const paletteRef = useRef<ChartPalette | null>(null);
+  const recolorVolumeRef = useRef(() => {});
+  const entryLinesRef = useRef<{ line: IPriceLine; color: "up" | "down" }[]>([]);
+  const oldTypeRef = useRef<ChartType>(chartType);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const countdownRef = useRef<HTMLDivElement | null>(null);
   const ohlcRef = useRef<HTMLDivElement | null>(null);
@@ -506,26 +421,24 @@ export function PriceChart({
     // narrows the price scale and shortens the time scale, giving candles room.
     const compactMq = window.matchMedia("(width < 64rem) or (height < 30rem)");
     const axisFontSize = () => (compactMq.matches ? 9 : 11);
+    const palette = getChartPalette();
+    paletteRef.current = palette;
     const marketStyle=appearance==="market";
     const spacing=defaultBarSpacing();
 
     const chart: IChartApi = createChart(containerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: marketStyle?"#0c141c":"#0d141b" },
-        textColor: marketStyle?"#a5bbc9":"#9ba8b7",
+        ...chartThemeOptions(palette, marketStyle).layout,
         // next/font renames the family, so read it from the token rather than by name.
-        fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-ui").trim() || "sans-serif",
+        fontFamily: palette.font,
         fontSize: axisFontSize(),
         attributionLogo: false,
       },
-      grid: {
-        vertLines: { color: marketStyle?"#16232c":"rgba(47, 129, 247, 0.07)" },
-        horzLines: { color: marketStyle?"#16232c":"rgba(47, 129, 247, 0.07)" },
-      },
-      rightPriceScale: { borderVisible: marketStyle,borderColor:"#293a47",scaleMargins: marketStyle?{top:compactMq.matches?.24:.12,bottom:.22}:{ top: enableBrackets ? 0.24 : 0.18, bottom: 0.1 } },
+      grid: chartThemeOptions(palette, marketStyle).grid!,
+      rightPriceScale: { borderVisible: marketStyle,borderColor:palette.border,scaleMargins: marketStyle?{top:compactMq.matches?.24:.12,bottom:.22}:{ top: enableBrackets ? 0.24 : 0.18, bottom: 0.1 } },
       timeScale: {
         borderVisible: marketStyle,
-        borderColor:"#293a47",
+        borderColor:palette.border,
         timeVisible: true,
         secondsVisible: !marketStyle,
         rightOffset: defaultRightOffset(Math.max(0, containerRef.current.clientWidth - 56), spacing),
@@ -535,8 +448,8 @@ export function PriceChart({
       },
       crosshair: {
         mode: marketStyle?CrosshairMode.Magnet:CrosshairMode.Normal,
-        vertLine: { color: marketStyle?"#9598a1":CROSSHAIR, labelBackgroundColor: "#1c1c1c" },
-        horzLine: { color: marketStyle?"#9598a1":CROSSHAIR, labelBackgroundColor: "#1c1c1c" },
+        vertLine: { color: marketStyle ? palette.marketCrosshair : palette.crosshair, labelBackgroundColor: palette.crosshairLabel },
+        horzLine: { color: marketStyle ? palette.marketCrosshair : palette.crosshair, labelBackgroundColor: palette.crosshairLabel },
       },
       ...(marketStyle?{localization:{timeFormatter:(time:Time)=>`${marketTime(time)} IST`}}:{}),
       autoSize: true,
@@ -545,18 +458,18 @@ export function PriceChart({
     });
 
     const basePrice = market.getSnapshot().chart.candles[0]?.c ?? 0;
-    const initialSeries = createSeriesForType(chart, chartType, precision, basePrice,marketStyle);
-    populateSeriesData(initialSeries, chartType, market.getSnapshot().chart);
+    const initialSeries = createSeriesForType(chart, chartType, precision, basePrice,marketStyle,palette);
+    populateSeriesData(initialSeries, chartType, market.getSnapshot().chart,palette);
 
     priceLineRef.current = initialSeries.createPriceLine({
       price: 0,
-      color: BRAND,
+      color: palette.accent,
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
       lineVisible: false,
       axisLabelVisible: false,
-      axisLabelColor: BRAND,
-      axisLabelTextColor: BRAND_INK,
+      axisLabelColor: palette.accent,
+      axisLabelTextColor: palette.labelInk,
     });
 
     const pane = chart.panes()[0];
@@ -611,13 +524,44 @@ export function PriceChart({
     };
   }, [precision, market,appearance]);
 
+  useEffect(() => {
+    const palette = getChartPalette();
+    paletteRef.current = palette;
+    const chart = chartRef.current, series = seriesRef.current;
+    if (!chart || !series) return;
+    const began = performance.now();
+    applyChartTheme(chart, series, prevChartTypeRef.current, palette, appearance === "market");
+    if (activeOldSeriesRef.current) applyChartTheme(chart, activeOldSeriesRef.current, oldTypeRef.current, palette, appearance === "market");
+    // Hollow candles carry per-bar trend colours. Recolour the retained display
+    // buffer only; keep its exact prices, forming glide, timeline and viewport.
+    const recolor = (target: ISeriesApi<any>, type: ChartType) => {
+      if (type !== "hollow_candles") return;
+      const bars = target.data() as CandlestickData[];
+      target.setData(bars.map((bar, i) => {
+        const color = bar.close >= (bars[i - 1]?.close ?? bar.open) ? palette.up : palette.down;
+        return { ...bar, color: bar.close >= bar.open ? "transparent" : color, borderColor: color, wickColor: color };
+      }));
+    };
+    recolor(series, prevChartTypeRef.current);
+    if (activeOldSeriesRef.current) recolor(activeOldSeriesRef.current, oldTypeRef.current);
+    const state = market.getSnapshot().chart;
+    const candle = latestCandle(state);
+    const color = appearance === "market" ? candle && candle.c < candle.o ? palette.down : palette.up : palette.accent;
+    priceLineRef.current?.applyOptions({ color, axisLabelColor: color, axisLabelTextColor: palette.labelInk });
+    for (const entry of entryLinesRef.current) entry.line.applyOptions({ color: palette[entry.color], axisLabelTextColor: palette.labelInk });
+    recolorVolumeRef.current();
+    recordChartMetric("chartWork", performance.now() - began);
+  }, [theme]);
+
   // 2. Progressive Wave Transformation from the latest point (right) backwards to the start (left)
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !containerRef.current) return;
     if (prevChartTypeRef.current === chartType) return;
 
+    const palette = paletteRef.current!;
     const oldType = prevChartTypeRef.current;
+    oldTypeRef.current = oldType;
     const oldSeries = seriesRef.current;
     prevChartTypeRef.current = chartType;
 
@@ -644,18 +588,18 @@ export function PriceChart({
     const allCandles = market.getSnapshot().chart.candles;
     const N = allCandles.length;
     const basePrice = allCandles[0]?.c ?? 0;
-    const newSeries = createSeriesForType(chart, chartType, precision, basePrice,appearance==="market");
+    const newSeries = createSeriesForType(chart, chartType, precision, basePrice,appearance==="market",palette);
 
     // Re-attach live price line to new series
     priceLineRef.current = newSeries.createPriceLine({
       price: 0,
-      color: BRAND,
+      color: palette.accent,
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
       lineVisible: false,
       axisLabelVisible: false,
-      axisLabelColor: BRAND,
-      axisLabelTextColor: BRAND_INK,
+      axisLabelColor: palette.accent,
+      axisLabelTextColor: palette.labelInk,
     });
 
     // Restore exact time range
@@ -677,7 +621,7 @@ export function PriceChart({
     hudTimerRef.current = setTimeout(() => setHudLabel(null), 1400);
 
     if (reducedMotion || appearance==="market" || !oldSeries || N <= 1) {
-      populateSeriesData(newSeries, chartType, market.getSnapshot().chart);
+      populateSeriesData(newSeries, chartType, market.getSnapshot().chart,paletteRef.current!);
       if (oldSeries) {
         try {
           chart.removeSeries(oldSeries);
@@ -711,10 +655,10 @@ export function PriceChart({
         const newSlice = allCandles.slice(Math.max(0, Math.min(K, N - 2)));
 
         if (oldSlice.length > 0) {
-          populateSeriesData(oldSeries, oldType, { ...market.getSnapshot().chart, candles: oldSlice });
+          populateSeriesData(oldSeries, oldType, { ...market.getSnapshot().chart, candles: oldSlice },paletteRef.current!);
         }
         if (newSlice.length > 0) {
-          populateSeriesData(newSeries, chartType, { ...market.getSnapshot().chart, candles: newSlice });
+          populateSeriesData(newSeries, chartType, { ...market.getSnapshot().chart, candles: newSlice },paletteRef.current!);
         }
 
         if (range) {
@@ -726,7 +670,7 @@ export function PriceChart({
         animFrameRef.current = requestAnimationFrame(transformWave);
       } else {
         // Wave has reached the end! Finalize full dataset on new series and remove old series
-        populateSeriesData(newSeries, chartType, market.getSnapshot().chart);
+        populateSeriesData(newSeries, chartType, market.getSnapshot().chart,paletteRef.current!);
         try {
           chart.removeSeries(oldSeries);
         } catch { }
@@ -845,7 +789,7 @@ export function PriceChart({
               const lastClosed = state.candles.at(-1);
               const prevClose = lastClosed ? lastClosed.c : formingBar.open;
               const isUpTrend = displayed >= prevClose;
-              const themeColor = isUpTrend ? UP : DOWN;
+              const themeColor = isUpTrend ? paletteRef.current!.up : paletteRef.current!.down;
               const isIntraBarUp = displayed >= formingBar.open;
               const bodyColor = isIntraBarUp ? "transparent" : themeColor;
               (series as ISeriesApi<"Candlestick">).update({
@@ -881,7 +825,7 @@ export function PriceChart({
       }
       if (displayed !== paintedPrice) {
         changed=true;
-        const color=appearance==="market"?(formingBar&&formingBar.close<formingBar.open?DOWN:UP):BRAND;
+        const color=appearance==="market"?(formingBar&&formingBar.close<formingBar.open?paletteRef.current!.down:paletteRef.current!.up):paletteRef.current!.accent;
         priceLine.applyOptions({ price: displayed,color,axisLabelColor:color,lineStyle:appearance==="market"?LineStyle.Dotted:LineStyle.Dashed,lineVisible: marketOpen, axisLabelVisible: marketOpen });
         paintedPrice = displayed;
       }
@@ -947,7 +891,7 @@ export function PriceChart({
             const b=state.candles[i]!;if(b.openTs<last.openTs)continue;
             if(b.openTs===last.openTs&&b.o===last.o&&b.h===last.h&&b.l===last.l&&b.c===last.c)continue;
             const historical=b.openTs<(prev.forming?.openTs??last.openTs);
-            if(chartType==="hollow_candles") (series as ISeriesApi<"Candlestick">).update(toHollowBar(b,i?state.candles[i-1]!.c:b.o),historical);
+            if(chartType==="hollow_candles") (series as ISeriesApi<"Candlestick">).update(toHollowBar(b,i?state.candles[i-1]!.c:b.o,paletteRef.current!),historical);
             else if(isOhlc)(series as ISeriesApi<"Candlestick">).update(toBar(b),historical);
             else (series as ISeriesApi<"Line">).update(toSingleValue(b),historical);
           }
@@ -955,7 +899,7 @@ export function PriceChart({
           (series as ISeriesApi<"Candlestick">).setData(
             state.candles.map((c, i) => {
               const prevClose = i > 0 ? state.candles[i - 1]!.c : c.o;
-              return toHollowBar(c, prevClose);
+              return toHollowBar(c, prevClose,paletteRef.current!);
             }),
           );
         } else if (isOhlc) {
@@ -1054,10 +998,13 @@ export function PriceChart({
     const series=chart.addSeries(HistogramSeries,{priceScaleId:"volume",priceFormat:{type:"volume"},lastValueVisible:false,priceLineVisible:false});
     chart.priceScale("volume").applyOptions({scaleMargins:{top:appearance==="market"?.86:.82,bottom:0},visible:false});
     let previous:ChartState|null=null;
+    let recolor = () => {};
+    recolorVolumeRef.current = () => recolor();
     const draw=()=>{
       const state=market.getSnapshot().chart;
       const bars=state.forming?[...state.candles,state.forming]:state.candles;
-      const point=(b:CandleDto)=>({time:b.openTs as UTCTimestamp,value:b.volume??0,color:b.c>=b.o?"#08998180":"#f2364580"});
+      const point=(b:CandleDto)=>({time:b.openTs as UTCTimestamp,value:b.volume??0,color:chartAlpha(b.c>=b.o?paletteRef.current!.up:paletteRef.current!.down,128/255)});
+      recolor = () => series.setData(bars.map(point));
       if(!previous||previous.symbol!==state.symbol||previous.timeframe!==state.timeframe||previous.candles[0]?.openTs!==state.candles[0]?.openTs)series.setData(bars.map(point));
       else{const last=previous.forming?.openTs??previous.candles.at(-1)?.openTs??0;for(const b of bars)if(b.openTs>=last)series.update(point(b));}
       previous=state;
@@ -1073,6 +1020,7 @@ export function PriceChart({
       unsubscribe();
       document.removeEventListener("visibilitychange", schedule);
       cancelAnimationFrame(frame);
+      recolorVolumeRef.current = () => {};
       if (chartRef.current === chart) chart.removeSeries(series);
     };
   },[market,volumeVisible,chartVersion,appearance]);
@@ -1082,30 +1030,33 @@ export function PriceChart({
     if (!el || !watermarkRef.current) return;
     const fontSize = Math.round(Math.min(el.clientWidth / 4.2, el.clientHeight / 1.6));
     watermarkRef.current.applyOptions({
-      lines: watermark ? [{ text: watermark, color: WATERMARK, fontSize, fontStyle: "bold" }] : [],
+      lines: watermark ? [{ text: watermark, color: getChartPalette().watermark, fontSize, fontStyle: "bold" }] : [],
     });
-  }, [watermark, chartVersion]);
+  }, [watermark, chartVersion, theme]);
 
   // Entry lines for this account's open trades on this asset.
   useEffect(() => {
     const series = seriesRef.current;
     if (!series) return;
+    const palette = paletteRef.current!;
+    const entries: typeof entryLinesRef.current = [];
     const lines = openTrades
       .filter(t => !enableBrackets || t.durationSec == null)
-      .map(t => series.createPriceLine({
+      .map(t => { const line = series.createPriceLine({
         price: t.entryPrice,
-        color: t.direction === "UP" ? UP : DOWN,
+        color: t.direction === "UP" ? palette.up : palette.down,
         lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true,
         lineVisible: t.mode !== "OTC_FIXED",
-        axisLabelTextColor: BRAND_INK,
+        axisLabelTextColor: palette.labelInk,
         title: `${t.direction === "UP" ? "▲" : "▼"} ${formatMinor(t.stake, t.currency??currency)}`,
-      }));
+      }); entries.push({line,color:t.direction === "UP" ? "up" : "down"}); return line; });
     for(const trade of openTrades)if(trade.mode==="OTC_FIXED"){
-      for(const [label,price,color] of [["SL",trade.stopLoss,DOWN],["TP",trade.takeProfit,UP]] as const){
-        if(price!=null)lines.push(series.createPriceLine({price,color,lineWidth:1,lineStyle:LineStyle.Dashed,axisLabelVisible:true,title:label}));
+      for(const [label,price,color] of [["SL",trade.stopLoss,palette.down],["TP",trade.takeProfit,palette.up]] as const){
+        if(price!=null){const line=series.createPriceLine({price,color,lineWidth:1,lineStyle:LineStyle.Dashed,axisLabelVisible:true,title:label});lines.push(line);entries.push({line,color:label==="SL"?"down":"up"});}
       }
     }
-    return ()=>{for(const line of lines)try{series.removePriceLine(line);}catch{}};
+    entryLinesRef.current = entries;
+    return ()=>{entryLinesRef.current = [];for(const line of lines)try{series.removePriceLine(line);}catch{}};
   }, [openTrades, currency, chartVersion, enableBrackets,chartType]);
 
   return (
@@ -1128,10 +1079,10 @@ export function PriceChart({
       {/* Style Switch HUD Pill */}
       {hudLabel && (
         <div
-          className="pointer-events-none absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-brand/50 bg-[#0c121d]/85 px-3 py-1 text-xs font-semibold text-white shadow-[0_4px_20px_rgba(0,0,0,0.6)] backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200"
+          className="pointer-events-none absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-brand/50 bg-chart-hud-bg px-3 py-1 text-xs font-semibold text-chart-hud-ink shadow-(--chart-hud-shadow) backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200"
           aria-live="polite"
         >
-          <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#38bdf8]" />
+          <span className="size-1.5 rounded-full bg-chart-hud-dot shadow-(--chart-dot-shadow)" />
           <span className="tracking-wide text-[11px]">{hudLabel}</span>
         </div>
       )}

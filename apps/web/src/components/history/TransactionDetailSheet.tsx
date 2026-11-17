@@ -267,7 +267,7 @@ function TradeBody({ item, now, onClose }: { item: Extract<HistoryItem, { kind: 
       {!open && <Row label="Close reason"><span className="capitalize">{reason ?? (cfd ? "Not recorded" : "Expiry")}</span></Row>}
     </dl>
     <ReferenceRow reference={trade.id} />
-    <button type="button" className="h-11 rounded-xl bg-brand-fill font-bold text-white" onClick={() => {
+    <button type="button" className="h-11 rounded-xl bg-brand-fill font-bold text-brand-ink" onClick={() => {
       setSelectedTradeId(trade.id); selectChartSymbol(trade.symbol); onClose(); router.push("/trade");
     }}>View on chart</button>
   </>;
@@ -318,7 +318,7 @@ export function TransactionDetailSheet({ item, onClose }: { item: HistoryItem; o
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 phone:items-end"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay-strong phone:items-end"
       onPointerDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
@@ -327,7 +327,7 @@ export function TransactionDetailSheet({ item, onClose }: { item: HistoryItem; o
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={onKeyDown}
-        className="sheet-phone flex max-h-[min(92dvh,46rem)] w-full max-w-[34rem] flex-col overflow-hidden rounded-2xl border border-rule bg-panel shadow-[0_24px_64px_rgb(0_0_0/0.7)]"
+        className="sheet-phone flex max-h-[min(92dvh,46rem)] w-full max-w-[34rem] flex-col overflow-hidden rounded-2xl border border-rule bg-panel shadow-[0_24px_64px_var(--color-shadow-elevated)]"
       >
         <div aria-hidden className="sheet-handle hidden phone:block" />
         <div className="flex items-center gap-2 px-4 pb-1 pt-2">

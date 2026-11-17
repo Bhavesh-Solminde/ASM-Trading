@@ -1,16 +1,16 @@
-.edge { position: fixed; inset: 0 0 auto; height: 2px; z-index: 80; pointer-events: none; background: linear-gradient(90deg, transparent, #d99a3e, #ffe4a1, #d99a3e, transparent); }
+.edge { position: fixed; inset: 0 0 auto; height: 2px; z-index: 80; pointer-events: none; background: linear-gradient(90deg, transparent, var(--color-festive-edge), var(--color-festive-light), var(--color-festive-edge), transparent); }
 .badge { position: fixed; left: 12px; bottom: 52px; z-index: 35; display: flex; align-items: center; gap: 8px; border: 1px solid var(--color-rule); border-radius: 8px; background: var(--color-panel); color: var(--color-ink); padding: 8px 12px; font: inherit; font-size: 11px; cursor: pointer; }
 .badge .diya { width: 20px; height: 23px; }
 .badge .flame { width: 5px; height: 10px; top: 1px; }
 .badge .bowl { height: 8px; }
-.dialog { position: fixed; inset: 0; width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; padding: 0; border: 1px solid var(--color-rule); border-radius: 12px; background: var(--color-ground); color: var(--color-ink); box-shadow: 0 24px 100px #0009; }
-.dialog::backdrop { background: color-mix(in srgb, var(--color-ground) 88%, transparent); }
+.dialog { position: fixed; inset: 0; width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; padding: 0; border: 1px solid var(--color-rule); border-radius: 12px; background: var(--color-ground); color: var(--color-ink); box-shadow: 0 24px 100px var(--color-shadow-dialog); }
+.dialog::backdrop { background: var(--color-festive-backdrop); }
 .dialog.preview { position: absolute; inset: 0; width: 100%; height: 100%; max-height: none; margin: 0; border: 0; border-radius: 0; z-index: 60; }
 .preview .scene { min-height: 100%; }
 .scene { position: relative; isolation: isolate; min-height: min(620px, calc(100dvh - 36px)); display: grid; place-items: center; overflow: hidden; padding: 64px 24px 28px; text-align: center; background: radial-gradient(ellipse at 50% 72%, color-mix(in srgb, var(--color-brand) 10%, transparent), transparent 58%), var(--color-ground); }
 .skip { position: absolute; right: 18px; top: 16px; z-index: 5; border: 1px solid var(--color-rule); border-radius: 6px; padding: 7px 12px; background: var(--color-tile); color: var(--color-ink-2); cursor: pointer; font: inherit; font-size: 12px; }
-.chakra { position: absolute; left: calc(50% - 27px); top: calc(50% - 27px); width: 54px; height: 54px; border: 5px double #ffc75a; border-radius: 50%; background: repeating-conic-gradient(#f3a539 0deg 10deg, #9d2828 10deg 20deg, var(--color-brand-dim) 20deg 30deg); box-shadow: 0 0 24px #ffac4055; animation: spin 2.7s cubic-bezier(.2,.5,.3,1) both; }
-.chakra::before, .chakra::after { content: ""; position: absolute; inset: -60px; border-radius: 50%; background: repeating-conic-gradient(from 12deg, transparent 0deg 13deg, #ffc65d 14deg 15deg, transparent 16deg 30deg); mask-image: radial-gradient(transparent 24%, #000 28%, transparent 69%); animation: trails 2.7s ease-out both; }
+.chakra { position: absolute; left: calc(50% - 27px); top: calc(50% - 27px); width: 54px; height: 54px; border: 5px double var(--color-festive-chakra-edge); border-radius: 50%; background: repeating-conic-gradient(var(--color-festive-chakra-gold) 0deg 10deg, var(--color-festive-chakra-red) 10deg 20deg, var(--color-brand-dim) 20deg 30deg); box-shadow: 0 0 24px var(--color-festive-chakra-glow); animation: spin 2.7s cubic-bezier(.2,.5,.3,1) both; }
+.chakra::before, .chakra::after { content: ""; position: absolute; inset: -60px; border-radius: 50%; background: repeating-conic-gradient(from 12deg, transparent 0deg 13deg, var(--color-festive-trail) 14deg 15deg, transparent 16deg 30deg); mask-image: radial-gradient(transparent 24%, var(--color-mask) 28%, transparent 69%); animation: trails 2.7s ease-out both; }
 .chakra::after { inset: -95px; transform: rotate(18deg); opacity: .6; }
 .reveal { position: relative; width: 100%; animation: reveal 9.5s both; }
 .from { position: relative; z-index: 1; margin: 0 0 20px; color: var(--color-ink-2); font-size: 13px; }
@@ -20,12 +20,12 @@
 .lamps { display: flex; justify-content: center; align-items: end; gap: 44px; margin: 42px 0 26px; }
 .diya { position: relative; display: inline-block; width: 65px; height: 58px; flex: none; }
 .lamps .diya:nth-child(2) { transform: scale(1.3); }
-.flame { position: absolute; left: 50%; top: 2px; width: 12px; height: 29px; transform: translateX(-50%); border-radius: 80% 15% 60% 40%; background: linear-gradient(#fffde0, #ffe391 48%, #ff9b38); box-shadow: 0 0 22px #ffbf6080; }
-.bowl { position: absolute; bottom: 0; inset-inline: 0; height: 25px; border: 2px solid #eab958; border-top: 5px solid #ffda7a; border-radius: 15% 15% 80% 80%; background: repeating-linear-gradient(65deg, #b66b28 0px 3px, #edaf51 4px 5px, #b66b28 6px 10px); box-shadow: 0 12px 26px #ffad3826; }
+.flame { position: absolute; left: 50%; top: 2px; width: 12px; height: 29px; transform: translateX(-50%); border-radius: 80% 15% 60% 40%; background: linear-gradient(var(--color-festive-flame-core), var(--color-festive-flame-mid) 48%, var(--color-festive-flame-tip)); box-shadow: 0 0 22px var(--color-festive-flame-glow); }
+.bowl { position: absolute; bottom: 0; inset-inline: 0; height: 25px; border: 2px solid var(--color-festive-bowl-edge); border-top: 5px solid var(--color-festive-bowl-rim); border-radius: 15% 15% 80% 80%; background: repeating-linear-gradient(65deg, var(--color-festive-bowl) 0px 3px, var(--color-festive-bowl-stripe) 4px 5px, var(--color-festive-bowl) 6px 10px); box-shadow: 0 12px 26px var(--color-festive-bowl-glow); }
 .continue { position: relative; z-index: 1; font: inherit; font-size: 13px; cursor: pointer; color: var(--color-brand-ink); background: var(--color-brand-fill); padding: 11px 22px; border: 0; border-radius: 6px; }
 .badge:focus-visible, .skip:focus-visible, .continue:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 4px; }
 .sparks { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
-.burst { position: absolute; left: calc(15% + var(--burst) * 35%); top: calc(12% + var(--burst) * 13%); width: 1px; height: 1px; color: #ffd279; }
+.burst { position: absolute; left: calc(15% + var(--burst) * 35%); top: calc(12% + var(--burst) * 13%); width: 1px; height: 1px; color: var(--color-festive-spark); }
 .burst:nth-child(2) { color: var(--color-brand); }
 .burst i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: currentColor; box-shadow: 0 0 4px currentColor; opacity: 0; animation: spark 1.5s calc(var(--burst) * .22s) ease-out both; }
 .reveal .burst i { animation-delay: calc(2.8s + var(--burst) * .35s); animation-iteration-count: 3; }

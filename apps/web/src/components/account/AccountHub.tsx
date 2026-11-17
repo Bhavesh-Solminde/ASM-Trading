@@ -8,7 +8,7 @@ import { useChartProtection, setChartProtection } from "@/lib/chart-protection-p
 import { isMuted, setMuted } from "@/lib/sound";
 import { Icon, type IconName } from "@/components/shell/Icon";
 import { initialsFor, kycBadge, type KycTone } from "./profile-display";
-import { LinkRow, ListGroup, ToggleRow } from "./SettingsList";
+import { AppearanceRow, LinkRow, ListGroup, ToggleRow } from "./SettingsList";
 
 export interface HubAccount {
   id: string;
@@ -37,7 +37,7 @@ function ActionTile({ href, icon, label }: { href: string; icon: IconName; label
   return (
     <Link
       href={href}
-      className="grid h-14 place-content-center justify-items-center gap-1 rounded-[14px] bg-white/[0.06] text-xs font-bold text-ink hover:bg-white/10"
+      className="grid h-14 place-content-center justify-items-center gap-1 rounded-[14px] bg-surface-highlight/[0.06] text-xs font-bold text-ink hover:bg-surface-highlight/10"
     >
       <Icon name={icon} className="size-[18px]" strokeWidth={2.2} />
       {label}
@@ -78,7 +78,7 @@ export function AccountHub({
   const kyc = kycBadge(kycStatus);
   const target = shown?.currency === "INR" ? "USD" : "INR";
   const cardTint = isLive
-    ? "bg-[color-mix(in_srgb,var(--color-up)_7%,var(--color-ground))]"
+    ? "bg-live-card"
     : "bg-tile";
 
   return (
@@ -176,7 +176,8 @@ export function AccountHub({
           value={kyc.label}
           valueClass={`font-semibold ${KYC_TEXT[kyc.tone]}`}
         />
-      </ListGroup>
+      <AppearanceRow />
+        </ListGroup>
 
       <PushToggle />
       <ListGroup title="Preferences">

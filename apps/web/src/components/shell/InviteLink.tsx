@@ -26,7 +26,7 @@ export function CopyButton({ value, label = "Copy link" }: { value: string; labe
     <button
       type="button"
       onClick={() => void copy()}
-      className="flex flex-none items-center justify-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-xs font-semibold text-white transition-transform hover:bg-brand-fill-hi active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 phone:h-11 phone:py-0"
+      className="flex flex-none items-center justify-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-xs font-semibold text-brand-ink transition-transform hover:bg-brand-fill-hi active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 phone:h-11 phone:py-0"
     >
       {state === "copied" ? (
         <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>

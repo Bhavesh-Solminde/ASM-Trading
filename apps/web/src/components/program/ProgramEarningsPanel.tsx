@@ -26,7 +26,7 @@ const LABEL = "text-[13px] font-semibold text-ink-2";
 const INPUT =
   "mt-1.5 h-12 w-full rounded-xl bg-tile px-3.5 text-base ring-1 ring-rule placeholder:text-ink-3 focus:ring-brand aria-[invalid=true]:ring-down";
 const PRIMARY =
-  "h-14 w-full rounded-2xl bg-brand-fill text-base font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50";
+  "h-14 w-full rounded-2xl bg-brand-fill text-base font-bold text-brand-ink hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50";
 
 const inr = (minor: number) => formatMinor(minor, "INR");
 const whole = (minor: number) => inr(minor).replace(/\.00$/, "");
@@ -143,7 +143,7 @@ function Requirements({ summary: s }: { summary: ProgramSummary }) {
           {s.blockers.includes("kyc_required") && s.kycStatus !== "PENDING" ? (
             <Link
               href="/account/verify"
-              className="self-start rounded-lg bg-brand-fill px-4 py-2 text-sm font-semibold text-white hover:bg-brand-fill-hi phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0"
+              className="self-start rounded-lg bg-brand-fill px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-brand-fill-hi phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0"
             >
               Start verification
             </Link>

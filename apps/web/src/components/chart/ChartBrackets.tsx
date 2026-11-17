@@ -12,7 +12,11 @@ import { BRACKET_KINDS, BRACKET_LABEL, bracketChanges, bracketError, bracketFrom
 import { draggedBracketPrice, expandedBracketRange, type BracketDragRange } from "./bracket-drag";
 import styles from "./ChartBrackets.module.css";
 
-const COLORS = { buy: "#2962ff", sell: "#f23645", stopLoss: "#f23645", takeProfit: "#089981" };
+import { useTheme } from "@/lib/theme";
+import { chartAlpha, getChartPalette } from "./chart-palette";
+
+const COLORS = { buy: "var(--color-chart-buy)", sell: "var(--color-candle-down)", stopLoss: "var(--color-candle-down)", takeProfit: "var(--color-candle-up)" };
+
 type Draft = { tradeId: string; base: BracketLevels; levels: BracketLevels };
 type ProtectionRequest = { controller: AbortController; tradeId: string; timer?: ReturnType<typeof setTimeout> };
 type RowGeometry = { entry: number | null; stopLoss: number | null; takeProfit: number | null };
@@ -59,6 +63,7 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
   trades: TradeView[]; seriesRef: RefObject<ISeriesApi<any> | null>; chartRef: RefObject<IChartApi | null>;
   containerRef: RefObject<HTMLDivElement | null>; precision: number; tickSize: number; currency: string; chartVersion: number; market: MarketStore; controlsEnabled?: boolean; focusedTradeId?: string | undefined; onSelectTrade?: ((id: string) => void) | undefined; onShowAllTrades?: (() => void) | undefined;
 }) {
+  const theme = useTheme();
   const now = useNowSec();
   const positions = useMemo(() => trades.filter(t => t.mode !== "OTC_FIXED" && t.durationSec != null && (t.id === focusedTradeId || t.status === "OPEN" && (now == null || t.expiryTs > now))), [trades, now, focusedTradeId]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -165,6 +170,8 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
   // Keep one set of native price lines. Draft movement updates prices rather than
   // recreating chart objects, and active protection remains visible until ack.
   useLayoutEffect(() => {
+    const palette = getChartPalette();
+    const colors = { buy:palette.buy,sell:palette.down,stopLoss:palette.down,takeProfit:palette.up };
     const series = seriesRef.current;
     if (!series) return;
     if (linesRef.current.series !== series) {
@@ -175,24 +182,24 @@ export function ChartBrackets({ trades, seriesRef, chartRef, containerRef, preci
     const used = new Set<string>();
     function line(key: string, value: number, color: string, dashed: boolean, axis = true) {
       used.add(key);
-      const options = { price: value, color, lineWidth: 1 as const, lineStyle: dashed ? LineStyle.Dashed : LineStyle.Solid, axisLabelVisible: axis, axisLabelColor: color, axisLabelTextColor: "#fff", title: "" };
+      const options = { price: value, color, lineWidth: 1 as const, lineStyle: dashed ? LineStyle.Dashed : LineStyle.Solid, axisLabelVisible: axis, axisLabelColor: color, axisLabelTextColor: palette.labelInk, title: "" };
       const old = linesRef.current.lines.get(key);
       if (old) old.applyOptions(options);
       else linesRef.current.lines.set(key, series!.createPriceLine(options));
     }
     for (const t of positions) {
       const active = t.id === selected?.id;
-      line(`${t.id}:entry`, t.entryPrice, (t.direction === "UP" ? COLORS.buy : COLORS.sell) + (active ? "" : "66"), false, active);
+      line(`${t.id}:entry`, t.entryPrice, chartAlpha(t.direction === "UP" ? colors.buy : colors.sell, active ? 1 : .4), false, active);
       const saved = savedBrackets(t); const preview = draft?.tradeId === t.id ? draft : null;
       for (const kind of BRACKET_KINDS) {
         const changed = preview && saved[kind] !== preview.levels[kind];
-        if (saved[kind] != null) line(`${t.id}:${kind}:active`, saved[kind]!, changed || !active ? `${COLORS[kind]}66` : COLORS[kind], true, active && !changed);
-        if (changed && preview.levels[kind] != null) line(`${t.id}:${kind}:draft`, preview.levels[kind]!, COLORS[kind], true);
+        if (saved[kind] != null) line(`${t.id}:${kind}:active`, saved[kind]!, changed || !active ? chartAlpha(colors[kind],.4) : colors[kind], true, active && !changed);
+        if (changed && preview.levels[kind] != null) line(`${t.id}:${kind}:draft`, preview.levels[kind]!, colors[kind], true);
       }
     }
     for (const [key, native] of linesRef.current.lines) if (!used.has(key)) { series.removePriceLine(native); linesRef.current.lines.delete(key); }
     scheduleRef.current();
-  }, [positions, draft, chartVersion, seriesRef, selected?.id]);
+  }, [positions, draft, chartVersion, seriesRef, selected?.id, theme]);
   useEffect(() => () => {
     const old = linesRef.current;
     for (const line of old.lines.values()) { try { old.series?.removePriceLine(line); } catch { /* Series may already be removed. */ } }
