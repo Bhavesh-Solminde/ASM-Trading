@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ContentShell } from "@/components/content/ContentShell";
+import { invitedFirstDepositBonusPct } from "@/lib/referral";
 import { buildMetadata } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
-export const metadata: Metadata = buildMetadata({
-  title: "Affiliate Program",
-  description: `Invite friends to ${SITE_NAME}. Earn a reward on each referred friend's first qualifying deposit plus a share of revenue from their trading, while they get an enhanced first-deposit bonus.`,
-  path: "/affiliate",
-  keywords: [`${SITE_NAME} affiliate`, "trading affiliate program", "refer and earn trading"],
-});
+// The invited-friend bonus comes from the program settings in force, so read it per request.
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const pct = await invitedFirstDepositBonusPct();
+  return buildMetadata({
+    title: "Affiliate Program",
+    description: `Invite friends to ${SITE_NAME}. Your friend gets a ${pct}% first-deposit bonus. Earn a reward on each referred friend's first qualifying deposit plus a share of revenue from their trading.`,
+    path: "/affiliate",
+    keywords: [`${SITE_NAME} affiliate`, "trading affiliate program", "refer and earn trading"],
+  });
+}
 
 const PRIMARY =
   "inline-flex h-12 items-center justify-center gap-2 rounded-full bg-brand px-6 text-sm font-black text-brand-ink transition hover:brightness-110";
@@ -39,16 +46,20 @@ function CtaRow() {
   );
 }
 
-export default function AffiliateLandingPage() {
+export default async function AffiliateLandingPage() {
+  const pct = await invitedFirstDepositBonusPct();
   return (
     <ContentShell cta={{ href: "/affiliate/register", label: "Join" }}>
       <p className="legend text-brand">Affiliate program</p>
       <h1 className="mt-3 text-3xl font-black tracking-tight text-ink md:text-4xl">
         Invite friends to {SITE_NAME}. Earn as they trade.
       </h1>
+      <p className="mt-4 text-2xl font-black tracking-tight text-brand md:text-3xl">
+        Your friend gets a {pct}% first-deposit bonus
+      </p>
       <p className="mt-4 text-lg leading-relaxed text-ink-2">
-        Share {SITE_NAME} with people you know. You earn from the friends you bring in, and they start with a
-        better welcome offer than a regular sign-up.
+        Share {SITE_NAME} with people you know. You earn from the friends you bring in, and they start with a bigger
+        first-deposit bonus than a regular sign-up.
       </p>
       <CtaRow />
 
@@ -63,7 +74,7 @@ export default function AffiliateLandingPage() {
         <div className="rounded-xl border border-rule bg-panel p-5">
           <h2 className="text-lg font-bold text-ink">What your friends get</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-ink-2">
-            <li>An enhanced bonus on their first deposit when they join through your invitation.</li>
+            <li>A {pct}% bonus on their first deposit when they join through your invitation.</li>
           </ul>
         </div>
       </section>

@@ -13,6 +13,7 @@ import {
   programSettingValuesAt,
   withdrawalRules,
 } from "./program-wallet";
+import { cleanReason } from "./program-errors";
 
 // §12 program withdrawals: own queue and limits, separate from trading withdrawals.
 
@@ -199,14 +200,15 @@ async function audit(tx: Tx, actor: string, action: string, w: ProgramWithdrawal
   });
 }
 
-/** Approval alone is not payment: no money moves. */
-export async function approveProgramWithdrawal(input: { id: string; actor: string; note?: string }): Promise<ProgramWithdrawal> {
+/** Approval alone is not payment: no money moves. The reason (required, ≤ 500 characters) goes to the AuditLog only. */
+export async function approveProgramWithdrawal(input: { id: string; actor: string; reason: string }): Promise<ProgramWithdrawal> {
+  const reason = cleanReason(input.reason);
   return transition(input.id, { from: ["REQUESTED"], done: "APPROVED" }, async (tx, w) => {
     const after = await tx.programWithdrawal.update({
       where: { id: w.id },
       data: { status: "APPROVED", approvedAt: new Date(), reviewedBy: input.actor },
     });
-    await audit(tx, input.actor, "program.withdrawal.approve", w, after, { note: input.note?.trim() || null });
+    await audit(tx, input.actor, "program.withdrawal.approve", w, after, { reason });
     return after;
   });
 }

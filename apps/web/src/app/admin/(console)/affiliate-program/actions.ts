@@ -138,10 +138,9 @@ export async function approveProgramWithdrawalAction(formData: FormData): Promis
   const id = text(formData, "withdrawalId");
   const to = tab("withdrawals");
   if (!id) back(to, "error", "Missing withdrawal.");
-  const note = text(formData, "note");
-  await attempt(to, "program.withdrawal.approve", () =>
-    approveProgramWithdrawal({ id, actor: ADMIN_ACTOR, ...(note ? { note } : {}) }),
-  );
+  const reason = text(formData, "reason");
+  if (!reason) back(to, "error", "A reason is required.");
+  await attempt(to, "program.withdrawal.approve", () => approveProgramWithdrawal({ id, actor: ADMIN_ACTOR, reason }));
   back(to, "ok", "Withdrawal approved. Pay it, then mark it paid.");
 }
 

@@ -8,9 +8,11 @@ interface ReferralClientProps {
   referralUrl: string;
   /** Real program numbers for the existing stat cards; the Total earned label is preformatted. */
   stats: { totalReferrals: number; activeTraders: number; totalEarned: string };
+  /** Program terms in force, preformatted (₹ amounts) on the server. */
+  terms: { reward: string; minDeposit: string; minTrade: string; friendBonusPct: number };
 }
 
-export function ReferralClient({ referralCode, referralUrl, stats }: ReferralClientProps) {
+export function ReferralClient({ referralCode, referralUrl, stats, terms }: ReferralClientProps) {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = async () => {
@@ -35,15 +37,15 @@ export function ReferralClient({ referralCode, referralUrl, stats }: ReferralCli
               Affiliate Program
             </span>
             <span className="rounded-full bg-up/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-up">
-              Up to 50% RevShare
+              {terms.reward} per qualified friend
             </span>
           </div>
 
           <h2 className="text-lg font-bold tracking-tight text-ink">
-            Invite friends & earn continuous commission
+            Your friend gets a {terms.friendBonusPct}% first-deposit bonus
           </h2>
           <p className="max-w-xl text-xs text-ink-2">
-            Share your unique referral link. Whenever your referrals register and place trades, you receive a direct revenue share credited directly to your balance.
+            Share your link or code. You earn {terms.reward} once for each invited friend who qualifies.
           </p>
         </div>
 
@@ -100,9 +102,9 @@ export function ReferralClient({ referralCode, referralUrl, stats }: ReferralCli
           <span className="text-[10px] text-ink-3">View earnings &amp; withdraw →</span>
         </Link>
         <div className="flex flex-col gap-1 rounded-xl border border-rule bg-panel p-4">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Current Tier</span>
-          <span className="text-xl font-bold tracking-tight text-brand">50%</span>
-          <span className="text-[10px] text-ink-3">Top VIP tier</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Your Reward</span>
+          <span className="text-xl font-bold tracking-tight text-brand">{terms.reward}</span>
+          <span className="text-[10px] text-ink-3">Per qualified friend</span>
         </div>
       </section>
 
@@ -116,25 +118,27 @@ export function ReferralClient({ referralCode, referralUrl, stats }: ReferralCli
             </div>
             <h4 className="text-xs font-semibold text-ink">Share your link</h4>
             <p className="text-[11px] leading-relaxed text-ink-2">
-              Send your personal link or code to prospective traders, friends, or your trading community.
+              Send your personal link or code to friends. They get a {terms.friendBonusPct}% bonus on their first deposit.
             </p>
           </div>
           <div className="flex flex-col gap-1.5">
             <div className="flex size-7 items-center justify-center rounded-full bg-brand/15 text-xs font-bold text-brand">
               2
             </div>
-            <h4 className="text-xs font-semibold text-ink">They trade</h4>
+            <h4 className="text-xs font-semibold text-ink">They qualify</h4>
             <p className="text-[11px] leading-relaxed text-ink-2">
-              Whenever your referred traders place binary options trades on live market assets, volume accumulates.
+              A friend qualifies after a completed deposit of at least {terms.minDeposit} and a settled live trade of at least{" "}
+              {terms.minTrade} of their own money.
             </p>
           </div>
           <div className="flex flex-col gap-1.5">
             <div className="flex size-7 items-center justify-center rounded-full bg-up/15 text-xs font-bold text-up">
               3
             </div>
-            <h4 className="text-xs font-semibold text-ink">Instant payouts</h4>
+            <h4 className="text-xs font-semibold text-ink">You get {terms.reward}</h4>
             <p className="text-[11px] leading-relaxed text-ink-2">
-              Commissions are automatically settled and ready for immediate withdrawal or trading.
+              Once per qualified friend. It stays pending until the day closes (midnight IST), then you can move it to your
+              trading balance or withdraw it.
             </p>
           </div>
         </div>

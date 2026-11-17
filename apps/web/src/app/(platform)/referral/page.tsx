@@ -1,12 +1,15 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ensureReferralCode, formatMoney, getProgramSummary } from "@asm/db";
+import { invitedBonusPct } from "@/lib/referral";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { absoluteUrl } from "@/lib/site";
 import { PageFrame } from "@/components/shell/PageFrame";
 import { ReferralClient } from "./ReferralClient";
 
 export const dynamic = "force-dynamic";
+
+const whole = (minor: number) => formatMoney(minor, "INR").replace(/\.00$/, "");
 
 export default async function ReferralPage() {
   const store = await cookies();
@@ -18,6 +21,8 @@ export default async function ReferralPage() {
   const referralUrl = absoluteUrl(`/invite/${referralCode}`);
   // Everything earned so far: not yet released, ready, reserved for a withdrawal, moved or paid (held/void excluded).
   const earned = s.pendingMinor + s.availableMinor + s.reservedMinor + s.transferredMinor + s.paidMinor;
+  // Terms are the program settings in force now.
+  const t = s.terms;
 
   return (
     <PageFrame width="base" title="Referral program">
@@ -25,6 +30,12 @@ export default async function ReferralPage() {
         referralCode={referralCode}
         referralUrl={referralUrl}
         stats={{ totalReferrals: s.totalReferrals, activeTraders: s.qualifiedUsers, totalEarned: formatMoney(earned, "INR") }}
+        terms={{
+          reward: whole(t.userRewardMinor),
+          minDeposit: whole(t.minQualifyingDepositMinor),
+          minTrade: whole(t.minQualifyingTradeMinor),
+          friendBonusPct: invitedBonusPct(t.inviteExtraBonusPct),
+        }}
       />
     </PageFrame>
   );

@@ -1,4 +1,4 @@
-import { attachReferralAtSignup } from "@asm/db";
+import { BONUS_TIERS, attachReferralAtSignup, getProgramSettings } from "@asm/db";
 import type { childLogger } from "@asm/logger";
 import type { RequestContext } from "./request-context";
 
@@ -31,4 +31,13 @@ export async function attachSignupReferral(
   } catch (err) {
     log.error({ evt: "referral.attach_failed", userId: input.userId, err }, "signup referral failed");
   }
+}
+
+/** First-deposit bonus % for an invited friend: the ordinary first-deposit tier plus the invite extra. */
+export const invitedBonusPct = (inviteExtraBonusPct: number): number => BONUS_TIERS[0] + inviteExtraBonusPct;
+
+/** invitedBonusPct with the invite extra in force now. */
+export async function invitedFirstDepositBonusPct(now: Date = new Date()): Promise<number> {
+  const { values } = await getProgramSettings(now);
+  return invitedBonusPct(values.INVITE_EXTRA_BONUS_PCT);
 }

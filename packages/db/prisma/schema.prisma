@@ -1133,6 +1133,8 @@ enum ProgramSettingKey {
   PROGRAM_WITHDRAWALS_PER_WEEK
   PROGRAM_WITHDRAWALS_PER_MONTH
   AFFILIATE_REQUIRES_APPROVAL
+  /// Revenue Share for affiliates without an AffiliateRate in force.
+  DEFAULT_REVENUE_SHARE_BPS
 }
 
 enum ReferralQualificationStatus {
@@ -1226,13 +1228,15 @@ model ReferralQualification {
 }
 
 /// Program money owed to a beneficiary; amount snapshotted at earning time.
-/// One-time rewards carry qualificationId; REVENUE_SHARE carries revenueShareDayId;
+/// One-time rewards carry qualificationId; REVENUE_SHARE carries revenueShareDayId plus
+/// revenueSharePart (CLEAN, or FLAGGED: held share from self-referral-flagged friends);
 /// ADJUSTMENT is an admin correction (createdBy + note).
 model ProgramEarning {
   id                String               @id @default(uuid())
   beneficiaryUserId String
   qualificationId   String?
-  revenueShareDayId String?              @unique
+  revenueShareDayId String?
+  revenueSharePart  String?
   kind              ProgramEarningKind
   amountMinor       BigInt
   currency          String               @default("INR")
@@ -1245,6 +1249,8 @@ model ProgramEarning {
   // Set when an admin released this earning from HELD: the daily close then skips its hold re-check.
   adminReleasedAt   DateTime?
   settingIds        String[]
+  // Users whose fraud flags hold this earning (the flagged friends of a FLAGGED Revenue Share part).
+  relatedUserIds    String[]             @default([])
   createdBy         String?
   note              String?
   createdAt         DateTime             @default(now())
@@ -1255,6 +1261,7 @@ model ProgramEarning {
   revenueShareDay RevenueShareDay?       @relation(fields: [revenueShareDayId], references: [id], onDelete: Cascade)
 
   @@unique([qualificationId, kind])
+  @@unique([revenueShareDayId, revenueSharePart])
   @@index([beneficiaryUserId, status])
   @@index([status, earnedAt])
 }
@@ -1390,7 +1397,7 @@ model RevenueShareDay {
   createdAt     DateTime @default(now())
 
   affiliate User            @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
-  earning   ProgramEarning?
+  earnings  ProgramEarning[]
 
   @@unique([affiliateId, day])
   @@index([day])

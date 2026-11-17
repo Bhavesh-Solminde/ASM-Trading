@@ -174,12 +174,13 @@ export async function moveProgramWallet(
 
 type HoldTx = Pick<DbTransaction, "user" | "fraudFlag">;
 
-/** Why an earning for this beneficiary (and referred user) must be HELD now; [] when it may be paid. */
+/** Why an earning for this beneficiary (and referred user, and `relatedUserIds`) must be HELD now; [] when it may be paid. */
 export async function earningHoldReasons(
   tx: HoldTx,
   beneficiaryUserId: string,
   referredUserId: string | null,
   checkSelfReferral = true,
+  relatedUserIds: readonly string[] = [],
 ): Promise<string[]> {
   const u = await tx.user.findUnique({
     where: { id: beneficiaryUserId },
@@ -196,7 +197,7 @@ export async function earningHoldReasons(
   if (u.legacySimulated) reasons.push("legacy simulated account");
   else if (u.role === "AFFILIATE" && u.affiliateProfile?.status !== "ACTIVE") reasons.push("affiliate not active");
   if (!checkSelfReferral) return reasons;
-  const ids = referredUserId ? [beneficiaryUserId, referredUserId] : [beneficiaryUserId];
+  const ids = [...new Set([beneficiaryUserId, ...(referredUserId ? [referredUserId] : []), ...relatedUserIds])];
   const flags = await tx.fraudFlag.count({
     where: {
       kind: "SELF_REFERRAL",
@@ -316,6 +317,8 @@ export interface ProgramSummary {
     userRewardMinor: number;
     affiliateDepositRewardBps: number;
     revenueShareBps: number;
+    /** Where revenueShareBps comes from: the affiliate's own rate or the default setting; null for a non-affiliate. */
+    revenueShareSource: "assigned" | "default" | null;
     minQualifyingDepositMinor: number;
     minQualifyingTradeMinor: number;
     inviteExtraBonusPct: number;
@@ -422,6 +425,7 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
       userRewardMinor: required(values, "USER_REFERRAL_REWARD_INR_MINOR"),
       affiliateDepositRewardBps: rate?.depositRewardBps ?? required(values, "AFFILIATE_DEPOSIT_REWARD_BPS"),
       revenueShareBps: rate?.revenueShareBps ?? 0,
+      revenueShareSource: rate?.source ?? null,
       minQualifyingDepositMinor: required(values, "MIN_QUALIFYING_DEPOSIT_INR_MINOR"),
       minQualifyingTradeMinor: required(values, "MIN_QUALIFYING_TRADE_INR_MINOR"),
       inviteExtraBonusPct: required(values, "INVITE_EXTRA_BONUS_PCT"),

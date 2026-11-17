@@ -44,6 +44,7 @@ describe("getProgramSettings", () => {
       USER_REFERRAL_REWARD_INR_MINOR: 5_000,
       AFFILIATE_DEPOSIT_REWARD_BPS: 500,
       INVITE_EXTRA_BONUS_PCT: 10,
+      DEFAULT_REVENUE_SHARE_BPS: 0,
     });
     for (const key of PROGRAM_SETTING_KEYS) expect(s.ids[key]).toMatch(/^[0-9a-f-]{36}$/);
   });

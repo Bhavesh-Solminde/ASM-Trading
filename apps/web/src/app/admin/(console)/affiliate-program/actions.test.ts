@@ -97,6 +97,8 @@ describe("affiliate-program admin actions", () => {
     expect(await run(A.setAffiliateStatusAction, { userId: "u1", status: "ACTIVE" })).toContain("reason is required");
     expect(await run(A.setAffiliateStatusAction, { userId: "u1", status: "PENDING_APPROVAL", reason: "r" })).toContain("Pick a status");
     expect(await run(A.rejectProgramWithdrawalAction, { withdrawalId: "w1" })).toContain("reason is required");
+    expect(await run(A.approveProgramWithdrawalAction, { withdrawalId: "w1" })).toContain("reason is required");
+    expect(await run(A.approveProgramWithdrawalAction, { withdrawalId: "w1", reason: "   " })).toContain("reason is required");
     expect(await run(A.markProgramWithdrawalPaidAction, { withdrawalId: "w1" })).toContain("payment reference is required");
     expect(await run(A.releaseHeldEarningAction, { earningId: "e1" })).toContain("note is required");
     expect(await run(A.voidHeldEarningAction, { earningId: "e1" })).toContain("reason is required");
@@ -117,8 +119,8 @@ describe("affiliate-program admin actions", () => {
   it("calls the right db function for each action", async () => {
     await run(A.setAffiliateStatusAction, { userId: "u1", status: "SUSPENDED", reason: "abuse" });
     expect(db.setAffiliateStatus).toHaveBeenCalledWith({ userId: "u1", status: "SUSPENDED", reason: "abuse", actor: "admin-panel" });
-    await run(A.approveProgramWithdrawalAction, { withdrawalId: "w1" });
-    expect(db.approveProgramWithdrawal).toHaveBeenCalledWith({ id: "w1", actor: "admin-panel" });
+    await run(A.approveProgramWithdrawalAction, { withdrawalId: "w1", reason: "payee checked" });
+    expect(db.approveProgramWithdrawal).toHaveBeenCalledWith({ id: "w1", actor: "admin-panel", reason: "payee checked" });
     await run(A.rejectProgramWithdrawalAction, { withdrawalId: "w1", reason: "bad IFSC" });
     expect(db.rejectProgramWithdrawal).toHaveBeenCalledWith({ id: "w1", actor: "admin-panel", reason: "bad IFSC" });
     await run(A.markProgramWithdrawalPaidAction, { withdrawalId: "w1", paymentReference: "UTR123" });
@@ -155,6 +157,6 @@ describe("affiliate-program admin actions", () => {
     expect(await run(A.createProgramAdjustmentAction, { user: "u9", amount: "-5", reason: "r", idempotencyKey: "9b2f1c3e-7a4d-4e8b-9c1a-2b3c4d5e6f70" })).toContain("Not enough available balance");
 
     db.approveProgramWithdrawal.mockRejectedValueOnce(new Error("db down"));
-    await expect(A.approveProgramWithdrawalAction(form({ withdrawalId: "w1" }))).rejects.toThrow("db down");
+    await expect(A.approveProgramWithdrawalAction(form({ withdrawalId: "w1", reason: "ok" }))).rejects.toThrow("db down");
   });
 });

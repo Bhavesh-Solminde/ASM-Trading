@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSettingValue, parseIstDateTime, percentToBps, rupeesToPaise, settingValueFromInput } from "./parse";
+import { formatSettingValue, parseIstDateTime, percentToBps, rupeesToPaise, settingInputValue, settingValueFromInput } from "./parse";
 
 describe("rupeesToPaise", () => {
   it("parses rupees to exact paise", () => {
@@ -36,6 +36,8 @@ describe("settings", () => {
   it("converts human units per key", () => {
     expect(settingValueFromInput("PROGRAM_MIN_WITHDRAWAL_INR_MINOR", "1999")).toBe(199_900);
     expect(settingValueFromInput("AFFILIATE_DEPOSIT_REWARD_BPS", "5.5")).toBe(550);
+    expect(settingValueFromInput("DEFAULT_REVENUE_SHARE_BPS", "25.5")).toBe(2_550);
+    expect(settingValueFromInput("DEFAULT_REVENUE_SHARE_BPS", "100.01")).toBeNull();
     expect(settingValueFromInput("INVITE_EXTRA_BONUS_PCT", "10")).toBe(10);
     expect(settingValueFromInput("INVITE_EXTRA_BONUS_PCT", "10.5")).toBeNull();
     expect(settingValueFromInput("PROGRAM_WITHDRAWALS_PER_DAY", "2")).toBe(2);
@@ -48,6 +50,21 @@ describe("settings", () => {
     expect(formatSettingValue("PROGRAM_MIN_WITHDRAWAL_INR_MINOR", 249_950)).toBe("₹2,499.50");
     expect(formatSettingValue("AFFILIATE_DEPOSIT_REWARD_BPS", 550)).toBe("5.5%");
     expect(formatSettingValue("AFFILIATE_REQUIRES_APPROVAL", 0)).toBe("Off");
+    expect(formatSettingValue("DEFAULT_REVENUE_SHARE_BPS", 0)).toBe("0%");
+    expect(formatSettingValue("DEFAULT_REVENUE_SHARE_BPS", 3_000)).toBe("30%");
+  });
+  it("prefills the edit form in the units it accepts, round-tripping exactly", () => {
+    const cases: [string, number, string][] = [
+      ["PROGRAM_MIN_WITHDRAWAL_INR_MINOR", 249_950, "2499.5"],
+      ["DEFAULT_REVENUE_SHARE_BPS", 1_250, "12.5"],
+      ["INVITE_EXTRA_BONUS_PCT", 10, "10"],
+      ["PROGRAM_WITHDRAWALS_PER_DAY", 3, "3"],
+      ["AFFILIATE_REQUIRES_APPROVAL", 1, "1"],
+    ];
+    for (const [key, stored, shown] of cases) {
+      expect(settingInputValue(key, stored)).toBe(shown);
+      expect(settingValueFromInput(key, shown)).toBe(stored);
+    }
   });
 });
 

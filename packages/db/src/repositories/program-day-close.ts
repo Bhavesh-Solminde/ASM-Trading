@@ -45,6 +45,49 @@ export async function releasePendingEarnings(tx: DbTransaction, rows: readonly R
   return released;
 }
 
+/**
+ * Auto-release step: every HELD earning (any kind, any earnedAt) whose hold
+ * reasons have all cleared moves HELD → PENDING, conditionally (still HELD),
+ * with an audit row; the release step then makes it AVAILABLE. Never touches
+ * affiliate or flag status. Batches of 200 under the day lock, no wallet locks.
+ * Returns how many moved.
+ */
+export async function autoReleaseHeldEarnings(day: string): Promise<number> {
+  let moved = 0;
+  for (let afterId = ""; ; ) {
+    const batch = await prisma.$transaction(async (tx) => {
+      await lockProgramDay(tx, day);
+      const rows = await tx.programEarning.findMany({
+        where: { status: "HELD", id: { gt: afterId } },
+        orderBy: { id: "asc" },
+        take: RELEASE_BATCH,
+        select: { id: true, beneficiaryUserId: true, holdReason: true, relatedUserIds: true, qualification: { select: { referredUserId: true } } },
+      });
+      for (const e of rows) {
+        const hold = await earningHoldReasons(tx, e.beneficiaryUserId, e.qualification?.referredUserId ?? null, true, e.relatedUserIds);
+        if (hold.length) continue;
+        const done = await tx.programEarning.updateMany({ where: { id: e.id, status: "HELD" }, data: { status: "PENDING", holdReason: null } });
+        if (done.count !== 1) continue;
+        moved++;
+        await tx.auditLog.create({
+          data: {
+            actorId: "system",
+            action: "program.earning_auto_released",
+            targetType: "ProgramEarning",
+            targetId: e.id,
+            before: { status: "HELD", holdReason: e.holdReason },
+            after: { status: "PENDING", reason: `hold cleared: ${e.holdReason ?? "no reason recorded"}`, day },
+          },
+        });
+      }
+      return rows;
+    });
+    if (batch.length < RELEASE_BATCH) break;
+    afterId = batch[batch.length - 1]!.id;
+  }
+  return moved;
+}
+
 /** An OPEN LIVE fixed-expiry (non-CFD) trade of a qualified referral that expired before `close` and is not settled yet. */
 async function hasUnsettledTrades(close: Date): Promise<boolean> {
   const rows = await prisma.$queryRaw<{ x: number }[]>`
@@ -58,7 +101,7 @@ async function hasUnsettledTrades(close: Date): Promise<boolean> {
 
 /**
  * Closes IST day `day` ("YYYY-MM-DD"): Revenue Share (one transaction per
- * affiliate), release of PENDING earnings earned before the close (batches of
+ * affiliate), HELD earnings whose hold reasons all cleared back to PENDING, release of PENDING earnings earned before the close (batches of
  * 200, holds re-checked, rows claimed conditionally), then the ProgramDayClose
  * marker. Every step takes the per-day advisory lock and is idempotent, so a
  * concurrent or repeated call never double-applies; the marker is written
@@ -78,6 +121,7 @@ export async function closeProgramDay(day: string, now: Date = new Date()): Prom
   if (await hasUnsettledTrades(close)) return result(false, true);
 
   const revenueShareRows = await computeRevenueShareDay(day);
+  await autoReleaseHeldEarnings(day);
 
   let releasedEarnings = 0;
   for (let afterId = ""; ; ) {

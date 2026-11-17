@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "../client";
+import { onAffiliateEmailVerified } from "./affiliate-profile";
 import type { Role } from "../../generated/prisma/client";
 
 /** How long an emailed reset link works. The email copy states it in minutes. */
@@ -39,7 +40,7 @@ export async function issuePasswordResetToken(input: {
  * token claim is conditional (unused and unexpired), so a replayed or racing
  * link loses. Every session is deleted, which signs the user out on all
  * devices. The email counts as verified, since only the inbox owner could
- * open the link. Returns null for an unknown, used or expired token. The
+ * open the link (an affiliate awaiting verification moves on). Returns null for an unknown, used or expired token. The
  * caller hashes the password first (argon2 lives in the web app).
  */
 export async function resetPasswordWithToken(input: {
@@ -64,6 +65,8 @@ export async function resetPasswordWithToken(input: {
       data: { passwordHash: input.passwordHash, emailVerified: true },
       select: { id: true, email: true, role: true, firstName: true, lastName: true, nickname: true },
     });
+    // Same as the verify link: a PENDING_VERIFICATION affiliate moves on (ACTIVE or PENDING_APPROVAL).
+    await onAffiliateEmailVerified(row.userId, tx, now);
     await tx.session.deleteMany({ where: { userId: row.userId } });
     await tx.auditLog.create({
       data: {

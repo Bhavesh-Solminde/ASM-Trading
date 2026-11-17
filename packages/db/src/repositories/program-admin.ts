@@ -13,7 +13,8 @@ import type {
 import { ProgramSettingKey as SettingKeys } from "../../generated/prisma/client";
 import type { ProgramEarning, ProgramSetting } from "../models";
 import { programSettingValueAt } from "./affiliate-profile";
-import { ProgramActionRefused } from "./program-errors";
+import { defaultRate, defaultRevenueShareAt, type AffiliateRateAt } from "./affiliate-rate";
+import { ProgramActionRefused, cleanReason } from "./program-errors";
 
 // Affiliate program admin (Affiliate Program spec "Affiliate/admin module").
 // Every write: one transaction, a mandatory reason, one AuditLog row.
@@ -21,13 +22,6 @@ import { ProgramActionRefused } from "./program-errors";
 export const ADMIN_PAGE_SIZE = 50;
 /** Clock skew allowed for "effective now" (effectiveFrom may be up to this far in the past). */
 export const EFFECTIVE_FROM_TOLERANCE_MS = 60_000;
-
-function cleanReason(reason: string, field = "reason"): string {
-  const r = (reason ?? "").trim();
-  if (!r) throw new ProgramActionRefused("invalid_input", `A ${field} is required.`);
-  if (r.length > 500) throw new ProgramActionRefused("invalid_input", `The ${field} must be at most 500 characters.`);
-  return r;
-}
 
 /** Validates and returns the effective time actually stored: within the skew tolerance it is clamped to now,
  *  so a change can never start in the past (e.g. on a day that has ended but not yet closed). */
@@ -251,7 +245,8 @@ export interface AffiliateAggregates {
   totalDepositedMinor: number;
   earnings: Record<ProgramEarningStatus, number>;
   wallet: { availableMinor: number; reservedMinor: number; transferredMinor: number; paidMinor: number } | null;
-  currentRate: { rateId: string; revenueShareBps: number; depositRewardBps: number | null; effectiveFrom: Date } | null;
+  /** Terms in force now: the affiliate's own rate, else the DEFAULT_REVENUE_SHARE_BPS setting (rateId null). */
+  currentRate: AffiliateRateAt;
   openSelfReferralFlags: number;
 }
 
@@ -272,10 +267,11 @@ const emptyEarnings = (): Record<ProgramEarningStatus, number> => ({ PENDING: 0,
 
 /** Aggregates for a page of affiliates: a fixed number of grouped queries, independent of page size. */
 async function aggregatesFor(ids: string[], now: Date): Promise<Map<string, AffiliateAggregates>> {
+  const fallback = defaultRate(ids.length ? await defaultRevenueShareAt(now) : null);
   const out = new Map<string, AffiliateAggregates>(
     ids.map((id) => [
       id,
-      { totalReferrals: 0, qualifiedReferrals: 0, totalDepositedMinor: 0, earnings: emptyEarnings(), wallet: null, currentRate: null, openSelfReferralFlags: 0 },
+      { totalReferrals: 0, qualifiedReferrals: 0, totalDepositedMinor: 0, earnings: emptyEarnings(), wallet: null, currentRate: fallback, openSelfReferralFlags: 0 },
     ]),
   );
   if (ids.length === 0) return out;
@@ -313,7 +309,14 @@ async function aggregatesFor(ids: string[], now: Date): Promise<Map<string, Affi
     out.get(w.userId)!.wallet = { availableMinor: w.availableMinor, reservedMinor: w.reservedMinor, transferredMinor: w.transferredMinor, paidMinor: w.paidMinor };
   }
   for (const r of rates) {
-    out.get(r.affiliateId)!.currentRate = { rateId: r.id, revenueShareBps: r.revenueShareBps, depositRewardBps: r.depositRewardBps, effectiveFrom: r.effectiveFrom };
+    out.get(r.affiliateId)!.currentRate = {
+      source: "assigned",
+      rateId: r.id,
+      settingId: null,
+      revenueShareBps: r.revenueShareBps,
+      depositRewardBps: r.depositRewardBps,
+      effectiveFrom: r.effectiveFrom,
+    };
   }
   for (const f of flags) out.get(f.id)!.openSelfReferralFlags = Number(f.n);
   return out;

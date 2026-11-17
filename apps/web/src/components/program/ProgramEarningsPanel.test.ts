@@ -38,6 +38,7 @@ function summary(over: Partial<ProgramSummary> = {}): ProgramSummary {
       userRewardMinor: 50_00,
       affiliateDepositRewardBps: 500,
       revenueShareBps: 0,
+      revenueShareSource: null,
       minQualifyingDepositMinor: 500_00,
       minQualifyingTradeMinor: 100_00,
       inviteExtraBonusPct: 10,

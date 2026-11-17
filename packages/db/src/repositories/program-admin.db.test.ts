@@ -4,6 +4,7 @@ import { prisma } from "../client";
 import type { Prisma } from "../../generated/prisma/client";
 import { createAccountsForUser } from "./account";
 import { ensureAffiliateProfile, onAffiliateEmailVerified } from "./affiliate-profile";
+import { defaultRevenueShareAt, getAffiliateRateAt } from "./affiliate-rate";
 import { creditDepositToAccount } from "./deposit";
 import { consumeEmailVerificationToken, issueEmailVerificationToken } from "./email-verification";
 import {
@@ -19,6 +20,7 @@ import {
   voidHeldEarning,
 } from "./program-admin";
 import { ProgramActionRefused } from "./program-errors";
+import { getProgramSummary } from "./program-wallet";
 import { evaluateReferralQualification } from "./referral-qualification";
 
 // Affiliate program Phases 5–7: affiliate status and admin data layer.
@@ -174,13 +176,15 @@ describe("rate and setting validation", () => {
     await expect(appendAffiliateRate({ ...base, affiliateId: (await makeUser()).id })).rejects.toEqual(refused("not_found"));
     const row = await appendAffiliateRate({ ...base, effectiveFrom: new Date(Date.now() - 30_000) }); // inside the 60 s tolerance
     expect(await audits(row.id, "affiliate.rate_assigned")).toHaveLength(1);
-    expect((await getAffiliateAdminDetail(aff.id))?.currentRate).toMatchObject({ rateId: row.id, revenueShareBps: 100 });
+    expect((await getAffiliateAdminDetail(aff.id))?.currentRate).toMatchObject({ source: "assigned", rateId: row.id, revenueShareBps: 100 });
   });
 
   it("validates settings per key and refuses back-dating", async () => {
     const base = { effectiveFrom: FUTURE, reason: `test ${RUN}`, actor: ACTOR };
     const bad: [Parameters<typeof appendProgramSetting>[0]["key"], number][] = [
       ["AFFILIATE_DEPOSIT_REWARD_BPS", 10_001],
+      ["DEFAULT_REVENUE_SHARE_BPS", 10_001],
+      ["DEFAULT_REVENUE_SHARE_BPS", -1],
       ["INVITE_EXTRA_BONUS_PCT", 101],
       ["AFFILIATE_REQUIRES_APPROVAL", 2],
       ["MIN_QUALIFYING_DEPOSIT_INR_MINOR", 0],
@@ -205,6 +209,39 @@ describe("rate and setting validation", () => {
     const mine = history.find((h) => h.id === row.id)!;
     expect(mine.inForce).toBe(false); // future
     expect(history.filter((h) => h.key === "INVITE_EXTRA_BONUS_PCT" && h.inForce)).toHaveLength(1);
+  });
+});
+
+describe("default Revenue Share", () => {
+  it("applies to affiliates without an assigned rate; an assigned rate in force wins", async () => {
+    const plain = await makeAffiliate("ACTIVE");
+    const assigned = await makeAffiliate("ACTIVE");
+    const rate = await appendAffiliateRate({
+      affiliateId: assigned.id,
+      revenueShareBps: 2_500,
+      depositRewardBps: null,
+      effectiveFrom: new Date(),
+      reason: "ok",
+      actor: ACTOR,
+    });
+    const now = new Date();
+    const dflt = await defaultRevenueShareAt(now);
+    expect(dflt).not.toBeNull(); // seeded by migration from 1970
+    expect(await getAffiliateRateAt(plain.id, now)).toMatchObject({ source: "default", rateId: null, settingId: dflt!.id, revenueShareBps: dflt!.value });
+    expect(await getAffiliateRateAt(assigned.id, now)).toMatchObject({ source: "assigned", rateId: rate.id, settingId: null, revenueShareBps: 2_500 });
+
+    // A future default version applies from its effectiveFrom only, and never over an assigned rate.
+    const row = await appendProgramSetting({ key: "DEFAULT_REVENUE_SHARE_BPS", value: 1_500, effectiveFrom: FUTURE, reason: `test ${RUN}`, actor: ACTOR });
+    const later = new Date("2901-01-01T00:00:00Z");
+    expect(await getAffiliateRateAt(plain.id, later)).toMatchObject({ source: "default", settingId: row.id, revenueShareBps: 1_500 });
+    expect(await getAffiliateRateAt(assigned.id, later)).toMatchObject({ source: "assigned", revenueShareBps: 2_500 });
+    expect((await getAffiliateRateAt(plain.id, now)).revenueShareBps).toBe(dflt!.value);
+
+    // Summary terms and admin rows show the effective rate and where it comes from.
+    expect((await getProgramSummary(plain.id)).terms).toMatchObject({ revenueShareBps: dflt!.value, revenueShareSource: "default" });
+    expect((await getProgramSummary(assigned.id)).terms).toMatchObject({ revenueShareBps: 2_500, revenueShareSource: "assigned" });
+    expect((await getAffiliateAdminDetail(plain.id))?.currentRate).toMatchObject({ source: "default", rateId: null, revenueShareBps: dflt!.value });
+    expect((await getAffiliateAdminDetail(assigned.id))?.currentRate).toMatchObject({ source: "assigned", rateId: rate.id, revenueShareBps: 2_500 });
   });
 });
 
@@ -265,7 +302,7 @@ describe("admin affiliate aggregates", () => {
       totalDepositedMinor: 160_000,
       earnings: { PENDING: 8_000, HELD: 0, VOID: 0, AVAILABLE: 0 },
       wallet: { availableMinor: 1_234, reservedMinor: 0, transferredMinor: 0, paidMinor: 0 },
-      currentRate: null,
+      currentRate: { source: "default", rateId: null, depositRewardBps: null },
       openSelfReferralFlags: 1,
     });
     expect((await listAffiliatesForAdmin({ q: `zed${RUN.slice(0, 8)}` })).rows.map((r) => r.userId)).toEqual([aff.id]);

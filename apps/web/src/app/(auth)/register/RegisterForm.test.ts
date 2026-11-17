@@ -14,7 +14,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 
 const PASSWORD = "a-strong-password-1";
 
-function fill(props: { portal?: "affiliate" } = {}, referral?: string) {
+function fill(props: { portal?: "affiliate"; initialReferralCode?: string; inviteBonusPct?: number } = {}, referral?: string) {
   render(createElement(RegisterForm, { googleEnabled: false, ...props }));
   fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test Person" } });
   fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
@@ -65,6 +65,31 @@ describe("register form", () => {
     fill();
     expect((await screen.findByRole("alert")).textContent).toBe("Email already registered.");
     expect(screen.getByLabelText(/invitation code/i).getAttribute("aria-invalid")).toBeNull();
+  });
+
+  it("shows no invited banner and an empty code field without an invitation", () => {
+    render(createElement(RegisterForm, { googleEnabled: false }));
+    expect(screen.queryByText(/been invited/i)).toBeNull();
+    expect((screen.getByLabelText(/invitation code/i) as HTMLInputElement).value).toBe("");
+  });
+
+  it("with an invitation, shows the bonus banner and prefills an editable code left to the link cookie", async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetch);
+    fill({ initialReferralCode: "ABCD2345", inviteBonusPct: 110 });
+    expect(screen.getByText("You've been invited — your first deposit gets a 110% bonus.")).toBeTruthy();
+    expect((screen.getByLabelText(/invitation code/i) as HTMLInputElement).value).toBe("ABCD2345");
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    // Unchanged prefill: the /invite cookie credits it, as a link.
+    expect(sentBody(fetch)).toEqual({ name: "Test Person", email: "test@example.com", password: PASSWORD });
+  });
+
+  it("sends an edited prefilled code as a typed code", async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetch);
+    fill({ initialReferralCode: "ABCD2345", inviteBonusPct: 110 }, "WXYZ6789");
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    expect(sentBody(fetch)).toEqual({ name: "Test Person", email: "test@example.com", password: PASSWORD, referralCode: "WXYZ6789" });
   });
 
   it("has no invitation field on the affiliate form and sends the portal flag", async () => {

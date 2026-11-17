@@ -55,6 +55,17 @@ describe("affiliate-program admin actions (real DB)", () => {
     const row = await prisma.programSetting.findFirstOrThrow({ where: { reason: `test ${RUN}` } });
     expect(row).toMatchObject({ key: "PROGRAM_WITHDRAWALS_PER_MONTH", value: 7, createdBy: "admin-panel" });
     expect(row.effectiveFrom.toISOString()).toBe("2098-12-31T18:30:00.000Z");
+
+    await run(A.scheduleSettingAction, {
+      key: "DEFAULT_REVENUE_SHARE_BPS",
+      value: "12.5",
+      effectiveFrom: "2099-01-01T00:00",
+      reason: `default ${RUN}`,
+    });
+    expect(await prisma.programSetting.findFirstOrThrow({ where: { reason: `default ${RUN}` } })).toMatchObject({
+      key: "DEFAULT_REVENUE_SHARE_BPS",
+      value: 1_250,
+    });
   });
 
   it("affiliates: approves, then assigns a rate", async () => {
@@ -81,8 +92,14 @@ describe("affiliate-program admin actions (real DB)", () => {
     const w2 = await mk();
 
     expect(await run(A.markProgramWithdrawalPaidAction, { withdrawalId: w1.id, paymentReference: "UTR1" })).toContain("error=");
-    await run(A.approveProgramWithdrawalAction, { withdrawalId: w1.id });
+    expect(await run(A.approveProgramWithdrawalAction, { withdrawalId: w1.id })).toContain("reason is required");
+    expect((await prisma.programWithdrawal.findUniqueOrThrow({ where: { id: w1.id } })).status).toBe("REQUESTED");
+    await run(A.approveProgramWithdrawalAction, { withdrawalId: w1.id, reason: "payee name matches KYC" });
     expect((await prisma.programWithdrawal.findUniqueOrThrow({ where: { id: w1.id } })).status).toBe("APPROVED");
+    const approvedAudit = await prisma.auditLog.findFirst({
+      where: { action: "program.withdrawal.approve", targetId: w1.id },
+    });
+    expect(approvedAudit?.after).toMatchObject({ reason: "payee name matches KYC" });
     await run(A.markProgramWithdrawalPaidAction, { withdrawalId: w1.id, paymentReference: "UTR1" });
     expect(await prisma.programWithdrawal.findUniqueOrThrow({ where: { id: w1.id } })).toMatchObject({ status: "PAID", paymentReference: "UTR1" });
 

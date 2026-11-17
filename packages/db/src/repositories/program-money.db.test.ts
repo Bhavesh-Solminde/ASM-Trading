@@ -3,6 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../client";
 import type { Prisma } from "../../generated/prisma/client";
 import { createAccountsForUser } from "./account";
+import { onAffiliateEmailVerified } from "./affiliate-profile";
+import { defaultRevenueShareAt } from "./affiliate-rate";
 import { PROGRAM_DAY_CLOSE_GRACE_MS, closeDueProgramDays, closeProgramDay, releasePendingEarnings } from "./program-day-close";
 import { transferProgramEarningsToTrading } from "./program-transfer";
 import {
@@ -22,7 +24,7 @@ import {
   rejectProgramWithdrawal,
   requestProgramWithdrawal,
 } from "./program-withdrawal";
-import { revenueShareOf } from "./revenue-share";
+import { FLAGGED_REFERRAL_HOLD_REASON, revenueShareOf, splitRevenueShare } from "./revenue-share";
 import { ProgramActionRefused as SharedRefused } from "./program-errors";
 import { listProgramWithdrawalsForAdmin } from "./program-withdrawal";
 
@@ -48,6 +50,7 @@ beforeAll(async () => {
 afterAll(async () => {
   // Wallets, ledger, transfers, withdrawals, earnings, rates, revenue-share days, trades cascade with their user.
   await prisma.user.deleteMany({ where: { email: { contains: RUN } } });
+  await prisma.programSetting.deleteMany({ where: { createdBy: `test-${RUN}` } });
   await prisma.programDayClose.deleteMany({ where: { day: { in: [...closedDays].map((d) => new Date(`${d}T00:00:00.000Z`)) } } });
   await prisma.$disconnect();
 });
@@ -64,8 +67,10 @@ async function makeUser(data: Partial<Prisma.UserCreateInput> = {}, currency = "
   return u;
 }
 
-async function affiliate(opts: { status?: "ACTIVE" | "SUSPENDED" | "PENDING_APPROVAL"; kyc?: "VERIFIED" | "NOT_STARTED"; bps?: number } = {}) {
-  const u = await makeUser({ role: "AFFILIATE", kycStatus: opts.kyc ?? "VERIFIED", emailVerified: true });
+async function affiliate(
+  opts: { status?: "ACTIVE" | "SUSPENDED" | "PENDING_APPROVAL" | "PENDING_VERIFICATION"; kyc?: "VERIFIED" | "NOT_STARTED"; bps?: number } = {},
+) {
+  const u = await makeUser({ role: "AFFILIATE", kycStatus: opts.kyc ?? "VERIFIED", emailVerified: opts.status !== "PENDING_VERIFICATION" });
   await prisma.affiliateProfile.create({ data: { userId: u.id, status: opts.status ?? "ACTIVE" } });
   if (opts.bps !== undefined) await rate(u.id, opts.bps, new Date(0));
   return u;
@@ -139,6 +144,12 @@ describe("revenue share math (pure)", () => {
     expect(revenueShareOf(150_000, -100_000, 5_000)).toEqual({ eligibleMinor: 50_000, shareMinor: 25_000, carryOutMinor: 0 });
     expect(revenueShareOf(3, 0, 5_000).shareMinor).toBe(1); // 1.5 paise → 1
   });
+  it("splits off the flagged friends' share, capped at the day's share", () => {
+    expect(splitRevenueShare(30_000, 40_000, 5_000)).toEqual({ cleanMinor: 10_000, heldMinor: 20_000 });
+    expect(splitRevenueShare(10_000, 40_000, 5_000)).toEqual({ cleanMinor: 0, heldMinor: 10_000 }); // carry-in ate the rest
+    expect(splitRevenueShare(10_000, -40_000, 5_000)).toEqual({ cleanMinor: 10_000, heldMinor: 0 }); // flagged friends won
+    expect(splitRevenueShare(1, 3, 5_000)).toEqual({ cleanMinor: 0, heldMinor: 1 });
+  });
 });
 
 describe("IST limit windows (pure)", () => {
@@ -174,7 +185,7 @@ describe("daily close — Revenue Share", () => {
     const [row] = await rsd(aff.id);
     expect(row).toMatchObject({ netGainMinor: 10_000, carryInMinor: 0, rateBps: 5_000, eligibleMinor: 10_000, shareMinor: 5_000, carryOutMinor: 0, tradeCount: 2 });
     const e = await prisma.programEarning.findFirstOrThrow({ where: { beneficiaryUserId: aff.id } });
-    expect(e).toMatchObject({ kind: "REVENUE_SHARE", status: "AVAILABLE", amountMinor: 5_000, revenueShareDayId: row!.id });
+    expect(e).toMatchObject({ kind: "REVENUE_SHARE", revenueSharePart: "CLEAN", status: "AVAILABLE", amountMinor: 5_000, revenueShareDayId: row!.id, relatedUserIds: [] });
     expect(e.earnedAt).toEqual(istDayStart(addIstDays(day, 1)));
     expect(await wallet(aff.id)).toMatchObject({ availableMinor: 5_000 });
     const ledger = await prisma.programLedgerEntry.findMany({ where: { userId: aff.id } });
@@ -218,7 +229,7 @@ describe("daily close — Revenue Share", () => {
     expect((await getProgramSummary(aff.id)).carryForwardMinor).toBe(-80_000);
   });
 
-  it("counts only the real-money share of a bonus-funded trade, converts USD and ignores pre-qualification / flagged / open trades", async () => {
+  it("counts only the real-money share of a bonus-funded trade, converts USD, ignores pre-qualification / open trades and holds the flagged friend's part", async () => {
     const day = slot();
     const aff = await affiliate({ bps: 5_000 });
     const bonus = await qualifiedFriend(aff.id, istDayStart(day));
@@ -234,7 +245,44 @@ describe("daily close — Revenue Share", () => {
     await trade(bonus.id, istDayStart(addIstDays(day, 1)), -999_00); // next IST day
     await close(day);
     const [row] = await rsd(aff.id);
-    expect(row).toMatchObject({ netGainMinor: 50_000 + 40_000, tradeCount: 2, shareMinor: 45_000 });
+    expect(row).toMatchObject({ netGainMinor: 50_000 + 40_000 + 99_900, tradeCount: 3, shareMinor: 94_950 });
+    const parts = await prisma.programEarning.findMany({ where: { revenueShareDayId: row!.id }, orderBy: { revenueSharePart: "asc" } });
+    expect(parts).toMatchObject([
+      { revenueSharePart: "CLEAN", status: "AVAILABLE", amountMinor: 45_000, relatedUserIds: [] },
+      { revenueSharePart: "FLAGGED", status: "HELD", amountMinor: 49_950, holdReason: FLAGGED_REFERRAL_HOLD_REASON, relatedUserIds: [flagged.id] },
+    ]);
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 45_000 });
+  });
+
+  it("uses the default Revenue Share in force that day for an affiliate without an assigned rate; a change affects later days only", async () => {
+    const d1 = slot();
+    const d2 = addIstDays(d1, 1);
+    const prior = (await defaultRevenueShareAt(istDayStart(d2)))?.value ?? 0;
+    const setting = (value: number, effectiveFrom: Date) =>
+      prisma.programSetting.create({ data: { key: "DEFAULT_REVENUE_SHARE_BPS", value, effectiveFrom, createdBy: `test-${RUN}`, reason: "test" } });
+    // d1 gets 10%; from d2 the value in force before this test applies again, so later days keep their default.
+    const s1 = await setting(1_000, istDayStart(d1));
+    await setting(prior, istDayStart(d2));
+    const plain = await affiliate();
+    const assigned = await affiliate({ bps: 3_000 });
+    for (const aff of [plain, assigned]) {
+      const f = await qualifiedFriend(aff.id, istDayStart(d1));
+      await trade(f.id, noon(d1), -10_000);
+      await trade(f.id, noon(d2), -10_000);
+    }
+    await close(d1);
+    await close(d2);
+    const share = Math.floor((10_000 * prior) / 10_000);
+    expect((await rsd(plain.id)).map((r) => [r.rateBps, r.rateId, r.shareMinor])).toEqual([
+      [1_000, null, 1_000],
+      [prior, null, share],
+    ]);
+    expect((await rsd(assigned.id)).map((r) => [r.rateBps, r.shareMinor])).toEqual([
+      [3_000, 3_000],
+      [3_000, 3_000],
+    ]);
+    const e = await prisma.programEarning.findFirstOrThrow({ where: { beneficiaryUserId: plain.id, revenueShareDay: { day: new Date(`${d1}T00:00:00.000Z`) } } });
+    expect(e).toMatchObject({ amountMinor: 1_000, status: "AVAILABLE", settingIds: [s1.id] });
   });
 
   it("a rate change only affects later days", async () => {
@@ -298,6 +346,120 @@ describe("daily close — Revenue Share", () => {
     const e = await prisma.programEarning.findFirstOrThrow({ where: { beneficiaryUserId: aff.id } });
     expect(e).toMatchObject({ status: "HELD", holdReason: "affiliate not active", amountMinor: 20_000 });
     expect(await wallet(aff.id)).toBeNull();
+  });
+});
+
+describe("daily close — Revenue Share from flagged friends", () => {
+  it("holds the flagged friend's part, pays the clean part, keeps carry-forward unchanged and never duplicates", async () => {
+    const d1 = slot();
+    const d2 = addIstDays(d1, 1);
+    const aff = await affiliate({ bps: 5_000 });
+    const clean = await qualifiedFriend(aff.id, istDayStart(d1));
+    const flagged = await qualifiedFriend(aff.id, istDayStart(d1));
+    await prisma.fraudFlag.create({ data: { userId: flagged.id, kind: "SELF_REFERRAL", status: "OPEN", linkedUserIds: [flagged.id], evidence: {} } });
+    await trade(clean.id, noon(d1), 100_000); // company −₹1,000
+    await trade(flagged.id, noon(d1), -40_000); // company +₹400 from the flagged friend
+    await trade(clean.id, noon(d2), -100_000);
+    await trade(flagged.id, noon(d2), -40_000);
+    await close(d1);
+    await close(d2);
+    await close(d2);
+    expect((await rsd(aff.id)).map((r) => [r.netGainMinor, r.carryInMinor, r.eligibleMinor, r.shareMinor, r.carryOutMinor])).toEqual([
+      [-60_000, 0, 0, 0, -60_000], // no earning on a negative day, even with a flagged friend's losses
+      [140_000, -60_000, 80_000, 40_000, 0],
+    ]);
+    const earnings = await prisma.programEarning.findMany({ where: { beneficiaryUserId: aff.id }, orderBy: { revenueSharePart: "asc" } });
+    expect(earnings).toMatchObject([
+      { revenueSharePart: "CLEAN", status: "AVAILABLE", amountMinor: 20_000 },
+      { revenueSharePart: "FLAGGED", status: "HELD", amountMinor: 20_000, holdReason: FLAGGED_REFERRAL_HOLD_REASON, relatedUserIds: [flagged.id] },
+    ]);
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 20_000 });
+  });
+
+  it("a dismissed flag releases the held part at the next close; a confirmed flag keeps it held", async () => {
+    const d1 = slot();
+    const d2 = addIstDays(d1, 1);
+    const setup = async () => {
+      const aff = await affiliate({ bps: 5_000 });
+      const f = await qualifiedFriend(aff.id, istDayStart(d1));
+      const flag = await prisma.fraudFlag.create({ data: { userId: f.id, kind: "SELF_REFERRAL", status: "OPEN", linkedUserIds: [f.id, aff.id], evidence: {} } });
+      await trade(f.id, noon(d1), -40_000);
+      return { aff, flag };
+    };
+    const dismissed = await setup();
+    const confirmed = await setup();
+    await close(d1);
+    const held = (affiliateId: string) => prisma.programEarning.findFirstOrThrow({ where: { beneficiaryUserId: affiliateId, revenueSharePart: "FLAGGED" } });
+    for (const x of [dismissed, confirmed]) expect(await held(x.aff.id)).toMatchObject({ status: "HELD", amountMinor: 20_000 });
+
+    await prisma.fraudFlag.update({ where: { id: dismissed.flag.id }, data: { status: "DISMISSED" } });
+    await prisma.fraudFlag.update({ where: { id: confirmed.flag.id }, data: { status: "CONFIRMED" } });
+    await close(d2);
+    const released = await held(dismissed.aff.id);
+    expect(released).toMatchObject({ status: "AVAILABLE", holdReason: null });
+    expect(await wallet(dismissed.aff.id)).toMatchObject({ availableMinor: 20_000 });
+    const [audit] = await prisma.auditLog.findMany({ where: { targetId: released.id, action: "program.earning_auto_released" } });
+    expect(audit).toMatchObject({ actorId: "system", before: { status: "HELD" }, after: { status: "PENDING" } });
+    expect(await held(confirmed.aff.id)).toMatchObject({ status: "HELD" });
+    expect(await wallet(confirmed.aff.id)).toBeNull();
+    // Flags are never changed by the close.
+    expect(await prisma.fraudFlag.findUniqueOrThrow({ where: { id: confirmed.flag.id } })).toMatchObject({ status: "CONFIRMED" });
+  });
+});
+
+describe("daily close — auto-release of HELD earnings", () => {
+  const heldEarning = (beneficiaryUserId: string, earnedAt: Date, holdReason: string, qualificationId: string | null = null) =>
+    prisma.programEarning.create({
+      data: { beneficiaryUserId, qualificationId, kind: "AFFILIATE_DEPOSIT_REWARD", amountMinor: 7_000, status: "HELD", holdReason, earnedAt, settingIds: [] },
+    });
+  const by = (id: string) => prisma.programEarning.findUniqueOrThrow({ where: { id } });
+  const autoAudits = (id: string) => prisma.auditLog.count({ where: { targetId: id, action: "program.earning_auto_released" } });
+
+  it("releases an affiliate's earning once the email is verified later", async () => {
+    const day = slot();
+    const aff = await affiliate({ status: "PENDING_VERIFICATION" });
+    const e = await heldEarning(aff.id, noon(day), "affiliate not active");
+    await close(day);
+    expect(await by(e.id)).toMatchObject({ status: "HELD" }); // still awaiting verification
+    await prisma.user.update({ where: { id: aff.id }, data: { emailVerified: true } });
+    expect((await onAffiliateEmailVerified(aff.id, prisma, noon(day)))?.status).toBe("ACTIVE");
+    await close(addIstDays(day, 1));
+    expect(await by(e.id)).toMatchObject({ status: "AVAILABLE", holdReason: null });
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 7_000 });
+    expect(await autoAudits(e.id)).toBe(1);
+  });
+
+  it("releases after a suspension is lifted, not while it lasts; never changes the affiliate status", async () => {
+    const day = slot();
+    const aff = await affiliate({ status: "SUSPENDED" });
+    const e = await heldEarning(aff.id, noon(day), "affiliate not active");
+    await close(day);
+    expect(await by(e.id)).toMatchObject({ status: "HELD", holdReason: "affiliate not active" });
+    expect((await prisma.affiliateProfile.findUniqueOrThrow({ where: { userId: aff.id } })).status).toBe("SUSPENDED");
+    await prisma.affiliateProfile.update({ where: { userId: aff.id }, data: { status: "ACTIVE" } });
+    await close(addIstDays(day, 1));
+    expect(await by(e.id)).toMatchObject({ status: "AVAILABLE" });
+    await close(addIstDays(day, 2)); // idempotent: no second credit or audit
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 7_000 });
+    expect(await autoAudits(e.id)).toBe(1);
+  });
+
+  it("keeps holding while a flag on the referred user is open, releases once dismissed; VOID stays VOID", async () => {
+    const day = slot();
+    const aff = await affiliate();
+    const friend = await qualifiedFriend(aff.id, noon(day));
+    const e = await heldEarning(aff.id, noon(day), "self-referral flag open or confirmed", friend.qualificationId);
+    const voided = await prisma.programEarning.create({
+      data: { beneficiaryUserId: aff.id, kind: "REFERRAL_REWARD", amountMinor: 1_000, status: "VOID", voidReason: "test", earnedAt: noon(day), settingIds: [] },
+    });
+    const flag = await prisma.fraudFlag.create({ data: { userId: friend.id, kind: "SELF_REFERRAL", status: "OPEN", linkedUserIds: [friend.id], evidence: {} } });
+    await close(day);
+    expect(await by(e.id)).toMatchObject({ status: "HELD" });
+    await prisma.fraudFlag.update({ where: { id: flag.id }, data: { status: "DISMISSED" } });
+    await close(addIstDays(day, 1));
+    expect(await by(e.id)).toMatchObject({ status: "AVAILABLE" });
+    expect(await by(voided.id)).toMatchObject({ status: "VOID" });
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 7_000 });
   });
 });
 
@@ -460,7 +622,7 @@ describe("transfers to trading", () => {
     await prisma.programEarning.create({ data: { beneficiaryUserId: u.id, kind: "REFERRAL_REWARD", amountMinor: 5_000, status: "VOID", voidReason: "Qualifying deposit abc reversed: chargeback", earnedAt: new Date(), settingIds: [] } });
     await createProgramAdjustment({ userId: u.id, amountMinor: 500_000, reason: "internal admin note", actor: ADMIN, idempotencyKey: randomUUID() });
     const w = await requestProgramWithdrawal({ userId: u.id, amountMinor: 200_000, payout: UPI, idempotencyKey: randomUUID() });
-    await approveProgramWithdrawal({ id: w.id, actor: ADMIN, note: "approved note" });
+    await approveProgramWithdrawal({ id: w.id, actor: ADMIN, reason: "approved note" });
     const items = await listProgramActivity(u.id, { limit: 20 });
     expect(items).toHaveLength(4);
     expect(items.every((i) => i.reason === null)).toBe(true);
@@ -565,7 +727,7 @@ describe("program withdrawals", () => {
     const second = await req(u.id, 200_000);
     await rejectProgramWithdrawal({ id: second.id, actor: ADMIN, reason: "bad details" });
     const third = await req(u.id, 200_000);
-    await approveProgramWithdrawal({ id: third.id, actor: ADMIN });
+    await approveProgramWithdrawal({ id: third.id, actor: ADMIN, reason: "details checked" });
     expect(await refusal(req(u.id, 200_000))).toBe("limit_day");
     expect((await getProgramSummary(u.id)).used.day).toBe(1);
   });
@@ -588,7 +750,7 @@ describe("program withdrawals", () => {
   it("approve then reject releases the funds; the user sees the reason", async () => {
     const u = await funded();
     const w = await req(u.id, 300_000);
-    await approveProgramWithdrawal({ id: w.id, actor: ADMIN, note: "ok" });
+    await approveProgramWithdrawal({ id: w.id, actor: ADMIN, reason: "ok" });
     expect(await refusal(cancelProgramWithdrawal({ userId: u.id, withdrawalId: w.id }))).toBe("invalid_state"); // user cancels only while REQUESTED
     const rej = await rejectProgramWithdrawal({ id: w.id, actor: ADMIN, reason: "name mismatch" });
     expect(rej).toMatchObject({ status: "REJECTED", reason: "name mismatch" });
@@ -599,11 +761,22 @@ describe("program withdrawals", () => {
     expect(await prisma.auditLog.count({ where: { targetType: "ProgramWithdrawal", targetId: w.id } })).toBe(2);
   });
 
+  it("approve requires a reason (at most 500 characters), stored in the audit row", async () => {
+    const u = await funded();
+    const w = await req(u.id, 300_000);
+    expect(await refusal(approveProgramWithdrawal({ id: w.id, actor: ADMIN, reason: "  " }))).toBe("invalid_input");
+    expect(await refusal(approveProgramWithdrawal({ id: w.id, actor: ADMIN, reason: "x".repeat(501) }))).toBe("invalid_input");
+    expect((await prisma.programWithdrawal.findUniqueOrThrow({ where: { id: w.id } })).status).toBe("REQUESTED");
+    await approveProgramWithdrawal({ id: w.id, actor: ADMIN, reason: "  KYC name matches UPI  " });
+    const [audit] = await prisma.auditLog.findMany({ where: { targetId: w.id, action: "program.withdrawal.approve" } });
+    expect(audit).toMatchObject({ actorId: ADMIN, after: { status: "APPROVED", reason: "KYC name matches UPI" } });
+  });
+
   it("paid requires approved; paid moves reserved to paid once", async () => {
     const u = await funded();
     const w = await req(u.id, 300_000);
     expect(await refusal(markProgramWithdrawalPaid({ id: w.id, actor: ADMIN, paymentReference: "UTR1" }))).toBe("invalid_state");
-    await approveProgramWithdrawal({ id: w.id, actor: ADMIN });
+    await approveProgramWithdrawal({ id: w.id, actor: ADMIN, reason: "ok" });
     expect(await wallet(u.id)).toMatchObject({ reservedMinor: 300_000, paidMinor: 0 }); // approval is not payment
     const paid = await markProgramWithdrawalPaid({ id: w.id, actor: ADMIN, paymentReference: "UTR1" });
     expect(paid).toMatchObject({ status: "PAID", paymentReference: "UTR1" });

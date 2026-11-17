@@ -25,6 +25,11 @@ export const SETTING_META: Record<string, { label: string; unit: SettingUnit; he
     unit: "bps",
     help: "Share of the first qualifying deposit, unless the affiliate has an override.",
   },
+  DEFAULT_REVENUE_SHARE_BPS: {
+    label: "Default Revenue Share",
+    unit: "bps",
+    help: "Used for affiliates without their own assigned rate.",
+  },
   INVITE_EXTRA_BONUS_PCT: {
     label: "Invited friend extra bonus",
     unit: "pct",
@@ -83,6 +88,12 @@ export function formatSettingValue(key: string, value: number): string {
   if (unit === "pct") return `${value}%`;
   if (unit === "bool") return value ? "On" : "Off";
   return String(value);
+}
+
+/** A stored value in the units the edit form takes (inverse of settingValueFromInput). */
+export function settingInputValue(key: string, value: number): string {
+  const unit = SETTING_META[key]?.unit;
+  return String(unit === "inr" || unit === "bps" ? value / 100 : value);
 }
 
 /** A `datetime-local` value read as IST (UTC+05:30). Empty → `now`. */

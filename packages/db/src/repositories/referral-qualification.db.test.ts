@@ -108,7 +108,7 @@ describe("regular inviter reward and friend bonus", () => {
     expect(await evaluateReferralQualification(friend.id)).toEqual({ outcome: "qualified" });
     const q = await qualificationOf(friend.id);
     expect(q).toMatchObject({ inviterId: inviter.id, firstDepositId: dep, qualifyingTradeId: tr, status: "QUALIFIED", depositInrMinor: 50_000, minDepositInrMinor: 50_000, minTradeInrMinor: 10_000 });
-    expect(q!.settingIds).toHaveLength(5);
+    expect(q!.settingIds).toHaveLength(6);
     const earnings = await earningsOf(inviter.id);
     expect(earnings).toHaveLength(1);
     expect(earnings[0]).toMatchObject({ kind: "REFERRAL_REWARD", amountMinor: 5_000, currency: "INR", status: "PENDING", holdReason: null });

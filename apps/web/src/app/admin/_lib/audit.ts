@@ -47,6 +47,7 @@ const WORDS: Record<string, string> = {
   "program.withdrawal.reject": "Rejected a program withdrawal",
   "program.withdrawal.paid": "Marked a program withdrawal paid",
   "program.earning_released": "Released a held program earning",
+  "program.earning_auto_released": "Released a held program earning automatically",
   "program.earning_voided": "Voided a held program earning",
   "program.earning_review_cleared": "Cleared a program earning review flag",
   "program.adjustment": "Made a program balance adjustment",

@@ -26,8 +26,8 @@ import {
   scheduleSettingAction,
   voidHeldEarningAction,
 } from "./actions";
-import { AffiliateStatusPill, ReasonForm, bpsPct } from "./program-ui";
-import { SETTING_META, fmtIst, formatSettingValue } from "./parse";
+import { AffiliateStatusPill, ReasonForm, SettingEditForm, bpsPct } from "./program-ui";
+import { SETTING_META, fmtIst, formatSettingValue, settingInputValue } from "./parse";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +86,6 @@ export default async function AffiliateProgramPage({ searchParams }: { searchPar
       </section>
 
       {tab === "review" ? <AdjustmentCard /> : null}
-      {tab === "settings" ? <ScheduleCard /> : null}
     </>
   );
 }
@@ -192,12 +191,15 @@ async function WithdrawalsTab({ sp }: { sp: SP }) {
                           submit="Reject and return funds"
                         />
                         {w.status === "REQUESTED" ? (
-                          <form action={approveProgramWithdrawalAction}>
-                            <input type="hidden" name="withdrawalId" value={w.id} />
-                            <button type="submit" className="admin-btn admin-btn--sm admin-btn--pos">
-                              Approve
-                            </button>
-                          </form>
+                          <ReasonForm
+                            action={approveProgramWithdrawalAction}
+                            hidden={{ withdrawalId: w.id }}
+                            button="Approve"
+                            tone="pos"
+                            field="reason"
+                            label="Reason for approval"
+                            submit="Approve withdrawal"
+                          />
                         ) : (
                           <ReasonForm
                             action={markProgramWithdrawalPaidAction}
@@ -342,7 +344,10 @@ async function AffiliatesTab({ sp }: { sp: SP }) {
                     {num(a.qualifiedReferrals)} <span className="admin-cell-sub">/ {num(a.totalReferrals)}</span>
                   </td>
                   <td className="admin-num-right admin-amount">{inrFromMinor(a.totalDepositedMinor)}</td>
-                  <td className="admin-num-right">{a.currentRate ? bpsPct(a.currentRate.revenueShareBps) : <span className="admin-cell-sub">0% (none)</span>}</td>
+                  <td className="admin-num-right">
+                    {bpsPct(a.currentRate.revenueShareBps)}
+                    {a.currentRate.source === "default" ? <span className="admin-cell-sub"> (default)</span> : null}
+                  </td>
                   <td className="admin-num-right">
                     {inrFromMinor(a.earnings.PENDING)} <span className="admin-cell-sub">/ {inrFromMinor(a.earnings.HELD)}</span>
                   </td>
@@ -517,7 +522,7 @@ async function SettingsTab() {
   return (
     <>
       <Hint>
-        A new value applies from its effective time onward. Past earnings and qualifications keep the values in force when they
+        Edit a setting in its row. A new value applies from its effective time onward (leave the time empty to apply it now). Past earnings and qualifications keep the values in force when they
         happened.
       </Hint>
       <div className="admin-table-wrap">
@@ -528,6 +533,9 @@ async function SettingsTab() {
               <th className="admin-num-right">In force</th>
               <th>Since</th>
               <th>Scheduled</th>
+              <th className="admin-num-right">
+                <SrOnly>Actions</SrOnly>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -550,6 +558,18 @@ async function SettingsTab() {
                           </div>
                         ))
                       : "—"}
+                  </td>
+                  <td className="admin-num-right">
+                    <div className="admin-row-actions">
+                      <SettingEditForm
+                        action={scheduleSettingAction}
+                        settingKey={key}
+                        label={SETTING_META[key]?.label ?? key}
+                        unit={SETTING_META[key]?.unit ?? "count"}
+                        current={cur ? settingInputValue(key, cur.value) : ""}
+                        cancelHref={`${PATH}?tab=settings`}
+                      />
+                    </div>
                   </td>
                 </tr>
               );
@@ -601,46 +621,5 @@ async function SettingsTab() {
         </table>
       </div>
     </>
-  );
-}
-
-const UNIT_HINT: Record<string, string> = { inr: "₹", bps: "%", pct: "%", count: "count", bool: "1 = on, 0 = off" };
-
-function ScheduleCard() {
-  return (
-    <Card title="Schedule a new value" sub="Affects future activity only. Leave the time empty to apply it now.">
-      <form action={scheduleSettingAction} className="admin-grid admin-cols-2" style={{ alignItems: "end" }}>
-        <div className="admin-field" style={{ marginBottom: 0 }}>
-          <label htmlFor="set-key">Setting</label>
-          <select id="set-key" name="key" className="admin-select" required defaultValue="">
-            <option value="" disabled>
-              Pick a setting
-            </option>
-            {KEYS.map((k) => (
-              <option key={k} value={k}>
-                {SETTING_META[k]?.label ?? k} ({UNIT_HINT[SETTING_META[k]?.unit ?? ""] ?? ""})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="admin-field" style={{ marginBottom: 0 }}>
-          <label htmlFor="set-value">New value (in the unit shown)</label>
-          <input id="set-value" name="value" className="admin-input" required inputMode="decimal" placeholder="e.g. 1999 or 5.5" />
-        </div>
-        <div className="admin-field" style={{ marginBottom: 0 }}>
-          <label htmlFor="set-from">Effective from (IST)</label>
-          <input id="set-from" name="effectiveFrom" type="datetime-local" className="admin-input" />
-        </div>
-        <div className="admin-field" style={{ marginBottom: 0 }}>
-          <label htmlFor="set-reason">Reason</label>
-          <input id="set-reason" name="reason" className="admin-input" required maxLength={500} />
-        </div>
-        <div>
-          <button type="submit" className="admin-btn admin-btn--primary">
-            Schedule value
-          </button>
-        </div>
-      </form>
-    </Card>
   );
 }

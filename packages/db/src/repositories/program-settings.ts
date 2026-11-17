@@ -8,6 +8,7 @@ export const PROGRAM_SETTING_KEYS = [
   "USER_REFERRAL_REWARD_INR_MINOR",
   "AFFILIATE_DEPOSIT_REWARD_BPS",
   "INVITE_EXTRA_BONUS_PCT",
+  "DEFAULT_REVENUE_SHARE_BPS",
 ] as const satisfies readonly ProgramSettingKey[];
 
 export interface ProgramSettings {

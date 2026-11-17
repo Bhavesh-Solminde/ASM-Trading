@@ -17,9 +17,15 @@ const REFERRAL_ERRORS = new Set(["invalid_referral", "self_referral"]);
 export function RegisterForm({
   googleEnabled,
   portal = "user",
+  initialReferralCode = "",
+  inviteBonusPct,
 }: {
   googleEnabled: boolean;
   portal?: AuthPortal;
+  /** A valid invitation code from the link cookie, prefilled in the (still editable) code field. */
+  initialReferralCode?: string;
+  /** With a valid invitation: the friend's first-deposit bonus %, shown as a banner. */
+  inviteBonusPct?: number;
 }) {
   const paths = PORTAL_PATHS[portal];
   const affiliate = portal === "affiliate";
@@ -29,7 +35,7 @@ export function RegisterForm({
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [terms, setTerms] = useState(false);
-  const [referralCode, setReferralCode] = useState("");
+  const [referralCode, setReferralCode] = useState(initialReferralCode);
   const [referralError, setReferralError] = useState<string | null>(null);
   const referralRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +63,9 @@ export function RegisterForm({
     // affiliate portal flag, or a typed invitation code): no ToS field, and the
     // confirmation is checked here, never sent. Without a typed code, referral
     // credit comes from the /invite link cookie.
-    const code = affiliate ? "" : referralCode.trim();
+    // The untouched prefill is the link cookie's code; leave it to the cookie so the signup stays credited as a link.
+    const typed = referralCode.trim();
+    const code = affiliate || (initialReferralCode && typed === initialReferralCode) ? "" : typed;
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -101,6 +109,11 @@ export function RegisterForm({
       }
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
+        {inviteBonusPct !== undefined && !affiliate ? (
+          <div className="rounded-lg border border-up/40 bg-up/10 px-3 py-2.5 text-sm text-up">
+            You&apos;ve been invited — your first deposit gets a {inviteBonusPct}% bonus.
+          </div>
+        ) : null}
         {googleEnabled && !affiliate ? (
           <>
             <GoogleButton label="Sign up with Google" />

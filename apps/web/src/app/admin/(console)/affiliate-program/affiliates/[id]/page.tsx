@@ -144,11 +144,11 @@ export default async function AffiliateDetailPage({
       <Card
         title="Rates"
         sub={
-          a.currentRate
-            ? `In force: Revenue Share ${bpsPct(a.currentRate.revenueShareBps)}, deposit reward ${
+          a.currentRate.source === "assigned"
+            ? `In force: Revenue Share ${bpsPct(a.currentRate.revenueShareBps)} (own rate), deposit reward ${
                 a.currentRate.depositRewardBps === null ? "global setting" : bpsPct(a.currentRate.depositRewardBps)
               }`
-            : "No rate assigned: Revenue Share is 0% and the deposit reward follows the global setting"
+            : `In force: Revenue Share ${bpsPct(a.currentRate.revenueShareBps)} (default, no own rate assigned), deposit reward global setting`
         }
       >
         <form action={assignAffiliateRateAction} className="admin-grid admin-cols-2" style={{ alignItems: "end", marginBottom: 16 }}>
@@ -196,7 +196,7 @@ export default async function AffiliateDetailPage({
                 a.rates.map((r) => (
                   <tr key={r.id}>
                     <td className="admin-cell-sub">
-                      {fmtIst(r.effectiveFrom)} {r.id === a.currentRate?.rateId ? <Pill tone="pos">In force</Pill> : null}
+                      {fmtIst(r.effectiveFrom)} {r.id === a.currentRate.rateId ? <Pill tone="pos">In force</Pill> : null}
                     </td>
                     <td className="admin-num-right">{bpsPct(r.revenueShareBps)}</td>
                     <td className="admin-num-right">{r.depositRewardBps === null ? "Global" : bpsPct(r.depositRewardBps)}</td>

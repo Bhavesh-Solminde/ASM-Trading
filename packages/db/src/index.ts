@@ -101,7 +101,7 @@ export {
   markProgramWithdrawalPaid,
   PROGRAM_WITHDRAWALS_PAGE_SIZE,
 } from "./repositories/program-withdrawal";
-export { revenueShareOf } from "./repositories/revenue-share";
+export { revenueShareOf, splitRevenueShare, FLAGGED_REFERRAL_HOLD_REASON } from "./repositories/revenue-share";
 export { closeProgramDay, closeDueProgramDays, type ProgramDayCloseResult } from "./repositories/program-day-close";
 export {
   detectLinkage,
