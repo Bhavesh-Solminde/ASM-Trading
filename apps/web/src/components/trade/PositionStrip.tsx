@@ -69,7 +69,7 @@ const StripBody = memo(function StripBody({
       aria-label={`Open trade: ${up ? "Buy" : "Sell"} ${pair}, ${formatMinor(trade.stake, currency)}${
         more > 0 ? `, and ${more} more` : ""
       }. Show trades and history`}
-      className="pointer-events-auto flex h-12 w-full items-center gap-2.5 rounded-[14px] bg-tile pl-2 pr-3 text-left shadow-[0_14px_30px_-12px_rgba(0,0,0,.9)] transition-colors active:bg-tile-hi"
+      className="pointer-events-auto flex h-12 w-full items-center gap-2.5 rounded-[14px] bg-tile pl-2 pr-3 text-left shadow-[0_14px_30px_-12px_var(--color-shadow-floating)] transition-colors active:bg-tile-hi"
     >
       <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden className={`flex-none -rotate-90 ${dirColor}`}>
         <circle cx="17" cy="17" r="14" fill="none" strokeWidth="3" className="stroke-tile-hi" />

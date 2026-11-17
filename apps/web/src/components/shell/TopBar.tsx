@@ -19,7 +19,7 @@ import { usePlatform, type AccountView } from "./PlatformProvider";
 // trading launched for all; keep the per-user column in the schema for history.
 
 const FEED_LABEL = {
-  open: { text: "Live feed", dot: "bg-up shadow-[0_0_0_3px_rgba(59,229,132,.12)]" },
+  open: { text: "Live feed", dot: "bg-up shadow-[0_0_0_3px_var(--color-live-halo-subtle)]" },
   connecting: { text: "Connecting", dot: "bg-brand blink" },
   closed: { text: "Reconnecting", dot: "bg-down blink" },
   unauthorised: { text: "Signed out", dot: "bg-down" },
@@ -197,11 +197,11 @@ export function TopBar() {
 
         {menuOpen ? (
           <>
-            <div aria-hidden onClick={closeMenu} className="fixed inset-0 z-30 hidden bg-black/60 phone:block" />
+            <div aria-hidden onClick={closeMenu} className="fixed inset-0 z-30 hidden bg-overlay phone:block" />
             <div
               role="menu"
               aria-label="Accounts"
-              className="sheet-phone absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-tile-hi bg-tile p-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:max-h-[calc(100dvh-16px)] phone:overflow-y-auto phone:border-x-0 phone:border-b-0 phone:px-3 phone:pt-0"
+              className="sheet-phone absolute right-0 top-[54px] z-40 w-[340px] max-w-[calc(100vw-20px)] rounded border border-tile-hi bg-tile p-2 shadow-[0_24px_48px_-12px_var(--color-shadow-popover)] phone:fixed phone:inset-x-0 phone:bottom-0 phone:top-auto phone:w-auto phone:max-w-none phone:max-h-[calc(100dvh-16px)] phone:overflow-y-auto phone:border-x-0 phone:border-b-0 phone:px-3 phone:pt-0"
             >
               <div aria-hidden className="sheet-handle hidden phone:block" />
               <div className="hidden items-center justify-between pl-1 phone:flex">
@@ -261,7 +261,7 @@ export function TopBar() {
                           aria-pressed={activeAccount.currency === cur}
                           onClick={() => void changeCurrency(cur)}
                           className={`rounded-[2px] px-2.5 py-0.5 text-[11px] font-bold tracking-[0.06em] phone:rounded-md phone:px-4 disabled:opacity-60 ${
-                            activeAccount.currency === cur ? "bg-brand-fill text-white" : "text-ink-3 hover:text-ink"
+                            activeAccount.currency === cur ? "bg-brand-fill text-brand-ink" : "text-ink-3 hover:text-ink"
                           }`}
                         >
                           {cur}

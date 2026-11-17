@@ -53,7 +53,7 @@ export function ReferralClient({ referralCode, referralUrl }: ReferralClientProp
           <button
             type="button"
             onClick={() => void copyToClipboard()}
-            className="flex items-center justify-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-xs font-semibold text-white transition-transform hover:bg-brand-fill-hi active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 phone:h-11 phone:py-0"
+            className="flex items-center justify-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-xs font-semibold text-brand-ink transition-transform hover:bg-brand-fill-hi active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 phone:h-11 phone:py-0"
           >
             {copied ? (
               <>

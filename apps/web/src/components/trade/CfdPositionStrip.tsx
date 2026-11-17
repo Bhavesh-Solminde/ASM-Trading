@@ -73,7 +73,7 @@ const CfdStripBody = memo(function CfdStripBody({
       aria-label={`${isLong ? "Long" : "Short"} ${pair}, ${formatMinor(position.stake, currency)}${
         more > 0 ? `, and ${more} more` : ""
       }. Show positions`}
-      className="pointer-events-auto flex h-14 w-full items-center gap-2.5 rounded-[14px] bg-tile pl-3 pr-2 text-left shadow-[0_14px_30px_-12px_rgba(0,0,0,.9)] transition-colors active:bg-tile-hi"
+      className="pointer-events-auto flex h-14 w-full items-center gap-2.5 rounded-[14px] bg-tile pl-3 pr-2 text-left shadow-[0_14px_30px_-12px_var(--color-shadow-floating)] transition-colors active:bg-tile-hi"
     >
       <span className={`text-xs font-extrabold tracking-[0.06em] ${dirColor}`}>
         {isLong ? "LONG" : "SHORT"}
@@ -99,7 +99,7 @@ const CfdStripBody = memo(function CfdStripBody({
         disabled={closing}
         onClick={handleClose}
         aria-label="Close position"
-        className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-white/10 text-ink-2 hover:bg-down hover:text-white"
+        className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-surface-highlight/10 text-ink-2 hover:bg-down hover:text-brand-ink"
       >
         <Icon name="close" className="size-3.5" strokeWidth={2.5} />
       </button>

@@ -30,8 +30,7 @@ const DEFAULT_LEGAL = (
   </>
 );
 
-/** Auth pages sit on the same true-black ground as the rest of the site. */
-const AUTH_BG = "#000000";
+/** The form surface follows the theme; the editorial photograph keeps its dark vignette. */
 
 /** Split-screen auth shell — editorial photo left, form right, with a large
  *  brand lockup at the top of the form. Mobile: form-only, image hidden. */
@@ -45,7 +44,7 @@ export function AuthShell({
   legal = DEFAULT_LEGAL,
 }: Props) {
   return (
-    <main className="relative min-h-dvh text-ink" style={{ background: AUTH_BG }}>
+    <main className="relative min-h-dvh text-ink" style={{ background: "var(--color-auth-ground)" }}>
       <div className="grid min-h-dvh grid-cols-1 md:grid-cols-2">
         {/* Editorial image — desktop only */}
         <aside className="relative hidden overflow-hidden md:block">
@@ -60,11 +59,11 @@ export function AuthShell({
           {/* Vignette to keep the caption readable */}
           <div
             className="pointer-events-none absolute inset-0"
-            style={{ background: `linear-gradient(to top, ${AUTH_BG} 4%, ${AUTH_BG}4d 45%, transparent)` }}
+            style={{ background: "linear-gradient(to top, var(--color-auth-photo-ground) 4%, var(--color-auth-photo-fade) 45%, transparent)" }}
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-8 lg:p-12">
-            <p className="legend text-brand">Live · NIFTY 50 · 93%</p>
-            <p className="mt-3 max-w-md text-2xl font-black leading-tight tracking-tight text-ink">
+            <p className="legend text-photo-accent!">Live · NIFTY 50 · 93%</p>
+            <p className="mt-3 max-w-md text-2xl font-black leading-tight tracking-tight text-photo-ink">
               {imageCaption}
             </p>
           </div>

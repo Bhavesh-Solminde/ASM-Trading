@@ -91,7 +91,7 @@ export function LiveCandleBand() {
 
       {/* DESKTOP: centered widget with a proper chart aspect + editorial side column. */}
       <div className="mx-auto hidden max-w-5xl gap-6 px-6 py-16 md:grid md:grid-cols-[minmax(0,1fr)_220px] md:items-stretch">
-        <div className="relative h-[320px] overflow-hidden rounded-2xl border border-rule bg-panel/70 shadow-[0_40px_80px_-30px_rgba(0,0,0,0.7)]">
+        <div className="relative h-[320px] overflow-hidden rounded-2xl border border-rule bg-panel/70 shadow-[0_40px_80px_-30px_var(--color-shadow-elevated)]">
           {chart}
         </div>
         <SessionSidebar priceLabel={priceLabel} />
@@ -158,7 +158,7 @@ function CandleBar({ c, i, candles }: { c: Candle; i: number; candles: Candle[] 
   const y = (v: number) => PAD_Y + ((max - v) / range) * (VIEWBOX_H - PAD_Y * 2);
   const cx = COL_W * (i + 0.5);
   const up = c.close >= c.open;
-  const color = up ? "var(--color-up)" : "var(--color-down)";
+  const color = up ? "var(--color-mini-candle-up)" : "var(--color-mini-candle-down)";
   const bodyTop = y(Math.max(c.open, c.close));
   const bodyBot = y(Math.min(c.open, c.close));
   return (

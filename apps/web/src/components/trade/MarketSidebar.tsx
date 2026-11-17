@@ -19,7 +19,7 @@ export function MarketSidebar() {
   return <aside className="market-sidebar" aria-label="Markets sidebar">
     <div className="px-4 pb-4 pt-5"><div className="mb-4 flex items-center justify-between"><strong className="text-base">Markets</strong><span className="text-xs text-ink-3">{assets.length}</span></div>
       <input aria-label="Search sidebar markets" placeholder="Search markets" value={query} onChange={e => setQuery(e.target.value)} className="h-10 w-full rounded-lg border border-rule bg-ground px-3 text-sm" />
-      <div className="mt-3 flex flex-wrap gap-1.5">{["Popular", "All", "Favourites"].map(f => <button type="button" key={f} aria-pressed={filter === f} onClick={() => setFilter(f)} className={`rounded-full px-3 py-2 text-xs font-bold ${filter === f ? "bg-brand-fill text-white" : "bg-tile text-ink-2"}`}>{f}</button>)}</div>
+      <div className="mt-3 flex flex-wrap gap-1.5">{["Popular", "All", "Favourites"].map(f => <button type="button" key={f} aria-pressed={filter === f} onClick={() => setFilter(f)} className={`rounded-full px-3 py-2 text-xs font-bold ${filter === f ? "bg-brand-fill text-brand-ink" : "bg-tile text-ink-2"}`}>{f}</button>)}</div>
     </div>
     <div className="min-h-0 flex-1 overflow-auto px-1.5">{shown.map(a => <MarketRow key={a.symbol} asset={a} active={a.symbol === chartSymbol} onSelect={selectChartSymbol} />)}{shown.length === 0 && <p className="p-3 text-xs text-ink-3">No matching markets.</p>}</div>
   </aside>;

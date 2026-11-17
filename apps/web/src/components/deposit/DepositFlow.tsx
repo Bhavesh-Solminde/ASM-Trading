@@ -135,7 +135,7 @@ export function DepositFlow({
                 aria-pressed={selected}
                 onClick={() => setAmountValue(String(v))}
                 className={`h-11 rounded-full text-sm font-bold tabular-nums ${
-                  selected ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"
+                  selected ? "bg-brand-fill text-brand-ink" : "bg-tile text-ink-2 hover:text-ink"
                 }`}
               >
                 {formatInr(v)}
@@ -151,7 +151,7 @@ export function DepositFlow({
         <div>
           <button
             type="submit"
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-brand-fill text-base font-bold text-white hover:bg-brand-fill-hi"
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-brand-fill text-base font-bold text-brand-ink hover:bg-brand-fill-hi"
           >
             Continue &middot; choose method
             <Icon name="chevron" className="size-[18px]" />

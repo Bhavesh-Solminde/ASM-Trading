@@ -15,8 +15,8 @@ type CfdDirection = "LONG" | "SHORT";
 const STEP_DURATIONS = DURATIONS_SEC.filter((sec) => sec <= 3600);
 
 const STEP =
-  "grid h-12 place-items-center rounded border border-white/40 text-ink-2 hover:border-white/70 hover:bg-panel hover:text-ink";
-const DISPLAY = "grid h-12 place-items-center rounded border border-white/40 bg-panel";
+  "grid h-12 place-items-center rounded border border-control-rule text-ink-2 hover:border-control-rule-hi hover:bg-panel hover:text-ink";
+const DISPLAY = "grid h-12 place-items-center rounded border border-control-rule bg-panel";
 
 export function CfdTradeTicket({
   symbol,
@@ -217,7 +217,7 @@ export function CfdTradeTicket({
             <button type="button" aria-label="Decrease investment" onClick={() => nudgeStake(-1)} className={STEP}>
               <Icon name="minus" className="size-[18px]" />
             </button>
-            <div className="ticket-field grid h-12 min-w-0 place-items-center rounded border border-white/40 bg-panel focus-within:border-brand">
+            <div className="ticket-field grid h-12 min-w-0 place-items-center rounded border border-control-rule bg-panel focus-within:border-brand">
               <span className="flex w-full min-w-0 items-center justify-center gap-0.5 px-1 text-[22px] font-bold">
                 {currencySymbol(currency)}
                 <input
@@ -253,7 +253,7 @@ export function CfdTradeTicket({
       {error ? (
         <div
           role="alert"
-          className="grid grid-cols-[auto_1fr] items-start gap-2 rounded-[2px] bg-warn-bg px-2.5 py-2 text-xs text-down shadow-[inset_0_0_0_1px_rgba(229,65,59,.5)] phone:rounded-xl phone:px-3 phone:py-2.5"
+          className="grid grid-cols-[auto_1fr] items-start gap-2 rounded-[2px] bg-warn-bg px-2.5 py-2 text-xs text-down shadow-[inset_0_0_0_1px_var(--color-warning-rule)] phone:rounded-xl phone:px-3 phone:py-2.5"
         >
           <Icon name="alert" className="size-4" />
           {error}

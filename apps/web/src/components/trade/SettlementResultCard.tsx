@@ -14,13 +14,13 @@ export function SettlementResultCard({ trade, currency, pair, onDismiss }: {
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-[40%] z-20 grid place-items-center px-4">
-      <div className={`result-pop pointer-events-auto relative grid gap-0.5 rounded-md py-1.5 pl-3 pr-6 text-center shadow-[0_14px_34px_-12px_rgba(0,0,0,.85)] ${color}`}>
+      <div className={`result-pop pointer-events-auto relative grid gap-0.5 rounded-md py-1.5 pl-3 pr-6 text-center shadow-[0_14px_34px_-12px_var(--color-shadow-menu)] ${color}`}>
         <WinDiwaliFireworks tradeId={trade.id} />
         <button
           type="button"
           aria-label="Dismiss result"
           onClick={onDismiss}
-          className="absolute right-1 top-1 grid size-4 place-items-center rounded-full opacity-70 hover:bg-black/10 hover:opacity-100"
+          className="absolute right-1 top-1 grid size-4 place-items-center rounded-full opacity-70 hover:bg-result-hover hover:opacity-100"
         >
           <Icon name="close" className="size-3" />
         </button>

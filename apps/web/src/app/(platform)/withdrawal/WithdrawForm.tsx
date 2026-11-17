@@ -52,7 +52,7 @@ const LABEL = "text-[13px] font-semibold text-ink-2";
 const INPUT =
   "mt-1.5 h-12 w-full rounded-xl bg-tile px-3.5 text-base ring-1 ring-rule placeholder:text-ink-3 focus:ring-brand aria-[invalid=true]:ring-down";
 const PRIMARY =
-  "h-14 w-full rounded-2xl bg-brand-fill text-base font-bold text-white hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50";
+  "h-14 w-full rounded-2xl bg-brand-fill text-base font-bold text-brand-ink hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-50";
 
 export function WithdrawForm({
   accountId,
@@ -529,6 +529,7 @@ function WithdrawReceipt({
   const [showCert, setShowCert] = useState(false);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const cert = receipt.certificate;
+  // The downloadable certificate is a fixed dark artwork document, independent of app appearance.
   const certDoc = cert
     ? `<!doctype html><html><head><meta charset="utf-8"><title>IndianxTrade certificate</title></head><body style="margin:0;padding:20px;background:#000;">${certificateHtml(cert)}</body></html>`
     : "";
@@ -632,7 +633,7 @@ function Chip({ selected, onClick, children }: { selected: boolean; onClick: () 
       aria-pressed={selected}
       onClick={onClick}
       className={`h-11 min-w-0 flex-1 rounded-full px-2 text-sm font-bold tabular-nums ${
-        selected ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"
+        selected ? "bg-brand-fill text-brand-ink" : "bg-tile text-ink-2 hover:text-ink"
       }`}
     >
       {children}

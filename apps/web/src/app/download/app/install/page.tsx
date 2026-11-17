@@ -55,7 +55,7 @@ export default async function AndroidInstallPage() {
             Download the app from IndianxTrade and follow the three steps to install it on your phone.
           </p>
           {download ? (
-            <a href={download} className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-fill px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-fill-hi sm:w-auto">
+            <a href={download} className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-fill px-5 py-3 text-sm font-bold text-brand-ink transition-colors hover:bg-brand-fill-hi sm:w-auto">
               <svg aria-hidden="true" className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
               </svg>

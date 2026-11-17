@@ -115,7 +115,7 @@ export function CurrencyConvertCard({ accounts }: { accounts: AccountBalance[] }
                     type="button"
                     disabled={busy}
                     onClick={() => void convert(acct.id, target)}
-                    className="ml-auto inline-flex h-9 items-center justify-center rounded-lg border border-brand-fill bg-brand-fill px-3.5 text-xs font-bold uppercase tracking-[0.06em] text-white hover:bg-brand-fill-hi disabled:opacity-60 phone:ml-0 phone:h-11 phone:w-full"
+                    className="ml-auto inline-flex h-9 items-center justify-center rounded-lg border border-brand-fill bg-brand-fill px-3.5 text-xs font-bold uppercase tracking-[0.06em] text-brand-ink hover:bg-brand-fill-hi disabled:opacity-60 phone:ml-0 phone:h-11 phone:w-full"
                   >
                     {busy ? "Converting…" : `Convert to ${target}`}
                   </button>

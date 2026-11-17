@@ -28,7 +28,7 @@ export function BonusPreview({
   const money = (minor: number) => formatMinorCompact(minor, "INR");
 
   return (
-    <section aria-labelledby="bonus-preview-title" className="rounded-2xl bg-[#0d1a12] p-[18px] ring-1 ring-up/20">
+    <section aria-labelledby="bonus-preview-title" className="rounded-2xl bg-bonus-surface p-[18px] ring-1 ring-up/20">
       <div className="flex items-center justify-between gap-3">
         <h2 id="bonus-preview-title" className="text-[13px] font-bold text-up">
           {ordinal(next)} deposit &middot; +{pct}% bonus
@@ -54,7 +54,7 @@ export function BonusPreview({
               key={n}
               aria-current={isNext ? "step" : undefined}
               className={`grid gap-0.5 rounded-[10px] py-2 text-center ${
-                isNext ? "bg-up/[0.18]" : "bg-white/[0.04]"
+                isNext ? "bg-up/[0.18]" : "bg-surface-highlight/[0.04]"
               } ${claimed ? "opacity-55" : ""}`}
             >
               <b className={`text-sm ${isNext ? "text-up" : "text-ink"}`}>{tier}%</b>

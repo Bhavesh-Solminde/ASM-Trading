@@ -37,7 +37,7 @@ function ActionTile({ href, icon, label }: { href: string; icon: IconName; label
   return (
     <Link
       href={href}
-      className="grid h-14 place-content-center justify-items-center gap-1 rounded-[14px] bg-white/[0.06] text-xs font-bold text-ink hover:bg-white/10"
+      className="grid h-14 place-content-center justify-items-center gap-1 rounded-[14px] bg-surface-highlight/[0.06] text-xs font-bold text-ink hover:bg-surface-highlight/10"
     >
       <Icon name={icon} className="size-[18px]" strokeWidth={2.2} />
       {label}

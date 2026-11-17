@@ -1,5 +1,7 @@
 "use client";
 
+// Currency flags and asset emblems preserve their national and brand identity colours in both themes.
+
 import React, { memo } from "react";
 
 // ============================================================================
@@ -459,12 +461,12 @@ export const AssetIcon = memo(function AssetIcon({
     return (
       <div className={`relative flex items-center flex-none select-none ${className}`}>
         {/* Primary / Base Asset Badge */}
-        <div className={`relative z-10 shrink-0 rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.4)] ${dims.base}`}>
+        <div className={`relative z-10 shrink-0 rounded-full shadow-[0_1px_3px_var(--color-shadow-soft)] ${dims.base}`}>
           <BaseIcon className="size-full" />
         </div>
         {/* Secondary / Quote Asset Badge with Cut-Out Separator Ring */}
         <div
-          className={`relative z-20 shrink-0 self-end rounded-full ring-[1.5px] ring-[#20242a] shadow-[0_1px_4px_rgba(0,0,0,0.5)] ${dims.overlap} ${dims.quote}`}
+          className={`relative z-20 shrink-0 self-end rounded-full ring-[1.5px] ring-asset-ring shadow-[0_1px_4px_var(--color-shadow-medium)] ${dims.overlap} ${dims.quote}`}
         >
           <QuoteIcon className="size-full" />
         </div>
@@ -476,13 +478,13 @@ export const AssetIcon = memo(function AssetIcon({
     return (
       <div className={`relative flex items-center flex-none select-none ${className}`}>
         {/* Tricolor National Base */}
-        <div className={`relative z-10 shrink-0 rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.4)] ${dims.base}`}>
+        <div className={`relative z-10 shrink-0 rounded-full shadow-[0_1px_3px_var(--color-shadow-soft)] ${dims.base}`}>
           <BaseIcon className="size-full" />
         </div>
         {/* Compact Index Pill Tag */}
         {config.indexTag && (
           <div
-            className={`relative z-20 shrink-0 rounded-[3px] bg-[#171b21] font-mono font-bold uppercase tracking-wider text-[#93c5fd] ring-[1.5px] ring-[#20242a] shadow-[0_1px_4px_rgba(0,0,0,0.5)] ${dims.overlap} ${dims.tag}`}
+            className={`relative z-20 shrink-0 rounded-[3px] bg-asset-tag font-mono font-bold uppercase tracking-wider text-asset-tag-ink ring-[1.5px] ring-asset-ring shadow-[0_1px_4px_var(--color-shadow-medium)] ${dims.overlap} ${dims.tag}`}
           >
             {config.indexTag}
           </div>
@@ -494,7 +496,7 @@ export const AssetIcon = memo(function AssetIcon({
   // Single Circle (Gold / Commodities)
   return (
     <div className={`relative flex items-center flex-none select-none ${className}`}>
-      <div className={`relative shrink-0 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.4)] ${dims.base}`}>
+      <div className={`relative shrink-0 rounded-full shadow-[0_1px_4px_var(--color-shadow-soft)] ${dims.base}`}>
         <BaseIcon className="size-full" />
       </div>
     </div>

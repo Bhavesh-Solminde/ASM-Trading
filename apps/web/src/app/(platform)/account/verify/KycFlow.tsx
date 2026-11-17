@@ -87,7 +87,7 @@ export function KycFlow({
       <StatusCard tone="up" title="You're verified" body="Your identity is confirmed — withdrawals are enabled.">
         <Link
           href="/withdrawal"
-          className="inline-flex h-12 items-center justify-center gap-1.5 self-start rounded-xl bg-brand-fill px-5 text-sm font-bold text-white hover:bg-brand-fill-hi phone:self-stretch"
+          className="inline-flex h-12 items-center justify-center gap-1.5 self-start rounded-xl bg-brand-fill px-5 text-sm font-bold text-brand-ink hover:bg-brand-fill-hi phone:self-stretch"
         >
           Go to withdrawal
           <Icon name="chevron" className="size-4" strokeWidth={2.4} />
@@ -543,7 +543,7 @@ function PrimaryButton({
       type="button"
       disabled={busy || disabled}
       onClick={onClick}
-      className="mt-1 h-12 rounded-xl bg-brand-fill text-[15px] font-bold text-white transition hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-45"
+      className="mt-1 h-12 rounded-xl bg-brand-fill text-[15px] font-bold text-brand-ink transition hover:bg-brand-fill-hi disabled:cursor-not-allowed disabled:opacity-45"
     >
       {busy ? "Please wait…" : children}
     </button>

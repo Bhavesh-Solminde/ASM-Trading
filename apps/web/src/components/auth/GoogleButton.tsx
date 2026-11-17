@@ -7,7 +7,7 @@ export function GoogleButton({ label = "Continue with Google" }: { label?: strin
   return (
     <a
       href="/api/auth/google"
-      className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-full border border-[#dadce0] bg-white text-sm font-semibold text-[#1f1f1f] transition hover:bg-[#f2f2f2]"
+      className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-full border border-google-border bg-google-surface text-sm font-semibold text-google-ink transition hover:bg-google-hover"
     >
       <GoogleG />
       {label}
@@ -26,6 +26,7 @@ export function OrDivider() {
   );
 }
 
+// The four Google G fills are the official identity artwork in both themes.
 function GoogleG() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>

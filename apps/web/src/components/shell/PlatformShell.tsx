@@ -18,7 +18,7 @@ import { BottomNavBar } from "./BottomNavBar";
 
 /** Same blink conventions as TopBar's FEED_LABEL, with the short labels the phone status row has room for. */
 const FEED_STATUS = {
-  open: { text: "Live", dot: "bg-up shadow-[0_0_0_3px_rgba(59,229,132,.15)]" },
+  open: { text: "Live", dot: "bg-up shadow-[0_0_0_3px_var(--color-live-halo)]" },
   connecting: { text: "Connecting", dot: "bg-brand blink" },
   closed: { text: "Reconnecting", dot: "bg-down blink" },
   unauthorised: { text: "Signed out", dot: "bg-down" },

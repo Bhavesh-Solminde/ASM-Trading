@@ -143,7 +143,7 @@ export function StakeSheet({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div aria-hidden onClick={onClose} className="absolute inset-0 bg-black/60" />
+      <div aria-hidden onClick={onClose} className="absolute inset-0 bg-overlay" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -183,7 +183,7 @@ export function StakeSheet({
                   setUnit(u);
                 }}
                 className={`h-8 min-w-16 rounded-full px-4 text-[13px] font-bold transition-colors ${
-                  unit === u ? "bg-brand-fill text-white" : "text-ink-2 hover:text-ink"
+                  unit === u ? "bg-brand-fill text-brand-ink" : "text-ink-2 hover:text-ink"
                 }`}
               >
                 {u === "amount" ? symbol : "%"}
@@ -230,7 +230,7 @@ export function StakeSheet({
                 type="button"
                 aria-pressed={pct === value}
                 onClick={() => setPercent(String(value))}
-                className={`${chipBase} ${pct === value ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"}`}
+                className={`${chipBase} ${pct === value ? "bg-brand-fill text-brand-ink" : "bg-tile text-ink-2 hover:text-ink"}`}
               >
                 {value === 100 ? "Max" : `${value}%`}
               </button>
@@ -245,7 +245,7 @@ export function StakeSheet({
                 aria-pressed={Number(amount) === value}
                 onClick={() => setAmount(String(value))}
                 className={`${chipBase} ${
-                  Number(amount) === value ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"
+                  Number(amount) === value ? "bg-brand-fill text-brand-ink" : "bg-tile text-ink-2 hover:text-ink"
                 }`}
               >
                 {symbol}
@@ -258,7 +258,7 @@ export function StakeSheet({
               aria-pressed={maxUsable && Number(amount) === maxMajor}
               onClick={() => setAmount(String(maxMajor))}
               className={`${chipBase} disabled:opacity-40 ${
-                maxUsable && Number(amount) === maxMajor ? "bg-brand-fill text-white" : "bg-tile text-ink-2 hover:text-ink"
+                maxUsable && Number(amount) === maxMajor ? "bg-brand-fill text-brand-ink" : "bg-tile text-ink-2 hover:text-ink"
               }`}
             >
               Max
@@ -284,7 +284,7 @@ export function StakeSheet({
           type="button"
           disabled={tooLow}
           onClick={commit}
-          className="h-[54px] rounded-2xl bg-brand-fill text-base font-bold text-white transition-colors hover:bg-brand-fill-hi disabled:opacity-40 land:h-11"
+          className="h-[54px] rounded-2xl bg-brand-fill text-base font-bold text-brand-ink transition-colors hover:bg-brand-fill-hi disabled:opacity-40 land:h-11"
         >
           {inPercent ? `Set ${pct}%` : `Set ${symbol}${groupAmount(amount)}`}
         </button>

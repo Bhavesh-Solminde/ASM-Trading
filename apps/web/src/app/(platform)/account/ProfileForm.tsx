@@ -136,7 +136,7 @@ export function ProfileForm({ initial }: { initial: Profile }) {
           <button
             type="button"
             onClick={() => void save()}
-            className="self-start rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-fill-hi phone:h-11 phone:self-stretch phone:py-0"
+            className="self-start rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-semibold text-brand-ink hover:bg-brand-fill-hi phone:h-11 phone:self-stretch phone:py-0"
           >
             Save
           </button>

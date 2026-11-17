@@ -88,7 +88,7 @@ export function ToggleRow({
         <span
           aria-hidden
           className="relative ml-auto h-7 w-12 shrink-0 rounded-full bg-tile-hi transition-colors peer-checked:bg-brand-fill peer-focus-visible:ring-2 peer-focus-visible:ring-brand motion-reduce:transition-none
-            after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-white after:shadow after:transition-transform after:content-[''] peer-checked:after:translate-x-5 motion-reduce:after:transition-none"
+            after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-switch-thumb after:shadow after:transition-transform after:content-[''] peer-checked:after:translate-x-5 motion-reduce:after:transition-none"
         />
       </label>
     </li>

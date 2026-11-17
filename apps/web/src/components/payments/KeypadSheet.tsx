@@ -58,7 +58,7 @@ export function KeypadSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-overlay-strong" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         ref={panelRef}
         role="dialog"
@@ -105,7 +105,7 @@ export function KeypadSheet({
           ref={doneRef}
           type="button"
           onClick={onClose}
-          className="mt-3 h-14 w-full rounded-2xl bg-brand-fill text-base font-bold text-white hover:bg-brand-fill-hi"
+          className="mt-3 h-14 w-full rounded-2xl bg-brand-fill text-base font-bold text-brand-ink hover:bg-brand-fill-hi"
         >
           Done
         </button>

@@ -20,7 +20,7 @@ function Guide({ guide }: { guide: CaptureGuide }) {
       : "w-[88%] aspect-[1.586] rounded-2xl";
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 grid place-items-center">
-      <div className={`${shape} border-[3px] border-dashed border-white/75 shadow-[0_0_0_999px_rgb(0_0_0/0.45)]`} />
+      <div className={`${shape} border-[3px] border-dashed border-camera-guide shadow-[0_0_0_999px_var(--color-camera-dim)]`} />
     </div>
   );
 }
@@ -125,7 +125,7 @@ export function PhotoCapture({
                 type="button"
                 onClick={() => nativeRef.current?.click()}
                 disabled={busy}
-                className="h-11 rounded-xl bg-brand-fill px-4 text-sm font-bold text-white hover:bg-brand-fill-hi disabled:opacity-60"
+                className="h-11 rounded-xl bg-brand-fill px-4 text-sm font-bold text-brand-ink hover:bg-brand-fill-hi disabled:opacity-60"
               >
                 Take photo
               </button>
@@ -143,7 +143,7 @@ export function PhotoCapture({
 
         {!reviewing && phase === "live" ? (
           <p className="absolute inset-x-0 bottom-3.5 flex justify-center">
-            <span className="rounded-full bg-black/60 px-3 py-1.5 text-[13px] text-ink">{hint}</span>
+            <span className="rounded-full bg-camera-hint px-3 py-1.5 text-[13px] text-photo-ink">{hint}</span>
           </p>
         ) : null}
       </div>
@@ -179,7 +179,7 @@ export function PhotoCapture({
             type="button"
             onClick={use}
             disabled={busy}
-            className="h-12 rounded-xl bg-brand-fill text-[15px] font-bold text-white hover:bg-brand-fill-hi disabled:opacity-60"
+            className="h-12 rounded-xl bg-brand-fill text-[15px] font-bold text-brand-ink hover:bg-brand-fill-hi disabled:opacity-60"
           >
             {busy ? "Uploading…" : "Use photo"}
           </button>

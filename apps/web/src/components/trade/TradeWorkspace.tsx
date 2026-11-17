@@ -89,7 +89,7 @@ function ChartClock() {
   return (
     <div className="pointer-events-none flex w-max items-center gap-1.5 rounded-[4px] border border-brand/40 bg-ground/75 px-2 py-[3px] backdrop-blur">
       <span aria-hidden className="size-1.5 rounded-full bg-up shadow-[0_0_6px_var(--color-up)]" />
-      <span className="led text-[12px] tracking-[0.05em] text-white">{now === null ? "" : clockTime(now)}</span>
+      <span className="led text-[12px] tracking-[0.05em] text-clock-ink">{now === null ? "" : clockTime(now)}</span>
     </div>
   );
 }
@@ -149,7 +149,7 @@ function FocusAccountSwitcher() {
       {open ? (
         <div
           role="menu"
-          className="absolute left-0 top-[calc(100%+6px)] z-40 w-[230px] rounded border border-rule bg-panel p-1.5 shadow-[0_24px_48px_-12px_rgba(0,0,0,.8)]"
+          className="absolute left-0 top-[calc(100%+6px)] z-40 w-[230px] rounded border border-rule bg-panel p-1.5 shadow-[0_24px_48px_-12px_var(--color-shadow-popover)]"
         >
           {ordered.map((acc) => {
             const isLive = acc.type === "LIVE";
@@ -333,7 +333,7 @@ function ChartTools({
         <Icon name="briefcase" className="size-[18px]" />
         <span
           className={`absolute -right-1.5 -top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-extrabold leading-none ${
-            openCount > 0 ? "bg-brand-fill text-white" : "bg-tile-hi text-ink-2"
+            openCount > 0 ? "bg-brand-fill text-brand-ink" : "bg-tile-hi text-ink-2"
           }`}
         >
           {openCount}
@@ -352,7 +352,7 @@ function TradesSheet({ onClose, ...panel }: ComponentProps<typeof TradesPanel> &
   useScrollLock();
   return (
     <div className="fixed inset-0 z-50">
-      <div aria-hidden onClick={onClose} className="absolute inset-0 bg-black/60" />
+      <div aria-hidden onClick={onClose} className="absolute inset-0 bg-overlay" />
       <div
         role="dialog"
         aria-modal="true"
@@ -522,7 +522,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
           </div>
         )}
 
-        <div className={`${tradingModel==="OTC"?"bg-[#0c141c]":"chartbox-bg"} relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[minmax(0,1fr)] phone:gap-0 phone:rounded-none phone:border-0 phone:p-0`}>
+        <div className={`${tradingModel==="OTC"?"bg-chart":"chartbox-bg"} relative grid min-h-0 grid-cols-[30px_minmax(0,1fr)] gap-2.5 rounded border border-rule pl-2.5 pt-2.5 phone:grid-cols-[minmax(0,1fr)] phone:gap-0 phone:rounded-none phone:border-0 phone:p-0`}>
           <LiveSentiment />
 
           <div className="relative min-h-0 min-w-0">
