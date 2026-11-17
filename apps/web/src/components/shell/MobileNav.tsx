@@ -1,5 +1,6 @@
 "use client";
 
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { DiwaliEntry } from "@/components/festive/SeasonalDiwali";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
@@ -125,6 +126,7 @@ export function MobileNav() {
                 Deposit
               </Link>
             </div>
+          <ThemeToggle row />
           </nav>
         </div>
       ) : null}

@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -72,6 +73,7 @@ export function AuthShell({
         {/* Form column */}
         <section className="relative flex items-center justify-center px-5 py-16 sm:px-8 md:py-12">
           <div className="w-full max-w-sm">
+            {legal !== null && <div className="absolute right-4 top-4"><ThemeToggle /></div>}
             {/* Large brand lockup */}
             <Link href="/" className="mb-10 flex flex-col items-start gap-3" aria-label="IndianxTrade — home">
               <LogoWordmark className="h-12 sm:h-14" />

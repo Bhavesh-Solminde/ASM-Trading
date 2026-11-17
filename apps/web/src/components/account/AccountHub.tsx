@@ -8,7 +8,7 @@ import { useChartProtection, setChartProtection } from "@/lib/chart-protection-p
 import { isMuted, setMuted } from "@/lib/sound";
 import { Icon, type IconName } from "@/components/shell/Icon";
 import { initialsFor, kycBadge, type KycTone } from "./profile-display";
-import { LinkRow, ListGroup, ToggleRow } from "./SettingsList";
+import { AppearanceRow, LinkRow, ListGroup, ToggleRow } from "./SettingsList";
 
 export interface HubAccount {
   id: string;
@@ -176,7 +176,8 @@ export function AccountHub({
           value={kyc.label}
           valueClass={`font-semibold ${KYC_TEXT[kyc.tone]}`}
         />
-      </ListGroup>
+      <AppearanceRow />
+        </ListGroup>
 
       <PushToggle />
       <ListGroup title="Preferences">

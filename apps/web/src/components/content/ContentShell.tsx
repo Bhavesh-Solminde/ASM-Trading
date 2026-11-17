@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import Link from "next/link";
 import { LogoWordmark } from "@/components/brand/Logo";
 import { SITE_NAME } from "@/lib/site";
@@ -13,7 +14,8 @@ export function ContentShell({ children }: { children: React.ReactNode }) {
           <Link href="/" aria-label="IndianxTrade — home" className="flex items-center">
             <LogoWordmark className="h-7" />
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
+          <nav className="flex items-center gap-2 text-sm">
+            <ThemeToggle />
             <Link href="/guides" className="text-ink-2 hover:text-ink">
               Guides
             </Link>

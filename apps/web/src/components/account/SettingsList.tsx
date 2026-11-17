@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/shell/Icon";
@@ -7,6 +8,8 @@ import { Icon, type IconName } from "@/components/shell/Icon";
  * a leading icon, label, optional right-hand value and a chevron. Dividers are
  * inset to the label so the icon column reads as a gutter.
  */
+
+export function AppearanceRow() { return <li><ThemeToggle row /></li>; }
 
 export function ListGroup({ title, children }: { title?: string; children: ReactNode }) {
   return (

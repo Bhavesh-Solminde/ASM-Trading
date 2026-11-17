@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { MARKET_COUNT } from "@asm/contracts";
 import { SeasonalDiwali, FestiveLights, DiwaliEntry, DiwaliWish } from "@/components/festive/SeasonalDiwali";
 import Image from "next/image";
@@ -445,6 +446,7 @@ function BoldNav() {
           <a href="#faq" className="hover:text-ink">FAQ</a>
         </div>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <span className="inline-flex xl:hidden"><DiwaliEntry iconOnly /></span>
           <span className="hidden xl:block"><DiwaliEntry compact /></span>
           <Link

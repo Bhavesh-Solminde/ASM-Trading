@@ -1,5 +1,6 @@
 "use client";
 
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { FestiveLights, DiwaliEntry } from "@/components/festive/SeasonalDiwali";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
@@ -122,6 +123,7 @@ export function TopBar() {
     >
       <FestiveLights />
       <MobileNav />
+      <span className="phone:hidden"><ThemeToggle /></span>
       <Link href="/trade" aria-label="IndianxTrade" className="flex h-11 flex-none items-center phone:mx-auto phone:h-10">
         <LogoWordmark compact className="h-8 flex-none phone:h-[clamp(18px,6vw,24px)]" />
       </Link>
