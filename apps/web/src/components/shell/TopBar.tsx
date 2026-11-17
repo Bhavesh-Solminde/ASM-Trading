@@ -183,7 +183,7 @@ export function TopBar() {
 
         <Link
           href="/deposit"
-          className="inline-flex h-11 flex-none items-center gap-2 rounded border border-up bg-up px-4 text-xs font-bold uppercase tracking-[0.06em] text-up-ink transition-colors hover:bg-up/90 phone:h-10 phone:w-10 phone:justify-center phone:rounded-lg phone:px-0"
+          className="inline-flex h-11 flex-none items-center gap-2 rounded border border-cta bg-cta px-4 text-xs font-bold uppercase tracking-[0.06em] text-cta-ink transition-colors hover:bg-cta/90 phone:h-10 phone:w-10 phone:justify-center phone:rounded-lg phone:px-0"
         >
           <Icon name="plus" className="size-[18px] phone:size-5" />
           <span className="phone:sr-only">Deposit</span>

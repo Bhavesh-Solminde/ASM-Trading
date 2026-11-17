@@ -53,6 +53,11 @@
      face is kept for the wordmark only. */
   --font-led: var(--font-ui);
   --font-brand: var(--font-doto), var(--font-ui);
+  /* Primary money action (Deposit) and the Live balance card. Dark keeps the
+     original green treatment; light re-roles them (see the light block). */
+  --color-cta: var(--color-up);
+  --color-cta-ink: var(--color-up-ink);
+  --color-live-card: color-mix(in srgb, var(--color-up) 7%, var(--color-ground));
 }
 
 :root {
@@ -397,27 +402,32 @@ button,
 
 :root[data-theme="light"] {
   --color-chart-attribution: #ffffff;
-  --color-ground: #f4f6f9;
+  --color-ground: #eef0f3;
   --color-panel: #ffffff;
-  --color-tile: #eef2f6;
-  --color-tile-hi: #e2e8ef;
+  --color-tile: #f3f4f6;
+  --color-tile-hi: #e8eaee;
   --color-chart: #ffffff;
-  --color-rule: #cfd8e3;
-  --color-ink: #0b1220;
-  --color-ink-2: #3b4757;
-  --color-ink-3: #56616f;
-  --color-brand: #175fcc;
+  --color-rule: #e3e6eb;
+  --color-ink: #131722;
+  --color-ink-2: #525866;
+  --color-ink-3: #616875;
+  --color-brand: #194bcc;
   --color-brand-ink: #ffffff;
-  --color-brand-fill: #1f6feb;
-  --color-brand-fill-hi: #1859c4;
-  --color-brand-dim: #e1ecff;
-  --color-up: #077436;
+  --color-brand-fill: #2962ff;
+  --color-brand-fill-hi: #1e4fd6;
+  --color-brand-dim: #e9efff;
+  --color-up: #036453;
   --color-up-ink: #ffffff;
-  --color-down: #c8261c;
+  --color-down: #c42b37;
   --color-down-ink: #ffffff;
-  --color-caution: #8f5400;
-  --color-warn-bg: #fdeceb;
+  --color-caution: #8a4f00;
+  --color-warn-bg: #fdeeee;
   color-scheme: light;
+  /* Light: blue is the single action colour (TradingView/Coinbase pattern);
+     green/red stay reserved for market direction and money results. */
+  --color-cta: var(--color-brand-fill);
+  --color-cta-ink: var(--color-brand-ink);
+  --color-live-card: var(--color-panel);
 }
 
 /* Admin is an isolated dark application, including document overscroll. */

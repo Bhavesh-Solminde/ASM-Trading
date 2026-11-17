@@ -73,11 +73,11 @@
 
 /* Admin routes force the root theme to dark before public overrides apply. */
 :root[data-theme="light"] {
-  --color-mini-candle-up: #078358;
-  --color-mini-candle-down: #c8261c;
-  --color-surface-highlight: #0b1220;
-  --color-control-rule: #cfd8e3;
-  --color-control-rule-hi: #7d8da1;
+  --color-mini-candle-up: #089981;
+  --color-mini-candle-down: #f23645;
+  --color-surface-highlight: #131722;
+  --color-control-rule: #e3e6eb;
+  --color-control-rule-hi: #9aa1ad;
   --color-shadow-soft: rgb(11 18 32 / .08);
   --color-shadow-medium: rgb(11 18 32 / .10);
   --color-shadow-elevated: rgb(11 18 32 / .14);
@@ -87,18 +87,18 @@
   --color-overlay: rgb(11 18 32 / .42);
   --color-overlay-strong: rgb(11 18 32 / .48);
   --color-result-hover: rgb(0 0 0 / .1);
-  --color-warning-rule: rgb(200 38 28 / .4);
-  --color-bonus-surface: #e8f5ec;
-  --color-bonus-accent: #06652f;
+  --color-warning-rule: rgb(196 43 55 / .4);
+  --color-bonus-surface: #e7f4f1;
+  --color-bonus-accent: #04604f;
   --color-switch-thumb: #ffffff;
-  --color-clock-ink: #0b1220;
-  --color-asset-ring: #cfd8e3;
-  --color-asset-tag: #e1ecff;
-  --color-asset-tag-ink: #175fcc;
+  --color-clock-ink: #131722;
+  --color-asset-ring: #e3e6eb;
+  --color-asset-tag: #e9efff;
+  --color-asset-tag-ink: #194bcc;
   --color-button-sheen: rgb(255 255 255 / .25);
   --color-device-frame: #000000;
   --color-mask: #000000;
-  --color-auth-ground: #f4f6f9;
+  --color-auth-ground: #eef0f3;
   --color-auth-photo-ground: #000000;
   --color-auth-photo-fade: #0000004d;
   --color-photo-ink: #f4f7fb;
@@ -110,8 +110,8 @@
   --color-google-surface: #ffffff;
   --color-google-ink: #1f1f1f;
   --color-google-hover: #f2f2f2;
-  --color-live-halo: rgb(7 116 54 / .15);
-  --color-live-halo-subtle: rgb(7 116 54 / .12);
+  --color-live-halo: rgb(3 100 83 / .15);
+  --color-live-halo-subtle: rgb(3 100 83 / .12);
   --color-festive-edge: #9b610e;
   --color-festive-light: #b37719;
   --color-festive-chakra-edge: #a36600;
@@ -135,8 +135,8 @@
   --color-festive-lamp-glow-soft: #8a570a1f;
   --color-festive-hover: #8a570a0d;
   --color-festive-wish: #8a570a;
-  --color-festive-spark-blue: #175fcc;
-  --color-festive-text-shadow: #f4f6f9;
+  --color-festive-spark-blue: #194bcc;
+  --color-festive-text-shadow: #eef0f3;
   --color-gift-wrap: #c78e17;
   --color-gift-shade: #a36b10;
   --color-gift-ribbon: #e3ad38;

@@ -120,7 +120,7 @@ export function MobileNav() {
               <Link
                 href="/deposit"
                 onClick={close}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-up text-sm font-bold text-up-ink transition-colors hover:bg-up/90"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cta text-sm font-bold text-cta-ink transition-colors hover:bg-cta/90"
               >
                 <Icon name="plus" className="size-5" />
                 Deposit

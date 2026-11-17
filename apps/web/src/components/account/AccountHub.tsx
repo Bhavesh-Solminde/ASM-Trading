@@ -78,7 +78,7 @@ export function AccountHub({
   const kyc = kycBadge(kycStatus);
   const target = shown?.currency === "INR" ? "USD" : "INR";
   const cardTint = isLive
-    ? "bg-[color-mix(in_srgb,var(--color-up)_7%,var(--color-ground))]"
+    ? "bg-live-card"
     : "bg-tile";
 
   return (
