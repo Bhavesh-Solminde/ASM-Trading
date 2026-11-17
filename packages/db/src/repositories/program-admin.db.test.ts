@@ -4,7 +4,7 @@ import { prisma } from "../client";
 import type { Prisma } from "../../generated/prisma/client";
 import { createAccountsForUser } from "./account";
 import { ensureAffiliateProfile, onAffiliateEmailVerified } from "./affiliate-profile";
-import { defaultRevenueShareAt, getAffiliateRateAt } from "./affiliate-rate";
+import { defaultRevenueShareAt, getAffiliateRateAt, revenueShareEffectiveFrom } from "./affiliate-rate";
 import { creditDepositToAccount } from "./deposit";
 import { consumeEmailVerificationToken, issueEmailVerificationToken } from "./email-verification";
 import {
@@ -153,12 +153,12 @@ describe("qualification with affiliate status and per-affiliate rates", () => {
 
   it("uses the per-affiliate deposit reward (7%: ₹1,000 → ₹70) and falls back to the global 5%", async () => {
     const aff = await makeAffiliate("ACTIVE");
-    await appendAffiliateRate({ affiliateId: aff.id, revenueShareBps: 2_500, depositRewardBps: 700, effectiveFrom: new Date(), reason: `test ${RUN}`, actor: ACTOR });
+    await prisma.affiliateRate.create({ data: { affiliateId: aff.id, revenueShareBps: 2_500, depositRewardBps: 700, effectiveFrom: new Date(0), reason: `test ${RUN}`, createdBy: ACTOR } });
     await qualifyFriendOf(aff.id, 100_000);
     expect(await earningOf(aff.id)).toMatchObject({ status: "PENDING", amountMinor: 7_000 });
 
     const plain = await makeAffiliate("ACTIVE");
-    await appendAffiliateRate({ affiliateId: plain.id, revenueShareBps: 1_000, depositRewardBps: null, effectiveFrom: new Date(), reason: `test ${RUN}`, actor: ACTOR });
+    await prisma.affiliateRate.create({ data: { affiliateId: plain.id, revenueShareBps: 1_000, depositRewardBps: null, effectiveFrom: new Date(0), reason: `test ${RUN}`, createdBy: ACTOR } });
     await qualifyFriendOf(plain.id, 100_000);
     expect(await earningOf(plain.id)).toMatchObject({ status: "PENDING", amountMinor: 5_000 });
   });
@@ -176,7 +176,18 @@ describe("rate and setting validation", () => {
     await expect(appendAffiliateRate({ ...base, affiliateId: (await makeUser()).id })).rejects.toEqual(refused("not_found"));
     const row = await appendAffiliateRate({ ...base, effectiveFrom: new Date(Date.now() - 30_000) }); // inside the 60 s tolerance
     expect(await audits(row.id, "affiliate.rate_assigned")).toHaveLength(1);
-    expect((await getAffiliateAdminDetail(aff.id))?.currentRate).toMatchObject({ source: "assigned", rateId: row.id, revenueShareBps: 100 });
+    expect((await getAffiliateAdminDetail(aff.id))?.currentRate.source).toBe("default");
+    expect(await getAffiliateRateAt(aff.id, row.effectiveFrom)).toMatchObject({ source: "assigned", rateId: row.id, revenueShareBps: 100 });
+    expect(row.effectiveFrom).toEqual(revenueShareEffectiveFrom(new Date()));
+  });
+
+  it("schedules an immediate default Revenue Share edit at the next IST midnight", async () => {
+    const now = new Date();
+    const current = await defaultRevenueShareAt(now);
+    const row = await appendProgramSetting({ key: "DEFAULT_REVENUE_SHARE_BPS", value: 1_250, effectiveFrom: now, reason: `test ${RUN}`, actor: ACTOR });
+    expect(row.effectiveFrom).toEqual(revenueShareEffectiveFrom(now));
+    expect((await defaultRevenueShareAt(now))?.id).toBe(current?.id);
+    expect(await defaultRevenueShareAt(row.effectiveFrom)).toMatchObject({ id: row.id, value: 1_250 });
   });
 
   it("validates settings per key and refuses back-dating", async () => {
@@ -216,14 +227,8 @@ describe("default Revenue Share", () => {
   it("applies to affiliates without an assigned rate; an assigned rate in force wins", async () => {
     const plain = await makeAffiliate("ACTIVE");
     const assigned = await makeAffiliate("ACTIVE");
-    const rate = await appendAffiliateRate({
-      affiliateId: assigned.id,
-      revenueShareBps: 2_500,
-      depositRewardBps: null,
-      effectiveFrom: new Date(),
-      reason: "ok",
-      actor: ACTOR,
-    });
+    const rate = await prisma.affiliateRate.create({ data: { affiliateId: assigned.id, revenueShareBps: 2_500,
+      depositRewardBps: null, effectiveFrom: new Date(0), reason: "fixture", createdBy: ACTOR } });
     const now = new Date();
     const dflt = await defaultRevenueShareAt(now);
     expect(dflt).not.toBeNull(); // seeded by migration from 1970

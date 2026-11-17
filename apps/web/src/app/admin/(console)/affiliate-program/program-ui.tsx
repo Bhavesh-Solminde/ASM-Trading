@@ -103,7 +103,9 @@ export function SettingEditForm({
           />
         )}
         <label className="admin-label" htmlFor={id("from")}>
-          Effective from (IST, empty = now)
+          {settingKey === "DEFAULT_REVENUE_SHARE_BPS"
+            ? "Effective from (IST midnight; empty = next midnight)"
+            : "Effective from (IST, empty = now)"}
         </label>
         <input id={id("from")} name="effectiveFrom" type="datetime-local" className="admin-input" />
         <label className="admin-label" htmlFor={id("reason")}>

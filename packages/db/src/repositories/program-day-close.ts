@@ -23,6 +23,7 @@ type ReleaseRow = {
   beneficiaryUserId: string;
   amountMinor: number;
   adminReleasedAt: Date | null;
+  relatedUserIds: string[];
   qualification: { referredUserId: string } | null;
 };
 
@@ -35,7 +36,7 @@ export async function releasePendingEarnings(tx: DbTransaction, rows: readonly R
   let released = 0;
   for (const e of rows) {
     // An admin release (HELD → PENDING) is a decision on this earning: no automatic re-hold.
-    const hold = e.adminReleasedAt ? [] : await earningHoldReasons(tx, e.beneficiaryUserId, e.qualification?.referredUserId ?? null);
+    const hold = e.adminReleasedAt ? [] : await earningHoldReasons(tx, e.beneficiaryUserId, e.qualification?.referredUserId ?? null, true, e.relatedUserIds);
     if (hold.length) {
       await tx.programEarning.updateMany({ where: { id: e.id, status: "PENDING" }, data: { status: "HELD", holdReason: hold.join("; ") } });
     } else if (await makeEarningAvailable(tx, e)) {
@@ -71,7 +72,7 @@ export async function autoReleaseHeldEarnings(day: string): Promise<number> {
         moved++;
         await tx.auditLog.create({
           data: {
-            actorId: "system",
+            actorId: null,
             action: "program.earning_auto_released",
             targetType: "ProgramEarning",
             targetId: e.id,
@@ -131,7 +132,7 @@ export async function closeProgramDay(day: string, now: Date = new Date()): Prom
         where: { status: "PENDING", earnedAt: { lt: close }, id: { gt: afterId } },
         orderBy: { id: "asc" },
         take: RELEASE_BATCH,
-        select: { id: true, beneficiaryUserId: true, amountMinor: true, adminReleasedAt: true, qualification: { select: { referredUserId: true } } },
+        select: { id: true, beneficiaryUserId: true, amountMinor: true, adminReleasedAt: true, relatedUserIds: true, qualification: { select: { referredUserId: true } } },
       });
       releasedEarnings += await releasePendingEarnings(tx, rows);
       return rows;

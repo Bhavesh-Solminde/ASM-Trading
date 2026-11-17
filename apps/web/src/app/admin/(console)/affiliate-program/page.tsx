@@ -522,7 +522,7 @@ async function SettingsTab() {
   return (
     <>
       <Hint>
-        Edit a setting in its row. A new value applies from its effective time onward (leave the time empty to apply it now). Past earnings and qualifications keep the values in force when they
+        Edit a setting in its row. A new value applies from its effective time onward (leave the time empty to apply it now; Revenue Share starts at the next midnight IST). Past earnings and qualifications keep the values in force when they
         happened.
       </Hint>
       <div className="admin-table-wrap">

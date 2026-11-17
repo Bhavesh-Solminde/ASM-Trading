@@ -5,7 +5,7 @@ import type { Prisma } from "../../generated/prisma/client";
 import { createAccountsForUser } from "./account";
 import { onAffiliateEmailVerified } from "./affiliate-profile";
 import { defaultRevenueShareAt } from "./affiliate-rate";
-import { PROGRAM_DAY_CLOSE_GRACE_MS, closeDueProgramDays, closeProgramDay, releasePendingEarnings } from "./program-day-close";
+import { PROGRAM_DAY_CLOSE_GRACE_MS, autoReleaseHeldEarnings, closeDueProgramDays, closeProgramDay, releasePendingEarnings } from "./program-day-close";
 import { transferProgramEarningsToTrading } from "./program-transfer";
 import {
   ProgramActionRefused,
@@ -145,10 +145,10 @@ describe("revenue share math (pure)", () => {
     expect(revenueShareOf(3, 0, 5_000).shareMinor).toBe(1); // 1.5 paise → 1
   });
   it("splits off the flagged friends' share, capped at the day's share", () => {
-    expect(splitRevenueShare(30_000, 40_000, 5_000)).toEqual({ cleanMinor: 10_000, heldMinor: 20_000 });
-    expect(splitRevenueShare(10_000, 40_000, 5_000)).toEqual({ cleanMinor: 0, heldMinor: 10_000 }); // carry-in ate the rest
-    expect(splitRevenueShare(10_000, -40_000, 5_000)).toEqual({ cleanMinor: 10_000, heldMinor: 0 }); // flagged friends won
-    expect(splitRevenueShare(1, 3, 5_000)).toEqual({ cleanMinor: 0, heldMinor: 1 });
+    expect(splitRevenueShare(30_000, 10_000)).toEqual({ cleanMinor: 10_000, heldMinor: 20_000 });
+    expect(splitRevenueShare(10_000, 0)).toEqual({ cleanMinor: 0, heldMinor: 10_000 }); // unresolved carry supplied the entire share
+    expect(splitRevenueShare(10_000, 30_000)).toEqual({ cleanMinor: 10_000, heldMinor: 0 }); // winning friends still offset losing friends
+    expect(splitRevenueShare(1, 0)).toEqual({ cleanMinor: 0, heldMinor: 1 });
   });
 });
 
@@ -350,7 +350,7 @@ describe("daily close — Revenue Share", () => {
 });
 
 describe("daily close — Revenue Share from flagged friends", () => {
-  it("holds the flagged friend's part, pays the clean part, keeps carry-forward unchanged and never duplicates", async () => {
+  it("holds the flagged friend's current and carried contribution and never duplicates", async () => {
     const d1 = slot();
     const d2 = addIstDays(d1, 1);
     const aff = await affiliate({ bps: 5_000 });
@@ -370,10 +370,9 @@ describe("daily close — Revenue Share from flagged friends", () => {
     ]);
     const earnings = await prisma.programEarning.findMany({ where: { beneficiaryUserId: aff.id }, orderBy: { revenueSharePart: "asc" } });
     expect(earnings).toMatchObject([
-      { revenueSharePart: "CLEAN", status: "AVAILABLE", amountMinor: 20_000 },
-      { revenueSharePart: "FLAGGED", status: "HELD", amountMinor: 20_000, holdReason: FLAGGED_REFERRAL_HOLD_REASON, relatedUserIds: [flagged.id] },
+      { revenueSharePart: "FLAGGED", status: "HELD", amountMinor: 40_000, holdReason: FLAGGED_REFERRAL_HOLD_REASON, relatedUserIds: [flagged.id] },
     ]);
-    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 20_000 });
+    expect(await wallet(aff.id)).toBeNull();
   });
 
   it("a dismissed flag releases the held part at the next close; a confirmed flag keeps it held", async () => {
@@ -399,11 +398,150 @@ describe("daily close — Revenue Share from flagged friends", () => {
     expect(released).toMatchObject({ status: "AVAILABLE", holdReason: null });
     expect(await wallet(dismissed.aff.id)).toMatchObject({ availableMinor: 20_000 });
     const [audit] = await prisma.auditLog.findMany({ where: { targetId: released.id, action: "program.earning_auto_released" } });
-    expect(audit).toMatchObject({ actorId: "system", before: { status: "HELD" }, after: { status: "PENDING" } });
+    expect(audit).toMatchObject({ actorId: null, before: { status: "HELD" }, after: { status: "PENDING" } });
     expect(await held(confirmed.aff.id)).toMatchObject({ status: "HELD" });
     expect(await wallet(confirmed.aff.id)).toBeNull();
     // Flags are never changed by the close.
     expect(await prisma.fraudFlag.findUniqueOrThrow({ where: { id: confirmed.flag.id } })).toMatchObject({ status: "CONFIRMED" });
+  });
+});
+
+describe("Revenue Share review regressions", () => {
+  it("excludes confirmed friends' wins and losses before netting and carry-forward", async () => {
+    const d1 = slot();
+    const d2 = addIstDays(d1, 1);
+    for (const flaggedPnl of [-40_000, 200_000]) {
+      const aff = await affiliate({ bps: 5_000 });
+      const clean = await qualifiedFriend(aff.id, istDayStart(d1));
+      const flagged = await qualifiedFriend(aff.id, istDayStart(d1));
+      await prisma.fraudFlag.create({ data: { userId: flagged.id, kind: "SELF_REFERRAL", status: "CONFIRMED", linkedUserIds: [flagged.id], evidence: {} } });
+      await trade(clean.id, noon(d1), 100_000);
+      await trade(flagged.id, noon(d1), flaggedPnl);
+      await trade(clean.id, noon(d2), -100_000);
+    }
+    await close(d1);
+    await close(d2);
+    const rows = await prisma.revenueShareDay.findMany({ where: { day: { in: [d1, d2].map((d) => new Date(`${d}T00:00:00Z`)) } }, orderBy: { day: "asc" } });
+    expect(rows).toHaveLength(4);
+    expect(rows.filter((r) => r.day.toISOString().startsWith(d1))).toMatchObject([
+      { netGainMinor: -100_000, tradeCount: 1, carryOutMinor: -100_000 },
+      { netGainMinor: -100_000, tradeCount: 1, carryOutMinor: -100_000 },
+    ]);
+    expect(rows.filter((r) => r.day.toISOString().startsWith(d2)).every((r) => r.shareMinor === 0 && r.carryInMinor === -100_000)).toBe(true);
+  });
+
+  it("holds a prior flagged loss that improves a later day's result, then pays it once dismissed", async () => {
+    const d1 = slot();
+    const aff = await affiliate({ bps: 5_000 });
+    const clean = await qualifiedFriend(aff.id, istDayStart(d1));
+    const flagged = await qualifiedFriend(aff.id, istDayStart(d1));
+    const flag = await prisma.fraudFlag.create({ data: { userId: flagged.id, kind: "SELF_REFERRAL", status: "OPEN", linkedUserIds: [flagged.id], evidence: {} } });
+    await trade(clean.id, noon(d1), 100_000);
+    await trade(flagged.id, noon(d1), -40_000);
+    await trade(clean.id, noon(addIstDays(d1, 1)), -100_000);
+    await close(d1);
+    await close(addIstDays(d1, 1));
+    const held = await prisma.programEarning.findFirstOrThrow({ where: { beneficiaryUserId: aff.id } });
+    expect(held).toMatchObject({ status: "HELD", revenueSharePart: "FLAGGED", amountMinor: 20_000, relatedUserIds: [flagged.id] });
+    expect(await wallet(aff.id)).toBeNull();
+    await prisma.fraudFlag.update({ where: { id: flag.id }, data: { status: "DISMISSED" } });
+    await close(addIstDays(d1, 2));
+    await close(addIstDays(d1, 2));
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 20_000 });
+    expect(await prisma.programLedgerEntry.count({ where: { userId: aff.id } })).toBe(1);
+  });
+
+  it("removes a newly confirmed friend's past carry benefit without changing the closed day", async () => {
+    const d1 = slot();
+    const aff = await affiliate({ bps: 5_000 });
+    const clean = await qualifiedFriend(aff.id, istDayStart(d1));
+    const flagged = await qualifiedFriend(aff.id, istDayStart(d1));
+    const flag = await prisma.fraudFlag.create({ data: { userId: flagged.id, kind: "SELF_REFERRAL", status: "OPEN", linkedUserIds: [flagged.id], evidence: {} } });
+    await trade(clean.id, noon(d1), 100_000);
+    await trade(flagged.id, noon(d1), -40_000);
+    await close(d1);
+    const original = (await rsd(aff.id))[0]!;
+    await prisma.fraudFlag.update({ where: { id: flag.id }, data: { status: "CONFIRMED" } });
+    await trade(clean.id, noon(addIstDays(d1, 1)), -100_000);
+    await close(addIstDays(d1, 1));
+    const rows = await rsd(aff.id);
+    expect(JSON.stringify(rows[0])).toBe(JSON.stringify(original));
+    expect(rows[1]).toMatchObject({ carryInMinor: -100_000, shareMinor: 0 });
+    expect(await wallet(aff.id)).toBeNull();
+    expect((await prisma.fraudFlag.findUniqueOrThrow({ where: { id: flag.id } })).status).toBe("CONFIRMED");
+  });
+
+  it("a flag confirmed after a closed day fixes later days only and never back-pays the closed day", async () => {
+    const d1 = slot();
+    const aff = await affiliate({ bps: 5_000 });
+    const clean = await qualifiedFriend(aff.id, istDayStart(d1));
+    const flagged = await qualifiedFriend(aff.id, istDayStart(d1));
+    const flag = await prisma.fraudFlag.create({ data: { userId: flagged.id, kind: "SELF_REFERRAL", status: "OPEN", linkedUserIds: [flagged.id], evidence: {} } });
+    await trade(clean.id, noon(d1), -40_000);
+    await trade(flagged.id, noon(d1), 100_000);
+    await close(d1);
+    await prisma.fraudFlag.update({ where: { id: flag.id }, data: { status: "CONFIRMED" } });
+    await trade(clean.id, noon(addIstDays(d1, 1)), -100_000);
+    await close(addIstDays(d1, 1));
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 50_000 });
+    await trade(clean.id, noon(addIstDays(d1, 2)), -10_000);
+    await close(addIstDays(d1, 2));
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 55_000 });
+  });
+
+  it("keeps money already credited when a flag is confirmed later (no clawback)", async () => {
+    const d1 = slot();
+    const aff = await affiliate({ bps: 5_000 });
+    const laterFlagged = await qualifiedFriend(aff.id, istDayStart(d1));
+    const clean = await qualifiedFriend(aff.id, istDayStart(d1));
+    await trade(laterFlagged.id, noon(d1), -40_000);
+    await close(d1);
+    const original = await prisma.programEarning.findFirstOrThrow({ where: { beneficiaryUserId: aff.id } });
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 20_000 });
+    await prisma.fraudFlag.create({ data: { userId: laterFlagged.id, kind: "SELF_REFERRAL", status: "CONFIRMED", linkedUserIds: [laterFlagged.id], evidence: {} } });
+    await trade(clean.id, noon(addIstDays(d1, 1)), -100_000);
+    await close(addIstDays(d1, 1));
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 70_000 });
+    expect(await prisma.programEarning.findUniqueOrThrow({ where: { id: original.id } })).toMatchObject({ status: "AVAILABLE", amountMinor: 20_000 });
+  });
+
+  it("rechecks related friends if a new flag arrives after automatic unhold", async () => {
+    const d1 = slot();
+    const aff = await affiliate({ bps: 5_000 });
+    const f = await qualifiedFriend(aff.id, istDayStart(d1));
+    const flag = await prisma.fraudFlag.create({ data: { userId: f.id, kind: "SELF_REFERRAL", status: "OPEN", linkedUserIds: [f.id], evidence: {} } });
+    await trade(f.id, noon(d1), -40_000);
+    await close(d1);
+    const e = await prisma.programEarning.findFirstOrThrow({ where: { beneficiaryUserId: aff.id } });
+    await prisma.fraudFlag.update({ where: { id: flag.id }, data: { status: "DISMISSED" } });
+    await autoReleaseHeldEarnings(addIstDays(d1, 1));
+    expect((await prisma.programEarning.findUniqueOrThrow({ where: { id: e.id } })).status).toBe("PENDING");
+    const reopened = await prisma.fraudFlag.create({ data: { userId: f.id, kind: "SELF_REFERRAL", status: "OPEN", linkedUserIds: [f.id], evidence: {} } });
+    await close(addIstDays(d1, 1));
+    expect((await prisma.programEarning.findUniqueOrThrow({ where: { id: e.id } })).status).toBe("HELD");
+    expect(await wallet(aff.id)).toBeNull();
+    await prisma.fraudFlag.update({ where: { id: reopened.id }, data: { status: "DISMISSED" } });
+    await close(addIstDays(d1, 2));
+    expect(await wallet(aff.id)).toMatchObject({ availableMinor: 20_000 });
+  });
+
+  it("does not apply a midday default or assigned rate to trades earlier that day", async () => {
+    const day = slot();
+    const prior = (await defaultRevenueShareAt(istDayStart(addIstDays(day, 2))))?.value ?? 0;
+    for (const [value, effectiveFrom] of [[1000, istDayStart(day)], [5000, noon(day)], [prior, istDayStart(addIstDays(day, 2))]] as const) {
+      await prisma.programSetting.create({ data: { key: "DEFAULT_REVENUE_SHARE_BPS", value, effectiveFrom, createdBy: `test-${RUN}`, reason: "test" } });
+    }
+    const plain = await affiliate();
+    const own = await affiliate({ bps: 1000 });
+    await rate(own.id, 5000, noon(day));
+    for (const a of [plain, own]) {
+      const f = await qualifiedFriend(a.id, istDayStart(day));
+      await trade(f.id, new Date(noon(day).getTime() - 3600000), -10000);
+      await trade(f.id, noon(addIstDays(day, 1)), -10000);
+    }
+    await close(day);
+    await close(addIstDays(day, 1));
+    for (const a of [plain, own]) expect((await rsd(a.id)).map((r) => [r.rateBps, r.shareMinor])).toEqual([[1000, 1000], [5000, 5000]]);
   });
 });
 
@@ -508,7 +646,7 @@ describe("daily close — release of PENDING earnings", () => {
     const frozen = await makeUser({ status: "FROZEN" });
     const a = await pendingEarning(inviter.id, noon(day));
     const b = await pendingEarning(frozen.id, noon(day));
-    const select = { id: true, beneficiaryUserId: true, amountMinor: true, adminReleasedAt: true, qualification: { select: { referredUserId: true } } } as const;
+    const select = { id: true, beneficiaryUserId: true, amountMinor: true, adminReleasedAt: true, relatedUserIds: true, qualification: { select: { referredUserId: true } } } as const;
     const stale = await prisma.programEarning.findMany({ where: { id: { in: [a.id, b.id] } }, select });
     // A deposit reversal voids both after the close read them.
     await prisma.programEarning.updateMany({ where: { id: { in: [a.id, b.id] } }, data: { status: "VOID", voidReason: "reversed" } });

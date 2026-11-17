@@ -1,7 +1,14 @@
 import { prisma, type DbClient, type DbTransaction } from "../client";
 import { programSettingRowAt } from "./program-settings";
+import { houseDateForInstant } from "./house-day";
 
 type Db = DbClient | DbTransaction;
+
+/** Daily Revenue Share changes start at the first IST midnight at/after the requested time. */
+export function revenueShareEffectiveFrom(at: Date): Date {
+  const start = houseDateForInstant(at).getTime() - 330 * 60_000;
+  return new Date(start === at.getTime() ? start : start + 86_400_000);
+}
 
 export interface AffiliateRateAt {
   /** "assigned": the affiliate's own AffiliateRate; "default": the DEFAULT_REVENUE_SHARE_BPS setting. */

@@ -12,7 +12,7 @@ import type {
 import { ProgramSettingKey as SettingKeys } from "../../generated/prisma/client";
 import type { ProgramEarning, ProgramSetting } from "../models";
 import { programSettingValueAt } from "./program-settings";
-import { defaultRate, defaultRevenueShareAt, type AffiliateRateAt } from "./affiliate-rate";
+import { defaultRate, defaultRevenueShareAt, revenueShareEffectiveFrom, type AffiliateRateAt } from "./affiliate-rate";
 import { ProgramActionRefused, cleanReason } from "./program-errors";
 import { qualifiedDepositTotalsByInviter } from "./referral-qualification";
 
@@ -115,7 +115,7 @@ export async function appendAffiliateRate(input: {
   const reason = cleanReason(input.reason);
   checkBps(input.revenueShareBps, "Revenue Share");
   if (input.depositRewardBps !== null) checkBps(input.depositRewardBps, "Deposit reward");
-  const effectiveFrom = checkEffectiveFrom(input.effectiveFrom, new Date());
+  const effectiveFrom = revenueShareEffectiveFrom(checkEffectiveFrom(input.effectiveFrom, new Date()));
   return prisma.$transaction(async (tx) => {
     const user = await tx.user.findUnique({ where: { id: input.affiliateId }, select: { role: true, legacySimulated: true } });
     if (!user || user.role !== "AFFILIATE" || user.legacySimulated) {
@@ -187,7 +187,8 @@ export async function appendProgramSetting(input: {
     throw new ProgramActionRefused("invalid_input", "Approval must be 0 (off) or 1 (on).");
   }
   if (MUST_BE_POSITIVE.includes(key) && value === 0) throw new ProgramActionRefused("invalid_input", "This minimum must be above 0.");
-  const effectiveFrom = checkEffectiveFrom(input.effectiveFrom, new Date());
+  const requestedFrom = checkEffectiveFrom(input.effectiveFrom, new Date());
+  const effectiveFrom = key === "DEFAULT_REVENUE_SHARE_BPS" ? revenueShareEffectiveFrom(requestedFrom) : requestedFrom;
 
   return prisma.$transaction(async (tx) => {
     const at = effectiveFrom;

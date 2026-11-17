@@ -162,7 +162,7 @@ export default async function AffiliateDetailPage({
             <input id="rate-dep" name="depositRewardPct" className="admin-input" inputMode="decimal" placeholder="Empty = global setting" />
           </div>
           <div className="admin-field" style={{ marginBottom: 0 }}>
-            <label htmlFor="rate-from">Effective from (IST, empty = now)</label>
+            <label htmlFor="rate-from">Effective from (IST midnight, empty = next midnight)</label>
             <input id="rate-from" name="effectiveFrom" type="datetime-local" className="admin-input" />
           </div>
           <div className="admin-field" style={{ marginBottom: 0 }}>
@@ -176,7 +176,7 @@ export default async function AffiliateDetailPage({
           </div>
         </form>
         <div className="admin-cell-sub" style={{ marginBottom: 12 }}>
-          Applies to activity from the effective time onward; closed days are never recalculated.
+          Both rates start at midnight IST. Times within a day move forward to the next midnight; closed days keep their original rates.
         </div>
         <div className="admin-table-wrap">
           <table className="admin-table admin-table--stack">

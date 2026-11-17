@@ -1394,6 +1394,8 @@ model RevenueShareDay {
   shareMinor    BigInt
   carryOutMinor BigInt
   tradeCount    Int
+  /// The day's per-friend real-money results, replayed to recompute carry when a flag changes.
+  calculation   Json
   createdAt     DateTime @default(now())
 
   affiliate User            @relation(fields: [affiliateId], references: [id], onDelete: Cascade)

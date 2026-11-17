@@ -30,7 +30,7 @@ export const SETTING_META: Record<string, { label: string; unit: SettingUnit; he
   DEFAULT_REVENUE_SHARE_BPS: {
     label: "Default Revenue Share",
     unit: "bps",
-    help: "Used for affiliates without their own assigned rate.",
+    help: "Used for affiliates without their own assigned rate. Changes start at midnight IST.",
   },
   INVITE_EXTRA_BONUS_PCT: {
     label: "Invited friend extra bonus",
