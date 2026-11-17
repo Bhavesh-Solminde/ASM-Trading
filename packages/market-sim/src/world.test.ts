@@ -22,7 +22,9 @@ it("opening DEMO positions does not alter any market path",()=>{
   expect(world.checkpoint().markets).toEqual(baseline.checkpoint().markets);
   expect(world.contracts.pendingSettlements()).toHaveLength(10);
 });
-it.each(["LIVE", "DEMO"] as const)("AFFILIATE %s contracts preserve every book and future bot path", accountType => {
+it.each([
+  ["LIVE", true], ["DEMO", true], ["LIVE", undefined], ["DEMO", false],
+] as const)("legacy-simulated or DEMO AFFILIATE %s (legacySimulated=%s) contracts preserve every book and future bot path", (accountType, legacySimulated) => {
   const world = new MarketWorld(start);
   const baseline = MarketWorld.restore(world.checkpoint());
   for (let i = 0; i < 20; i++) {
@@ -30,6 +32,7 @@ it.each(["LIVE", "DEMO"] as const)("AFFILIATE %s contracts preserve every book a
     const displayedPrice = world.snapshot(symbol).market.lastPrice!;
     const opened = world.open({
       ...trade, id: `affiliate-${i}`, role: "AFFILIATE", accountType, symbol,
+      ...(legacySimulated !== undefined ? { legacySimulated } : {}),
       direction: i % 3 ? "UP" : "DOWN", displayedPrice,
     });
     expect(opened.flowLots).toBe(0);
@@ -46,6 +49,14 @@ it.each(["LIVE", "DEMO"] as const)("AFFILIATE %s contracts preserve every book a
     expect(world.leaderboard()).toEqual(baseline.leaderboard());
   }
   expect(world.contracts.pendingSettlements()).toHaveLength(20);
+});
+it("real LIVE AFFILIATE contracts move the market exactly like USER contracts", () => {
+  const asUser = new MarketWorld(start), asAffiliate = MarketWorld.restore(asUser.checkpoint());
+  const userResult = asUser.open(trade);
+  const affiliateResult = asAffiliate.open({ ...trade, role: "AFFILIATE", legacySimulated: false });
+  expect(affiliateResult.flowLots).toBeGreaterThan(0);
+  expect(affiliateResult).toEqual(userResult);
+  expect(asAffiliate.checkpoint()).toEqual(asUser.checkpoint());
 });
 it("rejects duplicate trade identity before executing another order",()=>{
   const world=new MarketWorld(start);world.open(trade);const before=world.checkpoint();

@@ -53,7 +53,8 @@ export async function dailyLeaderboard(input: {
       expiryTs: { gte: since },
       account: {
         type: "LIVE",
-        ...(input.includeBots ? {} : { user: { isBot: false } }),
+        // Retired simulated affiliates never rank; live affiliates do.
+        user: input.includeBots ? { legacySimulated: false } : { isBot: false, legacySimulated: false },
       },
     },
     _sum: { pnl: true },

@@ -25,17 +25,18 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   }
-  const { email } = parsed.data;
+  const { email, portal } = parsed.data;
+  const affiliate = portal === "affiliate";
 
   // Per IP and per address: one alone lets a bot spray resets or flood one inbox.
   const okIp = await checkRateLimit(`rl:pwreset:ip:${ctx.ip}`, 10, 900);
-  const okEmail = await checkRateLimit(`rl:pwreset:email:${email}`, 3, 3600);
+  const okEmail = await checkRateLimit(`rl:pwreset:email:${portal}:${email}`, 3, 3600);
   if (!okIp || !okEmail) {
     log.warn({ evt: "security.rate_limited", route: "password_reset" }, "password reset throttled");
     return rateLimited("Too many reset requests. Wait a while and try again.");
   }
 
-  const user = await findUserByEmail(email);
+  const user = await findUserByEmail(email, affiliate ? "affiliate" : "main");
 
   // Same VPN rule as login. Looked up first so a vpnExempt account is recognised.
   const guardInput = user
@@ -45,9 +46,9 @@ export async function POST(req: NextRequest) {
     return vpnBlockedResponse();
   }
 
-  // Affiliate and admin accounts are managed from the admin panel, which has
-  // its own reset. Only regular users reset by email.
-  if (!user || user.role !== "USER") {
+  // Admins reset from the admin panel. Legacy simulated affiliates are never
+  // found (portal scope excludes them). Regular users and live affiliates reset by email.
+  if (!user || user.role === "ADMIN") {
     log.info({ evt: "auth.password_reset_requested", found: false }, "reset requested for an unknown or managed email");
     return NextResponse.json(SENT);
   }
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
     cid: ctx.cid,
     tokenId: issued.id,
     name: personName(user),
+    // One reset page for both portals; confirm answers with the right loginPath.
     resetUrl: absoluteUrl(`/reset-password?token=${issued.token}`),
     ttlMinutes: PASSWORD_RESET_TTL_MS / 60_000,
   });

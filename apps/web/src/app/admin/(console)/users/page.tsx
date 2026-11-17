@@ -155,6 +155,7 @@ export default async function UsersPage({
                                 {name}
                               </Link>
                               {u.role !== "USER" ? <Tag accent={u.role === "ADMIN"}>{u.role === "AFFILIATE" ? "Affiliate" : "Admin"}</Tag> : null}
+                              {u.legacySimulated ? <Tag>Simulated (retired)</Tag> : null}
                               {u.status !== "ACTIVE" ? (
                                 <Pill tone={u.status === "BANNED" ? "neg" : "warn"}>
                                   {u.status.charAt(0) + u.status.slice(1).toLowerCase()}

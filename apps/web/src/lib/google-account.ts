@@ -4,6 +4,7 @@ import type { childLogger } from "@asm/logger";
 import { sendWelcomeEmail } from "@asm/mail";
 import type { GoogleProfile } from "./google-oauth";
 import { hashPassword } from "./password";
+import { attachSignupReferral } from "./referral";
 import type { RequestContext } from "./request-context";
 import { provisionNewUser } from "./signup";
 
@@ -12,12 +13,14 @@ type Logger = ReturnType<typeof childLogger>;
 /**
  * Signs in, links, or creates the account for a verified Google identity.
  * Shared by the web OAuth callback and the native app route so both apply the
- * same linking rules, welcome email and provisioning.
+ * same linking rules, welcome email and provisioning. `referralCode` (the web
+ * invitation cookie) is attached only when this call creates the account.
  */
 export async function signInWithGoogleProfile(
   profile: GoogleProfile,
   ctx: RequestContext,
   log: Logger,
+  referralCode?: string | null,
 ): Promise<{ userId: string; created: boolean }> {
   const result = await findOrCreateGoogleUser({
     sub: profile.sub,
@@ -29,6 +32,7 @@ export async function signInWithGoogleProfile(
 
   if (result.created) {
     await provisionNewUser(result.userId, ctx);
+    if (referralCode) await attachSignupReferral({ userId: result.userId, code: referralCode, via: "LINK" }, ctx, log);
     log.info({ evt: "auth.register", userId: result.userId, via: "google" }, "account created");
     void sendWelcomeEmail({
       to: profile.email,

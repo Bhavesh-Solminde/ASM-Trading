@@ -13,7 +13,7 @@ export default async function setup() {
     const a=await prisma.asset.upsert({where:{symbol:m.symbol},update:{},create:{...m,isOpen:true,payoutPct:92,spreadBps:1,msmSigma:c.sigma,msmM0:c.m0,intradayProfile:c.profile}});
     await prisma.candle.createMany({skipDuplicates:true,data:Array.from({length:300},(_,i)=>{const o=m.basePrice*(1+Math.sin(i/12)*.001+i*.00001),v=m.basePrice*.0003;return{assetId:a.id,timeframe:"1m",openTs:new Date(now-(300-i)*60000),o,h:o+v,l:o-v,c:o+Math.sin(i)*v*.7};})});
   }
-  const user=await prisma.user.upsert({where:{email:"dashboard-verify@test.local"},update:{},create:{email:"dashboard-verify@test.local",passwordHash:"fixture-no-login",nickname:"Dashboard review",country:"IN",emailVerified:true,vpnExempt:true}});
+  const user=await prisma.user.upsert({where:{email_role_legacySimulated: { email: "dashboard-verify@test.local", role: "USER", legacySimulated: false }},update:{},create:{email:"dashboard-verify@test.local",passwordHash:"fixture-no-login",nickname:"Dashboard review",country:"IN",emailVerified:true,vpnExempt:true}});
   const account=await prisma.account.upsert({where:{userId_type:{userId:user.id,type:"DEMO"}},update:{realBalance:100000000,bonusBalance:0},create:{userId:user.id,type:"DEMO",currency:"INR",realBalance:100000000}});
   await prisma.trade.deleteMany({where:{accountId:account.id}});
   const gold=await prisma.asset.findUniqueOrThrow({where:{symbol:"XAUUSD"}});

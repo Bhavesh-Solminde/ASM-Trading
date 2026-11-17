@@ -19,7 +19,16 @@ it("USER LIVE consumes real finite book liquidity and persists the same wallet",
   submitAccountFlow(resumed,{actorId:"normal-signup",role:"USER",accountType:"LIVE",side:"SELL",stakeInrMinor:10000});
   expect(resumed.checkpoint().externalIds).toEqual([wallet.id]);
 });
-it.each(["ADMIN","AFFILIATE"] as const)("LIVE %s is not Tob market flow",role=>{
-  const m=market(),before=m.checkpoint();submitAccountFlow(m,{actorId:"other",role,accountType:"LIVE",side:"BUY",stakeInrMinor:10000});
+it.each([
+  {role:"ADMIN"},{role:"AFFILIATE",legacySimulated:true},{role:"AFFILIATE"},
+] as const)("LIVE %o is not Tob market flow",actor=>{
+  const m=market(),before=m.checkpoint();
+  expect(submitAccountFlow(m,{actorId:"other",...actor,accountType:"LIVE",side:"BUY",stakeInrMinor:10000}).origin).toBe("PAPER");
   expect(m.checkpoint()).toEqual(before);
+});
+it("real LIVE AFFILIATE flow is identical to USER flow",()=>{
+  const user=market(),affiliate=AnchoredMarket.restore(user.checkpoint());
+  const a=submitAccountFlow(user,{actorId:"same-id",role:"USER",accountType:"LIVE",side:"BUY",stakeInrMinor:10000});
+  const b=submitAccountFlow(affiliate,{actorId:"same-id",role:"AFFILIATE",legacySimulated:false,accountType:"LIVE",side:"BUY",stakeInrMinor:10000});
+  expect(b.origin).toBe("Tob");expect(b).toEqual(a);expect(affiliate.checkpoint()).toEqual(user.checkpoint());
 });

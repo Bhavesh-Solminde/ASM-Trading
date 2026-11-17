@@ -14,11 +14,13 @@ type Props = {
   showStrength?: boolean;
   /** When true, renders "Forgot password?" link on the label row. */
   showForgot?: boolean;
+  /** Where the "Forgot password?" link goes (the affiliate portal has its own page). */
+  forgotHref?: string;
   label: string;
 };
 
 export const PasswordInput = forwardRef<HTMLInputElement, Props>(function PasswordInput(
-  { value, onChange, placeholder, autoComplete = "current-password", required, minLength, showStrength, showForgot, label },
+  { value, onChange, placeholder, autoComplete = "current-password", required, minLength, showStrength, showForgot, forgotHref = "/forgot-password", label },
   ref,
 ) {
   const id = useId();
@@ -40,7 +42,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
           {label}
         </label>
         {showForgot ? (
-          <Link href="/forgot-password" className="text-[11px] font-semibold text-ink-3 hover:text-brand">
+          <Link href={forgotHref} className="text-[11px] font-semibold text-ink-3 hover:text-brand">
             Forgot password?
           </Link>
         ) : null}

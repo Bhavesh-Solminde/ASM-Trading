@@ -50,6 +50,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.json({ error: "Update the app to continue.", code: "upgrade_required" }, { status: 426 });
   }
 
+  // The platform layout sends signed-out visitors to /login; affiliates belong
+  // on their own login page. A cookie that turns out stale still lands on /login.
+  if (pathname.startsWith("/affiliate/dashboard") && !request.cookies.get(SESSION_COOKIE)?.value) {
+    return NextResponse.redirect(new URL("/affiliate/login", request.url));
+  }
+
   const response = NextResponse.next();
 
   response.headers.set("X-Frame-Options", "DENY");

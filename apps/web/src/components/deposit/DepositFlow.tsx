@@ -33,6 +33,7 @@ export function DepositFlow({
   gatewayNetworks,
   upiEnabled,
   completedDeposits,
+  inviteExtraBonusPct = 0,
 }: {
   usdtNetworks: UsdtNetwork[];
   /** Networks on the Tatum gateway (per-deposit address); the rest use the manual shared-address flow. */
@@ -41,6 +42,8 @@ export function DepositFlow({
   upiEnabled: boolean;
   /** Deposits already credited — the next one's bonus tier follows from it. */
   completedDeposits: number;
+  /** Extra % an invited friend gets on top of the ordinary first-deposit bonus (0 otherwise). */
+  inviteExtraBonusPct?: number;
 }) {
   const [step, setStep] = useState<Step>(1);
   const [amount, setAmount] = useState("1000");
@@ -51,7 +54,10 @@ export function DepositFlow({
   const firstRender = useRef(true);
 
   const usdtEnabled = usdtNetworks.length > 0;
-  const bonusPercent = bonusPercentForDeposit(completedDeposits + 1);
+  const basePercent = bonusPercentForDeposit(completedDeposits + 1);
+  // Shown exactly as the credit grants it: the invite extra only stacks on a deposit that earns a bonus.
+  const extraPercent = basePercent > 0 ? inviteExtraBonusPct : 0;
+  const bonusPercent = basePercent + extraPercent;
 
   // Bounds for step 1: the loosest limits among rails that can take a deposit
   // today. Per-method limits are applied on step 2.
@@ -145,7 +151,11 @@ export function DepositFlow({
         </div>
 
         {bonusPercent > 0 ? (
-          <BonusPreview amountInr={Number.isFinite(amountInr) ? amountInr : 0} completedDeposits={completedDeposits} />
+          <BonusPreview
+            amountInr={Number.isFinite(amountInr) ? amountInr : 0}
+            completedDeposits={completedDeposits}
+            extraPercent={extraPercent}
+          />
         ) : null}
 
         <div>
