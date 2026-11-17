@@ -1,0 +1,29 @@
+-- Affiliate Program phase 2: one email may hold a regular and an affiliate
+-- account. Uniqueness moves from email alone to (email, role, legacySimulated).
+
+-- DropIndex
+DROP INDEX "User_email_key";
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_role_legacySimulated_key" ON "User"("email", "role", "legacySimulated");
+
+-- CreateTable
+CREATE TABLE "EmailVerificationToken" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "EmailVerificationToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EmailVerificationToken_tokenHash_key" ON "EmailVerificationToken"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "EmailVerificationToken_userId_idx" ON "EmailVerificationToken"("userId");
+
+-- AddForeignKey
+ALTER TABLE "EmailVerificationToken" ADD CONSTRAINT "EmailVerificationToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

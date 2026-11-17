@@ -109,7 +109,7 @@ const SCENARIOS: Record<string, Scenario> = {
 
 async function ensureUser(email: string, hash: string): Promise<string> {
   const user = await prisma.user.upsert({
-    where: { email },
+    where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } },
     update: { emailVerified: true, liveAccess: true, status: "ACTIVE" },
     create: {
       email,

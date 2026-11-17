@@ -6,6 +6,7 @@ export {
   PasswordResetConfirmSchema,
   type RegisterInput,
   type LoginInput,
+  type AuthPortal,
 } from "./auth";
 export {OtcOpenTradeSchema,EngineOtcOpenTradeSchema,type OtcOpenTradeInput,type EngineOtcOpenTradeInput,type OtcMarketMessage,type OtcWatchlistMessage,type OtcBotsMessage,type OtcDisplayQuote} from "./otc";
 export {

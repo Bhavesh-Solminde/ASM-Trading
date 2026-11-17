@@ -69,6 +69,7 @@
   --color-gift-ribbon: #ffd970;
   --color-shadow-dialog: #0009;
   --color-festive-backdrop: color-mix(in srgb, var(--color-ground) 88%, transparent);
+  --color-shadow-deep: #000000;
 }
 
 /* Admin routes force the root theme to dark before public overrides apply. */
@@ -142,4 +143,5 @@
   --color-gift-ribbon: #e3ad38;
   --color-shadow-dialog: rgb(11 18 32 / .18);
   --color-festive-backdrop: rgb(11 18 32 / .48);
+  --color-shadow-deep: rgb(19 23 34 / .28);
 }

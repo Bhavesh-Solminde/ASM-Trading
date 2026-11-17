@@ -467,6 +467,9 @@ function BoldNav() {
 );
 }
 
+/** Footer links that have a real page; the rest stay placeholders. */
+const FOOTER_HREFS: Record<string, string> = { "Affiliate program": "/affiliate" };
+
 function BoldFooter() {
   return (
     <footer className="bg-ground">
@@ -481,7 +484,7 @@ function BoldFooter() {
           </div>
           {[
             ["Product", ["Trade", "Markets", "Leverage", "Mobile"]],
-            ["Company", ["About", "Regulation", "Press", "Contact"]],
+            ["Company", ["About", "Regulation", "Press", "Contact", "Affiliate program"]],
             ["Support", ["Help centre", "Deposit & withdrawal", "SEBI compliance", "Risk disclosure"]],
           ].map(([h, links]) => (
             <div key={h as string}>
@@ -489,7 +492,7 @@ function BoldFooter() {
               <ul className="mt-4 space-y-2 text-sm text-ink-2">
                 {(links as string[]).map((l) => (
                   <li key={l}>
-                    <a href="#" className="hover:text-ink">{l}</a>
+                    <a href={FOOTER_HREFS[l] ?? "#"} className="hover:text-ink">{l}</a>
                   </li>
 ))}
               </ul>

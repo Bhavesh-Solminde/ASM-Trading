@@ -9,6 +9,7 @@ import { PasswordInput } from "@/components/auth/PasswordInput";
 import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
 import { trackLogin } from "@/components/seo/MetaPixel";
 import { Spinner } from "@/components/auth/Spinner";
+import { PORTAL_PATHS, withPortal, type AuthPortal } from "@/components/auth/portal";
 
 const GOOGLE_ERROR = "Google sign-in didn't go through. Try again, or log in with your email.";
 
@@ -16,11 +17,15 @@ export function LoginForm({
   googleEnabled,
   googleError,
   notice,
+  portal = "user",
 }: {
   googleEnabled: boolean;
   googleError: boolean;
   notice: string | null;
+  portal?: AuthPortal;
 }) {
+  const paths = PORTAL_PATHS[portal];
+  const affiliate = portal === "affiliate";
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,12 +41,12 @@ export function LoginForm({
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(withPortal(portal, { email, password })),
     });
 
     if (res.ok) {
       trackLogin("email");
-      router.push("/trade");
+      router.push(paths.home);
       return;
     }
     const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -51,27 +56,40 @@ export function LoginForm({
 
   return (
     <AuthShell
-      eyebrow="Welcome back"
-      title="Log in to IndianxTrade."
-      subtitle="The markets don't stop. Neither should you."
+      eyebrow={affiliate ? "Affiliate partners" : "Welcome back"}
+      title={affiliate ? "Log in to your affiliate account." : "Log in to IndianxTrade."}
+      subtitle={
+        affiliate
+          ? "Your affiliate account is separate from any regular trading account, with its own password."
+          : "The markets don't stop. Neither should you."
+      }
       imageCaption="Every tick settles on a real ledger."
       footer={
         <>
-          New here?{" "}
-          <Link href="/register" className="font-semibold text-brand hover:underline">
-            Create an account
+          {affiliate ? "New affiliate?" : "New here?"}{" "}
+          <Link href={paths.register} className="font-semibold text-brand hover:underline">
+            {affiliate ? "Create an affiliate account" : "Create an account"}
           </Link>
+          <span className="mt-3 block text-xs text-ink-3">
+            {affiliate ? "Trading with a regular account? " : "Affiliate partner? "}
+            <Link
+              href={affiliate ? PORTAL_PATHS.user.login : PORTAL_PATHS.affiliate.login}
+              className="font-semibold text-ink-2 hover:text-brand hover:underline"
+            >
+              Log in here
+            </Link>
+          </span>
         </>
       }
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
-        {googleEnabled ? (
+        {googleEnabled && !affiliate ? (
           <>
             <GoogleButton />
             <OrDivider />
           </>
         ) : null}
-        <EmailInput value={email} onChange={setEmail} autoFocus={!googleEnabled} />
+        <EmailInput value={email} onChange={setEmail} autoFocus={!googleEnabled || affiliate} />
         <PasswordInput
           label="Password"
           value={password}
@@ -80,6 +98,7 @@ export function LoginForm({
           autoComplete="current-password"
           placeholder="Your password"
           showForgot
+          forgotHref={paths.forgot}
         />
 
         {notice && !error ? (

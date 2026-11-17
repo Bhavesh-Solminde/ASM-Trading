@@ -147,11 +147,12 @@ export async function requestWithdrawal(input: {
   // deliberately vague so a suspended abuser can't map out which check tripped.
   const actor = await prisma.user.findUniqueOrThrow({
     where: { id: input.actorId },
-    select: { status: true, kycStatus: true, role: true },
+    select: { status: true, kycStatus: true, legacySimulated: true },
   });
   // FLAGGED is a watchlist marker and does not block withdrawals; only FROZEN
-  // and BANNED do.
-  if (actor.status === "FROZEN" || actor.status === "BANNED") {
+  // and BANNED do. A retired simulated affiliate holds play money only, so it
+  // stays blocked even if an admin later lifts the ban.
+  if (actor.status === "FROZEN" || actor.status === "BANNED" || actor.legacySimulated) {
     throw new WithdrawalRefused(
       "Withdrawals are paused on this account. Contact support.",
     );
@@ -183,22 +184,6 @@ export async function requestWithdrawal(input: {
     ...payoutColumns(input.payout),
   };
 
-  // Affiliate accounts: the withdrawal form, the "pending" row in history,
-  // and the success toast all render — but the balance is NEVER debited and
-  // the row is never processed. The admin withdrawal queue filters affiliate
-  // rows out separately. See the affiliate design doc.
-  if (actor.role === "AFFILIATE") {
-    return prisma.withdrawal.create({
-      data: {
-        userId: input.actorId,
-        amount: input.amount,
-        ...details,
-        status: "REQUESTED",
-        ipAddress: input.ipAddress ?? null,
-        userAgent: input.userAgent ?? null,
-      },
-    });
-  }
 
   // Payouts only go to verified identities — KYC is what establishes the
   // person is real and holds a single account. The payout destination is the

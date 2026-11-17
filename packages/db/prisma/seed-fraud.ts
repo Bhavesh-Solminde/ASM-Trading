@@ -32,7 +32,7 @@ const SHARED_UA = "Mozilla/5.0 (Windows NT 10; Win64; x64) attacker-suite";
 
 async function ensureUser(email: string, hash: string): Promise<string> {
   const user = await prisma.user.upsert({
-    where: { email },
+    where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } },
     update: { emailVerified: true, liveAccess: true },
     create: {
       email,

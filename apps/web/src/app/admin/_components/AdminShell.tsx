@@ -32,7 +32,7 @@ const NAV = (b: Record<string, number>): NavGroup[] => [
     label: "Manage",
     items: [
       { href: "/admin/users", label: "Users", icon: "users" },
-      { href: "/admin/affiliates", label: "Affiliates", icon: "broadcast" },
+      { href: "/admin/affiliate-program", label: "Affiliate program", icon: "coins", badge: b.program },
       { href: "/admin/markets", label: "Markets", icon: "candles" },
     ],
   },
@@ -61,7 +61,7 @@ const TITLES: [string, string][] = [
   ["/admin/kyc", "KYC"],
   ["/admin/fraud", "Fraud"],
   ["/admin/users", "Users"],
-  ["/admin/affiliates", "Affiliates"],
+  ["/admin/affiliate-program", "Affiliate program"],
   ["/admin/markets", "Markets"],
   ["/admin/house-pnl", "Daily OTC Vault"],
   ["/admin/messages", "Bank messages"],

@@ -22,6 +22,8 @@ import { startChainWatcher } from "./chain-watcher/runner";
 import { startBscWatcher } from "./chain-watcher/bsc-runner";
 import { startReconciliationRunner } from "./chain-watcher/reconciliation-runner";
 import { startTatumRunner } from "./tatum-runner";
+import { startReferralQualificationSweep } from "./affiliate/referral-qualification";
+import { startProgramDayClose } from "./affiliate/program-day-close";
 import { usdtProviderFor } from "@asm/tatum";
 import { ControllerBridge } from "./algo/controller-bridge";
 import { BotCrowd } from "./algo/crowd";
@@ -153,6 +155,8 @@ async function main(): Promise<void> {
   const bscWatcher = usdtProviderFor("bsc") === "manual" ? await startBscWatcher() : idleWatcher;
   const tatumRunner = startTatumRunner();
   const reconciliationRunner = startReconciliationRunner();
+  const referralSweep = startReferralQualificationSweep();
+  const programDayClose = startProgramDayClose();
 
   const crowd = new BotCrowd(registry, desk, (Date.now() >>> 1) & 0x7fffffff);
   if (process.env.TRADING_MODEL !== "CFD" && process.env.BOTS_ENABLED !== "false") {
@@ -168,6 +172,8 @@ async function main(): Promise<void> {
     crowd.stop(); // stop bots from opening new ones
     await bankFeed.stop(); // inject no new credits
     await reconciliationRunner.stop(); // inject no new findings
+    await referralSweep.stop(); // start no new qualification passes
+    await programDayClose.stop(); // start no new daily close runs
     await chainWatcher.stop(); // inject no new USDT credits
     await bscWatcher.stop(); // …on either network
     await tatumRunner.stop(); // …or via the Tatum gateway

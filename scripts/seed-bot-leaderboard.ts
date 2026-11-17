@@ -129,7 +129,7 @@ async function ensureBot(spec: BotSpec, sharedHash: string): Promise<string> {
   const email = `bot-rn-${spec.nn}@asmtrade.local`;
   const nickname = `${spec.firstName} ${spec.lastName}`;
   const user = await prisma.user.upsert({
-    where: { email },
+    where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } },
     // Keep the fixed signup date and the bot flag locked across reruns, but
     // reassert the display fields so edits to BOTS take effect.
     update: {

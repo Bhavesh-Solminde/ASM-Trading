@@ -88,7 +88,7 @@ test.describe("trade ticket keeps amount and time", () => {
 
   test("investment can be a % of balance and never drops below ₹100", async ({ page }, info) => {
     // A ₹5,000 demo balance: 10% = ₹500, and 1% = ₹50, which must become ₹100.
-    const viewer = await prisma.user.findUniqueOrThrow({ where: { email: VIEWER_EMAIL }, select: { id: true } });
+    const viewer = await prisma.user.findUniqueOrThrow({ where: { email_role_legacySimulated: { email: VIEWER_EMAIL, role: "USER", legacySimulated: false } }, select: { id: true } });
     const demo = await prisma.account.findFirstOrThrow({ where: { userId: viewer.id, type: "DEMO" } });
     await prisma.account.update({ where: { id: demo.id }, data: { realBalance: 5_000_00, bonusBalance: 0 } });
     try {
@@ -140,7 +140,7 @@ test.describe("trade ticket keeps amount and time", () => {
   });
 
   test("phone steppers can switch to % and still respect the ₹100 floor", async ({ page }, info) => {
-    const viewer = await prisma.user.findUniqueOrThrow({ where: { email: VIEWER_EMAIL }, select: { id: true } });
+    const viewer = await prisma.user.findUniqueOrThrow({ where: { email_role_legacySimulated: { email: VIEWER_EMAIL, role: "USER", legacySimulated: false } }, select: { id: true } });
     const demo = await prisma.account.findFirstOrThrow({ where: { userId: viewer.id, type: "DEMO" } });
     await prisma.account.update({ where: { id: demo.id }, data: { realBalance: 5_000_00, bonusBalance: 0 } });
     try {

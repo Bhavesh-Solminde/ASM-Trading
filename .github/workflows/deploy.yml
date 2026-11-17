@@ -1,9 +1,9 @@
-# Deploys asmtrader.com on every push to main.
+# Deploys indianxtrade.com on every push to main.
 # Mirrors the asmcoins pipeline: a validation gate, then an ssh-driven
 # deploy. All work on the VPS runs as the `deploy` user; docker compose
 # rebuilds only the app image (postgres/redis keep their volumes).
 
-name: deploy asmtrader.com
+name: deploy indianxtrade.com
 
 on:
   push:
@@ -124,9 +124,3 @@ jobs:
             sleep 5
           done
           if [ "$canonical" != "200" ]; then exit 1; fi
-          # Legacy host must 301 to the canonical. Any 2xx or 4xx here is a
-          # misconfig — either the redirect is missing or the legacy cert
-          # isn't being terminated.
-          legacy=$(curl -s -o /dev/null -w "%{http_code}" https://asmtrader.com)
-          echo "asmtrader.com: $legacy"
-          case "$legacy" in 301|302|308) ;; *) exit 1 ;; esac
