@@ -8,7 +8,9 @@
  * is preserved inside its explicit silhouette, never keyed as background.
  */
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
+import { Buffer } from "node:buffer";
+import console from "node:console";
 
 const require = createRequire(new URL("../apps/web/package.json", import.meta.url));
 const sharp = require("sharp");
