@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 export type Theme = "light" | "dark";
 const listeners = new Set<() => void>();
 let channel: BroadcastChannel | undefined;
+let sessionChoice: Theme | undefined;
 const isAdmin = () => /^\/admin(?:\/|$)/.test(location.pathname);
 export function readTheme(): Theme {
   if (typeof document === "undefined") return "dark";
@@ -23,6 +24,7 @@ function connect() {
 }
 function applyTheme(next: Theme, broadcast: boolean) {
   if (isAdmin()) return;
+  sessionChoice = next;
   const changed = readTheme() !== next;
   const root = document.documentElement;
   root.classList.add("theme-changing");
@@ -43,3 +45,23 @@ export function subscribe(listener: () => void) {
   return () => { listeners.delete(listener); };
 }
 export function useTheme() { return useSyncExternalStore(subscribe, readTheme, () => "dark" as const); }
+
+/** Route changes never persist a forced admin or special-page appearance. */
+export function syncRouteTheme() {
+  let choice = sessionChoice;
+  try {
+    const saved = document.cookie.match(/(?:^|;\s*)ixt_theme=(light|dark)(?:;|$)/)?.[1];
+    if (saved && !choice) choice = saved as Theme;
+    if (!choice && location.pathname === "/start") {
+      choice = document.cookie.match(/(?:^|;\s*)ixt_start_theme=(light|dark)(?:;|$)/)?.[1] as Theme | undefined;
+      choice ??= matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+  } catch { /* Use the session choice when cookies are blocked. */ }
+  const next = isAdmin() ? "dark" : choice ?? "dark";
+  const changed = readTheme() !== next;
+  document.documentElement.dataset.theme = next;
+  document.documentElement.style.colorScheme = next;
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue("--color-ground").trim();
+  if (changed) listeners.forEach((listener) => listener());
+}

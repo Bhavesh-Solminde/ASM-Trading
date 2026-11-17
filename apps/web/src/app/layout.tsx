@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Doto, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
+import "./theme-special.css";
+import { ThemeRuntime } from "@/components/theme/ThemeRuntime";
 import { themeBootstrap } from "@/lib/theme-bootstrap";
 import { buildMetadata } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
@@ -79,6 +81,7 @@ export default function RootLayout({
         <JsonLd data={[organizationSchema(), websiteSchema()]} />
         {children}
         <FirstVisitDiwali />
+        <ThemeRuntime />
       </body>
     </html>
 );
