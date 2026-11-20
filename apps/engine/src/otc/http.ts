@@ -23,7 +23,8 @@ export function createOtcHttp(runtime:OtcRuntime,secret:string,port:number,trans
       const input=EngineOtcOpenTradeSchema.safeParse(JSON.parse(body));if(!input.success){reply(res,400,{error:"invalid_trade"});return;}
       const openedAt=performance.now();
       const trade=await runtime.open({...input.data,stopLoss:input.data.stopLoss??null,takeProfit:input.data.takeProfit??null}),account=await prisma.account.findUniqueOrThrow({where:{id:trade.accountId}});
-      logger.info({evt:"otc.open_timing",symbol:input.data.symbol,ms:Math.round(performance.now()-openedAt)},"OTC trade opened");
+      // The trade is already open; a logging failure must not turn it into an error response.
+      try{logger.info({evt:"otc.open_timing",symbol:input.data.symbol,ms:Math.round(performance.now()-openedAt)},"OTC trade opened");}catch{/* best effort */}
       reply(res,201,{trade:tradeViewFrom(trade,input.data.symbol),balances:{realBalance:account.realBalance,bonusBalance:account.bonusBalance}});
     }catch(error){if(error instanceof OtcRejected){reply(res,409,{error:error.message});return;}
       if(error instanceof SyntaxError){reply(res,400,{error:"invalid_json"});return;}
