@@ -6,10 +6,6 @@ interface Options {start:number;references?:ReferenceQuote[];checkpoint?:Simulat
 const options=workerData as Options;
 const world=options.checkpoint?MarketWorld.restore(options.checkpoint):new MarketWorld(options.start,options.references);
 const archived=new Map<string,number>();
-let executions:OtcArchiveBatch["executions"]=[];
-world.observeExecutions((symbol,fill,tickSize)=>{
-  executions.push({symbol,...fill,price:fill.price*tickSize});
-});
 let queue=Promise.resolve();
 parentPort!.postMessage({ready:true});
 parentPort!.on("message",(request:{id:number;type:string;payload:unknown})=>{
@@ -36,7 +32,7 @@ parentPort!.on("message",(request:{id:number;type:string;payload:unknown})=>{
             for(const bar of bars)candles.push({symbol,...bar});
             if(bars.length)archived.set(symbol,bars.at(-1)!.time);
           }
-          result={candles,executions};executions=[];break;
+          result={candles};break;
         }
         case "settlements":result=world.contracts.pendingSettlements();break;
         case "ack":world.contracts.acknowledge(request.payload as string);result=true;break;

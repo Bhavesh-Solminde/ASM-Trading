@@ -6,7 +6,7 @@ import type { OpenContractResult,ReferenceQuote,SimulationCheckpoint } from "@as
 import { MULTI_MARKETS } from "@asm/market-sim";
 import { OtcWorker } from "./worker";
 import { OtcWriterLock } from "./writer-lock";
-import { persistOtcArchive,readOtcCandles,retainOtcHistory } from "./archive";
+import { persistOtcArchive,readOtcCandles,retainOtcHistory,type RetentionOptions } from "./archive";
 import type { Timeframe } from "@asm/contracts";
 import { DisplayQuotes } from "./display-quotes";
 import { logger } from "@asm/logger";
@@ -30,7 +30,9 @@ export class OtcRuntime {
   private watermark=0n;
   private time=0;
   private displayedQuotes=new DisplayQuotes();
-  private retainedAt=0;
+  /** Last state that is durably checkpointed; cleanup may only remove commands behind it. */
+  private checkpointed:{watermark:bigint;time:number}|null=null;
+  private retaining:Promise<unknown>|null=null;
   private notify:((tradeId:string,actorId:string)=>Promise<void>)|null=null;
   setNotifier(notify:((tradeId:string,actorId:string)=>Promise<void>)|null){this.notify=notify;}
   constructor(private client:DbClient=prisma,private databaseUrl=process.env.DATABASE_URL??"",
@@ -58,7 +60,6 @@ export class OtcRuntime {
         const history=await Promise.all([
           this.client.marketCommand.findFirst({where:{worldId:this.worldId},select:{id:true}}),
           this.client.otcCandle.findFirst({where:{worldId:this.worldId},select:{symbol:true}}),
-          this.client.marketExecution.findFirst({where:{worldId:this.worldId},select:{symbol:true}}),
         ]);
         if(history.some(Boolean))throw new Error("OTC checkpoint missing while durable market history exists; restore a matching backup instead of reseeding");
         await prepareReferences?.();
@@ -156,11 +157,20 @@ export class OtcRuntime {
       await assertOtcFence(tx,this.fence);
       await tx.marketWorldCheckpoint.update({where:{id:this.worldId},data:{sequence:this.watermark,state:json(state)}});
     });
-    if(this.time-this.retainedAt>=3600000){
-      await retainOtcHistory(this.client,this.fence,this.watermark,this.time);this.retainedAt=this.time;
-    }
+    this.checkpointed={watermark:this.watermark,time:this.time};
     return state;
   });}
+  /**
+   * Hourly cleanup. Runs beside the command queue, never inside it: a slow delete must not
+   * stall ticks, quotes or trades, and a failure goes to the caller to retry, not to the engine.
+   */
+  async retain(options?:RetentionOptions){
+    const point=this.checkpointed;
+    if(!point||this.retaining||this.closing||this.failure)return null;
+    const work=retainOtcHistory(this.client,this.fence,point.watermark,point.time,options);
+    this.retaining=work.catch(()=>{});
+    try{return await work;}finally{this.retaining=null;}
+  }
   history(symbol:string,timeframe:Timeframe,before:number,limit:number){return readOtcCandles(this.client,this.worldId,symbol,timeframe,before,limit);}
   /** Dashboard count only. Position data never feeds the price-making worker. */
   async openTobs(){
@@ -182,7 +192,7 @@ export class OtcRuntime {
   leaderboard(){return this.enqueue(()=>this.worker!.leaderboard());}
   async stop(save=true){
     if(this.closing)return;
-    try{await this.tail;if(save&&!this.failure&&this.worker)await this.checkpoint();}
+    try{await this.tail;await this.retaining;if(save&&!this.failure&&this.worker)await this.checkpoint();}
     finally{this.closing=true;await this.worker?.stop();await this.lock?.close().catch(()=>{});}
   }
 }

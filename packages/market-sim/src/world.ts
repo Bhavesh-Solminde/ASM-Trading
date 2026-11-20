@@ -3,7 +3,6 @@ import { MULTI_MARKETS,type ReferenceQuote } from "./catalogue";
 import { FixedContracts,type FixedContract,type FixedContractInput } from "./fixed-contracts";
 import { flowLots,submitAccountFlow,type AccountFlowInput } from "./account-flow";
 import { isTob } from "./eligibility";
-import type { Execution } from "./order-book";
 
 export interface OpenContractCommand extends Omit<FixedContractInput,"entryPrice"|"entryTime"|"expiryTime"|"entrySequence">,Omit<AccountFlowInput,"side"> {
   durationSec:number;
@@ -27,9 +26,6 @@ export class MarketWorld {
   contracts=new FixedContracts();
   time:number;
   sequence=0;
-  private executionObserver?: (symbol:string,fill:Execution,tickSize:number)=>void;
-  /** Optional host audit sink; never changes matching or contract decisions. */
-  observeExecutions(observer:(symbol:string,fill:Execution,tickSize:number)=>void){this.executionObserver=observer;}
   constructor(start:number,references:ReferenceQuote[]=[],seed=503){
     if(!Number.isSafeInteger(start)||start<2700000)throw new Error("Invalid world start");
     this.time=start;
@@ -46,7 +42,6 @@ export class MarketWorld {
     if(!Number.isSafeInteger(time)||time<this.time)throw new Error("World time must be monotonic");
     for(const m of this.markets.values())m.advance(time,f=>{
       this.contracts.observe({symbol:m.profile.symbol,price:f.price*m.profile.tickSize,time:f.time,sequence:f.sequence});
-      this.executionObserver?.(m.profile.symbol,f,m.profile.tickSize);
     });
     this.contracts.advance(time);this.time=time;if(recordCommand)this.sequence++;
   }
@@ -76,7 +71,6 @@ export class MarketWorld {
     if(flow.entryPrice!==quote.entryPrice||flow.filledLots!==quote.filledLots)throw new Error("Order preview diverged from execution");
     for(const f of flow.fills){
       this.contracts.observe({symbol:input.symbol,price:f.price*m.profile.tickSize,time:f.time,sequence:f.sequence});
-      this.executionObserver?.(input.symbol,f,m.profile.tickSize);
     }
     const contract=this.contracts.open({...request,entrySequence:m.book.sequence});this.sequence++;
     return {contract,flowLots:flow.requestedLots,filledLots:flow.filledLots};
