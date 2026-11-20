@@ -11,3 +11,9 @@ it("requires a stable request key and rejects invalid protection values",()=>{
   expect(OtcOpenTradeSchema.safeParse({...input,quoteToken:undefined}).success).toBe(false);
   expect(OtcOpenTradeSchema.safeParse({...input,stopLoss:Infinity}).success).toBe(false);
 });
+it("accepts trade:open on the engine socket only without client-chosen authority",async()=>{
+  const { OtcClientMessageSchema }=await import("./otc");
+  expect(OtcClientMessageSchema.safeParse({type:"trade:open",...input}).success).toBe(true);
+  for(const extra of [{actorId:input.accountId},{role:"USER"},{entryPrice:80000}])expect(OtcClientMessageSchema.safeParse({type:"trade:open",...input,...extra}).success).toBe(false);
+  expect(OtcClientMessageSchema.safeParse({type:"subscribe",symbol:"BTCUSDT",timeframe:"1m"}).success).toBe(true);
+});

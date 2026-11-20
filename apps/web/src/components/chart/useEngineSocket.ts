@@ -2,7 +2,7 @@
 import { recordChartPayload } from "./diagnostics";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ClientMessage, ServerMessage, Timeframe } from "@asm/contracts";
+import type { OtcClientMessage, ServerMessage, Timeframe } from "@asm/contracts";
 
 export type SocketStatus = "connecting" | "open" | "closed" | "unauthorised";
 
@@ -51,7 +51,7 @@ export function useEngineSocket(opts: {
   watch?: readonly string[];
   onMessage?: (message: ServerMessage) => void;
   resume?:()=>{generation:string;since:number}|null;
-}): { status: SocketStatus; send: (message: ClientMessage) => void } {
+}): { status: SocketStatus; send: (message: OtcClientMessage) => void } {
   const [status, setStatus] = useState<SocketStatus>("connecting");
   const [otc,setOtc]=useState(false);
   const [visible,setVisible]=useState(true);
@@ -181,7 +181,7 @@ export function useEngineSocket(opts: {
   // Stable across renders so effects that depend on it (e.g. wiring the market
   // store) don't re-run. Silently drops messages while the socket is not open;
   // the caller retries — a reconnect resubscribes and re-fetches history.
-  const send = useCallback((message: ClientMessage) => {
+  const send = useCallback((message: OtcClientMessage) => {
     const socket = socketRef.current;
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
   }, []);

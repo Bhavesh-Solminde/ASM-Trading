@@ -8,7 +8,7 @@ export {
   type LoginInput,
   type AuthPortal,
 } from "./auth";
-export {OtcOpenTradeSchema,EngineOtcOpenTradeSchema,type OtcOpenTradeInput,type EngineOtcOpenTradeInput,type OtcMarketMessage,type OtcWatchlistMessage,type OtcBotsMessage,type OtcDisplayQuote} from "./otc";
+export {OtcOpenTradeSchema,EngineOtcOpenTradeSchema,OtcTradeOpenRequestSchema,OtcClientMessageSchema,type OtcClientMessage,type OtcOpenTradeInput,type EngineOtcOpenTradeInput,type OtcMarketMessage,type OtcWatchlistMessage,type OtcBotsMessage,type OtcDisplayQuote} from "./otc";
 export {
   SymbolSchema,
   TimeframeSchema,
@@ -33,6 +33,8 @@ export {
   type ErrorMessage,
   type AuthedMessage,
   type TradeOpenedMessage,
+  type TradeOpenResultMessage,
+  type TradeOpenRejectedMessage,
   type TradeSettledMessage,
   type BalanceUpdateMessage,
   type SentimentMessage,
@@ -46,6 +48,8 @@ export {
   OpenTradeSchema,
   EngineOpenTradeSchema,
   tradeViewFrom,
+  TRADE_REJECTION_MESSAGES,
+  tradeRejectionMessage,
   type DirectionDto,
   type OpenTradeInput,
   type EngineOpenTradeInput,

@@ -1,6 +1,7 @@
 import { WebSocketServer,type WebSocket } from "ws";
-import { ClientMessageSchema,tradeViewFrom,type Timeframe,type ServerMessage,type TradeView } from "@asm/contracts";
-import { prisma } from "@asm/db";
+import { OtcClientMessageSchema,tradeRejectionMessage,tradeViewFrom,type OtcClientMessage,type Timeframe,type ServerMessage,type TradeView } from "@asm/contracts";
+import { OtcRejected,prisma } from "@asm/db";
+import { logger } from "@asm/logger";
 import { MULTI_MARKETS } from "@asm/market-sim";
 import type { OtcRuntime } from "./runtime";
 import { publicMarket } from "./public-market";
@@ -18,7 +19,8 @@ export class OtcWebSocketServer {
   private counts:{at:number;value:Promise<Record<string,number>>}|null=null;
   metrics(){return {connected:this.clients.size,authenticated:[...this.clients].filter(c=>c.userId).length,bytesSent:this.bytes,messagesSent:this.messages,slowClientCloses:this.slowCloses,snapshotCacheEntries:this.cache.size};}
   readonly ready:Promise<void>;
-  constructor(private runtime:OtcRuntime,port:number,private authenticate:(ticket:string)=>Promise<string|null>,private onSettlement?:(userId:string,trade:TradeView)=>void){
+  constructor(private runtime:OtcRuntime,port:number,private authenticate:(ticket:string)=>Promise<string|null>,private onSettlement?:(userId:string,trade:TradeView)=>void,
+    private limitTrade?:(userId:string)=>Promise<boolean>){
     this.server=new WebSocketServer({port,maxPayload:16384});
     this.ready=new Promise((resolve,reject)=>{this.server.once("listening",resolve);this.server.once("error",reject);});
     this.server.on("connection",socket=>this.connect(socket));
@@ -42,7 +44,7 @@ export class OtcWebSocketServer {
     socket.on("message",raw=>{
       if(--c.budget<0){socket.close(1008,"Too many requests");return;}
       c.queue=c.queue.then(async()=>{
-        const parsed=ClientMessageSchema.safeParse(JSON.parse(raw.toString()));if(!parsed.success){this.send(c,{type:"error",message:"Invalid chart request"});return;}
+        const parsed=OtcClientMessageSchema.safeParse(JSON.parse(raw.toString()));if(!parsed.success){this.send(c,{type:"error",message:"Invalid chart request"});return;}
         const m=parsed.data;
         if(m.type==="auth"){
           if(c.userId)return;const userId=await this.authenticate(m.token);if(!userId){socket.close(1008,"Unauthorised");return;}
@@ -51,6 +53,8 @@ export class OtcWebSocketServer {
           this.send(c,{type:"authed"});return;
         }
         if(!c.userId){socket.close(1008,"Authenticate first");return;}
+        // Detached so a trade never holds this socket's chart requests behind it.
+        if(m.type==="trade:open"){void this.openTrade(c,c.userId,m);return;}
         if(m.type==="watchlist:subscribe"){c.watch=new Set(m.symbols.filter(s=>MULTI_MARKETS.some(spec=>spec.symbol===s)));return;}
         if(!MULTI_MARKETS.some(s=>s.symbol===m.symbol)){this.send(c,{type:"error",message:"Unknown market"});return;}
         if(m.type==="unsubscribe"){if(c.selected?.symbol===m.symbol)c.selected=null;return;}
@@ -62,6 +66,26 @@ export class OtcWebSocketServer {
         await this.selected(c);
       }).catch(()=>socket.close(1011,"Chart request failed"));
     });
+  }
+  /**
+   * The same ledger path as POST /otc/trades, over a connection that is already open and authenticated.
+   * The actor is this socket's user, never the message. The idempotency key makes a retry over HTTP safe.
+   */
+  private async openTrade(c:Client,actorId:string,m:Extract<OtcClientMessage,{type:"trade:open"}>){
+    const request:Omit<typeof m,"type">={...m},started=performance.now(),idempotencyKey=m.idempotencyKey;
+    delete (request as {type?:string}).type;
+    const reject=(code:string)=>this.send(c,{type:"trade:open:rejected",idempotencyKey,code,error:tradeRejectionMessage(code)});
+    try{
+      if(this.limitTrade&&!await this.limitTrade(actorId)){reject("rate_limited");return;}
+      const trade=await this.runtime.open({...request,actorId,stopLoss:request.stopLoss??null,takeProfit:request.takeProfit??null});
+      const account=await prisma.account.findUniqueOrThrow({where:{id:trade.accountId}});
+      this.send(c,{type:"trade:open:result",idempotencyKey,trade:tradeViewFrom(trade,request.symbol),balances:{realBalance:account.realBalance,bonusBalance:account.bonusBalance}});
+      try{logger.info({evt:"otc.open_timing",channel:"ws",symbol:request.symbol,ms:Math.round(performance.now()-started)},"OTC trade opened");}catch{/* best effort */}
+    }catch(error){
+      if(error instanceof OtcRejected){reject(error.message);return;}
+      try{logger.error({evt:"otc.ws_open_failed",reason:error instanceof Error?error.message:String(error)},"OTC trade over socket failed");}catch{/* best effort */}
+      reject("trading_unavailable");
+    }
   }
   private snapshot(symbol:string){
     const cached=this.cache.get(symbol);if(cached&&Date.now()-cached.at<250)return cached.value;

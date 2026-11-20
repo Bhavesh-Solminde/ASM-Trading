@@ -2,11 +2,16 @@
 import { createElement as h } from "react";
 import { act,cleanup,fireEvent,render,screen } from "@testing-library/react";
 import { afterEach,expect,it,vi } from "vitest";
-vi.mock("@/components/shell/PlatformProvider",()=>({usePlatform:()=>({balances:{demo:{realBalance:10000000,bonusBalance:0}},accounts:[{id:"demo",type:"DEMO"}]})}));
+const placeholders=vi.hoisted(()=>[] as {id:string;pending?:boolean;entryPrice:number}[]);
+// Behaves like the provider with its socket down: the order goes to POST /api/trades.
+vi.mock("@/components/shell/PlatformProvider",()=>({usePlatform:()=>({balances:{demo:{realBalance:10000000,bonusBalance:0}},accounts:[{id:"demo",type:"DEMO"}],
+  placeOtcTrade:async(order:object,placeholder:{id:string;pending?:boolean;entryPrice:number})=>{placeholders.push(placeholder);
+    const res=await fetch("/api/trades",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(order)}),data=await res.json();
+    return res.ok?{ok:true,result:data,viaSocket:false}:{ok:false,status:res.status,error:data.error};}})}));
 vi.mock("@/lib/use-now",()=>({useNowSec:()=>100,useMarketClosed:()=>false}));
 vi.mock("./StakeSheet",()=>({StakeSheet:()=>null}));
 import { TradeTicket } from "./TradeTicket";
-afterEach(()=>{cleanup();localStorage.clear();vi.unstubAllGlobals();vi.restoreAllMocks();});
+afterEach(()=>{placeholders.length=0;cleanup();localStorage.clear();vi.unstubAllGlobals();vi.restoreAllMocks();});
 it("retries an ambiguous OTC request with its original duration and key as clock time changes",async()=>{
   const now=1800000000000,clock=vi.spyOn(Date,"now").mockReturnValue(now);
   localStorage.setItem("asm_ticket_expiry",JSON.stringify({durationSec:300,mode:"time",targetMs:now+300000}));
@@ -24,6 +29,8 @@ it("retries an ambiguous OTC request with its original duration and key as clock
   expect(first.durationSec).toBe(300);expect(retry).toEqual(first);expect(first.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
   expect(first.quoteToken).toBe("original-quote");
   expect(onOpened).toHaveBeenCalledTimes(1);
+  // Each press shows "Opening…" at once, at the displayed price, keyed by the request.
+  expect(placeholders.slice(-2)).toEqual([0,1].map(()=>expect.objectContaining({id:`pending:${first.idempotencyKey}`,pending:true,entryPrice:100})));
 });
 it("submits chart-picked levels and retries the same intent even after price crosses a line",async()=>{
   let price=100;

@@ -7,7 +7,7 @@ import type { OpenTradeResult,OtcOpenTradeInput } from "@asm/contracts";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { durationForTargetTime, offeredExpirySlots } from "@/lib/expiry-times";
-import { minStakeMinor } from "@asm/client-core";
+import { minStakeMinor, pendingTradeView } from "@asm/client-core";
 import { currencySymbol, formatMinor } from "@asm/client-core";
 import { clockTime, countdown, hms } from "@asm/client-core";
 import { useDismiss } from "@/lib/use-dismiss";
@@ -120,14 +120,14 @@ export function TradeTicket({
   // Amount, or a percentage of the spendable balance ("Switch").
   const [stakeUnit, setStakeUnit] = useState<StakeUnit>("amount");
   const [pctInput, setPctInput] = useState(DEFAULT_STAKE_PCT);
-  const { balances } = usePlatform();
+  const { balances, placeOtcTrade } = usePlatform();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fired, setFired] = useState<"UP" | "DOWN" | null>(null);
   const sessionClosed = useMarketClosed(symbol);
   const closed=otc?false:sessionClosed;
   const {enabled:protection,stopLoss,takeProfit}=protectionDraft;
-  const pending=useRef<{fingerprint:string;key:string;body:Omit<OtcOpenTradeInput,"idempotencyKey">}|null>(null);
+  const pending=useRef<{fingerprint:string;key:string;price:number;body:Omit<OtcOpenTradeInput,"idempotencyKey">}|null>(null);
   const placing=useRef(false);
   const mounted=useRef(true);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
@@ -294,13 +294,28 @@ export function TradeTicket({
         const validation=protectionError(protectionDraft,direction,displayedQuote.price);
         if(validation){setError(validation);return;}
       }
-      pending.current={fingerprint,key:crypto.randomUUID(),body:{...body,quoteToken:displayedQuote.token}};
+      pending.current={fingerprint,key:crypto.randomUUID(),price:displayedQuote.price,body:{...body,quoteToken:displayedQuote.token}};
     }
     placing.current=true;
     setFired(direction);
     setBusy(true);
     setError(null);
     try {
+      if(otc){
+        // Shown as "Opening…" at the displayed price at once; replaced by the engine's trade or removed if refused.
+        const request=pending.current!,order={...request.body,idempotencyKey:request.key};
+        const placed=await placeOtcTrade(order,pendingTradeView({...order,payoutPct:payoutPct??0,entryPrice:request.price,currency},Math.floor(Date.now()/1000)));
+        if(placed.ok){
+          pending.current=null;
+          onOpened(placed.result);
+          if(mounted.current)onProtectionChange?.({...protectionDraft,enabled:false,stopLoss:null,takeProfit:null});
+        }else{
+          // A network failure keeps the key so the retry can only find the same trade.
+          if(placed.status>0&&placed.status<500)pending.current=null;
+          setError(placed.error);
+        }
+        return;
+      }
       const res = await fetch("/api/trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

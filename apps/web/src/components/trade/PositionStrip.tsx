@@ -49,8 +49,8 @@ const StripBody = memo(function StripBody({
   const profit = Math.floor((trade.stake * trade.payoutPct) / 100);
   // No quote yet, or price exactly at the entry: there is no result to show, so
   // a dash in neutral ink instead of a red loss.
-  const undecided = expired || shownSide === null || shownSide === "flat";
-  const plText = expired ? "Settling…" : isCfd ? cfdText : undecided
+  const undecided = expired || trade.pending === true || shownSide === null || shownSide === "flat";
+  const plText = trade.pending ? "Opening…" : expired ? "Settling…" : isCfd ? cfdText : undecided
     ? "—"
     : winning
       ? `+${formatMinor(grossReturnMinor(trade.stake, profit), currency)}`

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { OpenTradeSchema,OtcOpenTradeSchema, tradeViewFrom } from "@asm/contracts";
+import { OpenTradeSchema,OtcOpenTradeSchema, tradeRejectionMessage, tradeViewFrom } from "@asm/contracts";
 import { formatMoney, getAccountForActor, listTradesForActor, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { requestContext } from "@/lib/request-context";
@@ -10,20 +10,6 @@ import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { engineOtcOpen } from "@/lib/otc-client";
 import { getSession, unauthenticated, rateLimited } from "@/lib/request-session";
 
-const REJECTION_MESSAGE: Record<string, string> = {
-  display_quote_expired: "That displayed price has expired. Wait for a fresh price and try again.",
-  "Liquidity unavailable": "There is not enough liquidity for this trade. Your stake has been returned.",
-  "Market price unavailable": "Waiting for a recent market execution. Try again shortly.",
-  "Invalid stop loss": "Stop loss must be on the loss side of the entry price.",
-  "Invalid take profit": "Take profit must be on the profit side of the entry price.",
-  trading_model_mismatch: "Trading mode changed. Refresh the page before placing another trade.",
-  insufficient_funds: "Not enough balance for that stake.",
-  unknown_asset: "That asset is not available right now.",
-  account_not_found: "Account not found.",
-  account_not_active: "This account is paused. Contact support.",
-  market_closed:
-    "This market is closed for the night. Trading resumes at 5:00 AM IST.",
-};
 
 // A closed market is the trader's state, not our outage — the engine's 503
 // would read as "Service Unavailable" in the browser.
@@ -102,7 +88,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof EngineRejected) {
       log.warn({ evt: "trade.rejected", reason: err.reason, symbol: parsed.data.symbol }, "trade rejected");
       return NextResponse.json(
-        { error: REJECTION_MESSAGE[err.reason] ?? "Could not place that trade.", code:err.reason },
+        { error: tradeRejectionMessage(err.reason), code:err.reason },
         { status: BROWSER_STATUS[err.reason] ?? err.status },
       );
     }
