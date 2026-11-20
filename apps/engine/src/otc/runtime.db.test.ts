@@ -1,5 +1,6 @@
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { randomUUID } from "node:crypto";
+import pg from "pg";
 import { prisma,reserveOtcTrade } from "@asm/db";
 import { OtcRuntime } from "./runtime";
 import { startOtcService } from "./service";
@@ -20,13 +21,13 @@ describe.skipIf(!enabled)("durable OTC coordinator on isolated Postgres",()=>{
   beforeEach(async()=>{
     const url=new URL(process.env.OTC_TEST_DATABASE_URL!);
     if(!["127.0.0.1","localhost"].includes(url.hostname)||url.pathname!=="/otc_integration"||process.env.DATABASE_URL!==process.env.OTC_TEST_DATABASE_URL)throw new Error("Refusing non-isolated runtime database");
-    await prisma.marketExecution.deleteMany({where:{worldId:"otc-main"}});await prisma.otcCandle.deleteMany({where:{worldId:"otc-main"}});
+    await prisma.otcCandle.deleteMany({where:{worldId:"otc-main"}});
     await prisma.marketReferencePoll.deleteMany();
     await seedTestReferences(prisma);
     await prisma.marketCommand.deleteMany({where:{worldId:"otc-main"}});await prisma.marketWorldCheckpoint.deleteMany({where:{id:"otc-main"}});
     await prisma.asset.upsert({where:{symbol:"BTCUSDT"},create:{symbol:"BTCUSDT",displayName:"BTC OTC",kind:"OTC",payoutPct:92,isOpen:true},update:{}});
   });
-  afterEach(async()=>{vi.restoreAllMocks();for(const r of runtimes.splice(0))await r.stop(false).catch(()=>{});await prisma.marketCommand.deleteMany({where:{worldId:"otc-main"}});await prisma.marketWorldCheckpoint.deleteMany({where:{id:"otc-main"}});await prisma.marketExecution.deleteMany({where:{worldId:"otc-main"}});await prisma.otcCandle.deleteMany({where:{worldId:"otc-main"}});await prisma.user.deleteMany({where:{id:{in:users.splice(0)}}});});
+  afterEach(async()=>{vi.restoreAllMocks();for(const r of runtimes.splice(0))await r.stop(false).catch(()=>{});await prisma.marketCommand.deleteMany({where:{worldId:"otc-main"}});await prisma.marketWorldCheckpoint.deleteMany({where:{id:"otc-main"}});await prisma.otcCandle.deleteMany({where:{worldId:"otc-main"}});await prisma.user.deleteMany({where:{id:{in:users.splice(0)}}});});
   it("rejects an expired quote before reserving funds and accepts a fresh displayed quote",async()=>{
     const r=await runtime(),input=await fixture(r);
     const now=Date.now(),clock=vi.spyOn(Date,"now").mockReturnValue(now+6000);
@@ -110,6 +111,30 @@ describe.skipIf(!enabled)("durable OTC coordinator on isolated Postgres",()=>{
     await expect(reserveOtcTrade(input,prisma,Date.now(),{worldId:"otc-main",generation:"stale"})).rejects.toThrow("fenced");
     expect((await prisma.account.findUniqueOrThrow({where:{id:input.accountId}})).realBalance).toBe(100000);
     await r.open(input);
+  },20000);
+  it("checkpoints and serves quotes while history cleanup is stalled",async()=>{
+    const r=await runtime();await r.checkpoint();
+    const blocker=new pg.Client({connectionString:process.env.OTC_TEST_DATABASE_URL});await blocker.connect();
+    const within=<T,>(work:Promise<T>)=>Promise.race([work.then(()=>"served"),new Promise(resolve=>setTimeout(()=>resolve("blocked"),3000))]);
+    try{
+      await blocker.query("BEGIN");await blocker.query('LOCK TABLE "OtcCandle" IN ACCESS EXCLUSIVE MODE');
+      const cleanup=r.retain();
+      expect(await within(r.snapshot("BTCUSDT"))).toBe("served");
+      expect(await within(r.checkpoint())).toBe("served");
+      await blocker.query("ROLLBACK");
+      await expect(cleanup).resolves.toEqual({commands:expect.any(Number),candles:0});
+    }finally{await blocker.end();}
+  },20000);
+  it("reports a failed cleanup to its caller and keeps trading",async()=>{
+    const r=await runtime(),input=await fixture(r);await r.checkpoint();
+    const blocker=new pg.Client({connectionString:process.env.OTC_TEST_DATABASE_URL});await blocker.connect();
+    try{
+      await blocker.query("BEGIN");await blocker.query('LOCK TABLE "MarketCommand" IN SHARE MODE');
+      await expect(r.retain({lockTimeoutMs:200})).rejects.toThrow();
+    }finally{await blocker.query("ROLLBACK");await blocker.end();}
+    const trade=await r.open({...input,quoteToken:(await r.snapshot("BTCUSDT")).displayQuote!.token});
+    expect(trade.status).toBe("OPEN");
+    await expect(r.retain()).resolves.toEqual({commands:expect.any(Number),candles:0});
   },20000);
   it("refunds invalid protection while keeping the coordinator usable",async()=>{
     const r=await runtime(),input=await fixture(r),before=await r.snapshot("BTCUSDT");

@@ -1,5 +1,6 @@
 import { marketReferenceRepository,prisma,type DbClient } from "@asm/db";
 import { ReferencePoller,fetchReferenceJson,type ReferenceTransport } from "@asm/market-sim";
+import { logger } from "@asm/logger";
 import { OtcRuntime } from "./runtime";
 
 /** Long-lived market process: clock and provider requests continue with no viewers. */
@@ -45,6 +46,10 @@ export async function startOtcService(options:{client?:DbClient;databaseUrl?:str
     timers.push(setInterval(()=>{if(stopping||advancing)return;advancing=true;void runtime.advance().catch(fatal).finally(()=>{advancing=false;});},1000));
     timers.push(setInterval(()=>{void poll();},15000));
     timers.push(setInterval(()=>{if(stopping||checkpointing)return;checkpointing=true;void runtime.checkpoint().catch(fatal).finally(()=>{checkpointing=false;});},30000));
+    // Cleanup failures are not fatal: history only grows until the next hourly attempt.
+    timers.push(setInterval(()=>{if(stopping)return;const began=Date.now();void runtime.retain().then(
+      removed=>{if(removed)logger.info({evt:"otc.retention",...removed,ms:Date.now()-began},"OTC history cleanup finished");},
+      error=>logger.error({evt:"otc.retention_failed",reason:error instanceof Error?error.message:String(error)},"OTC history cleanup failed; retrying next hour"));},3600000));
     for(const timer of timers)timer.unref();void poll();
   }
   return {runtime,poller,poll,

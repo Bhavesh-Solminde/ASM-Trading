@@ -21,7 +21,7 @@ describe.skipIf(!enabled)("authenticated OTC transports",()=>{
     vi.stubEnv("NEXT_PUBLIC_LIVE_ACCOUNT_ENABLED",undefined);
     const url=new URL(process.env.OTC_TEST_DATABASE_URL!);
     if(url.hostname!=="127.0.0.1"||url.pathname!=="/otc_integration"||process.env.DATABASE_URL!==process.env.OTC_TEST_DATABASE_URL)throw new Error("Isolated transport database required");
-    await prisma.marketExecution.deleteMany({where:{worldId:"otc-main"}});await prisma.otcCandle.deleteMany({where:{worldId:"otc-main"}});
+    await prisma.otcCandle.deleteMany({where:{worldId:"otc-main"}});
     await prisma.marketCommand.deleteMany({where:{worldId:"otc-main"}});await prisma.marketWorldCheckpoint.deleteMany({where:{id:"otc-main"}});
     await seedTestReferences(prisma);
     await prisma.asset.upsert({where:{symbol:"BTCUSDT"},create:{symbol:"BTCUSDT",displayName:"BTC OTC",kind:"OTC",payoutPct:92,isOpen:true},update:{}});
@@ -87,7 +87,7 @@ describe.skipIf(!enabled)("authenticated OTC transports",()=>{
     }finally{
       ws.close();observer.close();await sockets.stop();await http.close();await runtime.stop();
       await prisma.marketCommand.deleteMany({where:{worldId:"otc-main"}});await prisma.marketWorldCheckpoint.deleteMany({where:{id:"otc-main"}});await prisma.user.delete({where:{id:user.id}});
-      await prisma.marketExecution.deleteMany({where:{worldId:"otc-main"}});await prisma.otcCandle.deleteMany({where:{worldId:"otc-main"}});
+      await prisma.otcCandle.deleteMany({where:{worldId:"otc-main"}});
     }
   },20000);
 });
