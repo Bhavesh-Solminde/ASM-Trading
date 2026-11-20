@@ -46,6 +46,9 @@ describe.skipIf(!enabled)("durable OTC coordinator on isolated Postgres",()=>{
     expect((await r.openTobs()).BTCUSDT).toBe(1);
     expect((await r.open(input)).id).toBe(trade.id);
     const snapshot=await r.snapshot("BTCUSDT");await r.checkpoint();await r.stop(false);
+    // Closed candles live in OtcCandle; the stored checkpoint keeps only each forming bar.
+    const stored=(await prisma.marketWorldCheckpoint.findUniqueOrThrow({where:{id:"otc-main"}})).state as {markets:{candles:unknown[]}[]};
+    expect(Math.max(...stored.markets.map(m=>m.candles.length))).toBeLessThanOrEqual(1);
     const resumed=await runtime(),restored=await resumed.snapshot("BTCUSDT");
     expect({...restored,displayQuote:null}).toEqual({...snapshot,displayQuote:null});
     expect((await resumed.open(input)).id).toBe(trade.id);
@@ -54,6 +57,16 @@ describe.skipIf(!enabled)("durable OTC coordinator on isolated Postgres",()=>{
     expect(settled.status).not.toBe("OPEN");
     expect((await resumed.openTobs()).BTCUSDT??0).toBe(0);
     expect((await prisma.account.findUniqueOrThrow({where:{id:input.accountId}})).realBalance).toBe(100000+settled.pnl);
+  },20000);
+  it("restores the identical market from a full checkpoint written before compact checkpoints",async()=>{
+    const r=await runtime(),input=await fixture(r);await r.open(input);await r.checkpoint();
+    // The first boot after this release reads the full state an older engine saved.
+    const full=await (r as unknown as {worker:{checkpoint():Promise<{markets:{candles:unknown[]}[]}>}}).worker.checkpoint();
+    expect(Math.max(...full.markets.map(m=>m.candles.length))).toBeGreaterThan(1);
+    await prisma.$executeRaw`UPDATE "MarketWorldCheckpoint" SET "state"=${JSON.stringify(full)}::jsonb WHERE "id"='otc-main'`;
+    const snapshot=await r.snapshot("BTCUSDT");await r.stop(false);
+    const resumed=await runtime();
+    expect({...await resumed.snapshot("BTCUSDT"),displayQuote:null}).toEqual({...snapshot,displayQuote:null});
   },20000);
   it("refuses placeholder boot when any verified reference is missing",async()=>{
     await prisma.marketReference.delete({where:{symbol:"SOLUSDT"}});

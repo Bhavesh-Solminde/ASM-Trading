@@ -1,5 +1,6 @@
 import { Prisma,assertOtcFence,type DbClient,type DbTransaction,type OtcFence } from "@asm/db";
 import { TIMEFRAME_SEC,type CandleDto,type Timeframe } from "@asm/contracts";
+import { RETAINED_CANDLES,type Candle,type SimulationCheckpoint } from "@asm/market-sim";
 
 export interface OtcArchiveBatch {
   candles:{symbol:string;time:number;open:number;high:number;low:number;close:number;volume:number}[];
@@ -14,6 +15,22 @@ export async function persistOtcArchive(client:DbClient,fence:OtcFence,batch:Otc
       worldId:fence.worldId,symbol:b.symbol,openTs:new Date(b.time*1000),o:b.open,h:b.high,l:b.low,c:b.close,volume:b.volume,
     }))});
   },{timeout:30000});
+}
+
+/**
+ * A compact checkpoint carries only each market's forming bar. Reload the newest closed bars from the
+ * archive so the restored world holds the same RETAINED_CANDLES it had in memory. A full (older)
+ * checkpoint already holds them, and then nothing is read.
+ */
+export async function loadClosedCandles(client:DbClient,worldId:string,checkpoint:SimulationCheckpoint):Promise<Record<string,Candle[]>>{
+  const entries=await Promise.all(checkpoint.markets.map(async m=>{
+    const limit=RETAINED_CANDLES-m.candles.length;
+    if(limit<=0)return [m.profile.symbol,[]] as const;
+    const before=new Date((m.candles[0]?.time??Math.floor(m.clock/60000)*60)*1000);
+    const rows=await client.otcCandle.findMany({where:{worldId,symbol:m.profile.symbol,openTs:{lt:before}},orderBy:{openTs:"desc"},take:limit});
+    return [m.profile.symbol,rows.reverse().map(r=>({time:r.openTs.getTime()/1000,open:r.o,high:r.h,low:r.l,close:r.c,volume:r.volume}))] as const;
+  }));
+  return Object.fromEntries(entries);
 }
 
 /** Read at most the minute rows needed for one page; do not scan a year per pan. */

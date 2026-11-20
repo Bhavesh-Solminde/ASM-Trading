@@ -3,6 +3,7 @@ import { MULTI_MARKETS,type ReferenceQuote } from "./catalogue";
 import { FixedContracts,type FixedContract,type FixedContractInput } from "./fixed-contracts";
 import { flowLots,submitAccountFlow,type AccountFlowInput } from "./account-flow";
 import { isTob } from "./eligibility";
+import type { Candle } from "./types";
 
 export interface OpenContractCommand extends Omit<FixedContractInput,"entryPrice"|"entryTime"|"expiryTime"|"entrySequence">,Omit<AccountFlowInput,"side"> {
   durationSec:number;
@@ -78,13 +79,14 @@ export class MarketWorld {
   snapshot(symbol:string,since?:number){return {time:this.time,sequence:this.sequence,market:this.market(symbol).snapshot(since),reference:this.references.get(symbol)??null};}
   summaries(){return [...this.markets.values()].map(m=>m.summary());}
   leaderboard(){return [...this.markets.values()].flatMap(m=>m.botLeaderboard(10)).sort((a,b)=>b.returnPct-a.returnPct||a.id.localeCompare(b.id)).slice(0,10);}
-  checkpoint():SimulationCheckpoint{return {version:1,time:this.time,sequence:this.sequence,markets:[...this.markets.values()].map(m=>m.checkpoint()),references:[...this.references.values()].map(q=>({...q})),contracts:this.contracts.checkpoint()};}
-  static restore(state:SimulationCheckpoint){
+  checkpoint(options?:{compact?:boolean}):SimulationCheckpoint{return {version:1,time:this.time,sequence:this.sequence,markets:[...this.markets.values()].map(m=>m.checkpoint(options)),references:[...this.references.values()].map(q=>({...q})),contracts:this.contracts.checkpoint()};}
+  /** closedCandles: per-symbol archived bars for a compact checkpoint (see AnchoredMarket.checkpoint). */
+  static restore(state:SimulationCheckpoint,closedCandles:Record<string,Candle[]>={}){
     if(state.version!==1||!Number.isSafeInteger(state.time)||!Number.isSafeInteger(state.sequence)||state.sequence<0||state.markets.length!==MULTI_MARKETS.length)throw new Error("Invalid simulation checkpoint");
     // Avoid warm-up on recovery; the restored world must consume no random draws.
     const world=Object.create(MarketWorld.prototype) as MarketWorld;
     Object.assign(world,{time:state.time,sequence:state.sequence,markets:new Map(),references:new Map(),contracts:FixedContracts.restore(state.contracts)});
-    for(const s of state.markets){if(s.clock!==state.time||!MULTI_MARKETS.some(m=>m.symbol===s.profile.symbol)||world.markets.has(s.profile.symbol))throw new Error("Checkpoint market mismatch");world.markets.set(s.profile.symbol,AnchoredMarket.restore(s));}
+    for(const s of state.markets){if(s.clock!==state.time||!MULTI_MARKETS.some(m=>m.symbol===s.profile.symbol)||world.markets.has(s.profile.symbol))throw new Error("Checkpoint market mismatch");world.markets.set(s.profile.symbol,AnchoredMarket.restore(s,closedCandles[s.profile.symbol]));}
     for(const q of state.references)world.references.set(q.symbol,{...q});
     return world;
   }

@@ -13,6 +13,9 @@ class Random {
 }
 const clip=(v:number,low:number,high:number)=>Math.max(low,Math.min(high,v));
 /** Neutral synthetic price discovery: no human positions, payouts or vault input. */
+/** One-minute bars each market keeps in memory for charts and restore. */
+export const RETAINED_CANDLES=1500;
+
 export class AnchoredMarket {
   book=new OrderBook();
   readonly botIds=Array.from({length:200},(_,i)=>`bot-${i}`);
@@ -50,16 +53,21 @@ export class AnchoredMarket {
     for(const id of this.botIds)this.book.register(id,1_000_000_000_000,1_000_000);
   }
   now(){return this.clock;}
-  checkpoint(){
+  /**
+   * compact leaves out closed candles: a durable host archives each bar as it closes, so only the
+   * forming bar is new. restore() takes the closed ones back. Retained candles are ~85% of a full one.
+   */
+  checkpoint({compact=false}:{compact?:boolean}={}){
+    const current=Math.floor(this.clock/60000)*60,candles=compact?this.candles.filter(b=>b.time>=current):this.candles;
     return structuredClone({version:1 as const,profile:this.profile,audit:this.audit,
       book:this.book.checkpoint(),random:this.random.checkpoint(),tobsRandom:this.tobsRandom.checkpoint(),
       clock:this.clock,nextTick:this.nextTick,fair:this.fair,anchor:this.anchor,last:this.last,
-      candles:this.candles,tape:this.tape,journal:this.journal,phase:this.phase,phaseTicks:this.phaseTicks,
+      candles,tape:this.tape,journal:this.journal,phase:this.phase,phaseTicks:this.phaseTicks,
       volatility:this.volatility,noiseMemory:this.noiseMemory,fills:this.fills,orders:this.orders,
       tobsIds:this.tobsIds,externalIds:this.externalIds,tobs:this.tobs,tobsWindow:this.tobsWindow,flowHistory:this.flowHistory,
       flowPhase:this.flowPhase,flowImpact:this.flowImpact,tobsTotals:this.tobsTotals});
   }
-  static restore(input:ReturnType<AnchoredMarket["checkpoint"]>){
+  static restore(input:ReturnType<AnchoredMarket["checkpoint"]>,closed:Candle[]=[]){
     const s=structuredClone(input);
     if(s.version!==1 || !Number.isSafeInteger(s.clock) || !Number.isSafeInteger(s.nextTick)
       || s.nextTick<=s.clock || s.nextTick>s.clock+6000 || ![s.fair,s.volatility,s.noiseMemory,s.flowImpact].every(Number.isFinite)
@@ -68,6 +76,8 @@ export class AnchoredMarket {
     market.book=OrderBook.restore(s.book);market.random=new Random(s.random);market.tobsRandom=new Random(s.tobsRandom);
     const {version,profile,audit,book,random,tobsRandom,...fields}=s;
     Object.assign(market,fields);
+    const first=market.candles[0]?.time??Infinity;
+    if(closed.length)market.candles=[...closed.filter(b=>b.time<first).map(b=>({...b})),...market.candles].slice(-RETAINED_CANDLES);
     return market;
   }
   botLeaderboard(count=10){
@@ -182,7 +192,7 @@ export class AnchoredMarket {
     let bar=this.candles.at(-1);
     if(!bar||bar.time!==time){const open=this.last?this.last.price*this.profile.tickSize:price;bar={time,open,high:Math.max(open,price),low:Math.min(open,price),close:price,volume:0};this.candles.push(bar);}
     bar.high=Math.max(bar.high,price);bar.low=Math.min(bar.low,price);bar.close=price;bar.volume+=fill.quantity;
-    if(this.candles.length>1500)this.candles.shift();
+    if(this.candles.length>RETAINED_CANDLES)this.candles.shift();
     this.last={...fill};this.fills++;this.tape.unshift({...fill,origin:fill.takerId.startsWith("tobs-")||fill.makerId.startsWith("tobs-")?"Tobs":"Bot"});if(this.tape.length>40)this.tape.pop();
     if(this.audit)this.journal.push({...fill});
     this.observer?.({...fill});
@@ -237,7 +247,7 @@ export class AnchoredMarket {
     }
     this.runTobs(time,sigma);
     const bucket=Math.floor(time/60000)*60;
-    if(this.last&&this.candles.at(-1)?.time!==bucket){const p=this.last.price*this.profile.tickSize;this.candles.push({time:bucket,open:p,high:p,low:p,close:p,volume:0});if(this.candles.length>1500)this.candles.shift();}
+    if(this.last&&this.candles.at(-1)?.time!==bucket){const p=this.last.price*this.profile.tickSize;this.candles.push({time:bucket,open:p,high:p,low:p,close:p,volume:0});if(this.candles.length>RETAINED_CANDLES)this.candles.shift();}
   }
   advance(time:number,onExecution?:(fill:Execution)=>void){
     if(!Number.isSafeInteger(time)||time<this.clock)throw new Error("Anchored time must be monotonic");

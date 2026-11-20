@@ -79,3 +79,21 @@ it.each(["UP","DOWN"] as const)("opens %s at the verified displayed price despit
   expect(contract.entryPrice).toBe(displayedPrice);
   expect(contract.status).toBe(contract.exitPrice===displayedPrice?"REFUNDED":((direction==="UP")===(contract.exitPrice!>displayedPrice)?"WON":"LOST"));
 });
+it("restores the identical world from a compact checkpoint plus the archived closed candles",()=>{
+  const world=new MarketWorld(start);world.open(trade);world.advance(start+3*3600000);
+  const full=JSON.stringify(world.checkpoint()),compact=JSON.stringify(world.checkpoint({compact:true}));
+  // The compact form carries only each forming bar (production holds 1,500 bars per market).
+  expect(compact.length).toBeLessThan(full.length);
+  for(const m of (JSON.parse(compact) as ReturnType<MarketWorld["checkpoint"]>).markets)expect(m.candles.length).toBeLessThanOrEqual(1);
+  const closed=Object.fromEntries([...world.markets].map(([symbol,m])=>[symbol,m.closedCandlesAfter()]));
+  const resumed=MarketWorld.restore(JSON.parse(compact),closed);
+  expect(resumed.checkpoint()).toEqual(world.checkpoint());
+  expect(resumed.snapshot("BTCUSDT")).toEqual(world.snapshot("BTCUSDT"));
+  world.advance(start+3*3600000+600000);resumed.advance(start+3*3600000+600000);
+  expect(resumed.checkpoint()).toEqual(world.checkpoint());
+},30000);
+it("keeps a full checkpoint restorable when archived candles are also supplied",()=>{
+  const world=new MarketWorld(start);world.advance(start+3600000);
+  const closed=Object.fromEntries([...world.markets].map(([symbol,m])=>[symbol,m.closedCandlesAfter()]));
+  expect(MarketWorld.restore(JSON.parse(JSON.stringify(world.checkpoint())),closed).checkpoint()).toEqual(world.checkpoint());
+},30000);
