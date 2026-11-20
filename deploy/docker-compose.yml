@@ -15,6 +15,38 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    # Sized for the 16 GB VPS it shares with web, engine and amscoins. On the
+    # stock 128 MB cache only ~25% of reads were served from Postgres's own
+    # memory. Changing these restarts Postgres on the next deploy.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=3GB
+      - -c
+      - effective_cache_size=9GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - min_wal_size=1GB
+      - -c
+      - wal_compression=on
+      # Query timing for finding slow statements (CREATE EXTENSION once after deploy).
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=top
+      - -c
+      - track_io_timing=on
+      - -c
+      - log_min_duration_statement=500
+    # Docker's 64 MB default /dev/shm is too small for parallel queries.
+    shm_size: 1g
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       # `postgres` superuser stays inside the container.
