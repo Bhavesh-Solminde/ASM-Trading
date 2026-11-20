@@ -10,6 +10,7 @@ it("runs all 30 books and fixed contracts identically in the background worker",
     expect(await worker.open(input)).toEqual(direct.open(input));
     await worker.advance(start+3600000);direct.advance(start+3600000);
     expect(await worker.checkpoint()).toEqual(direct.checkpoint());
+    expect(JSON.parse(await worker.checkpointJson())).toEqual(JSON.parse(JSON.stringify(direct.checkpoint())));
     expect(await worker.settlements()).toEqual(direct.contracts.pendingSettlements());
     expect(await worker.leaderboard()).toEqual(direct.leaderboard());
     const audit=await worker.archive();

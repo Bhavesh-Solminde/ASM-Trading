@@ -17,10 +17,20 @@ export interface OtcOpenIntent {
 export class OtcRejected extends Error {}
 const fingerprint=(r:OtcTradeRequest)=>JSON.stringify({symbol:r.symbol,direction:r.direction,stake:r.stake,durationSec:r.durationSec,stopLoss:r.stopLoss??null,takeProfit:r.takeProfit??null,...(r.quoteToken?{quoteToken:r.quoteToken}:{}),...(r.currency?{currency:r.currency}:{})});
 const json=<T>(v:T)=>JSON.parse(JSON.stringify(v));
+/**
+ * Serializable conflicts are expected and safe to retry. Prisma reports them as P2034, but a raw
+ * query (the fence and FOR UPDATE locks) surfaces the same Postgres 40001/40P01 as P2010.
+ */
+export function isRetryableConflict(error:unknown){
+  const e=error as {code?:string;meta?:{driverAdapterError?:{cause?:{originalCode?:string}}}};
+  if(e?.code==="P2034"||e?.code==="P2002")return true;
+  const original=e?.meta?.driverAdapterError?.cause?.originalCode;
+  return e?.code==="P2010"&&(original==="40001"||original==="40P01");
+}
 async function serial<T>(client:DbClient,work:(tx:DbTransaction)=>Promise<T>):Promise<T>{
   for(let attempt=0;attempt<5;attempt++){
     try{return await client.$transaction(work,{isolationLevel:"Serializable"});}
-    catch(error){const code=(error as {code?:string}).code;if(attempt<4&&["P2034","P2002"].includes(code??""))continue;throw error;}
+    catch(error){if(attempt<4&&isRetryableConflict(error))continue;throw error;}
   }
   throw new Error("Unreachable transaction retry");
 }

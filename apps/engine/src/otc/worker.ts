@@ -34,6 +34,8 @@ export class OtcWorker {
   summaries(){return this.request<ReturnType<MarketWorld["summaries"]>>("summaries");}
   leaderboard(){return this.request<ReturnType<MarketWorld["leaderboard"]>>("leaderboard");}
   checkpoint(){return this.request<SimulationCheckpoint>("checkpoint");}
+  /** Serialised in the worker so the engine thread never clones or re-parses a multi-megabyte world. */
+  checkpointJson(){return this.request<string>("checkpointJson");}
   archive(){return this.request<OtcArchiveBatch>("archive");}
   settlements(){return this.request<FixedContract[]>("settlements");}
   acknowledge(id:string){return this.request<boolean>("ack",id);}
