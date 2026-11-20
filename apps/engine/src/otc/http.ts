@@ -4,6 +4,7 @@ import { EngineOtcOpenTradeSchema,tradeViewFrom } from "@asm/contracts";
 import { prisma,OtcRejected } from "@asm/db";
 import type { OtcRuntime } from "./runtime";
 import { otcProcessMetrics } from "./metrics";
+import { logger } from "@asm/logger";
 
 export function createOtcHttp(runtime:OtcRuntime,secret:string,port:number,transportMetrics:()=>unknown=()=>null){
   if(secret.length<16)throw new Error("Set ENGINE_INTERNAL_SECRET before starting OTC");
@@ -20,7 +21,9 @@ export function createOtcHttp(runtime:OtcRuntime,secret:string,port:number,trans
       if(!req.headers["content-type"]?.startsWith("application/json")){reply(res,415,{error:"json_required"});return;}
       let body="";for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>4096){reply(res,413,{error:"too_large"});return;}}
       const input=EngineOtcOpenTradeSchema.safeParse(JSON.parse(body));if(!input.success){reply(res,400,{error:"invalid_trade"});return;}
+      const openedAt=performance.now();
       const trade=await runtime.open({...input.data,stopLoss:input.data.stopLoss??null,takeProfit:input.data.takeProfit??null}),account=await prisma.account.findUniqueOrThrow({where:{id:trade.accountId}});
+      logger.info({evt:"otc.open_timing",symbol:input.data.symbol,ms:Math.round(performance.now()-openedAt)},"OTC trade opened");
       reply(res,201,{trade:tradeViewFrom(trade,input.data.symbol),balances:{realBalance:account.realBalance,bonusBalance:account.bonusBalance}});
     }catch(error){if(error instanceof OtcRejected){reply(res,409,{error:error.message});return;}
       if(error instanceof SyntaxError){reply(res,400,{error:"invalid_json"});return;}

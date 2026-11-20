@@ -32,6 +32,7 @@ const BROWSER_STATUS: Record<string, number> = { market_closed: 409 };
 export async function POST(req: NextRequest) {
   const ctx = requestContext(req);
   const log = childLogger(ctx.cid);
+  const startedAt = performance.now();
 
   const session = await getSession(req);
   if (!session) {
@@ -89,7 +90,13 @@ export async function POST(req: NextRequest) {
   try {
     const order = { ...parsed.data };
     delete order.currency;
+    const engineAt = performance.now();
     const result = otc?await engineOtcOpen({...OtcOpenTradeSchema.parse(parsed.data),actorId:session.userId}):await engineOpenTrade({ ...order, actorId: session.userId });
+    // Server-side share of a trade's delay; the rest is network between the browser and this server.
+    log.info(
+      { evt: "trade.timing", symbol: parsed.data.symbol, checksMs: Math.round(engineAt - startedAt), engineMs: Math.round(performance.now() - engineAt) },
+      "trade opened",
+    );
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof EngineRejected) {

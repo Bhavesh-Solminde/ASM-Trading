@@ -25,6 +25,7 @@ parentPort!.on("message",(request:{id:number;type:string;payload:unknown})=>{
         case "summaries":result=world.summaries();break;
         case "leaderboard":result=world.leaderboard();break;
         case "checkpoint":result=world.checkpoint();break;
+        case "checkpointJson":result=JSON.stringify(world.checkpoint());break;
         case "archive":{
           const candles:OtcArchiveBatch["candles"]=[];
           for(const [symbol,market] of world.markets){

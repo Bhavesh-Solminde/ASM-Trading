@@ -151,14 +151,19 @@ export class OtcRuntime {
   }
   advance(time=Date.now()){return this.enqueue(async()=>{await this.append({version:1,kind:"advance",time});await this.drain();});}
   reference(quote:ReferenceQuote){return this.enqueue(async()=>{await this.append({version:1,kind:"reference",time:Math.max(Date.now(),quote.receivedAt),quote});await this.drain();});}
+  /**
+   * The worker serialises the world, so the engine thread never clones or re-parses the
+   * multi-megabyte state. The write stays in the command queue: trade ledger transactions are
+   * serializable and lock this row as their fence, so it must never change beside them.
+   */
   checkpoint(){return this.enqueue(async()=>{
-    await this.drain();const state=await this.worker!.checkpoint();
+    await this.drain();const state=await this.worker!.checkpointJson();
     await this.client.$transaction(async tx=>{
       await assertOtcFence(tx,this.fence);
-      await tx.marketWorldCheckpoint.update({where:{id:this.worldId},data:{sequence:this.watermark,state:json(state)}});
+      await tx.marketWorldCheckpoint.update({where:{id:this.worldId},data:{sequence:this.watermark}});
+      await tx.$executeRaw`UPDATE "MarketWorldCheckpoint" SET "state"=${state}::jsonb WHERE "id"=${this.worldId}`;
     });
     this.checkpointed={watermark:this.watermark,time:this.time};
-    return state;
   });}
   /**
    * Hourly cleanup. Runs beside the command queue, never inside it: a slow delete must not
