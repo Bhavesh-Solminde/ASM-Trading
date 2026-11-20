@@ -101,60 +101,12 @@ chart phase is retained. Empty liquidity is a real rejection with a refund,
 not a server-capacity failure. An ambiguous network retry retains its key;
 retrying a confirmed refunded rejection uses a new key and is recorded.
 
-## Isolated KVM acceptance stack
+## Isolated KVM acceptance stack (removed)
 
-Prepared file: `deploy/docker-compose.otc-staging.yml`. This uses a distinct
-project, image, network, database and volumes, with loopback-only ports 14301,
-14401, 14402 and 15440. It does not modify production nginx or production data.
-The isolated KVM stack is running in
-`/home/deploy/asmtrader-otc-staging-20261105`. Existing SSH access works with the
-explicit `~/.ssh/asmtrader_ci` key and user `deploy`; no key contents should be
-copied into reports or chat. The earlier authentication failure was caused by
-the key not being selected automatically. Production is unchanged.
-
-For a fresh staging installation, copy the reviewed source to a separate
-staging directory. Generate three new hex secrets on the server into a
-mode-600 `.env.otc-staging` (never reuse production secrets):
-
-```sh
-umask 077
-{
-  echo "OTC_STAGE_DB_PASSWORD=$(openssl rand -hex 24)"
-  echo "OTC_STAGE_SESSION_SECRET=$(openssl rand -hex 32)"
-  echo "OTC_STAGE_ENGINE_SECRET=$(openssl rand -hex 32)"
-} > .env.otc-staging
-docker compose --env-file .env.otc-staging \
-  -f deploy/docker-compose.otc-staging.yml up --build -d
-```
-
-Use a temporary SSH tunnel to inspect it locally; leave all staging ports
-private. Stop the local acceptance services first if their ports are occupied.
-
-```sh
-ssh -N -L 4301:127.0.0.1:14301 -L 4501:127.0.0.1:14401 \
-  -L 4502:127.0.0.1:14402 -L 55440:127.0.0.1:15440 deploy@187.52.118.185
-```
-
-The web image uses `ws://127.0.0.1:4501` for that private tunnel. Add
-`-o IdentitiesOnly=yes -i ~/.ssh/asmtrader_ci` to the SSH command when using the
-existing VPS access. The staging database user is `otc_stage`.
-
-Run `bash deploy/otc-staging-acceptance.sh` from the separate server checkout.
-It runs the normal-signup/lifecycle/crowd/matched-execution audit inside a
-separate load-generator container. Its internal fixture guard requires the
-literal project marker `asmtrader-otc-staging`, DB `postgres:5432/otc_integration`
-and user `otc_stage`; API/WS targets are fixed to `web:3000`/`engine:4001`.
-It does not accept arbitrary remote hosts or production databases. Reports are
-copied to `reports/`; the private credential manifest stays inside the retained
-proof container. Keep that container private and preserve reports before removal.
-
-After the crowd run, `bash deploy/otc-staging-benchmark.sh` creates a **different**
-`otc_benchmark` database in the staging Postgres, migrates it, then runs the
-durable accelerated and worker-only long-session benchmarks. Its reset guard
-requires that exact benchmark name, never the acceptance database. A rerun
-must explicitly handle the retained test container/database; scripts refuse
-to overwrite them automatically. Save KVM measurements under
-`docs/verification/kvm/` separately from laptop results.
+The VPS staging stack (`asmtrader-otc-staging`) was removed on 2026-11-20 at
+the owner's request; acceptance runs use the local environment above. Its
+compose file and wrapper scripts were deleted. Earlier KVM measurements remain
+under `docs/verification/kvm/` for reference.
 
 ## Diagnostics and data retention
 
@@ -166,9 +118,10 @@ to overwrite them automatically. Save KVM measurements under
   render it. Use permitted developer profiling for actual browser frame/switch
   measurements; DOM and server checks must not be described as GPU/frame tests.
 - Closed one-minute candles persist for 365 days and aggregate on paged reads.
-  The private execution audit persists for seven days. System commands older
-  than a day compact only behind a durable checkpoint. Trade receipts stay for
-  idempotency. Cleanup runs at most hourly after checkpoint persistence.
+  Individual fills are not stored; the tape is the worker's in-memory last 40.
+  System commands older than a day compact only behind a durable checkpoint.
+  Trade receipts stay for idempotency. Cleanup runs hourly beside the command
+  queue in small batches, and a failed run is logged and retried next hour.
 - The worker retains 1,500 recent candles per market, and the UI has bounded
   history and a six-market/timeframe cache. All executions and settlement ticks
   still run; display coalescing never drops market operations.
