@@ -14,7 +14,7 @@ if(process.env.OTC_STAGING_RUN!=="true"||(!container&&!local))throw new Error("D
 const output=resolve(container?"/tmp/otc-reports":"../../docs/verification");
 const delay=monitorEventLoopDelay({resolution:20}),latencies=[],healthErrors=[];let runtime,http,timer,busy=false;
 try{
-  for(const table of [prisma.marketCommand,prisma.marketExecution,prisma.otcCandle])await table.deleteMany({where:{worldId:"otc-main"}});
+  for(const table of [prisma.marketCommand,prisma.otcCandle])await table.deleteMany({where:{worldId:"otc-main"}});
   await prisma.marketWorldCheckpoint.deleteMany({where:{id:"otc-main"}});
   await seedTestReferences(prisma);
   runtime=await new OtcRuntime(prisma,process.env.DATABASE_URL).start();
@@ -31,14 +31,12 @@ try{
   }
   clearInterval(timer);timer=null;while(busy)await wait(10);
   const elapsedMs=performance.now()-began,used=process.cpuUsage(cpu),after=await runtime.summaries(),snapshot=await runtime.snapshot("BTCUSDT");
-  const executions=await prisma.marketExecution.count({where:{worldId:"otc-main"}}),expected=after.reduce((n,m,i)=>n+m.fills-summaries[i].fills,0);
-  if(executions!==expected)throw new Error("Durable execution audit omitted or duplicated fills");
   await runtime.checkpoint();await runtime.stop(false);runtime=await new OtcRuntime(prisma,process.env.DATABASE_URL).start();
   const exactRestart=isDeepStrictEqual(await runtime.snapshot("BTCUSDT"),snapshot);if(!exactRestart)throw new Error("Durable benchmark restart diverged");
   const sorted=[...latencies].sort((a,b)=>a-b),metrics={scope:`Actual ${container?"isolated KVM staging":"local"} durable coordinator, worker, checkpoint/archive persistence and authenticated HTTP. Process CPU/RSS exclude the separate Postgres process, web, Redis and browser.`,
     markets:30,bots:6000,simulationMs:3600000,elapsedMs,achievedSpeed:3600000/elapsedMs,cpuOneCorePct:(used.user+used.system)/(elapsedMs*1000)*100,rssBytes:process.memoryUsage().rss,
     eventLoopP95Ms:delay.percentile(95)/1e6,eventLoopMaxMs:delay.max/1e6,healthRequests:latencies.length,healthP95Ms:sorted[Math.floor(sorted.length*.95)]??null,healthMaxMs:sorted.at(-1)??null,
-    executions,expected,exactRestart,healthErrors,healthLatenciesMs:latencies};
+    fills:after.reduce((n,m,i)=>n+m.fills-summaries[i].fills,0),exactRestart,healthErrors,healthLatenciesMs:latencies};
   await mkdir(output,{recursive:true});await writeFile(resolve(output,"otc-durable-benchmark.json"),JSON.stringify(metrics,null,2));console.log(JSON.stringify({...metrics,healthLatenciesMs:undefined}));
   if(healthErrors.length)throw new Error("Authenticated HTTP failed during durable playback; see saved report");
 }finally{if(timer)clearInterval(timer);while(busy)await wait(10);delay.disable();await http?.close();await runtime?.stop(false);await prisma.$disconnect();}

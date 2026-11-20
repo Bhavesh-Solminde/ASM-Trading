@@ -554,22 +554,6 @@ model OtcCandle {
   @@index([worldId, openTs])
 }
 
-/// Bounded internal execution audit. Participant IDs never enter public tape.
-model MarketExecution {
-  worldId String
-  symbol String
-  sequence BigInt
-  time DateTime
-  price Float
-  quantity Int
-  side String
-  makerId String
-  takerId String
-
-  @@id([worldId, symbol, sequence])
-  @@index([worldId, time])
-}
-
 /// Per-IST-day house ledger. Written by the settlement path on every non-DEMO
 /// trade. Drives the governor's win-probability ladder.
 model HouseDay {
