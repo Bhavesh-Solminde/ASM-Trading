@@ -7,7 +7,7 @@
  *   DATABASE_URL=postgresql://…@127.0.0.1:5433/otc_integration \
  *   pnpm --filter @asm/engine exec tsx scripts/otc-open-latency.ts [trades=60] [viewers=20] [warmHours=26]
  */
-import { randomUUID } from "node:crypto";
+import { randomInt,randomUUID } from "node:crypto";
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import { setTimeout as wait } from "node:timers/promises";
 import WebSocket from "ws";
@@ -69,7 +69,7 @@ async function open(token:string){
 }
 const loop=monitorEventLoopDelay({resolution:10});loop.enable();
 const random:number[]=[];
-for(let i=0;i<trades;i++){const token=(await runtime.snapshot("BTCUSDT")).displayQuote!.token;await wait(300+Math.random()*1200);random.push(await open(token));}
+for(let i=0;i<trades;i++){const token=(await runtime.snapshot("BTCUSDT")).displayQuote!.token;await wait(300+randomInt(1200));random.push(await open(token));}
 const loopRandom={p99:loop.percentile(99)/1e6,max:loop.max/1e6};loop.reset();
 // Worst case: a trade that arrives just after a checkpoint starts.
 const during:number[]=[],checkpointMs:number[]=[];
