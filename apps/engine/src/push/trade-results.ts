@@ -1,6 +1,5 @@
-import type { ServerMessage, TradeView } from "@asm/contracts";
+import type { TradeView } from "@asm/contracts";
 import { logger } from "@asm/logger";
-import type { Notifier } from "../trading/trade-desk";
 
 export interface TradeResult {
   symbol: string;
@@ -60,17 +59,4 @@ export class TradeResultBatcher {
       logger.error({ evt: "push.trade_results_failed", userId, errorType: err instanceof Error ? err.name : "unknown" }, "trade result push failed");
     }
   }
-}
-
-/** Passes engine messages through unchanged and feeds settlements to the batcher. */
-export function withTradeResultPush(inner: Notifier, batcher: TradeResultBatcher): Notifier {
-  return {
-    sendToUser(userId: string, message: ServerMessage) {
-      inner.sendToUser(userId, message);
-      if (message.type === "trade:settled") batcher.add(userId, message.trade);
-    },
-    broadcast(symbol: string, message: ServerMessage) {
-      inner.broadcast(symbol, message);
-    },
-  };
 }

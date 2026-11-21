@@ -13,6 +13,7 @@ import { startReconciliationRunner } from "../chain-watcher/reconciliation-runne
 import { startTatumRunner } from "../tatum-runner";
 import { startReferralQualificationSweep } from "../affiliate/referral-qualification";
 import { startProgramDayClose } from "../affiliate/program-day-close";
+import { startHeldWithdrawalRelease } from "../withdrawals/held-release";
 import { usdtProviderFor } from "@asm/tatum";
 import { startPushRuntime } from "../push/runtime";
 import { assertLegacyDrained } from "./preflight";
@@ -48,6 +49,8 @@ export async function startOtcEngine(){
   cleanups.push(()=>referralSweep.stop());
   const programDayClose=startProgramDayClose();
   cleanups.push(()=>programDayClose.stop());
+  const heldWithdrawals=startHeldWithdrawalRelease();
+  cleanups.push(()=>heldWithdrawals.stop());
   async function shutdown(code:number){
     if(shuttingDown)return;shuttingDown=true;
     for(const close of cleanups.reverse())await close().catch(error=>logger.error({evt:"otc.shutdown_error",reason:String(error)},"OTC shutdown step failed"));

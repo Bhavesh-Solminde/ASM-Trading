@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   evaluate: vi.fn(),
   list: vi.fn(),
-  settleTrade: vi.fn(),
   transaction: vi.fn(),
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
@@ -11,16 +10,10 @@ vi.mock("@asm/db", async (original) => ({
   ...await original<typeof import("@asm/db")>(),
   evaluateReferralQualification: mocks.evaluate,
   listUnqualifiedReferredUserIds: mocks.list,
-  settleTrade: mocks.settleTrade,
-  recordSettledTrade: vi.fn(async () => {}),
-  applySettlementToHouseDay: vi.fn(async () => {}),
-  applySettlementToTreasury: vi.fn(async () => {}),
   prisma: { $transaction: mocks.transaction },
 }));
 vi.mock("@asm/logger", () => ({ logger: mocks.log }));
 
-import { TradeDesk } from "../trading/trade-desk";
-import { CfdDesk } from "../trading/cfd-desk";
 import { OtcRuntime } from "../otc/runtime";
 import {
   evaluateReferralAfterSettlement, markBotUser, runReferralQualificationSweep, startReferralQualificationSweep,
@@ -28,72 +21,10 @@ import {
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const failedLogged = () => mocks.log.error.mock.calls.some(([o]) => (o as { evt?: string }).evt === "referral.evaluate_failed");
 
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.evaluate.mockResolvedValue({ outcome: "not_yet" });
-});
-
-describe("legacy binary settlement hook", () => {
-  async function settle(isDemo: boolean) {
-    mocks.settleTrade.mockResolvedValue({ userId: "user", realBalance: 1, bonusBalance: 0,
-      trade: { id: "t1", accountId: "acc", entryTs: new Date(0), expiryTs: new Date(60_000), status: "WON", stake: 1000, pnl: 920 } });
-    const sendToUser = vi.fn();
-    const desk = new TradeDesk({ all: () => [] } as never, { sendToUser, broadcast: vi.fn() } as never, { invalidate: vi.fn() } as never);
-    const internal = desk as unknown as { pending: unknown[]; drain(): Promise<void> };
-    internal.pending.push({
-      position: { tradeId: "t1", accountId: "acc", assetId: "asset", direction: "UP", stake: 1000, payoutPct: 92, isDemo, expirySec: 60 },
-      symbol: "BTCUSDT", exitPrice: 1, honestExitPrice: 1, resolvedExitPrice: 1, attempts: 0,
-    });
-    await internal.drain();
-    await flush();
-    return { sendToUser };
-  }
-
-  it("evaluates the owner after a LIVE settlement", async () => {
-    await settle(false);
-    expect(mocks.evaluate).toHaveBeenCalledExactlyOnceWith("user");
-  });
-
-  it("does not evaluate after a DEMO settlement", async () => {
-    await settle(true);
-    expect(mocks.evaluate).not.toHaveBeenCalled();
-  });
-
-  it("a throwing evaluation does not break the settlement", async () => {
-    mocks.evaluate.mockImplementation(() => { throw new Error("db down"); });
-    const { sendToUser } = await settle(false);
-    expect(sendToUser).toHaveBeenCalledWith("user", expect.objectContaining({ type: "trade:settled" }));
-    expect(failedLogged()).toBe(true);
-  });
-});
-
-describe("CFD close hook", () => {
-  async function close(type: "LIVE" | "DEMO") {
-    mocks.transaction.mockImplementationOnce(async (fn: (tx: unknown) => unknown) => fn({
-      trade: { updateMany: async () => ({ count: 1 }) },
-      account: { update: async () => {}, findUnique: async () => ({ type, userId: "cfd-user" }) },
-      houseTreasury: { upsert: async () => {} },
-    }));
-    const result = await new CfdDesk().closePosition({ id: "c1", accountId: "acc", direction: "UP",
-      entryPrice: 100, stake: 10_000, stakeFromBonus: 0, leverage: 1 }, "DURATION", 101, new Date());
-    await flush();
-    return result;
-  }
-
-  it("evaluates after a LIVE close, not after a DEMO close", async () => {
-    await close("DEMO");
-    expect(mocks.evaluate).not.toHaveBeenCalled();
-    await close("LIVE");
-    expect(mocks.evaluate).toHaveBeenCalledExactlyOnceWith("cfd-user");
-  });
-
-  it("a rejecting evaluation does not break the close", async () => {
-    mocks.evaluate.mockRejectedValue(new Error("db down"));
-    expect((await close("LIVE")).tradeId).toBe("c1");
-    expect(failedLogged()).toBe(true);
-  });
 });
 
 describe("OTC settlement hook", () => {
