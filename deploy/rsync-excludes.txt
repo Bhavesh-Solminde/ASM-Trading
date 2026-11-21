@@ -8,6 +8,8 @@
 # and cron logs. Until 2026-11-21 every deploy deleted every dump.
 /backups/
 /logs/
+# Last commit that deployed successfully (.github/workflows/deploy.yml).
+/.deployed-sha
 
 # Secrets that live only on the VPS.
 .env
