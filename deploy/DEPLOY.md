@@ -48,10 +48,9 @@ Run from your laptop after DNS is confirmed pointing at 187.52.118.185.
 # 1. Get an SSH session as deploy (add key if you don't have one).
 ssh deploy@187.52.118.185 'mkdir -p /opt/asmtrader'
 
-# 2. Rsync the repo. `.dockerignore`/`--exclude` keep it lean.
-rsync -avz --delete \
-  --exclude node_modules --exclude .next --exclude .git \
-  --exclude apps/harness --exclude apps/relay \
+# 2. Rsync the repo. The exclude list is shared with CI; it keeps secrets,
+#    backups and logs on the VPS from being deleted by --delete.
+rsync -avz --delete --exclude-from=deploy/rsync-excludes.txt \
   ./ deploy@187.52.118.185:/opt/asmtrader/
 
 # 3. Create the production env file on the box (never on your laptop).
@@ -123,9 +122,9 @@ something wrong after the fact.
 ## Redeploy (until CI is wired)
 
 ```bash
-rsync -avz --delete \
-  --exclude node_modules --exclude .next --exclude .git \
-  --exclude apps/harness --exclude apps/relay \
+# Run from a clean checkout of origin/main. Without the shared exclude list,
+# --delete removes .env.production and the nightly backups on the VPS.
+rsync -avz --delete --exclude-from=deploy/rsync-excludes.txt \
   ./ deploy@187.52.118.185:/opt/asmtrader/
 ssh deploy@187.52.118.185 'cd /opt/asmtrader/deploy && docker compose up -d --build'
 ```

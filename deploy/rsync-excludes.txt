@@ -1,0 +1,36 @@
+# Paths the deploy rsync never sends and never deletes on the VPS.
+# Used by .github/workflows/deploy.yml and every manual rsync in deploy/DEPLOY.md
+# (`rsync --exclude-from=deploy/rsync-excludes.txt`). The deploy runs with --delete,
+# so anything on the VPS that is not in git and not listed here is removed.
+# A leading slash anchors a pattern to the deploy root.
+
+# State that lives only on the VPS: nightly pg_dumps (deploy/scripts/backup.sh)
+# and cron logs. Until 2026-11-21 every deploy deleted every dump.
+/backups/
+/logs/
+
+# Secrets that live only on the VPS.
+.env
+.env.local
+.env.production
+.env.otc-staging
+.secrets
+*.otc-credentials.json
+
+# Build output and dependencies (rebuilt inside the image).
+.git
+node_modules
+.next
+
+# Not deployed.
+apps/harness
+apps/relay
+apps/mobile
+reference
+skill-observations
+demo.html
+docs
+.claude
+graphify-out
+*.log
+.DS_Store
