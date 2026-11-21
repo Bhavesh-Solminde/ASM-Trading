@@ -30,7 +30,9 @@ export async function startOtcEngine(){
   cleanups.push(()=>redis.quit());
   const push=startPushRuntime(userId=>sockets.isUserOnline(userId));
   cleanups.push(()=>push.outbox.stop(),()=>push.batcher.flushAll());
-  const sockets=new OtcWebSocketServer(service.runtime,Number(process.env.ENGINE_WS_PORT??4001),createTicketAuthenticator(redis),(userId,trade)=>push.batcher.add(userId,trade));
+  // Same Redis key and budget as the web route's limit, so HTTP and socket trades share one allowance.
+  const limitTrade=async(userId:string)=>{try{const key=`rl:trade:${userId}`,count=await redis.incr(key);if(count===1)await redis.expire(key,60);return count<=60;}catch{return false;}};
+  const sockets=new OtcWebSocketServer(service.runtime,Number(process.env.ENGINE_WS_PORT??4001),createTicketAuthenticator(redis),(userId,trade)=>push.batcher.add(userId,trade),limitTrade);
   const http=createOtcHttp(service.runtime,secret,Number(process.env.ENGINE_HTTP_PORT??4002),()=>sockets.metrics());
   await sockets.ready;cleanups.push(()=>sockets.stop());await http.listen();cleanups.push(()=>http.close());
   // Keep the website's existing account funding/reconciliation workers running.

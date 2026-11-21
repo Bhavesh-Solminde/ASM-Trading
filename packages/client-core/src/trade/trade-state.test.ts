@@ -4,8 +4,11 @@ import {
   applyTradeMessage,
   initialTradeState,
   upsertTrade,
+  withTrade,
   withFetchedTrades,
   withOpenResult,
+  withoutTrade,
+  pendingTradeView,
 } from "./trade-state";
 
 let seq = 0;
@@ -115,5 +118,30 @@ describe("withFetchedTrades", () => {
     const old = trade({ status: "LOST", exitPrice: 1.1, pnl: -100 });
     const next = withFetchedTrades(initialTradeState([], {}), "acct-demo", [old]);
     expect(next.tradesByAccount["acct-demo"]).toEqual([old]);
+  });
+});
+
+describe("Opening… placeholder", () => {
+  const order = { idempotencyKey: "k-1", accountId: "acct-demo", symbol: "BTCUSDT", direction: "UP" as const, stake: 10000, durationSec: 60, payoutPct: 92, entryPrice: 81000 };
+
+  it("shows an open OTC trade at the displayed price, with its countdown starting now", () => {
+    const placeholder = pendingTradeView(order, 5000);
+    expect(placeholder).toMatchObject({ id: "pending:k-1", status: "OPEN", mode: "OTC_FIXED", pending: true, entryPrice: 81000, entryTs: 5000, expiryTs: 5060 });
+    const state = withTrade(initialTradeState([], {}), placeholder);
+    expect(state.tradesByAccount["acct-demo"]?.map((t) => t.id)).toEqual(["pending:k-1"]);
+  });
+
+  it("is replaced by the engine's trade without disturbing the others", () => {
+    const other = trade();
+    const confirmed = trade({ id: "real-1", entryTs: 5000 });
+    let state = withTrade(initialTradeState([other], {}), pendingTradeView(order, 5000));
+    state = withoutTrade(withOpenResult(state, { trade: confirmed, balances: { realBalance: 1, bonusBalance: 0 } }, true), "acct-demo", "pending:k-1");
+    expect(state.tradesByAccount["acct-demo"]?.map((t) => t.id)).toEqual(["real-1", other.id]);
+  });
+
+  it("leaves state untouched when the placeholder is already gone", () => {
+    const state = initialTradeState([trade()], {});
+    expect(withoutTrade(state, "acct-demo", "pending:missing")).toBe(state);
+    expect(withoutTrade(state, "other-account", "pending:missing")).toBe(state);
   });
 });

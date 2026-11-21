@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { BalancesDto, OpenTradeResult, ServerMessage, Timeframe, TradeView } from "@asm/contracts";
+import type { BalancesDto, OpenTradeResult, OtcOpenTradeInput, ServerMessage, Timeframe, TradeOpenRejectedMessage, TradeOpenResultMessage, TradeView } from "@asm/contracts";
 import { useEngineSocket, type SocketStatus } from "@/components/chart/useEngineSocket";
 import { celebrateFestivalSettlement } from "@/lib/festive-settlement";
 import { playSettled } from "@/lib/sound";
@@ -10,10 +10,13 @@ import {
   initialTradeState,
   withFetchedTrades,
   withOpenResult,
+  withTrade,
+  withoutTrade,
   type TradeState,
   shouldReconcile,
 } from "@asm/client-core";
 import { MarketStore, useMarket } from "./market-store";
+import { placeOtcOrder, type PlacedTrade } from "@/lib/otc-trade-transport";
 import type { Quote } from "./quotes";
 
 /** Presentational grouping behind the market picker's class tabs. */
@@ -38,7 +41,9 @@ export interface AccountView {
 type Action =
   | { kind: "message"; message: ServerMessage }
   | { kind: "opened"; result: OpenTradeResult; socketLive: boolean }
-  | { kind: "fetched"; accountId: string; trades: TradeView[] };
+  | { kind: "fetched"; accountId: string; trades: TradeView[] }
+  | { kind: "pending"; trade: TradeView }
+  | { kind: "settledPending"; placeholder: TradeView; result: OpenTradeResult | null; socketLive: boolean };
 
 function reducer(state: TradeState, action: Action): TradeState {
   switch (action.kind) {
@@ -48,6 +53,13 @@ function reducer(state: TradeState, action: Action): TradeState {
       return withOpenResult(state, action.result, action.socketLive);
     case "fetched":
       return withFetchedTrades(state, action.accountId, action.trades);
+    case "pending":
+      return withTrade(state, action.trade);
+    case "settledPending": {
+      // Swap in the same update so the trade never blinks out between placeholder and confirmation.
+      const next = action.result ? withOpenResult(state, action.result, action.socketLive) : state;
+      return withoutTrade(next, action.placeholder.accountId, action.placeholder.id);
+    }
   }
 }
 
@@ -101,6 +113,12 @@ interface PlatformContextValue {
   selectTimeframe: (timeframe: Timeframe) => void;
   recordTradeUpdate: (trade: TradeView) => void;
   recordOpened: (result: OpenTradeResult) => void;
+  /**
+   * Opens a fixed OTC trade, showing `placeholder` as "Opening…" until the engine answers. Goes over
+   * the live engine socket when it is up; otherwise, or if it does not answer in time, over
+   * POST /api/trades with the same idempotency key, which can only return the same trade.
+   */
+  placeOtcTrade: (order: OtcOpenTradeInput, placeholder: TradeView) => Promise<PlacedTrade>;
   /**
    * Non-WebSocket balance push, used by routes the engine isn't involved
    * in (withdrawals, their cancel, future off-engine credits). The engine
@@ -177,8 +195,14 @@ export function PlatformProvider({
 
   const watch = useMemo(() => assets.map((a) => a.symbol), [assets]);
   const [initialSettledIds] = useState(() => new Set(initialTrades.filter(trade => trade.status !== "OPEN").map(trade => trade.id)));
+  // trade:open requests waiting for their reply on the socket, by idempotency key.
+  const socketTrades = useRef(new Map<string, (reply: TradeOpenResultMessage | TradeOpenRejectedMessage | null) => void>());
   const onMessage = useCallback(
     (message: ServerMessage) => {
+      if (message.type === "trade:open:result" || message.type === "trade:open:rejected") {
+        socketTrades.current.get(message.idempotencyKey)?.(message);
+        return;
+      }
       market.apply(message);
       if (TRADE_MESSAGES.has(message.type)) dispatch({ kind: "message", message });
       if (message.type === "trade:settled" && message.trade.accountId === activeAccountIdRef.current) {
@@ -314,6 +338,30 @@ export function PlatformProvider({
     [status],
   );
 
+  const placeOtcTrade = useCallback(
+    async (order: OtcOpenTradeInput, placeholder: TradeView): Promise<PlacedTrade> => {
+      dispatch({ kind: "pending", trade: placeholder });
+      const placed = await placeOtcOrder(order, {
+        open: status === "open",
+        request: (o, timeoutMs) =>
+          new Promise((resolve) => {
+            const finish = (reply: TradeOpenResultMessage | TradeOpenRejectedMessage | null) => {
+              clearTimeout(timer);
+              socketTrades.current.delete(o.idempotencyKey);
+              resolve(reply);
+            };
+            const timer = setTimeout(() => finish(null), timeoutMs);
+            socketTrades.current.set(o.idempotencyKey, finish);
+            send({ type: "trade:open", ...o });
+          }),
+      });
+      // A socket reply follows the engine's own balance:update on that socket, so its balances are never newer.
+      dispatch({ kind: "settledPending", placeholder, result: placed.ok ? placed.result : null, socketLive: (placed.ok && placed.viaSocket) || status === "open" });
+      return placed;
+    },
+    [send, status],
+  );
+
   const applyBalanceUpdate = useCallback(
     (accountId: string, balances: BalancesDto) =>
       dispatch({
@@ -343,6 +391,7 @@ export function PlatformProvider({
       timeframe,
       selectTimeframe,
       recordOpened,
+      placeOtcTrade,
       recordTradeUpdate,
       applyBalanceUpdate,
       focusMode,
@@ -366,6 +415,7 @@ export function PlatformProvider({
       timeframe,
       selectTimeframe,
       recordOpened,
+      placeOtcTrade,
       recordTradeUpdate,
       applyBalanceUpdate,
       focusMode,

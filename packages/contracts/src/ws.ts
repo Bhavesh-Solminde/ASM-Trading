@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { TradeView } from "./trade";
+import type { BalancesDto, TradeView } from "./trade";
 import type { CfdTradeView, CfdCloseReasonDto } from "./cfd-trade";
 import type { OtcMarketMessage,OtcWatchlistMessage,OtcBotsMessage } from "./otc";
 
@@ -150,6 +150,22 @@ export interface TradeOpenedMessage {
   trade: TradeView;
 }
 
+/** Reply to a trade:open sent over this socket, matched by its idempotency key. */
+export interface TradeOpenResultMessage {
+  type: "trade:open:result";
+  idempotencyKey: string;
+  trade: TradeView;
+  balances: BalancesDto;
+}
+
+/** The engine refused or could not process a trade:open; `error` is the trader-facing text. */
+export interface TradeOpenRejectedMessage {
+  type: "trade:open:rejected";
+  idempotencyKey: string;
+  code: string;
+  error: string;
+}
+
 export interface TradeSettledMessage {
   type: "trade:settled";
   trade: TradeView;
@@ -202,6 +218,8 @@ export type ServerMessage =
   | ErrorMessage
   | AuthedMessage
   | TradeOpenedMessage
+  | TradeOpenResultMessage
+  | TradeOpenRejectedMessage
   | TradeSettledMessage
   | BalanceUpdateMessage
   | SentimentMessage

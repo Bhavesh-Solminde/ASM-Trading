@@ -83,6 +83,8 @@ export interface TradeView {
   exitPrice: number | null;
   status: TradeStatusDto;
   pnl: number;
+  /** Client-only: shown as "Opening…" until the engine confirms. The server never sends it. */
+  pending?: boolean;
 }
 
 export interface BalancesDto {
@@ -159,3 +161,26 @@ export function tradeViewFrom(row: TradeRowLike, symbol: string): TradeView {
 }
 
 export * from "./cfd-trade";
+
+/** What a trader is told for each reason the engine refuses a trade. Shared by the web route and the engine socket. */
+export const TRADE_REJECTION_MESSAGES: Readonly<Record<string, string>> = {
+  display_quote_expired: "That displayed price has expired. Wait for a fresh price and try again.",
+  "Liquidity unavailable": "There is not enough liquidity for this trade. Your stake has been returned.",
+  "Market price unavailable": "Waiting for a recent market execution. Try again shortly.",
+  "Invalid stop loss": "Stop loss must be on the loss side of the entry price.",
+  "Invalid take profit": "Take profit must be on the profit side of the entry price.",
+  trading_model_mismatch: "Trading mode changed. Refresh the page before placing another trade.",
+  insufficient_funds: "Not enough balance for that stake.",
+  unknown_asset: "That asset is not available right now.",
+  account_not_found: "Account not found.",
+  account_not_active: "This account is paused. Contact support.",
+  market_closed: "This market is closed for the night. Trading resumes at 5:00 AM IST.",
+  currency_changed: "Your account currency changed. Check your stake and try again.",
+  stake_below_minimum: "That investment is below the minimum.",
+  rate_limited: "Slow down a moment and try again.",
+  trading_unavailable: "Trading is temporarily unavailable.",
+};
+
+export function tradeRejectionMessage(code: string): string {
+  return TRADE_REJECTION_MESSAGES[code] ?? "Could not place that trade.";
+}

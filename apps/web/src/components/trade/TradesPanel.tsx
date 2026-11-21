@@ -109,13 +109,15 @@ const OpenTradeRow = memo(function OpenTradeRow({
   const expired = now !== null && now >= trade.expiryTs;
 
   // Only the engine can confirm a settlement and its actual outcome.
-  const pnlDisplay = expired ? "—" : isCfd ? cfdText : winning
+  const pnlDisplay = expired || trade.pending ? "—" : isCfd ? cfdText : winning
     ? `+${formatMinor(grossReturnMinor(trade.stake, winProfit), currency)}`
     : `−${formatMinor(trade.stake, currency)}`;
-  const pnlClass = expired ? "text-ink-2" : isCfd ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
-  const chipOverride = expired
-    ? { label: "Settling", className: "bg-tile text-ink-2" }
-    : undefined;
+  const pnlClass = expired || trade.pending ? "text-ink-2" : isCfd ? (cfdPnl === null || cfdPnl === 0 ? "text-ink-2" : cfdPnl > 0 ? "text-up" : "text-down") : winning ? "text-up" : losing ? "text-down" : "text-ink-2";
+  const chipOverride = trade.pending
+    ? { label: "Opening…", className: "bg-tile text-ink-2" }
+    : expired
+      ? { label: "Settling", className: "bg-tile text-ink-2" }
+      : undefined;
 
   return (
     <RowShell

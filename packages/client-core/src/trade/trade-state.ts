@@ -1,4 +1,4 @@
-import type { BalancesDto, OpenTradeResult, ServerMessage, TradeView } from "@asm/contracts";
+import type { BalancesDto, DirectionDto, OpenTradeResult, ServerMessage, TradeView } from "@asm/contracts";
 
 const MAX_TRADES_PER_ACCOUNT = 50;
 
@@ -37,6 +37,48 @@ export function withTrade(state: TradeState, trade: TradeView): TradeState {
   return {
     ...state,
     tradesByAccount: { ...state.tradesByAccount, [trade.accountId]: upsertTrade(current, trade) },
+  };
+}
+
+/** Removes one trade, e.g. an "Opening…" placeholder once the engine has answered. */
+export function withoutTrade(state: TradeState, accountId: string, id: string): TradeState {
+  const current = state.tradesByAccount[accountId];
+  if (!current?.some((t) => t.id === id)) return state;
+  return { ...state, tradesByAccount: { ...state.tradesByAccount, [accountId]: current.filter((t) => t.id !== id) } };
+}
+
+/**
+ * The "Opening…" placeholder shown the moment a fixed OTC trade is placed. These trades open at the
+ * displayed price, so it already sits where the confirmed trade will. Its id cannot collide with a
+ * real trade's.
+ */
+export function pendingTradeView(
+  order: {
+    idempotencyKey: string; accountId: string; symbol: string; direction: DirectionDto; stake: number;
+    durationSec: number; payoutPct: number; entryPrice: number; currency?: string;
+    stopLoss?: number | null | undefined; takeProfit?: number | null | undefined;
+  },
+  nowSec: number,
+): TradeView {
+  return {
+    id: `pending:${order.idempotencyKey}`,
+    accountId: order.accountId,
+    symbol: order.symbol,
+    direction: order.direction,
+    stake: order.stake,
+    payoutPct: order.payoutPct,
+    durationSec: order.durationSec,
+    entryPrice: order.entryPrice,
+    entryTs: nowSec,
+    expiryTs: nowSec + order.durationSec,
+    exitPrice: null,
+    status: "OPEN",
+    pnl: 0,
+    mode: "OTC_FIXED",
+    stopLoss: order.stopLoss ?? null,
+    takeProfit: order.takeProfit ?? null,
+    pending: true,
+    ...(order.currency ? { currency: order.currency } : {}),
   };
 }
 
