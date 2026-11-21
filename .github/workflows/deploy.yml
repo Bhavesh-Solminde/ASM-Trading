@@ -88,6 +88,25 @@ jobs:
           done
           exit 1
 
+      - name: Decide which containers to recreate
+        id: scope
+        # Recreating the engine pauses trading for ~15 s, so a website-only
+        # change leaves it running (deploy/scripts/deploy-scope.sh). The diff is
+        # against the last commit that deployed successfully. A manual run, an
+        # unknown previous deploy or any git error recreates both.
+        run: |
+          scope=all
+          if [ "${{ github.event_name }}" = "push" ]; then
+            prev=$(ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+              ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+              'cat /opt/asmtrader/.deployed-sha 2>/dev/null' || true)
+            if [[ "$prev" =~ ^[0-9a-f]{40}$ ]] && git fetch -q --depth=1 origin "$prev"; then
+              scope=$(git diff --name-only "$prev" HEAD | deploy/scripts/deploy-scope.sh)
+            fi
+          fi
+          echo "Recreating: $scope"
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+
       - name: Rsync source to VPS
         # --delete mirrors the repo, so anything on the VPS that git doesn't track is
         # removed unless it is listed in deploy/rsync-excludes.txt (an exclude also
@@ -99,10 +118,14 @@ jobs:
             ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/asmtrader/
 
       - name: Rebuild and restart containers
+        # `up web` still builds the image and runs `migrate` (web depends on
+        # it) but never touches the engine, which keeps its current image.
         run: |
+          services=""
+          if [ "${{ steps.scope.outputs.scope }}" = "web" ]; then services="web"; fi
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            'bash -o pipefail -c "cd /opt/asmtrader/deploy && docker compose --env-file ../.env.production up -d --build 2>&1 | tail -40"'
+            'bash -o pipefail -c "cd /opt/asmtrader/deploy && docker compose --env-file ../.env.production up -d --build '"$services"' 2>&1 | tail -40"'
 
       # Nginx changes are rare and involve the host config, which the deploy
       # user is not sudoered to `cp` into — those go through the manual
@@ -121,3 +144,11 @@ jobs:
             sleep 5
           done
           if [ "$canonical" != "200" ]; then exit 1; fi
+
+      - name: Record the deployed commit
+        # Read by the next deploy to decide whether the engine must restart.
+        # Written only after the smoke test, so a failed deploy is diffed again.
+        run: |
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            'echo ${{ github.sha }} > /opt/asmtrader/.deployed-sha'
