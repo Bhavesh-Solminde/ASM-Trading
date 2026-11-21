@@ -30,3 +30,25 @@ describe("Meta funnel events", () => {
     expect(() => { trackLogin("email"); trackPixelCustomEvent("GetStarted"); }).not.toThrow();
   });
 });
+
+describe("pixel IDs for static pages", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); });
+
+  it("fetches the IDs once per page load and keeps only strings", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ pixelIds: ["1137830615432603", 5] })));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchPixelIds } = await import("./MetaPixel");
+    expect(await fetchPixelIds()).toEqual(["1137830615432603"]);
+    expect(await fetchPixelIds()).toEqual(["1137830615432603"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/meta-pixel");
+  });
+
+  it("loads no pixel when the request fails or is refused", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    expect(await (await import("./MetaPixel")).fetchPixelIds()).toEqual([]);
+    vi.resetModules();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 429 })));
+    expect(await (await import("./MetaPixel")).fetchPixelIds()).toEqual([]);
+  });
+});

@@ -55,6 +55,12 @@ export function proxy(request: NextRequest) {
   if (pathname.startsWith("/affiliate/dashboard") && !request.cookies.get(SESSION_COOKIE)?.value) {
     return NextResponse.redirect(new URL("/affiliate/login", request.url));
   }
+  // Signed-in visitors skip the landing. Deciding here, on the cookie alone,
+  // keeps the landing page static (no per-request session read). A stale
+  // cookie lands on /trade, whose layout sends it on to /login.
+  if (pathname === "/" && request.cookies.get(SESSION_COOKIE)?.value) {
+    return NextResponse.redirect(new URL("/trade", request.url));
+  }
 
   const response = NextResponse.next();
 
