@@ -368,14 +368,24 @@ export async function updateTradeStamp(
   });
 }
 
-/** Ownership is in the predicate — a caller cannot read another account's trades. */
+/**
+ * Trade modes of the retired Binary and CFD engines. Their settled LIVE trades
+ * stay in the database (the ledger rows that explain balances point at them)
+ * but are no longer shown to users (owner decision, 2026-11-21).
+ */
+export const RETIRED_TRADE_MODES = ["LEGACY_BINARY", "CFD"] as const;
+
+/**
+ * The trade list users see (web History, trade panel, app). Ownership is in
+ * the predicate — a caller cannot read another account's trades.
+ */
 export async function listTradesForActor(
   actorId: string,
   accountId: string,
   limit: number,
 ): Promise<Trade[]> {
   return prisma.trade.findMany({
-    where: { accountId, account: { userId: actorId } },
+    where: { accountId, account: { userId: actorId }, mode: { notIn: [...RETIRED_TRADE_MODES] } },
     orderBy: { createdAt: "desc" },
     take: Math.min(Math.max(limit, 1), 200),
   });

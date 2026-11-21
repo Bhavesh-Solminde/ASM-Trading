@@ -127,10 +127,24 @@ describe("listTradesForActor", () => {
   it("returns an account's trades only to its owner", async () => {
     const owner = await demoAccount();
     const stranger = await demoAccount();
-    await openTrade(order(owner.accountId));
+    const { trade } = await openTrade(order(owner.accountId));
+    await prisma.trade.update({ where: { id: trade.id }, data: { mode: "OTC_FIXED" } });
 
     expect(await listTradesForActor(stranger.userId, owner.accountId, 50)).toEqual([]);
     expect(await listTradesForActor(owner.userId, owner.accountId, 50)).toHaveLength(1);
+  });
+
+  it("hides trades from the retired Binary and CFD engines", async () => {
+    const owner = await demoAccount();
+    const binary = (await openTrade(order(owner.accountId))).trade;
+    const cfd = (await openTrade(order(owner.accountId))).trade;
+    const otc = (await openTrade(order(owner.accountId))).trade;
+    await prisma.trade.update({ where: { id: cfd.id }, data: { mode: "CFD" } });
+    await prisma.trade.update({ where: { id: otc.id }, data: { mode: "OTC_FIXED" } });
+
+    expect(binary.mode).toBe("LEGACY_BINARY");
+    expect((await listTradesForActor(owner.userId, owner.accountId, 50)).map((t) => t.id)).toEqual([otc.id]);
+    expect(await prisma.trade.count({ where: { accountId: owner.accountId } })).toBe(3);
   });
 });
 

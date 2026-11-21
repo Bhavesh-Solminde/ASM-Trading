@@ -175,7 +175,7 @@ describe("POST /api/trades", () => {
 describe("GET /api/trades", () => {
   it("lists only the caller's own trades, as trade views", async () => {
     const assetId = (await prisma.asset.findFirstOrThrow({ where: { symbol: "AUDNZD_OTC" } })).id;
-    await openTrade({
+    const open = () => openTrade({
       accountId: alice.demoId,
       assetId,
       direction: "UP",
@@ -185,9 +185,13 @@ describe("GET /api/trades", () => {
       entryTs: new Date(),
       expiryTs: new Date(Date.now() + 60_000),
     });
+    const { trade } = await open();
+    await prisma.trade.update({ where: { id: trade.id }, data: { mode: "OTC_FIXED" } });
+    await open(); // a retired Binary-mode trade: kept in the database, never listed
 
     const mine = (await (await get(alice.demoId, alice.cookie)).json()) as { trades: Record<string, unknown>[] };
     expect(mine.trades).toHaveLength(1);
+    expect(mine.trades[0]!["id"]).toBe(trade.id);
     expect(mine.trades[0]!["symbol"]).toBe("AUDNZD_OTC");
     expect(mine.trades[0]).not.toHaveProperty("stakeFromBonus");
     expect(mine.trades[0]).not.toHaveProperty("assetId");
