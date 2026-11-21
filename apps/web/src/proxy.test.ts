@@ -40,6 +40,19 @@ describe("proxy", () => {
     expect(proxy(signedIn).headers.get("location")).toBeNull();
   });
 
+  it("sends a signed-in visitor from the landing to /trade and leaves everyone else on it", () => {
+    process.env["MAINTENANCE_MODE"] = "";
+    const signedIn = new NextRequest("http://localhost/");
+    signedIn.cookies.set(SESSION_COOKIE, "token");
+    const res = proxy(signedIn);
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost/trade");
+    expect(proxy(new NextRequest("http://localhost/")).headers.get("location")).toBeNull();
+    const elsewhere = new NextRequest("http://localhost/about");
+    elsewhere.cookies.set(SESSION_COOKIE, "token");
+    expect(proxy(elsewhere).headers.get("location")).toBeNull();
+  });
+
   it("leaves the website's API calls alone", () => {
     process.env["MAINTENANCE_MODE"] = "";
     process.env["APP_MIN_VERSION"] = "2.0.0";

@@ -18,9 +18,11 @@ import { AD_ENTRY_KEY } from "@/lib/ad-landing";
  * so a client-side hop between these pages records no extra PageView — the
  * entry page (the ad click's landing) is what gets counted.
  *
- * The IDs come from metaPixelIds() in @/lib/meta-pixel, read server-side by
- * the page; with META_PIXEL_ID unset — local dev, tests — nothing loads. With
- * several IDs, each is init'ed and one fbq("track") reports to all of them.
+ * The IDs come from metaPixelIds() in @/lib/meta-pixel: dynamic pages pass
+ * them in; a static page (the landing) passes none and they are fetched from
+ * /api/meta-pixel. With META_PIXEL_ID unset — local dev, tests — nothing
+ * loads. With several IDs, each is init'ed and one fbq("track") reports to
+ * all of them.
  * ------------------------------------------------------------------------- */
 
 type Fbq = ((...args: unknown[]) => void) & {
@@ -94,15 +96,35 @@ export function trackLogin(method: "email" | "google") {
   trackPixelCustomEvent("Login", { method, source });
 }
 
-export function MetaPixel({ pixelIds }: { pixelIds: string[] }) {
+let fetchedIds: Promise<string[]> | null = null;
+
+/** One request per page load; any failure means no pixel, never an error. */
+export function fetchPixelIds(): Promise<string[]> {
+  fetchedIds ??= fetch("/api/meta-pixel")
+    .then((res): Promise<{ pixelIds?: unknown }> | object => (res.ok ? res.json() : {}))
+    .then((body) => {
+      const ids = "pixelIds" in body ? body.pixelIds : null;
+      return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
+    })
+    .catch(() => []);
+  return fetchedIds;
+}
+
+export function MetaPixel({ pixelIds }: { pixelIds?: string[] }) {
   // Stable dep: a fresh array from the server each render must not re-fire.
-  const key = pixelIds.join(",");
+  const key = pixelIds?.join(",");
   useEffect(() => {
-    if (!key) return;
-    loadPixels(key.split(","))("track", "PageView");
+    if (key !== undefined) {
+      if (key) loadPixels(key.split(","))("track", "PageView");
+      return;
+    }
+    let live = true;
+    void fetchPixelIds().then((ids) => { if (live && ids.length) loadPixels(ids)("track", "PageView"); });
+    return () => { live = false; };
   }, [key]);
 
-  if (pixelIds.length === 0) return null;
+  // A static page has no IDs in its HTML, so it can't offer the no-JS image.
+  if (!pixelIds?.length) return null;
   return (
     <noscript>
       {pixelIds.map((id) => (
