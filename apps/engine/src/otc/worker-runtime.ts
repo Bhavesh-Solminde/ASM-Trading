@@ -1,10 +1,10 @@
 import { parentPort,workerData } from "node:worker_threads";
 import { setImmediate as yieldLoop } from "node:timers/promises";
-import { MarketWorld,type OpenContractCommand,type ReferenceQuote,type SimulationCheckpoint } from "@asm/market-sim";
+import { MarketWorld,type Candle,type OpenContractCommand,type ReferenceQuote,type SimulationCheckpoint } from "@asm/market-sim";
 import type { OtcArchiveBatch } from "./archive";
-interface Options {start:number;references?:ReferenceQuote[];checkpoint?:SimulationCheckpoint;}
+interface Options {start:number;references?:ReferenceQuote[];checkpoint?:SimulationCheckpoint;closedCandles?:Record<string,Candle[]>;}
 const options=workerData as Options;
-const world=options.checkpoint?MarketWorld.restore(options.checkpoint):new MarketWorld(options.start,options.references);
+const world=options.checkpoint?MarketWorld.restore(options.checkpoint,options.closedCandles):new MarketWorld(options.start,options.references);
 const archived=new Map<string,number>();
 let queue=Promise.resolve();
 parentPort!.postMessage({ready:true});
@@ -25,7 +25,8 @@ parentPort!.on("message",(request:{id:number;type:string;payload:unknown})=>{
         case "summaries":result=world.summaries();break;
         case "leaderboard":result=world.leaderboard();break;
         case "checkpoint":result=world.checkpoint();break;
-        case "checkpointJson":result=JSON.stringify(world.checkpoint());break;
+        // Closed candles are already archived in OtcCandle; the host reloads them on restore.
+        case "checkpointJson":result=JSON.stringify(world.checkpoint({compact:true}));break;
         case "archive":{
           const candles:OtcArchiveBatch["candles"]=[];
           for(const [symbol,market] of world.markets){

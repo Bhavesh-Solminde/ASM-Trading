@@ -1,5 +1,5 @@
 import { Worker } from "node:worker_threads";
-import type { MarketWorld,OpenContractCommand,ReferenceQuote,SimulationCheckpoint,FixedContract,OpenContractResult } from "@asm/market-sim";
+import type { Candle,MarketWorld,OpenContractCommand,ReferenceQuote,SimulationCheckpoint,FixedContract,OpenContractResult } from "@asm/market-sim";
 import type { OtcArchiveBatch } from "./archive";
 
 /** The engine host serializes durable commands; the worker performs no IO. */
@@ -9,7 +9,7 @@ export class OtcWorker {
   private dead:Error|null=null;
   private counter=0;
   private pending=new Map<number,{resolve:(value:unknown)=>void;reject:(error:Error)=>void;timer:ReturnType<typeof setTimeout>}>();
-  constructor(options:{start:number;references?:ReferenceQuote[];checkpoint?:SimulationCheckpoint}){
+  constructor(options:{start:number;references?:ReferenceQuote[];checkpoint?:SimulationCheckpoint;closedCandles?:Record<string,Candle[]>}){
     this.worker=new Worker(new URL("./worker-entry.mjs",import.meta.url),{workerData:options});
     this.ready=new Promise((resolve,reject)=>{
       const fail=(error:Error)=>{this.dead=error;reject(error);for(const r of this.pending.values()){clearTimeout(r.timer);r.reject(error);}this.pending.clear();};

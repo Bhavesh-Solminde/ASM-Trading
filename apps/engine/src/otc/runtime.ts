@@ -6,7 +6,7 @@ import type { OpenContractResult,ReferenceQuote,SimulationCheckpoint } from "@as
 import { MULTI_MARKETS } from "@asm/market-sim";
 import { OtcWorker } from "./worker";
 import { OtcWriterLock } from "./writer-lock";
-import { persistOtcArchive,readOtcCandles,retainOtcHistory,type RetentionOptions } from "./archive";
+import { loadClosedCandles,persistOtcArchive,readOtcCandles,retainOtcHistory,type RetentionOptions } from "./archive";
 import type { Timeframe } from "@asm/contracts";
 import { DisplayQuotes } from "./display-quotes";
 import { logger } from "@asm/logger";
@@ -53,7 +53,7 @@ export class OtcRuntime {
       if(saved){
         if(saved.version!==1)throw new Error("Unsupported OTC checkpoint version");
         const checkpoint=saved.state as unknown as SimulationCheckpoint;
-        this.worker=new OtcWorker({start:checkpoint.time,checkpoint});this.time=checkpoint.time;this.watermark=saved.sequence;
+        this.worker=new OtcWorker({start:checkpoint.time,checkpoint,closedCandles:await loadClosedCandles(this.client,this.worldId,checkpoint)});this.time=checkpoint.time;this.watermark=saved.sequence;
         await this.worker.ready;
         await this.client.marketWorldCheckpoint.update({where:{id:this.worldId},data:{generation:this.generation}});
       }else{
