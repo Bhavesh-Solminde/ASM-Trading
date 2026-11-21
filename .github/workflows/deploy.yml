@@ -89,16 +89,13 @@ jobs:
           exit 1
 
       - name: Rsync source to VPS
+        # --delete mirrors the repo, so anything on the VPS that git doesn't track is
+        # removed unless it is listed in deploy/rsync-excludes.txt (an exclude also
+        # protects the file on the VPS). That list keeps the nightly pg_dumps in
+        # /backups/; until 2026-11-21 every deploy deleted every dump.
         run: |
-          rsync -avz --delete \
+          rsync -avz --delete --exclude-from=deploy/rsync-excludes.txt \
             -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes" \
-            --exclude .git --exclude node_modules --exclude .next \
-            --exclude apps/harness --exclude apps/relay --exclude apps/mobile \
-            --exclude '.env' --exclude '.env.local' --exclude '.env.production' \
-            --exclude '.env.otc-staging' --exclude '.secrets' --exclude '*.otc-credentials.json' \
-            --exclude reference --exclude skill-observations --exclude 'demo.html' \
-            --exclude 'docs' --exclude '.claude' --exclude 'graphify-out' \
-            --exclude '*.log' --exclude '.DS_Store' \
             ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/asmtrader/
 
       - name: Rebuild and restart containers
