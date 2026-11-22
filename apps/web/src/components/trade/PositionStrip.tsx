@@ -73,6 +73,8 @@ const StripBody = memo(function StripBody({
       className="pointer-events-auto flex h-12 w-full items-center gap-1.5 rounded-[14px] border border-chart-tool bg-tile pl-1.5 pr-2 text-left shadow-[0_14px_30px_-12px_var(--color-shadow-floating)] transition-colors active:bg-tile-hi"
     >
       <span aria-hidden className="relative grid size-[34px] flex-none place-items-center">
+        {/* The 26px badge extends under the stroke's 25px inner opening. */}
+        <AssetIcon symbol={trade.symbol} compact />
         <svg width="34" height="34" viewBox="0 0 34 34" className={`absolute inset-0 -rotate-90 ${dirColor}`}>
           <circle cx="17" cy="17" r="14" fill="none" strokeWidth="3" className="stroke-tile-hi" />
           <circle
@@ -87,7 +89,6 @@ const StripBody = memo(function StripBody({
             strokeDashoffset={ringOffset(remaining, total)}
           />
         </svg>
-        <AssetIcon symbol={trade.symbol} size="sm" compact />
       </span>
       <span className="grid flex-1 gap-px">
         <span className={`whitespace-nowrap text-xs font-extrabold tracking-[0.04em] tabular-nums ${dirColor}`}>
