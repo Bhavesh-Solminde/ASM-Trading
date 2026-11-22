@@ -45,7 +45,9 @@ export async function readDailyOtcVault(now = new Date()) {
     WHERE t.mode = 'OTC_FIXED'
       AND t.status IN ('WON', 'LOST', 'REFUNDED')
       AND a.type = 'LIVE'
-      AND (u.role = 'USER' OR (u.role = 'AFFILIATE' AND u."legacySimulated" = false)) -- mirrors isRealTrader()
+      -- mirrors isRealTrader()
+      AND u."marketExempt" = false
+      AND (u.role = 'USER' OR (u.role = 'AFFILIATE' AND u."legacySimulated" = false))
       AND t."closedAt" >= ${startsAt}
       AND t."closedAt" <= ${now}
     GROUP BY 1, 2

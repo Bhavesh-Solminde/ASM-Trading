@@ -263,6 +263,7 @@ model User {
   // Old simulated affiliate (play money, rigged outcomes). Locked by migration
   // 20261113120000; kept for review only and excluded from every real total.
   legacySimulated    Boolean      @default(false)
+  marketExempt       Boolean      @default(false)
   // Compliance/anti-fraud status. A non-ACTIVE status blocks new trades,
   // bonus grants and withdrawals; the status is set by the linked-accounts
   // detector or an admin action, never by the user's own flow.
