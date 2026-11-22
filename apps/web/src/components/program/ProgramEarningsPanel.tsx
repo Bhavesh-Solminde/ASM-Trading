@@ -18,9 +18,9 @@ import { IconTether } from "@/components/trade/AssetIcon";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import { rupeesToPaise } from "@/lib/rupees";
+import centerStyles from "@/components/affiliate-center/center.module.css";
 
-// Classes mirror the withdrawal form (app/(platform)/withdrawal/WithdrawForm.tsx) and the
-// affiliate dashboard cards, so this panel adds no new visual language.
+// Use the trading withdrawal form's input and balance-card styles in both shells.
 const CARD = "rounded-xl border border-rule bg-panel p-5 phone:p-4";
 const LABEL = "text-[13px] font-semibold text-ink-2";
 const INPUT =
@@ -30,6 +30,15 @@ const PRIMARY =
 
 const inr = (minor: number) => formatMinor(minor, "INR");
 const whole = (minor: number) => inr(minor).replace(/\.00$/, "");
+
+type EarningsSummary = Pick<ProgramSummary,
+  | "isAffiliate" | "affiliateStatus" | "pendingMinor" | "heldMinor" | "availableMinor"
+  | "reservedMinor" | "transferredMinor" | "paidMinor" | "carryForwardMinor" | "used"
+  | "canTransfer" | "canWithdraw" | "blockers"
+> & {
+  kycStatus?: ProgramSummary["kycStatus"];
+  terms: Pick<ProgramSummary["terms"], "minWithdrawalMinor" | "limits">;
+};
 
 /** POST JSON; resolves to { ok, data } or throws on network failure. */
 async function postJson(url: string, body?: unknown): Promise<{ ok: boolean; data: Record<string, unknown> }> {
@@ -41,21 +50,23 @@ async function postJson(url: string, body?: unknown): Promise<{ ok: boolean; dat
   return { ok: res.ok, data: (await res.json().catch(() => ({}))) as Record<string, unknown> };
 }
 
-export function ProgramEarningsPanel({ summary, activity }: { summary: ProgramSummary; activity: ProgramActivityItem[] }) {
+export function ProgramEarningsPanel({
+  summary, activity, standalone = false,
+}: { summary: EarningsSummary; activity: ProgramActivityItem[]; standalone?: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       <Balances summary={summary} />
       <Requirements summary={summary} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <TransferForm summary={summary} />
+        {standalone ? <TransferForm summary={summary} /> : <PlatformTransferForm summary={summary} />}
         <WithdrawalForm summary={summary} />
       </div>
-      <History items={activity} />
+      <History items={activity} table={standalone} />
     </div>
   );
 }
 
-function Balances({ summary: s }: { summary: ProgramSummary }) {
+function Balances({ summary: s }: { summary: EarningsSummary }) {
   const cards = [
     { label: "Pending", value: s.pendingMinor, note: "Available after the day closes (IST)" },
     { label: "On hold", value: s.heldMinor, note: "Under review" },
@@ -90,7 +101,7 @@ function Balances({ summary: s }: { summary: ProgramSummary }) {
 }
 
 /** Plain-language text for each refusal code getProgramSummary reports. */
-function blockerText(code: string, s: ProgramSummary): string {
+function blockerText(code: string, s: EarningsSummary): string {
   switch (code) {
     case "account_frozen":
       return "Your account is restricted, so program money can't be moved. Contact support.";
@@ -101,9 +112,7 @@ function blockerText(code: string, s: ProgramSummary): string {
           ? "Your affiliate account is waiting for approval. Transfers and withdrawals unlock once it is approved."
           : "Verify your email to activate your affiliate account.";
     case "kyc_required":
-      return s.isAffiliate
-        ? "Verify your identity before transferring or withdrawing earnings."
-        : "Verify your identity before withdrawing earnings.";
+      return "Verify your identity before withdrawing earnings.";
     case "no_live_account":
       return "You need a live trading account to transfer earnings.";
     case "below_minimum":
@@ -121,7 +130,8 @@ function blockerText(code: string, s: ProgramSummary): string {
   }
 }
 
-function Requirements({ summary: s }: { summary: ProgramSummary }) {
+function Requirements({ summary: s }: { summary: EarningsSummary }) {
+  const blockers = s.isAffiliate ? s.blockers.filter((code) => code !== "kyc_required") : s.blockers;
   return (
     <section aria-labelledby="program-requirements" className={CARD}>
       <h2 id="program-requirements" className="text-sm font-bold text-ink">
@@ -131,16 +141,16 @@ function Requirements({ summary: s }: { summary: ProgramSummary }) {
         Minimum withdrawal {whole(s.terms.minWithdrawalMinor)}. Withdrawals used: today {s.used.day}/{s.terms.limits.day}, this
         week {s.used.week}/{s.terms.limits.week}, this month {s.used.month}/{s.terms.limits.month}.
       </p>
-      {s.blockers.length > 0 ? (
+      {blockers.length > 0 ? (
         <div className="mt-3 flex flex-col gap-2 rounded-xl border border-caution/30 bg-caution/10 p-4">
           <ul className="flex flex-col gap-1.5">
-            {s.blockers.map((code) => (
+            {blockers.map((code) => (
               <li key={code} className="text-xs leading-relaxed text-[var(--color-ink-2)]">
                 {blockerText(code, s)}
               </li>
             ))}
           </ul>
-          {s.blockers.includes("kyc_required") && s.kycStatus !== "PENDING" ? (
+          {blockers.includes("kyc_required") && s.kycStatus !== "PENDING" ? (
             <Link
               href="/account/verify"
               className="self-start rounded-lg bg-brand-fill px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-brand-fill-hi phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0"
@@ -177,9 +187,15 @@ function Notice({ ok, children }: { ok: boolean; children: ReactNode }) {
   );
 }
 
-function TransferForm({ summary: s }: { summary: ProgramSummary }) {
-  const router = useRouter();
+function PlatformTransferForm({ summary }: { summary: EarningsSummary }) {
   const { applyBalanceUpdate } = usePlatform();
+  return <TransferForm summary={summary} applyBalanceUpdate={applyBalanceUpdate} />;
+}
+
+function TransferForm({
+  summary: s, applyBalanceUpdate,
+}: { summary: EarningsSummary; applyBalanceUpdate?: ReturnType<typeof usePlatform>["applyBalanceUpdate"] }) {
+  const router = useRouter();
   const key = useIdempotencyKey();
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
@@ -197,7 +213,7 @@ function TransferForm({ summary: s }: { summary: ProgramSummary }) {
       key.settle();
       if (!ok) return setResult({ ok: false, text: String(data.error ?? "Could not transfer that amount.") });
       const balance = data.balance as { realBalance: number; bonusBalance: number } | null;
-      if (typeof data.accountId === "string" && balance) applyBalanceUpdate(data.accountId, balance);
+      if (typeof data.accountId === "string" && balance) applyBalanceUpdate?.(data.accountId, balance);
       setAmount("");
       setResult({ ok: true, text: `${inr(amountMinor)} moved to your trading balance.` });
       router.refresh();
@@ -228,7 +244,7 @@ function TransferForm({ summary: s }: { summary: ProgramSummary }) {
   );
 }
 
-function WithdrawalForm({ summary: s }: { summary: ProgramSummary }) {
+function WithdrawalForm({ summary: s }: { summary: EarningsSummary }) {
   const router = useRouter();
   const key = useIdempotencyKey();
   const [amount, setAmount] = useState("");
@@ -457,7 +473,7 @@ const DATE_FMT = new Intl.DateTimeFormat("en-IN", {
   timeZone: "Asia/Kolkata",
 });
 
-function History({ items }: { items: ProgramActivityItem[] }) {
+function History({ items, table }: { items: ProgramActivityItem[]; table: boolean }) {
   const router = useRouter();
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -476,6 +492,41 @@ function History({ items }: { items: ProgramActivityItem[] }) {
     }
   }
 
+  function historyRow(item: ProgramActivityItem) {
+    const pill = STATUS_PILL[item.status] ?? { label: item.status, cls: "bg-tile text-ink-2" };
+    const status = (
+      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${pill.cls}`}>
+        {pill.label}
+      </span>
+    );
+    const cancellation = item.type === "WITHDRAWAL" && item.status === "REQUESTED" ? (
+      <button
+        type="button"
+        disabled={cancelling !== null}
+        onClick={() => void cancel(item.id)}
+        aria-label={`Cancel withdrawal of ${inr(item.amountMinor)}`}
+        className="grid h-11 place-items-center rounded-[10px] bg-tile px-3 text-[13px] font-bold text-brand hover:bg-tile-hi disabled:opacity-50"
+      >
+        {cancelling === item.id ? "Cancelling…" : "Cancel"}
+      </button>
+    ) : null;
+    const rejection = item.type === "WITHDRAWAL" && item.status === "REJECTED" && item.reason ? (
+      <p className="mt-1 text-[11px] text-down">{item.reason} — the amount is back in your available earnings.</p>
+    ) : null;
+    return {
+      key: `${item.type}:${item.id}`,
+      title: KIND_LABEL[item.kind] ?? item.kind,
+      amount: item.amountMinor < 0 ? `−${inr(-item.amountMinor)}` : inr(item.amountMinor),
+      date: DATE_FMT.format(new Date(item.date)),
+      method: item.method ? METHOD_LABEL[item.method] ?? item.method : null,
+      status,
+      cancellation,
+      rejection,
+    };
+  }
+
+  const rows = items.map(historyRow);
+
   return (
     <section aria-labelledby="program-history" className="rounded-2xl bg-panel">
       <h2 id="program-history" className="border-b border-rule px-4 py-3 text-[15px] font-semibold">
@@ -486,49 +537,49 @@ function History({ items }: { items: ProgramActivityItem[] }) {
           {error}
         </p>
       ) : null}
-      {items.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="text-balance px-4 py-6 text-center text-xs text-ink-2">
           No earnings yet. Rewards, transfers and withdrawals will show here.
         </p>
+      ) : table ? (
+        <div className={`${centerStyles.tableRegion} p-3`} role="region" aria-label="Earnings history table" tabIndex={0}>
+          <table className={centerStyles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Activity</th><th scope="col">Date (IST)</th><th scope="col">Method</th>
+                <th scope="col" data-numeric>Amount</th><th scope="col">Status</th><th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.key}>
+                  <th scope="row" className={centerStyles.commentCell}>{row.title}{row.rejection}</th>
+                  <td>{row.date}</td><td>{row.method ?? "—"}</td><td data-numeric>{row.amount}</td>
+                  <td>{row.status}</td><td>{row.cancellation}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <ul className="divide-y divide-rule">
-          {items.map((it) => {
-            const pill = STATUS_PILL[it.status] ?? { label: it.status, cls: "bg-[var(--color-tile)] text-[var(--color-ink-2)]" };
-            const method = it.method ? (METHOD_LABEL[it.method] ?? it.method) : null;
-            return (
-              <li key={`${it.type}:${it.id}`} className="flex min-h-14 items-start justify-between gap-3 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold tabular-nums">
-                    {it.amountMinor < 0 ? `−${inr(-it.amountMinor)}` : inr(it.amountMinor)}
-                  </p>
-                  <p className="truncate text-[11px] text-ink-2">
-                    {KIND_LABEL[it.kind] ?? it.kind}
-                    {method ? <span> · {method}</span> : null}
-                  </p>
-                  <p className="text-[11px] text-ink-3">{DATE_FMT.format(new Date(it.date))}</p>
-                  {it.type === "WITHDRAWAL" && it.status === "REJECTED" && it.reason ? (
-                    <p className="mt-1 text-[11px] text-down">{it.reason} — the amount is back in your available earnings.</p>
-                  ) : null}
-                </div>
-                <div className="flex flex-none flex-col items-end gap-2">
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${pill.cls}`}>
-                    {pill.label}
-                  </span>
-                  {it.type === "WITHDRAWAL" && it.status === "REQUESTED" ? (
-                    <button
-                      type="button"
-                      disabled={cancelling !== null}
-                      onClick={() => void cancel(it.id)}
-                      aria-label={`Cancel withdrawal of ${inr(it.amountMinor)}`}
-                      className="grid h-11 place-items-center rounded-[10px] bg-tile px-3 text-[13px] font-bold text-brand hover:bg-tile-hi disabled:opacity-50"
-                    >
-                      {cancelling === it.id ? "Cancelling…" : "Cancel"}
-                    </button>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
+          {rows.map((row) => (
+            <li key={row.key} className="flex min-h-14 items-start justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold tabular-nums">{row.amount}</p>
+                <p className="truncate text-[11px] text-ink-2">
+                  {row.title}
+                  {row.method ? <span> · {row.method}</span> : null}
+                </p>
+                <p className="text-[11px] text-ink-3">{row.date}</p>
+                {row.rejection}
+              </div>
+              <div className="flex flex-none flex-col items-end gap-2">
+                {row.status}
+                {row.cancellation}
+              </div>
+            </li>
+          ))}
         </ul>
       )}
     </section>
