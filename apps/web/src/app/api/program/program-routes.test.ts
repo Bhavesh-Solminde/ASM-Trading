@@ -13,6 +13,7 @@ import { redis } from "@/lib/redis";
 import { SESSION_COOKIE, createSession } from "@/lib/session";
 import { GET as summaryGET } from "./summary/route";
 import { GET as activityGET } from "./activity/route";
+import { GET as linksGET, POST as linksPOST } from "./links/route";
 import { POST as transferPOST } from "./transfer/route";
 import { GET as withdrawalsGET, POST as withdrawalsPOST } from "./withdrawals/route";
 import { POST as cancelPOST } from "./withdrawals/[id]/cancel/route";
@@ -65,6 +66,8 @@ const UPI = { method: "UPI", upiId: "alice@okaxis" };
 describe("auth", () => {
   it("every route requires a session", async () => {
     expect((await summaryGET(req("/api/program/summary", null))).status).toBe(401);
+    expect((await linksGET(req("/api/program/links", null))).status).toBe(401);
+    expect((await linksPOST(req("/api/program/links", null, { kind: "APP" }))).status).toBe(401);
     expect((await activityGET(req("/api/program/activity", null))).status).toBe(401);
     expect((await withdrawalsGET(req("/api/program/withdrawals", null))).status).toBe(401);
     expect((await transfer(null, { amountMinor: 100, idempotencyKey: randomUUID() })).status).toBe(401);
@@ -90,6 +93,33 @@ describe("GET summary / activity", () => {
     const res = await activityGET(req("/api/program/activity?limit=5", alice.cookie));
     expect(res.status).toBe(200);
     expect(await json(res)).toEqual({ items: expect.any(Array) });
+  });
+
+  it("reports an affiliate's level and keeps rate terms private", async () => {
+    const res = await summaryGET(req("/api/program/summary", pendingAff.cookie));
+    expect(res.status).toBe(200);
+    const body = await json(res);
+    expect(body.levelStatus).toMatchObject({ current: { level: 1, name: "Starter" } });
+    expect(body.terms).not.toHaveProperty("revenueShareBps");
+    expect(body.terms).not.toHaveProperty("affiliateDepositRewardBps");
+    expect(body.terms).not.toHaveProperty("inviteExtraBonusPct");
+  });
+});
+
+describe("affiliate links", () => {
+  it("allows a pending affiliate to create and list links and refuses a regular user", async () => {
+    expect((await linksGET(req("/api/program/links", alice.cookie))).status).toBe(403);
+    expect((await linksPOST(req("/api/program/links", alice.cookie, { kind: "APP" }))).status).toBe(403);
+    expect((await linksPOST(req("/api/program/links", pendingAff.cookie, { kind: "OTHER" }))).status).toBe(400);
+    const created = await linksPOST(req("/api/program/links", pendingAff.cookie, { kind: "APP", comment: " Campaign " }));
+    expect(created.status).toBe(201);
+    const result = await linksGET(req("/api/program/links", pendingAff.cookie));
+    expect(await json(result)).toMatchObject({
+      links: [
+        { isDefault: true, kind: "REGISTER", url: expect.stringMatching(/^\/invite\//) },
+        { isDefault: false, kind: "APP", comment: "Campaign", url: expect.stringMatching(/^\/r\//) },
+      ],
+    });
   });
 });
 

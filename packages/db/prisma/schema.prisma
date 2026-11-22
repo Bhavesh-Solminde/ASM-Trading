@@ -285,6 +285,7 @@ model User {
   referredById       String?
   referredAt         DateTime?
   referralVia        ReferralVia?
+  referralLinkId     String?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
@@ -305,6 +306,9 @@ model User {
   programEarnings         ProgramEarning[]
   affiliateProfile        AffiliateProfile?
   affiliateRates          AffiliateRate[]
+  affiliateLinks          AffiliateLink[]          @relation("AffiliateOwnedLinks")
+  referralLink            AffiliateLink?           @relation("AffiliateLinkReferrals", fields: [referralLinkId], references: [id], onDelete: SetNull)
+  affiliateMonthLevels    AffiliateMonthLevel[]
   programWallet           ProgramWallet?
   programLedgerEntries    ProgramLedgerEntry[]
   programTransfers        ProgramTransfer[]
@@ -319,6 +323,7 @@ model User {
   @@index([lastIp])
   @@index([status])
   @@index([referredById])
+  @@index([referralLinkId])
 }
 
 model Session {
@@ -1267,7 +1272,7 @@ model AffiliateProfile {
 }
 
 /// Per-affiliate assigned terms as append-only versions (latest effectiveFrom <= T wins).
-/// depositRewardBps null = use the global AFFILIATE_DEPOSIT_REWARD_BPS setting.
+/// An empty depositRewardBps follows the affiliate's level, then the global setting.
 model AffiliateRate {
   id               String   @id @default(uuid())
   affiliateId      String
@@ -1515,4 +1520,62 @@ model NotificationOutbox {
 
   @@index([userId])
   @@index([sentAt, createdAt])
+}
+
+enum AffiliateLinkKind {
+  HOME
+  REGISTER
+  APP
+}
+
+model AffiliateLink {
+  id          String            @id @default(uuid())
+  affiliateId String
+  code        String            @unique
+  kind        AffiliateLinkKind
+  comment     String?
+  isDefault   Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  archivedAt  DateTime?
+
+  affiliate User               @relation("AffiliateOwnedLinks", fields: [affiliateId], references: [id], onDelete: Cascade)
+  referrals User[]             @relation("AffiliateLinkReferrals")
+  days      AffiliateLinkDay[]
+
+  @@index([affiliateId])
+}
+
+model AffiliateLinkDay {
+  linkId String
+  day    DateTime @db.Date
+  clicks Int      @default(0)
+
+  link AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@id([linkId, day])
+}
+
+model AffiliateLevelTerms {
+  id               String   @id @default(uuid())
+  level            Int
+  revenueShareBps  Int
+  depositRewardBps Int
+  effectiveFrom    DateTime
+  createdAt        DateTime @default(now())
+  createdBy        String
+  reason           String
+
+  @@index([level, effectiveFrom])
+}
+
+model AffiliateMonthLevel {
+  affiliateId        String
+  month              DateTime @db.Date
+  level              Int
+  qualifyingDeposits Int
+  computedAt         DateTime @default(now())
+
+  affiliate User @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  @@id([affiliateId, month])
 }

@@ -34,7 +34,7 @@ export default async function ReferralPage() {
           reward: whole(t.userRewardMinor),
           minDeposit: whole(t.minQualifyingDepositMinor),
           minTrade: whole(t.minQualifyingTradeMinor),
-          friendBonusPct: invitedBonusPct(t.inviteExtraBonusPct),
+          friendBonusPct: invitedBonusPct(t.inviteExtraBonusPct ?? 0),
         }}
       />
     </PageFrame>

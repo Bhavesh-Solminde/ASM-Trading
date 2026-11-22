@@ -21,6 +21,7 @@ function summary(over: Partial<ProgramSummary> = {}): ProgramSummary {
   return {
     isAffiliate: false,
     affiliateStatus: null,
+    levelStatus: null,
     emailVerified: true,
     kycStatus: "VERIFIED",
     currency: "INR",
@@ -36,9 +37,6 @@ function summary(over: Partial<ProgramSummary> = {}): ProgramSummary {
     totalDepositedMinor: 500_00,
     terms: {
       userRewardMinor: 50_00,
-      affiliateDepositRewardBps: 500,
-      revenueShareBps: 0,
-      revenueShareSource: null,
       minQualifyingDepositMinor: 500_00,
       minQualifyingTradeMinor: 100_00,
       inviteExtraBonusPct: 10,
@@ -143,6 +141,21 @@ describe("withdrawal form", () => {
 });
 
 describe("requirements and blockers", () => {
+  it("lets the standalone affiliate panel initiate a transfer without the trading shell or a KYC prompt", async () => {
+    stubFetch({ ok: true, body: { accountId: "acc1", balance: { realBalance: 1, bonusBalance: 0 } } });
+    render(createElement(ProgramEarningsPanel, {
+      summary: summary({ isAffiliate: true, kycStatus: "NOT_STARTED" }),
+      activity: [],
+      standalone: true,
+    }));
+    expect(screen.queryByRole("link", { name: "Start verification" })).toBeNull();
+    fireEvent.change(screen.getAllByLabelText("Amount (₹)")[0]!, { target: { value: "250.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Transfer" }));
+    await screen.findByText("₹250.50 moved to your trading balance.");
+    expect(applyBalanceUpdate).not.toHaveBeenCalled();
+    expect(refresh).toHaveBeenCalled();
+  });
+
   it("explains each blocker and disables the blocked forms", () => {
     renderPanel(
       summary({
@@ -190,5 +203,17 @@ describe("history", () => {
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     expect(fetch.mock.calls[0]![0]).toBe("/api/program/withdrawals/w1/cancel");
     expect(fetch.mock.calls[0]![1].method).toBe("POST");
+  });
+
+  it("shows the standalone affiliate history as a table", () => {
+    render(createElement(ProgramEarningsPanel, {
+      summary: summary({ isAffiliate: true }),
+      activity: items,
+      standalone: true,
+    }));
+    expect(screen.getByRole("table")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Status" })).toBeTruthy();
+    expect(screen.getByRole("rowheader", { name: /Name mismatch/ })).toBeTruthy();
+    expect(screen.queryByText(/self-referral/)).toBeNull();
   });
 });

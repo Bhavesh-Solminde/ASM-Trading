@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { normaliseReferralCode, resolveInvitationCode } from "@asm/db";
+import { ensureDefaultAffiliateLink, normaliseReferralCode, resolveInvitationCode } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { appOrigin } from "@/lib/google-oauth";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS } from "@/lib/referral";
+import { lookupReferralLink, rememberAffiliateLink } from "@/lib/affiliate-link-visit";
 import { requestContext } from "@/lib/request-context";
 
 /**
@@ -21,8 +21,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
   }
 
   const code = normaliseReferralCode((await params).code);
-  if (code && (await resolveInvitationCode(code))) {
-    response.cookies.set(REFERRAL_COOKIE, code, REFERRAL_COOKIE_OPTIONS);
-  }
+  if (!code) return response;
+  const invitation = await lookupReferralLink(ctx, "invite", () => resolveInvitationCode(code));
+  if (!invitation) return response;
+  const link = await lookupReferralLink(ctx, "invite", () => ensureDefaultAffiliateLink(invitation.inviterId));
+  await rememberAffiliateLink(response, code, link?.id ?? null, ctx);
   return response;
 }

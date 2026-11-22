@@ -65,6 +65,7 @@ export async function attachReferralAtSignup(input: {
   userId: string;
   code: string;
   via: ReferralVia;
+  linkId?: string | undefined;
   ip: string;
   userAgent: string;
   deviceFp?: string | null;
@@ -92,9 +93,15 @@ export async function attachReferralAtSignup(input: {
   const flagged = sharedIps.length > 0 || sharedDeviceFps.length > 0;
 
   const attached = await prisma.$transaction(async (tx) => {
+    const link = input.linkId
+      ? await tx.affiliateLink.findFirst({
+          where: { id: input.linkId, affiliateId: resolved.inviterId, archivedAt: null },
+          select: { id: true },
+        })
+      : null;
     const { count } = await tx.user.updateMany({
       where: { id: input.userId, referredById: null, createdAt: { gte: new Date(Date.now() - SIGNUP_WINDOW_MS) } },
-      data: { referredById: resolved.inviterId, referredAt: new Date(), referralVia: input.via },
+      data: { referredById: resolved.inviterId, referredAt: new Date(), referralVia: input.via, referralLinkId: link?.id ?? null },
     });
     if (count === 0) return false;
     if (flagged) {

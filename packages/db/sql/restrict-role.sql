@@ -16,7 +16,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE asm_owner IN SCHEMA public
 REVOKE UPDATE, DELETE ON "AuditLog" FROM asm_app;
 
 -- ProgramSetting holds append-only setting versions (Affiliate Program phase 4).
-REVOKE UPDATE, DELETE ON "ProgramSetting" FROM asm_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON "ProgramSetting", "AffiliateLevelTerms", "AffiliateMonthLevel" FROM asm_app;
 
 -- Program money history is append-only (Affiliate Program phases 5-7).
 REVOKE UPDATE, DELETE ON "ProgramLedgerEntry", "AffiliateRate", "RevenueShareDay", "ProgramDayClose" FROM asm_app;

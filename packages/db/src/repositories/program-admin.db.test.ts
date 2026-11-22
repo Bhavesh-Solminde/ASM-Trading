@@ -4,11 +4,13 @@ import { prisma } from "../client";
 import type { Prisma } from "../../generated/prisma/client";
 import { createAccountsForUser } from "./account";
 import { ensureAffiliateProfile, onAffiliateEmailVerified } from "./affiliate-profile";
+import { listLevelTerms, listLevelTermsForAdmin } from "./affiliate-levels";
 import { defaultRevenueShareAt, getAffiliateRateAt, revenueShareEffectiveFrom } from "./affiliate-rate";
 import { creditDepositToAccount } from "./deposit";
 import { consumeEmailVerificationToken, issueEmailVerificationToken } from "./email-verification";
 import {
   appendAffiliateRate,
+  appendAffiliateLevelTerms,
   appendProgramSetting,
   clearNeedsReview,
   getAffiliateAdminDetail,
@@ -38,6 +40,7 @@ afterAll(async () => {
   // Profiles, rates, earnings, qualifications cascade with their user. AuditLog rows stay (append-only).
   await prisma.user.deleteMany({ where: { email: { contains: RUN } } });
   await prisma.programSetting.deleteMany({ where: { createdBy: ACTOR } });
+  await prisma.affiliateLevelTerms.deleteMany({ where: { createdBy: ACTOR } });
   await prisma.$disconnect();
 });
 
@@ -176,7 +179,7 @@ describe("rate and setting validation", () => {
     await expect(appendAffiliateRate({ ...base, affiliateId: (await makeUser()).id })).rejects.toEqual(refused("not_found"));
     const row = await appendAffiliateRate({ ...base, effectiveFrom: new Date(Date.now() - 30_000) }); // inside the 60 s tolerance
     expect(await audits(row.id, "affiliate.rate_assigned")).toHaveLength(1);
-    expect((await getAffiliateAdminDetail(aff.id))?.currentRate.source).toBe("default");
+    expect((await getAffiliateAdminDetail(aff.id))?.currentRate.source).toBe("level");
     expect(await getAffiliateRateAt(aff.id, row.effectiveFrom)).toMatchObject({ source: "assigned", rateId: row.id, revenueShareBps: 100 });
     expect(row.effectiveFrom).toEqual(revenueShareEffectiveFrom(new Date()));
   });
@@ -223,30 +226,116 @@ describe("rate and setting validation", () => {
   });
 });
 
-describe("default Revenue Share", () => {
-  it("applies to affiliates without an assigned rate; an assigned rate in force wins", async () => {
+describe("affiliate terms", () => {
+  it("uses the historical global settings before the level seed took effect", async () => {
+    const affiliate = await makeAffiliate("ACTIVE");
+    const seed = await prisma.affiliateLevelTerms.findFirstOrThrow({
+      where: { level: 1, createdBy: "migration" },
+      select: { effectiveFrom: true, createdAt: true, id: true },
+    });
+    const before = new Date(seed.effectiveFrom.getTime() - 1);
+    const historical = await defaultRevenueShareAt(before);
+    expect(seed.createdAt).toEqual(seed.effectiveFrom);
+    expect(historical).not.toBeNull();
+    expect(await getAffiliateRateAt(affiliate.id, before)).toMatchObject({
+      source: "default", settingId: historical!.id, revenueShareBps: historical!.value, depositRewardBps: null, levelTermsId: null,
+    });
+    expect(await getAffiliateRateAt(affiliate.id, seed.effectiveFrom)).toMatchObject({ source: "level", levelTermsId: seed.id });
+  });
+
+  it("uses the same assigned-rate tie-break for the admin list and payouts, and excludes legacy actors", async () => {
+    const affiliate = await makeAffiliate("ACTIVE");
+    const legacy = await makeUser({ role: "AFFILIATE", legacySimulated: true });
+    await prisma.affiliateProfile.create({ data: { userId: legacy.id, status: "ACTIVE" } });
+    const base = { effectiveFrom: new Date(0), createdAt: new Date(0), depositRewardBps: 600, createdBy: ACTOR, reason: "tie fixture" };
+    const winner = `z-${RUN}`;
+    await prisma.affiliateRate.createMany({
+      data: [
+        { ...base, affiliateId: affiliate.id, id: `a-${RUN}`, revenueShareBps: 1000 },
+        { ...base, affiliateId: affiliate.id, id: winner, revenueShareBps: 2500 },
+        { ...base, affiliateId: legacy.id, revenueShareBps: 9000 },
+      ],
+    });
+    const rate = await getAffiliateRateAt(affiliate.id, new Date());
+    expect(rate).toMatchObject({ source: "assigned", rateId: winner, revenueShareBps: 2500 });
+    const list = await listAffiliatesForAdmin({ q: RUN });
+    expect(list.rows).toContainEqual(expect.objectContaining({ userId: affiliate.id, currentRate: rate }));
+    expect(list.rows.some(({ userId }) => userId === legacy.id)).toBe(false);
+    expect(await getAffiliateAdminDetail(legacy.id)).toBeNull();
+    expect(await getAffiliateRateAt(legacy.id, new Date())).toMatchObject({ source: "default", rateId: null, level: null });
+    expect(await prisma.affiliateMonthLevel.count({ where: { affiliateId: legacy.id } })).toBe(0);
+  });
+
+  it("prefers assigned terms, then level terms, then the global default, and hides both affiliate rates in summaries", async () => {
     const plain = await makeAffiliate("ACTIVE");
     const assigned = await makeAffiliate("ACTIVE");
     const rate = await prisma.affiliateRate.create({ data: { affiliateId: assigned.id, revenueShareBps: 2_500,
       depositRewardBps: null, effectiveFrom: new Date(0), reason: "fixture", createdBy: ACTOR } });
     const now = new Date();
-    const dflt = await defaultRevenueShareAt(now);
-    expect(dflt).not.toBeNull(); // seeded by migration from 1970
-    expect(await getAffiliateRateAt(plain.id, now)).toMatchObject({ source: "default", rateId: null, settingId: dflt!.id, revenueShareBps: dflt!.value });
-    expect(await getAffiliateRateAt(assigned.id, now)).toMatchObject({ source: "assigned", rateId: rate.id, settingId: null, revenueShareBps: 2_500 });
+    const level = await prisma.affiliateLevelTerms.findFirstOrThrow({ where: { level: 1 }, orderBy: { effectiveFrom: "asc" } });
+    expect(await getAffiliateRateAt(plain.id, now)).toMatchObject({ source: "level", level: 1, levelTermsId: level.id, rateId: null, settingId: null });
+    expect(await getAffiliateRateAt(assigned.id, now)).toMatchObject({
+      source: "assigned", rateId: rate.id, settingId: null, revenueShareBps: 2_500,
+      levelTermsId: level.id, depositRewardBps: level.depositRewardBps,
+    });
 
-    // A future default version applies from its effectiveFrom only, and never over an assigned rate.
+    // A global version does not shadow either level terms or an assigned rate.
+    const regular = await makeUser();
     const row = await appendProgramSetting({ key: "DEFAULT_REVENUE_SHARE_BPS", value: 1_500, effectiveFrom: FUTURE, reason: `test ${RUN}`, actor: ACTOR });
     const later = new Date("2901-01-01T00:00:00Z");
-    expect(await getAffiliateRateAt(plain.id, later)).toMatchObject({ source: "default", settingId: row.id, revenueShareBps: 1_500 });
+    expect(await getAffiliateRateAt(regular.id, later)).toMatchObject({ source: "default", settingId: row.id, revenueShareBps: 1_500 });
+    expect(await getAffiliateRateAt(plain.id, later)).toMatchObject({ source: "level", levelTermsId: level.id });
     expect(await getAffiliateRateAt(assigned.id, later)).toMatchObject({ source: "assigned", revenueShareBps: 2_500 });
-    expect((await getAffiliateRateAt(plain.id, now)).revenueShareBps).toBe(dflt!.value);
-
-    // Summary terms and admin rows show the effective rate and where it comes from.
-    expect((await getProgramSummary(plain.id)).terms).toMatchObject({ revenueShareBps: dflt!.value, revenueShareSource: "default" });
-    expect((await getProgramSummary(assigned.id)).terms).toMatchObject({ revenueShareBps: 2_500, revenueShareSource: "assigned" });
-    expect((await getAffiliateAdminDetail(plain.id))?.currentRate).toMatchObject({ source: "default", rateId: null, revenueShareBps: dflt!.value });
+    for (const aff of [plain, assigned]) {
+      const summary = await getProgramSummary(aff.id);
+      expect(summary.levelStatus?.current.name).toBe("Starter");
+      expect(summary.terms).not.toHaveProperty("revenueShareBps");
+      expect(summary.terms).not.toHaveProperty("affiliateDepositRewardBps");
+      expect(summary.terms).not.toHaveProperty("inviteExtraBonusPct");
+    }
+    expect((await getAffiliateAdminDetail(plain.id))?.currentRate).toMatchObject({ source: "level", rateId: null, revenueShareBps: level.revenueShareBps });
     expect((await getAffiliateAdminDetail(assigned.id))?.currentRate).toMatchObject({ source: "assigned", rateId: rate.id, revenueShareBps: 2_500 });
+  });
+
+  it("appends audited level terms that activate at the next IST midnight", async () => {
+    const input = { level: 7, revenueShareBps: 4_250, depositRewardBps: 725, reason: "New terms", actor: ACTOR };
+    await expect(appendAffiliateLevelTerms({ ...input, reason: " " })).rejects.toMatchObject({ code: "invalid_input" });
+    const row = await appendAffiliateLevelTerms(input);
+    expect(row).toMatchObject({ level: 7, revenueShareBps: 4_250, depositRewardBps: 725, createdBy: ACTOR, reason: "New terms" });
+    expect(row.effectiveFrom.getTime()).toBeGreaterThan(Date.now());
+    expect(row.effectiveFrom.toISOString().slice(11)).toBe("18:30:00.000Z");
+    const audit = await audits(row.id, "affiliate.level_terms_changed");
+    expect(audit[0]).toMatchObject({ actorId: ACTOR, after: { level: 7, reason: "New terms", effectiveFrom: row.effectiveFrom.toISOString() } });
+  });
+
+  it("shows only the next scheduled terms per level and promotes them at their exact effective time", async () => {
+    const current = new Date("2950-01-01T18:30:00Z");
+    const next = new Date("2950-01-02T18:30:00Z");
+    const later = new Date("2950-01-03T18:30:00Z");
+    const base = { level: 2, createdBy: ACTOR, reason: "Scheduled lookup fixture" };
+    await prisma.affiliateLevelTerms.createMany({
+      data: [
+        { ...base, effectiveFrom: current, createdAt: current, revenueShareBps: 1_000, depositRewardBps: 500 },
+        { ...base, effectiveFrom: next, createdAt: current, revenueShareBps: 2_000, depositRewardBps: 550 },
+        { ...base, effectiveFrom: next, createdAt: new Date(current.getTime() + 1), revenueShareBps: 2_500, depositRewardBps: 600 },
+        { ...base, effectiveFrom: later, createdAt: current, revenueShareBps: 3_000, depositRewardBps: 700 },
+      ],
+    });
+
+    const before = await listLevelTermsForAdmin(current);
+    expect(before.find(({ level }) => level === 2)).toMatchObject({
+      revenueShareBps: 1_000,
+      depositRewardBps: 500,
+      scheduled: { revenueShareBps: 2_500, depositRewardBps: 600, effectiveFrom: next },
+    });
+    expect(before.find(({ level }) => level === 3)?.scheduled).toBeNull();
+    expect((await listLevelTerms(current)).find(({ level }) => level === 2)).not.toHaveProperty("scheduled");
+    expect((await listLevelTermsForAdmin(next)).find(({ level }) => level === 2)).toMatchObject({
+      revenueShareBps: 2_500,
+      depositRewardBps: 600,
+      scheduled: { revenueShareBps: 3_000, depositRewardBps: 700, effectiveFrom: later },
+    });
+    expect((await listLevelTermsForAdmin(later)).find(({ level }) => level === 2)?.scheduled).toBeNull();
   });
 });
 
@@ -307,7 +396,7 @@ describe("admin affiliate aggregates", () => {
       totalDepositedMinor: 160_000,
       earnings: { PENDING: 8_000, HELD: 0, VOID: 0, AVAILABLE: 0 },
       wallet: { availableMinor: 1_234, reservedMinor: 0, transferredMinor: 0, paidMinor: 0 },
-      currentRate: { source: "default", rateId: null, depositRewardBps: null },
+      currentRate: { source: "level", level: 1, rateId: null },
       openSelfReferralFlags: 1,
     });
     expect((await listAffiliatesForAdmin({ q: `zed${RUN.slice(0, 8)}` })).rows.map((r) => r.userId)).toEqual([aff.id]);

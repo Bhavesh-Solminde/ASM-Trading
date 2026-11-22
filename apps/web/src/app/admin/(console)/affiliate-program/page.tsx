@@ -4,6 +4,7 @@ import {
   ProgramSettingKey,
   listAffiliatesForAdmin,
   listEarningsForReview,
+  listLevelTermsForAdmin,
   listProgramSettingHistory,
   listProgramWithdrawalsForAdmin,
   prisma,
@@ -23,6 +24,7 @@ import {
   markProgramWithdrawalPaidAction,
   rejectProgramWithdrawalAction,
   releaseHeldEarningAction,
+  scheduleAffiliateLevelTermsAction,
   scheduleSettingAction,
   voidHeldEarningAction,
 } from "./actions";
@@ -32,8 +34,8 @@ import { SETTING_META, fmtIst, formatSettingValue, settingInputValue } from "./p
 export const dynamic = "force-dynamic";
 
 const PATH = "/admin/affiliate-program";
-type Tab = "withdrawals" | "affiliates" | "review" | "settings";
-const TABS: Tab[] = ["withdrawals", "affiliates", "review", "settings"];
+type Tab = "withdrawals" | "affiliates" | "review" | "levels" | "settings";
+const TABS: Tab[] = ["withdrawals", "affiliates", "review", "levels", "settings"];
 const W_STATUSES: ProgramWithdrawalStatus[] = ["REQUESTED", "APPROVED", "PAID", "REJECTED", "CANCELLED"];
 const A_STATUSES: AffiliateStatus[] = ["PENDING_VERIFICATION", "PENDING_APPROVAL", "ACTIVE", "SUSPENDED"];
 const KIND_LABEL: Record<string, string> = {
@@ -76,12 +78,14 @@ export default async function AffiliateProgramPage({ searchParams }: { searchPar
             { key: "withdrawals", label: "Withdrawals", href: tabHref("withdrawals"), count: requested + approved },
             { key: "affiliates", label: "Affiliates", href: tabHref("affiliates"), count: pendingApproval },
             { key: "review", label: "Earnings review", href: tabHref("review"), count: held + needsReview },
+            { key: "levels", label: "Levels", href: tabHref("levels") },
             { key: "settings", label: "Settings", href: tabHref("settings") },
           ]}
         />
         {tab === "withdrawals" ? <WithdrawalsTab sp={sp} /> : null}
         {tab === "affiliates" ? <AffiliatesTab sp={sp} /> : null}
         {tab === "review" ? <ReviewTab sp={sp} /> : null}
+        {tab === "levels" ? <LevelsTab /> : null}
         {tab === "settings" ? <SettingsTab /> : null}
       </section>
 
@@ -100,6 +104,60 @@ function Hint({ children }: { children: React.ReactNode }) {
 
 function SrOnly({ children }: { children: React.ReactNode }) {
   return <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>{children}</span>;
+}
+
+async function LevelsTab() {
+  const levels = await listLevelTermsForAdmin();
+  return (
+    <>
+      <Hint>Changes take effect at the next midnight in India. Custom affiliate rates keep their priority.</Hint>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead><tr>
+            <th>Level</th>
+            <th>First deposits</th>
+            <th>Revenue Share / deposit reward</th>
+            <th>Schedule rates</th>
+          </tr></thead>
+          <tbody>
+            {levels.map((level) => (
+              <tr key={level.level}>
+                <th scope="row">{level.level} · {level.name}</th>
+                <td>{level.maxDeposits === null ? `${level.minDeposits}+` : `${level.minDeposits}–${level.maxDeposits}`}</td>
+                <td>
+                  <div>{bpsPct(level.revenueShareBps)} / {bpsPct(level.depositRewardBps)}</div>
+                  {level.scheduled ? (
+                    <div className="admin-cell-sub">
+                      Scheduled {bpsPct(level.scheduled.revenueShareBps)} / {bpsPct(level.scheduled.depositRewardBps)} from{" "}
+                      <time dateTime={level.scheduled.effectiveFrom.toISOString()}>{fmtIst(level.scheduled.effectiveFrom)}</time>
+                    </div>
+                  ) : null}
+                </td>
+                <td>
+                  <form action={scheduleAffiliateLevelTermsAction} className="admin-grid admin-cols-2" aria-label={`Edit ${level.name} rates`}>
+                    <input type="hidden" name="level" value={level.level} />
+                    <label className="admin-field">
+                      <span>Revenue Share (%)</span>
+                      <input name="revenueSharePct" className="admin-input" inputMode="decimal" required defaultValue={level.revenueShareBps / 100} />
+                    </label>
+                    <label className="admin-field">
+                      <span>Deposit reward (%)</span>
+                      <input name="depositRewardPct" className="admin-input" inputMode="decimal" required defaultValue={level.depositRewardBps / 100} />
+                    </label>
+                    <label className="admin-field">
+                      <span>Reason</span>
+                      <input name="reason" className="admin-input" required maxLength={500} />
+                    </label>
+                    <div className="admin-row-actions"><button type="submit" className="admin-btn admin-btn--primary">Schedule</button></div>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
 }
 
 /* -------------------------------- Withdrawals ------------------------------- */
@@ -347,6 +405,7 @@ async function AffiliatesTab({ sp }: { sp: SP }) {
                   <td className="admin-num-right">
                     {bpsPct(a.currentRate.revenueShareBps)}
                     {a.currentRate.source === "default" ? <span className="admin-cell-sub"> (default)</span> : null}
+                    {a.currentRate.source === "level" ? <span className="admin-cell-sub"> (Level {a.currentRate.level})</span> : null}
                   </td>
                   <td className="admin-num-right">
                     {inrFromMinor(a.earnings.PENDING)} <span className="admin-cell-sub">/ {inrFromMinor(a.earnings.HELD)}</span>

@@ -53,6 +53,17 @@ describe("proxy", () => {
     expect(proxy(elsewhere).headers.get("location")).toBeNull();
   });
 
+  it("sends signed-out Affiliate Center requests to the affiliate login", () => {
+    process.env["MAINTENANCE_MODE"] = "";
+    for (const path of ["/affiliate/center", "/affiliate/center/levels"]) {
+      const request = new NextRequest(`http://localhost${path}`);
+      expect(proxy(request).headers.get("location")).toBe("http://localhost/affiliate/login");
+      request.cookies.set(SESSION_COOKIE, "token");
+      expect(proxy(request).headers.get("location")).toBeNull();
+    }
+    expect(proxy(new NextRequest("http://localhost/affiliate/centered")).headers.get("location")).toBeNull();
+  });
+
   it("leaves the website's API calls alone", () => {
     process.env["MAINTENANCE_MODE"] = "";
     process.env["APP_MIN_VERSION"] = "2.0.0";

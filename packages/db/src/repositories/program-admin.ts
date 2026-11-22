@@ -1,5 +1,6 @@
 import { prisma, type DbTransaction } from "../client";
 import type {
+  AffiliateLevelTerms,
   AffiliateProfile,
   AffiliateRate,
   AffiliateStatus,
@@ -12,7 +13,9 @@ import type {
 import { ProgramSettingKey as SettingKeys } from "../../generated/prisma/client";
 import type { ProgramEarning, ProgramSetting } from "../models";
 import { programSettingValueAt } from "./program-settings";
-import { defaultRate, defaultRevenueShareAt, revenueShareEffectiveFrom, type AffiliateRateAt } from "./affiliate-rate";
+import { affiliateRateActorWhere, getAffiliateRatesAt, revenueShareEffectiveFrom, type AffiliateRateAt } from "./affiliate-rate";
+import type { AffiliateLevelStatus } from "./affiliate-center";
+import { getAffiliateLevelStatus, levelTermsOrder } from "./affiliate-levels";
 import { ProgramActionRefused, cleanReason } from "./program-errors";
 import { qualifiedDepositTotalsByInviter } from "./referral-qualification";
 
@@ -103,7 +106,7 @@ export async function setAffiliateStatus(input: {
 
 // ---------------------------------------------------------------- rates
 
-/** Appends a per-affiliate rate version. depositRewardBps null = use the global setting. No back-dating. */
+/** Appends a per-affiliate rate version. An empty deposit override follows the level. No back-dating. */
 export async function appendAffiliateRate(input: {
   affiliateId: string;
   revenueShareBps: number;
@@ -123,7 +126,7 @@ export async function appendAffiliateRate(input: {
     }
     const before = await tx.affiliateRate.findFirst({
       where: { affiliateId: input.affiliateId, effectiveFrom: { lte: effectiveFrom } },
-      orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
+      orderBy: [...levelTermsOrder],
     });
     const row = await tx.affiliateRate.create({
       data: {
@@ -149,6 +152,45 @@ export async function appendAffiliateRate(input: {
           effectiveFrom: row.effectiveFrom.toISOString(),
           reason,
         },
+      },
+    });
+    return row;
+  });
+}
+
+export async function appendAffiliateLevelTerms(input: {
+  level: number;
+  revenueShareBps: number;
+  depositRewardBps: number;
+  reason: string;
+  actor: string;
+}): Promise<AffiliateLevelTerms> {
+  const { level, revenueShareBps, depositRewardBps, actor } = input;
+  const reason = cleanReason(input.reason);
+  if (!Number.isInteger(level) || level < 1 || level > 7) {
+    throw new ProgramActionRefused("invalid_input", "Choose a level from 1 to 7.");
+  }
+  checkBps(revenueShareBps, "Revenue Share");
+  checkBps(depositRewardBps, "Deposit reward");
+  const effectiveFrom = revenueShareEffectiveFrom(new Date(Date.now() + 1));
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtext(${`affiliate-level-terms:${level}`}))`;
+    const before = await tx.affiliateLevelTerms.findFirst({
+      where: { level, effectiveFrom: { lte: effectiveFrom } },
+      orderBy: [...levelTermsOrder],
+      select: { id: true, revenueShareBps: true, depositRewardBps: true },
+    });
+    const row = await tx.affiliateLevelTerms.create({
+      data: { level, revenueShareBps, depositRewardBps, effectiveFrom, createdAt: new Date(), createdBy: actor, reason },
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: actor,
+        action: "affiliate.level_terms_changed",
+        targetType: "AffiliateLevelTerms",
+        targetId: row.id,
+        ...(before && { before }),
+        after: { level, revenueShareBps, depositRewardBps, effectiveFrom: effectiveFrom.toISOString(), reason },
       },
     });
     return row;
@@ -246,7 +288,7 @@ export interface AffiliateAggregates {
   totalDepositedMinor: number;
   earnings: Record<ProgramEarningStatus, number>;
   wallet: { availableMinor: number; reservedMinor: number; transferredMinor: number; paidMinor: number } | null;
-  /** Terms in force now: the affiliate's own rate, else the DEFAULT_REVENUE_SHARE_BPS setting (rateId null). */
+  /** Effective terms in priority order: assigned rates, level terms, global settings. */
   currentRate: AffiliateRateAt;
   openSelfReferralFlags: number;
 }
@@ -268,47 +310,32 @@ const emptyEarnings = (): Record<ProgramEarningStatus, number> => ({ PENDING: 0,
 
 /** Aggregates for a page of affiliates: a fixed number of grouped queries, independent of page size. */
 async function aggregatesFor(ids: string[], now: Date): Promise<Map<string, AffiliateAggregates>> {
-  const fallback = defaultRate(ids.length ? await defaultRevenueShareAt(now) : null);
-  const out = new Map<string, AffiliateAggregates>(
-    ids.map((id) => [
-      id,
-      { totalReferrals: 0, qualifiedReferrals: 0, totalDepositedMinor: 0, earnings: emptyEarnings(), wallet: null, currentRate: fallback, openSelfReferralFlags: 0 },
-    ]),
-  );
-  if (ids.length === 0) return out;
+  if (ids.length === 0) return new Map();
   const [refs, quals, deposited, earnings, wallets, rates, flags] = await Promise.all([
     prisma.user.groupBy({ by: ["referredById"], where: { referredById: { in: ids } }, _count: { _all: true } }),
     prisma.referralQualification.groupBy({ by: ["inviterId"], where: { inviterId: { in: ids }, status: "QUALIFIED" }, _count: { _all: true } }),
     qualifiedDepositTotalsByInviter(ids),
     prisma.programEarning.groupBy({ by: ["beneficiaryUserId", "status"], where: { beneficiaryUserId: { in: ids } }, _sum: { amountMinor: true } }),
     prisma.programWallet.findMany({ where: { userId: { in: ids } } }),
-    prisma.affiliateRate.findMany({
-      where: { affiliateId: { in: ids }, effectiveFrom: { lte: now } },
-      orderBy: [{ affiliateId: "asc" }, { effectiveFrom: "desc" }, { createdAt: "desc" }],
-      distinct: ["affiliateId"],
-    }),
+    getAffiliateRatesAt(ids, now),
     prisma.$queryRaw<{ id: string; n: bigint }[]>`
       SELECT u AS id, COUNT(*)::bigint AS n
       FROM "FraudFlag" f, unnest(f."linkedUserIds") u
       WHERE f.kind::text = 'SELF_REFERRAL' AND f.status::text = 'OPEN' AND u = ANY(${ids})
       GROUP BY u`,
   ]);
+  const out = new Map<string, AffiliateAggregates>(
+    ids.map((id) => [
+      id,
+      { totalReferrals: 0, qualifiedReferrals: 0, totalDepositedMinor: 0, earnings: emptyEarnings(), wallet: null, currentRate: rates.get(id)!, openSelfReferralFlags: 0 },
+    ]),
+  );
   for (const r of refs) if (r.referredById) out.get(r.referredById)!.totalReferrals = r._count._all;
   for (const r of quals) out.get(r.inviterId)!.qualifiedReferrals = r._count._all;
   for (const [id, total] of deposited) out.get(id)!.totalDepositedMinor = total;
   for (const r of earnings) out.get(r.beneficiaryUserId)!.earnings[r.status] = Number(r._sum.amountMinor ?? 0);
   for (const w of wallets) {
     out.get(w.userId)!.wallet = { availableMinor: w.availableMinor, reservedMinor: w.reservedMinor, transferredMinor: w.transferredMinor, paidMinor: w.paidMinor };
-  }
-  for (const r of rates) {
-    out.get(r.affiliateId)!.currentRate = {
-      source: "assigned",
-      rateId: r.id,
-      settingId: null,
-      revenueShareBps: r.revenueShareBps,
-      depositRewardBps: r.depositRewardBps,
-      effectiveFrom: r.effectiveFrom,
-    };
   }
   for (const f of flags) out.get(f.id)!.openSelfReferralFlags = Number(f.n);
   return out;
@@ -350,7 +377,7 @@ export async function listAffiliatesForAdmin(input: {
   const where = {
     ...(input.status && { status: input.status }),
     user: {
-      legacySimulated: false,
+      ...affiliateRateActorWhere,
       ...(q && {
         OR: [
           { id: q },
@@ -370,6 +397,8 @@ export async function listAffiliatesForAdmin(input: {
 }
 
 export interface AffiliateAdminDetail extends AffiliateAdminRow {
+  levelStatus: AffiliateLevelStatus;
+  effectiveDepositRewardBps: number;
   statusChangedBy: string | null;
   /** Every rate version, newest effectiveFrom first. */
   rates: AffiliateRate[];
@@ -378,17 +407,28 @@ export interface AffiliateAdminDetail extends AffiliateAdminRow {
 }
 
 export async function getAffiliateAdminDetail(userId: string): Promise<AffiliateAdminDetail | null> {
-  const profile = await prisma.affiliateProfile.findUnique({ where: { userId }, include: profileWithUser });
+  const profile = await prisma.affiliateProfile.findUnique({ where: { userId, user: affiliateRateActorWhere }, include: profileWithUser });
   if (!profile) return null;
-  const [aggs, rates, flags] = await Promise.all([
-    aggregatesFor([userId], new Date()),
-    prisma.affiliateRate.findMany({ where: { affiliateId: userId }, orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }] }),
+  const now = new Date();
+  const [aggs, rates, flags, levelStatus, defaultDepositRewardBps] = await Promise.all([
+    aggregatesFor([userId], now),
+    prisma.affiliateRate.findMany({ where: { affiliateId: userId }, orderBy: [...levelTermsOrder] }),
     prisma.fraudFlag.findMany({
       where: { kind: "SELF_REFERRAL", status: { in: ["OPEN", "CONFIRMED"] }, linkedUserIds: { has: userId } },
       orderBy: { createdAt: "desc" },
     }),
+    getAffiliateLevelStatus(userId, now),
+    programSettingValueAt("AFFILIATE_DEPOSIT_REWARD_BPS", now),
   ]);
-  return { ...toRow(profile, aggs.get(userId)!), statusChangedBy: profile.statusChangedBy, rates, flags };
+  const row = toRow(profile, aggs.get(userId)!);
+  return {
+    ...row,
+    statusChangedBy: profile.statusChangedBy,
+    rates,
+    flags,
+    levelStatus,
+    effectiveDepositRewardBps: row.currentRate.depositRewardBps ?? defaultDepositRewardBps ?? 0,
+  };
 }
 
 // ---------------------------------------------------------------- earnings review

@@ -10,7 +10,7 @@ const mail = vi.hoisted(() => ({
 // Partial mock: keep the real exports (@asm/db imports other senders from it).
 vi.mock("@asm/mail", async (importOriginal) => ({ ...(await importOriginal<typeof import("@asm/mail")>()), ...mail }));
 
-import { ensureReferralCode, prisma } from "@asm/db";
+import { createAffiliateLink, ensureReferralCode, prisma } from "@asm/db";
 import { redis } from "@/lib/redis";
 import { readSession } from "@/lib/session";
 import { POST } from "./route";
@@ -96,13 +96,26 @@ describe("register referral", () => {
   });
 
   it("a typed code beats the cookie", async () => {
-    const viaCookie = await inviter("beat-cookie");
+    const viaCookie = await inviter("beat-cookie", { role: "AFFILIATE" });
+    const link = await createAffiliateLink(viaCookie.id, { kind: "REGISTER" });
     const typed = await inviter("beat-typed");
     const email = `ref-typed-${RUN}@test.local`;
-    const res = await register(email, { cookie: `asm_ref=${viaCookie.code}` }, { referralCode: typed.code.toLowerCase() });
+    const res = await register(email, { cookie: `asm_ref=${viaCookie.code}; asm_ref_link=${link.id}` }, { referralCode: typed.code.toLowerCase() });
     expect(res.status).toBe(201);
     const row = await prisma.user.findFirstOrThrow({ where: { email } });
-    expect(row).toMatchObject({ referredById: typed.id, referralVia: "CODE" });
+    expect(row).toMatchObject({ referredById: typed.id, referralVia: "CODE", referralLinkId: null });
+  });
+
+  it("attaches and clears the tracked link cookie when the link belongs to the inviter", async () => {
+    const inv = await inviter("tracked-cookie", { role: "AFFILIATE" });
+    const link = await createAffiliateLink(inv.id, { kind: "REGISTER" });
+    const email = `ref-tracked-${RUN}@test.local`;
+    const res = await register(email, { cookie: `asm_ref=${inv.code}; asm_ref_link=${link.id}` });
+    expect(res.status).toBe(201);
+    expect(res.cookies.get("asm_ref_link")?.maxAge).toBe(0);
+    expect(await prisma.user.findFirstOrThrow({ where: { email } })).toMatchObject({
+      referredById: inv.id, referralVia: "LINK", referralLinkId: link.id,
+    });
   });
 
   it("an invalid typed code is a 400 and creates no user", async () => {

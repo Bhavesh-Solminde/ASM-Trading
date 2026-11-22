@@ -21,6 +21,7 @@ export async function signInWithGoogleProfile(
   ctx: RequestContext,
   log: Logger,
   referralCode?: string | null,
+  referralLinkId?: string,
 ): Promise<{ userId: string; created: boolean }> {
   const result = await findOrCreateGoogleUser({
     sub: profile.sub,
@@ -32,7 +33,7 @@ export async function signInWithGoogleProfile(
 
   if (result.created) {
     await provisionNewUser(result.userId, ctx);
-    if (referralCode) await attachSignupReferral({ userId: result.userId, code: referralCode, via: "LINK" }, ctx, log);
+    if (referralCode) await attachSignupReferral({ userId: result.userId, code: referralCode, via: "LINK", linkId: referralLinkId }, ctx, log);
     log.info({ evt: "auth.register", userId: result.userId, via: "google" }, "account created");
     void sendWelcomeEmail({
       to: profile.email,

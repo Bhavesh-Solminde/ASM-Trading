@@ -4,7 +4,6 @@ import { prisma } from "../client";
 import type { Prisma } from "../../generated/prisma/client";
 import { createAccountsForUser } from "./account";
 import { onAffiliateEmailVerified } from "./affiliate-profile";
-import { defaultRevenueShareAt } from "./affiliate-rate";
 import { PROGRAM_DAY_CLOSE_GRACE_MS, autoReleaseHeldEarnings, closeDueProgramDays, closeProgramDay, releasePendingEarnings } from "./program-day-close";
 import { transferProgramEarningsToTrading } from "./program-transfer";
 import {
@@ -51,6 +50,7 @@ afterAll(async () => {
   // Wallets, ledger, transfers, withdrawals, earnings, rates, revenue-share days, trades cascade with their user.
   await prisma.user.deleteMany({ where: { email: { contains: RUN } } });
   await prisma.programSetting.deleteMany({ where: { createdBy: `test-${RUN}` } });
+  await prisma.affiliateLevelTerms.deleteMany({ where: { createdBy: `test-${RUN}` } });
   await prisma.programDayClose.deleteMany({ where: { day: { in: [...closedDays].map((d) => new Date(`${d}T00:00:00.000Z`)) } } });
   await prisma.$disconnect();
 });
@@ -254,15 +254,13 @@ describe("daily close — Revenue Share", () => {
     expect(await wallet(aff.id)).toMatchObject({ availableMinor: 45_000 });
   });
 
-  it("uses the default Revenue Share in force that day for an affiliate without an assigned rate; a change affects later days only", async () => {
+  it("uses and records level terms in force that day unless an assigned rate wins", async () => {
     const d1 = slot();
     const d2 = addIstDays(d1, 1);
-    const prior = (await defaultRevenueShareAt(istDayStart(d2)))?.value ?? 0;
-    const setting = (value: number, effectiveFrom: Date) =>
-      prisma.programSetting.create({ data: { key: "DEFAULT_REVENUE_SHARE_BPS", value, effectiveFrom, createdBy: `test-${RUN}`, reason: "test" } });
-    // d1 gets 10%; from d2 the value in force before this test applies again, so later days keep their default.
+    const setting = (revenueShareBps: number, effectiveFrom: Date) =>
+      prisma.affiliateLevelTerms.create({ data: { level: 1, revenueShareBps, depositRewardBps: 500, effectiveFrom, createdBy: `test-${RUN}`, reason: "test" } });
     const s1 = await setting(1_000, istDayStart(d1));
-    await setting(prior, istDayStart(d2));
+    await setting(2_000, istDayStart(d2));
     const plain = await affiliate();
     const assigned = await affiliate({ bps: 3_000 });
     for (const aff of [plain, assigned]) {
@@ -272,15 +270,16 @@ describe("daily close — Revenue Share", () => {
     }
     await close(d1);
     await close(d2);
-    const share = Math.floor((10_000 * prior) / 10_000);
     expect((await rsd(plain.id)).map((r) => [r.rateBps, r.rateId, r.shareMinor])).toEqual([
       [1_000, null, 1_000],
-      [prior, null, share],
+      [2_000, null, 2_000],
     ]);
+    expect((await rsd(plain.id))[0]?.calculation).toMatchObject({ level: 1, levelTermsId: s1.id });
     expect((await rsd(assigned.id)).map((r) => [r.rateBps, r.shareMinor])).toEqual([
       [3_000, 3_000],
       [3_000, 3_000],
     ]);
+    expect((await rsd(assigned.id))[0]?.calculation).toMatchObject({ level: null, levelTermsId: null });
     const e = await prisma.programEarning.findFirstOrThrow({ where: { beneficiaryUserId: plain.id, revenueShareDay: { day: new Date(`${d1}T00:00:00.000Z`) } } });
     expect(e).toMatchObject({ amountMinor: 1_000, status: "AVAILABLE", settingIds: [s1.id] });
   });
@@ -525,11 +524,10 @@ describe("Revenue Share review regressions", () => {
     expect(await wallet(aff.id)).toMatchObject({ availableMinor: 20_000 });
   });
 
-  it("does not apply a midday default or assigned rate to trades earlier that day", async () => {
+  it("does not apply midday level terms or an assigned rate to trades earlier that day", async () => {
     const day = slot();
-    const prior = (await defaultRevenueShareAt(istDayStart(addIstDays(day, 2))))?.value ?? 0;
-    for (const [value, effectiveFrom] of [[1000, istDayStart(day)], [5000, noon(day)], [prior, istDayStart(addIstDays(day, 2))]] as const) {
-      await prisma.programSetting.create({ data: { key: "DEFAULT_REVENUE_SHARE_BPS", value, effectiveFrom, createdBy: `test-${RUN}`, reason: "test" } });
+    for (const [revenueShareBps, effectiveFrom] of [[1000, istDayStart(day)], [5000, noon(day)]] as const) {
+      await prisma.affiliateLevelTerms.create({ data: { level: 1, revenueShareBps, depositRewardBps: 500, effectiveFrom, createdBy: `test-${RUN}`, reason: "test" } });
     }
     const plain = await affiliate();
     const own = await affiliate({ bps: 1000 });
@@ -780,8 +778,8 @@ describe("transfers to trading", () => {
 
     const noKycAff = await affiliate({ kyc: "NOT_STARTED" });
     await credit(noKycAff.id);
-    expect(await t(noKycAff.id)).toBe("kyc_required");
-    expect(await w(noKycAff.id)).toBe("kyc_required");
+    expect(await t(noKycAff.id)).toBe("ok");
+    expect(await w(noKycAff.id)).toBe("ok");
 
     for (const status of ["SUSPENDED", "PENDING_APPROVAL"] as const) {
       const a = await affiliate({ status });

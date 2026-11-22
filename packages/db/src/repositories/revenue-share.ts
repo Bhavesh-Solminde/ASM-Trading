@@ -18,7 +18,7 @@ export const FLAGGED_REFERRAL_HOLD_REASON = "self-referral flag on a referred us
 type Settlement = { userId: string; currency: string; netMinor: number; tradeCount: number };
 type FlagState = "OPEN" | "CONFIRMED";
 /** RevenueShareDay.calculation: the day's per-friend inputs, replayed when a flag changes. */
-type SavedCalculation = { version: 1; settlements: Settlement[] };
+type SavedCalculation = { version: 1; settlements: Settlement[]; level?: number | null; levelTermsId?: string | null };
 
 /**
  * Company gain per referred user and trade currency for IST day `day`, real-money
@@ -138,14 +138,20 @@ export async function computeRevenueShareDay(day: string): Promise<number> {
       }
       const net = eligibleNets(current, states);
       const rate = await getAffiliateRateAt(affiliateId, start, tx);
+      const usesLevel = rate.source === "level";
       const r = revenueShareOf(net.total, carryInMinor, rate.revenueShareBps);
       const clean = revenueShareOf(net.clean, cleanCarry, rate.revenueShareBps);
       const rsd = await tx.revenueShareDay.create({
         data: { affiliateId, day: dayDate, netGainMinor: net.total, carryInMinor, rateBps: rate.revenueShareBps, rateId: rate.rateId,
-          tradeCount: net.tradeCount, ...r, calculation: { version: 1, settlements: current.map((s) => ({ ...s })) } satisfies SavedCalculation },
+          tradeCount: net.tradeCount, ...r, calculation: {
+            version: 1,
+            settlements: current.map((s) => ({ ...s })),
+            level: usesLevel ? rate.level : null,
+            levelTermsId: usesLevel ? rate.levelTermsId : null,
+          } satisfies SavedCalculation },
       });
       const base = { beneficiaryUserId: affiliateId, revenueShareDayId: rsd.id, earnedAt: close,
-        settingIds: [rate.rateId ?? rate.settingId].filter((id): id is string => !!id) };
+        settingIds: [rate.rateId ?? rate.levelTermsId ?? rate.settingId].filter((id): id is string => !!id) };
       const hold = await earningHoldReasons(tx, affiliateId, null, false);
       const relatedUserIds = userIds.filter((id) => states.get(id) === "OPEN").sort();
       const { cleanMinor, heldMinor } = splitRevenueShare(r.shareMinor, clean.shareMinor);

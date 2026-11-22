@@ -12,6 +12,7 @@ const db = vi.hoisted(() => {
     ProgramActionRefused,
     ProgramSettingKey: { PROGRAM_MIN_WITHDRAWAL_INR_MINOR: "PROGRAM_MIN_WITHDRAWAL_INR_MINOR", AFFILIATE_DEPOSIT_REWARD_BPS: "AFFILIATE_DEPOSIT_REWARD_BPS" },
     appendAffiliateRate: vi.fn(),
+    appendAffiliateLevelTerms: vi.fn(),
     appendProgramSetting: vi.fn(),
     approveProgramWithdrawal: vi.fn(),
     clearNeedsReview: vi.fn(),
@@ -67,6 +68,7 @@ describe("affiliate-program admin actions", () => {
       A.scheduleSettingAction,
       A.setAffiliateStatusAction,
       A.assignAffiliateRateAction,
+      A.scheduleAffiliateLevelTermsAction,
       A.approveProgramWithdrawalAction,
       A.rejectProgramWithdrawalAction,
       A.markProgramWithdrawalPaidAction,
@@ -109,12 +111,24 @@ describe("affiliate-program admin actions", () => {
     for (const fn of Object.values(db)) if (vi.isMockFunction(fn)) expect(fn).not.toHaveBeenCalled();
   });
 
-  it("assigns a rate in bps; an empty override means the global setting", async () => {
+  it("assigns a rate in bps and leaves an empty deposit override unset", async () => {
     const url = await run(A.assignAffiliateRateAction, { affiliateId: "a1", revenueSharePct: "30", reason: "deal" });
     expect(url).toMatch(/^\/admin\/affiliate-program\/affiliates\/a1\?ok=/);
     expect(db.appendAffiliateRate.mock.calls[0]![0]).toMatchObject({ affiliateId: "a1", revenueShareBps: 3_000, depositRewardBps: null, actor: "admin-panel" });
     await run(A.assignAffiliateRateAction, { affiliateId: "a1", revenueSharePct: "12.5", depositRewardPct: "2.75", reason: "deal" });
     expect(db.appendAffiliateRate.mock.calls[1]![0]).toMatchObject({ revenueShareBps: 1_250, depositRewardBps: 275 });
+  });
+
+  it("validates and schedules both level percentages with a reason", async () => {
+    const input = { level: "5", revenueSharePct: "40", depositRewardPct: "6.25" };
+    expect(await run(A.scheduleAffiliateLevelTermsAction, input)).toContain("reason is required");
+    expect(await run(A.scheduleAffiliateLevelTermsAction, { ...input, level: "8" })).toContain("Choose a level");
+    expect(await run(A.scheduleAffiliateLevelTermsAction, { ...input, depositRewardPct: "" })).toContain("Enter both percentages");
+    expect(db.appendAffiliateLevelTerms).not.toHaveBeenCalled();
+    expect(await run(A.scheduleAffiliateLevelTermsAction, { ...input, reason: "new level terms" })).toContain("ok=");
+    expect(db.appendAffiliateLevelTerms).toHaveBeenCalledWith({
+      level: 5, revenueShareBps: 4_000, depositRewardBps: 625, reason: "new level terms", actor: "admin-panel",
+    });
   });
 
   it("calls the right db function for each action", async () => {

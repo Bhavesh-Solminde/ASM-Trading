@@ -46,7 +46,7 @@ export default async function ReferralEarningsPage() {
             trade of at least {whole(t.minQualifyingTradeMinor)} of their own money. Bonus funds and demo trades don&apos;t
             count.
           </li>
-          {t.inviteExtraBonusPct > 0 ? (
+          {(t.inviteExtraBonusPct ?? 0) > 0 ? (
             <li>
               Your friend gets an extra {t.inviteExtraBonusPct}% on top of the usual first-deposit bonus when they join with
               your link or code.

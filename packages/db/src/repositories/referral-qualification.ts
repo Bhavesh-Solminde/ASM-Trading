@@ -4,6 +4,7 @@ import { prisma, type DbTransaction } from "../client";
 import type { ProgramEarningKind, TradeStatus } from "../../generated/prisma/client";
 import type { Deposit } from "../models";
 import { getAffiliateRateAt } from "./affiliate-rate";
+import { qualifyingDepositInrMinorSql } from "./affiliate-deposits";
 import { depositCreditMinor } from "./deposit-credit-currency";
 import { getProgramSettings, listProgramSettingRows, settingsAt } from "./program-settings";
 
@@ -42,10 +43,7 @@ export async function qualifiedDepositTotalsByInviter(inviterIds: string[]): Pro
   if (inviterIds.length === 0) return new Map();
   const rows = await prisma.$queryRaw<{ id: string; total: bigint }[]>`
     SELECT q."inviterId" AS id,
-           COALESCE(SUM(GREATEST(CASE
-             WHEN d.method <> 'USDT' AND d."requestedInrMinor" IS NOT NULL THEN d."requestedInrMinor"
-             WHEN d.method = 'USDT' THEN COALESCE(d."amountUsdtMinor", 0) * ${USD_INR_RATE}::bigint
-             ELSE d."amountInr" END, 0)), 0)::bigint AS total
+           COALESCE(SUM(GREATEST(${qualifyingDepositInrMinorSql}, 0)), 0)::bigint AS total
     FROM "ReferralQualification" q JOIN "Deposit" d ON d."userId" = q."referredUserId"
     WHERE q."inviterId" = ANY(${inviterIds}) AND q.status::text = 'QUALIFIED' AND d.status::text = 'COMPLETED'
     GROUP BY q."inviterId"`;
@@ -260,18 +258,22 @@ export async function evaluateReferralQualification(
   let kind: ProgramEarningKind | null = null;
   let amountMinor = 0;
   let rateId: string | null = null;
+  let levelTermsId: string | null = null;
+  let level: number | null = null;
   if (inviter.role === "USER") {
     kind = "REFERRAL_REWARD";
     amountMinor = settings.values.USER_REFERRAL_REWARD_INR_MINOR;
   } else if (inviter.role === "AFFILIATE" && !inviter.legacySimulated) {
     kind = "AFFILIATE_DEPOSIT_REWARD";
-    // A per-affiliate rate in force at T overrides the global setting (Phase 7).
     const rate = await getAffiliateRateAt(inviterId, T);
     const bps = rate.depositRewardBps ?? settings.values.AFFILIATE_DEPOSIT_REWARD_BPS;
-    if (rate.depositRewardBps !== null) rateId = rate.rateId;
+    if (rate.depositRewardBps !== null && rate.levelTermsId === null) rateId = rate.rateId;
+    level = rate.level;
+    levelTermsId = rate.levelTermsId;
     amountMinor = Math.floor((dep.inr * bps) / 10_000);
   }
   const settingIds = Object.values(settings.ids);
+  const earningSettingIds = [...settingIds, ...[rateId ?? levelTermsId].filter((id): id is string => id !== null)];
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -313,7 +315,7 @@ export async function evaluateReferralQualification(
               status: holdReasons.length > 0 ? "HELD" : "PENDING",
               holdReason: holdReasons.length > 0 ? holdReasons.join("; ") : null,
               earnedAt: T,
-              settingIds,
+              settingIds: earningSettingIds,
             },
           })
         : null;
@@ -332,6 +334,8 @@ export async function evaluateReferralQualification(
             kind,
             amountMinor: earning ? amountMinor : null,
             affiliateRateId: rateId,
+            affiliateLevel: level,
+            affiliateLevelTermsId: levelTermsId,
             status: earning?.status ?? null,
           },
         },
