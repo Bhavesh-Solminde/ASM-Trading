@@ -227,6 +227,45 @@ describe("rate and setting validation", () => {
 });
 
 describe("affiliate terms", () => {
+  it("uses the historical global settings before the level seed took effect", async () => {
+    const affiliate = await makeAffiliate("ACTIVE");
+    const seed = await prisma.affiliateLevelTerms.findFirstOrThrow({
+      where: { level: 1, createdBy: "migration" },
+      select: { effectiveFrom: true, createdAt: true, id: true },
+    });
+    const before = new Date(seed.effectiveFrom.getTime() - 1);
+    const historical = await defaultRevenueShareAt(before);
+    expect(seed.createdAt).toEqual(seed.effectiveFrom);
+    expect(historical).not.toBeNull();
+    expect(await getAffiliateRateAt(affiliate.id, before)).toMatchObject({
+      source: "default", settingId: historical!.id, revenueShareBps: historical!.value, depositRewardBps: null, levelTermsId: null,
+    });
+    expect(await getAffiliateRateAt(affiliate.id, seed.effectiveFrom)).toMatchObject({ source: "level", levelTermsId: seed.id });
+  });
+
+  it("uses the same assigned-rate tie-break for the admin list and payouts, and excludes legacy actors", async () => {
+    const affiliate = await makeAffiliate("ACTIVE");
+    const legacy = await makeUser({ role: "AFFILIATE", legacySimulated: true });
+    await prisma.affiliateProfile.create({ data: { userId: legacy.id, status: "ACTIVE" } });
+    const base = { effectiveFrom: new Date(0), createdAt: new Date(0), depositRewardBps: 600, createdBy: ACTOR, reason: "tie fixture" };
+    const winner = `z-${RUN}`;
+    await prisma.affiliateRate.createMany({
+      data: [
+        { ...base, affiliateId: affiliate.id, id: `a-${RUN}`, revenueShareBps: 1000 },
+        { ...base, affiliateId: affiliate.id, id: winner, revenueShareBps: 2500 },
+        { ...base, affiliateId: legacy.id, revenueShareBps: 9000 },
+      ],
+    });
+    const rate = await getAffiliateRateAt(affiliate.id, new Date());
+    expect(rate).toMatchObject({ source: "assigned", rateId: winner, revenueShareBps: 2500 });
+    const list = await listAffiliatesForAdmin({ q: RUN });
+    expect(list.rows).toContainEqual(expect.objectContaining({ userId: affiliate.id, currentRate: rate }));
+    expect(list.rows.some(({ userId }) => userId === legacy.id)).toBe(false);
+    expect(await getAffiliateAdminDetail(legacy.id)).toBeNull();
+    expect(await getAffiliateRateAt(legacy.id, new Date())).toMatchObject({ source: "default", rateId: null, level: null });
+    expect(await prisma.affiliateMonthLevel.count({ where: { affiliateId: legacy.id } })).toBe(0);
+  });
+
   it("prefers assigned terms, then level terms, then the global default, and hides both affiliate rates in summaries", async () => {
     const plain = await makeAffiliate("ACTIVE");
     const assigned = await makeAffiliate("ACTIVE");

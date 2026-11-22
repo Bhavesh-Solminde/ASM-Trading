@@ -43,9 +43,9 @@ CREATE TABLE "AffiliateLevelTerms" (
 );
 CREATE INDEX "AffiliateLevelTerms_level_effectiveFrom_idx" ON "AffiliateLevelTerms"("level", "effectiveFrom");
 
-INSERT INTO "AffiliateLevelTerms" ("id", "level", "revenueShareBps", "depositRewardBps", "effectiveFrom", "createdBy", "reason")
+INSERT INTO "AffiliateLevelTerms" ("id", "level", "revenueShareBps", "depositRewardBps", "effectiveFrom", "createdAt", "createdBy", "reason")
 SELECT gen_random_uuid()::text, levels.level, revenue.value, deposit.value,
-       TIMESTAMP '1970-01-01 00:00:00', 'migration', 'Seed from program defaults in force at launch'
+       now() AT TIME ZONE 'UTC', now() AT TIME ZONE 'UTC', 'migration', 'Seed from program defaults in force at launch'
 FROM generate_series(1, 7) AS levels(level)
 CROSS JOIN LATERAL (
   SELECT value FROM "ProgramSetting"

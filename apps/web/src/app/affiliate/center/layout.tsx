@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { formatMoney, getAffiliateTotals } from "@asm/db";
+import { formatMoney, getAffiliateEarningsTotal } from "@asm/db";
 import { CenterHeaderActions, CenterMobileNavigation, CenterSidebar } from "@/components/affiliate-center/Navigation";
 import { LevelBadge } from "@/components/affiliate-center/LevelProgress";
 import { CENTER_PATH } from "@/components/affiliate-center/presentation";
@@ -13,9 +13,9 @@ export const metadata: Metadata = { title: "Affiliate Center", robots: { index: 
 export default async function AffiliateCenterLayout({ children }: { children: React.ReactNode }) {
   const user = await requireAffiliate();
   const now = new Date();
-  const [summary, month] = await Promise.all([
+  const [summary, monthEarnings] = await Promise.all([
     readAffiliateSummary(user.id),
-    getAffiliateTotals(user.id, affiliateMonth(now)),
+    getAffiliateEarningsTotal(user.id, affiliateMonth(now)),
   ]);
   const money = (minor: number) => formatMoney(minor, "INR");
 
@@ -33,7 +33,7 @@ export default async function AffiliateCenterLayout({ children }: { children: Re
             </Link>
             <div className={styles.monthEarnings}>
               <span>This month</span>
-              <strong>{money(month.earningsMinor)}</strong>
+              <strong>{money(monthEarnings)}</strong>
             </div>
           </div>
           <CenterHeaderActions email={user.email} shortId={user.id.slice(0, 8).toUpperCase()}>

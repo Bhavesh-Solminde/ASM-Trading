@@ -13,6 +13,11 @@ const inr = (minor: Prisma.Sql, currency: Prisma.Sql) =>
 
 const inRange = (at: Prisma.Sql, range: Range) => Prisma.sql`${at} >= ${range.from} AND ${at} < ${range.to}`;
 
+const earningInr = inr(Prisma.sql`e."amountMinor"`, Prisma.sql`e.currency`);
+const earningsInRange = (affiliateId: string, range: Range) => Prisma.sql`
+  e."beneficiaryUserId" = ${affiliateId} AND e.status <> 'VOID'
+    AND ${inRange(Prisma.sql`e."earnedAt"`, range)}`;
+
 /** Each metric has its own business timestamp. Combining events prevents a
  * join between, for example, every deposit and every trade for one user. */
 function eventsCtes(
@@ -74,18 +79,17 @@ function eventsCtes(
         -- Only qualification earnings have a single referred trader. Pooled
         -- Revenue Share and adjustments stay in the all-affiliate totals.
         SELECT e."earnedAt", r."userId", r."linkId", r.country, 'earning',
-               ${inr(Prisma.sql`e."amountMinor"`, Prisma.sql`e.currency`)}
+               ${earningInr}
         FROM "ProgramEarning" e
         LEFT JOIN "ReferralQualification" q ON q.id = e."qualificationId"
         LEFT JOIN referrals r ON r."userId" = q."referredUserId"
-        WHERE e."beneficiaryUserId" = ${affiliateId} AND e.status <> 'VOID'
-          AND ${inRange(Prisma.sql`e."earnedAt"`, range)}
+        WHERE ${earningsInRange(affiliateId, range)}
           ${options.linkId || mode === "traders" ? Prisma.sql`AND r."userId" IS NOT NULL` : Prisma.empty}
       `}
       ${mode === "grouped" ? Prisma.sql`
         UNION ALL
         SELECT b."createdAt", r."userId", r."linkId", r.country, 'bonus',
-               b.amount::numeric * CASE WHEN d.minor = d."creditMinor" THEN 1 ELSE ${USD_INR_RATE} END
+               b.amount::numeric * CASE WHEN d."creditUsesUsd" THEN ${USD_INR_RATE} ELSE 1 END
         FROM live_deposits d JOIN referrals r USING ("userId")
         JOIN "Transaction" b ON b."accountId" = d."accountId" AND b.kind = 'BONUS_GRANT'
           AND b."refType" = 'Deposit' AND b."refId" = d.id AND b.amount > 0
@@ -134,6 +138,13 @@ export async function getAffiliateTotals(affiliateId: string, range: Range, opts
     WITH ${eventsCtes(affiliateId, range, opts)}
     SELECT ${totalColumns} FROM events`);
   return numberTotals(row!);
+}
+
+export async function getAffiliateEarningsTotal(affiliateId: string, range: Range): Promise<number> {
+  const [row] = await prisma.$queryRaw<{ total: bigint }[]>`
+    SELECT COALESCE(SUM(${earningInr}), 0)::bigint AS total
+    FROM "ProgramEarning" e WHERE ${earningsInRange(affiliateId, range)}`;
+  return Number(row!.total);
 }
 
 const bucketIntervals: Record<Bucket, string> = { day: "1 day", week: "1 week", month: "1 month" };

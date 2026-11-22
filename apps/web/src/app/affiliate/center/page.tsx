@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  ensureReferralCode, formatMoney, getAffiliateSeries, getAffiliateTotals, type AffiliateTotals,
+  ensureReferralCode, formatMoney, getAffiliateEarningsTotal, getAffiliateSeries, getAffiliateTotals, type AffiliateTotals,
 } from "@asm/db";
 import { ActivityChart } from "@/components/affiliate-center/ActivityChart";
 import { AffiliateAccountNotices } from "@/components/affiliate-center/AccountNotices";
@@ -56,10 +56,10 @@ export default async function AffiliateCenterDashboard({ searchParams }: { searc
   const chartRange = period.period === "custom" && range.from < lifetime.from ? { ...range, from: lifetime.from } : range;
   const chartFilter = { period: period.period, from: period.period === "custom" ? period.from : undefined, to: period.period === "custom" ? period.to : undefined };
   const bucket = chartBucket(query, (range.to.getTime() - range.from.getTime()) / 86_400_000);
-  const [summary, code, allTime, totals, series] = await Promise.all([
+  const [summary, code, allTimeEarnings, totals, series] = await Promise.all([
     readAffiliateSummary(user.id),
     ensureReferralCode(user.id),
-    getAffiliateTotals(user.id, lifetime),
+    getAffiliateEarningsTotal(user.id, lifetime),
     getAffiliateTotals(user.id, range),
     chartRange.from < chartRange.to ? getAffiliateSeries(user.id, chartRange, bucket) : Promise.resolve([]),
   ]);
@@ -79,7 +79,7 @@ export default async function AffiliateCenterDashboard({ searchParams }: { searc
             <strong>{money(summary.availableMinor)}</strong>
             <Link className={styles.primary} href={`${CENTER_PATH}/withdrawal`}>Go to Withdrawal <Icon name="chevron" className="size-4" /></Link>
           </div>
-          <p>Earnings for all time <strong>{money(allTime.earningsMinor)}</strong></p>
+          <p>Earnings for all time <strong>{money(allTimeEarnings)}</strong></p>
         </section>
         <section className={`${styles.panel} ${styles.shortcuts}`} aria-labelledby="shortcuts">
           <h2 id="shortcuts">Shortcuts</h2>

@@ -1,11 +1,21 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
-import { afterAll, describe, expect, it } from "vitest";
-import { createAffiliateLink, ensureReferralCode, prisma } from "@asm/db";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { createAffiliateLink, ensureDefaultAffiliateLink, ensureReferralCode, prisma, recordAffiliateLinkClick, resolveTrackedAffiliateLink } from "@asm/db";
 import { redis } from "@/lib/redis";
 import { GET } from "./route";
 import { GET as trackedGET } from "../../r/[code]/route";
 import { GET as downloadGET } from "../../download/route";
+
+vi.mock("@asm/db", async (original) => {
+  const db = await original<typeof import("@asm/db")>();
+  return {
+    ...db,
+    ensureDefaultAffiliateLink: vi.fn(db.ensureDefaultAffiliateLink),
+    resolveTrackedAffiliateLink: vi.fn(db.resolveTrackedAffiliateLink),
+    recordAffiliateLinkClick: vi.fn(db.recordAffiliateLinkClick),
+  };
+});
 
 const RUN = randomUUID();
 
@@ -44,6 +54,38 @@ describe("GET /invite/[code]", () => {
       expect(new URL(res.headers.get("location")!).pathname).toBe("/register");
       expect(res.headers.get("set-cookie")).toBeNull();
     }
+  });
+
+  it("keeps a resolved invitation cookie when the default link lookup throws", async () => {
+    const user = await prisma.user.create({ data: { email: `link-error-${RUN}@test.local`, passwordHash: "x", role: "AFFILIATE" } });
+    const code = await ensureReferralCode(user.id);
+    vi.mocked(ensureDefaultAffiliateLink).mockRejectedValueOnce(new Error("test default-link outage"));
+    const response = await open(code);
+    expect(response.status).toBe(303);
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/register");
+    expect(response.cookies.get("asm_ref")?.value).toBe(code);
+    expect(response.cookies.get("asm_ref_link")?.maxAge).toBe(0);
+  });
+
+  it("redirects a tracked link on lookup or click-recording failure", async () => {
+    const code = "000000000000";
+    const visit = () => trackedGET(new NextRequest(`http://aff.localhost:3271/r/${code}`, {
+      headers: { "x-forwarded-for": randomUUID(), cookie: "asm_ref=ABCDEFGH" },
+    }), { params: Promise.resolve({ code }) });
+    vi.mocked(resolveTrackedAffiliateLink).mockRejectedValueOnce(new Error("test tracked-link outage"));
+    const fallback = await visit();
+    expect(fallback.status).toBe(303);
+    expect(new URL(fallback.headers.get("location")!).pathname).toBe("/register");
+    expect(fallback.headers.get("set-cookie")).toBeNull();
+
+    const id = randomUUID();
+    vi.mocked(resolveTrackedAffiliateLink).mockResolvedValueOnce({ id, kind: "APP", referralCode: "ABCDEFGH" });
+    vi.mocked(recordAffiliateLinkClick).mockRejectedValueOnce(new Error("test click-recording outage"));
+    const destination = await visit();
+    expect(destination.status).toBe(303);
+    expect(new URL(destination.headers.get("location")!).pathname).toBe("/download");
+    expect(destination.cookies.get("asm_ref")?.value).toBe("ABCDEFGH");
+    expect(destination.cookies.get("asm_ref_link")?.value).toBe(id);
   });
 
   it("counts the default click once per IP, preserves attribution, and uses the IST day", async () => {

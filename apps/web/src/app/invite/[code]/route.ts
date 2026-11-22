@@ -3,7 +3,7 @@ import { ensureDefaultAffiliateLink, normaliseReferralCode, resolveInvitationCod
 import { childLogger } from "@asm/logger";
 import { appOrigin } from "@/lib/google-oauth";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { rememberAffiliateLink } from "@/lib/affiliate-link-visit";
+import { lookupReferralLink, rememberAffiliateLink } from "@/lib/affiliate-link-visit";
 import { requestContext } from "@/lib/request-context";
 
 /**
@@ -21,10 +21,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
   }
 
   const code = normaliseReferralCode((await params).code);
-  const invitation = code ? await resolveInvitationCode(code) : null;
-  if (code && invitation) {
-    const link = await ensureDefaultAffiliateLink(invitation.inviterId);
-    await rememberAffiliateLink(response, code, link?.id ?? null, ctx);
-  }
+  if (!code) return response;
+  const invitation = await lookupReferralLink(ctx, "invite", () => resolveInvitationCode(code));
+  if (!invitation) return response;
+  const link = await lookupReferralLink(ctx, "invite", () => ensureDefaultAffiliateLink(invitation.inviterId));
+  await rememberAffiliateLink(response, code, link?.id ?? null, ctx);
   return response;
 }

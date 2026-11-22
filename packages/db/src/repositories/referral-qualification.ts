@@ -4,6 +4,7 @@ import { prisma, type DbTransaction } from "../client";
 import type { ProgramEarningKind, TradeStatus } from "../../generated/prisma/client";
 import type { Deposit } from "../models";
 import { getAffiliateRateAt } from "./affiliate-rate";
+import { qualifyingDepositInrMinorSql } from "./affiliate-deposits";
 import { depositCreditMinor } from "./deposit-credit-currency";
 import { getProgramSettings, listProgramSettingRows, settingsAt } from "./program-settings";
 
@@ -42,10 +43,7 @@ export async function qualifiedDepositTotalsByInviter(inviterIds: string[]): Pro
   if (inviterIds.length === 0) return new Map();
   const rows = await prisma.$queryRaw<{ id: string; total: bigint }[]>`
     SELECT q."inviterId" AS id,
-           COALESCE(SUM(GREATEST(CASE
-             WHEN d.method <> 'USDT' AND d."requestedInrMinor" IS NOT NULL THEN d."requestedInrMinor"
-             WHEN d.method = 'USDT' THEN COALESCE(d."amountUsdtMinor", 0) * ${USD_INR_RATE}::bigint
-             ELSE d."amountInr" END, 0)), 0)::bigint AS total
+           COALESCE(SUM(GREATEST(${qualifyingDepositInrMinorSql}, 0)), 0)::bigint AS total
     FROM "ReferralQualification" q JOIN "Deposit" d ON d."userId" = q."referredUserId"
     WHERE q."inviterId" = ANY(${inviterIds}) AND q.status::text = 'QUALIFIED' AND d.status::text = 'COMPLETED'
     GROUP BY q."inviterId"`;

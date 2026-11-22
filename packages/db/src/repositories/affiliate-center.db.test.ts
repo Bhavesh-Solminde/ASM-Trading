@@ -5,6 +5,7 @@ import { prisma } from "../client";
 import type { Prisma } from "../../generated/prisma/client";
 import {
   createAffiliateLink,
+  getAffiliateEarningsTotal,
   getAffiliateLevelStatus,
   getAffiliateSeries,
   getAffiliateStatsBy,
@@ -14,8 +15,10 @@ import {
   listLevelTerms,
 } from "./affiliate-center";
 import { recordAffiliateLinkClick } from "./affiliate-links";
+import { createDepositIntent } from "./deposit";
 import { programSettingValueAt } from "./program-settings";
 import { istDayStart } from "./program-wallet";
+import { evaluateReferralQualification, qualifiedDepositTotalsByInviter } from "./referral-qualification";
 
 const RUN = randomUUID();
 let n = 0;
@@ -47,10 +50,48 @@ async function credit(trader: Awaited<ReturnType<typeof friend>>, at: Date, cred
 
 afterAll(async () => {
   await prisma.user.deleteMany({ where: { email: { contains: RUN } } });
+  await prisma.programSetting.deleteMany({ where: { createdBy: RUN } });
   await prisma.$disconnect();
 });
 
 describe("frozen affiliate levels", () => {
+  it("uses the requested INR for a USD account's first UPI deposit across levels, statistics and qualification", async () => {
+    const from = istDayStart("2038-07-12");
+    const to = istDayStart("2038-07-13");
+    const requestedInrMinor = 100_000;
+    await prisma.programSetting.create({
+      data: { key: "MIN_QUALIFYING_DEPOSIT_INR_MINOR", value: requestedInrMinor, effectiveFrom: from, reason: "Exact UPI threshold", createdBy: RUN },
+    });
+    const affiliate = await user({ role: "AFFILIATE", createdAt: from });
+    const trader = await friend(affiliate.id, from, { currency: "USD" });
+    const deposit = await createDepositIntent({ userId: trader.id, method: "upi", amountInrMinor: requestedInrMinor, correlationId: RUN });
+    expect(deposit.amountUsd * USD_INR_RATE).toBeLessThan(requestedInrMinor);
+    await prisma.deposit.update({ where: { id: deposit.id }, data: { status: "COMPLETED", updatedAt: from } });
+    await prisma.transaction.create({
+      data: {
+        accountId: trader.account.id, kind: "DEPOSIT", refType: "Deposit", refId: deposit.id,
+        amount: deposit.amountUsd, balanceAfter: deposit.amountUsd, createdAt: from,
+      },
+    });
+    const asset = await prisma.asset.findFirstOrThrow({ select: { id: true } });
+    const minimumTrade = (await programSettingValueAt("MIN_QUALIFYING_TRADE_INR_MINOR", from))!;
+    await prisma.trade.create({
+      data: {
+        accountId: trader.account.id, assetId: asset.id, direction: "UP", stake: Math.ceil(minimumTrade / USD_INR_RATE),
+        currency: "USD", status: "LOST", payoutPct: 80, entryPrice: 1, entryTs: from, expiryTs: from,
+      },
+    });
+    expect((await getAffiliateLevelStatus(affiliate.id, from)).monthQualifyingDeposits).toBe(1);
+    expect(await getAffiliateTotals(affiliate.id, { from, to })).toMatchObject({
+      ftdCount: 1, ftdSumMinor: requestedInrMinor, depositsSumMinor: requestedInrMinor,
+    });
+    expect(await evaluateReferralQualification(trader.id, from)).toEqual({ outcome: "qualified" });
+    expect(await prisma.referralQualification.findUnique({ where: { referredUserId: trader.id } })).toMatchObject({
+      firstDepositId: deposit.id, depositInrMinor: requestedInrMinor,
+    });
+    expect((await qualifiedDepositTotalsByInviter([affiliate.id])).get(affiliate.id)).toBe(requestedInrMinor);
+  });
+
   it("uses the first LIVE credit, its deposit threshold, and the IST calendar boundary", async () => {
     const at = istDayStart("2038-02-01");
     const before = new Date(at.getTime() - 1);
@@ -156,8 +197,9 @@ describe("affiliate statistics", () => {
     });
     await prisma.programEarning.createMany({
       data: [
-        { beneficiaryUserId: affiliate.id, kind: "ADJUSTMENT", amountMinor: 30, status: "AVAILABLE", settingIds: [], earnedAt: from },
+        { beneficiaryUserId: affiliate.id, kind: "ADJUSTMENT", amountMinor: 30, currency: "USD", status: "AVAILABLE", settingIds: [], earnedAt: from },
         { beneficiaryUserId: affiliate.id, kind: "ADJUSTMENT", amountMinor: 200, status: "VOID", settingIds: [], earnedAt: nextDay },
+        { beneficiaryUserId: affiliate.id, kind: "ADJUSTMENT", amountMinor: 500, status: "AVAILABLE", settingIds: [], earnedAt: to },
         { beneficiaryUserId: affiliate.id, kind: "AFFILIATE_DEPOSIT_REWARD", qualificationId: qualification.id, amountMinor: 17, status: "PENDING", settingIds: [], earnedAt: from },
       ],
     });
@@ -166,12 +208,13 @@ describe("affiliate statistics", () => {
     expect(totals).toEqual({
       clicks: 2, registrations: 1, ftdCount: 1, ftdSumMinor: 101 * USD_INR_RATE,
       depositsCount: 2, depositsSumMinor: 101 * USD_INR_RATE + 2_000, withdrawalsCount: 1,
-      withdrawalsSumMinor: 50 * USD_INR_RATE, turnoverMinor: 90 * USD_INR_RATE, earningsMinor: 47,
+      withdrawalsSumMinor: 50 * USD_INR_RATE, turnoverMinor: 90 * USD_INR_RATE, earningsMinor: 30 * USD_INR_RATE + 17,
     });
+    expect(await getAffiliateEarningsTotal(affiliate.id, range)).toBe(totals.earningsMinor);
     expect(await getAffiliateTotals(affiliate.id, range, { linkId: base!.id })).toMatchObject({ clicks: 0, depositsSumMinor: 2_000 });
     expect(await getAffiliateStatsBy(affiliate.id, "country", range)).toMatchObject([
       { key: "IN", withdrawalsCount: 1, ftdCount: 1, earningsMinor: 17, bonusesSumMinor: 40 * USD_INR_RATE },
-      { key: "Unknown", depositsSumMinor: 2_000, earningsMinor: 30, bonusesSumMinor: 0 },
+      { key: "Unknown", depositsSumMinor: 2_000, earningsMinor: 30 * USD_INR_RATE, bonusesSumMinor: 0 },
     ]);
     expect(await getAffiliateStatsBy(affiliate.id, "link", range, { linkId: home.id })).toMatchObject([
       { key: home.id, depositsCount: 1, earningsMinor: 17, bonusesSumMinor: 40 * USD_INR_RATE },

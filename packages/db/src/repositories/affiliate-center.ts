@@ -60,5 +60,5 @@ export interface AffiliateLinkRow {
 }
 
 export { getAffiliateLevelStatus, listLevelTerms } from "./affiliate-levels";
-export { getAffiliateTotals, getAffiliateSeries, getAffiliateStatsBy, listAffiliateTraders } from "./affiliate-statistics";
+export { getAffiliateEarningsTotal, getAffiliateTotals, getAffiliateSeries, getAffiliateStatsBy, listAffiliateTraders } from "./affiliate-statistics";
 export { listAffiliateLinks, createAffiliateLink } from "./affiliate-links";

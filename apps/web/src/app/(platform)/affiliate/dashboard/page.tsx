@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ensureReferralCode, formatMoney, getAffiliateTotals } from "@asm/db";
+import { ensureReferralCode, formatMoney, getAffiliateEarningsTotal, getAffiliateTotals } from "@asm/db";
 import { AffiliateAccountNotices } from "@/components/affiliate-center/AccountNotices";
 import { LevelGoal } from "@/components/affiliate-center/LevelProgress";
 import { affiliateCount, CENTER_PATH } from "@/components/affiliate-center/presentation";
@@ -23,16 +23,16 @@ export default async function AffiliateDashboardPage({
 }) {
   const [user, { verified, verify }] = await Promise.all([requireAffiliate("/referral"), searchParams]);
   const now = new Date();
-  const [code, summary, month, allTime] = await Promise.all([
+  const [code, summary, month, allTimeEarnings] = await Promise.all([
     ensureReferralCode(user.id),
     readAffiliateSummary(user.id),
     getAffiliateTotals(user.id, affiliateMonth(now)),
-    getAffiliateTotals(user.id, affiliateAllTime(user.createdAt, now)),
+    getAffiliateEarningsTotal(user.id, affiliateAllTime(user.createdAt, now)),
   ]);
   const status = summary.levelStatus;
   const metrics = [
     { title: "Available balance", value: money(summary.availableMinor) },
-    { title: "All-time earnings", value: money(allTime.earningsMinor) },
+    { title: "All-time earnings", value: money(allTimeEarnings) },
     { title: "Referrals this month", value: affiliateCount.format(month.registrations) },
     { title: "First deposits this month", value: affiliateCount.format(month.ftdCount) },
   ];

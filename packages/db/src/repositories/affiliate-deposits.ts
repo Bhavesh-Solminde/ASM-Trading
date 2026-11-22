@@ -1,28 +1,36 @@
 import { USD_INR_RATE } from "@asm/contracts";
 import { Prisma } from "../../generated/prisma/client";
 
+/** SQL counterpart to qualifyingDepositInrMinor. Both queries alias the Deposit row as d. */
+export const qualifyingDepositInrMinorSql = Prisma.sql`
+  CASE WHEN d.method = 'USDT' THEN COALESCE(d."amountUsdtMinor", 0)::numeric * ${USD_INR_RATE}
+       ELSE COALESCE(d."requestedInrMinor", d."amountInr")
+  END`;
+
 /** The incoming query provides referrals(userId). Keep reversed credits in the
  * ranking so that a second credit cannot become a trader's first deposit. */
 export const affiliateDepositCtes = Prisma.sql`
   live_deposits AS (
     SELECT d.id, d."userId", d.status, a.id AS "accountId", credit.amount AS "creditMinor",
            COALESCE(credit."createdAt", d."updatedAt") AS at,
+           ${qualifyingDepositInrMinorSql} AS minor,
+           -- Bonus ledger rows use the deposit's original account currency.
            CASE
-             WHEN d.method = 'USDT' THEN COALESCE(d."amountUsdtMinor", 0)::numeric * ${USD_INR_RATE}
+             WHEN d.method = 'USDT' AND credit.amount = d."amountUsdtMinor" THEN TRUE
+             WHEN d.method = 'USDT' AND credit.amount = d."amountUsdtMinor"::numeric * ${USD_INR_RATE} THEN FALSE
              WHEN credit.amount IS NOT NULL AND credit.amount = d."amountInr" AND credit.amount <> d."amountUsd"
-               THEN credit.amount
+               THEN FALSE
              WHEN credit.amount IS NOT NULL AND credit.amount = d."amountUsd" AND credit.amount <> d."amountInr"
-               THEN credit.amount::numeric * ${USD_INR_RATE}
-             WHEN (
+               THEN TRUE
+             ELSE (
                (a.currency IN ('USD', 'USDT')) <>
                (credit.amount IS NOT NULL AND (
                  SELECT COUNT(*) % 2 = 1 FROM "Transaction" switch
                  WHERE switch."accountId" = a.id AND switch.kind = 'CURRENCY_CONVERT'
                    AND switch."createdAt" > credit."createdAt"
                ))
-             ) THEN COALESCE(credit.amount, d."amountUsd")::numeric * ${USD_INR_RATE}
-             ELSE COALESCE(credit.amount, d."amountInr")
-           END AS minor
+             )
+           END AS "creditUsesUsd"
     FROM referrals r
     JOIN "Account" a ON a."userId" = r."userId" AND a.type = 'LIVE'
     JOIN "Deposit" d ON d."userId" = r."userId" AND d.status IN ('COMPLETED', 'REJECTED')
