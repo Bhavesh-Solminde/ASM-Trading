@@ -42,7 +42,7 @@ export function ChartTypeSelector({
         onClick={() => setOpen((o) => !o)}
         className={
           tool
-            ? `relative grid size-10 place-items-center rounded-xl transition-colors ${
+            ? `relative grid size-10 place-items-center rounded-xl border border-chart-tool transition-colors ${
                 open ? "bg-tile-hi text-brand" : "bg-tile/94 text-ink-2 hover:bg-tile-hi hover:text-ink"
               }`
             : `relative grid size-[34px] phone:size-10 place-items-center rounded-[4px] border backdrop-blur transition-colors ${

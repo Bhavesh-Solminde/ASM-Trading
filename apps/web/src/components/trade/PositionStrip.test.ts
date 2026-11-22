@@ -18,3 +18,19 @@ it("uses the OTC opening currency after the account switches currency",()=>{
   const html=renderToStaticMarkup(createElement(PositionStrip,{trades:[{...base,mode:"OTC_FIXED",currency:"INR"}],assets:[],currency:"USD",onOpen:()=>{}}));
   expect(html).toContain("+₹192.00");expect(html).not.toContain("$192.00");
 });
+
+it("centres the traded market badge in the outlined countdown ring", () => {
+  const html = renderToStaticMarkup(createElement(PositionStrip, {
+    trades: [{ ...base, mode: "OTC_FIXED" }], assets: [], currency: "INR", onOpen: () => {},
+  }));
+  expect(html).toContain("border-chart-tool");
+  expect(html).toMatch(/place-items-center"><svg[^>]*text-up[^>]*>.*stroke-dashoffset="[^"]+".*<\/svg><span[^>]+><svg viewBox="0 0 32 32"/);
+});
+
+it("shows the symbol initials inside the ring when the market has no badge", () => {
+  const html = renderToStaticMarkup(createElement(PositionStrip, {
+    trades: [{ ...base, symbol: "WTI", direction: "DOWN", mode: "OTC_FIXED" }],
+    assets: [], currency: "INR", onOpen: () => {},
+  }));
+  expect(html).toMatch(/place-items-center"><svg[^>]*text-down[^>]*>.*<\/svg><span[^>]+><span[^>]+>WT<\/span>/);
+});

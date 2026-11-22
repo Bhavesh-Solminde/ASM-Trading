@@ -7,11 +7,13 @@ export interface AccountActor {
    * simulated one), so an AFFILIATE counts as real only when this is explicitly false.
    */
   legacySimulated?: boolean;
+  /** User.marketExempt from the database. Older durable commands default to false. */
+  marketExempt?: boolean;
 }
 
-/** Real-money market participant: a regular user or a non-legacy affiliate. ADMIN never is. */
-export function isRealTrader(actor:Pick<AccountActor,"role"|"legacySimulated">):boolean {
-  return actor.role==="USER" || (actor.role==="AFFILIATE" && actor.legacySimulated===false);
+/** Market participant: an eligible regular user or non-legacy affiliate. */
+export function isRealTrader(actor:Pick<AccountActor,"role"|"legacySimulated"|"marketExempt">):boolean {
+  return actor.marketExempt !== true && (actor.role==="USER" || (actor.role==="AFFILIATE" && actor.legacySimulated===false));
 }
 
 /** Call with authoritative database identity, never request payload fields. */

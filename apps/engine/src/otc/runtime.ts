@@ -184,7 +184,9 @@ export class OtcRuntime {
       JOIN "Account" c ON c.id=t."accountId" JOIN "User" u ON u.id=c."userId"
       JOIN "Asset" a ON a.id=t."assetId"
       WHERE t.mode='OTC_FIXED' AND t.status='OPEN' AND t."flowLots">0 AND c.type='LIVE'
-        AND (u.role='USER' OR (u.role='AFFILIATE' AND u."legacySimulated"=false)) -- mirrors isRealTrader()
+        -- mirrors isRealTrader()
+        AND u."marketExempt"=false
+        AND (u.role='USER' OR (u.role='AFFILIATE' AND u."legacySimulated"=false))
       GROUP BY a.symbol`;
     return Object.fromEntries(rows.map(r=>[r.symbol,Number(r.count)]));
   }

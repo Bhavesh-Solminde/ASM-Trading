@@ -7,7 +7,7 @@ import { Avatar, Card, Pill, Tag } from "../../../_components/ui";
 import { Icon } from "../../../_lib/icons";
 import { fmtDate, fmtDateTime, inrFromMinor, num } from "../../../_lib/format";
 import { CopyText } from "../../deposits/_components/CopyText";
-import { updateUserAction } from "../actions";
+import { setUserMarketExemptAction, updateUserAction } from "../actions";
 import { USER_STATUS_LABEL } from "../../../_lib/user-status";
 import { StatusControl } from "./StatusControl";
 
@@ -205,6 +205,31 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 <span className="track" />
               </label>
               <input type="hidden" name="vpnExempt" value="true" />
+            </div>
+          </ChangeAwareForm>
+          <ChangeAwareForm key={String(user.marketExempt)} action={setUserMarketExemptAction} submitLabel="Save market exemption">
+            <input type="hidden" name="userId" value={user.id} />
+            <div className="admin-set-row">
+              <div>
+                <label className="lbl" htmlFor="marketExempt">Keep out of market and vault</label>
+                <div className="desc">When enabled, live trades still settle with real money and stay out of the OTC order book and vault totals.</div>
+              </div>
+              <label className="admin-switch">
+                <input id="marketExempt" type="checkbox" name="marketExempt" value="true" defaultChecked={user.marketExempt} />
+                <span className="track" />
+              </label>
+              <input type="hidden" name="marketExempt" value="false" />
+            </div>
+            <div className="admin-set-row">
+              <label className="lbl" htmlFor="marketExemptReason">Reason for market exemption change</label>
+              <input
+                id="marketExemptReason"
+                name="reason"
+                className="admin-filter-select"
+                maxLength={500}
+                pattern={".*\\S.*"}
+                required
+              />
             </div>
           </ChangeAwareForm>
         </Card>

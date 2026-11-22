@@ -21,7 +21,7 @@ async function liveTrader(data: Record<string, unknown>) {
 }
 
 describe("readDailyOtcVault (real DB)", () => {
-  it("counts regular users and real affiliates, never retired simulated affiliates", async () => {
+  it("counts eligible regular users and real affiliates, excluding retired and market-exempt accounts", async () => {
     // A day well inside the 30-day window, away from "today" so other suites' trades don't land on it.
     const closedAt = new Date(Date.now() - 10 * 86_400_000);
     closedAt.setUTCHours(6, 0, 0, 0); // 11:30 IST, same IST date
@@ -40,6 +40,8 @@ describe("readDailyOtcVault (real DB)", () => {
     await lost(await liveTrader({}));
     await lost(await liveTrader({ role: "AFFILIATE" }));
     await lost(await liveTrader({ role: "AFFILIATE", legacySimulated: true, status: "BANNED" }));
+    await lost(await liveTrader({ marketExempt: true }));
+    await lost(await liveTrader({ role: "AFFILIATE", marketExempt: true }));
 
     const after = await day();
     expect(after.settled - before.settled).toBe(2);

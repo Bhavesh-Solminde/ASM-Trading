@@ -16,6 +16,7 @@ import {
   soonestOpen,
 } from "@asm/client-core";
 import { useNowSec } from "@/lib/use-now";
+import { AssetIcon } from "./AssetIcon";
 
 /**
  * Ticks on its own each second (and with its symbol's price), so the chart and
@@ -69,36 +70,39 @@ const StripBody = memo(function StripBody({
       aria-label={`Open trade: ${up ? "Buy" : "Sell"} ${pair}, ${formatMinor(trade.stake, currency)}${
         more > 0 ? `, and ${more} more` : ""
       }. Show trades and history`}
-      className="pointer-events-auto flex h-12 w-full items-center gap-2.5 rounded-[14px] bg-tile pl-2 pr-3 text-left shadow-[0_14px_30px_-12px_var(--color-shadow-floating)] transition-colors active:bg-tile-hi"
+      className="pointer-events-auto flex h-12 w-full items-center gap-1.5 rounded-[14px] border border-chart-tool bg-tile pl-1.5 pr-2 text-left shadow-[0_14px_30px_-12px_var(--color-shadow-floating)] transition-colors active:bg-tile-hi"
     >
-      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden className={`flex-none -rotate-90 ${dirColor}`}>
-        <circle cx="17" cy="17" r="14" fill="none" strokeWidth="3" className="stroke-tile-hi" />
-        <circle
-          cx="17"
-          cy="17"
-          r="14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray={RING_LENGTH}
-          strokeDashoffset={ringOffset(remaining, total)}
-        />
-      </svg>
-      <span className="grid min-w-0 gap-px">
-        <span className={`text-xs font-extrabold tracking-[0.04em] tabular-nums ${dirColor}`}>
+      <span aria-hidden className="relative grid size-[34px] flex-none place-items-center">
+        <svg width="34" height="34" viewBox="0 0 34 34" className={`absolute inset-0 -rotate-90 ${dirColor}`}>
+          <circle cx="17" cy="17" r="14" fill="none" strokeWidth="3" className="stroke-tile-hi" />
+          <circle
+            cx="17"
+            cy="17"
+            r="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray={RING_LENGTH}
+            strokeDashoffset={ringOffset(remaining, total)}
+          />
+        </svg>
+        <AssetIcon symbol={trade.symbol} size="sm" compact />
+      </span>
+      <span className="grid flex-1 gap-px">
+        <span className={`whitespace-nowrap text-xs font-extrabold tracking-[0.04em] tabular-nums ${dirColor}`}>
           {up ? "BUY" : "SELL"} · {shortCountdown(remaining)}
         </span>
-        <span className="truncate text-[11px] text-ink-2">
+        <span className="truncate text-[11px] text-ink-2 [contain:inline-size]">
           {pair} · {formatMinor(trade.stake, currency)}
           {more > 0 ? <span className="text-ink-3"> · +{more} more</span> : null}
         </span>
       </span>
-      <span className="ml-auto grid flex-none justify-items-end gap-px">
-        <span className={`text-[15px] font-extrabold tabular-nums leading-tight ${plClass}`}>{plText}</span>
-        <span className="text-[10px] leading-tight text-ink-3">{trade.mode === "OTC_FIXED" ? "if price stays here at expiry" : "if it closed now"}</span>
+      <span className="grid min-w-0 justify-items-end gap-px text-right">
+        <span className={`max-w-full truncate text-[15px] font-extrabold tabular-nums leading-tight ${plClass}`}>{plText}</span>
+        <span className="line-clamp-2 text-[10px] leading-tight text-ink-3">{trade.mode === "OTC_FIXED" ? "if price stays here at expiry" : "if it closed now"}</span>
       </span>
-      <Icon name="chevron" className="size-3.5 flex-none text-ink-3" strokeWidth={2.2} />
+      <Icon name="chevron" className="size-3 flex-none text-ink-3 max-[375px]:hidden" strokeWidth={2.2} />
     </button>
   );
 });

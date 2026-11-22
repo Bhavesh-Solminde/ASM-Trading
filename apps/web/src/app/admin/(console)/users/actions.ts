@@ -101,6 +101,39 @@ export async function updateUserAction(formData: FormData): Promise<void> {
   redirect("/admin/users");
 }
 
+export async function setUserMarketExemptAction(formData: FormData): Promise<void> {
+  await requirePanel();
+
+  const userId = formData.get("userId");
+  const value = formData.get("marketExempt");
+  const reasonInput = formData.get("reason");
+  const reason = typeof reasonInput === "string" ? reasonInput.trim() : "";
+  if (typeof userId !== "string" || !userId || (value !== "true" && value !== "false")) return;
+  if (!reason || reason.length > 500) throw new Error("Enter a reason of up to 500 characters.");
+  const marketExempt = value === "true";
+
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    const before = await tx.user.findUnique({ where: { id: userId }, select: { marketExempt: true } });
+    if (!before || before.marketExempt === marketExempt) return;
+
+    await tx.user.update({ where: { id: userId }, data: { marketExempt } });
+    await tx.auditLog.create({
+      data: {
+        actorId: ADMIN_ACTOR,
+        action: "user.market_exemption_changed",
+        targetType: "User",
+        targetId: userId,
+        before,
+        after: { marketExempt, reason },
+      },
+    });
+  });
+
+  revalidatePath(`/admin/users/${userId}`);
+  revalidatePath("/admin/house-pnl");
+}
+
 /**
  * Changes a user's compliance status (ACTIVE / FLAGGED / FROZEN / BANNED) from
  * the per-user detail page. FROZEN and BANNED also close every open CFD
