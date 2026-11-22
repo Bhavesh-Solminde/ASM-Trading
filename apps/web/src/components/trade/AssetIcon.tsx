@@ -335,6 +335,8 @@ interface AssetBadgeConfig {
   indexTag?: string;
 }
 
+const DEFAULT_ASSET_BADGE: AssetBadgeConfig = { type: "single", base: FlagUSA };
+
 export function resolveAssetBadges(identifier: string): AssetBadgeConfig {
   const normalized = identifier.toUpperCase().replace(/\s+/g, "").replace(/[\(\)]/g, "");
 
@@ -424,8 +426,7 @@ export function resolveAssetBadges(identifier: string): AssetBadgeConfig {
     return { type: "pair", base: FlagUSA, quote: FlagEU };
   }
 
-  // Fallback
-  return { type: "single", base: FlagUSA };
+  return DEFAULT_ASSET_BADGE;
 }
 
 // ============================================================================
@@ -437,6 +438,8 @@ export interface AssetIconProps {
   symbol: string;
   /** Size variant */
   size?: "sm" | "md" | "lg";
+  /** Use only the primary badge in tight circular controls. */
+  compact?: boolean;
   /** Optional container class */
   className?: string;
 }
@@ -444,6 +447,7 @@ export interface AssetIconProps {
 export const AssetIcon = memo(function AssetIcon({
   symbol,
   size = "md",
+  compact = false,
   className = "",
 }: AssetIconProps) {
   const config = resolveAssetBadges(symbol);
@@ -456,6 +460,18 @@ export const AssetIcon = memo(function AssetIcon({
     md: { base: "size-[22px]", quote: "size-[16px]", overlap: "-ml-[8px]", tag: "text-[8.5px] px-1.5 py-[0.5px]" },
     lg: { base: "size-[28px]", quote: "size-[20px]", overlap: "-ml-[10px]", tag: "text-[9.5px] px-2 py-[1px]" },
   }[size];
+
+  if (compact) {
+    return (
+      <span className={`grid shrink-0 place-items-center ${dims.base} ${className}`}>
+        {config === DEFAULT_ASSET_BADGE ? (
+          <span className="text-[9px] font-bold leading-none text-ink-2">
+            {symbol.slice(0, 2).toUpperCase()}
+          </span>
+        ) : <BaseIcon className="size-full" />}
+      </span>
+    );
+  }
 
   if (config.type === "pair" && QuoteIcon) {
     return (

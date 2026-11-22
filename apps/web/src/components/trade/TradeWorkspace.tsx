@@ -300,7 +300,7 @@ function PhoneTimeframeTabs() {
 }
 
 const TOOL_TILE =
-  "relative grid size-10 place-items-center rounded-xl bg-tile/94 text-ink-2 transition-colors hover:bg-tile-hi hover:text-ink active:bg-tile-hi";
+  "relative grid size-10 place-items-center rounded-xl border border-chart-tool bg-tile/94 text-ink-2 transition-colors hover:bg-tile-hi hover:text-ink active:bg-tile-hi";
 
 /**
  * Phone chart tools, bottom-left of the chart (secondary: the market pill and
@@ -646,7 +646,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
                 type="button"
                 onClick={focusMode ? exitFocus : enterFocus}
                 aria-label={focusMode ? "Exit fullscreen" : "Fullscreen chart"}
-                className="absolute bottom-2 right-2 z-10 grid size-8 place-items-center phone:bottom-1 phone:right-1 phone:size-6 phone:after:absolute phone:after:-inset-2 rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink"
+                className="absolute bottom-2 right-2 z-10 grid size-8 place-items-center rounded border border-rule bg-ground/70 text-ink-2 backdrop-blur hover:border-tile-hi hover:text-ink phone:bottom-1 phone:right-1 phone:size-6 phone:border-chart-tool phone:hover:border-chart-tool phone:after:absolute phone:after:-inset-2"
               >
                 <Icon name={focusMode ? "collapse" : "expand"} className="size-4 phone:size-3.5" />
               </button>
