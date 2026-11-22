@@ -438,7 +438,7 @@ export interface AssetIconProps {
   symbol: string;
   /** Size variant */
   size?: "sm" | "md" | "lg";
-  /** Use only the primary badge in tight circular controls. */
+  /** Use the 26px circular primary badge for the trade countdown ring. */
   compact?: boolean;
   /** Optional container class */
   className?: string;
@@ -454,16 +454,9 @@ export const AssetIcon = memo(function AssetIcon({
   const BaseIcon = config.base;
   const QuoteIcon = config.quote;
 
-  // Dimensional presets (Base, Quote, Overlap, Text)
-  const dims = {
-    sm: { base: "size-[18px]", quote: "size-[13px]", overlap: "-ml-[7px]", tag: "text-[7.5px] px-1 py-[0.5px]" },
-    md: { base: "size-[22px]", quote: "size-[16px]", overlap: "-ml-[8px]", tag: "text-[8.5px] px-1.5 py-[0.5px]" },
-    lg: { base: "size-[28px]", quote: "size-[20px]", overlap: "-ml-[10px]", tag: "text-[9.5px] px-2 py-[1px]" },
-  }[size];
-
   if (compact) {
     return (
-      <span className={`grid shrink-0 place-items-center ${dims.base} ${className}`}>
+      <span className={`grid size-[26px] shrink-0 place-items-center overflow-hidden rounded-full bg-panel ${className}`}>
         {config === DEFAULT_ASSET_BADGE ? (
           <span className="text-[9px] font-bold leading-none text-ink-2">
             {symbol.slice(0, 2).toUpperCase()}
@@ -472,6 +465,13 @@ export const AssetIcon = memo(function AssetIcon({
       </span>
     );
   }
+
+  // Dimensional presets (Base, Quote, Overlap, Text)
+  const dims = {
+    sm: { base: "size-[18px]", quote: "size-[13px]", overlap: "-ml-[7px]", tag: "text-[7.5px] px-1 py-[0.5px]" },
+    md: { base: "size-[22px]", quote: "size-[16px]", overlap: "-ml-[8px]", tag: "text-[8.5px] px-1.5 py-[0.5px]" },
+    lg: { base: "size-[28px]", quote: "size-[20px]", overlap: "-ml-[10px]", tag: "text-[9.5px] px-2 py-[1px]" },
+  }[size];
 
   if (config.type === "pair" && QuoteIcon) {
     return (

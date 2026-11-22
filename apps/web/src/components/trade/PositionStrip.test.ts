@@ -19,12 +19,21 @@ it("uses the OTC opening currency after the account switches currency",()=>{
   expect(html).toContain("+₹192.00");expect(html).not.toContain("$192.00");
 });
 
-it("centres the traded market badge in the outlined countdown ring", () => {
+it.each([
+  ["XAUUSD", "0 0 512 512", "#b68e46"],
+  ["EURUSD", "0 0 32 32", "#003399"],
+])("fills the countdown ring with the primary badge for %s", (symbol, viewBox, fill) => {
   const html = renderToStaticMarkup(createElement(PositionStrip, {
-    trades: [{ ...base, mode: "OTC_FIXED" }], assets: [], currency: "INR", onOpen: () => {},
+    trades: [{ ...base, symbol, mode: "OTC_FIXED" }], assets: [], currency: "INR", onOpen: () => {},
   }));
   expect(html).toContain("border-chart-tool");
-  expect(html).toMatch(/place-items-center"><svg[^>]*text-up[^>]*>.*stroke-dashoffset="[^"]+".*<\/svg><span[^>]+><svg viewBox="0 0 32 32"/);
+  const layers = html.match(/place-items-center">(<span[^>]+>.*?<\/span>)(<svg width="34" height="34".*?<\/svg>)/);
+  expect(layers?.[1]).toContain("size-[26px]");
+  expect(layers?.[1]).toContain("overflow-hidden rounded-full");
+  expect(layers?.[1]).toContain(`viewBox="${viewBox}"`);
+  expect(layers?.[1]).toContain(`fill="${fill}"`);
+  expect(layers?.[1]?.match(/<svg /g)).toHaveLength(1);
+  expect(layers?.[2]).toMatch(/text-up.*r="14".*stroke-width="3".*stroke-dashoffset="[^"]+"/);
 });
 
 it("shows the symbol initials inside the ring when the market has no badge", () => {
@@ -32,5 +41,5 @@ it("shows the symbol initials inside the ring when the market has no badge", () 
     trades: [{ ...base, symbol: "WTI", direction: "DOWN", mode: "OTC_FIXED" }],
     assets: [], currency: "INR", onOpen: () => {},
   }));
-  expect(html).toMatch(/place-items-center"><svg[^>]*text-down[^>]*>.*<\/svg><span[^>]+><span[^>]+>WT<\/span>/);
+  expect(html).toMatch(/size-\[26px\][^"]*overflow-hidden rounded-full bg-panel[^"]*"><span[^>]+>WT<\/span><\/span><svg[^>]*text-down/);
 });
