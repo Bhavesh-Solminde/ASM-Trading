@@ -116,8 +116,7 @@ async function LevelsTab() {
           <thead><tr>
             <th>Level</th>
             <th>First deposits</th>
-            <th>Revenue Share</th>
-            <th>Deposit reward</th>
+            <th>Revenue Share / deposit reward</th>
             <th>Schedule rates</th>
           </tr></thead>
           <tbody>
@@ -125,8 +124,15 @@ async function LevelsTab() {
               <tr key={level.level}>
                 <th scope="row">{level.level} · {level.name}</th>
                 <td>{level.maxDeposits === null ? `${level.minDeposits}+` : `${level.minDeposits}–${level.maxDeposits}`}</td>
-                <td>{bpsPct(level.revenueShareBps)}</td>
-                <td>{bpsPct(level.depositRewardBps)}</td>
+                <td>
+                  <div>{bpsPct(level.revenueShareBps)} / {bpsPct(level.depositRewardBps)}</div>
+                  {level.scheduled ? (
+                    <div className="admin-cell-sub">
+                      Scheduled {bpsPct(level.scheduled.revenueShareBps)} / {bpsPct(level.scheduled.depositRewardBps)} from{" "}
+                      <time dateTime={level.scheduled.effectiveFrom.toISOString()}>{fmtIst(level.scheduled.effectiveFrom)}</time>
+                    </div>
+                  ) : null}
+                </td>
                 <td>
                   <form action={scheduleAffiliateLevelTermsAction} className="admin-grid admin-cols-2" aria-label={`Edit ${level.name} rates`}>
                     <input type="hidden" name="level" value={level.level} />

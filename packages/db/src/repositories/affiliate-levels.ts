@@ -100,7 +100,7 @@ export async function affiliateLevelTermsAt(at: Date, client: DbTransaction = pr
   return new Map(rows.map((row) => [row.level, row]));
 }
 
-export async function listLevelTermsForAdmin(at = new Date()) {
+async function listCurrentLevelTerms(at: Date) {
   const [terms, defaults] = await Promise.all([affiliateLevelTermsAt(at), defaultLevelRateValues(at)]);
   return AFFILIATE_LEVELS.map((level) => {
     const row = terms.get(level.level);
@@ -112,8 +112,23 @@ export async function listLevelTermsForAdmin(at = new Date()) {
   });
 }
 
+export async function listLevelTermsForAdmin(at = new Date()) {
+  const [current, scheduled] = await Promise.all([
+    listCurrentLevelTerms(at),
+    prisma.affiliateLevelTerms.findMany({
+      where: { effectiveFrom: { gt: at } },
+      // A new version for the same midnight supersedes the previously scheduled rates.
+      orderBy: [{ level: "asc" }, { effectiveFrom: "asc" }, { createdAt: "desc" }, { id: "desc" }],
+      distinct: ["level"],
+      select: { level: true, revenueShareBps: true, depositRewardBps: true, effectiveFrom: true },
+    }),
+  ]);
+  const nextByLevel = new Map(scheduled.map(({ level, ...rates }) => [level, rates]));
+  return current.map((level) => ({ ...level, scheduled: nextByLevel.get(level.level) ?? null }));
+}
+
 export async function listLevelTerms(at = new Date()) {
-  return (await listLevelTermsForAdmin(at)).map(({ level, name, minDeposits, maxDeposits, revenueShareBps }) =>
+  return (await listCurrentLevelTerms(at)).map(({ level, name, minDeposits, maxDeposits, revenueShareBps }) =>
     ({ level, name, minDeposits, maxDeposits, revenueShareBps }),
   );
 }

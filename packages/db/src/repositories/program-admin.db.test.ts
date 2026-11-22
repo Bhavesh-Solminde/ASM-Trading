@@ -4,6 +4,7 @@ import { prisma } from "../client";
 import type { Prisma } from "../../generated/prisma/client";
 import { createAccountsForUser } from "./account";
 import { ensureAffiliateProfile, onAffiliateEmailVerified } from "./affiliate-profile";
+import { listLevelTerms, listLevelTermsForAdmin } from "./affiliate-levels";
 import { defaultRevenueShareAt, getAffiliateRateAt, revenueShareEffectiveFrom } from "./affiliate-rate";
 import { creditDepositToAccount } from "./deposit";
 import { consumeEmailVerificationToken, issueEmailVerificationToken } from "./email-verification";
@@ -266,6 +267,36 @@ describe("affiliate terms", () => {
     expect(row.effectiveFrom.toISOString().slice(11)).toBe("18:30:00.000Z");
     const audit = await audits(row.id, "affiliate.level_terms_changed");
     expect(audit[0]).toMatchObject({ actorId: ACTOR, after: { level: 7, reason: "New terms", effectiveFrom: row.effectiveFrom.toISOString() } });
+  });
+
+  it("shows only the next scheduled terms per level and promotes them at their exact effective time", async () => {
+    const current = new Date("2950-01-01T18:30:00Z");
+    const next = new Date("2950-01-02T18:30:00Z");
+    const later = new Date("2950-01-03T18:30:00Z");
+    const base = { level: 2, createdBy: ACTOR, reason: "Scheduled lookup fixture" };
+    await prisma.affiliateLevelTerms.createMany({
+      data: [
+        { ...base, effectiveFrom: current, createdAt: current, revenueShareBps: 1_000, depositRewardBps: 500 },
+        { ...base, effectiveFrom: next, createdAt: current, revenueShareBps: 2_000, depositRewardBps: 550 },
+        { ...base, effectiveFrom: next, createdAt: new Date(current.getTime() + 1), revenueShareBps: 2_500, depositRewardBps: 600 },
+        { ...base, effectiveFrom: later, createdAt: current, revenueShareBps: 3_000, depositRewardBps: 700 },
+      ],
+    });
+
+    const before = await listLevelTermsForAdmin(current);
+    expect(before.find(({ level }) => level === 2)).toMatchObject({
+      revenueShareBps: 1_000,
+      depositRewardBps: 500,
+      scheduled: { revenueShareBps: 2_500, depositRewardBps: 600, effectiveFrom: next },
+    });
+    expect(before.find(({ level }) => level === 3)?.scheduled).toBeNull();
+    expect((await listLevelTerms(current)).find(({ level }) => level === 2)).not.toHaveProperty("scheduled");
+    expect((await listLevelTermsForAdmin(next)).find(({ level }) => level === 2)).toMatchObject({
+      revenueShareBps: 2_500,
+      depositRewardBps: 600,
+      scheduled: { revenueShareBps: 3_000, depositRewardBps: 700, effectiveFrom: later },
+    });
+    expect((await listLevelTermsForAdmin(later)).find(({ level }) => level === 2)?.scheduled).toBeNull();
   });
 });
 
