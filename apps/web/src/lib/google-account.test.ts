@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { ensureReferralCode, prisma } from "@asm/db";
+import { createAffiliateLink, ensureReferralCode, prisma } from "@asm/db";
 import { childLogger } from "@asm/logger";
 
 vi.mock("@asm/mail", async (orig) => ({ ...(await orig<typeof import("@asm/mail")>()), sendWelcomeEmail: vi.fn(async () => {}) }));
@@ -18,15 +18,16 @@ afterAll(async () => {
 
 describe("signInWithGoogleProfile referral", () => {
   it("attaches the invitation cookie code to a newly created user only", async () => {
-    const inviter = await prisma.user.create({ data: { email: `ginv-${RUN}@test.local`, passwordHash: "x" } });
+    const inviter = await prisma.user.create({ data: { email: `ginv-${RUN}@test.local`, passwordHash: "x", role: "AFFILIATE" } });
     const code = await ensureReferralCode(inviter.id);
+    const link = await createAffiliateLink(inviter.id, { kind: "REGISTER" });
     const email = `gnew-${RUN}@test.local`;
     const profile = { sub: `sub-${RUN}`, email, givenName: "Asha", familyName: null };
 
-    const first = await signInWithGoogleProfile(profile, ctx(), log, code);
+    const first = await signInWithGoogleProfile(profile, ctx(), log, code, link.id);
     expect(first.created).toBe(true);
     const row = await prisma.user.findUniqueOrThrow({ where: { id: first.userId } });
-    expect(row).toMatchObject({ referredById: inviter.id, referralVia: "LINK" });
+    expect(row).toMatchObject({ referredById: inviter.id, referralVia: "LINK", referralLinkId: link.id });
 
     // A returning sign-in with another inviter's cookie changes nothing.
     const other = await prisma.user.create({ data: { email: `ginv2-${RUN}@test.local`, passwordHash: "x" } });

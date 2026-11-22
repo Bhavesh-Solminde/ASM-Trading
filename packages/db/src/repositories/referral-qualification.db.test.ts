@@ -177,6 +177,30 @@ describe("affiliate first-deposit reward", () => {
     const earnings = await earningsOf(aff.id);
     expect(earnings).toHaveLength(1);
     expect(earnings[0]).toMatchObject({ kind: "AFFILIATE_DEPOSIT_REWARD", amountMinor: reward, status: "PENDING" });
+    const levelTerms = await prisma.affiliateLevelTerms.findFirstOrThrow({
+      where: { level: 1, effectiveFrom: { lte: earnings[0]!.earnedAt } },
+      orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    });
+    expect(earnings[0]?.settingIds).toContain(levelTerms.id);
+  });
+
+  it.each([800, null])("uses the assigned first-deposit reward (%s bps) or the level when the override is empty", async (depositRewardBps) => {
+    const aff = await makeUser({ role: "AFFILIATE" });
+    const assigned = await prisma.affiliateRate.create({
+      data: { affiliateId: aff.id, revenueShareBps: 1234, depositRewardBps, effectiveFrom: new Date(0), reason: "fixture", createdBy: SETTINGS_TAG },
+    });
+    const friend = await friendOf(aff.id);
+    await deposit(friend.id, 50_000);
+    await trade(friend.id);
+    expect(await evaluateReferralQualification(friend.id)).toEqual({ outcome: "qualified" });
+    const [earning] = await earningsOf(aff.id);
+    const terms = await prisma.affiliateLevelTerms.findFirstOrThrow({
+      where: { level: 1, effectiveFrom: { lte: earning!.earnedAt } },
+      orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    });
+    expect(earning?.amountMinor).toBe((50_000 * (depositRewardBps ?? terms.depositRewardBps)) / 10_000);
+    expect(earning?.settingIds).toContain(depositRewardBps === null ? terms.id : assigned.id);
+    expect(earning?.settingIds).not.toContain(depositRewardBps === null ? assigned.id : terms.id);
   });
 
   it("records a qualification but no earning for a legacy simulated affiliate inviter", async () => {

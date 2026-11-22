@@ -1,6 +1,7 @@
 import { prisma, type DbTransaction } from "../client";
 import type { AffiliateStatus, KycStatus, ProgramLedgerKind, ProgramSettingKey } from "../../generated/prisma/client";
-import { getAffiliateRateAt } from "./affiliate-rate";
+import type { AffiliateLevelStatus } from "./affiliate-center";
+import { getAffiliateLevelStatus } from "./affiliate-levels";
 import { ProgramActionRefused } from "./program-errors";
 import { houseDateForInstant } from "./house-day";
 import { programSettingValuesAt } from "./program-settings";
@@ -234,8 +235,7 @@ export function programActionBlockers(u: ActorFacts, action: "transfer" | "withd
   const affiliate = isProgramAffiliate(u);
   if (u.status === "FROZEN" || u.status === "BANNED" || u.legacySimulated) out.push("account_frozen");
   if (affiliate && u.affiliateProfile?.status !== "ACTIVE") out.push("affiliate_not_active");
-  // Affiliates: KYC before any transfer or withdrawal (§3, §11). Regular users: before a withdrawal only.
-  if ((affiliate || action === "withdraw") && u.kycStatus !== "VERIFIED") out.push("kyc_required");
+  if (!affiliate && action === "withdraw" && u.kycStatus !== "VERIFIED") out.push("kyc_required");
   if (action === "transfer" && !hasLiveAccount) out.push("no_live_account");
   return out;
 }
@@ -277,6 +277,7 @@ export async function countProgramWithdrawalsUsed(
 export interface ProgramSummary {
   isAffiliate: boolean;
   affiliateStatus: AffiliateStatus | null;
+  levelStatus: AffiliateLevelStatus | null;
   emailVerified: boolean;
   kycStatus: KycStatus;
   currency: "INR";
@@ -292,13 +293,9 @@ export interface ProgramSummary {
   totalDepositedMinor: number;
   terms: {
     userRewardMinor: number;
-    affiliateDepositRewardBps: number;
-    revenueShareBps: number;
-    /** Where revenueShareBps comes from: the affiliate's own rate or the default setting; null for a non-affiliate. */
-    revenueShareSource: "assigned" | "default" | null;
     minQualifyingDepositMinor: number;
     minQualifyingTradeMinor: number;
-    inviteExtraBonusPct: number;
+    inviteExtraBonusPct?: number;
     minWithdrawalMinor: number;
     limits: { day: number; week: number; month: number };
   };
@@ -322,7 +319,7 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
   if (!user) throw new ProgramActionRefused("not_found");
   const affiliate = isProgramAffiliate(user);
 
-  const [sums, wallet, carry, totalReferrals, qualifiedUsers, deposited, values, rate, used] = await Promise.all([
+  const [sums, wallet, carry, totalReferrals, qualifiedUsers, deposited, values, levelStatus, used] = await Promise.all([
     prisma.programEarning.groupBy({
       by: ["status"],
       where: {
@@ -341,7 +338,7 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
     prisma.referralQualification.count({ where: { inviterId: userId, status: "QUALIFIED" } }),
     qualifiedDepositTotalsByInviter([userId]),
     programSettingValuesAt(now),
-    affiliate ? getAffiliateRateAt(userId, now) : Promise.resolve(null),
+    affiliate ? getAffiliateLevelStatus(userId, now) : Promise.resolve(null),
     countProgramWithdrawalsUsed(userId, now),
   ]);
 
@@ -360,6 +357,7 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
   return {
     isAffiliate: affiliate,
     affiliateStatus: user.affiliateProfile?.status ?? null,
+    levelStatus,
     emailVerified: user.emailVerified,
     kycStatus: user.kycStatus,
     currency: "INR",
@@ -375,12 +373,9 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
     totalDepositedMinor: deposited.get(userId) ?? 0,
     terms: {
       userRewardMinor: required(values, "USER_REFERRAL_REWARD_INR_MINOR"),
-      affiliateDepositRewardBps: rate?.depositRewardBps ?? required(values, "AFFILIATE_DEPOSIT_REWARD_BPS"),
-      revenueShareBps: rate?.revenueShareBps ?? 0,
-      revenueShareSource: rate?.source ?? null,
       minQualifyingDepositMinor: required(values, "MIN_QUALIFYING_DEPOSIT_INR_MINOR"),
       minQualifyingTradeMinor: required(values, "MIN_QUALIFYING_TRADE_INR_MINOR"),
-      inviteExtraBonusPct: required(values, "INVITE_EXTRA_BONUS_PCT"),
+      ...(!affiliate && { inviteExtraBonusPct: required(values, "INVITE_EXTRA_BONUS_PCT") }),
       ...rules,
     },
     used,

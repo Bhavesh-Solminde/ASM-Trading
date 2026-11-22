@@ -1,6 +1,8 @@
 import { prisma, type DbClient, type DbTransaction } from "../client";
+import type { AffiliateLevelTerms, AffiliateRate } from "../../generated/prisma/client";
 import { programSettingRowAt } from "./program-settings";
 import { houseDateForInstant } from "./house-day";
+import { getAffiliateMonthLevels, levelTermsOrder } from "./affiliate-levels";
 
 type Db = DbClient | DbTransaction;
 
@@ -11,11 +13,13 @@ export function revenueShareEffectiveFrom(at: Date): Date {
 }
 
 export interface AffiliateRateAt {
-  /** "assigned": the affiliate's own AffiliateRate; "default": the DEFAULT_REVENUE_SHARE_BPS setting. */
-  source: "assigned" | "default";
-  /** The AffiliateRate in force; null when the default applies. */
+  /** Source of Revenue Share. A custom share can have a level deposit reward. */
+  source: "assigned" | "level" | "default";
   rateId: string | null;
-  /** The DEFAULT_REVENUE_SHARE_BPS ProgramSetting in force when the default applies; else null. */
+  level: number | null;
+  /** Level terms used for either earning type. */
+  levelTermsId: string | null;
+  /** The DEFAULT_REVENUE_SHARE_BPS ProgramSetting when the global default applies. */
   settingId: string | null;
   revenueShareBps: number;
   /** Null = use the global AFFILIATE_DEPOSIT_REWARD_BPS setting. */
@@ -33,6 +37,8 @@ export function defaultRate(setting: { id: string; value: number; effectiveFrom:
   return {
     source: "default",
     rateId: null,
+    level: null,
+    levelTermsId: null,
     settingId: setting?.id ?? null,
     revenueShareBps: setting?.value ?? 0,
     depositRewardBps: null,
@@ -41,22 +47,55 @@ export function defaultRate(setting: { id: string; value: number; effectiveFrom:
 }
 
 /**
- * The affiliate's terms in force at `at`: their own AffiliateRate (latest
- * effectiveFrom <= at; ties → newest row), else the DEFAULT_REVENUE_SHARE_BPS
- * setting in force at `at`.
+ * An assigned rate wins for each earning type it specifies. Otherwise use
+ * the terms for the frozen month's level, followed by the global settings.
  */
 export async function getAffiliateRateAt(affiliateId: string, at: Date, client: Db = prisma): Promise<AffiliateRateAt> {
   const row = await client.affiliateRate.findFirst({
     where: { affiliateId, effectiveFrom: { lte: at } },
-    orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
+    orderBy: [...levelTermsOrder],
   });
-  if (!row) return defaultRate(await defaultRevenueShareAt(at, client));
+  if (row?.depositRewardBps != null) return rateFromAssignment(row);
+  const affiliate = await client.user.findUnique({
+    where: { id: affiliateId, role: "AFFILIATE", legacySimulated: false },
+    select: { id: true },
+  });
+  if (affiliate) {
+    const month = (await getAffiliateMonthLevels([affiliateId], at, client)).get(affiliateId)!;
+    const terms = await client.affiliateLevelTerms.findFirst({
+      where: { level: month.level, effectiveFrom: { lte: at } },
+      orderBy: [...levelTermsOrder],
+    });
+    if (row) return rateFromAssignment(row, terms);
+    if (terms) return rateFromLevelTerms(terms);
+    return { ...defaultRate(await defaultRevenueShareAt(at, client)), level: month.level };
+  }
+  return row ? rateFromAssignment(row) : defaultRate(await defaultRevenueShareAt(at, client));
+}
+
+export function rateFromAssignment(row: AffiliateRate, terms?: AffiliateLevelTerms | null): AffiliateRateAt {
+  const depositTerms = row.depositRewardBps === null ? terms : null;
   return {
     source: "assigned",
     rateId: row.id,
+    level: depositTerms?.level ?? null,
+    levelTermsId: depositTerms?.id ?? null,
     settingId: null,
     revenueShareBps: row.revenueShareBps,
-    depositRewardBps: row.depositRewardBps,
+    depositRewardBps: row.depositRewardBps ?? depositTerms?.depositRewardBps ?? null,
     effectiveFrom: row.effectiveFrom,
+  };
+}
+
+export function rateFromLevelTerms(terms: AffiliateLevelTerms): AffiliateRateAt {
+  return {
+    source: "level",
+    rateId: null,
+    level: terms.level,
+    levelTermsId: terms.id,
+    settingId: null,
+    revenueShareBps: terms.revenueShareBps,
+    depositRewardBps: terms.depositRewardBps,
+    effectiveFrom: terms.effectiveFrom,
   };
 }

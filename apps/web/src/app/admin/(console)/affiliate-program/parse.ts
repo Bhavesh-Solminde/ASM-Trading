@@ -23,14 +23,14 @@ export const SETTING_META: Record<string, { label: string; unit: SettingUnit; he
     help: "Paid to a regular user per qualified referral.",
   },
   AFFILIATE_DEPOSIT_REWARD_BPS: {
-    label: "Affiliate deposit reward",
+    label: "Default affiliate deposit reward",
     unit: "bps",
-    help: "Share of the first qualifying deposit, unless the affiliate has an override.",
+    help: "Fallback after custom and level deposit reward rates.",
   },
   DEFAULT_REVENUE_SHARE_BPS: {
     label: "Default Revenue Share",
     unit: "bps",
-    help: "Used for affiliates without their own assigned rate. Changes start at midnight IST.",
+    help: "Fallback after custom and level Revenue Share rates. Changes start at midnight IST.",
   },
   INVITE_EXTRA_BONUS_PCT: {
     label: "Invited friend extra bonus",

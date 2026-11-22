@@ -86,6 +86,12 @@ export default async function AffiliateDetailPage({
       <div className="admin-grid admin-cols-2" style={{ alignItems: "start" }}>
         <Card title="Referrals and earnings" sub="Totals only; no per-user data">
           <dl className="admin-dl">
+            <dt>Current level</dt>
+            <dd>{a.levelStatus.current.level} · {a.levelStatus.current.name}</dd>
+            <dt>Qualifying first deposits this month</dt>
+            <dd>{num(a.levelStatus.monthQualifyingDeposits)}</dd>
+            <dt>Custom terms</dt>
+            <dd>{a.currentRate.source === "assigned" ? "Override level rates" : "None assigned"}</dd>
             <dt>Referrals</dt>
             <dd>{num(a.totalReferrals)}</dd>
             <dt>Qualified</dt>
@@ -143,13 +149,7 @@ export default async function AffiliateDetailPage({
 
       <Card
         title="Rates"
-        sub={
-          a.currentRate.source === "assigned"
-            ? `In force: Revenue Share ${bpsPct(a.currentRate.revenueShareBps)} (own rate), deposit reward ${
-                a.currentRate.depositRewardBps === null ? "global setting" : bpsPct(a.currentRate.depositRewardBps)
-              }`
-            : `In force: Revenue Share ${bpsPct(a.currentRate.revenueShareBps)} (default, no own rate assigned), deposit reward global setting`
-        }
+        sub={`Revenue Share ${bpsPct(a.currentRate.revenueShareBps)} · Deposit reward ${bpsPct(a.effectiveDepositRewardBps)}`}
       >
         <form action={assignAffiliateRateAction} className="admin-grid admin-cols-2" style={{ alignItems: "end", marginBottom: 16 }}>
           <input type="hidden" name="affiliateId" value={a.userId} />
@@ -159,7 +159,7 @@ export default async function AffiliateDetailPage({
           </div>
           <div className="admin-field" style={{ marginBottom: 0 }}>
             <label htmlFor="rate-dep">Deposit reward override (%, optional)</label>
-            <input id="rate-dep" name="depositRewardPct" className="admin-input" inputMode="decimal" placeholder="Empty = global setting" />
+            <input id="rate-dep" name="depositRewardPct" className="admin-input" inputMode="decimal" placeholder="Empty uses level rate" />
           </div>
           <div className="admin-field" style={{ marginBottom: 0 }}>
             <label htmlFor="rate-from">Effective from (IST midnight, empty = next midnight)</label>
@@ -199,7 +199,7 @@ export default async function AffiliateDetailPage({
                       {fmtIst(r.effectiveFrom)} {r.id === a.currentRate.rateId ? <Pill tone="pos">In force</Pill> : null}
                     </td>
                     <td className="admin-num-right">{bpsPct(r.revenueShareBps)}</td>
-                    <td className="admin-num-right">{r.depositRewardBps === null ? "Global" : bpsPct(r.depositRewardBps)}</td>
+                    <td className="admin-num-right">{r.depositRewardBps === null ? "No override" : bpsPct(r.depositRewardBps)}</td>
                     <td className="admin-cell-sub">{r.createdBy}</td>
                     <td className="admin-cell-sub">{r.reason}</td>
                   </tr>

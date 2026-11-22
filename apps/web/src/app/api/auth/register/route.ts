@@ -24,7 +24,7 @@ import {
 import { deviceNameFrom, isAppRequest } from "@/lib/app-client";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
-import { CLEAR_REFERRAL_COOKIE, REFERRAL_COOKIE, attachSignupReferral } from "@/lib/referral";
+import { CLEAR_REFERRAL_COOKIE, CLEAR_REFERRAL_LINK_COOKIE, REFERRAL_COOKIE, REFERRAL_LINK_COOKIE, attachSignupReferral } from "@/lib/referral";
 import { provisionNewUser } from "@/lib/signup";
 import { absoluteUrl } from "@/lib/site";
 
@@ -127,8 +127,10 @@ export async function POST(req: NextRequest) {
 
   await provisionNewUser(user.id, ctx);
   // After provisioning so the signup IP/UA capture exists; still re-checked race-safely inside.
-  if (typedCode) await attachSignupReferral({ userId: user.id, code: typedCode, via: "CODE" }, ctx, log);
-  else if (cookieCode) await attachSignupReferral({ userId: user.id, code: cookieCode, via: "LINK" }, ctx, log);
+  if (typedCode || cookieCode) {
+    const linkId = req.cookies.get(REFERRAL_LINK_COOKIE)?.value;
+    await attachSignupReferral({ userId: user.id, code: typedCode || cookieCode, via: typedCode ? "CODE" : "LINK", linkId }, ctx, log);
+  }
 
   const app = isAppRequest(req.headers);
   const token = await createSession(user.id, {
@@ -165,6 +167,9 @@ export async function POST(req: NextRequest) {
 
   const response = NextResponse.json({ userId: user.id }, { status: 201 });
   response.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);
-  if (!affiliate) response.cookies.set(CLEAR_REFERRAL_COOKIE);
+  if (!affiliate) {
+    response.cookies.set(CLEAR_REFERRAL_COOKIE);
+    response.cookies.set(CLEAR_REFERRAL_LINK_COOKIE);
+  }
   return response;
 }

@@ -14,7 +14,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, createSession } from "@/lib/session";
 import { signInWithGoogleProfile } from "@/lib/google-account";
-import { CLEAR_REFERRAL_COOKIE, REFERRAL_COOKIE } from "@/lib/referral";
+import { CLEAR_REFERRAL_COOKIE, CLEAR_REFERRAL_LINK_COOKIE, REFERRAL_COOKIE, REFERRAL_LINK_COOKIE } from "@/lib/referral";
 
 /**
  * Google sends the browser back here with `code` + `state`. The state must
@@ -71,7 +71,9 @@ export async function GET(req: NextRequest) {
 
   let result;
   try {
-    result = await signInWithGoogleProfile(profile, ctx, log, req.cookies.get(REFERRAL_COOKIE)?.value);
+    result = await signInWithGoogleProfile(
+      profile, ctx, log, req.cookies.get(REFERRAL_COOKIE)?.value, req.cookies.get(REFERRAL_LINK_COOKIE)?.value,
+    );
   } catch (err) {
     return fail(err instanceof Error ? err.name : "link_failed");
   }
@@ -84,6 +86,7 @@ export async function GET(req: NextRequest) {
   response.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);
   if (result.created) {
     response.cookies.set(CLEAR_REFERRAL_COOKIE);
+    response.cookies.set(CLEAR_REFERRAL_LINK_COOKIE);
   } else {
     // A fresh non-sensitive receipt allows one conversion per actual OAuth login.
     response.cookies.set(LOGIN_PIXEL_COOKIE, randomBytes(16).toString("hex"), {

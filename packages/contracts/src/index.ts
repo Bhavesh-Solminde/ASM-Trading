@@ -149,3 +149,4 @@ export { marketSessionOpen, marketStatus, type MarketStatus } from "./market-ses
 export { CFD_SPREAD_FEE_MULTIPLIER, CFD_SPREAD_FEE_CAP_MINOR, cfdSpreadFeeMinor, cfdSpreadFeePct } from "./cfd-fees";
 
 export { TRADABLE_MARKETS, MARKET_COUNT } from "./markets";
+export { AFFILIATE_LEVELS, levelForDeposits } from "./affiliate-levels";

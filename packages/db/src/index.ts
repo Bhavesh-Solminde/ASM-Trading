@@ -64,6 +64,7 @@ export {
   ADMIN_PAGE_SIZE,
   setAffiliateStatus,
   appendAffiliateRate,
+  appendAffiliateLevelTerms,
   appendProgramSetting,
   listProgramSettingHistory,
   listAffiliatesForAdmin,
@@ -374,5 +375,8 @@ export type { DbClient, DbTransaction } from "./client";
 export { demoLeaderboard } from "./repositories/demo-leaderboard";
 export * from "./repositories/notifications";
 export type { PushDevice, NotificationOutbox } from "../generated/prisma/client";
+export * from "./repositories/affiliate-center";
+export { ensureDefaultAffiliateLink, resolveTrackedAffiliateLink, recordAffiliateLinkClick } from "./repositories/affiliate-links";
+export { listLevelTermsForAdmin } from "./repositories/affiliate-levels";
 
 export { USD_TO_INR_RATE } from "./repositories/deposit";

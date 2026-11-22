@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import {
   ProgramSettingKey,
   ProgramActionRefused,
+  appendAffiliateLevelTerms,
   appendAffiliateRate,
   appendProgramSetting,
   approveProgramWithdrawal,
@@ -90,6 +91,22 @@ export async function scheduleSettingAction(formData: FormData): Promise<void> {
     appendProgramSetting({ key: key as ProgramSettingKey, value, effectiveFrom, reason, actor: ADMIN_ACTOR }),
   );
   back(to, "ok", "Setting scheduled.");
+}
+
+export async function scheduleAffiliateLevelTermsAction(formData: FormData): Promise<void> {
+  await requirePanel();
+  const to = tab("levels");
+  const level = Number(text(formData, "level"));
+  if (!Number.isInteger(level) || level < 1 || level > 7) back(to, "error", "Choose a level from 1 to 7.");
+  const revenueShareBps = percentToBps(text(formData, "revenueSharePct"));
+  const depositRewardBps = percentToBps(text(formData, "depositRewardPct"));
+  if (revenueShareBps === null || depositRewardBps === null) back(to, "error", "Enter both percentages from 0 to 100.");
+  const reason = text(formData, "reason");
+  if (!reason) back(to, "error", "A reason is required.");
+  await attempt(to, "affiliate.level_terms_changed", () =>
+    appendAffiliateLevelTerms({ level, revenueShareBps, depositRewardBps, reason, actor: ADMIN_ACTOR }),
+  );
+  back(to, "ok", "Level rates scheduled for the next IST midnight.");
 }
 
 /* ------------------------------- Affiliates ------------------------------- */

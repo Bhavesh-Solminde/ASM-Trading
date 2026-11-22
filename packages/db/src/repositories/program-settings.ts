@@ -84,6 +84,14 @@ export async function programSettingValuesAt(
   return out;
 }
 
+export async function defaultLevelRateValues(at: Date) {
+  const values = await programSettingValuesAt(at);
+  return {
+    revenueShareBps: values.DEFAULT_REVENUE_SHARE_BPS ?? 0,
+    depositRewardBps: values.AFFILIATE_DEPOSIT_REWARD_BPS ?? 0,
+  };
+}
+
 /** The version of one setting in force at `at` (its id, value and effectiveFrom), or null when it has none yet. */
 export async function programSettingRowAt(
   key: ProgramSettingKey,

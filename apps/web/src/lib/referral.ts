@@ -4,6 +4,7 @@ import type { RequestContext } from "./request-context";
 
 /** Last valid invitation link opened in this browser (normalised code). */
 export const REFERRAL_COOKIE = "asm_ref";
+export const REFERRAL_LINK_COOKIE = "asm_ref_link";
 
 export const REFERRAL_COOKIE_OPTIONS = {
   httpOnly: true,
@@ -14,13 +15,14 @@ export const REFERRAL_COOKIE_OPTIONS = {
 };
 
 export const CLEAR_REFERRAL_COOKIE = { name: REFERRAL_COOKIE, value: "", path: "/", maxAge: 0 } as const;
+export const CLEAR_REFERRAL_LINK_COOKIE = { ...CLEAR_REFERRAL_COOKIE, name: REFERRAL_LINK_COOKIE } as const;
 
 /**
  * Attaches the inviter to a just-created user. Never throws: a referral
  * problem (bad code, DB hiccup) must not fail an otherwise good signup.
  */
 export async function attachSignupReferral(
-  input: { userId: string; code: string; via: "LINK" | "CODE" },
+  input: { userId: string; code: string; via: "LINK" | "CODE"; linkId?: string | undefined },
   ctx: RequestContext,
   log: ReturnType<typeof childLogger>,
 ): Promise<void> {
