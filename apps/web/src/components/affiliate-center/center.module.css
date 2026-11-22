@@ -323,7 +323,7 @@
 .table th:last-child { border-start-end-radius: 7px; }
 .table .commentCell { min-width: 110px; max-width: 230px; white-space: normal; overflow-wrap: anywhere; }
 .tableLink { display: flex; align-items: center; gap: 8px; }
-.tableLink > span { user-select: all; }
+.tableLink > span:first-child { user-select: all; }
 .tableFooter { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid var(--color-rule); color: var(--color-ink-2); font-size: 12px; }
 .tableFooter > div { display: flex; gap: 6px; }
 .columnPicker { position: relative; }
@@ -408,7 +408,12 @@
   .metric { grid-column: span 2; padding: 10px; }
   .metric:nth-child(-n + 2) { grid-column: span 3; }
   .chartDates span:nth-child(2) { display: none; }
-  .tableLink > span { max-width: 36vw; white-space: normal; overflow-wrap: anywhere; }
+  .tableLink > span:first-child {
+    flex: none;
+    width: clamp(72px, 23vw, 144px);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 @media (max-width: 359px) {
   .header { grid-template-areas: "brand preferences" "money money" "level level"; }

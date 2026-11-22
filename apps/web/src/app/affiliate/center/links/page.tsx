@@ -38,7 +38,12 @@ export default async function AffiliateLinksPage() {
                       {link.code}
                       {link.isDefault ? <small className="ml-2 rounded bg-brand-dim px-1.5 py-0.5 text-brand">Default</small> : null}
                     </th>
-                    <td><div className={styles.tableLink}><span>{url}</span><CopyButton value={url} label={`Copy ${link.code}`} /></div></td>
+                    <td>
+                      <div className={styles.tableLink}>
+                        <span>{url}</span>
+                        <CopyButton value={url} variant="ghost" label="Copy" ariaLabel={`Copy link ${link.code}`} />
+                      </div>
+                    </td>
                     <td className={styles.commentCell}>{link.comment || "—"}</td>
                     <td>{LINK_KIND_LABELS[link.kind]}</td>
                     <td>{affiliateDate.format(link.createdAt)}</td>
