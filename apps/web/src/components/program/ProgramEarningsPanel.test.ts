@@ -144,7 +144,7 @@ describe("requirements and blockers", () => {
   it("lets the standalone affiliate panel initiate a transfer without the trading shell or a KYC prompt", async () => {
     stubFetch({ ok: true, body: { accountId: "acc1", balance: { realBalance: 1, bonusBalance: 0 } } });
     render(createElement(ProgramEarningsPanel, {
-      summary: summary({ isAffiliate: true, kycStatus: "NOT_STARTED", blockers: ["kyc_required"] }),
+      summary: summary({ isAffiliate: true, kycStatus: "NOT_STARTED" }),
       activity: [],
       standalone: true,
     }));

@@ -87,6 +87,8 @@ export {
   countProgramWithdrawalsUsed,
   istLimitWindows,
   istDay,
+  istDayStart,
+  addIstDays,
   type ProgramRefusalCode,
   type ProgramSummary,
   type ProgramActivityItem,

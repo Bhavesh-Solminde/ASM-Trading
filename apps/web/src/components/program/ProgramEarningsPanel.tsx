@@ -131,7 +131,6 @@ function blockerText(code: string, s: EarningsSummary): string {
 }
 
 function Requirements({ summary: s }: { summary: EarningsSummary }) {
-  const blockers = s.isAffiliate ? s.blockers.filter((code) => code !== "kyc_required") : s.blockers;
   return (
     <section aria-labelledby="program-requirements" className={CARD}>
       <h2 id="program-requirements" className="text-sm font-bold text-ink">
@@ -141,16 +140,16 @@ function Requirements({ summary: s }: { summary: EarningsSummary }) {
         Minimum withdrawal {whole(s.terms.minWithdrawalMinor)}. Withdrawals used: today {s.used.day}/{s.terms.limits.day}, this
         week {s.used.week}/{s.terms.limits.week}, this month {s.used.month}/{s.terms.limits.month}.
       </p>
-      {blockers.length > 0 ? (
+      {s.blockers.length > 0 ? (
         <div className="mt-3 flex flex-col gap-2 rounded-xl border border-caution/30 bg-caution/10 p-4">
           <ul className="flex flex-col gap-1.5">
-            {blockers.map((code) => (
+            {s.blockers.map((code) => (
               <li key={code} className="text-xs leading-relaxed text-[var(--color-ink-2)]">
                 {blockerText(code, s)}
               </li>
             ))}
           </ul>
-          {blockers.includes("kyc_required") && s.kycStatus !== "PENDING" ? (
+          {s.blockers.includes("kyc_required") && s.kycStatus !== "PENDING" ? (
             <Link
               href="/account/verify"
               className="self-start rounded-lg bg-brand-fill px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-brand-fill-hi phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0"
