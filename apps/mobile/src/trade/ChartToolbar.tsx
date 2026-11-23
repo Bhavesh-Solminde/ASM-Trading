@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import type { Timeframe } from "@asm/contracts";
+import type { Timeframe, TradeView } from "@asm/contracts";
 import { color } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 import { Icon } from "@/ui/Icon";
@@ -10,9 +10,10 @@ import { useSocket } from "@/socket/socket-store";
 import { useFullscreen } from "./fullscreen-store";
 import { TradesSheet } from "./TradesSheet";
 import type { AppAsset } from "./markets";
-export function ChartToolbar({ timeframe, onTimeframe, accountId, accountType, assets, currency, listLoaded }: {
+export function ChartToolbar({ timeframe, onTimeframe, accountId, accountType, assets, currency, listLoaded, onFocusTrade }: {
   timeframe: Timeframe; onTimeframe: (tf: Timeframe) => void; accountId: string; accountType: "DEMO" | "LIVE";
   assets: readonly AppAsset[]; currency: string; listLoaded: boolean;
+  onFocusTrade: (trade: TradeView) => void;
 }) {
   const { t } = useTranslation();
   const fullscreen = useFullscreen(s => s.active);
@@ -25,6 +26,7 @@ export function ChartToolbar({ timeframe, onTimeframe, accountId, accountType, a
       <Icon name="history" size={16} color={color.ink2} /><Txt size={12}>{t("tabs.history")}{count ? ` · ${count}` : ""}</Txt>
     </Pressable>
     <Pressable testID="chart-fullscreen" accessibilityRole="button" accessibilityLabel={t(fullscreen ? "redesign.exitFullscreen" : "redesign.fullscreen")} accessibilityState={{ expanded: fullscreen }} onPress={() => useFullscreen.getState().set(!fullscreen)} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><Icon name={fullscreen ? "collapse" : "expand"} size={20} color={color.ink2} /></Pressable>
-    {<TradesSheet ref={sheet} accountId={accountId} accountType={accountType} assets={assets} currency={currency} listLoaded={listLoaded} />}
+    {<TradesSheet ref={sheet} accountId={accountId} accountType={accountType} assets={assets} currency={currency} listLoaded={listLoaded}
+      onFocusTrade={(trade) => { sheet.current?.dismiss(); onFocusTrade(trade); }} />}
   </View>;
 }

@@ -22,6 +22,7 @@ export const TradeButton = memo(function TradeButton({
   sub,
   disabled,
   busy,
+  height = BUTTON_H,
   onPress,
   testID,
   accessibilityLabel,
@@ -32,6 +33,7 @@ export const TradeButton = memo(function TradeButton({
   sub: string | null;
   disabled: boolean;
   busy: boolean;
+  height?: number;
   onPress: () => void;
   testID: string;
   accessibilityLabel: string;
@@ -43,8 +45,9 @@ export const TradeButton = memo(function TradeButton({
   const bear = useImage(bearArt);
   const art = up ? bull : bear;
   const g = up ? gradient.up : gradient.down;
-  const p = cssGradientPoints(135, w, BUTTON_H);
+  const p = cssGradientPoints(135, w, height);
   const frame = up ? bullFrame(w) : bearFrame(w);
+  const artY = frame.y + (height - BUTTON_H) / 2;
   const ink = up ? color.upInk : color.downInk;
   return (
     <Pressable
@@ -57,7 +60,7 @@ export const TradeButton = memo(function TradeButton({
       onLayout={(e) => setW(e.nativeEvent.layout.width)}
       style={({ pressed }) => ({
         flex: 1,
-        height: BUTTON_H,
+        height,
         borderRadius: radius.md,
         overflow: "hidden",
         justifyContent: "center",
@@ -70,12 +73,12 @@ export const TradeButton = memo(function TradeButton({
       {w > 0 ? (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <Canvas style={{ flex: 1 }}>
-            <Group clip={rrect(rect(0, 0, w, BUTTON_H), radius.md, radius.md)}>
-              <Rect x={0} y={0} width={w} height={BUTTON_H}>
+            <Group clip={rrect(rect(0, 0, w, height), radius.md, radius.md)}>
+              <Rect x={0} y={0} width={w} height={height}>
                 <LinearGradient start={vec(p.start.x, p.start.y)} end={vec(p.end.x, p.end.y)} colors={[...g.colors]} positions={[...g.positions]} />
               </Rect>
               {art ? (
-                <SkImage image={art} x={frame.x} y={frame.y} width={frame.w} height={frame.h} fit="fill" blendMode="overlay" opacity={BEAST_OPACITY} />
+                <SkImage image={art} x={frame.x} y={artY} width={frame.w} height={frame.h} fit="fill" blendMode="overlay" opacity={BEAST_OPACITY} />
               ) : null}
               <Rect x={0} y={0} width={w} height={1} color={g.highlight} />
             </Group>

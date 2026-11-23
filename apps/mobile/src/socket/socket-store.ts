@@ -16,6 +16,7 @@ import { api } from "@/api/client";
 import { ApiError } from "@/api/errors";
 import { appConfig } from "@/config";
 import { clearDisplayedQuote } from "@/trade/displayed-quote";
+import { sameStops, stopLevels, type StopLevels } from "@/trade/otc-protection";
 import { ChartStream } from "./chart-stream";
 import { unitFromBytes } from "./backoff";
 import { EngineSocket, FatalSocketError, type SocketStatus } from "./engine-socket";
@@ -36,6 +37,8 @@ interface SocketStore {
   consecutiveFailures: number;
   chart: ChartState;
   trades: TradeState;
+  /** A new position may take chart focus. A stops broadcast for a known position never changes this. */
+  lastOpened: TradeView | null;
   lastSettled: TradeView | null;
   /**
    * Settlements the last bootstrap merge recovered (open here, settled in the response): the socket never
@@ -69,6 +72,7 @@ interface SocketStore {
   loadOlder: () => void;
   setChartActive: (active: boolean) => void;
   applyOpenResult: (r: OpenTradeResult) => void;
+  applyStopsResult: (trade: TradeView, before: StopLevels) => void;
 }
 
 let engine: EngineSocket | null = null;
@@ -83,6 +87,7 @@ const initial = () => ({
   consecutiveFailures: 0,
   chart: initialChartState("", "1m"),
   trades: initialTradeState([], {}),
+  lastOpened: null,
   lastSettled: null,
   recovered: [] as readonly TradeView[],
   balanceRefetch: [] as readonly string[],
@@ -116,6 +121,10 @@ export const useSocket = create<SocketStore>((set, get) => {
       const next: Partial<SocketStore> = {
         trades: applyTradeMessage(s.trades, m),
       };
+      if (m.type === "trade:opened" && m.trade.status === "OPEN" &&
+          !s.trades.tradesByAccount[m.trade.accountId]?.some((trade) => trade.id === m.trade.id)) {
+        next.lastOpened = m.trade;
+      }
       if (m.type === "trade:settled") next.lastSettled = m.trade;
       if (m.type === "balance:update") next.balanceAt = { ...s.balanceAt, [m.accountId]: Date.now() };
       return next;
@@ -219,12 +228,22 @@ export const useSocket = create<SocketStore>((set, get) => {
     applyOpenResult: (r) =>
       set((s) => {
         const socketLive = s.phase === "authed";
+        const known = s.trades.tradesByAccount[r.trade.accountId]?.find((trade) => trade.id === r.trade.id);
         return {
-          trades: withOpenResult(s.trades, r, socketLive),
+          // A delayed open response carries the original levels; keep a trade already received from the socket.
+          trades: withOpenResult(s.trades, known && r.trade.status === "OPEN" ? { ...r, trade: known } : r, socketLive),
+          ...(!known && r.trade.status === "OPEN" ? { lastOpened: r.trade } : {}),
           // The HTTP balances are only applied while the socket is down; stamp them like a socket update so a
           // bootstrap request that started before this open cannot overwrite them with an older figure.
           ...(socketLive ? {} : { balanceAt: { ...s.balanceAt, [r.trade.accountId]: Date.now() } }),
         };
+      }),
+    applyStopsResult: (trade, before) =>
+      set((s) => {
+        const current = s.trades.tradesByAccount[trade.accountId]?.find(({ id }) => id === trade.id);
+        // A newer socket update or a settlement wins over a delayed HTTP answer.
+        if (current?.status !== "OPEN" || !sameStops(stopLevels(current), before)) return s;
+        return { trades: applyTradeMessage(s.trades, { type: "trade:opened", trade }) };
       }),
   };
 });

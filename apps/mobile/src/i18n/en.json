@@ -189,10 +189,20 @@
     "todayAccount": "Today, {{account}}",
     "closedOpens": "Closed, opens {{time}}",
     "waitPrice": "Wait for a fresh connected price, then try again.",
-    "adjustProtection": "Choose the same direction as SL / TP and drag the lines around the current price.",
     "retryPrevious": "Retry the previous trade with the same amount and direction while its result is being checked.",
-    "dragProtection": "Drag SL and TP on the chart",
-    "fixedPayout": "92% profit on a win · Fixed expiry · No manual close",
+    "stops": {
+      "add": "SL / TP",
+      "sl": "SL",
+      "tp": "TP",
+      "set": "Set",
+      "update": "Update",
+      "remove": "Remove",
+      "removeSl": "Remove stop loss",
+      "removeTp": "Remove take profit",
+      "ended": "This trade has already ended.",
+      "moveAway": "Move the lines farther from the current price.",
+      "timedOut": "The request timed out. Try again to check whether your levels were saved."
+    },
     "retryNamed": "Retry previous {{direction}} {{symbol}} · {{amount}} at {{price}}"
   },
   "bonus": {

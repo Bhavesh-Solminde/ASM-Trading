@@ -22,16 +22,12 @@ export function buildOpenTradeBody(input: {
   currency: string;
   quoteToken: string;
   idempotencyKey: string;
-  stopLoss?: number | null;
-  takeProfit?: number | null;
 }): OtcOpenTradeInput {
   // A currency the contract does not know is left out rather than failing every trade; the server still checks the stake.
   const currency = OtcOpenTradeSchema.shape.currency.safeParse(input.currency);
   return OtcOpenTradeSchema.parse({
     quoteToken: input.quoteToken,
     idempotencyKey: input.idempotencyKey,
-    ...(input.stopLoss != null ? { stopLoss: input.stopLoss } : {}),
-    ...(input.takeProfit != null ? { takeProfit: input.takeProfit } : {}),
     symbol: input.symbol,
     direction: input.direction,
     stake: input.stakeMinor,

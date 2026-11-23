@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   AreaSeries,
   BarSeries,
@@ -36,8 +36,7 @@ import { VolumeCandlesSeriesView } from "./plugins/volume-candles-series";
 import { recordChartMetric,finishChartSwitch } from "./diagnostics";
 import { OtcExpiry } from "./OtcExpiry";
 import { OtcEntryLines } from "./OtcEntryLines";
-import { OtcProtection } from "./OtcProtection";
-import type { OtcProtectionDraft } from "./otc-protection";
+import { OtcTradeStops } from "./OtcTradeStops";
 import { useTheme } from "@/lib/theme";
 import { applyChartTheme, chartAlpha, chartThemeOptions, getChartPalette, type ChartPalette } from "./chart-palette";
 
@@ -344,8 +343,9 @@ export function PriceChart({
   chartType = "candles",
   showVolume=false,
   appearance="classic",
-  protectionDraft,
-  onProtectionChange,
+  otcStopTrades = openTrades,
+  otcStopsTrade,
+  otcStopsBottomOverlayRef,
   enableBrackets = false,
   bracketScope,
   bracketControls = true,
@@ -364,8 +364,9 @@ export function PriceChart({
   chartType?: ChartType;
   showVolume?:boolean;
   appearance?:"classic"|"market";
-  protectionDraft?:OtcProtectionDraft|undefined;
-  onProtectionChange?:(draft:OtcProtectionDraft)=>void;
+  otcStopTrades?: TradeView[];
+  otcStopsTrade?: TradeView | undefined;
+  otcStopsBottomOverlayRef?: RefObject<HTMLDivElement | null> | undefined;
   enableBrackets?: boolean;
   bracketScope?: string;
   bracketControls?: boolean;
@@ -1050,14 +1051,21 @@ export function PriceChart({
         axisLabelTextColor: palette.labelInk,
         title: `${t.direction === "UP" ? "▲" : "▼"} ${formatMinor(t.stake, t.currency??currency)}`,
       }); entries.push({line,color:t.direction === "UP" ? "up" : "down"}); return line; });
-    for(const trade of openTrades)if(trade.mode==="OTC_FIXED"){
-      for(const [label,price,color] of [["SL",trade.stopLoss,palette.down],["TP",trade.takeProfit,palette.up]] as const){
-        if(price!=null){const line=series.createPriceLine({price,color,lineWidth:1,lineStyle:LineStyle.Dashed,axisLabelVisible:true,title:label});lines.push(line);entries.push({line,color:label==="SL"?"down":"up"});}
+    for (const trade of otcStopTrades) {
+      if (trade.mode !== "OTC_FIXED" || trade.status !== "OPEN" || trade.pending) continue;
+      for (const [title, price, color] of [["SL", trade.stopLoss, "down"], ["TP", trade.takeProfit, "up"]] as const) {
+        if (price == null) continue;
+        const line = series.createPriceLine({
+          price, title, color: palette[color], lineWidth: 1, lineStyle: LineStyle.Solid,
+          axisLabelVisible: true, axisLabelTextColor: palette.labelInk,
+        });
+        lines.push(line);
+        entries.push({ line, color });
       }
     }
     entryLinesRef.current = entries;
     return ()=>{entryLinesRef.current = [];for(const line of lines)try{series.removePriceLine(line);}catch{}};
-  }, [openTrades, currency, chartVersion, enableBrackets,chartType]);
+  }, [openTrades, otcStopTrades, currency, chartVersion, enableBrackets,chartType]);
 
   return (
     <div className="analysis-plot absolute inset-0">
@@ -1067,7 +1075,7 @@ export function PriceChart({
       <div ref={containerRef} className="absolute inset-0 z-0 cursor-crosshair" />
       <OtcEntryLines trades={openTrades} chartRef={chartRef} seriesRef={seriesRef} market={market} chartVersion={chartVersion} />
       {showVolume?<OtcExpiry trades={openTrades} chartRef={chartRef} market={market} chartVersion={chartVersion}/>:null}
-      {protectionDraft&&onProtectionChange?<OtcProtection key={bracketScope} draft={protectionDraft} onChange={onProtectionChange} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef} market={market} chartVersion={chartVersion} precision={precision} tickSize={tickSize??10**-precision}/>:null}
+      {otcStopsTrade && <OtcTradeStops key={otcStopsTrade.id} trade={otcStopsTrade} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef} bottomOverlayRef={otcStopsBottomOverlayRef} market={market} chartVersion={chartVersion} precision={precision} tickSize={tickSize ?? 10 ** -precision} actionsContainer={bracketActionsContainer} onShowAllTrades={onShowAllTrades} />}
       {enableBrackets && <ChartBrackets key={`${bracketScope}:${focusedTradeId ?? "all"}`} focusedTradeId={focusedTradeId} onSelectTrade={onSelectTrade} onShowAllTrades={onShowAllTrades} actionsContainer={bracketActionsContainer} controlsEnabled={bracketControls} trades={openTrades} seriesRef={seriesRef} chartRef={chartRef} containerRef={containerRef}
         precision={precision} tickSize={tickSize ?? 10 ** -precision} currency={currency} chartVersion={chartVersion} market={market} />}
 

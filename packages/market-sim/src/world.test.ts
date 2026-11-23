@@ -15,6 +15,24 @@ it("rejects invalid protection before changing wallets or candles",()=>{
   expect(()=>world.open({...trade,stopLoss:99999999})).toThrow("stop loss");
   expect(world.checkpoint()).toEqual(before);
 });
+
+it("applies stop changes in world order with identical market ticks after restore", () => {
+  const world = new MarketWorld(start);
+  const { entryPrice } = world.open(trade).contract;
+  const baseline = MarketWorld.restore(world.checkpoint());
+  const request = { tradeId: trade.id, actorId: trade.actorId, stopLoss: entryPrice / 2, takeProfit: entryPrice * 2 };
+  expect(world.setStops(request)).toMatchObject({ stopChanges: 1 });
+  expect(world.sequence).toBe(baseline.sequence + 1);
+  expect(() => world.setStops({ ...request, stopLoss: entryPrice })).toThrow("stop_loss_invalid");
+  expect(world.sequence).toBe(baseline.sequence + 1);
+  const resumed = MarketWorld.restore(JSON.parse(JSON.stringify(world.checkpoint())));
+  world.advance(start + 60_000);
+  resumed.advance(start + 60_000);
+  baseline.advance(start + 60_000);
+  expect(world.checkpoint()).toEqual(resumed.checkpoint());
+  expect(world.checkpoint().markets).toEqual(baseline.checkpoint().markets);
+  expect(() => world.setStops(request)).toThrow("trade_not_open");
+});
 it("opening DEMO positions does not alter any market path",()=>{
   const world=new MarketWorld(start),baseline=new MarketWorld(start);
   for(let i=0;i<10;i++)world.open({...trade,id:`paper-${i}`,accountType:"DEMO"});

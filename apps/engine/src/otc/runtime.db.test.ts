@@ -1,21 +1,29 @@
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
-import { prisma,reserveOtcTrade } from "@asm/db";
+import { prisma,reserveOtcTrade,type OtcStopsRequest } from "@asm/db";
+import { MarketWorld, type SimulationCheckpoint } from "@asm/market-sim";
 import { OtcRuntime } from "./runtime";
+import { createOtcHttp } from "./http";
 import { startOtcService } from "./service";
 import { assertLegacyDrained } from "./preflight";
 import { seedTestReferences } from "./fixtures";
 
 const enabled=Boolean(process.env.OTC_TEST_DATABASE_URL),runtimes:OtcRuntime[]=[],users:string[]=[];
-async function fixture(r:OtcRuntime){
+async function fixture(r:OtcRuntime, type: "LIVE" | "DEMO" = "LIVE"){
   const user=await prisma.user.create({data:{email:`runtime-${randomUUID()}@test.invalid`,passwordHash:"test-only",liveAccess:true}});users.push(user.id);
-  const account=await prisma.account.create({data:{userId:user.id,type:"LIVE",currency:"INR",realBalance:100000}});
+  const account=await prisma.account.create({data:{userId:user.id,type,currency:"INR",realBalance:100000}});
   const quote=(await r.snapshot("BTCUSDT")).displayQuote!;
   return {actorId:user.id,accountId:account.id,idempotencyKey:randomUUID(),symbol:"BTCUSDT",direction:"UP" as const,stake:10000,durationSec:60,quoteToken:quote.token};
 }
 async function runtime(hook?:ConstructorParameters<typeof OtcRuntime>[2]){
   const r=new OtcRuntime(prisma,process.env.OTC_TEST_DATABASE_URL!,hook);runtimes.push(r);await r.start();return r;
+}
+async function freezeRuntimeClock(runtime: OtcRuntime) {
+  const time = Date.now();
+  const clock = vi.spyOn(Date, "now").mockReturnValue(time);
+  await runtime.advance(time);
+  return clock;
 }
 describe.skipIf(!enabled)("durable OTC coordinator on isolated Postgres",()=>{
   beforeEach(async()=>{
@@ -156,6 +164,147 @@ describe.skipIf(!enabled)("durable OTC coordinator on isolated Postgres",()=>{
     const after=await r.snapshot("BTCUSDT");expect(after.market.tobs.orders).toBe(before.market.tobs.orders);
     await r.open({...input,idempotencyKey:randomUUID()});
   },20000);
+  it("replays existing opens with stops and applies each stop request once, even after settlement", async () => {
+    const r = await runtime();
+    await freezeRuntimeClock(r);
+    const input = await fixture(r);
+    const entry = (await r.snapshot(input.symbol)).displayQuote!.price;
+    const trade = await r.open({ ...input, stopLoss: entry * 0.5, takeProfit: entry * 2 });
+    expect(trade).toMatchObject({ stopLoss: entry * 0.5, takeProfit: entry * 2 });
+    const request = { tradeId: trade.id, actorId: input.actorId, requestId: randomUUID(), stopLoss: entry * 0.8, takeProfit: null };
+    const first = await r.setStops(request);
+    const cleared = await r.setStops({ ...request, requestId: randomUUID(), stopLoss: null });
+    expect(first).toMatchObject({ stopLoss: request.stopLoss, takeProfit: null });
+    expect(cleared).toMatchObject({ stopLoss: null, takeProfit: null });
+    await expect(r.setStops({ ...request, stopLoss: null })).rejects.toThrow("not_found");
+    await expect(r.setStops({ ...request, takeProfit: entry * 2 })).rejects.toThrow("not_found");
+    expect(await r.setStops(request)).toEqual(first);
+    const snapshot = await r.snapshot(input.symbol);
+    await r.stop(false);
+    const resumed = await runtime();
+    expect({ ...await resumed.snapshot(input.symbol), displayQuote: null }).toEqual({ ...snapshot, displayQuote: null });
+    expect(await prisma.trade.findUniqueOrThrow({ where: { id: trade.id } })).toMatchObject({ stopLoss: null, takeProfit: null });
+    await resumed.advance(trade.expiryTs.getTime());
+    expect(await resumed.setStops(request)).toEqual(first);
+    const commands = await prisma.marketCommand.findMany({
+      where: { accountId: input.accountId, idempotencyKey: { startsWith: "stops:" } }, orderBy: { sequence: "asc" },
+    });
+    expect(commands.map((row) => row.result)).toEqual([
+      { change: { tradeId: trade.id, stopLoss: request.stopLoss, takeProfit: null, stopChanges: 1 }, trade: first },
+      { change: { tradeId: trade.id, stopLoss: null, takeProfit: null, stopChanges: 2 }, trade: cleared },
+    ]);
+    expect(await prisma.transaction.count({ where: { accountId: input.accountId, kind: "TRADE_STAKE" } })).toBe(1);
+  }, 30000);
+
+  it("rejects a stop edit when the database closes the trade during the command and replays it on restart", async () => {
+    let closeTradeId: string | undefined;
+    const r = await runtime(async (stage) => {
+      if (stage !== "applied" || !closeTradeId) return;
+      const id = closeTradeId;
+      closeTradeId = undefined;
+      await prisma.trade.update({ where: { id }, data: { status: "REFUNDED" } });
+    });
+    await freezeRuntimeClock(r);
+    const input = await fixture(r, "DEMO");
+    const trade = await r.open(input);
+    const request = { actorId: input.actorId, requestId: randomUUID(), stopLoss: trade.entryPrice * 0.5, takeProfit: null };
+    await r.checkpoint();
+    closeTradeId = trade.id;
+
+    const secret = "isolated-runtime-test-secret";
+    const http = createOtcHttp(r, secret, 0);
+    const port = await http.listen();
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/otc/trades/${trade.id}/stops`, {
+        method: "POST", headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({ error: "trade_not_open" });
+    } finally {
+      await http.close();
+    }
+    const saved = await prisma.marketCommand.findFirstOrThrow({ where: { idempotencyKey: `stops:${request.requestId}` } });
+    expect(saved).toMatchObject({
+      status: "REJECTED",
+      result: { error: "trade_not_open", change: { tradeId: trade.id, stopLoss: request.stopLoss, takeProfit: null, stopChanges: 1 } },
+    });
+    expect(await prisma.trade.findUniqueOrThrow({ where: { id: trade.id } })).toMatchObject({
+      status: "REFUNDED", stopLoss: null, takeProfit: null,
+    });
+    await expect(r.advance(Date.now() + 1)).resolves.toBeUndefined();
+    await r.stop(false);
+
+    const resumed = await runtime();
+    await expect(resumed.setStops({ ...request, tradeId: trade.id })).rejects.toThrow("trade_not_open");
+    await expect(resumed.advance(trade.expiryTs.getTime())).resolves.toBeUndefined();
+  }, 30000);
+
+  it.each(["STOP_LOSS", "TAKE_PROFIT"] as const)("settles an edited %s at the executed price", async (reason) => {
+    const r = await runtime();
+    await freezeRuntimeClock(r);
+    const initial = await r.snapshot("BTCUSDT");
+    const input = await fixture(r, "DEMO");
+    const displayed = (await r.snapshot(input.symbol)).displayQuote!;
+    const state = await (r as unknown as { worker: { checkpoint(): Promise<SimulationCheckpoint> } }).worker.checkpoint();
+    const market = MarketWorld.restore(state).markets.get(input.symbol)!;
+    let hit: { time: number; price: number } | undefined;
+    market.advance(initial.time + 30_000, (fill) => {
+      const price = fill.price * market.profile.tickSize;
+      if (!hit && Math.abs(price - displayed.price) > market.profile.tickSize / 2) hit = { time: fill.time, price };
+    });
+    expect(hit).toBeDefined();
+    const { time, price } = hit!;
+    const up = (price > displayed.price) === (reason === "TAKE_PROFIT");
+    // Run the same deterministic market with a demo position, which adds no order-book flow.
+    const trade = await r.open({ ...input, quoteToken: displayed.token, direction: up ? "UP" : "DOWN" });
+    const level = (displayed.price + price) / 2;
+    const request = {
+      tradeId: trade.id, actorId: input.actorId, requestId: randomUUID(),
+      stopLoss: reason === "STOP_LOSS" ? level : null, takeProfit: reason === "TAKE_PROFIT" ? level : null,
+    };
+    expect(await r.setStops(request)).toMatchObject({ stopLoss: request.stopLoss, takeProfit: request.takeProfit });
+    await r.advance(time);
+    expect(await prisma.trade.findUniqueOrThrow({ where: { id: trade.id } })).toMatchObject({
+      status: reason === "STOP_LOSS" ? "LOST" : "WON", closeReason: reason, exitPrice: price, closedAt: new Date(time),
+      pnl: reason === "STOP_LOSS" ? -10000 : 9200,
+    });
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: input.accountId } })).realBalance).toBe(
+      reason === "STOP_LOSS" ? 90000 : 109200,
+    );
+  }, 30000);
+
+  it("records business refusals, protects ownership and keeps the change cap after restart", async () => {
+    const r = await runtime();
+    const clock = await freezeRuntimeClock(r);
+    const input = await fixture(r, "DEMO");
+    const trade = await r.open(input);
+    const request: Omit<OtcStopsRequest, "requestId"> = { tradeId: trade.id, actorId: input.actorId, stopLoss: null, takeProfit: null };
+    const edit = (fields: Partial<typeof request> = {}, requestId = randomUUID()) => r.setStops({ ...request, ...fields, requestId });
+    await expect(edit({ actorId: randomUUID() })).rejects.toThrow("not_found");
+    await expect(edit({ tradeId: randomUUID() })).rejects.toThrow("not_found");
+    const legacy = await prisma.trade.create({ data: { ...trade, id: randomUUID(), mode: "LEGACY_BINARY", marketCommandId: null, idempotencyKey: null, status: "CLOSED" } });
+    await expect(edit({ tradeId: legacy.id })).rejects.toThrow("not_found");
+    const rejectedId = randomUUID();
+    await expect(edit({ stopLoss: trade.entryPrice }, rejectedId)).rejects.toThrow("stop_loss_invalid");
+    await expect(edit({ stopLoss: trade.entryPrice }, rejectedId)).rejects.toThrow("stop_loss_invalid");
+    await expect(edit({ takeProfit: trade.entryPrice })).rejects.toThrow("take_profit_invalid");
+    for (let i = 0; i < 20; i++) await edit({ stopLoss: trade.entryPrice * (0.5 + i / 100) });
+    await expect(edit()).rejects.toThrow("stops_limit");
+    await r.checkpoint();
+    await r.stop(false);
+    const resumed = await runtime();
+    await expect(resumed.setStops({ ...request, requestId: randomUUID() })).rejects.toThrow("stops_limit");
+    clock.mockReturnValue(trade.expiryTs.getTime());
+    // The database still shows OPEN until the ordered command catches up to expiry.
+    await expect(resumed.setStops({ ...request, requestId: randomUUID() })).rejects.toThrow("trade_not_open");
+    await expect(resumed.setStops({ ...request, requestId: randomUUID() })).rejects.toThrow("trade_not_open");
+    const rejected = await prisma.marketCommand.findMany({ where: { accountId: input.accountId, status: "REJECTED" } });
+    expect(rejected.map((row) => row.result)).toEqual(expect.arrayContaining([
+      { error: "stop_loss_invalid" }, { error: "take_profit_invalid" }, { error: "stops_limit" }, { error: "trade_not_open" },
+    ]));
+    expect(rejected).toHaveLength(5);
+  }, 30000);
   it("polls and persists real reference inputs without replacing executed candles",async()=>{
     const failures:unknown[]=[];
     await prisma.marketReferencePoll.create({data:{group:"crypto",attemptedAt:new Date(0),nextDueAt:new Date(0),failures:0}});

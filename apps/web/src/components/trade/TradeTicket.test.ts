@@ -32,22 +32,30 @@ it("retries an ambiguous OTC request with its original duration and key as clock
   // Each press shows "Opening…" at once, at the displayed price, keyed by the request.
   expect(placeholders.slice(-2)).toEqual([0,1].map(()=>expect.objectContaining({id:`pending:${first.idempotencyKey}`,pending:true,entryPrice:100})));
 });
-it("submits chart-picked levels and retries the same intent even after price crosses a line",async()=>{
-  let price=100;
-  const post=vi.fn().mockResolvedValueOnce({ok:false,status:503,json:async()=>({error:"Try again"})})
-    .mockResolvedValueOnce({ok:true,status:201,json:async()=>({trade:{id:"protected"},balances:{realBalance:9990000,bonusBalance:0}})});
-  vi.stubGlobal("fetch",post);
-  const onProtectionChange=vi.fn(),props={otc:true,symbol:"BTCUSDT",pair:"BTC/USDT",accountId:"demo",currency:"INR",payoutPct:92,onOpened:vi.fn(),
-    protectionDraft:{enabled:true,direction:"UP" as const,stopLoss:95,takeProfit:105},onProtectionChange,market:{getDisplayedQuote:()=>({price,token:"displayed-quote"})} as any};
-  await act(async()=>render(h(TradeTicket,props)));
-  expect(screen.queryByLabelText("Stop loss price")).toBeNull();
-  await act(async()=>fireEvent.click(screen.getByRole("button",{name:/^Sell(?! levels)/i})));
-  expect(post).not.toHaveBeenCalled();expect(screen.getByRole("alert").textContent).toMatch(/direction/);
-  await act(async()=>fireEvent.click(screen.getByRole("button",{name:/^Buy(?! levels)/i})));
-  price=110;
-  await act(async()=>fireEvent.click(screen.getByRole("button",{name:/^Buy(?! levels)/i})));
-  const body=JSON.parse(post.mock.calls[0]![1].body);
-  expect(body.stopLoss).toBe(95);expect(body.takeProfit).toBe(105);
-  expect(JSON.parse(post.mock.calls[1]![1].body)).toEqual(body);
-  expect(onProtectionChange).toHaveBeenLastCalledWith(expect.objectContaining({enabled:false}));
+it("remembers the inline SL / TP tick and opens an OTC trade without stops", async () => {
+  localStorage.setItem("asm_chart_protection", "on");
+  const post = vi.fn().mockResolvedValue({ ok: true, status: 201, json: async () => ({
+    trade: { id: "new-trade", mode: "OTC_FIXED" }, balances: { realBalance: 9990000, bonusBalance: 0 },
+  }) });
+  vi.stubGlobal("fetch", post);
+  const props = { otc: true, symbol: "BTCUSDT", pair: "BTC/USDT", accountId: "demo", currency: "INR", payoutPct: 92, onOpened: vi.fn(),
+    market: { getDisplayedQuote: () => ({ price: 100, token: "displayed-quote" }) } as any };
+  const view = render(h(TradeTicket, props));
+  const tick = screen.getByRole<HTMLInputElement>("checkbox", { name: "SL / TP" });
+  expect(tick.checked).toBe(false);
+  expect(screen.getByText("Investment", { selector: "label" }).parentElement?.contains(tick)).toBe(true);
+  fireEvent.click(tick);
+  expect(localStorage.getItem("asm_otc_sltp")).toBe("on");
+  expect(screen.queryByText(/Buy levels|Reset chart levels|SL loses stake/)).toBeNull();
+  view.unmount();
+  render(h(TradeTicket, props));
+  expect(screen.getByRole<HTMLInputElement>("checkbox", { name: "SL / TP" }).checked).toBe(true);
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: /^Sell/i })));
+  expect(post).toHaveBeenCalledTimes(1);
+  const body = JSON.parse(post.mock.calls[0]![1].body);
+  expect(body).toMatchObject({ direction: "DOWN", quoteToken: "displayed-quote" });
+  expect(body).not.toHaveProperty("stopLoss");
+  expect(body).not.toHaveProperty("takeProfit");
+  expect(props.onOpened).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole<HTMLInputElement>("checkbox", { name: "SL / TP" }).checked).toBe(true);
 });

@@ -1,6 +1,6 @@
 import { parentPort,workerData } from "node:worker_threads";
 import { setImmediate as yieldLoop } from "node:timers/promises";
-import { MarketWorld,type Candle,type OpenContractCommand,type ReferenceQuote,type SimulationCheckpoint } from "@asm/market-sim";
+import { MarketWorld,type Candle,type OpenContractCommand,type ReferenceQuote,type SimulationCheckpoint,type SetContractStops } from "@asm/market-sim";
 import type { OtcArchiveBatch } from "./archive";
 interface Options {start:number;references?:ReferenceQuote[];checkpoint?:SimulationCheckpoint;closedCandles?:Record<string,Candle[]>;}
 const options=workerData as Options;
@@ -20,6 +20,7 @@ parentPort!.on("message",(request:{id:number;type:string;payload:unknown})=>{
           if(recordCommand)world.sequence++;result={time:world.time,sequence:world.sequence};break;
         }
         case "open":result=world.open(request.payload as OpenContractCommand);break;
+        case "stops":result=world.setStops(request.payload as SetContractStops);break;
         case "reference":world.reference(request.payload as ReferenceQuote);result=true;break;
         case "snapshot":{const p=request.payload as {symbol:string;since?:number};result=world.snapshot(p.symbol,p.since);break;}
         case "summaries":result=world.summaries();break;

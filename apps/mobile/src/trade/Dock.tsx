@@ -1,5 +1,4 @@
 import { useProtection } from "./protection-store";
-import { EMPTY_PROTECTION, initialProtection } from "./otc-protection";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
@@ -10,6 +9,7 @@ import { useSocket } from "@/socket/socket-store";
 import { color, radius } from "@/theme/tokens";
 import { Txt } from "@/theme/ui";
 import { Money } from "@/ui/Money";
+import { Icon } from "@/ui/Icon";
 import type { SheetRef } from "@/ui/Sheet";
 import { ExpirySheet } from "./ExpirySheet";
 import { KeypadSheet } from "./KeypadSheet";
@@ -21,6 +21,8 @@ import { TradeButton } from "./TradeButton";
 import { useTradePrefs, useUserPrefs } from "./trade-prefs";
 import { useTradeSubmit } from "./useTradeSubmit";
 
+const TRADE_BUTTON_HEIGHT = 72;
+
 /**
  * Amount, trade length and Up/Down. The bottom nav below already adds the bottom safe-area inset, so the dock has
  * none. Expiry and the stake (kept separately for each currency) are saved per user. The stake is checked against
@@ -28,8 +30,8 @@ import { useTradeSubmit } from "./useTradeSubmit";
  */
 export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: string; asset: AppAsset }) {
   const { t } = useTranslation();
-  const protectionKey = `${accountId}:${asset.symbol}`;
-  const protection = useProtection(s => s.key === protectionKey ? s.draft : EMPTY_PROTECTION);
+  const stopsEnabled = useProtection(s => s.enabled);
+  const toggleStops = useProtection(s => s.toggle);
   const quoteReady = useSocket(s => s.phase === "authed" && s.chart.symbol === asset.symbol && !!s.chart.displayQuote);
   const prefs = useUserPrefs(boot.userId);
   const account = boot.accounts.find((a) => a.id === accountId);
@@ -62,31 +64,33 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
 
 
   return (
-    <View style={{ paddingTop: 10, paddingHorizontal: 14, paddingBottom: 8, gap: 10, borderTopWidth: 1, borderTopColor: color.ruleSoft, backgroundColor: color.dock }}>
+    <View style={{ paddingTop: 10, paddingHorizontal: 14, paddingBottom: 8, gap: 8, borderTopWidth: 1, borderTopColor: color.ruleSoft, backgroundColor: color.dock }}>
       <View style={{ flexDirection: "row", gap: 10 }}>
-        <Pressable testID="stake-tile" accessibilityRole="button" accessibilityLabel={[t("trade.stakeButton", { amount: stakeLabel }), problem].filter(Boolean).join(" ")} onPress={() => keypad.current?.present()} style={{ flex: 1, minHeight: 53, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: color.raised, borderWidth: 1, borderColor: problem ? color.downText : color.rule }}>
+        <Pressable testID="stake-tile" accessibilityRole="button" accessibilityLabel={[t("trade.stakeButton", { amount: stakeLabel }), problem].filter(Boolean).join(" ")} onPress={() => keypad.current?.present()} style={{ flex: 1, minHeight: 66, justifyContent: "center", paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: color.raised, borderWidth: 1, borderColor: problem ? color.downText : color.rule }}>
           <Txt size={11} color={problem ? color.downText : color.ink2} numberOfLines={1}>{problem || t("trade.amount")}</Txt>
-          <Money text={stakeLabel} size={20} weight={600} numberOfLines={1} adjustsFontSizeToFit />
+          <Money text={stakeLabel} size={25} weight={600} numberOfLines={1} adjustsFontSizeToFit />
         </Pressable>
-        <Pressable testID="expiry-tile" accessibilityRole="button" accessibilityLabel={t("trade.expiryOption", { label: formatDuration(expirySec) })} onPress={() => expiry.current?.present()} style={{ flex: 1, minHeight: 53, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: color.raised, borderWidth: 1, borderColor: color.rule }}>
+        <Pressable testID="expiry-tile" accessibilityRole="button" accessibilityLabel={t("trade.expiryOption", { label: formatDuration(expirySec) })} onPress={() => expiry.current?.present()} style={{ flex: 1, minHeight: 66, justifyContent: "center", paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: color.raised, borderWidth: 1, borderColor: color.rule }}>
           <Txt size={11} color={color.ink2}>{t("redesign.duration")}</Txt>
-          <Txt size={20} weight={600}>{formatDuration(expirySec)}  ⌄</Txt>
+          <Txt size={25} weight={600}>{formatDuration(expirySec)}  ⌄</Txt>
         </Pressable>
       </View>
 
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <Pressable testID="protection-toggle" accessibilityRole="switch" accessibilityState={{ checked: protection.enabled }} accessibilityLabel="SL / TP" onPress={() => {
-          const price = useSocket.getState().chart.displayQuote?.price;
-          if (protection.enabled) useProtection.getState().set(protectionKey, EMPTY_PROTECTION);
-          else if (price) useProtection.getState().set(protectionKey, initialProtection(price, asset.precision, protection.direction));
-        }} style={{ minHeight: 44, justifyContent: "center" }}><Txt color={protection.enabled ? color.up : color.ink2}>SL / TP {protection.enabled ? "●" : "○"}</Txt></Pressable>
-        {protection.enabled ? (["UP", "DOWN"] as const).map(direction => <Pressable key={direction} accessibilityRole="button" accessibilityState={{ selected: direction === protection.direction }} onPress={() => {
-          const price = useSocket.getState().chart.displayQuote?.price;
-          if (price) useProtection.getState().set(protectionKey, initialProtection(price, asset.precision, direction));
-        }} style={{ minHeight: 44, paddingHorizontal: 8, justifyContent: "center" }}><Txt color={direction === protection.direction ? color.ink : color.ink3}>{t(direction === "UP" ? "trade.up" : "trade.down")}</Txt></Pressable>) : null}
-        <Txt size={10} color={color.ink2} style={{ flex: 1 }}>{t(protection.enabled ? "trade.dragProtection" : "trade.fixedPayout")}</Txt>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <Pressable testID="protection-toggle" accessibilityRole="checkbox" accessibilityState={{ checked: stopsEnabled }}
+          accessibilityLabel={t("trade.stops.add")} onPress={toggleStops} hitSlop={6}
+          style={{ minHeight: 28, flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <View style={{ width: 16, height: 16, alignItems: "center", justifyContent: "center",
+            borderWidth: 1, borderColor: stopsEnabled ? color.accentText : color.ink3, borderRadius: 4 }}>
+            {stopsEnabled ? <Icon name="check" size={12} color={color.accentText} strokeWidth={3} /> : null}
+          </View>
+          <Txt size={12} color={stopsEnabled ? color.ink : color.ink2}>{t("trade.stops.add")}</Txt>
+        </Pressable>
+        <Txt size={11} color={color.ink2} numberOfLines={1} style={{ flexShrink: 1, textAlign: "right" }}>
+          {t("redesign.potentialProfit")}: {profit === null ? "—" : money(profit, currency)}
+        </Txt>
       </View>
-      {pending && !busy ? <Pressable testID="retry-previous-trade" accessibilityRole="button" onPress={() => void retry()} style={{ minHeight: 52, padding: 12, backgroundColor: color.raised, borderRadius: radius.md, borderWidth: 1, borderColor: color.gold }}>
+      {pending && !busy ? <Pressable testID="retry-previous-trade" accessibilityRole="button" onPress={() => void retry()} style={{ minHeight: TRADE_BUTTON_HEIGHT, padding: 12, backgroundColor: color.raised, borderRadius: radius.md, borderWidth: 1, borderColor: color.gold }}>
         <Txt size={12}>{t("trade.retryNamed", { direction: pending.body.direction, symbol: pending.body.symbol, amount: money(pending.body.stake, pending.body.currency ?? currency), price: pending.displayedPrice ?? "—" })}</Txt>
       </Pressable> : <View style={{ flexDirection: "row", gap: 10 }}>
         {(["UP", "DOWN"] as const).map((dir) => {
@@ -105,15 +109,13 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
               accessibilityLabel={[label, payoutText, win ?? ""].filter(Boolean).join(", ")}
               disabled={blocked}
               busy={busy}
+              height={TRADE_BUTTON_HEIGHT}
               onPress={() => void submit(dir)}
             />
           );
         })}
       </View>}
 
-      <Txt size={11} color={color.ink2} numberOfLines={1} style={{ textAlign: "center" }}>
-        {t("redesign.potentialProfit")}: {profit === null ? "—" : money(profit, currency)}
-      </Txt>
       <KeypadSheet
         ref={keypad}
         currency={currency}

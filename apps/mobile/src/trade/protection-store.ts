@@ -1,20 +1,25 @@
 import { create } from "zustand";
-import { EMPTY_PROTECTION, type Protection } from "./otc-protection";
+import { openMmkv } from "@/cache/mmkv";
 
-export const useProtection = create<{
-  key: string;
-  draft: Protection;
-  set: (key: string, draft: Protection) => void;
-}>((set) => ({ key: "", draft: EMPTY_PROTECTION, set: (key, draft) => set({ key, draft }) }));
-export function protectionFor(key: string) {
-  const state = useProtection.getState();
-  return state.key === key ? state.draft : EMPTY_PROTECTION;
-}
+const KEY = "post-trade-stops";
 
-/** Clear only the submitted draft; edits made while the request was in flight belong to the next trade. */
-export function clearAcceptedProtection(trade: { accountId: string; symbol: string; direction: string; stopLoss?: number | null; takeProfit?: number | null }) {
-  const state = useProtection.getState();
-  if (state.key === `${trade.accountId}:${trade.symbol}` && state.draft.direction === trade.direction && state.draft.stopLoss === trade.stopLoss && state.draft.takeProfit === trade.takeProfit) {
-    state.set(state.key, EMPTY_PROTECTION);
+export const useProtection = create<{ enabled: boolean; toggle: () => void }>((set, get) => ({
+  enabled: readPreference(),
+  toggle: () => {
+    const enabled = !get().enabled;
+    set({ enabled });
+    try {
+      openMmkv("ixt-prefs")?.set(KEY, enabled);
+    } catch {
+      // The switch still works until the app closes if device storage is unavailable.
+    }
+  },
+}));
+
+function readPreference(): boolean {
+  try {
+    return openMmkv("ixt-prefs")?.getBoolean(KEY) === true;
+  } catch {
+    return false;
   }
 }

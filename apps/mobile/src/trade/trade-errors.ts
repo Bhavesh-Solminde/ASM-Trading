@@ -5,8 +5,6 @@ import { money } from "@/money/format";
 /** Server refusal codes (the web trade route passes the engine's reason through as `code`) with translated copy. */
 const KEYS: Record<string, string> = {
   display_quote_expired: "trade.waitPrice",
-  "Invalid stop loss": "trade.adjustProtection",
-  "Invalid take profit": "trade.adjustProtection",
   insufficient_funds: "trade.insufficient",
   market_closed: "trade.marketClosed",
   account_not_active: "trade.accountPaused",

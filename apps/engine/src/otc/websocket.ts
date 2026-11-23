@@ -26,7 +26,7 @@ export class OtcWebSocketServer {
     this.server.on("connection",socket=>this.connect(socket));
     this.timer=setInterval(()=>{void this.publish();},1000);
     this.budget=setInterval(()=>{for(const c of this.clients)c.budget=60;},10000);
-    runtime.setNotifier((tradeId,actorId)=>this.notify(tradeId,actorId));
+    runtime.setNotifier((tradeId,actorId,updatedTrade)=>this.notify(tradeId,actorId,updatedTrade));
   }
   isUserOnline(userId:string){return [...this.clients].some(c=>c.userId===userId&&c.socket.readyState===c.socket.OPEN);}
   port(){return (this.server.address() as {port:number}).port;}
@@ -114,7 +114,11 @@ export class OtcWebSocketServer {
     }catch{for(const c of this.clients)c.socket.close(1013,"Market reconnect required");}
     finally{this.publishing=false;}
   }
-  private async notify(tradeId:string,actorId:string){
+  private async notify(tradeId:string,actorId:string,updatedTrade?:TradeView){
+    if (updatedTrade) {
+      for (const client of this.clients) if (client.userId === actorId) this.send(client, { type: "trade:opened", trade: updatedTrade });
+      return;
+    }
     const row=await prisma.trade.findUniqueOrThrow({where:{id:tradeId},include:{asset:{select:{symbol:true}},account:true}});
     const trade=tradeViewFrom(row,row.asset.symbol);
     if(trade.status!=="OPEN")this.onSettlement?.(actorId,trade);

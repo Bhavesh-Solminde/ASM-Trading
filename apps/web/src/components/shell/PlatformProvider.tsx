@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { BalancesDto, OpenTradeResult, OtcOpenTradeInput, ServerMessage, Timeframe, TradeOpenRejectedMessage, TradeOpenResultMessage, TradeView } from "@asm/contracts";
+import type { BalancesDto, OpenTradeResult, OtcOpenTradeInput, OtcSetStopsInput, ServerMessage, Timeframe, TradeOpenRejectedMessage, TradeOpenResultMessage, TradeView } from "@asm/contracts";
 import { useEngineSocket, type SocketStatus } from "@/components/chart/useEngineSocket";
 import { celebrateFestivalSettlement } from "@/lib/festive-settlement";
 import { playSettled } from "@/lib/sound";
@@ -38,17 +38,26 @@ export interface AccountView {
   currency: string;
 }
 
+type Stops = Pick<OtcSetStopsInput, "stopLoss" | "takeProfit">;
 type Action =
   | { kind: "message"; message: ServerMessage }
+  | { kind: "stopSave"; trade: TradeView; expected: Stops }
   | { kind: "opened"; result: OpenTradeResult; socketLive: boolean }
   | { kind: "fetched"; accountId: string; trades: TradeView[] }
   | { kind: "pending"; trade: TradeView }
   | { kind: "settledPending"; placeholder: TradeView; result: OpenTradeResult | null; socketLive: boolean };
 
-function reducer(state: TradeState, action: Action): TradeState {
+export function tradeReducer(state: TradeState, action: Action): TradeState {
   switch (action.kind) {
     case "message":
       return applyTradeMessage(state, action.message);
+    case "stopSave": {
+      const { trade, expected } = action;
+      const current = state.tradesByAccount[trade.accountId]?.find(item => item.id === trade.id);
+      if (current?.status !== "OPEN" || (current.stopLoss ?? null) !== expected.stopLoss ||
+          (current.takeProfit ?? null) !== expected.takeProfit) return state;
+      return withTrade(state, trade);
+    }
     case "opened":
       return withOpenResult(state, action.result, action.socketLive);
     case "fetched":
@@ -111,7 +120,7 @@ interface PlatformContextValue {
   selectChartSymbol: (symbol: string) => void;
   timeframe: Timeframe;
   selectTimeframe: (timeframe: Timeframe) => void;
-  recordTradeUpdate: (trade: TradeView) => void;
+  recordTradeUpdate: (trade: TradeView, expectedStops?: Stops) => void;
   recordOpened: (result: OpenTradeResult) => void;
   /**
    * Opens a fixed OTC trade, showing `placeholder` as "Opening…" until the engine answers. Goes over
@@ -180,7 +189,7 @@ export function PlatformProvider({
   const clearSettlement = useCallback(() => setSettlement(null), []);
   const [market] = useState(() => new MarketStore(defaultSymbol, "1m", assets));
   const [trades, dispatch] = useReducer(
-    reducer,
+    tradeReducer,
     { initialTrades, initialBalances },
     (init) => initialTradeState(init.initialTrades, init.initialBalances),
   );
@@ -331,7 +340,10 @@ export function PlatformProvider({
     return () => clearInterval(timer);
   }, [activeAccountId, refetchTrades]);
 
-  const recordTradeUpdate = useCallback((trade: TradeView) => dispatch({ kind: "message", message: { type: "trade:opened", trade } }), []);
+  const recordTradeUpdate = useCallback((trade: TradeView, expectedStops?: Stops) => {
+    if (expectedStops) dispatch({ kind: "stopSave", trade, expected: expectedStops });
+    else dispatch({ kind: "message", message: { type: "trade:opened", trade } });
+  }, []);
 
   const recordOpened = useCallback(
     (result: OpenTradeResult) => dispatch({ kind: "opened", result, socketLive: status === "open" }),

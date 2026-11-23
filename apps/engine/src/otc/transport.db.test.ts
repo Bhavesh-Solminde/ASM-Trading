@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as wait } from "node:timers/promises";
 import WebSocket from "ws";
 import { prisma } from "@asm/db";
-import type { ServerMessage,OtcMarketMessage,OpenTradeResult } from "@asm/contracts";
+import { tradeRejectionMessage,type ServerMessage,type OtcMarketMessage,type OpenTradeResult } from "@asm/contracts";
 import { OtcRuntime } from "./runtime";
 import { createOtcHttp } from "./http";
 import { OtcWebSocketServer } from "./websocket";
@@ -72,6 +72,17 @@ describe.skipIf(!enabled)("authenticated OTC transports",()=>{
       }
       expect(opened.trade.entryPrice).toBe(displayed.price);
       await until(()=>messages.some(m=>m.type==="trade:opened"));
+      const stopPath = `${endpoint}/${opened.trade.id}/stops`;
+      const stops = { actorId: user.id, requestId: randomUUID(), stopLoss: displayed.price * 0.5, takeProfit: displayed.price * 2 };
+      expect((await fetch(stopPath, { method: "POST" })).status).toBe(401);
+      const malformed = await fetch(`${endpoint}/invalid-id/stops`, { method: "POST", headers, body: JSON.stringify(stops) });
+      expect(malformed.status).toBe(404);
+      expect(await malformed.json()).toEqual({ code: "not_found", error: tradeRejectionMessage("not_found") });
+      const stopResponse = await fetch(stopPath, { method: "POST", headers, body: JSON.stringify(stops) });
+      expect(stopResponse.status).toBe(200);
+      const update = await stopResponse.json() as Pick<OpenTradeResult, "trade">;
+      expect(update.trade).toMatchObject({ id: opened.trade.id, stopLoss: stops.stopLoss, takeProfit: stops.takeProfit });
+      await until(() => messages.some(m => m.type === "trade:opened" && m.trade.id === opened.trade.id && m.trade.stopLoss === stops.stopLoss));
       await runtime.advance(Date.now()+120000);await until(()=>messages.some(m=>m.type==="trade:settled"));
       expect(settlements).toContain(`${user.id}:${opened.trade.id}`);
       await until(()=>messages.some(m=>m.type==="otc:bots"));

@@ -203,13 +203,15 @@ it("does not submit a different trade while an earlier open is uncertain", async
   expect(deps.toast).toHaveBeenLastCalledWith("<trade.retryPrevious>", "down");
 });
 
-it("keeps the original request when translation/dependencies update and supports retry after protection prices crossed", async () => {
+it("keeps the original request when translation or dependencies update and supports retry", async () => {
   const first = setup(async () => { throw new ApiError("offline", 0, "offline"); });
-  await first.submit({ ...req, stopLoss: 1, takeProfit: 2 });
+  await first.submit(req);
   const next = setup(async () => okResult);
   first.submit.updateDeps(next.deps);
   expect(first.submit.hasPending()).toBe(true);
   await first.submit.retryPending();
   expect(next.deps.openTrade).toHaveBeenCalledWith(first.deps.openTrade.mock.calls[0]![0]);
+  expect(next.deps.openTrade.mock.calls[0]![0]).not.toHaveProperty("stopLoss");
+  expect(next.deps.openTrade.mock.calls[0]![0]).not.toHaveProperty("takeProfit");
   expect(first.submit.hasPending()).toBe(false);
 });

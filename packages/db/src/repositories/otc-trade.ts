@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { FixedContract,OpenContractCommand,OpenContractResult } from "@asm/market-sim";
+import type { FixedContract,OpenContractCommand,OpenContractResult,SetContractStops,SetContractStopsResult } from "@asm/market-sim";
+import { tradeViewFrom, type TradeView } from "@asm/contracts";
 import { splitSettlementCredit } from "@asm/trading";
 import { prisma,type DbClient,type DbTransaction } from "../client";
 import { convertMinorBetween } from "./account";
@@ -14,6 +15,11 @@ export interface OtcOpenIntent {
   version:1;kind:"open";time:number;assetId:string;fromReal:number;fromBonus:number;fingerprint:string;currency?:string;
   contract:OpenContractCommand;
 }
+export type OtcStopsRequest = SetContractStops & { requestId: string };
+export type OtcStopsIntent = OtcStopsRequest & { version: 1; kind: "stops"; time: number };
+export type OtcStopsOutcome =
+  | { change: SetContractStopsResult; trade: TradeView }
+  | { error: string; change?: SetContractStopsResult };
 export class OtcRejected extends Error {}
 const fingerprint=(r:OtcTradeRequest)=>JSON.stringify({symbol:r.symbol,direction:r.direction,stake:r.stake,durationSec:r.durationSec,stopLoss:r.stopLoss??null,takeProfit:r.takeProfit??null,...(r.quoteToken?{quoteToken:r.quoteToken}:{}),...(r.currency?{currency:r.currency}:{})});
 const json=<T>(v:T)=>JSON.parse(JSON.stringify(v));
@@ -98,6 +104,80 @@ export async function finalizeOtcOpen(commandId:string,result:OpenContractResult
       durationSec:intent.contract.durationSec,stopLoss:p.stopLoss??null,takeProfit:p.takeProfit??null,entrySequence:BigInt(p.entrySequence),
       flowLots:result.flowLots,filledLots:result.filledLots,marketCommandId:row.id,idempotencyKey:row.idempotencyKey,status:"OPEN"}});
     await tx.marketCommand.update({where:{id:row.id},data:{status:"APPLIED",result:json(result)}});return trade;
+  });
+}
+
+/** Preflight a stop edit and append it to the same fenced log as opens. */
+export async function reserveOtcStops(request: OtcStopsRequest, client: DbClient, now: number, fence: OtcFence) {
+  return serial(client, async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(4281165,2)::text`;
+    await assertOtcFence(tx, fence);
+    const trade = await tx.trade.findUnique({
+      where: { id: request.tradeId, mode: "OTC_FIXED", account: { userId: request.actorId } },
+      select: { accountId: true, status: true },
+    });
+    if (!trade) throw new OtcRejected("not_found");
+
+    const idempotencyKey = `stops:${request.requestId.toLowerCase()}`;
+    const existing = await tx.marketCommand.findUnique({
+      where: { accountId_idempotencyKey: { accountId: trade.accountId, idempotencyKey } },
+    });
+    if (existing) {
+      const intent = existing.input as unknown as OtcStopsIntent;
+      if (intent.kind !== "stops" || intent.tradeId !== request.tradeId || intent.actorId !== request.actorId
+        || intent.stopLoss !== request.stopLoss || intent.takeProfit !== request.takeProfit) {
+        throw new OtcRejected("not_found");
+      }
+      return existing;
+    }
+    if (trade.status !== "OPEN") throw new OtcRejected("trade_not_open");
+
+    const input: OtcStopsIntent = { ...request, version: 1, kind: "stops", time: now };
+    return tx.marketCommand.create({
+      data: { input: json(input), worldId: fence.worldId, accountId: trade.accountId, actorId: request.actorId, idempotencyKey },
+    });
+  });
+}
+
+/** Save the original response with the worker result so a retry can return it after later edits or settlement. */
+export async function finalizeOtcStops(
+  commandId: string, change: SetContractStopsResult | null, rejection: string | null, client: DbClient, fence: OtcFence,
+): Promise<TradeView | null> {
+  return serial(client, async (tx) => {
+    await assertOtcFence(tx, fence);
+    await tx.$queryRaw`SELECT "id" FROM "MarketCommand" WHERE "id"=${commandId} FOR UPDATE`;
+    const row = await tx.marketCommand.findUniqueOrThrow({ where: { id: commandId } });
+    if (row.status !== "ACCEPTED") return null;
+    const intent = row.input as unknown as OtcStopsIntent;
+    if (intent.version !== 1 || intent.kind !== "stops") throw new Error("Not an OTC stops intent");
+    if (!change) {
+      if (!rejection) throw new Error("Missing OTC stops rejection");
+      await tx.marketCommand.update({ where: { id: commandId }, data: { status: "REJECTED", result: { error: rejection } } });
+      return null;
+    }
+    if (change.tradeId !== intent.tradeId || change.stopLoss !== intent.stopLoss || change.takeProfit !== intent.takeProfit) {
+      throw new Error("Worker stops do not match the reserved intent");
+    }
+    const claimed = await tx.trade.updateMany({
+      where: { id: intent.tradeId, mode: "OTC_FIXED", status: "OPEN", account: { userId: intent.actorId } },
+      data: { stopLoss: change.stopLoss, takeProfit: change.takeProfit },
+    });
+    if (!claimed.count) {
+      // The worker applied the edit before the database rejected it. Keep its result for replay.
+      await tx.marketCommand.update({
+        where: { id: commandId },
+        data: { status: "REJECTED", result: json({ error: "trade_not_open", change }) },
+      });
+      return null;
+    }
+    const updated = await tx.trade.findUniqueOrThrow({
+      where: { id: intent.tradeId },
+      include: { asset: { select: { symbol: true } } },
+    });
+    const trade = tradeViewFrom(updated, updated.asset.symbol);
+    const result: OtcStopsOutcome = { change, trade };
+    await tx.marketCommand.update({ where: { id: commandId }, data: { status: "APPLIED", result: json(result) } });
+    return trade;
   });
 }
 

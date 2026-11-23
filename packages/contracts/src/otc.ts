@@ -6,6 +6,16 @@ export const OtcOpenTradeSchema=OpenTradeSchema.extend({idempotencyKey:z.uuid(),
 export const EngineOtcOpenTradeSchema=OtcOpenTradeSchema.extend({actorId:z.uuid()});
 export type OtcOpenTradeInput=z.infer<typeof OtcOpenTradeSchema>;
 export type EngineOtcOpenTradeInput=z.infer<typeof EngineOtcOpenTradeSchema>;
+
+export const OtcSetStopsSchema = z.strictObject({
+  requestId: z.uuid(),
+  stopLoss: z.number().positive().finite().nullable(),
+  takeProfit: z.number().positive().finite().nullable(),
+});
+export const OtcTradeIdSchema = z.uuid();
+export const EngineOtcSetStopsSchema = OtcSetStopsSchema.extend({ actorId: z.uuid() });
+export type OtcSetStopsInput = z.infer<typeof OtcSetStopsSchema>;
+export type EngineOtcSetStopsInput = z.infer<typeof EngineOtcSetStopsSchema>;
 /** Opens a fixed OTC trade over the already-authenticated engine socket; the actor comes from the socket, never the client. */
 export const OtcTradeOpenRequestSchema=OtcOpenTradeSchema.extend({type:z.literal("trade:open")});
 /** Everything the OTC engine socket accepts: the shared chart messages plus trade:open. */
