@@ -2,17 +2,18 @@
 
 
 import { useState, useEffect, useRef } from "react";
-import { cfdSpreadFeeMinor, cfdSpreadFeePct, CFD_LEVERAGE, type CfdOpenTradeResult } from "@asm/contracts";
+import { cfdSpreadFeeMinor, cfdSpreadFeePct, CfdOpenTradeSchema, CFD_LEVERAGE, type CfdOpenTradeResult } from "@asm/contracts";
 import { DURATIONS_SEC } from "@asm/trading";
 import { Icon } from "@/components/shell/Icon";
 import { usePlatform } from "@/components/shell/PlatformProvider";
 import type { CfdMarketStatus } from "@/lib/use-cfd-market-status";
-import { currencySymbol, defaultStake, formatMinor, hms, minStakeMinor, nextStakeInput, MAX_STAKE_MAJOR, parseSavedStake, stakeToMinor } from "@asm/client-core";
+import { currencySymbol, defaultStake, formatMinor, hms, minStakeMinor, nextStakeInput, parseSavedStake, stakeToMinor } from "@asm/client-core";
 
 type CfdDirection = "LONG" | "SHORT";
 
 /** The desktop stepper's durations: the platform's offered ones up to the CFD maximum of 1h. */
 const STEP_DURATIONS = DURATIONS_SEC.filter((sec) => sec <= 3600);
+const MAX_STAKE_MAJOR = CfdOpenTradeSchema.shape.stake.maxValue! / 100;
 
 const STEP =
   "grid h-12 place-items-center rounded border border-control-rule text-ink-2 hover:border-control-rule-hi hover:bg-panel hover:text-ink";
@@ -54,7 +55,7 @@ export function CfdTradeTicket({
     if (restoredFor.current === currency) return;
     let amount = defaultStake(currency), duration = 300;
     try {
-      amount = parseSavedStake(localStorage.getItem(`asm_cfd_stake:${currency}`)) ?? amount;
+      amount = parseSavedStake(localStorage.getItem(`asm_cfd_stake:${currency}`), MAX_STAKE_MAJOR) ?? amount;
       const saved = Number(localStorage.getItem("asm_cfd_duration"));
       if (STEP_DURATIONS.some(value => value === saved)) duration = saved;
     } catch { /* Storage is optional. */ }
@@ -226,7 +227,7 @@ export function CfdTradeTicket({
                   autoComplete="off"
                   value={stakeInput}
                   onChange={(e) => {
-                    const raw = e.target.value, next = nextStakeInput(raw, stakeInput);
+                    const raw = e.target.value, next = nextStakeInput(raw, stakeInput, MAX_STAKE_MAJOR);
                     setStakeInput(next);
                     setError(next === raw.replace(/[₹$,\s]/g, "") ? null : `Use an amount up to ${formatMinor(MAX_STAKE_MAJOR * 100, currency)} with at most two decimal places.`);
                   }}

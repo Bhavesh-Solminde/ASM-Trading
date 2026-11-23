@@ -18,7 +18,7 @@ import {
 } from "@asm/client-core";
 import { useScrollLock } from "@/lib/use-scroll-lock";
 
-const MAX_LEN = 7;
+const MAX_LEN = String(MAX_STAKE_MAJOR).length;
 const PCT_MAX_LEN = 3;
 
 /** Delete-key glyph (the icon set has no backspace; a left chevron would read as "back"). */

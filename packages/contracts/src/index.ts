@@ -45,6 +45,7 @@ export {
 } from "./ws";
 export {
   TRADE_DURATIONS_SEC,
+  MAX_STAKE_MINOR,
   DirectionSchema,
   OpenTradeSchema,
   EngineOpenTradeSchema,

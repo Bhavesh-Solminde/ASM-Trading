@@ -8,12 +8,13 @@ export const TRADE_DURATIONS_SEC = [
 
 export const DirectionSchema = z.enum(["UP", "DOWN"]);
 export type DirectionDto = z.infer<typeof DirectionSchema>;
+export const MAX_STAKE_MINOR = 10_000_000_000;
 
 const tradeRequestShape = {
   symbol: SymbolSchema,
   direction: DirectionSchema,
   /** Minor units. Positive integer. */
-  stake: z.number().int().positive().max(100_000_000),
+  stake: z.number().int().positive().max(MAX_STAKE_MINOR),
   durationSec: z
     .number()
     .int()

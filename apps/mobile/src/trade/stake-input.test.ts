@@ -26,8 +26,9 @@ describe("validateStake", () => {
     expect(validateStake("50", "INR", 100)).toEqual({ ok: false, reason: "min" });
   });
   it("refuses a stake the server contract would reject (over the maximum)", () => {
-    expect(validateStake("1000001", "INR", Number.MAX_SAFE_INTEGER)).toEqual({ ok: false, reason: "max" });
-    expect(validateStake("1000000", "INR", Number.MAX_SAFE_INTEGER)).toEqual({ ok: true, minor: 100_000_000 });
+    expect(validateStake("100000001", "INR", Number.MAX_SAFE_INTEGER)).toEqual({ ok: false, reason: "max" });
+    expect(validateStake("100000000", "INR", Number.MAX_SAFE_INTEGER)).toEqual({ ok: true, minor: 10_000_000_000 });
+    expect(validateStake("100000000.01", "USD", Number.MAX_SAFE_INTEGER)).toEqual({ ok: false, reason: "max" });
   });
   it("treats a non-finite balance as zero", () => {
     expect(validateStake("100", "INR", Number.NaN)).toEqual({ ok: false, reason: "balance" });
@@ -40,7 +41,9 @@ describe("stakeAmountOpts", () => {
     expect(stakeAmountOpts("USD").decimals).toBe(true);
   });
   it("caps the whole part at the digits of the contract's maximum", () => {
-    expect(stakeAmountOpts("INR").maxInt).toBe(String(Math.floor(MAX_STAKE_MINOR / 100)).length);
+    expect(stakeAmountOpts("INR").maxInt).toBe(9);
+    expect(stakeAmountOpts("USD").maxInt).toBe(9);
+    expect(stakeAfterKey({ INR: "10000000" }, "INR", "0", stakeAmountOpts("INR"))).toEqual({ INR: "100000000" });
   });
 });
 

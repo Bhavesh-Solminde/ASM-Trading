@@ -1,4 +1,5 @@
 import { DURATIONS_SEC } from "@asm/trading";
+import { MAX_STAKE_MINOR } from "@asm/contracts";
 
 /** Quick-pick stakes (major units), all at or above the currency's minimum. */
 export function stakePresets(currency: string): readonly number[] {
@@ -10,13 +11,13 @@ export function defaultStake(currency: string): string {
   return currency === "INR" ? "100" : "10";
 }
 
-/** The largest investment the ticket accepts, in major units (₹10,00,000). */
-export const MAX_STAKE_MAJOR = 1_000_000;
+/** The largest investment the fixed trade ticket accepts, in major units (₹10,00,00,000). */
+export const MAX_STAKE_MAJOR = MAX_STAKE_MINOR / 100;
 
 /** The investment field's next text: digits and "." only; `prev` when the typed amount would pass MAX_STAKE_MAJOR. */
-export function nextStakeInput(raw: string, prev: string): string {
+export function nextStakeInput(raw: string, prev: string, maxMajor = MAX_STAKE_MAJOR): string {
   const text = raw.replace(/[₹$,\s]/g, "");
-  if (!/^\d*(\.\d{0,2})?$/.test(text) || Number(text) > MAX_STAKE_MAJOR) return prev;
+  if (!/^\d*(\.\d{0,2})?$/.test(text) || Number(text) > maxMajor) return prev;
   return text;
 }
 
@@ -78,9 +79,9 @@ export interface SavedExpiry {
 }
 
 /** A stored stake text, or null when missing, malformed or not positive. */
-export function parseSavedStake(raw: string | null): string | null {
+export function parseSavedStake(raw: string | null, maxMajor = MAX_STAKE_MAJOR): string | null {
   if (raw === null || !/^\d+(\.\d{0,2})?$/.test(raw)) return null;
-  return Number(raw) > 0 && Number(raw) <= MAX_STAKE_MAJOR ? raw : null;
+  return Number(raw) > 0 && Number(raw) <= maxMajor ? raw : null;
 }
 
 /**

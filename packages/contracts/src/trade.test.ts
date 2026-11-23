@@ -14,6 +14,11 @@ describe("OpenTradeSchema", () => {
     expect(OpenTradeSchema.parse(valid).stake).toBe(10_000);
   });
 
+  it.each(["INR", "USD"] as const)("enforces the 100 million major-unit cap for %s", (currency) => {
+    expect(OpenTradeSchema.parse({ ...valid, currency, stake: 10_000_000_000 }).stake).toBe(10_000_000_000);
+    expect(OpenTradeSchema.safeParse({ ...valid, currency, stake: 10_000_000_001 }).success).toBe(false);
+  });
+
   it("rejects a client-supplied entry price", () => {
     expect(OpenTradeSchema.safeParse({ ...valid, entryPrice: 1.0 }).success).toBe(false);
   });
