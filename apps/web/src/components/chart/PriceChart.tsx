@@ -1037,8 +1037,8 @@ export function PriceChart({
 
   // Entry lines for this account's open trades on this asset.
   useEffect(() => {
-    const series = seriesRef.current;
-    if (!series) return;
+    const chart = chartRef.current, series = seriesRef.current;
+    if (!chart || !series) return;
     const palette = paletteRef.current!;
     const entries: typeof entryLinesRef.current = [];
     const lines = openTrades
@@ -1064,7 +1064,12 @@ export function PriceChart({
       }
     }
     entryLinesRef.current = entries;
-    return ()=>{entryLinesRef.current = [];for(const line of lines)try{series.removePriceLine(line);}catch{}};
+    return ()=>{
+      entryLinesRef.current = [];
+      // A removed chart takes its lines with it; touching it would queue a redraw that throws "Object is disposed".
+      if (chartRef.current !== chart) return;
+      for(const line of lines)try{series.removePriceLine(line);}catch{/* Series can already be gone. */}
+    };
   }, [openTrades, otcStopTrades, currency, chartVersion, enableBrackets,chartType]);
 
   return (

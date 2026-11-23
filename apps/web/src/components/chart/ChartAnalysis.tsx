@@ -131,7 +131,12 @@ export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chart
     };
     const schedule=()=>{if(!raf && !document.hidden)raf=requestAnimationFrame(update);};
     const unsub=market.subscribe(schedule);schedule();
-    return()=>{indicatorSeries.current=[];unsub();cancelAnimationFrame(raf);try{chart.clearCrosshairPosition();}catch{/* Chart may already be removed. */}for(const row of rows){try{chart.removeSeries(row.series);}catch{/* Chart may already be removed. */}}};
+    return()=>{
+      indicatorSeries.current=[];unsub();cancelAnimationFrame(raf);
+      // A removed chart takes its series with it; touching it would queue a redraw that throws "Object is disposed".
+      if(chartRef.current!==chart)return;
+      try{chart.clearCrosshairPosition();}catch{/* Chart may already be removed. */}for(const row of rows){try{chart.removeSeries(row.series);}catch{/* Chart may already be removed. */}}
+    };
   }, [chartVersion, market, symbol, indicators.join(",")]);
 
   useEffect(()=>{const palette=getChartPalette();for(const row of indicatorSeries.current)row.series.applyOptions({color:palette[row.kind]});},[theme]);
