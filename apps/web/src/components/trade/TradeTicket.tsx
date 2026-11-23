@@ -73,6 +73,8 @@ const PICK_IDLE = "bg-surface-highlight/10 text-ink hover:bg-surface-highlight/1
 const PICK_ACTIVE = "bg-brand-fill text-brand-ink";
 /** Stepper glyphs: default size on desktop, 30% smaller in the phone ticket. */
 const STEP_ICON = "size-[18px] phone:size-3";
+// These utilities override the compact ticket rules in globals.css.
+const OTC_PORTRAIT_STEPPER = "phone:portrait:[&>*]:h-[46px]! phone:portrait:[&_svg]:size-5! phone:portrait:[&_.led]:text-lg! phone:portrait:[&_.ticket-field>span]:text-lg! phone:portrait:[&_.ticket-field_input]:text-lg!";
 
 /** Ticks every second on its own, so the rest of the ticket does not re-render. */
 function ExpiresAt({ durationSec }: { durationSec: number }) {
@@ -326,7 +328,7 @@ export function TradeTicket({
   }
 
   const slab =
-    `relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-16 phone:rounded-2xl phone:pl-3.5 phone:pr-3.5 phone:text-lg phone:font-extrabold phone:leading-none land:h-12 ${otc ? "phone:portrait:h-[clamp(56px,9dvh,96px)]!" : ""}`;
+    `relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-16 phone:rounded-2xl phone:pl-3.5 phone:pr-3.5 phone:text-lg phone:font-extrabold phone:leading-none land:h-12 ${otc ? "phone:portrait:h-[52px]! phone:portrait:rounded-lg!" : ""}`;
   const slabLive = "hover:brightness-110 active:translate-y-px disabled:cursor-wait";
   const slabClosed = "cursor-not-allowed bg-tile text-ink-3";
   const slabNote =
@@ -374,7 +376,7 @@ export function TradeTicket({
   );
 
   return (
-    <div data-trade-busy={busy || undefined} className={`trade-ticket relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:mx-auto phone:w-full phone:max-w-[560px] phone:gap-2.5 phone:border-b-0 phone:pb-3 phone:pt-3 land:max-w-none land:gap-1.5 land:px-2 land:pb-[max(4px,env(safe-area-inset-bottom))] land:pt-2 ${otc ? "phone:portrait:[.trade-workspace[data-focus=false]_&]:pb-0!" : ""}`}>
+    <div data-trade-busy={busy || undefined} className={`trade-ticket relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:mx-auto phone:w-full phone:max-w-[560px] phone:gap-2.5 phone:border-b-0 phone:pb-3 phone:pt-3 land:max-w-none land:gap-1.5 land:px-2 land:pb-[max(4px,env(safe-area-inset-bottom))] land:pt-2 ${otc ? "phone:portrait:[.trade-workspace[data-focus=false]_&]:pb-2!" : ""}`}>
       <div className="flex items-baseline justify-between phone:hidden">
         <span className="text-[17px] font-bold tracking-[0.03em]">{pair}</span>
         <span className="text-[17px] font-extrabold text-brand">{payoutPct === null ? "—" : `${payoutPct}%`}</span>
@@ -385,7 +387,7 @@ export function TradeTicket({
           <span className="legend ticket-label" id="ticket-time">
             {mode === "time" ? "Time" : "Timer"}
           </span>
-          <div className="ticket-stepper grid grid-cols-[36px_minmax(0,1fr)_36px] items-center gap-1.5">
+          <div className={`ticket-stepper grid grid-cols-[36px_minmax(0,1fr)_36px] items-center gap-1.5 ${otc ? OTC_PORTRAIT_STEPPER : ""}`}>
             <button
               type="button"
               aria-label={mode === "time" ? "Earlier" : "Shorter"}
@@ -556,7 +558,7 @@ export function TradeTicket({
             )}
           </div>
 
-          <div className="ticket-stepper grid grid-cols-[36px_minmax(0,1fr)_36px] items-center gap-1.5">
+          <div className={`ticket-stepper grid grid-cols-[36px_minmax(0,1fr)_36px] items-center gap-1.5 ${otc ? OTC_PORTRAIT_STEPPER : ""}`}>
             <button type="button" aria-label="Decrease investment" onClick={() => nudge(-1)} className={STEP}>
               <Icon name="minus" className={STEP_ICON} />
             </button>
