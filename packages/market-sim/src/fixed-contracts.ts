@@ -35,6 +35,8 @@ export interface SetContractStops {
 }
 export type SetContractStopsResult = Omit<SetContractStops, "actorId"> & { stopChanges: number };
 const MAX_STOP_CHANGES = 20;
+// Mirrors MAX_STAKE_MINOR in @asm/contracts. The simulator has no package dependencies.
+const MAX_STAKE_MINOR = 10_000_000_000;
 const positive = (value: number) => Number.isFinite(value) && value > 0;
 
 /** Execution-driven fixed-payout contracts. Contains no price-making code. */
@@ -43,7 +45,7 @@ export class FixedContracts {
   open(input:FixedContractInput){
     if(this.positions.has(input.id))throw new Error("Duplicate contract");
     if(!input.id||!input.accountId||!input.actorId||!input.symbol||!["UP","DOWN"].includes(input.direction)
-      ||!Number.isSafeInteger(input.stake)||input.stake<1||input.stake>100000000
+      ||!Number.isSafeInteger(input.stake)||input.stake<1||input.stake>MAX_STAKE_MINOR
       ||!positive(input.entryPrice)||!Number.isSafeInteger(input.entryTime)||!Number.isSafeInteger(input.expiryTime)
       ||input.expiryTime<=input.entryTime||!Number.isSafeInteger(input.entrySequence)||input.entrySequence<0)throw new Error("Invalid fixed contract");
     const up=input.direction==="UP";

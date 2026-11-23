@@ -36,6 +36,8 @@ export function splitSettlementCredit(
   }
   if (stakeFromBonus === 0) return { toReal: credit, toBonus: 0 };
   if (credit === 0) return { toReal: 0, toBonus: 0 };
-  const toBonus = Math.ceil((credit * stakeFromBonus) / stake);
+  // The product can exceed the safe integer range even when every amount fits.
+  const divisor = BigInt(stake);
+  const toBonus = Number((BigInt(credit) * BigInt(stakeFromBonus) + divisor - 1n) / divisor);
   return { toReal: credit - toBonus, toBonus };
 }

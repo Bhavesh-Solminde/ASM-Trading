@@ -1,6 +1,13 @@
 import { expect,it } from "vitest";
 import { FixedContracts } from "./fixed-contracts";
 const input={id:"trade-1",accountId:"account-1",actorId:"user-1",symbol:"BTCUSDT",direction:"UP" as const,stake:10000,entryPrice:100,entryTime:1000,expiryTime:61000,entrySequence:10};
+it("accepts and settles a stake at the ceiling, and rejects one minor unit more", () => {
+  const contracts = new FixedContracts();
+  expect(() => contracts.open({ ...input, stake: 10_000_000_001 })).toThrow("Invalid fixed contract");
+  expect(contracts.open({ ...input, stake: 10_000_000_000, takeProfit: 110 }).stake).toBe(10_000_000_000);
+  contracts.observe({ symbol: input.symbol, price: 110, time: 2000, sequence: 11 });
+  expect(contracts.get(input.id)).toMatchObject({ status: "WON", pnl: 9_200_000_000, credit: 19_200_000_000 });
+});
 it.each(["UP","DOWN"] as const)("pays fixed 92%% on %s TP at the actual printed price",direction=>{
   const c=new FixedContracts(),up=direction==="UP";c.open({...input,direction,stopLoss:up?90:110,takeProfit:up?110:90});
   c.observe({symbol:input.symbol,price:up?112:88,time:2000,sequence:11});

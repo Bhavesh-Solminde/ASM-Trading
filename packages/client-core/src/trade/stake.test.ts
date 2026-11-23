@@ -95,10 +95,12 @@ describe("nextStakeInput", () => {
     expect(nextStakeInput("₹1,250", "100")).toBe("1250");
   });
   it("accepts up to the max and rejects anything above it", () => {
-    expect(MAX_STAKE_MAJOR).toBe(1_000_000);
-    expect(nextStakeInput("1000000", "100000")).toBe("1000000");
-    expect(nextStakeInput("10000000", "1000000")).toBe("1000000");
-    expect(nextStakeInput("1000000.5", "1000000")).toBe("1000000");
+    expect(MAX_STAKE_MAJOR).toBe(100_000_000);
+    expect(nextStakeInput("100000000", "10000000")).toBe("100000000");
+    expect(nextStakeInput("100000001", "100000000")).toBe("100000000");
+    expect(nextStakeInput("100000000.01", "100000000")).toBe("100000000");
+    expect(nextStakeInput("1000001", "1000000", 1_000_000)).toBe("1000000");
+    expect(parseSavedStake("1000001", 1_000_000)).toBeNull();
   });
 });
 
@@ -106,7 +108,8 @@ describe("nextStakeInput", () => {
 describe("investment regression", () => {
   it("preserves a lakh and rejects malformed or excessive amounts", () => {
     expect(nextStakeInput("₹1,00,000", "100")).toBe("100000");
-    for (const raw of ["1.2.3", "-10", "1e3", "1.234", "1000001"]) expect(nextStakeInput(raw, "100")).toBe("100");
-    expect(parseSavedStake("1000001")).toBeNull();
+    for (const raw of ["1.2.3", "-10", "1e3", "1.234", "100000001"]) expect(nextStakeInput(raw, "100")).toBe("100");
+    expect(parseSavedStake("100000000")).toBe("100000000");
+    expect(parseSavedStake("100000001")).toBeNull();
   });
 });

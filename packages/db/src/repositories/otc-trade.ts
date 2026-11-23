@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { FixedContract,OpenContractCommand,OpenContractResult,SetContractStops,SetContractStopsResult } from "@asm/market-sim";
-import { tradeViewFrom, type TradeView } from "@asm/contracts";
+import { MAX_STAKE_MINOR, tradeViewFrom, type TradeView } from "@asm/contracts";
 import { splitSettlementCredit } from "@asm/trading";
 import { prisma,type DbClient,type DbTransaction } from "../client";
 import { convertMinorBetween } from "./account";
@@ -43,7 +43,7 @@ async function serial<T>(client:DbClient,work:(tx:DbTransaction)=>Promise<T>):Pr
 
 /** Reserves actual account funds and writes the immutable worker input atomically. */
 export async function reserveOtcTrade(request:OtcTradeRequest,client:DbClient=prisma,now=Date.now(),fence?:OtcFence,resolveEntryPrice?:()=>number){
-  if(!Number.isSafeInteger(request.stake)||request.stake<1||request.stake>100000000
+  if(!Number.isSafeInteger(request.stake)||request.stake<1||request.stake>MAX_STAKE_MINOR
     ||!request.idempotencyKey||request.idempotencyKey.length>128||!["UP","DOWN"].includes(request.direction)
     ||![5,10,15,30,60,120,300,600,900,1800,3600,7200,14400].includes(request.durationSec))throw new OtcRejected("invalid_trade");
   for(const price of [request.stopLoss,request.takeProfit])if(price!=null&&(!Number.isFinite(price)||price<=0))throw new OtcRejected("invalid_stops");

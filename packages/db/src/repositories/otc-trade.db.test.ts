@@ -1,15 +1,16 @@
 import { afterAll,beforeAll,describe,expect,it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { MarketWorld,type OpenContractResult } from "@asm/market-sim";
+import { USD_INR_RATE } from "@asm/contracts";
 import { prisma } from "../client";
 import { reserveOtcTrade,finalizeOtcOpen,settleOtcTrade,type OtcOpenIntent } from "./otc-trade";
 import { convertAccountCurrency } from "./account";
 
 const enabled=Boolean(process.env.OTC_TEST_DATABASE_URL),users:string[]=[];
-async function fixture(balance=100000,bonus=0){
+async function fixture(balance=100000,bonus=0,currency="INR"){
   const user=await prisma.user.create({data:{email:`otc-${randomUUID()}@test.invalid`,passwordHash:"test-only",liveAccess:true}});users.push(user.id);
-  const live=await prisma.account.create({data:{userId:user.id,type:"LIVE",realBalance:balance,bonusBalance:bonus,currency:"INR"}});
-  const demo=await prisma.account.create({data:{userId:user.id,type:"DEMO",realBalance:balance,currency:"INR"}});
+  const live=await prisma.account.create({data:{userId:user.id,type:"LIVE",realBalance:balance,bonusBalance:bonus,currency}});
+  const demo=await prisma.account.create({data:{userId:user.id,type:"DEMO",realBalance:balance,currency}});
   return {user,live,demo};
 }
 describe.skipIf(!enabled)("OTC ledger against isolated Postgres",()=>{
@@ -19,6 +20,28 @@ describe.skipIf(!enabled)("OTC ledger against isolated Postgres",()=>{
     await prisma.asset.upsert({where:{symbol:"BTCUSDT"},create:{symbol:"BTCUSDT",displayName:"BTC OTC",kind:"OTC",payoutPct:92,isOpen:true},update:{}});
   });
   afterAll(async()=>{await prisma.marketCommand.deleteMany({where:{actorId:{in:users}}});await prisma.user.deleteMany({where:{id:{in:users}}});await prisma.$disconnect();});
+  it.each([["demo", "INR"], ["live", "USD"]] as const)("reserves and settles the max stake for %s %s", async (type, currency) => {
+    const stake = 10_000_000_000;
+    const f = await fixture(stake + 1, 0, currency);
+    const world = new MarketWorld(Date.now());
+    const accountId = f[type].id;
+    const request = { actorId: f.user.id, accountId, idempotencyKey: randomUUID(), symbol: "BTCUSDT", direction: "UP" as const, durationSec: 60, currency };
+    await expect(reserveOtcTrade({ ...request, stake: stake + 1 })).rejects.toThrow("invalid_trade");
+    const command = await reserveOtcTrade({ ...request, stake }, prisma, world.time);
+    const { contract } = command.input as unknown as OtcOpenIntent;
+    expect(contract.stakeInrMinor).toBe(stake * (currency === "USD" ? USD_INR_RATE : 1));
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: accountId } })).realBalance).toBe(1);
+    const opened = world.open(contract);
+    await finalizeOtcOpen(command.id, opened);
+    const p = opened.contract;
+    world.contracts.observe({ symbol: p.symbol, price: p.entryPrice + 1, time: p.expiryTime, sequence: p.entrySequence + 1 });
+    world.contracts.advance(p.expiryTime);
+    await expect(settleOtcTrade(world.contracts.get(command.id)!)).resolves.toMatchObject({ stake, status: "WON", pnl: 9_200_000_000 });
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: accountId } })).realBalance).toBe(19_200_000_001);
+    expect(await prisma.transaction.findFirst({ where: { accountId, kind: "TRADE_PAYOUT" } })).toMatchObject({
+      amount: 19_200_000_000, balanceAfter: 19_200_000_001,
+    });
+  });
   it("reserves once, finalizes once and settles once through the actual world",async()=>{
     const f=await fixture(),world=new MarketWorld(Date.now()),request={actorId:f.user.id,accountId:f.live.id,idempotencyKey:randomUUID(),symbol:"BTCUSDT",direction:"UP" as const,stake:10000,durationSec:60};
     const command=await reserveOtcTrade(request,prisma,world.time),intent=command.input as unknown as OtcOpenIntent;

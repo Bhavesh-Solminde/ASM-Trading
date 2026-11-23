@@ -17,7 +17,7 @@ describe("stakeProblemText", () => {
   });
 
   it("names the maximum", () => {
-    expect(stakeProblemText({ ok: false, reason: "max" }, "INR", t)).toContain("trade.maxStake");
+    expect(stakeProblemText({ ok: false, reason: "max" }, "INR", t)).toBe('trade.maxStake|{"amount":"₹10,00,00,000.00"}');
   });
 
   it("says insufficient balance without params", () => {

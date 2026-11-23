@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { splitSettlementCredit } from "./credit-split";
 
 describe("splitSettlementCredit", () => {
+  it("rounds the bonus share exactly for a large payout converted to INR", () => {
+    expect(splitSettlementCredit(1_920_000_000_000, 10_000_000_000, 9_999_999_998)).toEqual({
+      toReal: 384, toBonus: 1_919_999_999_616,
+    });
+  });
   it("returns everything to real when the stake was all real money", () => {
     expect(splitSettlementCredit(20_000, 10_000, 0)).toEqual({ toReal: 20_000, toBonus: 0 });
   });

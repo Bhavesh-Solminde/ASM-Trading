@@ -278,6 +278,10 @@ export function TradeTicket({
       setError(`Minimum investment is ${formatMinor(minStake, currency)}.`);
       return;
     }
+    if (stakeMinor > MAX_STAKE_MAJOR * 100) {
+      setError(`Maximum investment is ${formatMinor(MAX_STAKE_MAJOR * 100, currency)}.`);
+      return;
+    }
     const body={symbol,direction,stake:stakeMinor,durationSec:effectiveDurationSec,accountId};
     // Fingerprint the chosen controls, not a changing clock/percentage balance.
     // A network retry must retain the exact original stake and duration.
