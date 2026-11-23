@@ -22,23 +22,47 @@ appId: com.indianxtrade.app
     visible: "History · 3"
     timeout: 15000
 - takeScreenshot: simultaneous-trades
-- tapOn: { id: "protection-toggle" }
+- runFlow:
+    when:
+      visible: { id: "protection-toggle", checked: false }
+    commands:
+      - tapOn: { id: "protection-toggle" }
+- assertVisible: { id: "protection-toggle", checked: true }
+- tapOn: { id: "buy" }
+- extendedWaitUntil:
+    visible: { id: "trade-stops-set" }
+    timeout: 15000
+- assertVisible: "History · 4"
 - assertVisible: { id: "chart-sl" }
 - assertVisible: { id: "chart-tp" }
-- takeScreenshot: protection-before
+- takeScreenshot: protection-draft
 - swipe:
     from: { id: "chart-sl" }
     direction: DOWN
     duration: 500
+- tapOn: { id: "trade-stops-set" }
+- extendedWaitUntil:
+    visible: { id: "trade-stops-remove" }
+    timeout: 15000
+- takeScreenshot: protection-active
 - swipe:
     from: { id: "chart-tp" }
     direction: UP
     duration: 500
-- takeScreenshot: protection-after
-- tapOn: { id: "buy" }
+- tapOn: { id: "trade-stops-update" }
+- extendedWaitUntil:
+    visible: { id: "trade-stops-remove" }
+    timeout: 15000
+- tapOn: { id: "chart-tp-remove" }
+- extendedWaitUntil:
+    notVisible: { id: "chart-tp" }
+    timeout: 15000
+- assertVisible: { id: "chart-sl" }
+- tapOn: { id: "trade-stops-remove" }
+- extendedWaitUntil:
+    visible: { id: "trade-stops-add" }
+    timeout: 15000
 - assertNotVisible: { id: "chart-sl" }
-- assertNotVisible: { id: "chart-tp" }
-- assertVisible: "History · 4"
 - tapOn: "5m"
 - assertVisible: { id: "displayed-price", text: "[0-9].*" }
 - takeScreenshot: five-minute-chart

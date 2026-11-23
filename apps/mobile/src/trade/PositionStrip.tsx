@@ -14,6 +14,7 @@ export function PositionStrip({
   accountType,
   assets,
   currency,
+  onFocusTrade,
 }: {
   accountId: string;
   accountType: "DEMO" | "LIVE";
@@ -21,6 +22,7 @@ export function PositionStrip({
   currency: string;
   /** Whether this account's trade list is known complete (`useAccountTradesLoaded`); the sheet hides today's total until then. */
   listLoaded: boolean;
+  onFocusTrade: (trade: TradeView) => void;
 }) {
   const trades = useSocket((s) => s.trades.tradesByAccount[accountId]) ?? NO_TRADES;
   const soonest = useMemo(() => soonestOpen(trades), [trades]);
@@ -42,7 +44,7 @@ export function PositionStrip({
           />
         </View>
       ) : null}
-      <TradeDetailSheet ref={sheet} accountId={accountId} trade={soonest?.trade ?? null} accountType={accountType} assets={assets} currency={currency} />
+      <TradeDetailSheet ref={sheet} accountId={accountId} trade={soonest?.trade ?? null} accountType={accountType} assets={assets} currency={currency} onFocusTrade={onFocusTrade} />
     </>
   );
 }

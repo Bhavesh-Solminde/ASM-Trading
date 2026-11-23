@@ -64,12 +64,14 @@ function TradeCell({ name, side, up, detail }: { name: string; side: string; up:
 }
 
 /** Ticks on its own each second, so settled rows and the rest of the sheet never re-render for it. */
-const OpenRow = memo(function OpenRow({ trade, assets, currency }: { trade: TradeView; assets: readonly AppAsset[]; currency: string }) {
+type FocusTrade = ((trade: TradeView) => void) | undefined;
+
+const OpenRow = memo(function OpenRow({ trade, assets, currency, onFocusTrade }: { trade: TradeView; assets: readonly AppAsset[]; currency: string; onFocusTrade?: FocusTrade }) {
   const sheet = useRef<SheetRef>(null);
   const asset = assetOf(assets, trade.symbol);
   return <View style={{ marginVertical: 6 }}>
     <OpenPositionCard trade={trade} more={0} name={asset?.displayName ?? trade.symbol} precision={asset?.precision ?? 5} currency={currency} onOpen={() => sheet.current?.present()} />
-    <TradeDetailSheet ref={sheet} trade={trade} assets={assets} currency={currency} />
+    <TradeDetailSheet ref={sheet} trade={trade} assets={assets} currency={currency} onFocusTrade={onFocusTrade} />
   </View>;
 });
 
@@ -114,7 +116,7 @@ const ClosedRow = memo(function ClosedRow({ trade, assets, currency, nowMs }: { 
 });
 
 /** Mounted only while the sheet is presented, so the store subscription and the row clocks exist only then. */
-export function TradesBody({ accountId, accountType, assets, currency, listLoaded, loadingWhenEmpty = false }: { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string; listLoaded: boolean; loadingWhenEmpty?: boolean }) {
+export function TradesBody({ accountId, accountType, assets, currency, listLoaded, loadingWhenEmpty = false, onFocusTrade }: { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string; listLoaded: boolean; loadingWhenEmpty?: boolean; onFocusTrade?: FocusTrade }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("open");
   // The store only ever holds live data (bootstrap + socket), never the resume snapshot's stale trades.
@@ -150,7 +152,7 @@ export function TradesBody({ accountId, accountType, assets, currency, listLoade
         ) : (
           shown.map((x) =>
             tab === "open" ? (
-              <OpenRow key={x.id} trade={x} assets={assets} currency={currency} />
+              <OpenRow key={x.id} trade={x} assets={assets} currency={currency} onFocusTrade={onFocusTrade} />
             ) : (
               <ClosedRow key={x.id} trade={x} assets={assets} currency={currency} nowMs={nowMs} />
             ),
@@ -179,14 +181,14 @@ export function TradesBody({ accountId, accountType, assets, currency, listLoade
 }
 
 /** The selected account's trades as a small passbook: Open (live countdown) and Closed (stamped), with today's total. */
-export const TradesSheet = forwardRef<SheetRef, { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string; listLoaded: boolean }>(function TradesSheet(
-  { accountId, accountType, assets, currency, listLoaded },
+export const TradesSheet = forwardRef<SheetRef, { accountId: string; accountType: "DEMO" | "LIVE"; assets: readonly AppAsset[]; currency: string; listLoaded: boolean; onFocusTrade?: FocusTrade }>(function TradesSheet(
+  { accountId, accountType, assets, currency, listLoaded, onFocusTrade },
   ref,
 ) {
   const { t } = useTranslation();
   return (
     <Sheet ref={ref} title={t("trade.yourTrades")} snapPoints={SNAP_POINTS} scroll flush>
-      <TradesBody accountId={accountId} accountType={accountType} assets={assets} currency={currency} listLoaded={listLoaded} />
+      <TradesBody accountId={accountId} accountType={accountType} assets={assets} currency={currency} listLoaded={listLoaded} onFocusTrade={onFocusTrade} />
     </Sheet>
   );
 });

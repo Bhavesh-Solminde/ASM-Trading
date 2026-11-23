@@ -1,6 +1,6 @@
 import { createServer,type ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
-import { EngineOtcOpenTradeSchema,tradeViewFrom } from "@asm/contracts";
+import { EngineOtcOpenTradeSchema,EngineOtcSetStopsSchema,OtcTradeIdSchema,tradeRejectionMessage,tradeViewFrom } from "@asm/contracts";
 import { prisma,OtcRejected } from "@asm/db";
 import type { OtcRuntime } from "./runtime";
 import { otcProcessMetrics } from "./metrics";
@@ -17,9 +17,18 @@ export function createOtcHttp(runtime:OtcRuntime,secret:string,port:number,trans
       const url=new URL(req.url??"/","http://localhost");
       if(req.method==="GET"&&url.pathname==="/otc/metrics"){reply(res,200,{process:metrics.read(),transport:transportMetrics()});return;}
       if(req.method==="GET"&&url.pathname==="/otc/health"){reply(res,200,{model:"OTC_FIXED",generation:runtime.generation,markets:(await runtime.summaries()).length});return;}
-      if(req.method!=="POST"||url.pathname!=="/otc/trades"){reply(res,404,{error:"not_found"});return;}
+      const stops = /^\/otc\/trades\/([^/]+)\/stops$/.exec(url.pathname);
+      if(req.method!=="POST"||(url.pathname!=="/otc/trades"&&!stops)){reply(res,404,{error:"not_found"});return;}
       if(!req.headers["content-type"]?.startsWith("application/json")){reply(res,415,{error:"json_required"});return;}
       let body="";for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>4096){reply(res,413,{error:"too_large"});return;}}
+      if (stops) {
+        const tradeId = OtcTradeIdSchema.safeParse(stops[1]);
+        if (!tradeId.success) { reply(res,404,{code:"not_found",error:tradeRejectionMessage("not_found")}); return; }
+        const input = EngineOtcSetStopsSchema.safeParse(JSON.parse(body));
+        if (!input.success) { reply(res,400,{error:"invalid_stops"}); return; }
+        reply(res,200,{trade:await runtime.setStops({ ...input.data, tradeId: tradeId.data })});
+        return;
+      }
       const input=EngineOtcOpenTradeSchema.safeParse(JSON.parse(body));if(!input.success){reply(res,400,{error:"invalid_trade"});return;}
       const openedAt=performance.now();
       const trade=await runtime.open({...input.data,stopLoss:input.data.stopLoss??null,takeProfit:input.data.takeProfit??null}),account=await prisma.account.findUniqueOrThrow({where:{id:trade.accountId}});

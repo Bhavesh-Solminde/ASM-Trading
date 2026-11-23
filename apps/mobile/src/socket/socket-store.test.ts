@@ -20,6 +20,8 @@ vi.mock("@react-native-community/netinfo", () => ({
 
 import type { Bootstrap } from "@asm/contracts";
 import { ApiError } from "@/api/errors";
+import { EMPTY_STOPS } from "@/trade/otc-protection";
+import { toAnnounce } from "@/trade/result";
 import { useSocket } from "./socket-store";
 
 class FakeWS {
@@ -467,5 +469,48 @@ describe("useSocket", () => {
       expect(useSocket.getState().balanceAt["a1"]).toBeUndefined();
       expect(useSocket.getState().trades.tradesByAccount["a1"]?.[0]?.id).toBe("t1");
     });
+  });
+
+  it("updates a known position without a second open event or settlement feedback", async () => {
+    const ws = await connect();
+    const opened = vi.fn();
+    const feedback = vi.fn();
+    const seen = new Set<string>();
+    const unsubscribe = useSocket.subscribe((next, previous) => {
+      if (next.lastOpened !== previous.lastOpened) opened(next.lastOpened);
+      const announced = toAnnounce(previous, next, seen, { accountId: trade.accountId });
+      if (announced.length) feedback(announced);
+    });
+    try {
+      const fixed = { ...trade, mode: "OTC_FIXED" as const };
+      ws.receive({ type: "trade:opened", trade: fixed });
+      const changed = { ...fixed, stopLoss: 1.05, takeProfit: 1.14 };
+      ws.receive({ type: "trade:opened", trade: changed });
+      expect(useSocket.getState().trades.tradesByAccount.a1).toEqual([changed]);
+      expect(opened).toHaveBeenCalledExactlyOnceWith(fixed);
+      expect(feedback).not.toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("keeps newer socket levels and settlements when HTTP answers arrive late", async () => {
+    const ws = await connect();
+    const socket = useSocket.getState();
+    const result = { trade, balances: { realBalance: 500, bonusBalance: 0 } };
+    const changed = { ...trade, stopLoss: 1.05, takeProfit: 1.14 };
+    socket.applyOpenResult(result);
+    socket.applyStopsResult(changed, EMPTY_STOPS);
+    expect(useSocket.getState().trades.tradesByAccount.a1).toEqual([changed]);
+    const newer = { ...changed, takeProfit: 1.15 };
+    ws.receive({ type: "trade:opened", trade: newer });
+    socket.applyOpenResult(result);
+    socket.applyStopsResult(changed, EMPTY_STOPS);
+    expect(useSocket.getState().trades.tradesByAccount.a1).toEqual([newer]);
+
+    const settled = { ...newer, status: "WON" as const, exitPrice: 1.15, pnl: 920 };
+    ws.receive({ type: "trade:settled", trade: settled });
+    socket.applyStopsResult(changed, { stopLoss: 1.05, takeProfit: 1.15 });
+    expect(useSocket.getState().trades.tradesByAccount.a1).toEqual([settled]);
   });
 });

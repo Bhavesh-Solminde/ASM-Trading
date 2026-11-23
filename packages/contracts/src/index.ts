@@ -9,6 +9,7 @@ export {
   type AuthPortal,
 } from "./auth";
 export {OtcOpenTradeSchema,EngineOtcOpenTradeSchema,OtcTradeOpenRequestSchema,OtcClientMessageSchema,type OtcClientMessage,type OtcOpenTradeInput,type EngineOtcOpenTradeInput,type OtcMarketMessage,type OtcWatchlistMessage,type OtcBotsMessage,type OtcDisplayQuote} from "./otc";
+export { OtcSetStopsSchema, OtcTradeIdSchema, EngineOtcSetStopsSchema, type OtcSetStopsInput, type EngineOtcSetStopsInput } from "./otc";
 export {
   SymbolSchema,
   TimeframeSchema,

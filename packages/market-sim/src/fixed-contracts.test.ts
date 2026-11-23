@@ -27,3 +27,48 @@ it("ignores entry fills and rejects invalid protection levels",()=>{
   expect(()=>c.open({...input,id:"bad",stopLoss:101})).toThrow("stop loss");expect(()=>c.open({...input,id:"bad",takeProfit:99})).toThrow("take profit");
   expect(FixedContracts.restore(c.checkpoint()).get(input.id)).toEqual(c.get(input.id));
 });
+
+const stops = { tradeId: input.id, actorId: input.actorId, stopLoss: null, takeProfit: null };
+it.each([
+  ["UP", 90, 95, null, "stop_loss_invalid"],
+  ["UP", 110, 100, null, "stop_loss_invalid"],
+  ["UP", 110, null, 105, "take_profit_invalid"],
+  ["UP", 90, null, 100, "take_profit_invalid"],
+  ["DOWN", 110, 105, null, "stop_loss_invalid"],
+  ["DOWN", 90, 100, null, "stop_loss_invalid"],
+  ["DOWN", 90, null, 95, "take_profit_invalid"],
+  ["DOWN", 110, null, 100, "take_profit_invalid"],
+] as const)("%s rejects stops on the wrong side of either price (%i, %s, %s)", (direction, price, stopLoss, takeProfit, code) => {
+  const book = new FixedContracts();
+  book.open({ ...input, direction });
+  book.observe({ symbol: input.symbol, price, time: 2000, sequence: 11 });
+  const before = book.checkpoint();
+  expect(() => book.setStops({ ...stops, stopLoss, takeProfit }, 2000)).toThrow(code);
+  expect(book.checkpoint()).toEqual(before);
+});
+
+it.each(["UP", "DOWN"] as const)("sets and clears levels on an open %s contract and preserves them on restore", (direction) => {
+  const book = new FixedContracts();
+  const up = direction === "UP";
+  const levels = { stopLoss: up ? 90 : 110, takeProfit: up ? 110 : 90 };
+  book.open({ ...input, direction });
+  const initial = FixedContracts.restore(JSON.parse(JSON.stringify(book.checkpoint())));
+  expect(initial.setStops({ ...stops, ...levels }, 2000)).toEqual({ tradeId: input.id, ...levels, stopChanges: 1 });
+  const restored = FixedContracts.restore(JSON.parse(JSON.stringify(initial.checkpoint())));
+  expect(restored.get(input.id)).toMatchObject({ ...levels, stopChanges: 1 });
+  expect(restored.setStops({ ...stops, takeProfit: levels.takeProfit }, 3000)).toMatchObject({ stopLoss: null, takeProfit: levels.takeProfit });
+  expect(restored.setStops(stops, 4000)).toMatchObject({ stopLoss: null, takeProfit: null, stopChanges: 3 });
+});
+
+it("enforces ownership, expiry, settlement and the persisted 20-change cap", () => {
+  const book = new FixedContracts();
+  book.open(input);
+  expect(() => book.setStops({ ...stops, actorId: "someone-else" }, 2000)).toThrow("not_found");
+  expect(() => book.setStops(stops, input.expiryTime)).toThrow("trade_not_open");
+  for (let i = 0; i < 19; i++) book.setStops({ ...stops, stopLoss: 90 - i }, 2000);
+  const restored = FixedContracts.restore(JSON.parse(JSON.stringify(book.checkpoint())));
+  expect(restored.setStops(stops, 2500).stopChanges).toBe(20);
+  expect(() => restored.setStops({ ...stops, takeProfit: 102 }, 3000)).toThrow("stops_limit");
+  restored.advance(input.expiryTime);
+  expect(() => restored.setStops(stops, input.expiryTime)).toThrow("trade_not_open");
+});

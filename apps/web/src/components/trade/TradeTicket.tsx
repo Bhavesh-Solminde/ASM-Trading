@@ -14,7 +14,7 @@ import { useDismiss } from "@/lib/use-dismiss";
 import { useMarketClosed, useNowSec } from "@/lib/use-now";
 import { grossReturnMinor } from "@asm/client-core";
 import type { MarketStore } from "@/components/shell/market-store";
-import { EMPTY_OTC_PROTECTION,protectionError,type OtcProtectionDraft } from "@/components/chart/otc-protection";
+import { setOtcSltp, useOtcSltp } from "@/lib/otc-sltp-preference";
 import {
   DEFAULT_STAKE_PCT,
   MAX_STAKE_MAJOR,
@@ -88,8 +88,6 @@ export function TradeTicket({
   currency,
   payoutPct,
   onOpened,
-  protectionDraft=EMPTY_OTC_PROTECTION,
-  onProtectionChange,
   market,
 }: {
   otc?:boolean;
@@ -99,8 +97,6 @@ export function TradeTicket({
   currency: string;
   payoutPct: number | null;
   onOpened: (result: OpenTradeResult) => void;
-  protectionDraft?:OtcProtectionDraft;
-  onProtectionChange?:(draft:OtcProtectionDraft)=>void;
   market?:MarketStore;
 }) {
   const [durationSec, setDurationSec] = useState<number>(30);
@@ -126,11 +122,9 @@ export function TradeTicket({
   const [fired, setFired] = useState<"UP" | "DOWN" | null>(null);
   const sessionClosed = useMarketClosed(symbol);
   const closed=otc?false:sessionClosed;
-  const {enabled:protection,stopLoss,takeProfit}=protectionDraft;
+  const otcSltp = useOtcSltp();
   const pending=useRef<{fingerprint:string;key:string;price:number;body:Omit<OtcOpenTradeInput,"idempotencyKey">}|null>(null);
   const placing=useRef(false);
-  const mounted=useRef(true);
-  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   const minStake = minStakeMinor(currency);
 
   // The currency whose saved stake has been restored into the ticket. Saving is
@@ -282,18 +276,13 @@ export function TradeTicket({
       setError(`Minimum investment is ${formatMinor(minStake, currency)}.`);
       return;
     }
-    const stops=protection?{stopLoss,takeProfit}:{stopLoss:null,takeProfit:null};
-    const body={symbol,direction,stake:stakeMinor,durationSec:effectiveDurationSec,accountId,...(otc?stops:{})};
+    const body={symbol,direction,stake:stakeMinor,durationSec:effectiveDurationSec,accountId};
     // Fingerprint the chosen controls, not a changing clock/percentage balance.
     // A network retry must retain the exact original stake and duration.
-    const fingerprint=JSON.stringify({symbol,direction,accountId,stakeUnit,stakeInput,pctInput,mode,durationSec,targetMs,protection,stopLoss,takeProfit});
+    const fingerprint=JSON.stringify({symbol,direction,accountId,stakeUnit,stakeInput,pctInput,mode,durationSec,targetMs});
     if(otc&&pending.current?.fingerprint!==fingerprint){
       const displayedQuote=market?.getDisplayedQuote(symbol);
       if(!displayedQuote){setError("Waiting for the displayed price. Try again in a moment.");return;}
-      if(protection){
-        const validation=protectionError(protectionDraft,direction,displayedQuote.price);
-        if(validation){setError(validation);return;}
-      }
       pending.current={fingerprint,key:crypto.randomUUID(),price:displayedQuote.price,body:{...body,quoteToken:displayedQuote.token}};
     }
     placing.current=true;
@@ -308,7 +297,6 @@ export function TradeTicket({
         if(placed.ok){
           pending.current=null;
           onOpened(placed.result);
-          if(mounted.current)onProtectionChange?.({...protectionDraft,enabled:false,stopLoss:null,takeProfit:null});
         }else{
           // A network failure keeps the key so the retry can only find the same trade.
           if(placed.status>0&&placed.status<500)pending.current=null;
@@ -319,13 +307,12 @@ export function TradeTicket({
       const res = await fetch("/api/trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(otc?{...pending.current!.body,idempotencyKey:pending.current!.key}:body),
+        body: JSON.stringify(body),
       });
       const data = (await res.json().catch(() => ({}))) as Partial<OpenTradeResult> & { error?: string };
       if (res.ok && data.trade && data.balances) {
         pending.current=null;
         onOpened({ trade: data.trade, balances: data.balances });
-        if(otc&&mounted.current)onProtectionChange?.({...protectionDraft,enabled:false,stopLoss:null,takeProfit:null});
       } else {
         if(res.status<500)pending.current=null;
         setError(data.error ?? "Could not place that trade.");
@@ -339,7 +326,7 @@ export function TradeTicket({
   }
 
   const slab =
-    "relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-16 phone:rounded-2xl phone:pl-3.5 phone:pr-3.5 phone:text-lg phone:font-extrabold phone:leading-none land:h-12";
+    `relative grid h-[58px] grid-cols-[1fr_auto] items-center overflow-hidden rounded pl-[18px] pr-4 text-left text-[17px] font-black uppercase tracking-[0.08em] transition-[filter,transform] phone:h-16 phone:rounded-2xl phone:pl-3.5 phone:pr-3.5 phone:text-lg phone:font-extrabold phone:leading-none land:h-12 ${otc ? "phone:portrait:h-[clamp(56px,9dvh,96px)]!" : ""}`;
   const slabLive = "hover:brightness-110 active:translate-y-px disabled:cursor-wait";
   const slabClosed = "cursor-not-allowed bg-tile text-ink-3";
   const slabNote =
@@ -387,7 +374,7 @@ export function TradeTicket({
   );
 
   return (
-    <div data-trade-busy={busy || undefined} className="trade-ticket relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:mx-auto phone:w-full phone:max-w-[560px] phone:gap-2.5 phone:border-b-0 phone:pb-3 phone:pt-3 land:max-w-none land:gap-1.5 land:px-2 land:pb-[max(4px,env(safe-area-inset-bottom))] land:pt-2">
+    <div data-trade-busy={busy || undefined} className={`trade-ticket relative grid gap-3 border-b border-rule px-4 pb-4 pt-3.5 phone:mx-auto phone:w-full phone:max-w-[560px] phone:gap-2.5 phone:border-b-0 phone:pb-3 phone:pt-3 land:max-w-none land:gap-1.5 land:px-2 land:pb-[max(4px,env(safe-area-inset-bottom))] land:pt-2 ${otc ? "phone:portrait:[.trade-workspace[data-focus=false]_&]:pb-0!" : ""}`}>
       <div className="flex items-baseline justify-between phone:hidden">
         <span className="text-[17px] font-bold tracking-[0.03em]">{pair}</span>
         <span className="text-[17px] font-extrabold text-brand">{payoutPct === null ? "—" : `${payoutPct}%`}</span>
@@ -559,9 +546,15 @@ export function TradeTicket({
         </div>
 
         <div className="grid min-w-0 gap-1.5">
-          <label htmlFor="stake" className="legend ticket-label">
-            Investment
-          </label>
+          <div className="flex items-center justify-between gap-1">
+            <label htmlFor="stake" className="legend ticket-label">Investment</label>
+            {otc && (
+              <label className="inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-[10px] font-semibold leading-none text-ink-2 phone:relative phone:z-10 phone:-my-1.5 phone:h-6">
+                <input type="checkbox" className="size-3 accent-brand" checked={otcSltp} disabled={busy} onChange={e => setOtcSltp(e.target.checked)} />
+                SL / TP
+              </label>
+            )}
+          </div>
 
           <div className="ticket-stepper grid grid-cols-[36px_minmax(0,1fr)_36px] items-center gap-1.5">
             <button type="button" aria-label="Decrease investment" onClick={() => nudge(-1)} className={STEP}>
@@ -662,15 +655,6 @@ export function TradeTicket({
         </span>
       </div>
 
-      {otc?<fieldset className="grid gap-2 rounded border border-rule bg-panel p-3 text-xs">
-        <label className="flex items-center justify-between font-semibold">SL / TP<input aria-label="Set SL / TP on chart" type="checkbox" checked={protection} disabled={busy} onChange={e=>onProtectionChange?.({...protectionDraft,enabled:e.target.checked,stopLoss:null,takeProfit:null})}/></label>
-        {protection?<>
-          <div className="grid grid-cols-2 gap-2">{(["UP","DOWN"] as const).map(direction=><button key={direction} type="button" disabled={busy} aria-pressed={protectionDraft.direction===direction} onClick={()=>onProtectionChange?.({...protectionDraft,direction,stopLoss:null,takeProfit:null})} className={`rounded border px-3 py-2 font-semibold ${protectionDraft.direction===direction?"border-brand text-brand":"border-rule text-ink-2"}`}>{direction==="UP"?"Buy levels":"Sell levels"}</button>)}</div>
-          <span className="text-ink-2">Drag the SL and TP lines on the chart. Levels apply to your next trade.</span>
-          <button type="button" disabled={busy} onClick={()=>onProtectionChange?.({...protectionDraft,stopLoss:null,takeProfit:null})} className="text-left text-brand underline">Reset chart levels</button>
-        </>:null}
-        <span className="text-ink-3">Fixed expiry · 92% profit on a win · SL loses stake · No manual close</span>
-      </fieldset>:null}
       {closed ? (
         <div
           role="status"

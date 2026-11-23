@@ -1,7 +1,5 @@
 import { randomUUID } from "expo-crypto";
 import { displayedQuoteFor } from "./displayed-quote";
-import { clearAcceptedProtection, protectionFor } from "./protection-store";
-import { protectionValid } from "./otc-protection";
 import * as Haptics from "expo-haptics";
 import { useCallback, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -38,7 +36,7 @@ export function useTradeSubmit(input: SubmitInput): { submit: (direction: "UP" |
   const deps = {
     onPending: setPending,
     openTrade: (body: import("@asm/contracts").OtcOpenTradeInput) => api("/api/trades", { method: "POST", body, timeoutMs: OPEN_TRADE_TIMEOUT_MS }),
-    applyOpenResult: (r: import("@asm/contracts").OpenTradeResult) => { useSocket.getState().applyOpenResult(r); clearAcceptedProtection(r.trade); },
+    applyOpenResult: (r: import("@asm/contracts").OpenTradeResult) => useSocket.getState().applyOpenResult(r),
     toast,
     haptic: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
     invalidateBootstrap: () => refreshBootstrap(queryClient),
@@ -57,9 +55,7 @@ export function useTradeSubmit(input: SubmitInput): { submit: (direction: "UP" |
       const state = useSocket.getState();
       const quote = displayedQuoteFor(symbol, state.chart.timeframe, state.chart.generation);
       if (state.phase !== "authed" || !quote || quote.expiresAt <= Date.now()) { toast(t("trade.waitPrice"), "down"); return; }
-      const protection = protectionFor(`${accountId}:${symbol}`);
-      if (!protectionValid(protection, direction, quote.price)) { toast(t("trade.adjustProtection"), "down"); return; }
-      await run({ accountId, symbol, direction, stakeMinor, durationSec, currency, displayedPrice: quote.price, quoteToken: quote.token, idempotencyKey: randomUUID(), ...(protection.enabled ? { stopLoss: protection.stopLoss, takeProfit: protection.takeProfit } : {}) });
+      await run({ accountId, symbol, direction, stakeMinor, durationSec, currency, displayedPrice: quote.price, quoteToken: quote.token, idempotencyKey: randomUUID() });
     },
     [run, accountId, symbol, stakeMinor, durationSec, currency, t],
   );

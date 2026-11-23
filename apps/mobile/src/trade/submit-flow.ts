@@ -35,8 +35,6 @@ export interface SubmitRequest {
   displayedPrice?: number;
   quoteToken: string;
   idempotencyKey: string;
-  stopLoss?: number | null;
-  takeProfit?: number | null;
 }
 
 /**
@@ -65,7 +63,7 @@ export function createSubmitter(deps: SubmitDeps) {
     deps.haptic();
     const session = deps.session();
     try {
-      const fingerprint = JSON.stringify([req.accountId, req.symbol, req.direction, req.stakeMinor, req.durationSec, req.currency, req.stopLoss, req.takeProfit]);
+      const fingerprint = JSON.stringify([req.accountId, req.symbol, req.direction, req.stakeMinor, req.durationSec, req.currency]);
       if (pending && pending.session !== session) { pending = null; notify(); }
       if (pending && pending.fingerprint !== fingerprint) {
         deps.toast(deps.t("trade.retryPrevious"), "down");
@@ -118,7 +116,7 @@ export function createSubmitter(deps: SubmitDeps) {
     async retryPending() {
       if (!pending || pending.session !== deps.session()) return;
       const p = pending.body;
-      await submit({ accountId: p.accountId, symbol: p.symbol, direction: p.direction, stakeMinor: p.stake, durationSec: p.durationSec, currency: p.currency ?? "INR", quoteToken: p.quoteToken, idempotencyKey: p.idempotencyKey, ...(p.stopLoss != null ? { stopLoss: p.stopLoss } : {}), ...(p.takeProfit != null ? { takeProfit: p.takeProfit } : {}) });
+      await submit({ accountId: p.accountId, symbol: p.symbol, direction: p.direction, stakeMinor: p.stake, durationSec: p.durationSec, currency: p.currency ?? "INR", quoteToken: p.quoteToken, idempotencyKey: p.idempotencyKey });
     },
   });
 }

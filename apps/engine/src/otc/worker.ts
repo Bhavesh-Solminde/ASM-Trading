@@ -1,5 +1,5 @@
 import { Worker } from "node:worker_threads";
-import type { Candle,MarketWorld,OpenContractCommand,ReferenceQuote,SimulationCheckpoint,FixedContract,OpenContractResult } from "@asm/market-sim";
+import type { Candle,MarketWorld,OpenContractCommand,ReferenceQuote,SimulationCheckpoint,FixedContract,OpenContractResult,SetContractStops,SetContractStopsResult } from "@asm/market-sim";
 import type { OtcArchiveBatch } from "./archive";
 
 /** The engine host serializes durable commands; the worker performs no IO. */
@@ -29,6 +29,7 @@ export class OtcWorker {
   }
   advance(time:number,recordCommand=true){return this.request<{time:number;sequence:number}>("advance",{time,recordCommand});}
   open(input:OpenContractCommand){return this.request<OpenContractResult>("open",input);}
+  setStops(input: SetContractStops) { return this.request<SetContractStopsResult>("stops", input); }
   reference(q:ReferenceQuote){return this.request<boolean>("reference",q);}
   snapshot(symbol:string,since?:number){return this.request<ReturnType<MarketWorld["snapshot"]>>("snapshot",{symbol,since});}
   summaries(){return this.request<ReturnType<MarketWorld["summaries"]>>("summaries");}

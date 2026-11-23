@@ -7,8 +7,10 @@ import type { ResumeSnapshot } from "@/cache/codec";
 import { useSocket } from "@/socket/socket-store";
 import { chartSource } from "./chart-source";
 import { tradeLabel } from "./trade-label";
-import { useProtection, protectionFor } from "./protection-store";
-import { EMPTY_PROTECTION } from "./otc-protection";
+import { useProtection } from "./protection-store";
+import { focusedStopTrade, hasStops, stopLevels } from "./otc-protection";
+import { useTradeStops } from "./useTradeStops";
+import { TradeStopsActions } from "./TradeStopsActions";
 import { PriceReadout } from "./PriceReadout";
 import { View } from "react-native";
 import { useNow } from "./useNow";
@@ -33,6 +35,7 @@ export function TradeChart({
   type,
   precision,
   accountId,
+  focusedTradeId,
   snapshot,
   tradesSnapshot,
   topInset,
@@ -43,6 +46,7 @@ export function TradeChart({
   type: ChartType;
   precision: number;
   accountId: string | null;
+  focusedTradeId: string | null;
   snapshot: ResumeSnapshot | null;
   tradesSnapshot: ResumeSnapshot | null;
   /** Top of the chart readout, below the overlay row (forwarded to `Chart`). */
@@ -51,8 +55,7 @@ export function TradeChart({
   hideReadout?: boolean;
 }) {
   const { t } = useTranslation();
-  const protectionKey = `${accountId}:${symbol}`;
-  const protection = useProtection(s => s.key === protectionKey ? s.draft : EMPTY_PROTECTION);
+  const stopsEnabled = useProtection(s => s.enabled);
   const chart = useSocket((s) => s.chart);
   const liveTrades = useSocket((s) => (accountId ? s.trades.tradesByAccount[accountId] : undefined));
   const source = chartSource({ symbol, timeframe, chart, snapshot });
@@ -72,13 +75,18 @@ export function TradeChart({
   const labelFor = useCallback((tr: TradeView, now: number) => tradeLabel(tr.expiryTs, now, settling), [settling]);
 
   const live = source === "live";
+  const stopTrade = useMemo(
+    () => live && !staleTrades ? focusedStopTrade(openTrades, focusedTradeId, nowMs) : undefined,
+    [live, staleTrades, openTrades, focusedTradeId, nowMs],
+  );
+  const editable = stopTrade && (stopsEnabled || hasStops(stopLevels(stopTrade))) ? stopTrade : undefined;
+  const stops = useTradeStops(editable, live ? chart.lastPrice : null, precision);
   return (
     <View style={{ flex: 1 }}><Chart
       key={`${symbol}:${timeframe}`}
       timeframe={timeframe}
       type={type}
-      protection={protection}
-      onProtectionPrice={(side, price) => useProtection.getState().set(protectionKey, { ...protectionFor(protectionKey), [side]: price })}
+      stops={stops ?? undefined}
       candles={live ? chart.candles : source === "snapshot" && snapshot ? snapshot.candles : NO_CANDLES}
       forming={live ? chart.forming : null}
       lastPrice={live ? chart.lastPrice : null}
@@ -89,6 +97,9 @@ export function TradeChart({
       topInset={topInset}
       hideReadout={hideReadout}
       onNearLeftEdge={loadOlder}
-    />{live ? <PriceReadout symbol={symbol} precision={precision} /> : null}</View>
+    />
+    {live ? <PriceReadout symbol={symbol} precision={precision} /> : null}
+    {stops ? <TradeStopsActions stops={stops} /> : null}
+    </View>
   );
 }

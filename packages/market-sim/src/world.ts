@@ -1,6 +1,6 @@
 import { AnchoredMarket } from "./anchored-market";
 import { MULTI_MARKETS,type ReferenceQuote } from "./catalogue";
-import { FixedContracts,type FixedContract,type FixedContractInput } from "./fixed-contracts";
+import { FixedContracts,type FixedContract,type FixedContractInput,type SetContractStops } from "./fixed-contracts";
 import { flowLots,submitAccountFlow,type AccountFlowInput } from "./account-flow";
 import { isTob } from "./eligibility";
 import type { Candle } from "./types";
@@ -75,6 +75,11 @@ export class MarketWorld {
     }
     const contract=this.contracts.open({...request,entrySequence:m.book.sequence});this.sequence++;
     return {contract,flowLots:flow.requestedLots,filledLots:flow.filledLots};
+  }
+  setStops(input: SetContractStops) {
+    const result = this.contracts.setStops(input, this.time);
+    this.sequence++;
+    return result;
   }
   snapshot(symbol:string,since?:number){return {time:this.time,sequence:this.sequence,market:this.market(symbol).snapshot(since),reference:this.references.get(symbol)??null};}
   summaries(){return [...this.markets.values()].map(m=>m.summary());}

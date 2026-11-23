@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { prisma,reserveOtcTrade,finalizeOtcOpen,settleOtcTrade,assertOtcFence,OtcRejected,
-  marketReferenceRepository,type DbClient,type OtcFence,type OtcOpenIntent,type OtcTradeRequest } from "@asm/db";
-import type { OpenContractResult,ReferenceQuote,SimulationCheckpoint } from "@asm/market-sim";
+import { prisma,reserveOtcTrade,finalizeOtcOpen,settleOtcTrade,assertOtcFence,OtcRejected,reserveOtcStops,finalizeOtcStops,
+  marketReferenceRepository,type DbClient,type OtcFence,type OtcOpenIntent,type OtcTradeRequest,type OtcStopsIntent,type OtcStopsOutcome,type OtcStopsRequest } from "@asm/db";
+import type { OpenContractResult,ReferenceQuote,SetContractStopsResult,SimulationCheckpoint } from "@asm/market-sim";
 import { MULTI_MARKETS } from "@asm/market-sim";
 import { OtcWorker } from "./worker";
 import { OtcWriterLock } from "./writer-lock";
 import { loadClosedCandles,persistOtcArchive,readOtcCandles,retainOtcHistory,type RetentionOptions } from "./archive";
-import type { Timeframe } from "@asm/contracts";
+import type { Timeframe, TradeView } from "@asm/contracts";
 import { DisplayQuotes } from "./display-quotes";
 import { logger } from "@asm/logger";
 import { evaluateReferralAfterSettlement } from "../affiliate/referral-qualification";
@@ -16,6 +16,7 @@ type SystemIntent={version:1;kind:"advance";time:number}|{version:1;kind:"refere
 type Command=Awaited<ReturnType<DbClient["marketCommand"]["findUniqueOrThrow"]>>;
 const json=(value:unknown)=>JSON.parse(JSON.stringify(value));
 const BUSINESS_ERRORS=new Set(["Invalid stop loss","Invalid take profit","Liquidity unavailable","Market price unavailable","Invalid fixed contract","Invalid duration","Invalid stake scale","Unknown market"]);
+const STOPS_ERRORS = new Set(["stop_loss_invalid", "take_profit_invalid", "trade_not_open", "stops_limit", "not_found"]);
 
 /** Durable, single-writer command coordinator. Timers and public APIs are attached by its host. */
 export class OtcRuntime {
@@ -33,8 +34,8 @@ export class OtcRuntime {
   /** Last state that is durably checkpointed; cleanup may only remove commands behind it. */
   private checkpointed:{watermark:bigint;time:number}|null=null;
   private retaining:Promise<unknown>|null=null;
-  private notify:((tradeId:string,actorId:string)=>Promise<void>)|null=null;
-  setNotifier(notify:((tradeId:string,actorId:string)=>Promise<void>)|null){this.notify=notify;}
+  private notify:((tradeId:string,actorId:string,updatedTrade?:TradeView)=>Promise<void>)|null=null;
+  setNotifier(notify:typeof this.notify){this.notify=notify;}
   constructor(private client:DbClient=prisma,private databaseUrl=process.env.DATABASE_URL??"",
     private hook?:(stage:"applied"|"finalized"|"settled",id:string)=>Promise<void>){}
   private fail(error:unknown){if(this.closing)return;this.failure=error instanceof Error?error:new Error(String(error));void this.worker?.stop();}
@@ -86,8 +87,8 @@ export class OtcRuntime {
   }
   private async process(row:Command){
     this.assertActive();
-    const input=row.input as unknown as OtcOpenIntent|SystemIntent;
-    if(input.version!==1||!Number.isSafeInteger(input.time)||!["open","advance","reference"].includes(input.kind))throw new Error("Invalid durable OTC input");
+    const input=row.input as unknown as OtcOpenIntent|OtcStopsIntent|SystemIntent;
+    if(input.version!==1||!Number.isSafeInteger(input.time)||!["open","stops","advance","reference"].includes(input.kind))throw new Error("Invalid durable OTC input");
     if(input.time>this.time){
       // Bound archive memory during catch-up without skipping ticks or adding commands.
       while(this.time<input.time){
@@ -105,6 +106,30 @@ export class OtcRuntime {
       if(row.status!=="ACCEPTED"&&!isDeepStrictEqual(row.result,expected))throw new Error("OTC replay result differs from durable result");
       await finalizeOtcOpen(row.id,result,rejection,this.client,this.fence);
       if(result)await this.notify?.(row.id,input.contract.actorId).catch(()=>{});
+    }else if (input.kind === "stops") {
+      let change: SetContractStopsResult | null = null;
+      let rejection: string | null = null;
+      try {
+        change = await this.worker!.setStops(input);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!STOPS_ERRORS.has(message)) throw error;
+        rejection = message;
+      }
+      await this.hook?.("applied", row.id);
+      if (row.status === "ACCEPTED") {
+        const trade = await finalizeOtcStops(row.id, change, rejection, this.client, this.fence);
+        if (trade) await this.notify?.(input.tradeId, input.actorId, trade).catch(() => {});
+      } else {
+        const saved = row.result as unknown as OtcStopsOutcome | null;
+        const rejectedByDatabase = change && saved && "error" in saved;
+        const expected = rejectedByDatabase ? { error: "trade_not_open", change } : change ?? { error: rejection };
+        const actual = saved && "trade" in saved ? saved.change : saved;
+        const expectedStatus = change && !rejectedByDatabase ? "APPLIED" : "REJECTED";
+        if (row.status !== expectedStatus || !isDeepStrictEqual(actual, expected)) {
+          throw new Error("OTC stops replay result differs from durable result");
+        }
+      }
     }else{
       if(input.kind==="reference")await this.worker!.reference(input.quote);
       await this.hook?.("applied",row.id);
@@ -147,6 +172,17 @@ export class OtcRuntime {
       if(final.status==="REJECTED")throw new OtcRejected(String((final.result as {error:string}).error));
       if(final.status!=="APPLIED")throw new Error("OTC command has not finalized");
       return this.client.trade.findUniqueOrThrow({where:{id:command.id}});
+    });
+  }
+  setStops(request: OtcStopsRequest) {
+    return this.enqueue(async () => {
+      const command = await reserveOtcStops(request, this.client, Date.now(), this.fence);
+      await this.drain();
+      const final = await this.client.marketCommand.findUniqueOrThrow({ where: { id: command.id } });
+      const outcome = final.result as unknown as OtcStopsOutcome | null;
+      if (final.status === "REJECTED" && outcome && "error" in outcome) throw new OtcRejected(outcome.error);
+      if (final.status !== "APPLIED" || !outcome || !("trade" in outcome)) throw new Error("OTC stops command has not finalized");
+      return outcome.trade;
     });
   }
   advance(time=Date.now()){return this.enqueue(async()=>{await this.append({version:1,kind:"advance",time});await this.drain();});}

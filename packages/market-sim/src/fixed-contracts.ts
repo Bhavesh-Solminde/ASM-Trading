@@ -13,6 +13,8 @@ export interface FixedContractInput {
   takeProfit?:number|null;
 }
 export interface FixedContract extends FixedContractInput {
+  /** Absent in old checkpoints and for trades that have never changed stops. */
+  stopChanges?: number;
   payoutPct:92;
   status:"OPEN"|"WON"|"LOST"|"REFUNDED";
   lastPrice:number;
@@ -25,12 +27,21 @@ export interface FixedContract extends FixedContractInput {
 }
 export interface PublishedExecution {symbol:string;price:number;time:number;sequence:number;}
 
+export interface SetContractStops {
+  tradeId: string;
+  actorId: string;
+  stopLoss: number | null;
+  takeProfit: number | null;
+}
+export type SetContractStopsResult = Omit<SetContractStops, "actorId"> & { stopChanges: number };
+const MAX_STOP_CHANGES = 20;
+const positive = (value: number) => Number.isFinite(value) && value > 0;
+
 /** Execution-driven fixed-payout contracts. Contains no price-making code. */
 export class FixedContracts {
   private positions=new Map<string,FixedContract>();
   open(input:FixedContractInput){
     if(this.positions.has(input.id))throw new Error("Duplicate contract");
-    const positive=(v:number)=>Number.isFinite(v)&&v>0;
     if(!input.id||!input.accountId||!input.actorId||!input.symbol||!["UP","DOWN"].includes(input.direction)
       ||!Number.isSafeInteger(input.stake)||input.stake<1||input.stake>100000000
       ||!positive(input.entryPrice)||!Number.isSafeInteger(input.entryTime)||!Number.isSafeInteger(input.expiryTime)
@@ -41,6 +52,28 @@ export class FixedContracts {
     const contract:FixedContract={...input,payoutPct:92,status:"OPEN",lastPrice:input.entryPrice,lastSequence:input.entrySequence,
       exitPrice:null,settledTime:null,reason:null,credit:0,pnl:0};
     this.positions.set(input.id,contract);return {...contract};
+  }
+  setStops({ tradeId, actorId, stopLoss, takeProfit }: SetContractStops, time: number): SetContractStopsResult {
+    const position = this.positions.get(tradeId);
+    if (!position || position.actorId !== actorId) throw new Error("not_found");
+    if (position.status !== "OPEN" || time >= position.expiryTime) throw new Error("trade_not_open");
+    const changes = position.stopChanges ?? 0;
+    if (changes >= MAX_STOP_CHANGES) throw new Error("stops_limit");
+
+    const low = Math.min(position.entryPrice, position.lastPrice);
+    const high = Math.max(position.entryPrice, position.lastPrice);
+    const up = position.direction === "UP";
+    if (stopLoss !== null && (!positive(stopLoss) || (up ? stopLoss >= low : stopLoss <= high))) {
+      throw new Error("stop_loss_invalid");
+    }
+    if (takeProfit !== null && (!positive(takeProfit) || (up ? takeProfit <= high : takeProfit >= low))) {
+      throw new Error("take_profit_invalid");
+    }
+
+    position.stopLoss = stopLoss;
+    position.takeProfit = takeProfit;
+    position.stopChanges = changes + 1;
+    return { tradeId, stopLoss, takeProfit, stopChanges: position.stopChanges };
   }
   private settle(p:FixedContract,status:FixedContract["status"],reason:FixedContract["reason"],price:number,time:number){
     p.status=status;p.reason=reason;p.exitPrice=price;p.settledTime=time;
@@ -71,7 +104,8 @@ export class FixedContracts {
     for(const p of state){book.open(p);
       if(!["OPEN","WON","LOST","REFUNDED"].includes(p.status)||!Number.isFinite(p.lastPrice)||p.lastPrice<=0
         ||!Number.isSafeInteger(p.lastSequence)||p.lastSequence<p.entrySequence
-        ||!Number.isSafeInteger(p.credit)||p.credit<0||p.pnl!==p.credit-(p.status==="OPEN"?0:p.stake))throw new Error("Invalid contract checkpoint");
+        ||!Number.isSafeInteger(p.credit)||p.credit<0||p.pnl!==p.credit-(p.status==="OPEN"?0:p.stake)
+        ||(p.stopChanges!==undefined&&(!Number.isInteger(p.stopChanges)||p.stopChanges<0||p.stopChanges>MAX_STOP_CHANGES)))throw new Error("Invalid contract checkpoint");
       book.positions.set(p.id,{...p});}
     return book;
   }

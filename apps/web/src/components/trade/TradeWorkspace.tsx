@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
-import { TIMEFRAMES, type TradeView } from "@asm/contracts";
+import { TIMEFRAMES, type OpenTradeResult, type TradeView } from "@asm/contracts";
 import { useChartProtection } from "@/lib/chart-protection-preference";
+import { useOtcSltp } from "@/lib/otc-sltp-preference";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { useDisplayedPrice } from "@/components/chart/use-displayed-price";
 import { SentimentBar } from "@/components/chart/SentimentBar";
 import { TimeframeTabs } from "@/components/chart/TimeframeTabs";
 import { ChartTypeSelector } from "@/components/chart/ChartTypeSelector";
 import type { ChartType } from "@/components/chart/chart-types";
-import { EMPTY_OTC_PROTECTION,type OtcProtectionDraft } from "@/components/chart/otc-protection";
 import { Icon } from "@/components/shell/Icon";
 import { useMarket } from "@/components/shell/market-store";
 import {
@@ -408,8 +408,14 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
   const nightlyClosed = useMarketClosed(chartSymbol);
   const marketOpen = tradingModel === "OTC" || (tradingModel === "CFD" ? cfdMarketStatus === "open" : !nightlyClosed);
   const chartProtection = useChartProtection();
+  const otcSltp = useOtcSltp();
+  const recordTicketOpened = (result: OpenTradeResult) => {
+    recordOpened(result);
+    if (otcSltp && result.trade.mode === "OTC_FIXED") setSelectedTradeId(result.trade.id);
+  };
   const chartTimeframe = useMarket(market, s => s.chart.timeframe);
   const [chartActionsContainer, setChartActionsContainer] = useState<HTMLDivElement | null>(null);
+  const chartToolsRef = useRef<HTMLDivElement>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candles");
   const [marketPickerOpen, setMarketPickerOpen] = useState(false);
@@ -424,10 +430,6 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [focusMode, setFocusMode]);
-  const protectionScope=`${activeAccount?.id??""}:${chartSymbol}`;
-  const [otcProtection,setOtcProtection]=useState<{scope:string;draft:OtcProtectionDraft}|null>(null);
-  const protectionDraft=otcProtection?.scope===protectionScope?otcProtection.draft:EMPTY_OTC_PROTECTION;
-  const changeOtcProtection=useCallback((draft:OtcProtectionDraft)=>setOtcProtection({scope:protectionScope,draft}),[protectionScope]);
 
   useEffect(() => {
     try {
@@ -504,7 +506,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
     <section
       aria-label="Trade"
       data-focus={focusMode}
-      className={`trade-workspace ${focusMode ? "h-dvh" : "h-full"} grid w-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[65dvh_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)] wide:grid-cols-[minmax(0,1fr)_360px]`}
+      className={`trade-workspace ${focusMode ? "h-dvh" : "h-full"} grid w-full grid-cols-[minmax(0,1fr)_312px] phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-[65dvh_auto] land:grid-cols-[minmax(0,1fr)_290px] land:grid-rows-[minmax(0,1fr)] wide:grid-cols-[minmax(0,1fr)_360px] ${tradingModel === "OTC" ? "phone:portrait:grid-rows-[minmax(16rem,1fr)_auto]" : ""}`}
     >
       <MarketSidebar />
       <div
@@ -538,8 +540,10 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
               enableBrackets={tradingModel === "CFD"}
               showVolume={tradingModel==="OTC"}
               appearance={tradingModel==="OTC"?"market":"classic"}
-              protectionDraft={tradingModel==="OTC"?protectionDraft:undefined}
-              onProtectionChange={changeOtcProtection}
+              otcStopTrades={openOnChart}
+              otcStopsTrade={tradingModel === "OTC" && focusedTrade?.mode === "OTC_FIXED" &&
+                (otcSltp || focusedTrade.stopLoss != null || focusedTrade.takeProfit != null) ? focusedTrade : undefined}
+              otcStopsBottomOverlayRef={chartToolsRef}
               bracketScope={`${activeAccount.id}:${asset.symbol}:${chartTimeframe}:${chartType}:${chartProtection}`}
               bracketActionsContainer={chartActionsContainer}
               bracketControls={chartProtection || !!focusedTrade}
@@ -619,7 +623,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
 
             {/* Phone bottom row: chart tools bottom-left, the live position strip
                 beside them (above the time axis, clear of the fullscreen button). */}
-            <div className="phone-chart-tools pointer-events-none absolute inset-x-3.5 bottom-8 z-10 hidden items-end gap-2 phone:flex land:inset-x-2 land:bottom-7">
+            <div ref={chartToolsRef} className="phone-chart-tools pointer-events-none absolute inset-x-3.5 bottom-8 z-10 hidden items-end gap-2 phone:flex land:inset-x-2 land:bottom-7">
               <ChartTools
                 className="pointer-events-auto flex-none"
                 chartType={chartType}
@@ -673,16 +677,14 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
           />
         ) : (
           <TradeTicket
-            key={protectionScope}
+            key={`${activeAccount.id}:${asset.symbol}`}
             otc={tradingModel==="OTC"}
             symbol={asset.symbol}
             pair={splitAssetName(asset.displayName).pair}
             payoutPct={payoutPct}
             accountId={activeAccount.id}
             currency={activeAccount.currency}
-            onOpened={recordOpened}
-            protectionDraft={protectionDraft}
-            onProtectionChange={changeOtcProtection}
+            onOpened={recordTicketOpened}
             market={market}
           />
         )}

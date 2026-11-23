@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({ charts: [] as any[], create: vi.fn() }));
 vi.mock("./ChartAnalysis", () => ({ ChartAnalysis: () => null }));
 vi.mock("./ChartBrackets", () => ({ ChartBrackets: () => null }));
 vi.mock("./OtcEntryLines", () => ({ OtcEntryLines: () => null }));
-vi.mock("./OtcProtection", () => ({ OtcProtection: () => null }));
+vi.mock("./OtcTradeStops", () => ({ OtcTradeStops: () => null }));
 vi.mock("./OtcExpiry", () => ({ OtcExpiry: () => null }));
 vi.mock("lightweight-charts", async original => {
   const actual = await original<any>();

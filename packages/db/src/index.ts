@@ -1,6 +1,7 @@
 export { prisma } from "./client";
 export { marketReferenceRepository } from "./repositories/market-reference";
 export { reserveOtcTrade,finalizeOtcOpen,settleOtcTrade,OtcRejected,type OtcTradeRequest,type OtcOpenIntent } from "./repositories/otc-trade";
+export { reserveOtcStops, finalizeOtcStops, type OtcStopsRequest, type OtcStopsIntent, type OtcStopsOutcome } from "./repositories/otc-trade";
 export { assertOtcFence,type OtcFence } from "./repositories/otc-fence";
 export { toMinor, toMajor, formatMoney } from "./money";
 export { LEADERBOARD_COUNTRIES, normalizeCountry, isLeaderboardCountry } from "./country";

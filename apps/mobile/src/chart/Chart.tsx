@@ -35,7 +35,7 @@ import { clampTagY, entryIndex, entryBucketIndex, gridYs, hasNonAscii, priceTagR
 import type { ChartType, Viewport } from "./types";
 import { useChartGestures } from "./useChartGestures";
 import { ProtectionHandle } from "./ProtectionHandle";
-import type { Protection } from "@/trade/otc-protection";
+import { STOP_SIDES, stopLevels, type StopLevels, type StopSide } from "@/trade/otc-protection";
 import { useHistoryCommit } from "./useHistoryCommit";
 
 const PRICE_AXIS = 56;
@@ -50,8 +50,14 @@ const DEFAULT_LABEL = (tr: ChartTrade, nowSec: number) => shortCountdown(Math.ma
 
 export interface ChartProps {
   timeframe?: Timeframe;
-  protection?: Protection;
-  onProtectionPrice?: (side: "stopLoss" | "takeProfit", price: number) => void;
+  stops?: {
+    tradeId: string;
+    levels: StopLevels;
+    draft: boolean;
+    busy: boolean;
+    move: (side: StopSide, price: number) => void;
+    drop: (side: StopSide) => void;
+  } | undefined;
   type: ChartType;
   /** Closed candles, oldest first. */
   candles: CandleDto[];
@@ -197,7 +203,7 @@ const PriceTag = memo(function PriceTag({
 });
 
 export function Chart(props: ChartProps) {
-  const { type, candles, forming, lastPrice, precision, openTrades, nowSec, onNearLeftEdge } = props;
+  const { type, candles, forming, lastPrice, precision, openTrades, nowSec, onNearLeftEdge, stops } = props;
   const { labelFor = DEFAULT_LABEL, topInset = 0, hideReadout = false } = props;
   const { t, i18n } = useTranslation();
   const fallbackFont = useMemo(() => matchFont({ fontFamily: "sans-serif", fontSize: 11 }), []);
@@ -251,13 +257,38 @@ export function Chart(props: ChartProps) {
   // they would squash the history you are looking at. The range follows ticks but is committed to the history
   // layer at most every 250ms; pan, zoom, resize and new candles commit straight away.
   const liveEdgeVisible = to >= total;
+  const stopLines = stops ? STOP_SIDES.flatMap((side) => {
+    const price = stops.levels[side];
+    return price === null ? [] : [{ side, price }];
+  }) : [];
+  const savedLines = useMemo(() => openTrades.flatMap((trade) => {
+    if (trade.mode !== "OTC_FIXED" || trade.status !== "OPEN" || trade.pending) return [];
+    const levels = stopLevels(trade);
+    return STOP_SIDES.flatMap((side) => {
+      const price = levels[side];
+      return price === null ? [] : [{ key: `${trade.id}:${side}`, side, price, draft: false }];
+    });
+  }), [openTrades]);
+  const lines = stops?.draft
+    ? [...stopLines.filter(({ side, price }) => !savedLines.some((line) => line.key === `${stops.tradeId}:${side}` && line.price === price))
+      .map((line) => ({ ...line, key: `draft:${line.side}`, draft: true })), ...savedLines]
+    : savedLines;
   const extras = [
     ...(liveEdgeVisible && lastPrice !== null ? [lastPrice] : []),
     ...openTrades.map((tr) => tr.entryPrice),
-    ...(props.protection?.enabled ? [props.protection.stopLoss, props.protection.takeProfit].filter((p): p is number => p !== null) : []),
+    ...lines.map(({ price }) => price),
   ];
   const liveRange = priceRange(all, from, to, extras);
   const range = useHistoryCommit(liveRange, [type, candles, from, histTo, plotW, height, rightIndex, view.visibleCount]);
+  const handles = stopLines.map((line) => ({
+    ...line, y: Math.max(22, Math.min(height - 22, yForPrice(line.price, range, height))),
+  })).sort((a, b) => b.price - a.price);
+  const [upper, lower] = handles;
+  if (upper && lower && height >= 88 && lower.y - upper.y < 44) {
+    const center = Math.max(44, Math.min(height - 44, (upper.y + lower.y) / 2));
+    upper.y = center - 22;
+    lower.y = center + 22;
+  }
 
   // History layer: closed candles only, no last price.
   const history = useMemo(
@@ -314,7 +345,14 @@ export function Chart(props: ChartProps) {
                   <SeriesLayer type={type} series={history} height={height} />
                   <SeriesLayer type={type} series={live} height={height} />
 
-                  {props.protection?.enabled ? [props.protection.stopLoss, props.protection.takeProfit].map((p, index) => p === null ? null : <Line key={index} p1={vec(0, yForPrice(p, range, height))} p2={vec(plotW, yForPrice(p, range, height))} color={index === 0 ? color.downText : color.up} strokeWidth={1}><DashPathEffect intervals={PRICE_DASH} /></Line>) : null}
+                  {lines.map(({ key, side, price, draft }) => {
+                    const y = yForPrice(price, range, height);
+                    return (
+                      <Line key={key} p1={vec(0, y)} p2={vec(plotW, y)} color={side === "stopLoss" ? color.downText : color.up} strokeWidth={1}>
+                        {draft ? <DashPathEffect intervals={PRICE_DASH} /> : null}
+                      </Line>
+                    );
+                  })}
                   {openTrades.map((tr) => {
                     const index = tr.mode === "OTC_FIXED" ? entryBucketIndex(all, tr.entryTs, TIMEFRAME_SEC[props.timeframe ?? "1m"]) : entryIndex(all, tr.entryTs);
                     if (index === null) return null;
@@ -364,10 +402,11 @@ export function Chart(props: ChartProps) {
           });
         }} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center", backgroundColor: color.surface, borderWidth: 1, borderColor: color.rule, borderRadius: radius.sm }}><Txt size={22}>{control.label}</Txt></Pressable>)}
       </View> : null}
-      {ready && props.protection?.enabled && props.onProtectionPrice ? (["stopLoss", "takeProfit"] as const).map(side => {
-        const price = props.protection![side];
-        return price === null ? null : <ProtectionHandle key={side} label={side === "stopLoss" ? "SL" : "TP"} price={price} range={range} height={height} axis={PRICE_AXIS} precision={precision} onPrice={price => props.onProtectionPrice!(side, price)} />;
-      }) : null}
+      {ready && stops ? handles.map(({ side, price, y }) => (
+        <ProtectionHandle key={side} side={side} price={price} y={y} range={range} height={height}
+          axis={PRICE_AXIS} precision={precision} busy={stops.busy}
+          onPrice={(value) => stops.move(side, value)} onRemove={() => stops.drop(side)} />
+      )) : null}
       {crossCandle && showReadout({ hide: hideReadout, hasCandle: true }) ? (
         <View
           pointerEvents="none"

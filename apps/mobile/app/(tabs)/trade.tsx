@@ -22,6 +22,8 @@ import { useListLoaded } from "@/trade/list-loaded-store";
 import { hasOpenTrade } from "@/trade/open-trades";
 import { MarketPill } from "@/trade/MarketPill";
 import { PositionStrip } from "@/trade/PositionStrip";
+import { useProtection } from "@/trade/protection-store";
+import { hasStops, stopLevels } from "@/trade/otc-protection";
 import { useResultFeedback } from "@/trade/ResultToast";
 import { SentimentBar } from "@/trade/SentimentBar";
 import { StatusLine } from "@/trade/StatusRow";
@@ -34,7 +36,7 @@ import { useLiveArrived } from "@/trade/useLiveArrived";
 import { useResumeSave } from "@/trade/useResumeSave";
 import { useSettlementWatchdog } from "@/trade/useSettlementWatchdog";
 import type { ChartType } from "@/chart/types";
-import type { Timeframe } from "@asm/contracts";
+import type { Timeframe, TradeView } from "@asm/contracts";
 
 /** Bootstrap failed and there is nothing else to show: say so and offer a retry instead of a skeleton forever. */
 function BootError({ onRetry, compact }: { onRetry: () => void; compact?: boolean }) {
@@ -61,6 +63,7 @@ function BootError({ onRetry, compact }: { onRetry: () => void; compact?: boolea
 
 export default function Trade() {
   const [focused, setFocused] = useState(false);
+  const [focusedTradeId, setFocusedTradeId] = useState<string | null>(null);
   useFocusEffect(useCallback(() => { setFocused(true); useSocket.getState().setChartActive(true); return () => { setFocused(false); useSocket.getState().setChartActive(false); }; }, []));
   const fullscreen = useFullscreen(s => s.active);
   const insets = useSafeAreaInsets();
@@ -94,6 +97,11 @@ export default function Trade() {
   const symbol = boot ? resolveSymbol(boot.assets, prefs.symbol ?? resume?.symbol ?? null, boot.defaultSymbol) : (prefs.symbol ?? resume?.symbol ?? null);
   const timeframe = prefs.timeframe;
   const asset = boot ? findAsset(boot.assets, symbol) : undefined;
+  const stopsEnabled = useProtection((s) => s.enabled);
+  const selectedTrades = useSocket((s) => accountId ? s.trades.tradesByAccount[accountId] : undefined);
+  const reservePositionStrip = selectedTrades?.some((trade) =>
+    trade.status === "OPEN" && trade.mode === "OTC_FIXED" && trade.symbol === symbol &&
+    (stopsEnabled || hasStops(stopLevels(trade)))) === true;
 
   // Any account's open trade counts: its settlement is watched (the keep-awake hook reads the store itself).
   const hasOpenTrades = useSocket((s) => hasOpenTrade(s.trades.tradesByAccount));
@@ -149,6 +157,20 @@ export default function Trade() {
   const toggleStar = (next: string) => prefs.set({ favourites: toggleFavourite(prefs.favourites, next) });
   const setChartType = (chartType: ChartType) => prefs.set({ chartType });
   const setTimeframe = (next: Timeframe) => prefs.set({ timeframe: next });
+  const focusTrade = (trade: TradeView) => {
+    setFocusedTradeId(trade.id);
+    prefs.set({ symbol: trade.symbol });
+  };
+
+  useEffect(() => {
+    if (!focused) return;
+    return useSocket.subscribe((state, previous) => {
+      const opened = state.lastOpened;
+      if (opened && opened !== previous.lastOpened && opened.accountId === accountId && opened.symbol === symbol) {
+        setFocusedTradeId(opened.id);
+      }
+    });
+  }, [accountId, focused, symbol]);
 
   // Until bootstrap arrives the cached balance (dimmed) beats a skeleton; without one, the skeleton stays.
   // A balance the store already holds for the saved account (socket push, HTTP open result) beats the cached one.
@@ -177,28 +199,37 @@ export default function Trade() {
       {!boot && bootFailed && symbol ? <BootError compact onRetry={retry} /> : null}
       {boot ? <ChartTools chartType={prefs.chartType} timeframe={timeframe} onChartType={setChartType} onTimeframe={setTimeframe} leading={<MarketPill tradingModel={boot.tradingModel} assets={boot.assets} asset={asset} favourites={prefs.favourites} onPick={pickSymbol} onToggleFavourite={toggleStar} />} /> : null}
       <View style={{ flex: 1, minHeight: 100 }}>
-        {symbol ? (
-          <TradeChart
-            symbol={symbol}
-            timeframe={timeframe}
-            type={prefs.chartType}
-            precision={precisionFor(asset, resume?.symbol === symbol ? resume.precision : undefined)}
-            accountId={accountId}
-            snapshot={candleSnapshot}
-            tradesSnapshot={boot ? null : resume}
-            topInset={8}
-            hideReadout={false}
-          />
-        ) : bootFailed ? (
-          <BootError onRetry={retry} />
-        ) : <TradingSkeleton />}
-        <SentimentBar />
-        <View pointerEvents="none" style={{ position: "absolute", left: 12, bottom: 8, right: 120 }}>
-          <StatusLine snapshot={candleSnapshot} symbol={symbol} timeframe={timeframe} />
+        <View style={{ flex: 1 }}>
+          {symbol ? (
+            <TradeChart
+              symbol={symbol}
+              timeframe={timeframe}
+              type={prefs.chartType}
+              precision={precisionFor(asset, resume?.symbol === symbol ? resume.precision : undefined)}
+              accountId={accountId}
+              focusedTradeId={focusedTradeId}
+              snapshot={candleSnapshot}
+              tradesSnapshot={boot ? null : resume}
+              topInset={8}
+              hideReadout={false}
+            />
+          ) : bootFailed ? (
+            <BootError onRetry={retry} />
+          ) : <TradingSkeleton />}
+          <SentimentBar />
+          <View pointerEvents="none" style={{ position: "absolute", left: 12, bottom: 8, right: 120 }}>
+            <StatusLine snapshot={candleSnapshot} symbol={symbol} timeframe={timeframe} />
+          </View>
         </View>
-        {boot && account ? <View pointerEvents="box-none" style={{ position: "absolute", bottom: 24, left: 0, right: 0 }}>{<PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} />}</View> : null}
+        {boot && account ? (
+          // Leave room below the plot so the open-position card cannot cover a lower drag handle.
+          <View pointerEvents="box-none" style={reservePositionStrip ? undefined : { position: "absolute", bottom: 24, left: 0, right: 0 }}>
+            <PositionStrip accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency}
+              listLoaded={listLoaded} onFocusTrade={focusTrade} />
+          </View>
+        ) : null}
       </View>
-      {boot && account ? <ChartToolbar timeframe={timeframe} onTimeframe={setTimeframe} accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} /> : null}
+      {boot && account ? <ChartToolbar timeframe={timeframe} onTimeframe={setTimeframe} accountId={account.id} accountType={account.type} assets={boot.assets} currency={account.currency} listLoaded={listLoaded} onFocusTrade={focusTrade} /> : null}
       {!fullscreen && boot && accountId && asset ? <Dock boot={boot} accountId={accountId} asset={asset} /> : null}
     </Screen>
   );
