@@ -1,11 +1,20 @@
+.landing {
+  --home-navigation-height: calc(4rem + 1px);
+}
+
+.navigation {
+  block-size: var(--home-navigation-height);
+}
+
 .hero {
   --hero-art: url("/marketing/hero-market-dark-mobile.webp");
   position: relative;
   isolation: isolate;
   display: grid;
-  min-height: clamp(415px, 118vw, 535px);
-  place-items: end center;
-  padding-block: 7.5rem 3rem;
+  min-block-size: calc(100vh - var(--home-navigation-height));
+  min-block-size: calc(100dvh - var(--home-navigation-height));
+  place-items: center;
+  padding-block: clamp(1.5rem, 7vh, 3rem);
   background: var(--color-home-hero-top);
   color: var(--color-home-hero-ink);
 }
@@ -23,10 +32,26 @@
 }
 
 .title {
-  font-size: clamp(2rem, 9vw, 4.9rem);
+  font-size: clamp(2rem, min(9vw, 12vh), 4.9rem);
   font-weight: 800;
   letter-spacing: -0.045em;
   line-height: 1.02;
+}
+
+.photoText {
+  text-shadow: 0 0 0.25rem var(--color-home-hero-top), 0 0 0.75rem var(--color-home-hero-top);
+}
+
+.photoChip {
+  border-color: var(--color-rule);
+  background: color-mix(in srgb, var(--color-panel) 82%, transparent);
+  color: var(--color-ink);
+  box-shadow: 0 8px 24px var(--color-home-frame-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.photoChip:hover {
+  border-color: var(--color-brand);
 }
 
 .deviceStage {
@@ -115,8 +140,7 @@
 @media (min-width: 768px) {
   .hero {
     --hero-art: url("/marketing/hero-market-dark.webp");
-    min-height: clamp(500px, 42vw, 680px);
-    padding-block: 9rem 4.5rem;
+    padding-block: clamp(2rem, 8vh, 4.5rem);
   }
 
   :global(html[data-theme="light"]) .hero {
@@ -135,5 +159,19 @@
   .phone {
     right: 9%;
     width: 19%;
+  }
+}
+
+@media (max-height: 460px) and (orientation: landscape) {
+  .hero {
+    padding-block: 1rem;
+  }
+
+  .photoChip {
+    margin-bottom: 0.75rem;
+  }
+
+  .heroFacts {
+    display: none;
   }
 }

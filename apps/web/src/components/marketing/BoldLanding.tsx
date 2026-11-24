@@ -3,6 +3,7 @@ import { SeasonalDiwali, FestiveLights, DiwaliEntry, DiwaliWish } from "@/compon
 import Link from "next/link";
 import { LogoEmblem, LogoWordmark } from "@/components/brand/Logo";
 import { CinematicHero, PlatformShowcase } from "./LandingShowcase";
+import styles from "./LandingShowcase.module.css";
 import { LiveCandleBand } from "./LiveCandleBand";
 import { MarketingTicker } from "./MarketingTicker";
 import { CountUp, Reveal } from "./motion";
@@ -10,7 +11,7 @@ import { faqs, featureBullets, howSteps, marketingAssets, testimonials } from ".
 
 export function BoldLanding() {
   return (
-    <SeasonalDiwali><div className="min-h-screen bg-ground text-ink">
+    <SeasonalDiwali><div className={`${styles.landing} min-h-screen bg-ground text-ink`}>
       <BoldNav />
 
       <CinematicHero />
@@ -287,9 +288,9 @@ function AppDownloads() {
 
 function BoldNav() {
   return (
-    <header className="sticky top-0 z-30 border-b border-rule bg-ground/70 backdrop-blur-xl">
+    <header className={`${styles.navigation} sticky top-0 z-30 border-b border-rule bg-ground/70 backdrop-blur-xl`}>
       <FestiveLights />
-      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-6">
+      <nav className="mx-auto flex h-full max-w-6xl items-center justify-between px-5 sm:px-6">
         <Link href="/" aria-label="IndianxTrade — home" className="flex items-center">
           <LogoWordmark className="h-7" />
         </Link>

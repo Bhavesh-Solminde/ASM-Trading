@@ -414,8 +414,8 @@ button,
 
 :root[data-theme="light"] {
   --color-home-hero-top: #f3e6d5;
-  --color-home-hero-wash-top: #f9eed715;
-  --color-home-hero-wash-bottom: #f5e7d39c;
+  --color-home-hero-wash-top: #f9eed700;
+  --color-home-hero-wash-bottom: #f5e7d330;
   --color-home-hero-ink: #231d18;
   --color-home-frame-top: #d2d8e0;
   --color-home-frame-bottom: #6d7a8b;

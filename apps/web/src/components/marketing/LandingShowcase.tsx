@@ -1,12 +1,23 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { BONUS_TIERS } from "@asm/client-core";
+import { Icon } from "@/components/shell/Icon";
 import styles from "./LandingShowcase.module.css";
+
+const heroFacts = ["₹10 lakh demo balance", "₹100 minimum trade", "UPI deposits"];
 
 export function CinematicHero() {
   return (
     <section aria-labelledby="home-hero-title" className={styles.hero}>
       <div className="relative mx-auto w-full max-w-5xl px-4 text-center">
+        <Link
+          href="/register"
+          className={`${styles.photoChip} mb-5 inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold sm:mb-7`}
+        >
+          <Icon name="bonus" className="size-4 text-brand" />
+          {BONUS_TIERS[0]}% bonus on your first deposit
+        </Link>
         <h1 id="home-hero-title" className={styles.title}>
           Explore the markets.<br />Trade in demo.
         </h1>
@@ -16,7 +27,15 @@ export function CinematicHero() {
         >
           Start free demo <span aria-hidden="true">↗</span>
         </Link>
-        <p className="mt-3 text-xs font-semibold sm:text-sm">
+        <ul className={`${styles.photoText} ${styles.heroFacts} mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm font-semibold sm:mt-5 sm:text-base`}>
+          {heroFacts.map((fact) => (
+            <li key={fact} className="flex items-center gap-1.5">
+              <Icon name="check" className="size-4 text-brand" />
+              {fact}
+            </li>
+          ))}
+        </ul>
+        <p className={`${styles.photoText} mt-3 text-xs font-semibold sm:text-sm`}>
           Live CFD trading puts your capital at risk.
         </p>
       </div>
