@@ -73,6 +73,7 @@
   --color-home-stage-light: #173769;
   --color-home-stage-floor: #121f37;
   --color-home-frame-shadow: #030b1b45;
+  --color-home-phone-island: #020305;
   color-scheme: dark;
   /* Height of the phone bottom nav (plus the home-indicator inset); the shell grid sizes its last row by it. */
   --phone-nav-h: calc(38px + env(safe-area-inset-bottom, 0px));

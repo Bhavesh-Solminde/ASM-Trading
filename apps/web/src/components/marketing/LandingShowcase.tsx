@@ -61,9 +61,9 @@ const deviceScreens = {
 function DashboardScreen({ device }: { device: keyof typeof deviceScreens }) {
   const screen = deviceScreens[device];
   return (
-    <div className={styles.screen}>
-      <Image {...screen} src={`/marketing/dashboard-${device}-dark.webp`} className={styles.darkScreen} />
-      <Image {...screen} src={`/marketing/dashboard-${device}-light.webp`} className={styles.lightScreen} />
+    <div className={device === "phone" ? `${styles.screen} ${styles.phoneScreen}` : styles.screen}>
+      <Image {...screen} src={`/marketing/trade-screen-${device}-dark.webp`} className={styles.darkScreen} />
+      <Image {...screen} src={`/marketing/trade-screen-${device}-light.webp`} className={styles.lightScreen} />
     </div>
   );
 }

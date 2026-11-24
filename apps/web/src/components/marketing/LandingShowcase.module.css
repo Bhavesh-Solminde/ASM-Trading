@@ -113,14 +113,50 @@
   right: 5%;
   bottom: 7%;
   width: 27%;
-  padding: 0.5%;
-  border-radius: clamp(0.5rem, 2vw, 1.4rem);
+  padding: 0.6%;
+  border-radius: clamp(0.7rem, 2.6vw, 1.75rem);
 }
 
 .screen {
   overflow: hidden;
   border-radius: inherit;
   background: var(--color-ground);
+}
+
+/* A real phone's safe areas: the status bar with its camera island above the
+   app, the home indicator below it, and an inner radius inside the bezel, so
+   the app's own corners are never clipped. */
+.phoneScreen {
+  position: relative;
+  padding-block: 8.5% 4%;
+  border-radius: clamp(0.65rem, 2.45vw, 1.65rem);
+  background: linear-gradient(var(--color-ground) 50%, var(--color-panel) 50%);
+}
+
+.phoneScreen::before,
+.phoneScreen::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  translate: -50%;
+  border-radius: 999px;
+}
+
+.phoneScreen::before {
+  top: 0;
+  width: 30%;
+  margin-top: 2.2%;
+  aspect-ratio: 4.6;
+  background: var(--color-home-phone-island);
+}
+
+.phoneScreen::after {
+  bottom: 0;
+  width: 34%;
+  margin-bottom: 1.4%;
+  aspect-ratio: 25;
+  background: var(--color-ink);
+  opacity: 0.55;
 }
 
 .screen img {

@@ -90,9 +90,9 @@ export function Dock({ boot, accountId, asset }: { boot: Bootstrap; accountId: s
           {t("redesign.potentialProfit")}: {profit === null ? "—" : money(profit, currency)}
         </Txt>
       </View>
-      {pending && !busy ? <Pressable testID="retry-previous-trade" accessibilityRole="button" onPress={() => void retry()} style={{ minHeight: TRADE_BUTTON_HEIGHT, padding: 12, backgroundColor: color.raised, borderRadius: radius.md, borderWidth: 1, borderColor: color.gold }}>
+      {pending && !busy ? <Pressable testID="retry-previous-trade" accessibilityRole="button" onPress={() => void retry()} style={{ minHeight: TRADE_BUTTON_HEIGHT, marginTop: 10, padding: 12, backgroundColor: color.raised, borderRadius: radius.md, borderWidth: 1, borderColor: color.gold }}>
         <Txt size={12}>{t("trade.retryNamed", { direction: pending.body.direction, symbol: pending.body.symbol, amount: money(pending.body.stake, pending.body.currency ?? currency), price: pending.displayedPrice ?? "—" })}</Txt>
-      </Pressable> : <View style={{ flexDirection: "row", gap: 10 }}>
+      </Pressable> : <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
         {(["UP", "DOWN"] as const).map((dir) => {
           const up = dir === "UP";
           const label = up ? t("trade.up") : t("trade.down");
