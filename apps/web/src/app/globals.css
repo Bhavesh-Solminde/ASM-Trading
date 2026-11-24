@@ -61,6 +61,18 @@
 }
 
 :root {
+  /* Home hero artwork and dashboard device display. */
+  --color-home-hero-top: #151311;
+  --color-home-hero-wash-top: #120e0a18;
+  --color-home-hero-wash-bottom: #120e0a85;
+  --color-home-hero-ink: #fbf6ef;
+  --color-home-frame-top: #343d4e;
+  --color-home-frame-bottom: #131924;
+  --color-home-frame-edge: #8490a8;
+  --color-home-stage-bg: #081021;
+  --color-home-stage-light: #173769;
+  --color-home-stage-floor: #121f37;
+  --color-home-frame-shadow: #030b1b45;
   color-scheme: dark;
   /* Height of the phone bottom nav (plus the home-indicator inset); the shell grid sizes its last row by it. */
   --phone-nav-h: calc(38px + env(safe-area-inset-bottom, 0px));
@@ -401,6 +413,16 @@ button,
 }
 
 :root[data-theme="light"] {
+  --color-home-hero-top: #f3e6d5;
+  --color-home-hero-wash-top: #f9eed715;
+  --color-home-hero-wash-bottom: #f5e7d39c;
+  --color-home-hero-ink: #231d18;
+  --color-home-frame-top: #d2d8e0;
+  --color-home-frame-bottom: #6d7a8b;
+  --color-home-frame-edge: #fafcff;
+  --color-home-stage-bg: #dde4ef;
+  --color-home-stage-light: #f8fbff;
+  --color-home-stage-floor: #aab9ce;
   --color-chart-attribution: #ffffff;
   --color-ground: #eef0f3;
   --color-panel: #ffffff;
