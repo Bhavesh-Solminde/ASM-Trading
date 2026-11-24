@@ -34,7 +34,7 @@ export default async function AndroidInstallPage() {
     <div className="min-h-dvh bg-ground text-ink">
       <header className="border-b border-rule">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-6">
-          <Link href="/" aria-label="IndianxTrade home"><LogoWordmark compact className="h-6" /></Link>
+          <Link href="/" aria-label="IndianxTrade home"><LogoWordmark className="h-6" /></Link>
           <Link href="/#get-the-app" className="text-sm font-semibold text-ink-2 hover:text-ink">Back to homepage</Link>
         </div>
       </header>

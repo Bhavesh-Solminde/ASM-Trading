@@ -61,7 +61,7 @@ function VideoGreeting({ variant, onDismiss, generation = "draft", withTypograph
     <h1 id="diwali-title" className="sr-only">Happy Diwali from IndianxTrade</h1>
     <p id="diwali-message" className="sr-only">May your home be filled with light, and your celebrations with joy.</p>
     {withTypography && greetingReady ? <div className={styles.videoCopy} aria-hidden="true">
-      <LogoWordmark compact className={styles.wordmark ?? ""} />
+      <LogoWordmark className={styles.wordmark ?? ""} />
       <div className={styles.title}>Happy<br /><span>Diwali</span></div>
       <p className={styles.message}>May your home be filled with light,<br />and your celebrations with joy.</p>
     </div> : null}
@@ -120,7 +120,7 @@ export function DiwaliProvider({ children, preview = false, greetingVideo, gener
           <span className={styles.chakra} aria-hidden="true" />
           <div className={styles.reveal}>
             <Sparks />
-            <LogoWordmark compact className={styles.wordmark ?? ""} />
+            <LogoWordmark className={styles.wordmark ?? ""} />
             <p className={styles.from}>With warm wishes from {SITE_NAME}</p>
             <h1 id="diwali-title" className={styles.title}>Happy<br /><span>Diwali</span></h1>
             <p id="diwali-message" className={styles.message}>May your home be filled with light,<br />and your celebrations with joy.</p>

@@ -44,7 +44,7 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
 function BrandLockup({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <Link href={CENTER_PATH} {...(onNavigate ? { onClick: onNavigate } : {})} className={styles.brand} aria-label={`${SITE_NAME} Affiliate Center`}>
-      <LogoWordmark compact className="h-[25px] max-w-full object-contain object-left" />
+      <LogoWordmark className="h-[25px] max-w-full object-contain object-left" />
       <span>Affiliate Center</span>
     </Link>
   );

@@ -10,7 +10,7 @@ export const contentType = "image/png";
 // The transparent wordmark (no black box to show at its edges). Read once at
 // module scope — it never changes per request.
 const wordmark = `data:image/png;base64,${await readFile(
-  join(process.cwd(), "public/brand/indianxtrade-wordmark.png"),
+  join(process.cwd(), "public/brand/indianxtrade-wordmark-compact.png"),
   "base64",
 )}`;
 
@@ -34,7 +34,7 @@ export default function OpengraphImage() {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img> */}
-        <img src={wordmark} width={1000} height={253} alt="" />
+        <img src={wordmark} width={1000} height={196} alt="" />
         <div style={{ marginTop: 28, fontSize: 40, color: "#9e9b95" }}>
           SEBI regulated CFD trading · SL/TP · real market prices · free demo
         </div>

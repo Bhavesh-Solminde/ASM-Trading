@@ -75,7 +75,7 @@ export function AuthShell({
             {legal !== null && <div className="absolute right-4 top-4"><ThemeToggle /></div>}
             {/* Large brand lockup */}
             <Link href="/" className="mb-10 flex flex-col items-start gap-3" aria-label="IndianxTrade — home">
-              <LogoWordmark className="h-12 sm:h-14" />
+              <LogoWordmark className="h-10 sm:h-11" />
               <span className="text-[11px] font-bold uppercase tracking-[0.28em] text-ink-3">
                 Trade · Invest · Grow
               </span>

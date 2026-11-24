@@ -6,7 +6,7 @@ import { LogoWordmark } from "@/components/brand/Logo";
 export function SubtleDiwaliPreview() {
   return <SeasonalDiwali preview><div style={{ minHeight: "100%", background: "var(--color-ground)", display: "flex", flexDirection: "column" }}>
     <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--color-rule)", gap: 8 }}>
-      <FestiveLights /><LogoWordmark compact className="h-6 max-w-[45%]" /><DiwaliEntry compact />
+      <FestiveLights /><LogoWordmark className="h-6 max-w-[45%]" /><DiwaliEntry compact />
     </header>
     <section style={{ padding: "32px 20px", flex: 1 }}>
       <p style={{ color: "var(--color-ink-2)", fontSize: 12 }}>Preview · No orders are placed</p>

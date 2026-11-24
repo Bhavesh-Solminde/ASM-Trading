@@ -45,7 +45,7 @@ export default async function AffiliateLandingPage() {
   ];
   return (
     <div className={styles.page}>
-      <header className={styles.header}><div className={`${styles.wrap} ${styles.headerInner}`}><Link href="/" aria-label={`${SITE_NAME} — home`}><LogoWordmark className="h-7" /></Link><nav aria-label="Affiliate navigation" className={styles.nav}><a href="#journey">How it works</a><a href="#dashboard">Your dashboard</a><a href="#calculator">Explore your potential</a><ThemeToggle /><Link href="/affiliate/login" className="font-bold text-ink">Affiliate log in <span aria-hidden="true" className="ml-2">↗</span></Link></nav></div></header>
+      <header className={styles.header}><div className={`${styles.wrap} ${styles.headerInner}`}><Link href="/" aria-label={`${SITE_NAME} — home`}><LogoWordmark className="h-6" /></Link><nav aria-label="Affiliate navigation" className={styles.nav}><a href="#journey">How it works</a><a href="#dashboard">Your dashboard</a><a href="#calculator">Explore your potential</a><ThemeToggle /><Link href="/affiliate/login" className="font-bold text-ink">Affiliate log in <span aria-hidden="true" className="ml-2">↗</span></Link></nav></div></header>
       <AffiliateMotion>
         <main>
           <section className={styles.hero} aria-labelledby="affiliate-title" data-hero>
@@ -60,7 +60,7 @@ export default async function AffiliateLandingPage() {
               <div className={styles.heroArt} data-hero-enter>
                 <div data-glow className={styles.heroGlow} aria-hidden="true" /><div className={styles.heroGridPattern} aria-hidden="true" /><div className={styles.orbit} aria-hidden="true" />
                 <div data-tilt className={styles.heroTicket}>
-                  <div className={styles.ticketBrand}><LogoWordmark className="h-6" /><span className="text-[9px] font-semibold uppercase tracking-wider text-ink-2">Invitation</span></div>
+                  <div className={styles.ticketBrand}><LogoWordmark className="h-5" /><span className="text-[9px] font-semibold uppercase tracking-wider text-ink-2">Invitation</span></div>
                   <p className="mt-6 text-xs font-medium text-ink-2">FOR YOUR FRIEND</p><p className={styles.ticketBonus}>+{bonus}<span className="text-brand">%</span></p><p className="mt-2 text-lg font-bold">Their first deposit.<br />With a bigger bonus.</p>
                   <div className={styles.ticketRule}><span className="text-[10px] uppercase tracking-widest text-ink-2">Shared by you</span><p className="mt-2 truncate text-xs font-semibold text-brand">indianxtrade.com/invite/you <span aria-hidden="true">↗</span></p></div>
                 </div>
@@ -86,7 +86,7 @@ export default async function AffiliateLandingPage() {
           <section className={`${styles.wrap} pb-16 lg:pb-24`} aria-labelledby="join-title"><div className={styles.final} data-reveal><p className={styles.eyebrow}>Your next connection starts here</p><h2 id="join-title" className={styles.sectionTitle}>Give them a bigger start.<br /><span>Make it count for you.</span></h2><p className="mb-8 text-sm text-ink-2">Open your affiliate account. Verify your email. Share your link.</p><div className="mx-auto w-fit max-w-full"><Ctas /></div></div></section>
         </main>
       </AffiliateMotion>
-      <footer className={styles.footer}><div className={styles.wrap}><div className="flex flex-wrap items-center justify-between gap-6"><Link href="/" aria-label={`${SITE_NAME} — home`}><LogoWordmark className="h-7" /></Link><nav aria-label="Site information" className="flex flex-wrap gap-x-6 text-sm text-ink-2">{([["/about", "About"], ["/security", "Security"], ["/guides", "Guides"], ["/affiliate", "Affiliate program"]] as const).map(([href, label]) => <Link className="inline-flex min-h-11 items-center hover:text-ink" key={href} href={href}>{label}</Link>)}</nav></div><p className="mt-6 max-w-4xl text-xs leading-relaxed text-ink-3">{SITE_NAME} offers high-risk trading. Most short-term traders lose money. Trade only with money you can afford to lose. Availability is restricted in some jurisdictions.</p></div></footer>
+      <footer className={styles.footer}><div className={styles.wrap}><div className="flex flex-wrap items-center justify-between gap-6"><Link href="/" aria-label={`${SITE_NAME} — home`}><LogoWordmark className="h-6" /></Link><nav aria-label="Site information" className="flex flex-wrap gap-x-6 text-sm text-ink-2">{([["/about", "About"], ["/security", "Security"], ["/guides", "Guides"], ["/affiliate", "Affiliate program"]] as const).map(([href, label]) => <Link className="inline-flex min-h-11 items-center hover:text-ink" key={href} href={href}>{label}</Link>)}</nav></div><p className="mt-6 max-w-4xl text-xs leading-relaxed text-ink-3">{SITE_NAME} offers high-risk trading. Most short-term traders lose money. Trade only with money you can afford to lose. Availability is restricted in some jurisdictions.</p></div></footer>
     </div>
   );
 }
