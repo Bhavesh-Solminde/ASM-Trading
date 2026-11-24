@@ -52,7 +52,7 @@ export function MobileNav() {
             className="absolute inset-y-0 left-0 flex w-[280px] max-w-[84vw] flex-col gap-1 overflow-y-auto overscroll-contain border-r border-rule bg-ground px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))] shadow-[24px_0_48px_-12px_var(--color-shadow-popover)]"
           >
             <div className="mb-2 flex items-center justify-between pl-1">
-              <LogoWordmark compact className="h-6 flex-none" />
+              <LogoWordmark className="h-6 flex-none" />
               <button
                 type="button"
                 aria-label="Close menu"

@@ -137,7 +137,7 @@ export function AdminShell({
 
       <aside className="admin-sidebar" aria-label="Admin">
         <Link className="admin-sidebar__brand" href="/admin">
-          <img src="/brand/indianxtrade-wordmark.png" alt="IndianxTrade" />
+          <img src="/brand/indianxtrade-wordmark-compact.png" alt="IndianxTrade" />
           <span className="admin-tagline">Admin</span>
         </Link>
 
@@ -182,7 +182,7 @@ export function AdminShell({
           <button className="admin-icon-btn" onClick={() => setNavOpen(true)} aria-label="Open navigation">
             <Icon name="menu" />
           </button>
-          <img src="/brand/indianxtrade-wordmark.png" alt="IndianxTrade" />
+          <img src="/brand/indianxtrade-wordmark-compact.png" alt="IndianxTrade" />
           <span className="admin-topbar__title">{title}</span>
         </header>
         <main className="admin-view">{children}</main>

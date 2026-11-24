@@ -19,7 +19,7 @@ export function ContentShell({
       <header className="border-b border-rule">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
           <Link href="/" aria-label="IndianxTrade — home" className="flex items-center">
-            <LogoWordmark className="h-7" />
+            <LogoWordmark className="h-6" />
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <span className="-my-1.5 inline-flex"><ThemeToggle /></span>

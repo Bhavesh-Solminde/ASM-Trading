@@ -26,7 +26,7 @@ export default async function StartPage({ searchParams }: {
     <StartTheme>
       <a className={styles.skip} href="#introduction">Skip to content</a>
       <header className={styles.header}>
-        <LogoWordmark compact className={styles.wordmark ?? ""} />
+        <LogoWordmark className={styles.wordmark ?? ""} />
         <div className={styles.headerActions}>
           <StartThemeToggle />
           <StartLink href={href} placement="header" className={styles.headerCta ?? ""} />

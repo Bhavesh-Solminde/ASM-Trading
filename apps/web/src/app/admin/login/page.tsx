@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
       <main className="admin-login__card">
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           <div className="admin-login__brand">
-            <img src="/brand/indianxtrade-wordmark.png" alt="IndianxTrade" />
+            <img src="/brand/indianxtrade-wordmark-compact.png" alt="IndianxTrade" />
             <span className="admin-tagline">Admin</span>
           </div>
           <div>

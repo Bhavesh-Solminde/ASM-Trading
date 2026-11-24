@@ -80,7 +80,7 @@ export function InviteJourney({ bonus, minimumDeposit, minimumTrade }: { bonus: 
         <div data-line="1" aria-hidden="true" className={styles.journeyLine} />
         <div className={styles.friendPhone} data-phone>
           <div className={styles.notch} aria-hidden="true" /><div className="flex justify-between text-[10px] text-ink-2"><span>9:41</span><span>● ▰</span></div>
-          <div className={styles.phoneBrand}><LogoWordmark className="h-5" /><span>INVITATION</span></div>
+          <div className={styles.phoneBrand}><LogoWordmark className="h-4" /><span>INVITATION</span></div>
           <div className={styles.phoneSender}><span aria-hidden="true">↗</span><div><strong>A friend invited you</strong><small>Your next chapter starts here</small></div></div>
           <p className={styles.phoneStep}>02 / YOUR INVITATION</p>
           <h3 className={styles.phoneTitle}>A bigger<br />first move.</h3>

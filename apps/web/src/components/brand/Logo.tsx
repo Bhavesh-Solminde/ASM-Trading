@@ -43,28 +43,28 @@ export function LogoEmblem({
  * art. It was keyed out of the black-backed source
  * (/brand/indianxtrade-wordmark-dark.png, still used for the share card), so
  * it sits on any surface with no box, blend mode or glow. Height is set by the
- * caller via className (e.g. `h-6`); width follows the art's ~3.96:1 ratio.
+ * caller via className (e.g. `h-6`); width follows the art's ~5.1:1 ratio.
  * A CSS-selected black-lettered pair preserves the flag X on light surfaces.
- * `compact` drops the "INDIA ME TRADING CHAT" tagline row (unreadable at
- * top-bar sizes) so the lettering fills the height; that art is ~5.1:1.
+ * The art has no "INDIA ME TRADING CHAT" tagline row, so the lettering fills
+ * the height.
  */
-export function LogoWordmark({ className, compact = false }: { className?: string; compact?: boolean }) {
+export function LogoWordmark({ className }: { className?: string }) {
   return (
     <>
       <Image
-        src={compact ? "/brand/indianxtrade-wordmark-compact.png" : "/brand/indianxtrade-wordmark.png"}
+        src="/brand/indianxtrade-wordmark-compact.png"
         alt="IndianxTrade"
-        width={compact ? 1170 : 1179}
-        height={compact ? 229 : 298}
+        width={1170}
+        height={229}
         sizes="(max-width: 640px) 190px, 280px"
         loading="eager"
         className={`brand-wordmark-dark w-auto ${className ?? ""}`}
       />
       <Image
-        src={compact ? "/brand/indianxtrade-wordmark-onlight-compact.png" : "/brand/indianxtrade-wordmark-onlight.png"}
+        src="/brand/indianxtrade-wordmark-onlight-compact.png"
         alt="IndianxTrade"
-        width={compact ? 1170 : 1179}
-        height={compact ? 229 : 298}
+        width={1170}
+        height={229}
         sizes="(max-width: 640px) 190px, 280px"
         fetchPriority="low"
         loading="eager"
