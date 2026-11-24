@@ -343,7 +343,7 @@ export function TradeTicket({
     closed ? "Market closed" : winText === null ? `Price ends ${side}` : `${winText} if ${side}`;
 
   const actions = (
-      <div className="ticket-actions grid gap-2 phone:grid-cols-2 phone:gap-2.5 land:grid-cols-1 land:gap-1.5">
+      <div className={`ticket-actions grid gap-2 phone:grid-cols-2 phone:gap-2.5 land:grid-cols-1 land:gap-1.5 ${otc ? "phone:portrait:mt-2.5" : ""}`}>
         <button
           type="button"
           disabled={busy || closed}
