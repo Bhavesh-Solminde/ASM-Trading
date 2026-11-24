@@ -1,165 +1,19 @@
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { MARKET_COUNT } from "@asm/contracts";
 import { SeasonalDiwali, FestiveLights, DiwaliEntry, DiwaliWish } from "@/components/festive/SeasonalDiwali";
-import Image from "next/image";
 import Link from "next/link";
 import { LogoEmblem, LogoWordmark } from "@/components/brand/Logo";
+import { CinematicHero, PlatformShowcase } from "./LandingShowcase";
 import { LiveCandleBand } from "./LiveCandleBand";
 import { MarketingTicker } from "./MarketingTicker";
 import { CountUp, Reveal } from "./motion";
 import { faqs, featureBullets, howSteps, marketingAssets, testimonials } from "./marketing-data";
 
-/** sizes prop for editorial images: mobile hides them via `hidden md:block`,
- * so we ask Next for a very small mobile variant to keep the srcset light. */
-const editorialSizes = "(min-width: 1280px) 40vw, (min-width: 768px) 45vw, 1px";
-
-/** Bolder Pocket-Option-style: gradients, glow, motion, heavier scale. */
 export function BoldLanding() {
   return (
     <SeasonalDiwali><div className="min-h-screen bg-ground text-ink">
       <BoldNav />
 
-      {/* HERO */}
-      <section className="relative overflow-hidden">
-        {/* colored ambient background */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-40 top-0 h-[520px] w-[520px] rounded-full opacity-20 blur-[120px] [background:radial-gradient(circle,color-mix(in_srgb,var(--color-brand)_60%,transparent),transparent_65%)]" />
-          <div className="absolute right-[-160px] top-40 h-[480px] w-[480px] rounded-full opacity-15 blur-[120px] [background:radial-gradient(circle,color-mix(in_srgb,var(--color-up)_60%,transparent),transparent_65%)]" />
-          <div
-            className="absolute inset-0 opacity-[0.05]"
-            style={{
-              backgroundImage:
-                "linear-gradient(var(--color-rule) 1px,transparent 1px),linear-gradient(90deg,var(--color-rule) 1px,transparent 1px)",
-              backgroundSize: "48px 48px",
-              maskImage: "radial-gradient(60% 50% at 50% 30%, var(--color-mask), transparent)",
-            }}
-          />
-        </div>
-
-        <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 px-5 pb-10 pt-5 sm:px-6 sm:pt-8 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12 lg:pb-14">
-          <div className="max-w-2xl">
-            <DiwaliEntry />
-            <span className="inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-brand md:text-[11px]">
-              <span aria-hidden className="dir-mark" data-dir="up" style={{ color: "var(--color-brand)", width: 8, height: 8 }} />
-              SEBI regulated · 100% deposit bonus
-            </span>
-            <h1 className="mt-4 text-balance text-[clamp(34px,8.8vw,58px)] font-black leading-[0.96] tracking-[-0.03em] md:text-[clamp(44px,5.6vw,76px)]">
-              Trade CFDs.
-              <br />
-              <span className="bg-[linear-gradient(90deg,var(--color-brand),color-mix(in_srgb,var(--color-brand)_40%,var(--color-up)))] bg-clip-text text-transparent">
-                Real prices. <span className="whitespace-nowrap">Real control.</span>
-              </span>
-            </h1>
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-2 sm:text-base">
-              Go long or short on forex, crypto, commodities and India indices with real-time market prices.
-              Set your stop-loss and take-profit on every position. Up to 100x leverage.
-              Start with a free demo — no card, no wait.
-            </p>
-
-            <div className="mt-5 flex flex-wrap items-center gap-3 md:mt-6">
-              <Link
-                href="/register"
-                className="group relative inline-flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full bg-brand px-6 text-sm font-black text-brand-ink shadow-[0_20px_60px_-15px_color-mix(in_srgb,var(--color-brand)_60%,transparent)] transition hover:scale-[1.02] hover:brightness-110 md:h-14 md:px-8 md:text-base"
-              >
-                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-button-sheen [mask-image:linear-gradient(90deg,transparent,var(--color-mask)_50%,transparent)] transition-transform duration-700 group-hover:translate-x-full" />
-                Start free demo
-                <span aria-hidden className="text-lg">→</span>
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex h-12 items-center justify-center rounded-full border border-rule bg-panel/70 px-6 text-sm font-semibold text-ink backdrop-blur hover:border-brand md:h-14 md:text-base"
-              >
-                Log in
-              </Link>
-            </div>
-
-            <div id="get-the-app" className="mt-5 max-w-lg scroll-mt-24 border-t border-rule pt-4 md:mt-6">
-              <h2 className="text-base font-bold">You can also download our app now</h2>
-              <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] items-start gap-2.5">
-                <a
-                  href="/download/app"
-                  className="flex min-h-[68px] items-center gap-2 rounded-xl border border-brand/50 bg-brand/10 px-3 py-2 transition-colors hover:border-brand hover:bg-brand/20 sm:min-h-16 sm:gap-3 sm:px-4"
-                >
-                  <svg aria-hidden="true" className="size-5 shrink-0 text-brand max-[359px]:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
-                  </svg>
-                  <span>
-                    <span className="block text-xs text-ink-2">Android</span>
-                    <span className="block text-sm font-bold">Download app</span>
-                  </span>
-                </a>
-                <details className="group rounded-xl border border-rule bg-panel/70 open:border-brand/50">
-                  <summary className="flex min-h-[66px] cursor-pointer list-none items-center gap-2 rounded-xl px-3 py-2 hover:bg-tile sm:min-h-[62px] sm:gap-3 sm:px-4 [&::-webkit-details-marker]:hidden">
-                    <svg aria-hidden="true" className="size-5 shrink-0 text-ink-2 max-[359px]:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="5" y="2" width="14" height="20" rx="3" />
-                      <path d="M10 18h4" />
-                    </svg>
-                    <span className="flex-1">
-                      <span className="block text-xs text-ink-2">iPhone</span>
-                      <span className="block text-sm font-bold leading-tight">Save to Home Screen</span>
-                    </span>
-                    <span aria-hidden="true" className="text-lg text-ink-2 group-open:rotate-45">+</span>
-                  </summary>
-                  <div className="border-t border-rule px-4 pb-4 pt-3 text-sm leading-relaxed text-ink-2">
-                    <ol className="ml-4 list-decimal space-y-2">
-                      <li>Open indianxtrade.com in <strong className="text-ink">Safari</strong> on your iPhone.</li>
-                      <li>Tap <strong className="text-ink">Share</strong> (you may need to tap the menu first).</li>
-                      <li>Choose <strong className="text-ink">Add to Home Screen</strong>. If you see <strong className="text-ink">Open as Web App</strong>, turn it on, then tap <strong className="text-ink">Add</strong>.</li>
-                    </ol>
-                    <p className="mt-3 text-xs">This saves the website to your Home Screen. No App Store download needed.</p>
-                  </div>
-                </details>
-              </div>
-              <Link href="/download/app/install" className="mt-2 inline-block text-xs text-ink-2 underline underline-offset-4 hover:text-ink">
-                How to install on Android
-              </Link>
-            </div>
-
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              {[
-                ["100x", "leverage"],
-                ["SL/TP", "on every trade"],
-                [String(MARKET_COUNT), "instruments"],
-                ["24/7", "trading"],
-              ].map(([n, l]) => (
-                <span
-                  key={l}
-                  className="inline-flex items-baseline gap-1.5 rounded-full border border-rule bg-panel/60 px-3 py-1.5 text-xs backdrop-blur"
-                >
-                  <b className="text-ink">{n}</b>
-                  <span className="text-ink-2">{l}</span>
-                </span>
-))}
-            </div>
-          </div>
-
-          {/* Editorial hero image: desktop only. Hidden on phones so the hero stays light. */}
-          <div className="relative hidden justify-self-center md:block md:justify-self-end">
-            <div className="relative aspect-square w-[260px] overflow-hidden rounded-3xl border border-rule shadow-[0_40px_100px_-30px_color-mix(in_srgb,var(--color-brand)_30%,transparent),0_0_0_1px_color-mix(in_srgb,var(--color-brand)_18%,transparent)_inset] lg:w-[360px]">
-              <Image
-                src="/marketing/hero-editorial.jpg"
-                alt="Trader in profile studying a live candlestick chart"
-                fill
-                sizes={editorialSizes}
-                className="object-cover"
-                loading="lazy"
-              />
-              {/* subtle top-down darkening so overlaid stickers stay legible */}
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ground/60 via-transparent to-transparent" />
-            </div>
-            <div className="absolute -left-14 top-10 z-10 -rotate-6 rounded-2xl border border-brand/40 bg-panel/90 px-4 py-3 text-[11px] shadow-2xl backdrop-blur">
-              <p className="font-bold uppercase tracking-widest text-brand">Live now</p>
-              <p className="mt-1 text-ink">6,204 traders</p>
-              <p className="text-ink-3">on IndianxTrade right now</p>
-            </div>
-            <div className="absolute -right-10 -bottom-4 z-10 rotate-3 rounded-2xl border border-up/50 bg-panel/90 px-4 py-3 text-[11px] shadow-2xl backdrop-blur">
-              <p className="font-bold uppercase tracking-widest text-up">Position closed</p>
-              <p className="mt-1 text-ink">+₹1,930 · NIFTY 50</p>
-              <p className="text-ink-3">Long · SL/TP hit</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <CinematicHero />
 
       {/* LIVE BAND — signature motion: real streaming candles above the price marquee. */}
       <LiveCandleBand />
@@ -279,55 +133,9 @@ export function BoldLanding() {
         </div>
       </section>
 
-      {/* PLATFORM */}
-      <section id="platform" className="border-b border-rule">
-        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 md:py-28">
-          <div className="grid gap-10 md:grid-cols-2 md:items-center md:gap-16">
-            <div className="relative hidden md:block">
-              <div className="pointer-events-none absolute -inset-10 rounded-full opacity-40 blur-3xl [background:radial-gradient(circle,color-mix(in_srgb,var(--color-brand)_25%,transparent),transparent_70%)]" />
-              <div className="relative aspect-square w-full overflow-hidden rounded-3xl border border-rule shadow-[0_40px_100px_-30px_var(--color-shadow-floating)]">
-                <Image
-                  src="/marketing/platform-editorial.jpg"
-                  alt="Long-exposure of a live trading floor at night"
-                  fill
-                  sizes={editorialSizes}
-                  className="object-cover"
-                  loading="lazy"
-                />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-ground/70 via-transparent to-transparent" />
-              </div>
-            </div>
-            <div>
-              <p className="legend text-brand">The platform</p>
-              <h2 className="mt-3 text-[clamp(30px,7vw,56px)] font-black leading-[0.98] tracking-[-0.02em]">
-                Fast on a phone. <br />
-                <span className="text-brand">Sharp on a desk.</span>
-              </h2>
-              <p className="mt-5 max-w-md text-base leading-relaxed text-ink-2">
-                Same UI, both surfaces. Thumb-sized controls on mobile with the trade panel pinned above the nav; a full
-                two-pane workspace on desktop. Set SL/TP, adjust leverage, go long or short — all in one tap.
-              </p>
-              <ul className="mt-8 space-y-4 text-sm">
-                {[
-                  ["One-tap SL/TP", "Set your stop-loss and take-profit before every position."],
-                  ["Real-time market prices", "Live feeds from regulated liquidity providers, no delayed quotes."],
-                  ["Audited trade ledger", "Every entry, exit and settlement tick recorded and verifiable."],
-                ].map(([t, b]) => (
-                  <li key={t} className="flex items-start gap-3 rounded-xl border border-rule bg-panel/60 p-4">
-                    <span aria-hidden="true" className="mt-1 grid h-6 w-6 flex-none place-items-center rounded-full bg-brand/20 text-brand">
-                      ✓
-                    </span>
-                    <span>
-                      <b className="text-ink">{t}.</b>{" "}
-                      <span className="text-ink-2">{b}</span>
-                    </span>
-                  </li>
-))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
+      <PlatformShowcase>
+        <AppDownloads />
+      </PlatformShowcase>
 
       {/* SOCIAL PROOF */}
       <section className="border-b border-rule">
@@ -429,6 +237,52 @@ function Stat({ value, label }: { value: React.ReactNode; label: string }) {
       <p className="mt-3 text-[11px] font-semibold uppercase tracking-widest text-ink-2">{label}</p>
     </div>
 );
+}
+
+function AppDownloads() {
+  return (
+    <div id="get-the-app" className="mt-5 max-w-lg scroll-mt-24 border-t border-rule pt-4 md:mt-6">
+      <h3 className="text-base font-bold">Get the app</h3>
+      <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] items-start gap-2.5">
+        <a
+          href="/download/app"
+          className="flex min-h-[68px] items-center gap-2 rounded-xl border border-brand/50 bg-brand/10 px-3 py-2 transition-colors hover:border-brand hover:bg-brand/20 sm:min-h-16 sm:gap-3 sm:px-4"
+        >
+          <svg aria-hidden="true" className="size-5 shrink-0 text-brand max-[359px]:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
+          </svg>
+          <span>
+            <span className="block text-xs text-ink-2">Android</span>
+            <span className="block text-sm font-bold">Download app</span>
+          </span>
+        </a>
+        <details className="group rounded-xl border border-rule bg-panel/70 open:border-brand/50">
+          <summary className="flex min-h-[66px] cursor-pointer list-none items-center gap-2 rounded-xl px-3 py-2 hover:bg-tile sm:min-h-[62px] sm:gap-3 sm:px-4 [&::-webkit-details-marker]:hidden">
+            <svg aria-hidden="true" className="size-5 shrink-0 text-ink-2 max-[359px]:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="3" />
+              <path d="M10 18h4" />
+            </svg>
+            <span className="flex-1">
+              <span className="block text-xs text-ink-2">iPhone</span>
+              <span className="block text-sm font-bold leading-tight">Save to Home Screen</span>
+            </span>
+            <span aria-hidden="true" className="text-lg text-ink-2 group-open:rotate-45">+</span>
+          </summary>
+          <div className="border-t border-rule px-4 pb-4 pt-3 text-sm leading-relaxed text-ink-2">
+            <ol className="ml-4 list-decimal space-y-2">
+              <li>Open indianxtrade.com in <strong className="text-ink">Safari</strong> on your iPhone.</li>
+              <li>Tap <strong className="text-ink">Share</strong> (you may need to tap the menu first).</li>
+              <li>Choose <strong className="text-ink">Add to Home Screen</strong>. If you see <strong className="text-ink">Open as Web App</strong>, turn it on, then tap <strong className="text-ink">Add</strong>.</li>
+            </ol>
+            <p className="mt-3 text-xs">This saves the website to your Home Screen. No App Store download needed.</p>
+          </div>
+        </details>
+      </div>
+      <Link href="/download/app/install" className="mt-2 inline-block text-xs text-ink-2 underline underline-offset-4 hover:text-ink">
+        How to install on Android
+      </Link>
+    </div>
+  );
 }
 
 function BoldNav() {

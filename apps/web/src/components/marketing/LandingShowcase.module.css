@@ -1,0 +1,159 @@
+.hero {
+  --hero-art: url("/marketing/hero-market-dark-mobile.webp");
+  --hero-top: #151311;
+  --hero-wash: linear-gradient(#120e0a18 36%, #120e0a85 100%);
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: clamp(415px, 118vw, 535px);
+  place-items: end center;
+  padding-block: 7.5rem 3rem;
+  background: var(--hero-top);
+  color: #fbf6ef;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--hero-wash), var(--hero-art) right bottom / cover no-repeat;
+}
+
+:global(html[data-theme="light"]) .hero {
+  --hero-art: url("/marketing/hero-market-light-mobile.webp");
+  --hero-top: #f3e6d5;
+  --hero-wash: linear-gradient(#f9eed715 40%, #f5e7d39c 100%);
+  color: #231d18;
+}
+
+.title {
+  font-size: clamp(2rem, 9vw, 4.9rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+
+.deviceStage {
+  --frame-top: #343d4e;
+  --frame-bottom: #131924;
+  --frame-edge: #8490a8;
+  --stage-bg: #081021;
+  --stage-light: #173769;
+  --stage-floor: #121f37;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  aspect-ratio: 1.35;
+  border-radius: clamp(0.9rem, 2.3vw, 1.65rem);
+  background: radial-gradient(ellipse at 68% 34%, var(--stage-light), transparent 66%), var(--stage-bg);
+}
+
+.deviceStage::before {
+  content: "";
+  position: absolute;
+  inset: 72% 0 0;
+  z-index: -1;
+  background: radial-gradient(ellipse at 64% 0, var(--stage-floor), transparent 78%);
+}
+
+:global(html[data-theme="light"]) .deviceStage {
+  --frame-top: #d2d8e0;
+  --frame-bottom: #6d7a8b;
+  --frame-edge: #fafcff;
+  --stage-bg: #dde4ef;
+  --stage-light: #f8fbff;
+  --stage-floor: #aab9ce;
+}
+
+.monitor {
+  position: absolute;
+  left: 9%;
+  top: 13%;
+  width: 74%;
+}
+
+.monitorFrame,
+.phone {
+  border: 1px solid var(--frame-edge);
+  background: linear-gradient(var(--frame-top), var(--frame-bottom));
+  box-shadow: 0 10px 30px #030b1b45;
+}
+
+.monitorFrame {
+  border-radius: 2%;
+  padding: 0.9% 0.9% 2%;
+}
+
+.monitorStand {
+  width: 13%;
+  height: clamp(10px, 4.4vw, 58px);
+  margin-inline: auto;
+  background: linear-gradient(to right, var(--frame-bottom), var(--frame-top));
+}
+
+.monitorStand::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 32%;
+  width: 36%;
+  height: clamp(3px, 0.7vw, 8px);
+  border-radius: 50% 50% 2px 2px;
+  background: linear-gradient(var(--frame-top), var(--frame-bottom));
+}
+
+.phone {
+  position: absolute;
+  right: 5%;
+  bottom: 7%;
+  width: 27%;
+  padding: 0.5%;
+  border-radius: clamp(0.5rem, 2vw, 1.4rem);
+}
+
+.screen {
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--color-ground);
+}
+
+.screen img {
+  width: 100%;
+  height: auto;
+}
+
+.lightScreen,
+:global(html[data-theme="light"]) .darkScreen {
+  display: none;
+}
+
+:global(html[data-theme="light"]) .lightScreen {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .hero {
+    --hero-art: url("/marketing/hero-market-dark.webp");
+    min-height: clamp(500px, 42vw, 680px);
+    padding-block: 9rem 4.5rem;
+  }
+
+  :global(html[data-theme="light"]) .hero {
+    --hero-art: url("/marketing/hero-market-light.webp");
+  }
+
+  .deviceStage {
+    aspect-ratio: 1.7;
+  }
+
+  .monitor {
+    left: 14%;
+    width: 67%;
+  }
+
+  .phone {
+    right: 9%;
+    width: 19%;
+  }
+}
