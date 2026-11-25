@@ -13,7 +13,6 @@ const STATIC_ROUTES: {
   { path: "/legit", priority: 0.8, changeFrequency: "monthly" },
   { path: "/security", priority: 0.7, changeFrequency: "monthly" },
   { path: "/guides", priority: 0.7, changeFrequency: "weekly" },
-  { path: "/compare", priority: 0.7, changeFrequency: "weekly" },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

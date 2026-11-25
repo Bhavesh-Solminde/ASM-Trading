@@ -71,7 +71,6 @@ function Section({ section }: { section: ContentSection }) {
 
 const COLLECTION_LABEL: Record<Article["collection"], string> = {
   guides: "Guides",
-  compare: "Compare",
 };
 
 /** Renders a content article and emits Article + Breadcrumb + (optional)

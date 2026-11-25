@@ -24,7 +24,7 @@ export type ContentSection = {
 export type Article = {
   slug: string;
   /** Which route group this belongs to; drives URL + breadcrumb. */
-  collection: "guides" | "compare";
+  collection: "guides";
   /** <title> (brand appended by buildMetadata) and <h1>. */
   title: string;
   /** Meta description + article schema description + intro lede. */
