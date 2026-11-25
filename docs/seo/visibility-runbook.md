@@ -58,7 +58,7 @@ log whether/how IndianxTrade is mentioned and whether the facts are correct:
 For each: are we mentioned? Accurately? What source is cited? Then:
 
 - If a competitor is cited where we should be → write/sharpen the matching
-  `/guides` or `/compare` page (add it to `apps/web/src/content/`).
+  `/guides` page (add it to `apps/web/src/content/`).
 - If a fact is wrong → fix it at the source (`site.ts`, the article, or
   `/llms.txt`) so the next crawl corrects it.
 - Check Search Console: impressions, top queries, and **Rich Results** status
@@ -71,5 +71,4 @@ scaffold) once they rank. Candidate next pages:
 
 - `/guides/trading-strategy-for-beginners`
 - `/guides/otc-pairs-weekend-trading`
-- `/compare/indianxtrade-vs-olymp-trade`
 - Country landing pages once demand is proven per market.

@@ -25,7 +25,6 @@ describe("installation eligibility", () => {
     for (const path of [
       "/",
       "/guides/x",
-      "/compare/x",
       "/legal",
       "/about",
       "/security",

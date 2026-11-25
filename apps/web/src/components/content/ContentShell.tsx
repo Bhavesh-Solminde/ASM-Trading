@@ -53,9 +53,6 @@ export function ContentShell({
             <Link href="/guides" className="hover:text-ink">
               Guides
             </Link>
-            <Link href="/compare" className="hover:text-ink">
-              Compare
-            </Link>
             <Link href="/affiliate" className="hover:text-ink">
               Affiliate program
             </Link>
