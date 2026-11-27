@@ -79,10 +79,10 @@ describe("password reset flow", () => {
     expect(input.resetUrl).toMatch(/\/reset-password\?token=[A-Za-z0-9_-]{43}$/);
   });
 
-  it("refuses a password under 12 characters with the rule's own message", async () => {
-    const res = await call(confirmReset, "confirm", { token: "x".repeat(43), password: "short" });
+  it("refuses a password under 6 characters with the rule's own message", async () => {
+    const res = await call(confirmReset, "confirm", { token: "x".repeat(43), password: "abcde" });
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { error: string }).error).toMatch(/12 characters/);
+    expect(((await res.json()) as { error: string }).error).toMatch(/6 characters/);
   });
 
   it("resets the password, signs out every device and sends a notice", async () => {

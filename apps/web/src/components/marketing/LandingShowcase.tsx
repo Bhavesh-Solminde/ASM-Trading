@@ -6,6 +6,7 @@ import { Icon } from "@/components/shell/Icon";
 import styles from "./LandingShowcase.module.css";
 
 const heroFacts = ["₹10 lakh demo balance", "₹100 minimum trade", "UPI deposits"];
+const appButton = `${styles.photoChip} inline-flex min-h-12 items-center justify-center gap-2.5 rounded-full border px-6 text-sm font-bold sm:min-h-14 sm:text-base`;
 
 export function CinematicHero() {
   return (
@@ -21,12 +22,27 @@ export function CinematicHero() {
         <h1 id="home-hero-title" className={styles.title}>
           Explore the markets.<br />Trade in demo.
         </h1>
-        <Link
-          href="/register"
-          className="mt-6 inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-brand-fill px-7 text-sm font-bold text-brand-ink hover:bg-brand-fill-hi sm:mt-8 sm:min-h-14 sm:text-base"
-        >
-          Start free demo <span aria-hidden="true">↗</span>
-        </Link>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 sm:mt-8">
+          <Link
+            href="/register"
+            className="inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-brand-fill px-7 text-sm font-bold text-brand-ink hover:bg-brand-fill-hi sm:min-h-14 sm:text-base"
+          >
+            Start free demo <span aria-hidden="true">↗</span>
+          </Link>
+          <a href="/download/app" className={`${appButton} ${styles.notIos}`}>
+            <svg aria-hidden="true" className="size-5 shrink-0 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
+            </svg>
+            Download app
+          </a>
+          <a href="#get-the-app" className={`${appButton} ${styles.iosOnly}`}>
+            <svg aria-hidden="true" className="size-5 shrink-0 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="3" />
+              <path d="M10 18h4" />
+            </svg>
+            Save to Home Screen
+          </a>
+        </div>
         <ul className={`${styles.photoText} ${styles.heroFacts} mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm font-semibold sm:mt-5 sm:text-base`}>
           {heroFacts.map((fact) => (
             <li key={fact} className="flex items-center gap-1.5">

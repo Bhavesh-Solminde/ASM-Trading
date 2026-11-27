@@ -7,6 +7,7 @@ import {
   USD_INR_RATE,
   USD_TO_INR_RATE,
   convertMinorBetween,
+  isKycRequired,
   prisma,
 } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -14,6 +15,7 @@ import { upiCollection } from "@/lib/upi-collection";
 import { Card, PageHead, Pill } from "../../_components/ui";
 import { Icon } from "../../_lib/icons";
 import { num, inrFromMinor, usdFromMinor } from "../../_lib/format";
+import { setKycRequiredAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +36,11 @@ function Row({ label, desc, control }: { label: string; desc?: string; control: 
 export default async function SettingsPage() {
   await requireAdmin();
 
-  const [userCount, assetCount, auditCount] = await Promise.all([
+  const [userCount, assetCount, auditCount, kycRequired] = await Promise.all([
     prisma.user.count(),
     prisma.asset.count(),
     prisma.auditLog.count(),
+    isKycRequired(),
   ]);
 
   // Deposit limits are stored in USD minor units; show them in USD and give
@@ -49,10 +52,30 @@ export default async function SettingsPage() {
     <>
       <PageHead
         title="Settings"
-        desc="Read-only. Platform values come from the deposit and bonus engine and change with a release; collection accounts come from the environment."
+        desc="Platform values come from the deposit and bonus engine and change with a release. Collection accounts come from the environment. Client switches take effect immediately."
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 880 }}>
+        <Card title="Clients">
+          <Row
+            label="Require KYC to withdraw"
+            desc={
+              kycRequired
+                ? "Clients verify their identity before their first withdrawal."
+                : "Clients withdraw without KYC and see no verification screens. Submitted documents are kept."
+            }
+            control={
+              <form action={setKycRequiredAction} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Pill tone={kycRequired ? "pos" : "warn"}>{kycRequired ? "On" : "Off"}</Pill>
+                <input type="hidden" name="kycRequired" value={kycRequired ? "false" : "true"} />
+                <button type="submit" className={`admin-btn admin-btn--sm${kycRequired ? " admin-btn--danger" : " admin-btn--primary"}`}>
+                  {kycRequired ? "Turn off" : "Turn on"}
+                </button>
+              </form>
+            }
+          />
+        </Card>
+
         <Card title="Platform">
           <Row label="Platform name" control="IndianxTrade" />
           <Row label="UPI collection conversion" desc="Existing collection margin, applied to the requested rupee amount." control={`₹${USD_TO_INR_RATE}`} />

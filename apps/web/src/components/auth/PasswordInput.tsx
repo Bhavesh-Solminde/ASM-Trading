@@ -10,8 +10,6 @@ type Props = {
   autoComplete?: "current-password" | "new-password";
   required?: boolean;
   minLength?: number;
-  /** When true, renders a 5-step strength meter below the input. */
-  showStrength?: boolean;
   /** When true, renders "Forgot password?" link on the label row. */
   showForgot?: boolean;
   /** Where the "Forgot password?" link goes (the affiliate portal has its own page). */
@@ -20,7 +18,7 @@ type Props = {
 };
 
 export const PasswordInput = forwardRef<HTMLInputElement, Props>(function PasswordInput(
-  { value, onChange, placeholder, autoComplete = "current-password", required, minLength, showStrength, showForgot, forgotHref = "/forgot-password", label },
+  { value, onChange, placeholder, autoComplete = "current-password", required, minLength, showForgot, forgotHref = "/forgot-password", label },
   ref,
 ) {
   const id = useId();
@@ -32,8 +30,6 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
     const on = e.getModifierState?.("CapsLock") ?? false;
     setCapsLock(on);
   }
-
-  const strength = showStrength ? scorePassword(value) : null;
 
   return (
     <div>
@@ -79,8 +75,6 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
           <span aria-hidden>⇪</span> Caps Lock is on
         </p>
       ) : null}
-
-      {strength && value.length > 0 ? <StrengthMeter score={strength.score} label={strength.label} /> : null}
     </div>
   );
 });
@@ -103,51 +97,4 @@ function EyeOff() {
       <path d="M9.53 9.53a3 3 0 0 0 4.24 4.24" />
     </svg>
   );
-}
-
-const STRENGTH_LABELS = ["Weak", "Weak", "Fair", "Good", "Strong"] as const;
-const STRENGTH_COLORS = [
-  "var(--color-down)",
-  "var(--color-down)",
-  "var(--color-brand)",
-  "var(--color-brand)",
-  "var(--color-up)",
-] as const;
-
-function StrengthMeter({ score, label }: { score: number; label: string }) {
-  return (
-    <div className="mt-3">
-      <div className="flex gap-1.5">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <span
-            key={i}
-            className="h-1 flex-1 rounded-full transition-colors"
-            style={{
-              backgroundColor: i < score ? STRENGTH_COLORS[Math.max(0, score - 1)] : "var(--color-rule)",
-            }}
-          />
-        ))}
-      </div>
-      <p className="mt-2 text-[11px] text-ink-3">
-        <span className="font-semibold" style={{ color: STRENGTH_COLORS[Math.max(0, score - 1)] }}>
-          {label}
-        </span>
-        <span className="mx-1.5 text-ink-3">·</span>
-        <span>12+ chars with a mix of upper, lower, number and symbol scores strongest.</span>
-      </p>
-    </div>
-  );
-}
-
-function scorePassword(value: string): { score: number; label: string } {
-  if (!value) return { score: 0, label: STRENGTH_LABELS[0] };
-  let s = 0;
-  if (value.length >= 8) s++;
-  if (value.length >= 12) s++;
-  if (/[A-Z]/.test(value) && /[a-z]/.test(value)) s++;
-  if (/\d/.test(value)) s++;
-  if (/[^A-Za-z0-9]/.test(value)) s++;
-  s = Math.min(5, s);
-  const idx = Math.min(STRENGTH_LABELS.length - 1, Math.max(0, s - 1));
-  return { score: s, label: STRENGTH_LABELS[idx]! };
 }

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   formatMoney,
+  isKycRequired,
   listAccountsForActor,
   listWithdrawalsForActor,
   loadProfile,
@@ -23,9 +24,10 @@ export default async function WithdrawalPage() {
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
 
-  const [accounts, profile] = await Promise.all([
+  const [accounts, profile, kycRequired] = await Promise.all([
     listAccountsForActor(session.userId),
     loadProfile(session.userId),
+    isKycRequired(),
   ]);
   const live = accounts.find((a) => a.type === "LIVE");
   if (!live) redirect("/trade");
@@ -81,7 +83,7 @@ export default async function WithdrawalPage() {
           />
         ))}
 
-        {profile.kycStatus === "VERIFIED" ? (
+        {!kycRequired || profile.kycStatus === "VERIFIED" ? (
           <WithdrawForm
             accountId={live.id}
             currency={live.currency}

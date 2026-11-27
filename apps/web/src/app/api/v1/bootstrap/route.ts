@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { BootstrapSchema } from "@asm/contracts";
-import { loadProfile } from "@asm/db";
+import { isKycRequired, loadProfile } from "@asm/db";
 import { childLogger } from "@asm/logger";
 import { checkNetwork, vpnBlockedResponse } from "@/lib/network-guard/guard";
 import { loadPlatformBootstrap } from "@/lib/platform-bootstrap";
@@ -15,13 +15,18 @@ export async function GET(req: NextRequest) {
   const network = await checkNetwork({ ip: ctx.ip, route: "app_bootstrap", log: childLogger(ctx.cid), userId: session.userId });
   if (network.blocked) return vpnBlockedResponse();
 
-  const [boot, profile] = await Promise.all([loadPlatformBootstrap(session.userId), loadProfile(session.userId)]);
+  const [boot, profile, kycRequired] = await Promise.all([
+    loadPlatformBootstrap(session.userId),
+    loadProfile(session.userId),
+    isKycRequired(),
+  ]);
   if (!boot.active) return noStoreJson({ error: "This account is unavailable. Contact support.", code: "blocked" }, { status: 403 });
   return noStoreJson(
     BootstrapSchema.parse({
       ...boot,
       tradingModel: process.env.OTC_ORDER_BOOK_ENABLED === "true" ? "OTC_FIXED" : process.env.TRADING_MODEL === "CFD" ? "CFD" : "BINARY",
       userId: session.userId,
+      kycRequired,
       profile: { nickname: profile.nickname, email: profile.email, kycStatus: profile.kycStatus, locale: profile.locale },
     }),
   );

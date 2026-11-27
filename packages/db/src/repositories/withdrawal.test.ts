@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../client";
 import { convertMinorBetween, createAccountsForUser } from "./account";
+import { setKycRequired } from "./platform-settings";
 import {
   approveWithdrawal,
   autoPromoteHeldWithdrawals,
@@ -140,6 +141,18 @@ describe("requestWithdrawal", () => {
     }
     const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
     expect(account.realBalance).toBe(50_000);
+  });
+
+  it("lets an unverified user withdraw when KYC is switched off", async () => {
+    await prisma.user.update({ where: { id: userId }, data: { kycStatus: "NOT_STARTED" } });
+    await setKycRequired(false, "test-withdrawal");
+    try {
+      const withdrawal = await requestWithdrawal({ actorId: userId, accountId, amount: 10_000, ...UPI });
+      expect(withdrawal.status).toBe("REQUESTED");
+    } finally {
+      await setKycRequired(true, "test-withdrawal");
+      await prisma.auditLog.deleteMany({ where: { actorId: "test-withdrawal" } });
+    }
   });
 
   it("refuses more than the withdrawable balance", async () => {

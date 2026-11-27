@@ -18,10 +18,9 @@ describe("RegisterSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects a password under 12 characters", () => {
-    expect(RegisterSchema.safeParse({ ...valid, password: "short" }).success).toBe(
-      false,
-    );
+  it("rejects a password under 6 characters and accepts 6", () => {
+    expect(RegisterSchema.safeParse({ ...valid, password: "abcde" }).success).toBe(false);
+    expect(RegisterSchema.safeParse({ ...valid, password: "abcdef" }).success).toBe(true);
   });
 
   it("rejects a malformed email", () => {
@@ -49,6 +48,11 @@ describe("RegisterSchema", () => {
 });
 
 describe("LoginSchema", () => {
+  it("lets an existing user sign in with any non-empty password", () => {
+    expect(LoginSchema.safeParse({ email: "a@b.com", password: "abc" }).success).toBe(true);
+    expect(LoginSchema.safeParse({ email: "a@b.com", password: "" }).success).toBe(false);
+  });
+
   it("rejects unknown keys", () => {
     const result = LoginSchema.safeParse({
       email: "a@b.com",
@@ -66,7 +70,8 @@ describe("password reset schemas", () => {
   });
   it("applies the signup password rule on confirm", () => {
     const token = "x".repeat(43);
-    expect(PasswordResetConfirmSchema.safeParse({ token, password: "short" }).success).toBe(false);
+    expect(PasswordResetConfirmSchema.safeParse({ token, password: "abcde" }).success).toBe(false);
+    expect(PasswordResetConfirmSchema.safeParse({ token, password: "abcdef" }).success).toBe(true);
     expect(PasswordResetConfirmSchema.safeParse({ token, password: "correct-horse-battery" }).success).toBe(true);
   });
   it("rejects extra keys", () => {

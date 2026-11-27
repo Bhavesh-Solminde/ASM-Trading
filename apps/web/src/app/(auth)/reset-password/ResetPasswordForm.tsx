@@ -26,7 +26,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
-    if (password.length < 12) return setError("Use at least 12 characters.");
+    if (password.length < 6) return setError("Use at least 6 characters.");
     if (password !== confirm) return setError("The two passwords don't match.");
     setBusy(true);
     setError(null);
@@ -83,17 +83,16 @@ export function ResetPasswordForm({ token }: { token: string }) {
           value={password}
           onChange={setPassword}
           required
-          minLength={12}
+          minLength={6}
           autoComplete="new-password"
-          placeholder="At least 12 characters"
-          showStrength
+          placeholder="At least 6 characters"
         />
         <PasswordInput
           label="Confirm new password"
           value={confirm}
           onChange={setConfirm}
           required
-          minLength={12}
+          minLength={6}
           autoComplete="new-password"
           placeholder="Type it again"
         />

@@ -26,6 +26,7 @@ import {
   canCancelHeld,
   initialPayout,
   isFromLastWithdrawal,
+  needsKycGate,
   payoutDestinationLabel,
   withdrawAmountOpts,
   withdrawBody,
@@ -178,7 +179,7 @@ export function WithdrawContent({ live, prefill, withdrawable }: { live: { id: s
     );
   });
 
-  if (prefill.kycStatus !== "VERIFIED") {
+  if (needsKycGate(prefill)) {
     const status = prefill.kycStatus;
     return (
       <>

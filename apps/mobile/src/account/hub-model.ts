@@ -40,9 +40,9 @@ export function kycTag(status: KycStatus): { tone: Tone; labelKey: string } {
   }
 }
 
-/** The "verify your account" card is only for someone with something to do. */
-export function showVerifyCard(status: KycStatus): boolean {
-  return status === "NOT_STARTED" || status === "REJECTED";
+/** The verify card is only for someone with something to do while KYC is required. */
+export function showVerifyCard(status: KycStatus, kycRequired = true): boolean {
+  return kycRequired && (status === "NOT_STARTED" || status === "REJECTED");
 }
 
 /** i18n key of the value beside "Security and app lock". An enabled lock with no method cannot unlock anything, so it reads Off. */

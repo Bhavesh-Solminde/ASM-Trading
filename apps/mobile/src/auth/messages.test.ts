@@ -32,7 +32,7 @@ describe("validationKey", () => {
   it("maps email and password failures", () => {
     const e = LoginSchema.safeParse({ email: "nope", password: "x".repeat(12) });
     expect(e.success ? null : validationKey(e.error.issues)).toBe("auth.errEmail");
-    const p = LoginSchema.safeParse({ email: "a@b.co", password: "short" });
+    const p = RegisterSchema.safeParse({ name: "Asha Rao", email: "a@b.co", password: "abcde" });
     expect(p.success ? null : validationKey(p.error.issues)).toBe("auth.errPassword");
   });
   it("falls back to the generic check-your-details key", () => {

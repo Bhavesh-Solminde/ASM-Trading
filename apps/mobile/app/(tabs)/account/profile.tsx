@@ -6,7 +6,7 @@ import { identityRows, nicknameProblem, NICKNAME_MAX, profileBody, saveEnabled }
 import { ApiError } from "@/api/errors";
 import { api } from "@/api/client";
 import { shouldRefetchOnFocus } from "@/api/focus-refetch";
-import { queryClient, useProfile } from "@/api/queries";
+import { queryClient, useBootstrap, useProfile } from "@/api/queries";
 import { refreshBootstrap } from "@/api/refresh-bootstrap";
 import { useSessionLive } from "@/auth/use-session-live";
 import { detailsEditable, kycRequestErrorText } from "@/kyc/verify-model";
@@ -29,6 +29,9 @@ const SAVE_TIMEOUT_MS = 15_000;
 export default function Profile() {
   const { t } = useTranslation();
   const sessionLive = useSessionLive();
+  const boot = useBootstrap(sessionLive).data;
+  const kycRequired = boot?.kycRequired ?? true;
+  const showKycDetails = !!boot && kycRequired;
   const profile = useProfile(sessionLive);
   const { refetch, dataUpdatedAt } = profile;
   const updatedAt = useRef(dataUpdatedAt);
@@ -92,17 +95,21 @@ export default function Profile() {
                 ) : null}
               </View>
               <Field testID="profile-email" label={t("profile.email")} value={data.email} editable={false} />
-              <Txt size={16} weight={600} accessibilityRole="header">
-                {t("profile.identityTitle")}
-              </Txt>
-              <KeyValueBox rows={identityRows(data).map((row) => ({ key: row.id, testID: `profile-${row.id}`, label: t(row.labelKey), ...(row.id === "aadhaar" && row.value && /[0-9]{4}$/.test(row.value) ? { accessibilityLabel: t("profile.aadhaarEnding", { last4: row.value.slice(-4) }) } : {}), value: row.value ?? t("profile.notAdded"), ...(row.value === null ? { valueColor: color.ink3 } : null) }))} />
-              {detailsEditable(data.kycStatus) ? (
-                <Button testID="profile-edit-identity" kind="secondary" label={t("profile.editIdentity")} onPress={() => router.push("/account/kyc-details")} />
-              ) : (
-                <Txt testID="profile-identity-locked" size={14} color={color.ink2}>
-                  {t("kyc.detailsLocked")}
+              {showKycDetails ? (
+                <Txt size={16} weight={600} accessibilityRole="header">
+                  {t("profile.identityTitle")}
                 </Txt>
-              )}
+              ) : null}
+              <KeyValueBox rows={identityRows(data).filter((row) => showKycDetails || row.id === "name").map((row) => ({ key: row.id, testID: `profile-${row.id}`, label: t(row.labelKey), ...(row.id === "aadhaar" && row.value && /[0-9]{4}$/.test(row.value) ? { accessibilityLabel: t("profile.aadhaarEnding", { last4: row.value.slice(-4) }) } : {}), value: row.value ?? t("profile.notAdded"), ...(row.value === null ? { valueColor: color.ink3 } : null) }))} />
+              {showKycDetails ? (
+                detailsEditable(data.kycStatus) ? (
+                  <Button testID="profile-edit-identity" kind="secondary" label={t("profile.editIdentity")} onPress={() => router.push("/account/kyc-details")} />
+                ) : (
+                  <Txt testID="profile-identity-locked" size={14} color={color.ink2}>
+                    {t("kyc.detailsLocked")}
+                  </Txt>
+                )
+              ) : null}
               {error ? (
                 <Txt testID="profile-save-error" size={14} color={color.downText} accessibilityLiveRegion="polite">
                   {error}
