@@ -20,5 +20,5 @@ export function startOfDayMs(nowMs: number, timeZone = "Asia/Kolkata"): number {
   // 24:00 is emitted by some engines for midnight; normalise to 0.
   const hour = get("hour") % 24;
   const secondsIntoDay = hour * 3600 + get("minute") * 60 + get("second");
-  return nowMs - secondsIntoDay * 1000;
+  return (Math.floor(nowMs / 1000) - secondsIntoDay) * 1000;
 }

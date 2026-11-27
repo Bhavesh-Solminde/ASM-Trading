@@ -16,9 +16,8 @@ describe("startOfDayMs", () => {
     expect(startOfDayMs(start, "Asia/Kolkata")).toBe(start);
   });
 
-  it("handles a time just after IST midnight", () => {
-    // 2026-09-20T18:31:00Z = 00:01 IST on the 21st → midnight = 2026-09-20T18:30:00Z.
-    const now = Date.parse("2026-09-20T18:31:00Z");
+  it("returns exact IST midnight even when the current time includes milliseconds", () => {
+    const now = Date.parse("2026-09-20T18:30:00.731Z");
     expect(new Date(startOfDayMs(now, "Asia/Kolkata")).toISOString()).toBe("2026-09-20T18:30:00.000Z");
   });
 });

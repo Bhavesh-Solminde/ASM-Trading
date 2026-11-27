@@ -34,8 +34,9 @@ export interface LeaderboardResult {
  * `displayCurrency` — comparing raw minor units would put $1,000 below ₹2,000.
  * Only traders from LEADERBOARD_COUNTRIES are ranked; a viewer outside it (or
  * with no known country) still gets their own P/L back, with a null rank.
- * The viewer's rank is computed across the full ranked set, then the list is
- * truncated to `limit`.
+ * The viewer's rank is computed across the full ranked set. The list includes
+ * the top `limit` real traders, all supplied demo entries, and any real trader
+ * whose P/L matches or beats a demo entry.
  */
 export async function dailyLeaderboard(input: {
   sinceMs: number;
@@ -43,6 +44,7 @@ export async function dailyLeaderboard(input: {
   limit: number;
   includeBots: boolean;
   displayCurrency: string;
+  demoEntriesInInr?: LeaderboardEntry[];
 }): Promise<LeaderboardResult> {
   const since = new Date(input.sinceMs);
 
@@ -60,11 +62,7 @@ export async function dailyLeaderboard(input: {
     _sum: { pnl: true },
   });
 
-  if (grouped.length === 0) {
-    return { entries: [], you: { rank: null, entry: null } };
-  }
-
-  const accounts = await prisma.account.findMany({
+  const accounts = grouped.length === 0 ? [] : await prisma.account.findMany({
     where: { id: { in: grouped.map((g) => g.accountId) } },
     select: {
       id: true,
@@ -80,6 +78,7 @@ export async function dailyLeaderboard(input: {
     const currency = a?.currency ?? "INR";
     const pnl = g._sum.pnl ?? 0;
     return {
+      demo: false,
       inrMinor: convertMinorBetween(pnl, currency, "INR"),
       entry: {
         accountId: g.accountId,
@@ -92,19 +91,33 @@ export async function dailyLeaderboard(input: {
     };
   });
 
-  const ranked: LeaderboardEntry[] = all
-    .filter((r) => isLeaderboardCountry(r.entry.country))
-    .sort((a, b) => b.inrMinor - a.inrMinor || a.entry.accountId.localeCompare(b.entry.accountId))
-    .map((r) => r.entry);
+  const demo = (input.demoEntriesInInr ?? []).map((entry) => ({
+    demo: true,
+    inrMinor: entry.pnlMinor,
+    entry: {
+      ...entry,
+      currency: input.displayCurrency,
+      pnlMinor: convertMinorBetween(entry.pnlMinor, "INR", input.displayCurrency),
+    },
+  }));
+  const ranked = [...all.filter((r) => isLeaderboardCountry(r.entry.country)), ...demo]
+    .sort((a, b) => b.inrMinor - a.inrMinor || a.entry.accountId.localeCompare(b.entry.accountId));
 
-  const yourIndex = ranked.findIndex((e) => e.userId === input.viewerUserId);
+  const yourIndex = ranked.findIndex((r) => !r.demo && r.entry.userId === input.viewerUserId);
   const you =
     yourIndex >= 0
-      ? { rank: yourIndex + 1, entry: ranked[yourIndex]! }
+      ? { rank: yourIndex + 1, entry: ranked[yourIndex]!.entry }
       : { rank: null, entry: all.find((r) => r.entry.userId === input.viewerUserId)?.entry ?? null };
 
-  const entries = ranked.slice(0, input.limit);
-  const visible: LeaderboardEntry[] = [...entries, ...(you.entry ? [you.entry] : [])];
+  const minDemoPnl = Math.min(...demo.map((r) => r.inrMinor));
+  let realCount = 0;
+  const listed = ranked.filter((r) => {
+    if (r.demo) return true;
+    realCount += 1;
+    return realCount <= input.limit || r.inrMinor >= minDemoPnl;
+  });
+  const visible: LeaderboardEntry[] = listed.filter((r) => !r.demo).map((r) => r.entry);
+  if (you.entry) visible.push(you.entry);
   const accountIds = [...new Set(visible.map((entry) => entry.accountId))];
   if (accountIds.length > 0) {
     const markets = await prisma.trade.groupBy({
@@ -121,16 +134,22 @@ export async function dailyLeaderboard(input: {
       select: { id: true, symbol: true },
     });
     const symbols = new Map(assets.map((asset) => [asset.id, asset.symbol]));
+    const tradesByAccount = new Map<string, { symbols: string[]; stake: number }>();
+    for (const market of markets) {
+      const traded = tradesByAccount.get(market.accountId) ?? { symbols: [], stake: 0 };
+      traded.symbols.push(symbols.get(market.assetId) ?? "—");
+      traded.stake += Number(market._sum.stake ?? 0);
+      tradesByAccount.set(market.accountId, traded);
+    }
     for (const entry of visible) {
-      const traded = markets.filter((market) => market.accountId === entry.accountId);
-      entry.market = traded.map((market) => symbols.get(market.assetId) ?? "—").sort().join(", ");
-      const stake = traded.reduce((sum, market) => sum + Number(market._sum.stake ?? 0), 0);
+      const traded = tradesByAccount.get(entry.accountId);
+      entry.market = traded?.symbols.sort().join(", ") ?? "";
       const account = byId.get(entry.accountId);
-      const quoteStake = convertMinorBetween(stake, account?.currency ?? "INR", input.displayCurrency);
+      const quoteStake = convertMinorBetween(traded?.stake ?? 0, account?.currency ?? "INR", input.displayCurrency);
       entry.returnPct = quoteStake > 0 ? entry.pnlMinor / quoteStake * 100 : null;
     }
   }
-  return { entries, you };
+  return { entries: listed.map((r) => r.entry), you };
 }
 
 /** The board is shown in the viewer's LIVE account currency, INR when they have none. */

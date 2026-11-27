@@ -4,7 +4,7 @@ import { seedDemoLeaderboardProfiles } from "./repositories/demo-leaderboard";
 try {
   if (process.env.LEADERBOARD_MODE === "demo") {
     await seedDemoLeaderboardProfiles();
-    console.log("Seeded 10 fictional leaderboard profiles with DEMO accounts.");
+    console.log("Prepared today's demo leaderboard.");
   }
 } catch (error) {
   console.error(error);

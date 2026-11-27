@@ -376,7 +376,7 @@ export type {
 } from "./models";
 export type { DbClient, DbTransaction } from "./client";
 
-export { demoLeaderboard } from "./repositories/demo-leaderboard";
+export { demoLeaderboard, seedDemoLeaderboardProfiles } from "./repositories/demo-leaderboard";
 export * from "./repositories/notifications";
 export type { PushDevice, NotificationOutbox } from "../generated/prisma/client";
 export * from "./repositories/affiliate-center";

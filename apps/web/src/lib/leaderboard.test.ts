@@ -8,16 +8,19 @@ const entry = (accountId: string, pnlMinor: number) => ({
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.resetAllMocks(); mock.currency.mockResolvedValue("INR"); });
 describe("leaderboard mode", () => {
-  it("mixes real and fictional traders into one profit-ranked list in demo mode", async () => {
+  it("passes the INR demo roster to the real-trader ranker in demo mode", async () => {
     vi.stubEnv("LEADERBOARD_MODE", "demo");
+    mock.currency.mockResolvedValue("USD");
     const viewer = entry("viewer", 15_000);
-    mock.live.mockResolvedValue({ source: "live", entries: [viewer, entry("real", 5_000)], you: { rank: 1, entry: viewer } });
-    mock.demo.mockResolvedValue({ source: "demo", entries: [entry("demo", 20_000)], you: { rank: null, entry: null } });
-    const result = await loadLeaderboard("viewer");
-    expect(result.result.entries.map(({ accountId }) => accountId)).toEqual(["demo", "viewer", "real"]);
-    expect(result.result.you).toEqual({ rank: 2, entry: viewer });
+    const demoEntries = [entry("demo", 20_000)];
+    const combined = { entries: [...demoEntries, viewer], you: { rank: 2, entry: viewer } };
+    mock.live.mockResolvedValue(combined);
+    mock.demo.mockResolvedValue({ source: "demo", entries: demoEntries, you: { rank: null, entry: null } });
+    expect(await loadLeaderboard("viewer")).toEqual({ currency: "USD", result: combined });
     expect(mock.demo).toHaveBeenCalledWith({ nowMs: expect.any(Number), displayCurrency: "INR" });
-    expect(mock.live).toHaveBeenCalledWith(expect.objectContaining({ includeBots: false }));
+    expect(mock.live).toHaveBeenCalledWith(expect.objectContaining({
+      includeBots: false, displayCurrency: "USD", demoEntriesInInr: demoEntries,
+    }));
   });
   it.each(["live", "", "false"])("keeps actual human results with mode %s", async (mode) => {
     vi.stubEnv("LEADERBOARD_MODE", mode);

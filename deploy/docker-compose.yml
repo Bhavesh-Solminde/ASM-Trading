@@ -147,12 +147,14 @@ services:
     command: ["pnpm", "--filter", "@asm/engine", "start"]
 
   # Background jobs (apps/engine/src/jobs.ts): deposit detection, affiliate
-  # sweeps, held-withdrawal release. Separate from the engine so a slow or
-  # crashing job can't stall trading. No ports: it works only through the DB.
+  # sweeps, held-withdrawal release and demo leaderboard rotation. Runs apart
+  # from the engine so a slow or crashing job can't stall trading.
   jobs:
     image: asmtrader-app:latest
     restart: unless-stopped
     env_file: ../.env.production
+    environment:
+      LEADERBOARD_MODE: ${LEADERBOARD_MODE:-demo}
     depends_on:
       migrate:
         condition: service_completed_successfully
