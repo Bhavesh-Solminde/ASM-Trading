@@ -4,8 +4,8 @@ import type { LeaderboardResult } from "./leaderboard";
 
 /** Fictional development profiles. Reserved addresses cannot receive mail. */
 export const DEMO_LEADERBOARD_PROFILES = [
-  "Arjun Sharma", "Priya Mehta", "Rohit Verma", "Sneha Kapoor", "Vikas Agarwal",
-  "Anjali Iyer", "Karan Malhotra", "Divya Nair", "Rahul Chowdhury", "Pooja Bhatt",
+  "Aditya Rao", "Meera Kulkarni", "Nikhil Desai", "Riya Saxena", "Kabir Sethi",
+  "Aditi Joshi", "Varun Bhat", "Sanya Gupta", "Dev Shah", "Ishita Sen",
 ].map((nickname, index) => ({ nickname, email: `leaderboard-demo-${index + 1}@example.invalid` }));
 
 /** Run explicitly during preview startup; never seed fictional LIVE money or trades. */
@@ -55,7 +55,8 @@ export async function demoLeaderboard(input: {
   const entries = users.map((user) => {
     const pnlInrMinor = dailyProfitMinor(day, user.email);
     return {
-      accountId: user.accounts[0]!.id, userId: user.id, nickname: user.nickname,
+      accountId: user.accounts[0]!.id, userId: user.id,
+      nickname: user.nickname ? `${user.nickname} (Example)` : "Example trader",
       country: "IN", currency: input.displayCurrency,
       pnlMinor: convertMinorBetween(pnlInrMinor, "INR", input.displayCurrency),
       market: "BANKNIFTY",

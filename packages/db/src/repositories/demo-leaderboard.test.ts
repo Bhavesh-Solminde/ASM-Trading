@@ -23,6 +23,9 @@ describe("demo leaderboard", () => {
     expect(result.source).toBe("demo");
     expect(result.entries).toHaveLength(10);
     expect(new Set(result.entries.map((entry) => entry.userId)).size).toBe(10);
+    expect(result.entries.map((entry) => entry.nickname).sort()).toEqual(
+      DEMO_LEADERBOARD_PROFILES.map(({ nickname }) => `${nickname} (Example)`).sort(),
+    );
     expect(result.you).toEqual({ rank: null, entry: null });
     for (const entry of result.entries) {
       expect(entry.pnlMinor).toBeGreaterThanOrEqual(1_000_000);
