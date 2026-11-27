@@ -23,6 +23,7 @@ const WORDS: Record<string, string> = {
   "kyc.approved": "Approved a KYC submission",
   "kyc.verified": "Approved a KYC submission",
   "kyc.rejected": "Rejected a KYC submission",
+  "platform.kyc_requirement_changed": "Changed the KYC requirement",
   "user.updated": "Updated a user's account",
   "user.unfreeze": "Unfroze a user",
   "user.status.flagged": "Flagged a user",

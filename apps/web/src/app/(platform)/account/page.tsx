@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { loadProfile, listAccountsForActor, withdrawableBalance } from "@asm/db";
+import { isKycRequired, loadProfile, listAccountsForActor, withdrawableBalance } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { PageFrame } from "@/components/shell/PageFrame";
 import { AccountHub, type HubAccount } from "@/components/account/AccountHub";
@@ -15,9 +15,10 @@ export default async function AccountPage() {
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
 
-  const [profile, accounts] = await Promise.all([
+  const [profile, accounts, kycRequired] = await Promise.all([
     loadProfile(session.userId),
     listAccountsForActor(session.userId),
+    isKycRequired(),
   ]);
   const live = accounts.find((a) => a.type === "LIVE");
   const liveWithdrawable = live ? (await withdrawableBalance(live.id)).withdrawable : undefined;
@@ -36,6 +37,7 @@ export default async function AccountPage() {
         name={displayName(profile)}
         email={profile.email}
         kycStatus={profile.kycStatus}
+        kycRequired={kycRequired}
         accounts={hubAccounts}
         signOut={<SignOutSection />}
       />

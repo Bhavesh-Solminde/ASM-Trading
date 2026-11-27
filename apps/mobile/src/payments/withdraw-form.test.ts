@@ -9,6 +9,7 @@ import {
   initialPayout,
   isFromLastWithdrawal,
   maxWithdrawMinor,
+  needsKycGate,
   nextCancelDeadlineMs,
   parseAmountMinor,
   payoutDestinationLabel,
@@ -28,8 +29,17 @@ const prefill = (over: Partial<WithdrawalPrefill> = {}): WithdrawalPrefill => ({
   initialMethod: null,
   kycName: "Asha Rao",
   kycStatus: "VERIFIED",
+  kycRequired: true,
   heldWithdrawals: [],
   ...over,
+});
+
+describe("needsKycGate", () => {
+  it("gates unverified users only while KYC is required", () => {
+    expect(needsKycGate({ kycStatus: "NOT_STARTED", kycRequired: true })).toBe(true);
+    expect(needsKycGate({ kycStatus: "VERIFIED", kycRequired: true })).toBe(false);
+    expect(needsKycGate({ kycStatus: "NOT_STARTED", kycRequired: false })).toBe(false);
+  });
 });
 
 describe("maxWithdrawMinor", () => {

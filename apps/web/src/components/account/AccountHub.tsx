@@ -55,12 +55,14 @@ export function AccountHub({
   name,
   email,
   kycStatus,
+  kycRequired,
   accounts,
   signOut,
 }: {
   name: string;
   email: string;
   kycStatus: string;
+  kycRequired: boolean;
   accounts: HubAccount[];
   /** The sign-out rows (client component supplied by the page). */
   signOut: React.ReactNode;
@@ -94,13 +96,15 @@ export function AccountHub({
           <span className="truncate text-[17px] font-bold">{name}</span>
           <span className="truncate text-[13px] text-ink-2">{email}</span>
         </span>
-        <Link
-          href="/account/verify"
-          className={`ml-auto inline-flex h-[26px] shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-extrabold ${KYC_PILL[kyc.tone]}`}
-        >
-          {kyc.tone === "up" ? <Icon name="check" className="size-3" strokeWidth={3} /> : null}
-          {kyc.label}
-        </Link>
+        {kycRequired ? (
+          <Link
+            href="/account/verify"
+            className={`ml-auto inline-flex h-[26px] shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-extrabold ${KYC_PILL[kyc.tone]}`}
+          >
+            {kyc.tone === "up" ? <Icon name="check" className="size-3" strokeWidth={3} /> : null}
+            {kyc.label}
+          </Link>
+        ) : null}
       </div>
 
       {shown ? (
@@ -169,14 +173,16 @@ export function AccountHub({
 
       <ListGroup title="Profile">
         <LinkRow href="/account/profile" icon="user" label="Personal details" />
-        <LinkRow
-          href="/account/verify"
-          icon="shield"
-          label="Identity verification"
-          value={kyc.label}
-          valueClass={`font-semibold ${KYC_TEXT[kyc.tone]}`}
-        />
-      <AppearanceRow />
+        {kycRequired ? (
+          <LinkRow
+            href="/account/verify"
+            icon="shield"
+            label="Identity verification"
+            value={kyc.label}
+            valueClass={`font-semibold ${KYC_TEXT[kyc.tone]}`}
+          />
+        ) : null}
+        <AppearanceRow />
         </ListGroup>
 
       <PushToggle />

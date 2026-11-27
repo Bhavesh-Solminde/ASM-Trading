@@ -43,11 +43,12 @@ export default function Account() {
   );
 
   const boot = query.data;
+  const kycRequired = boot?.kycRequired ?? true;
   const loaded = profile.data ?? null;
   const email = loaded?.email ?? boot?.profile.email ?? "";
   const name = identityName({ firstName: loaded?.firstName ?? null, lastName: loaded?.lastName ?? null, nickname: loaded?.nickname ?? boot?.profile.nickname ?? null, email });
   const status = loaded?.kycStatus ?? boot?.profile.kycStatus;
-  const tag = status ? kycTag(status) : null;
+  const tag = boot && kycRequired && status ? kycTag(status) : null;
   const tagLabel = tag ? t(tag.labelKey) : "";
   const currency = liveCurrency(boot?.accounts);
   const demoId = demoAccountId(boot?.accounts);
@@ -69,7 +70,7 @@ export default function Account() {
           testID="account-identity"
           accessibilityRole="button"
           accessibilityLabel={[name, email, tagLabel].filter((s) => s !== "").join(", ")}
-          onPress={() => router.push("/account/verify")}
+          onPress={() => router.push(kycRequired ? "/account/verify" : "/account/profile")}
           style={{ flexDirection: "row", alignItems: "center", gap: 14, minHeight: 78 }}
         >
           <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: color.raised, alignItems: "center", justifyContent: "center" }}>
@@ -95,7 +96,7 @@ export default function Account() {
           <Icon name="chevron" size={18} color={color.ink2} />
         </Pressable>
         {query.isError ? <Button label={t("common.retry")} onPress={() => void query.refetch()} /> : null}
-        {status && showVerifyCard(status) ? (
+        {boot && status && showVerifyCard(status, kycRequired) ? (
           <Pressable testID="account-verify-card" accessibilityRole="button" onPress={() => router.push("/account/verify")}>
             <Card>
               <View style={{ flexDirection: "row", gap: 14, alignItems: "center" }}>
