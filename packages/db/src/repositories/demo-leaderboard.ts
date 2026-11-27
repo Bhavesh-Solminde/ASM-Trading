@@ -1,66 +1,51 @@
-import { prisma } from "../client";
 import { convertMinorBetween } from "./account";
 import type { LeaderboardResult } from "./leaderboard";
 
-/** Fictional development profiles. Reserved addresses cannot receive mail. */
-export const DEMO_LEADERBOARD_PROFILES = [
+const NAMES = [
   "Arjun Sharma", "Priya Mehta", "Rohit Verma", "Sneha Kapoor", "Vikas Agarwal",
   "Anjali Iyer", "Karan Malhotra", "Divya Nair", "Rahul Chowdhury", "Pooja Bhatt",
-].map((nickname, index) => ({ nickname, email: `leaderboard-demo-${index + 1}@example.invalid` }));
+  "Aditya Rao", "Meera Kulkarni", "Nikhil Desai", "Riya Saxena", "Kabir Sethi",
+  "Aditi Joshi", "Varun Bhat", "Sanya Gupta", "Dev Shah", "Ishita Sen",
+  "Kunal Batra", "Neha Pandey", "Rohan Menon", "Asha Reddy", "Manav Patel",
+  "Tanvi Sood", "Vivek Khanna", "Naina Roy", "Siddharth Jain", "Simran Kaur",
+  "Ankit Yadav", "Kavya Mishra", "Akash Pillai", "Zoya Khan", "Harish Naidu",
+  "Nandini Bose", "Sameer Ansari", "Maya Iyengar", "Pranav Hegde", "Lakshmi Das",
+  "Rajat Arora", "Sakshi Patil", "Aryan Dhawan", "Shruti Ghosh", "Zain Ali",
+  "Rekha Shetty", "Kartik Ahuja", "Tara Sinha", "Naveen Chawla", "Farah Qureshi",
+  "Neil Fernandes", "Avni Parmar", "Om Prakash", "Jasleen Gill", "Deepak Thakur",
+  "Fatima Sheikh", "Dhruv Luthra", "Ananya Dutta", "Ishan Trivedi", "Leela Thomas",
+];
 
-/** Run explicitly during preview startup; never seed fictional LIVE money or trades. */
-export async function seedDemoLeaderboardProfiles(): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    for (const { nickname, email } of DEMO_LEADERBOARD_PROFILES) {
-      const [firstName = "", ...lastName] = nickname.split(" ");
-      const identity = { nickname, firstName, lastName: lastName.join(" "), isBot: true, liveAccess: false, country: "IN" };
-      const user = await tx.user.upsert({
-        where: { email_role_legacySimulated: { email, role: "USER", legacySimulated: false } },
-        update: identity,
-        create: { email, passwordHash: "disabled:demo-leaderboard", ...identity },
-        select: { id: true },
-      });
-      await tx.account.upsert({
-        where: { userId_type: { userId: user.id, type: "DEMO" } },
-        update: {},
-        create: { userId: user.id, type: "DEMO", currency: "INR" },
-      });
-    }
-  });
+const MARKETS = ["BANKNIFTY", "NIFTY50", "NIFTYIT", "FINNIFTY", "SENSEX", "XAUUSD", "XAGUSD", "EURUSD", "GBPUSD", "USDJPY"];
+const CYCLE_START = Date.parse("2026-11-27T00:00:00+05:30");
+const CYCLE_DAYS = 60;
+const DAY_MS = 86_400_000;
+
+function hash(text: string): number {
+  let value = 2166136261;
+  for (const char of text) value = Math.imul(value ^ char.charCodeAt(0), 16777619);
+  return value >>> 0;
 }
 
-function dailyProfitMinor(day: string, email: string): number {
-  let hash = 2166136261;
-  for (const char of `${day}:${email}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  return 1_000_000 + ((hash >>> 0) % 1_000_001); // ₹10,000–₹20,000, always positive.
-}
-
-/** Preview amounts are display fixtures, never a balance or settled trade. */
-export async function demoLeaderboard(input: {
+/** Simulated standings keyed to the day in India, with a fixed repeat cycle. */
+export function demoLeaderboard(input: {
   nowMs: number; displayCurrency: string;
-}): Promise<LeaderboardResult & { source: "demo" }> {
-  const day = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(new Date(input.nowMs));
-  const users = await prisma.user.findMany({
-    where: { email: { in: DEMO_LEADERBOARD_PROFILES.map((profile) => profile.email) }, isBot: true },
-    select: {
-      id: true, email: true, nickname: true,
-      accounts: { where: { type: "DEMO" }, select: { id: true }, take: 1 },
-    },
-  });
-  if (users.length !== DEMO_LEADERBOARD_PROFILES.length || users.some((user) => !user.accounts[0])) {
-    throw new Error("Demo leaderboard profiles must be seeded before enabling preview mode.");
-  }
-  const entries = users.map((user) => {
-    const pnlInrMinor = dailyProfitMinor(day, user.email);
+}): LeaderboardResult & { source: "demo" } {
+  const days = Math.floor((input.nowMs - CYCLE_START) / DAY_MS);
+  const cycleDay = ((days % CYCLE_DAYS) + CYCLE_DAYS) % CYCLE_DAYS;
+  const entries = NAMES.map((nickname, index) => {
+    const seed = `${cycleDay}:${nickname}`;
+    const pnlInrMinor = (hash(`pnl:${seed}`) % 2_800_001) - 1_000_000;
+    const stakeInrMinor = 4_000_000 + (hash(`stake:${seed}`) % 12_000_001);
+    const id = `demo-leaderboard-${index + 1}`;
+
     return {
-      accountId: user.accounts[0]!.id, userId: user.id, nickname: user.nickname,
-      country: "IN", currency: input.displayCurrency,
+      accountId: id, userId: id, nickname, country: "IN", currency: input.displayCurrency,
       pnlMinor: convertMinorBetween(pnlInrMinor, "INR", input.displayCurrency),
-      market: "BANKNIFTY",
-      returnPct: pnlInrMinor / 10_000_000 * 100, // Illustrative ₹1,00,000 stake.
+      market: MARKETS[(index + cycleDay) % MARKETS.length]!,
+      returnPct: pnlInrMinor / stakeInrMinor * 100,
     };
   }).sort((a, b) => b.pnlMinor - a.pnlMinor || a.userId.localeCompare(b.userId));
+
   return { source: "demo", entries, you: { rank: null, entry: null } };
 }

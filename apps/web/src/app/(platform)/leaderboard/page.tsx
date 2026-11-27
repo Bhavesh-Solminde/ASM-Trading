@@ -13,14 +13,14 @@ export default async function LeaderboardPage() {
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
 
-  const { currency, result } = await loadLeaderboard(session.userId);
+  const { result, demo } = await loadLeaderboard(session.userId);
 
   return (
     <PageFrame
       width="narrow"
       title="Leaderboard"
     >
-      <LeaderboardView result={result} currency={currency} />
+      <LeaderboardView entries={result.entries} examples={demo?.entries ?? []} />
     </PageFrame>
   );
 }
