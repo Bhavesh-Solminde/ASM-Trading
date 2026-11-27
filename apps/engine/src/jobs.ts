@@ -9,13 +9,14 @@ import { startTatumRunner } from "./tatum-runner";
 import { startReferralQualificationSweep } from "./affiliate/referral-qualification";
 import { startProgramDayClose } from "./affiliate/program-day-close";
 import { startHeldWithdrawalRelease } from "./withdrawals/held-release";
+import { startDemoLeaderboardRotation } from "./demo-leaderboard-rotation";
 
 /**
  * The background jobs process (compose service `jobs`): deposit detection
  * (bank feed, USDT chain watchers, Tatum gateway, reconciliation), affiliate
- * sweeps and held-withdrawal release. They work only through the database, so
- * they run apart from the trading engine: a slow or crashing job can't stall
- * trades, and either process can restart without the other. Each job keeps
+ * sweeps, held-withdrawal release and demo leaderboard rotation. They work
+ * through the database and run apart from the trading engine. A slow or
+ * crashing job can't stall trades, and either process can restart without the other. Each job keeps
  * its own schedule and idempotency (unique deposit keys, advisory locks).
  */
 async function startJobs(): Promise<void> {
@@ -26,6 +27,7 @@ async function startJobs(): Promise<void> {
   jobs.push(usdtProviderFor("bsc") === "manual" ? await startBscWatcher() : idle);
   jobs.push(startTatumRunner(), startReconciliationRunner());
   jobs.push(startReferralQualificationSweep(), startProgramDayClose(), startHeldWithdrawalRelease());
+  if (process.env.LEADERBOARD_MODE === "demo") jobs.push(startDemoLeaderboardRotation());
 
   let stopping = false;
   async function shutdown(code: number): Promise<void> {

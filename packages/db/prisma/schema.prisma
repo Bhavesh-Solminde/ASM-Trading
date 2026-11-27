@@ -370,9 +370,21 @@ model Account {
   trades       Trade[]
   transactions Transaction[]
   bonusGrants  BonusGrant[]
+  demoLeaderboardEntry DemoLeaderboardEntry?
 
   @@unique([userId, type])
   @@index([userId])
+}
+
+/// Display-only standings for the rotating demo roster. Amounts are bounded INR paise.
+model DemoLeaderboardEntry {
+  accountId     String  @id
+  day           String
+  nickname      String
+  market        String
+  pnlInrMinor   Int
+  stakeInrMinor Int
+  account       Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 model Asset {
