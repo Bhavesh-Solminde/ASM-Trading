@@ -46,6 +46,10 @@ describe("kycTag", () => {
 });
 
 describe("showVerifyCard", () => {
+  it("hides the card when KYC is off", () => {
+    expect(showVerifyCard("NOT_STARTED", false)).toBe(false);
+  });
+
   it("shows only while there is something to do", () => {
     expect(showVerifyCard("NOT_STARTED")).toBe(true);
     expect(showVerifyCard("REJECTED")).toBe(true);

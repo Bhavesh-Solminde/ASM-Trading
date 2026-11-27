@@ -13,6 +13,7 @@ import {
   withdrawalRules,
 } from "./program-wallet";
 import { cleanReason } from "./program-errors";
+import { isKycRequired } from "./platform-settings";
 import { programSettingValuesAt } from "./program-settings";
 
 // §12 program withdrawals: own queue and limits, separate from trading withdrawals.
@@ -62,7 +63,7 @@ export async function requestProgramWithdrawal(input: {
       const now = new Date();
       const user = await tx.user.findUnique({ where: { id: input.userId }, select: ACTOR_SELECT });
       if (!user) throw new ProgramActionRefused("not_found");
-      const blockers = programActionBlockers(user, "withdraw", true);
+      const blockers = programActionBlockers(user, "withdraw", true, await isKycRequired(tx));
       if (blockers[0]) throw new ProgramActionRefused(blockers[0]);
 
       const rules = withdrawalRules(await programSettingValuesAt(now, tx));

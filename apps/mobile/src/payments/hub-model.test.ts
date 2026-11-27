@@ -26,6 +26,10 @@ describe("hubBalances", () => {
 });
 
 describe("showKycNextStep", () => {
+  it("hides the next step when KYC is off", () => {
+    expect(showKycNextStep("REJECTED", false)).toBe(false);
+  });
+
   it("shows the verify card only before verification starts or after a rejection", () => {
     expect(showKycNextStep("NOT_STARTED")).toBe(true);
     expect(showKycNextStep("REJECTED")).toBe(true);

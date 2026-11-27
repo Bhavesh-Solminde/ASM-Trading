@@ -54,6 +54,23 @@
   border-color: var(--color-brand);
 }
 
+/* iPhones and iPads can't install the APK, so they get the Save to Home Screen
+   steps instead. -webkit-touch-callout exists only in iOS WebKit, which every
+   iOS browser uses. Unlayered, so it beats Tailwind's display utilities. */
+.iosOnly {
+  display: none;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .iosOnly {
+    display: inline-flex;
+  }
+
+  .notIos {
+    display: none;
+  }
+}
+
 .deviceStage {
   position: relative;
   isolation: isolate;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma, type Prisma } from "@asm/db";
+import { isKycRequired, prisma, type Prisma } from "@asm/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { TableControls } from "../../_components/TableControls";
 import { Avatar, EmptyRow, PageHead, Pager, StatusPill, TabBar } from "../../_components/ui";
@@ -73,7 +73,7 @@ export default async function WithdrawalsPage({
     user: { legacySimulated: false },
   };
 
-  const [pendingCount, approvedCount, owedByCurrency, heldCount] = await Promise.all([
+  const [pendingCount, approvedCount, owedByCurrency, heldCount, kycRequired] = await Promise.all([
     prisma.withdrawal.count({
       where: { status: "REQUESTED", ...EXCLUDE_SIMULATED },
     }),
@@ -89,6 +89,7 @@ export default async function WithdrawalsPage({
     prisma.withdrawal.count({
       where: { status: "HELD", ...EXCLUDE_SIMULATED },
     }),
+    isKycRequired(),
   ]);
   const owedLabel =
     owedByCurrency
@@ -262,7 +263,7 @@ export default async function WithdrawalsPage({
                               {verified ? <span className="admin-pill admin-pill--pos">KYC</span> : null}
                             </div>
                             <div className="admin-cell-sub">{w.user.email}</div>
-                            {!verified && tab !== "history" ? (
+                            {kycRequired && !verified && tab !== "history" ? (
                               <span className="admin-kyc-warn">
                                 <Icon name="alert" size={13} />
                                 {w.user.kycStatus === "PENDING" ? "KYC still pending" : "KYC not verified"}

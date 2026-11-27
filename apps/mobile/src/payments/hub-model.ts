@@ -42,8 +42,8 @@ export function hubBalances(input: {
 }
 
 /** The "next step" card is for people who have not started verification or were rejected; in review and verified hide it. */
-export function showKycNextStep(status: string | undefined): boolean {
-  return status === "NOT_STARTED" || status === "REJECTED";
+export function showKycNextStep(status: string | undefined, kycRequired = true): boolean {
+  return kycRequired && (status === "NOT_STARTED" || status === "REJECTED");
 }
 
 /** A saved checkout whose known expiry has passed: nothing to continue, so Payments clears it. An unknown expiry is not stale. */

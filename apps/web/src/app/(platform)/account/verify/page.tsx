@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { loadProfile } from "@asm/db";
+import { isKycRequired, loadProfile } from "@asm/db";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 import { PageFrame } from "@/components/shell/PageFrame";
 import { KycFlow } from "./KycFlow";
@@ -11,6 +11,7 @@ export default async function VerifyPage() {
   const store = await cookies();
   const session = await readSession(store.get(SESSION_COOKIE)?.value);
   if (!session) redirect("/login");
+  if (!(await isKycRequired())) redirect("/account");
 
   const profile = await loadProfile(session.userId);
 

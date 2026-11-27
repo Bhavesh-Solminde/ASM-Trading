@@ -4,6 +4,7 @@ import type { AffiliateLevelStatus } from "./affiliate-center";
 import { getAffiliateLevelStatus } from "./affiliate-levels";
 import { ProgramActionRefused } from "./program-errors";
 import { houseDateForInstant } from "./house-day";
+import { isKycRequired } from "./platform-settings";
 import { programSettingValuesAt } from "./program-settings";
 import { hasSelfReferralFlag, qualifiedDepositTotalsByInviter } from "./referral-qualification";
 
@@ -230,12 +231,17 @@ interface ActorFacts {
 export const isProgramAffiliate = (u: Pick<ActorFacts, "role" | "legacySimulated">) => u.role === "AFFILIATE" && !u.legacySimulated;
 
 /** Account-level refusals (amount-independent), in the order they are reported. */
-export function programActionBlockers(u: ActorFacts, action: "transfer" | "withdraw", hasLiveAccount: boolean): ProgramRefusalCode[] {
+export function programActionBlockers(
+  u: ActorFacts,
+  action: "transfer" | "withdraw",
+  hasLiveAccount: boolean,
+  kycRequired = true,
+): ProgramRefusalCode[] {
   const out: ProgramRefusalCode[] = [];
   const affiliate = isProgramAffiliate(u);
   if (u.status === "FROZEN" || u.status === "BANNED" || u.legacySimulated) out.push("account_frozen");
   if (affiliate && u.affiliateProfile?.status !== "ACTIVE") out.push("affiliate_not_active");
-  if (!affiliate && action === "withdraw" && u.kycStatus !== "VERIFIED") out.push("kyc_required");
+  if (!affiliate && action === "withdraw" && kycRequired && u.kycStatus !== "VERIFIED") out.push("kyc_required");
   if (action === "transfer" && !hasLiveAccount) out.push("no_live_account");
   return out;
 }
@@ -319,7 +325,7 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
   if (!user) throw new ProgramActionRefused("not_found");
   const affiliate = isProgramAffiliate(user);
 
-  const [sums, wallet, carry, totalReferrals, qualifiedUsers, deposited, values, levelStatus, used] = await Promise.all([
+  const [sums, wallet, carry, totalReferrals, qualifiedUsers, deposited, values, levelStatus, used, kycRequired] = await Promise.all([
     prisma.programEarning.groupBy({
       by: ["status"],
       where: {
@@ -340,6 +346,7 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
     programSettingValuesAt(now),
     affiliate ? getAffiliateLevelStatus(userId, now) : Promise.resolve(null),
     countProgramWithdrawalsUsed(userId, now),
+    isKycRequired(),
   ]);
 
   const sumOf = (s: "PENDING" | "HELD") => sums.find((r) => r.status === s)?._sum.amountMinor ?? 0;
@@ -347,7 +354,7 @@ export async function getProgramSummary(userId: string): Promise<ProgramSummary>
   const rules = withdrawalRules(values);
   const hasLive = user.accounts.length > 0;
   const transferBlockers = programActionBlockers(user, "transfer", hasLive);
-  const withdrawBlockers = programActionBlockers(user, "withdraw", hasLive);
+  const withdrawBlockers = programActionBlockers(user, "withdraw", hasLive, kycRequired);
   if (availableMinor < rules.minWithdrawalMinor) withdrawBlockers.push(availableMinor > 0 ? "below_minimum" : "insufficient_funds");
   if (availableMinor <= 0) transferBlockers.push("insufficient_funds");
   if (used.day >= rules.limits.day) withdrawBlockers.push("limit_day");

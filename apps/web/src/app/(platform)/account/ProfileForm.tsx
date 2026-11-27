@@ -37,7 +37,7 @@ const KYC_HINT: Record<string, { text: string; cta: string | null }> = {
   NOT_STARTED: { text: "Verify your identity once to unlock withdrawals: details, Aadhaar + PAN photos and a selfie.", cta: "Verify now" },
 };
 
-export function ProfileForm({ initial }: { initial: Profile }) {
+export function ProfileForm({ initial, kycRequired }: { initial: Profile; kycRequired: boolean }) {
   const [profile, setProfile] = useState(initial);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,13 +93,15 @@ export function ProfileForm({ initial }: { initial: Profile }) {
       <section className="rounded-xl border border-rule bg-panel">
         <div className="flex items-center justify-between gap-3 border-b border-rule px-4 py-3">
           <h2 className="text-[15px] font-semibold">Personal data</h2>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-              profile.kycStatus === "VERIFIED" ? "bg-up/15 text-up" : "bg-caution/15 text-caution"
-            }`}
-          >
-            {KYC_LABEL[profile.kycStatus] ?? "Not verified"}
-          </span>
+          {kycRequired ? (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                profile.kycStatus === "VERIFIED" ? "bg-up/15 text-up" : "bg-caution/15 text-caution"
+              }`}
+            >
+              {KYC_LABEL[profile.kycStatus] ?? "Not verified"}
+            </span>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-3 p-4">
@@ -143,20 +145,22 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         </div>
       </section>
 
-      <section className="rounded-xl border border-rule bg-panel">
-        <h2 className="border-b border-rule px-4 py-3 text-[15px] font-semibold">Identity verification (KYC)</h2>
-        <div className="flex flex-col gap-3 p-4">
-          <p className="text-xs leading-relaxed text-ink-2">{kycHint.text}</p>
-          {kycHint.cta ? (
-            <Link
-              href="/account/verify"
-              className="self-start rounded-lg bg-up px-4 py-2 text-sm font-bold text-up-ink phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0"
-            >
-              {kycHint.cta}
-            </Link>
-          ) : null}
-        </div>
-      </section>
+      {kycRequired ? (
+        <section className="rounded-xl border border-rule bg-panel">
+          <h2 className="border-b border-rule px-4 py-3 text-[15px] font-semibold">Identity verification (KYC)</h2>
+          <div className="flex flex-col gap-3 p-4">
+            <p className="text-xs leading-relaxed text-ink-2">{kycHint.text}</p>
+            {kycHint.cta ? (
+              <Link
+                href="/account/verify"
+                className="self-start rounded-lg bg-up px-4 py-2 text-sm font-bold text-up-ink phone:grid phone:h-11 phone:self-stretch phone:place-items-center phone:py-0"
+              >
+                {kycHint.cta}
+              </Link>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       {/* Security section commented out
       <section className="flex flex-col gap-3 border-t border-[var(--color-rule)] pt-5">

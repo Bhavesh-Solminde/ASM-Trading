@@ -66,6 +66,8 @@ export const BootstrapSchema = z.object({
   defaultSymbol: z.string(),
   liveAccess: z.boolean(),
   completedDeposits: z.number().int(),
+  /** Hide client KYC prompts when off. Older servers default to required. */
+  kycRequired: z.boolean().default(true),
   profile: ProfileSummarySchema,
 });
 export type Bootstrap = z.infer<typeof BootstrapSchema>;
@@ -172,6 +174,8 @@ export const WithdrawalPrefillSchema = z.object({
   initialMethod: z.enum(PAYOUT_METHODS).nullable(),
   kycName: z.string(),
   kycStatus: KycStatusSchema,
+  /** Hide client KYC prompts when off. Older servers default to required. */
+  kycRequired: z.boolean().default(true),
   heldWithdrawals: z.array(
     z.object({
       id: z.string(),

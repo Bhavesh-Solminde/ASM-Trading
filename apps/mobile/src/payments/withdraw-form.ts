@@ -17,6 +17,11 @@ import {
  * rupees (the keypad has no point), a USD account takes cents, as on the website.
  */
 
+/** The withdraw screen shows the verify-first gate in place of the form. */
+export function needsKycGate(prefill: Pick<WithdrawalPrefill, "kycStatus" | "kycRequired">): boolean {
+  return prefill.kycRequired && prefill.kycStatus !== "VERIFIED";
+}
+
 /** The keypad's rules: whole rupees on INR (at most 8 digits, more than the ₹50,000 limit so "too much" still reads as a limit), cents elsewhere. */
 export function withdrawAmountOpts(currency: string): AmountOpts {
   return currency === "INR" ? { decimals: false, maxInt: 8 } : { decimals: true, maxInt: 7 };

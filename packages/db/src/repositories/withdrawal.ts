@@ -3,6 +3,7 @@ import { prisma } from "../client";
 import type { Withdrawal } from "../models";
 import { withdrawalLimitsMinor } from "@asm/contracts";
 import { convertMinorBetween } from "./account";
+import { isKycRequired } from "./platform-settings";
 
 export class WithdrawalRefused extends Error {
   constructor(message: string, readonly code?: "currency_changed") {
@@ -114,7 +115,8 @@ export async function withdrawableBalance(accountId: string): Promise<{
 /**
  * Requests a payout of real balance to a bank account, UPI ID or USDT wallet
  * the user names. Limits are ₹700 – ₹50,000 per request (USD accounts at the
- * fixed ₹110 = $1 rate) and the account's KYC must be VERIFIED.
+ * fixed ₹110 = $1 rate). While the KYC switch is on, the account's KYC must
+ * be VERIFIED.
  *
  * The debit is optimistic-concurrency guarded exactly like a trade stake: the
  * balance is re-read and version-checked inside the transaction, so two
@@ -185,11 +187,11 @@ export async function requestWithdrawal(input: {
   };
 
 
-  // Payouts only go to verified identities — KYC is what establishes the
-  // person is real and holds a single account. The payout destination is the
-  // user's choice (bank, UPI or USDT) and need not match how they deposited;
+  // While the KYC switch is on, payouts only go to verified identities.
+  // The user chooses the payout destination (bank, UPI or USDT), which can
+  // differ from the method they deposited with;
   // the admin sees it next to the KYC name and the user's deposit history.
-  if (actor.kycStatus !== "VERIFIED") {
+  if (actor.kycStatus !== "VERIFIED" && (await isKycRequired())) {
     throw new WithdrawalRefused(
       "Verify your identity before withdrawing — it takes about 2 minutes on the Account page.",
     );

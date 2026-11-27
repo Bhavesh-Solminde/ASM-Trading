@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { ApiErrorSchema, AppConfigSchema, CheckoutViewSchema, PreferencesUpdateSchema, WalletSchema, WithdrawalPrefillSchema, parsePaymentKey, paymentKeyOf } from "./app";
+import { ApiErrorSchema, AppConfigSchema, BootstrapSchema, CheckoutViewSchema, PreferencesUpdateSchema, WalletSchema, WithdrawalPrefillSchema, parsePaymentKey, paymentKeyOf } from "./app";
+
+describe("kycRequired", () => {
+  const bootstrap = {
+    userId: "u-1",
+    assets: [],
+    accounts: [],
+    recentTrades: [],
+    defaultSymbol: "EURUSD_OTC",
+    liveAccess: true,
+    completedDeposits: 0,
+    profile: { nickname: null, email: "a@b.com", kycStatus: "NOT_STARTED", locale: "en" },
+  };
+  const prefill = { lastPayouts: {}, initialMethod: null, kycName: "Asha Rao", kycStatus: "NOT_STARTED", heldWithdrawals: [] };
+
+  it("reads a missing flag from an older server as required", () => {
+    expect(BootstrapSchema.parse(bootstrap).kycRequired).toBe(true);
+    expect(WithdrawalPrefillSchema.parse(prefill).kycRequired).toBe(true);
+  });
+
+  it("carries the switch when the server sends it", () => {
+    expect(BootstrapSchema.parse({ ...bootstrap, kycRequired: false }).kycRequired).toBe(false);
+    expect(WithdrawalPrefillSchema.parse({ ...prefill, kycRequired: false }).kycRequired).toBe(false);
+  });
+});
 
 describe("app contracts", () => {
   it("accepts a wallet with live and demo accounts", () => {

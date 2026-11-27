@@ -1,5 +1,5 @@
 import { isUsdtNetwork, type PayoutMethod, type UsdtNetwork, type WithdrawalPrefill } from "@asm/contracts";
-import { listWithdrawalsForActor, loadProfile } from "@asm/db";
+import { isKycRequired, listWithdrawalsForActor, loadProfile } from "@asm/db";
 
 export interface WithdrawalLike {
   method: string;
@@ -57,13 +57,18 @@ export function heldWithdrawalsFrom(recent: readonly HeldWithdrawalLike[]): With
 }
 
 export async function loadWithdrawalPrefill(userId: string): Promise<WithdrawalPrefill> {
-  const [recent, profile] = await Promise.all([listWithdrawalsForActor(userId, 20), loadProfile(userId)]);
+  const [recent, profile, kycRequired] = await Promise.all([
+    listWithdrawalsForActor(userId, 20),
+    loadProfile(userId),
+    isKycRequired(),
+  ]);
   const { lastPayouts, initialMethod } = lastPayoutsFrom(recent);
   return {
     lastPayouts,
     initialMethod,
     kycName: [profile.firstName, profile.lastName].filter(Boolean).join(" "),
     kycStatus: profile.kycStatus as WithdrawalPrefill["kycStatus"],
+    kycRequired,
     heldWithdrawals: heldWithdrawalsFrom(recent),
   };
 }

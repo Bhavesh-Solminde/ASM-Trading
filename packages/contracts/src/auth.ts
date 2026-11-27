@@ -6,10 +6,13 @@ const email = z
   .toLowerCase()
   .email("Enter a valid email address");
 
-const password = z
+/** New passwords for sign-up and reset. */
+const newPassword = z
   .string()
-  .min(12, "Use at least 12 characters")
+  .min(6, "Use at least 6 characters")
   .max(200, "Password is too long");
+
+const password = z.string().min(1, "Enter your password").max(200, "Password is too long");
 
 /**
  * Strict: a body containing `role`, `realBalance`, or any other unexpected key
@@ -28,13 +31,13 @@ const portal = z.enum(["user", "affiliate"]).default("user");
 /** Typed invitation code; shape is checked server-side against real codes. */
 const referralCode = z.string().trim().max(32).optional();
 
-export const RegisterSchema = z.strictObject({ name, email, password, portal, referralCode });
+export const RegisterSchema = z.strictObject({ name, email, password: newPassword, portal, referralCode });
 export const LoginSchema = z.strictObject({ email, password, portal });
 export const PasswordResetRequestSchema = z.strictObject({ email, portal });
 // A base64url 32-byte token is 43 characters; the bounds only reject junk.
 export const PasswordResetConfirmSchema = z.strictObject({
   token: z.string().min(32).max(128),
-  password,
+  password: newPassword,
 });
 
 export type RegisterInput = z.infer<typeof RegisterSchema>;

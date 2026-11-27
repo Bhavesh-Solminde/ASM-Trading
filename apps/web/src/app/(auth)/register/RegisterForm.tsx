@@ -10,7 +10,7 @@ import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
 import { trackPixelEvent } from "@/components/seo/MetaPixel";
 import { PORTAL_PATHS, withPortal, type AuthPortal } from "@/components/auth/portal";
 
-const MIN_PASSWORD_LEN = 12;
+const MIN_PASSWORD_LEN = 6;
 /** Server error codes shown on the invitation-code field rather than the form banner. */
 const REFERRAL_ERRORS = new Set(["invalid_referral", "self_referral"]);
 
@@ -145,7 +145,6 @@ export function RegisterForm({
           minLength={MIN_PASSWORD_LEN}
           autoComplete="new-password"
           placeholder={`At least ${MIN_PASSWORD_LEN} characters`}
-          showStrength
         />
         <div>
           <PasswordInput
