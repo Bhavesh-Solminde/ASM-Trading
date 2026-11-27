@@ -55,8 +55,7 @@ export async function demoLeaderboard(input: {
   const entries = users.map((user) => {
     const pnlInrMinor = dailyProfitMinor(day, user.email);
     return {
-      accountId: user.accounts[0]!.id, userId: user.id,
-      nickname: user.nickname ? `${user.nickname} (Example)` : "Example trader",
+      accountId: user.accounts[0]!.id, userId: user.id, nickname: user.nickname,
       country: "IN", currency: input.displayCurrency,
       pnlMinor: convertMinorBetween(pnlInrMinor, "INR", input.displayCurrency),
       market: "BANKNIFTY",
