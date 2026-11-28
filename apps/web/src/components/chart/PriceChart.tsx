@@ -25,7 +25,7 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { CandleDto, TradeView } from "@asm/contracts";
+import type { CandleDto, Timeframe, TradeView } from "@asm/contracts";
 import type { MarketStore } from "@/components/shell/market-store";
 import { formatMinor, countdown, TIMEFRAME_SEC, type ChartState } from "@asm/client-core";
 import { ChartAnalysis } from "./ChartAnalysis";
@@ -352,9 +352,9 @@ export function PriceChart({
   bracketActionsContainer,
   focusedTradeId, onSelectTrade, onShowAllTrades,
   tickSize,
-  analysisScope,
+  analysis,
 }: {
-  analysisScope?: string;
+  analysis?: { scope: string; symbol: string; timeframe: Timeframe; focusMode: boolean };
   marketOpen?: boolean;
   market: MarketStore;
   precision: number;
@@ -390,6 +390,7 @@ export function PriceChart({
   const priceLineRef = useRef<IPriceLine | null>(null);
   const watermarkRef = useRef<ITextWatermarkPluginApi<Time> | null>(null);
   const [chartVersion, setChartVersion] = useState(0);
+  const analysisScope = analysis?.scope;
   const [volumePreference, setVolumePreference] = useState<{ scope: string | undefined; enabled: boolean } | null>(null);
   const volumeVisible = showVolume && volumePreference?.scope === analysisScope && volumePreference?.enabled === true;
   useEffect(() => {
@@ -1086,7 +1087,7 @@ export function PriceChart({
 
 
 
-      {analysisScope && <ChartAnalysis key={analysisScope} scope={analysisScope} symbol={market.getSnapshot().chart.symbol} market={market} chartRef={chartRef} seriesRef={seriesRef} containerRef={containerRef} chartVersion={chartVersion} precision={precision} volumeAvailable={showVolume} volumeEnabled={volumeVisible} onVolumeChange={toggleVolume} />}
+      {analysis && <ChartAnalysis key={analysis.scope} {...analysis} market={market} chartRef={chartRef} seriesRef={seriesRef} containerRef={containerRef} chartVersion={chartVersion} precision={precision} volumeAvailable={showVolume} volumeEnabled={volumeVisible} onVolumeChange={toggleVolume} />}
 
       <a className="chart-attribution" href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer" aria-label="Charts by TradingView" title="Charts by TradingView"><img src="/brand/tradingview-chart.svg" width="27" height="15" alt="" /></a>
       {/* Style Switch HUD Pill */}

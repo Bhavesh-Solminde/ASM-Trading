@@ -1,5 +1,5 @@
 import type { CandleDto } from "@asm/contracts";
-export const DRAWING_TOOLS = ["select", "horizontal", "trend", "channel", "fib", "brush", "text", "measure"] as const;
+export const DRAWING_TOOLS = ["select", "horizontal", "vertical", "trend", "channel", "fib", "brush", "text", "measure"] as const;
 export type DrawingTool = typeof DRAWING_TOOLS[number];
 export interface Anchor { time: number; price: number; }
 export interface Drawing { id: string; tool: Exclude<DrawingTool, "select">; points: Anchor[]; text?: string; }

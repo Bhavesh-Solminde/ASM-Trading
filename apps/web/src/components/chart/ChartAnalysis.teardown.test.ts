@@ -11,7 +11,7 @@ function mockChart() {
     subscribeSizeChange: vi.fn(), unsubscribeSizeChange: vi.fn() };
   const added: unknown[] = [];
   const chart = {
-    added, timeScale: () => time, priceScale: () => ({ width: () => 60 }), panes: () => [{ getHeight: () => 500 }],
+    added, timeScale: () => time, panes: () => [{ attachPrimitive: vi.fn(), detachPrimitive: vi.fn() }],
     clearCrosshairPosition: vi.fn(), removeSeries: vi.fn(),
     addSeries: vi.fn(() => { const series = { setData: vi.fn(), update: vi.fn(), applyOptions: vi.fn() }; added.push(series); return series; }),
   };
@@ -24,7 +24,7 @@ function renderAnalysis(chart: ReturnType<typeof mockChart>) {
   document.body.append(container);
   const view = render(h(ChartAnalysis, {
     chartRef, seriesRef: { current: null }, containerRef: { current: container }, market: new MarketStore("BTCUSDT", "1m", []),
-    chartVersion: 1, scope: "BTCUSDT", symbol: "BTCUSDT", precision: 2, volumeAvailable: false, volumeEnabled: false, onVolumeChange: () => {},
+    chartVersion: 1, scope: "BTCUSDT", symbol: "BTCUSDT", timeframe: "1m", focusMode: false, precision: 2, volumeAvailable: false, volumeEnabled: false, onVolumeChange: () => {},
   }));
   return { chartRef, unmount: view.unmount };
 }
