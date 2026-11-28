@@ -426,7 +426,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
   }, [setFocusMode]);
   useEffect(() => {
     if (!focusMode) return;
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape" && !document.querySelector('[role="dialog"]')) { setFocusMode(false); toggleNativeFullscreen(false); } };
+    const key = (e: KeyboardEvent) => { if (!e.defaultPrevented && e.key === "Escape" && !document.querySelector('[role="dialog"]')) { setFocusMode(false); toggleNativeFullscreen(false); } };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [focusMode, setFocusMode]);
@@ -530,7 +530,7 @@ export function TradeWorkspace({ tradingModel }: { tradingModel: "BINARY" | "CFD
           <div className="relative min-h-0 min-w-0">
             <PriceChart
               market={market}
-              analysisScope={`${activeAccount.id}:${asset.symbol}`}
+              analysis={{ scope: `${activeAccount.id}:${asset.symbol}`, symbol: asset.symbol, timeframe: chartTimeframe, focusMode }}
               marketOpen={marketOpen}
               precision={asset.precision}
               watermark={activeAccount.type === "DEMO" ? "DEMO" : ""}

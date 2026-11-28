@@ -12,16 +12,20 @@
 .menu { position:absolute;right:0;top:36px;display:grid;gap:10px;min-width:160px;border:1px solid var(--color-rule);background:var(--color-panel);border-radius:10px;padding:14px;box-shadow:var(--chart-popover-shadow); }
 .menu label { display:flex;align-items:center;gap:9px;min-height:30px; }
 .menu button { border-radius:6px;background:var(--color-tile);padding:6px; }
-.canvas { position:absolute;top:0;left:0;z-index:24;pointer-events:none;overflow:hidden; }
+.canvas { position:absolute;top:0;left:0;z-index:8;pointer-events:none;overflow:hidden;user-select:none; }
 .capture { pointer-events:all;touch-action:none;cursor:crosshair; }
-.shape { pointer-events:visiblePainted;cursor:pointer; }
-.handle { pointer-events:all;touch-action:none;cursor:move; }
+.hit { pointer-events:stroke; }
+.areaHit { pointer-events:fill; }
+.textHit,.handle { pointer-events:all; }
+.hit,.areaHit,.textHit,.handle { touch-action:none;cursor:move; }
 .annotation { position:absolute;right:8px;top:85px;z-index:32; }
 .annotation input { width:160px;padding:6px 8px;border:1px solid var(--color-rule);border-radius:6px;background:var(--color-panel);font-size:13px; }
 .notice { position:absolute;bottom:42px;left:48px;max-width:calc(100% - 100px);z-index:32;border:1px solid var(--color-rule);border-radius:6px;padding:6px 9px;background:var(--color-panel);font-size:11px;text-align:left; }
 @media(width<64rem),(height<30rem) {
   .rail { display:none; }
   .indicators { display:none; }
+  :global(.trade-workspace[data-focus=false]) .capture { pointer-events:none; }
+  :global(.trade-workspace[data-focus=false]) :is(.annotation,.notice) { display:none; }
   :global(.trade-workspace[data-focus=true]) .rail { display:flex;top:175px;left:-41px; }
   :global(.trade-workspace[data-focus=true]) .indicators { display:block;top:139px;right:8px; }
   :global(.trade-workspace[data-focus=true]) .indicators>button { min-height:36px;padding:6px; }

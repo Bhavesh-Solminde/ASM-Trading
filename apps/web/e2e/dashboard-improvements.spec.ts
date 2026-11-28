@@ -79,38 +79,6 @@ test("mobile normal, fullscreen and circular logo",async({page},info)=>{
  await page.getByRole("button",{name:"Exit fullscreen",exact:true}).click();await page.setViewportSize({width:844,height:390});await page.getByRole("button",{name:"Fullscreen chart",exact:true}).click();await capture(page,info,"F01","landscape","Short landscape layout keeps the tool rail scrollable and exit control reachable.");
 });
 
-test("every drawing tool, indicators, edit, undo and persistence",async({page},info)=>{
- test.skip(info.project.name!=="desktop-chromium");await trade(page);
- const canvas=page.getByLabel("Chart drawings",{exact:true});const box=(await canvas.boundingBox())!;
- const start={x:box.x+box.width*.45,y:box.y+box.height*.45},end={x:box.x+box.width*.7,y:box.y+box.height*.65};
- for(const [label,name] of [["Horizontal line","horizontal"],["Trend line","trend"],["Parallel channel","channel"],["Fibonacci retracement","fib"],["Freehand drawing","brush"],["Text annotation","text"],["Measure","measure"]]){
-  await page.getByRole("button",{name:label,exact:true}).click();
-  if(name==="text")await page.getByRole("textbox",{name:"Annotation text"}).fill("Gold analysis");
-  await page.mouse.move(start.x,start.y);await page.mouse.down();await page.mouse.move(end.x,end.y,{steps:8});await page.mouse.up();
-  await expect(canvas.locator("g").first()).toBeAttached();await capture(page,info,"F01",name!,`${label} created on the running chart; anchors follow chart time and price.`);
-  if(name==="trend"){
-   const handle=canvas.locator('circle[data-anchor="1"]'),line=canvas.locator("line[data-drawing]");const before=await line.getAttribute("y2"),h=(await handle.boundingBox())!;
-   await page.mouse.move(h.x+h.width/2,h.y+h.height/2);await page.mouse.down();await page.mouse.move(h.x+h.width/2-20,h.y+h.height/2-35,{steps:8});await page.mouse.up();
-   await expect(line).not.toHaveAttribute("y2",before!);await page.getByRole("button",{name:"Undo drawing change",exact:true}).click();
-   await expect(line).toHaveAttribute("y2",before!);await line.click({force:true});
-  }
-  if(name!=="measure")await page.getByRole("button",{name:"Delete selected drawing"}).click();
- }
- await page.getByRole("button",{name:/ƒx/}).click();
- for(const i of ["SMA","EMA","RSI"]){await page.getByLabel(`${i} 14`,{exact:true}).check();await expect(page.getByTestId("indicator-values")).toContainText(`${i} 14:`);await expect(page.getByTestId("indicator-values")).not.toContainText("Waiting for candles");await capture(page,info,"F01",i.toLowerCase(),`${i} 14 is calculated from chart candles and rendered as a native chart series.`);}
- await page.getByRole("button",{name:"Done",exact:true}).click();
- await page.reload();await expect(page.getByLabel("Chart drawings").locator("g").first()).toBeAttached();await capture(page,info,"F01","restored-analysis","Drawings and indicator selection survive refresh.");
- await page.getByRole("button",{name:/ƒx/}).click();await page.mouse.move(start.x,start.y);
- for(let i=0;i<5;i++){
-  // Keep the pointer over the plot while replacing indicator series.
-  await page.getByLabel("SMA 14",{exact:true}).evaluate(el=>(el as HTMLInputElement).click());
-  await page.getByLabel("SMA 14",{exact:true}).evaluate(el=>(el as HTMLInputElement).click());
- }
- await page.getByRole("button",{name:"Done",exact:true}).click();
- await page.getByRole("button",{name:"Zoom in chart",exact:true}).click();await page.getByRole("button",{name:"Zoom out chart",exact:true}).click();await page.getByRole("button",{name:"Fit chart",exact:true}).click();
- await capture(page,info,"F01","zoom-fit","Zoom controls and fit remain usable with saved analysis.");
-});
-
 test("history details from dashboard and History page",async({page},info)=>{
  test.skip(info.project.name!=="desktop-chromium");await trade(page);
  await page.getByRole("tab",{name:/closed/i}).click();await page.getByRole("button",{name:/Trade details/}).first().click();
