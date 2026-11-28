@@ -1,5 +1,16 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { TIMEFRAME_SEC, type Timeframe } from "@asm/contracts";
+
+async function coordinates(line: Locator) {
+ const [x1, y1, x2, y2] = await line.evaluate(el => ["x1", "y1", "x2", "y2"].map(key => Number(el.getAttribute(key))));
+ return { x1: x1!, y1: y1!, x2: x2!, y2: y2! };
+}
+
+function savedDrawings(page: Page) {
+ return page.evaluate(() => Object.fromEntries(Object.entries(localStorage)
+  .filter(([key]) => key.startsWith("asm_chart_drawings:v1:"))
+  .map(([key, value]) => [key, JSON.parse(value)])));
+}
 
 async function openChart(page: Page) {
  await page.addInitScript(() => {
@@ -51,9 +62,7 @@ test("every drawing tool, indicators, edit, undo and persistence", async ({ page
  const row = (tool: string) => rows.and(canvas.locator(`[data-tool="${tool}"]`));
  const lines = (tool: string) => row(tool).locator("line[data-drawing-line]");
  const handle = (i: number) => canvas.locator(`circle[data-anchor="${i}"]`);
- const saved = () => page.evaluate(() => Object.fromEntries(Object.entries(localStorage)
-  .filter(([key]) => key.startsWith("asm_chart_drawings:v1:"))
-  .map(([key, value]) => [key, JSON.parse(value)])));
+ const saved = () => savedDrawings(page);
  async function move(p: { x: number; y: number }) { await page.mouse.move(box.x + p.x, box.y + p.y); }
  async function click(p: { x: number; y: number }) { await page.mouse.click(box.x + p.x, box.y + p.y); }
  async function drag(from: { x: number; y: number }, to: { x: number; y: number }) {
@@ -61,10 +70,6 @@ test("every drawing tool, indicators, edit, undo and persistence", async ({ page
   await page.mouse.down();
   await page.mouse.move(box.x + to.x, box.y + to.y, { steps: 8 });
   await page.mouse.up();
- }
- async function coordinates(line: ReturnType<typeof lines>) {
-  const [x1, y1, x2, y2] = await line.evaluate(el => ["x1", "y1", "x2", "y2"].map(key => Number(el.getAttribute(key))));
-  return { x1: x1!, y1: y1!, x2: x2!, y2: y2! };
  }
  function near(a: number, b: number) { expect(Math.abs(a - b)).toBeLessThan(1.1); }
 
@@ -281,4 +286,61 @@ test("every drawing tool, indicators, edit, undo and persistence", async ({ page
  await button("Exit fullscreen").click();
  expect(await saved()).toEqual(stored);
  expect(errors).toEqual([]);
+});
+
+test("steep channel keeps its finite rail at the width anchor through zoom and edits", async ({ page }, info) => {
+ test.skip(info.project.name !== "desktop-chromium");
+ await openChart(page);
+ const canvas = page.getByLabel("Chart drawings", { exact: true });
+ await expect.poll(async () => Number(await canvas.getAttribute("width"))).toBeGreaterThan(300);
+ const box = (await canvas.boundingBox())!;
+ const rails = canvas.locator('[data-tool="channel"] line[data-drawing-line]');
+ const widthHandle = canvas.locator('circle[data-anchor="2"]');
+ const x = Math.round(box.width * .45), y = Math.round(box.height * .3);
+ await page.getByRole("button", { name: "Parallel channel", exact: true }).click();
+ await page.mouse.click(box.x + x, box.y + y);
+ await page.mouse.click(box.x + x + 1, box.y + y + 200);
+ await page.mouse.click(box.x + x + 40, box.y + y + 90);
+ await expect(widthHandle).toBeVisible();
+
+ async function assertFiniteRail() {
+  const base = await coordinates(rails.nth(0));
+  const rail = await coordinates(rails.nth(1));
+  const dx = base.x2 - base.x1, dy = base.y2 - base.y1;
+  const wx = Number(await widthHandle.getAttribute("cx")) - rail.x1;
+  const wy = Number(await widthHandle.getAttribute("cy")) - rail.y1;
+  expect(rail.x2 - rail.x1).toBeCloseTo(dx, 5);
+  expect(rail.y2 - rail.y1).toBeCloseTo(dy, 5);
+  expect((wx * dy - wy * dx) / Math.hypot(dx, dy)).toBeCloseTo(0, 5);
+  const along = (wx * dx + wy * dy) / (dx * dx + dy * dy);
+  expect(along).toBeGreaterThan(0);
+  expect(along).toBeLessThan(1);
+  for (const x of [rail.x1, rail.x2]) expect(x).toBeGreaterThan(0);
+  for (const y of [rail.y1, rail.y2]) expect(y).toBeGreaterThan(0);
+  expect(Math.max(rail.x1, rail.x2)).toBeLessThan(box.width);
+  expect(Math.max(rail.y1, rail.y2)).toBeLessThan(box.height);
+  return base;
+ }
+
+ const before = await assertFiniteRail();
+ expect(before.x2 - before.x1).toBeCloseTo(1, 1);
+ await page.screenshot({ path: info.outputPath("steep-channel.png"), animations: "disabled" });
+ const stored = await savedDrawings(page);
+ await page.getByRole("button", { name: "Zoom in chart", exact: true }).click();
+ await expect.poll(async () => {
+  const base = await coordinates(rails.nth(0));
+  return base.x2 - base.x1;
+ }).toBeGreaterThan(1.1);
+ const zoomed = await assertFiniteRail();
+ expect(await savedDrawings(page)).toEqual(stored);
+ await page.screenshot({ path: info.outputPath("steep-channel-zoomed.png"), animations: "disabled" });
+
+ await page.mouse.move(box.x + zoomed.x2, box.y + zoomed.y2);
+ await page.mouse.down();
+ await page.mouse.move(box.x + zoomed.x1, box.y + zoomed.y1, { steps: 8 });
+ await page.mouse.up();
+ await expect.poll(() => coordinates(rails.nth(0))).toEqual(zoomed);
+ expect(await savedDrawings(page)).toEqual(stored);
+ await page.getByRole("button", { name: "Undo drawing change", exact: true }).click();
+ await expect(rails).toHaveCount(0);
 });

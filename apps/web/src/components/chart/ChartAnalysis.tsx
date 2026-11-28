@@ -340,6 +340,10 @@ export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chart
       if (!moved) return original;
       points.push({ time: dx ? moved.time : anchor.time, price: dy ? moved.price : anchor.price });
     }
+    if (original.tool === "channel" && (handle === 0 || handle === 1) && points[0] && points[1]) {
+      const a = coordinates.toScreen(points[0]), b = coordinates.toScreen(points[1]);
+      if (a && b && distance(a, b) < 2) return original;
+    }
     return { ...original, points };
   }
 
@@ -378,8 +382,8 @@ export function ChartAnalysis({ chartRef, seriesRef, containerRef, market, chart
     } else {
       const b = coordinates.toScreen(pending.points[1]!);
       if (!b) return;
-      const offset = channelOffset(a, b, point);
-      if (Math.abs((b.x - a.x) * offset.y - (b.y - a.y) * offset.x) / distance(a, b) < 2) return;
+      const length = distance(a, b);
+      if (length < 2 || Math.abs((b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x)) / length < 2) return;
     }
     complete(drawing);
   }

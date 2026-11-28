@@ -42,7 +42,10 @@ export function drawingTimeline(scale: ITimeScaleApi<Time>, timeframeSeconds: nu
 
 export function channelOffset(a: XY, b: XY, width?: XY): XY {
   if (!width) return { x: 0, y: -35 }; // Preserve legacy channels saved without a width anchor.
-  if (a.x === b.x) return { x: width.x - a.x, y: 0 };
-  const baseY = a.y + (b.y - a.y) * ((width.x - a.x) / (b.x - a.x));
-  return { x: 0, y: width.y - baseY };
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const wx = width.x - a.x, wy = width.y - a.y;
+  const lengthSquared = dx * dx + dy * dy;
+  // Translate the closest point on the finite baseline to the width anchor.
+  const along = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, (wx * dx + wy * dy) / lengthSquared));
+  return { x: wx - along * dx, y: wy - along * dy };
 }

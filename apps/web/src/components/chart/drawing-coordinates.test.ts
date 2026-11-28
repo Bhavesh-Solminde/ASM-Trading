@@ -26,9 +26,22 @@ describe("drawing coordinates", () => {
 
   it("uses both dimensions of the width anchor and allows both sides of the channel", () => {
     const a = { x: 10, y: 20 }, b = { x: 50, y: 40 };
-    expect(channelOffset(a, b, { x: 30, y: 15 })).toEqual({ x: 0, y: -15 });
-    expect(channelOffset(a, b, { x: 40, y: 50 })).toEqual({ x: 0, y: 15 });
+    expect(channelOffset(a, b, { x: 30, y: 15 })).toEqual({ x: 6, y: -12 });
+    expect(channelOffset(a, b, { x: 40, y: 50 })).toEqual({ x: -6, y: 12 });
     expect(channelOffset(a, { x: 10, y: 40 }, { x: 2, y: 32 })).toEqual({ x: -8, y: 0 });
     expect(channelOffset(a, b, { x: a.x, y: 10 })).toEqual({ x: 0, y: -10 });
+    expect(channelOffset(a, b)).toEqual({ x: 0, y: -35 });
+  });
+
+  it("keeps a nearly vertical rail near the width anchor", () => {
+    const offset = channelOffset({ x: 100, y: 100 }, { x: 101, y: 300 }, { x: 140, y: 190 });
+    expect(offset.x).toBeCloseTo(39.55);
+    expect(offset.y).toBeCloseTo(-.198);
+  });
+
+  it("keeps the width anchor on the rail beyond a baseline endpoint or with coincident endpoints", () => {
+    const a = { x: 100, y: 100 }, b = { x: 101, y: 300 }, width = { x: 140, y: 320 };
+    expect(channelOffset(a, b, width)).toEqual({ x: 39, y: 20 });
+    expect(channelOffset(a, a, width)).toEqual({ x: 40, y: 220 });
   });
 });
